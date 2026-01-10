@@ -8,7 +8,13 @@ function SimpleABNode({ data, selected }) {
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <span className="node-icon">AB</span>
-        <span className="node-title">{data.label || 'Simple A/B'}</span>
+        <input
+          type="text"
+          className="node-title-input"
+          value={data.label || ''}
+          onChange={(e) => data.onChange?.('label', e.target.value)}
+          placeholder="Simple A/B"
+        />
       </div>
       <div className="node-body">
         <div className="node-config">

@@ -33,7 +33,13 @@ function BranchNode({ data, selected }) {
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
         <span className="node-icon">⑃</span>
-        <span className="node-title">{data.label}</span>
+        <input
+          type="text"
+          className="node-title-input"
+          value={data.label || ''}
+          onChange={(e) => data.onChange?.('label', e.target.value)}
+          placeholder="Branch"
+        />
       </div>
       <div className="node-body">
         <div className="node-config">

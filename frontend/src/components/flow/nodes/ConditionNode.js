@@ -60,7 +60,13 @@ function ConditionNode({ data, selected }) {
 
       <div className="node-header">
         <span className="node-icon">?</span>
-        <span className="node-title">{data.label || 'Condition'}</span>
+        <input
+          type="text"
+          className="node-title-input"
+          value={data.label || ''}
+          onChange={(e) => data.onChange?.('label', e.target.value)}
+          placeholder="Condition"
+        />
         <button className="add-else-btn" onClick={addCondition}>Add Else</button>
       </div>
 

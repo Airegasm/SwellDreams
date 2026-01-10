@@ -33,6 +33,34 @@
   text-overflow: ellipsis;
 }
 
+.node-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 4px;
+  margin: -2px 0;
+  min-width: 60px;
+  outline: none;
+}
+
+.node-title-input:hover {
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.node-title-input:focus {
+  border-bottom-color: var(--accent-primary);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.node-title-input::placeholder {
+  color: inherit;
+  opacity: 0.5;
+}
+
 .node-body {
   padding: 10px;
 }
