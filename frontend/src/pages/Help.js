@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import GettingStartedTab from '../components/help/GettingStartedTab';
+import ConversationsTab from '../components/help/ConversationsTab';
 import SystemTab from '../components/help/SystemTab';
 import FlowTab from '../components/help/FlowTab';
+import ExternalApisTab from '../components/help/ExternalApisTab';
 import './Help.css';
 
 const TABS = [
   { id: 'getting-started', label: 'Getting Started' },
+  { id: 'conversations', label: 'Conversations' },
+  { id: 'external-apis', label: 'External APIs' },
   { id: 'system', label: 'System' },
   { id: 'flow', label: 'Flow' }
 ];
@@ -25,6 +29,10 @@ function Help() {
     switch (activeTab) {
       case 'getting-started':
         return <GettingStartedTab />;
+      case 'conversations':
+        return <ConversationsTab />;
+      case 'external-apis':
+        return <ExternalApisTab />;
       case 'system':
         return <SystemTab />;
       case 'flow':

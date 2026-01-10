@@ -649,6 +649,13 @@ class EventEngine {
 
         console.log(`[EventEngine] Broadcasting ai_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
         await this.broadcast('ai_message', broadcastData);
+
+        // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
+        const postDelay = data.postDelay ?? 3;
+        if (postDelay > 0) {
+          console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after AI message`);
+          await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
+        }
         return true;
       }
 
@@ -662,6 +669,13 @@ class EventEngine {
 
         console.log(`[EventEngine] Broadcasting player_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
         await this.broadcast('player_message', broadcastData);
+
+        // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
+        const postDelay = data.postDelay ?? 3;
+        if (postDelay > 0) {
+          console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after player message`);
+          await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
+        }
         return true;
       }
 

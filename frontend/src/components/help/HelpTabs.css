@@ -250,3 +250,54 @@
   padding-bottom: var(--spacing-xs);
   border-bottom: 1px solid var(--border-color);
 }
+
+/* Info Box */
+.info-box {
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  border-left: 4px solid #2196f3;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) 0;
+  color: var(--text-secondary);
+}
+
+.info-box strong {
+  color: #2196f3;
+}
+
+/* Inline Code */
+.section-content code {
+  font-family: 'Courier New', monospace;
+  background: var(--bg-tertiary);
+  color: var(--accent-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  border: 1px solid var(--border-color);
+}
+
+/* Numbered Lists */
+.help-list.numbered {
+  list-style-type: decimal;
+}
+
+.help-list.numbered li {
+  padding-left: var(--spacing-xs);
+}
+
+/* Nested Lists */
+.help-list .help-list {
+  margin-top: var(--spacing-xs);
+  margin-bottom: 0;
+}
+
+/* Links in Help */
+.section-content a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.section-content a:hover {
+  text-decoration: underline;
+}

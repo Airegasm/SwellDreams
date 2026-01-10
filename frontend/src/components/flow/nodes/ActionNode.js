@@ -24,6 +24,18 @@ function ActionNode({ data, selected }) {
               />
               Suppress LLM Enhancement
             </label>
+            <div className="config-row">
+              <label>Post Delay:</label>
+              <input
+                type="number"
+                value={data.postDelay ?? 3}
+                onChange={(e) => data.onChange?.('postDelay', parseFloat(e.target.value) || 0)}
+                min={0}
+                step={0.5}
+                className="node-input small"
+              />
+              <span>s</span>
+            </div>
           </div>
         );
 
