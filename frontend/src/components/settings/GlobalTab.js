@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import './SettingsTabs.css';
@@ -8,6 +8,8 @@ function GlobalTab() {
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [globalPrompt, setGlobalPrompt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  const draftInitialized = useRef(false);
 
   // Global Reminders state
   const [globalReminders, setGlobalReminders] = useState([]);
@@ -15,12 +17,27 @@ function GlobalTab() {
   const [editingReminder, setEditingReminder] = useState(null);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
 
-  // Load global prompt from settings
+  // Load global prompt from settings or restore draft
   useEffect(() => {
-    if (settings?.globalPrompt !== undefined) {
+    const savedDraft = sessionStorage.getItem('global-prompt-draft');
+    if (savedDraft && !draftInitialized.current) {
+      setGlobalPrompt(savedDraft);
+      setHasDraft(true);
+      draftInitialized.current = true;
+    } else if (settings?.globalPrompt !== undefined && !draftInitialized.current) {
       setGlobalPrompt(settings.globalPrompt);
+      draftInitialized.current = true;
     }
   }, [settings?.globalPrompt]);
+
+  // Auto-save global prompt draft
+  useEffect(() => {
+    if (!draftInitialized.current) return;
+    const timeoutId = setTimeout(() => {
+      sessionStorage.setItem('global-prompt-draft', globalPrompt);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [globalPrompt]);
 
   // Load global reminders from settings
   useEffect(() => {
@@ -33,6 +50,9 @@ function GlobalTab() {
     setIsSaving(true);
     try {
       await api.updateSettings({ globalPrompt });
+      // Clear draft on successful save
+      sessionStorage.removeItem('global-prompt-draft');
+      setHasDraft(false);
     } catch (error) {
       console.error('Failed to save global prompt:', error);
     }
@@ -125,7 +145,14 @@ function GlobalTab() {
     <div className="settings-tab">
       {/* Global Prompt / Author Note Section */}
       <div className="global-prompt-section">
-        <h3>Author Note / System Instructions</h3>
+        <div className="section-header-with-draft">
+          <h3>Author Note / System Instructions</h3>
+          {hasDraft && (
+            <span className="draft-indicator" title="Unsaved changes restored from previous session">
+              Draft restored
+            </span>
+          )}
+        </div>
         <p className="text-muted">
           This text is injected into every AI prompt at a high priority position. Use it for persistent instructions,
           writing style guidance, or scenario rules that should always be followed.

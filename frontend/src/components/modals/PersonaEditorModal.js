@@ -1,43 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
-  const [formData, setFormData] = useState({
-    displayName: '',
-    pronouns: 'they/them',
-    appearance: '',
-    personality: '',
-    relationshipWithInflation: '',
-    avatar: ''
-  });
-
-  const [showCropModal, setShowCropModal] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const fileInputRef = React.useRef(null);
-
-  // Initialize form when persona changes
-  useEffect(() => {
-    if (isOpen && persona) {
-      setFormData({
+  // Calculate initial data from persona prop
+  const initialData = useMemo(() => {
+    if (persona) {
+      return {
         displayName: persona.displayName || '',
         pronouns: persona.pronouns || 'they/them',
         appearance: persona.appearance || '',
         personality: persona.personality || '',
         relationshipWithInflation: persona.relationshipWithInflation || '',
         avatar: persona.avatar || ''
-      });
-    } else if (isOpen && !persona) {
-      // New persona
-      setFormData({
-        displayName: '',
-        pronouns: 'they/them',
-        appearance: '',
-        personality: '',
-        relationshipWithInflation: '',
-        avatar: ''
-      });
+      };
     }
-  }, [isOpen, persona]);
+    // New persona defaults
+    return {
+      displayName: '',
+      pronouns: 'they/them',
+      appearance: '',
+      personality: '',
+      relationshipWithInflation: '',
+      avatar: ''
+    };
+  }, [persona]);
+
+  // Use draft persistence - survives accidental modal dismissal
+  const draftKey = getDraftKey('persona', persona?.id);
+  const { formData, setFormData, clearDraft, hasDraft } = useDraft(draftKey, initialData, isOpen);
+
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const fileInputRef = React.useRef(null);
 
   if (!isOpen) return null;
 
@@ -48,6 +43,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       return;
     }
 
+    // Clear draft on successful save
+    clearDraft();
     onSave(formData);
   };
 
@@ -93,6 +90,11 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       <div className="modal persona-editor-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{persona ? 'Edit Persona' : 'New Persona'}</h3>
+          {hasDraft && (
+            <span className="draft-indicator" title="Unsaved changes restored from previous session">
+              Draft restored
+            </span>
+          )}
           <button className="modal-close" onClick={handleCancel}>&times;</button>
         </div>
 

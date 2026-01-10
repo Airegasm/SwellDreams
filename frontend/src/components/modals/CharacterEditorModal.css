@@ -5,6 +5,19 @@
   overflow-y: auto;
 }
 
+/* Draft Indicator */
+.draft-indicator {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: auto;
+  margin-right: 1rem;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
 /* Modal Tabs */
 .modal-tabs {
   display: flex;

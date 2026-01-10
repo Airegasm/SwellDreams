@@ -1,23 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import './CharacterEditorModal.css';
 
 function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const { flows } = useApp();
-  const [formData, setFormData] = useState({
-    name: '',
-    avatar: '',
-    description: '',
-    personality: '',
-    startingEmotion: 'neutral',
-    welcomeMessages: [],
-    scenarios: [],
-    activeWelcomeMessageId: null,
-    activeScenarioId: null,
-    exampleDialogues: [],
-    buttons: [],
-    constantReminders: []
-  });
+
+  // Calculate initial data from character prop
+  const initialData = useMemo(() => {
+    if (character) {
+      const welcomeMessages = character.welcomeMessages || (character.firstMessage ? [
+        { id: 'wm-1', text: character.firstMessage, llmEnhanced: false }
+      ] : []);
+      const scenarios = character.scenarios || (character.scenario ? [
+        { id: 'sc-1', text: character.scenario }
+      ] : []);
+
+      return {
+        name: character.name || '',
+        avatar: character.avatar || '',
+        description: character.description || '',
+        personality: character.personality || '',
+        startingEmotion: character.startingEmotion || 'neutral',
+        welcomeMessages,
+        scenarios,
+        activeWelcomeMessageId: character.activeWelcomeMessageId || (welcomeMessages[0]?.id || null),
+        activeScenarioId: character.activeScenarioId || (scenarios[0]?.id || null),
+        exampleDialogues: character.exampleDialogues || [],
+        buttons: character.buttons || character.events || [],
+        constantReminders: character.constantReminders || []
+      };
+    }
+
+    // New character defaults
+    const initialWelcome = { id: 'wm-1', text: '', llmEnhanced: false };
+    const initialScenario = { id: 'sc-1', text: '' };
+    return {
+      name: '',
+      avatar: '',
+      description: '',
+      personality: '',
+      startingEmotion: 'neutral',
+      welcomeMessages: [initialWelcome],
+      scenarios: [initialScenario],
+      activeWelcomeMessageId: 'wm-1',
+      activeScenarioId: 'sc-1',
+      exampleDialogues: [],
+      buttons: [],
+      constantReminders: []
+    };
+  }, [character]);
+
+  // Use draft persistence - survives accidental modal dismissal
+  const draftKey = getDraftKey('character', character?.id);
+  const { formData, setFormData, clearDraft, hasDraft } = useDraft(draftKey, initialData, isOpen);
 
   const [selectedWelcomeId, setSelectedWelcomeId] = useState(null);
   const [selectedScenarioId, setSelectedScenarioId] = useState(null);
@@ -33,59 +69,15 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [reminderForm, setReminderForm] = useState({ name: '', text: '' });
   const fileInputRef = React.useRef(null);
 
-  // Initialize form when character changes
+  // Sync selected IDs when formData changes (handles draft restoration)
   useEffect(() => {
-    if (isOpen && character) {
-      // Convert old format to new format if needed
-      const welcomeMessages = character.welcomeMessages || (character.firstMessage ? [
-        { id: 'wm-1', text: character.firstMessage, llmEnhanced: false }
-      ] : []);
-
-      const scenarios = character.scenarios || (character.scenario ? [
-        { id: 'sc-1', text: character.scenario }
-      ] : []);
-
-      setFormData({
-        name: character.name || '',
-        avatar: character.avatar || '',
-        description: character.description || '',
-        personality: character.personality || '',
-        startingEmotion: character.startingEmotion || 'neutral',
-        welcomeMessages,
-        scenarios,
-        activeWelcomeMessageId: character.activeWelcomeMessageId || (welcomeMessages[0]?.id || null),
-        activeScenarioId: character.activeScenarioId || (scenarios[0]?.id || null),
-        exampleDialogues: character.exampleDialogues || [],
-        buttons: character.buttons || character.events || [],
-        constantReminders: character.constantReminders || []
-      });
-
-      setSelectedWelcomeId(character.activeWelcomeMessageId || (welcomeMessages[0]?.id || null));
-      setSelectedScenarioId(character.activeScenarioId || (scenarios[0]?.id || null));
-    } else if (isOpen && !character) {
-      // New character
-      const initialWelcome = { id: 'wm-1', text: '', llmEnhanced: false };
-      const initialScenario = { id: 'sc-1', text: '' };
-
-      setFormData({
-        name: '',
-        avatar: '',
-        description: '',
-        personality: '',
-        startingEmotion: 'neutral',
-        welcomeMessages: [initialWelcome],
-        scenarios: [initialScenario],
-        activeWelcomeMessageId: 'wm-1',
-        activeScenarioId: 'sc-1',
-        exampleDialogues: [],
-        buttons: [],
-        constantReminders: []
-      });
-
-      setSelectedWelcomeId('wm-1');
-      setSelectedScenarioId('sc-1');
+    if (isOpen && formData.welcomeMessages?.length > 0) {
+      setSelectedWelcomeId(formData.activeWelcomeMessageId || formData.welcomeMessages[0]?.id || null);
     }
-  }, [isOpen, character]);
+    if (isOpen && formData.scenarios?.length > 0) {
+      setSelectedScenarioId(formData.activeScenarioId || formData.scenarios[0]?.id || null);
+    }
+  }, [isOpen, formData.activeWelcomeMessageId, formData.activeScenarioId, formData.welcomeMessages, formData.scenarios]);
 
   if (!isOpen) return null;
 
@@ -205,6 +197,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       activeScenarioId: selectedScenarioId
     };
 
+    // Clear draft on successful save
+    clearDraft();
     onSave(saveData);
   };
 
@@ -406,6 +400,11 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       <div className="modal character-editor-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{character ? 'Edit Character' : 'New Character'}</h3>
+          {hasDraft && (
+            <span className="draft-indicator" title="Unsaved changes restored from previous session">
+              Draft restored
+            </span>
+          )}
           <button className="modal-close" onClick={handleCancel}>&times;</button>
         </div>
 

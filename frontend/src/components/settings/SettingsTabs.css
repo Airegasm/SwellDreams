@@ -4,6 +4,29 @@
   gap: var(--spacing-lg);
 }
 
+/* Section Header with Draft Indicator */
+.section-header-with-draft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.section-header-with-draft h3 {
+  margin: 0;
+}
+
+/* Draft Indicator */
+.draft-indicator {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
 /* Card-style list items */
 .list-item.card-style {
   flex-direction: column;

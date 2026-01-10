@@ -150,6 +150,8 @@ function FlowEditor() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const draftInitialized = useRef(false);
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState(null);
@@ -575,6 +577,8 @@ function FlowEditor() {
       } else {
         await api.createFlow(flowData);
       }
+      // Clear draft on successful save
+      clearFlowDraft();
       setShowSaveModal(false);
     } catch (error) {
       console.error('Failed to save flow:', error);
@@ -582,6 +586,10 @@ function FlowEditor() {
   };
 
   const handleLoadFlow = useCallback((flow) => {
+    // Reset draft state when loading a new flow
+    draftInitialized.current = false;
+    setHasDraft(false);
+
     setSelectedFlow(flow);
     setFlowName(flow.name);
     setFlowCategory(flow.category || 'character');
@@ -624,6 +632,10 @@ function FlowEditor() {
   }, [devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges]);
 
   const handleNewFlow = () => {
+    // Reset draft state
+    draftInitialized.current = false;
+    setHasDraft(false);
+
     setSelectedFlow(null);
     setFlowName('');
     setFlowCategory('character');
@@ -646,6 +658,79 @@ function FlowEditor() {
       }
     }
   }, [flows, handleLoadFlow, selectedFlow]);
+
+  // Draft persistence - get draft key based on current flow
+  const getDraftKey = useCallback(() => {
+    return selectedFlow ? `flow-draft-${selectedFlow.id}` : 'flow-draft-new';
+  }, [selectedFlow]);
+
+  // Auto-save draft to sessionStorage (debounced)
+  useEffect(() => {
+    if (!draftInitialized.current) return;
+
+    const timeoutId = setTimeout(() => {
+      const draftKey = getDraftKey();
+      // Strip onChange handlers from nodes before saving
+      const cleanNodes = nodes.map(node => {
+        const { onChange, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+        return { ...node, data: cleanData };
+      });
+      const draft = {
+        nodes: cleanNodes,
+        edges,
+        flowName,
+        flowCategory,
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem(draftKey, JSON.stringify(draft));
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timeoutId);
+  }, [nodes, edges, flowName, flowCategory, getDraftKey]);
+
+  // Check for draft when flow selection changes
+  useEffect(() => {
+    const draftKey = getDraftKey();
+    const savedDraft = sessionStorage.getItem(draftKey);
+
+    if (savedDraft && !draftInitialized.current) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        // Only restore if draft is newer than 1 hour
+        if (draft.timestamp && Date.now() - draft.timestamp < 3600000) {
+          // Restore draft
+          const nodesWithHandlers = draft.nodes.map(node => ({
+            ...node,
+            data: {
+              ...node.data,
+              devices,
+              globalReminders,
+              characterReminders,
+              characterButtons,
+              flowVariables,
+              onChange: (field, value) => updateNodeData(node.id, field, value)
+            }
+          }));
+          setNodes(nodesWithHandlers);
+          setEdges(draft.edges || []);
+          if (draft.flowName) setFlowName(draft.flowName);
+          if (draft.flowCategory) setFlowCategory(draft.flowCategory);
+          setHasDraft(true);
+          console.log('[FlowEditor] Restored draft from session');
+        }
+      } catch (e) {
+        console.error('[FlowEditor] Failed to parse draft:', e);
+      }
+    }
+    draftInitialized.current = true;
+  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges]);
+
+  // Clear draft on successful save
+  const clearFlowDraft = useCallback(() => {
+    const draftKey = getDraftKey();
+    sessionStorage.removeItem(draftKey);
+    setHasDraft(false);
+  }, [getDraftKey]);
 
   const handleDeleteFlow = async (flowId) => {
     if (window.confirm('Delete this flow?')) {
@@ -798,6 +883,11 @@ function FlowEditor() {
           <Background variant="dots" gap={12} size={1} />
           <Panel position="top-right">
             <div className="canvas-toolbar">
+              {hasDraft && (
+                <span className="draft-indicator" title="Unsaved changes restored from previous session">
+                  Draft restored
+                </span>
+              )}
               <button
                 className="btn btn-secondary"
                 onClick={handleOrganizeNodes}

@@ -127,6 +127,18 @@
 .canvas-toolbar {
   display: flex;
   gap: var(--spacing-sm);
+  align-items: center;
+}
+
+/* Draft Indicator */
+.canvas-toolbar .draft-indicator {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 193, 7, 0.4);
 }
 
 /* React Flow Overrides */
