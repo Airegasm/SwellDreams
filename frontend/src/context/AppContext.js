@@ -541,6 +541,42 @@ export function AppProvider({ children }) {
       return res.json();
     },
 
+    // Tuya devices (Smart Life, Treatlife, Gosund, etc.)
+    async connectTuya(accessId, accessSecret, region = 'us') {
+      const res = await fetch(`${API_BASE}/api/tuya/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessId, accessSecret, region })
+      });
+      return res.json();
+    },
+    async getTuyaStatus() {
+      const res = await fetch(`${API_BASE}/api/tuya/status`);
+      return res.json();
+    },
+    async scanTuyaDevices() {
+      const res = await fetch(`${API_BASE}/api/tuya/devices`);
+      return res.json();
+    },
+    async tuyaDeviceOn(deviceId) {
+      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/on`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return res.json();
+    },
+    async tuyaDeviceOff(deviceId) {
+      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/off`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return res.json();
+    },
+    async getTuyaDeviceState(deviceId) {
+      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/state`);
+      return res.json();
+    },
+
     // Simulation status
     async getSimulationStatus() {
       const res = await fetch(`${API_BASE}/api/simulation-status`);

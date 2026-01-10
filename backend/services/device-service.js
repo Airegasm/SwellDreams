@@ -1,11 +1,12 @@
 /**
  * Device Service - Multi-brand smart device management
- * Supports: TP-Link Kasa, Govee
+ * Supports: TP-Link Kasa, Govee, Tuya (Smart Life, Treatlife, Gosund, etc.)
  */
 
 const { spawn } = require('child_process');
 const path = require('path');
 const goveeService = require('./govee-service');
+const tuyaService = require('./tuya-service');
 
 const PYTHON_DIR = path.join(__dirname, '..', 'python');
 
@@ -125,6 +126,20 @@ class DeviceService {
         return result;
       }
 
+      if (device?.brand === 'tuya') {
+        const state = await tuyaService.getPowerState(device.deviceId);
+        const result = {
+          state,
+          relay_state: state === 'on' ? 1 : 0
+        };
+        this.deviceStates.set(device.deviceId, {
+          state: result.state,
+          relayState: result.relay_state,
+          lastUpdate: Date.now()
+        });
+        return result;
+      }
+
       // Default: TPLink
       const result = await executePython('kasa_api.py', ['state', ipOrDeviceId]);
       if (!result.error) {
@@ -142,7 +157,7 @@ class DeviceService {
 
   /**
    * Turn device on (routes by brand)
-   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
+   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
    * @param {Object} device - Optional device object with brand info
    */
   async turnOn(ipOrDeviceId, device = null) {
@@ -155,6 +170,17 @@ class DeviceService {
       // Route by brand
       if (device?.brand === 'govee') {
         await goveeService.turnOn(device.deviceId, device.sku);
+        this.deviceStates.set(device.deviceId, {
+          state: 'on',
+          relayState: 1,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_on', { ip: device.deviceId, device });
+        return { success: true, state: 'on' };
+      }
+
+      if (device?.brand === 'tuya') {
+        await tuyaService.turnOn(device.deviceId);
         this.deviceStates.set(device.deviceId, {
           state: 'on',
           relayState: 1,
@@ -182,7 +208,7 @@ class DeviceService {
 
   /**
    * Turn device off (routes by brand)
-   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
+   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
    * @param {Object} device - Optional device object with brand info
    */
   async turnOff(ipOrDeviceId, device = null) {
@@ -195,6 +221,17 @@ class DeviceService {
       // Route by brand
       if (device?.brand === 'govee') {
         await goveeService.turnOff(device.deviceId, device.sku);
+        this.deviceStates.set(device.deviceId, {
+          state: 'off',
+          relayState: 0,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_off', { ip: device.deviceId, device });
+        return { success: true, state: 'off' };
+      }
+
+      if (device?.brand === 'tuya') {
+        await tuyaService.turnOff(device.deviceId);
         this.deviceStates.set(device.deviceId, {
           state: 'off',
           relayState: 0,

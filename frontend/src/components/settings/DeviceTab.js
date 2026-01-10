@@ -25,7 +25,18 @@ function DeviceTab() {
   const [goveeConnecting, setGoveeConnecting] = useState(false);
   const [goveeError, setGoveeError] = useState(null);
 
-  // Check Govee connection status on mount
+  // Tuya state
+  const [tuyaConnected, setTuyaConnected] = useState(false);
+  const [tuyaAccessId, setTuyaAccessId] = useState('');
+  const [tuyaAccessSecret, setTuyaAccessSecret] = useState('');
+  const [tuyaRegion, setTuyaRegion] = useState('us');
+  const [showTuyaConnect, setShowTuyaConnect] = useState(false);
+  const [discoveredTuya, setDiscoveredTuya] = useState([]);
+  const [scanningTuya, setScanningTuya] = useState(false);
+  const [tuyaConnecting, setTuyaConnecting] = useState(false);
+  const [tuyaError, setTuyaError] = useState(null);
+
+  // Check connection status on mount
   useEffect(() => {
     const checkGoveeStatus = async () => {
       try {
@@ -35,7 +46,16 @@ function DeviceTab() {
         console.error('Failed to check Govee status:', error);
       }
     };
+    const checkTuyaStatus = async () => {
+      try {
+        const status = await api.getTuyaStatus();
+        setTuyaConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Tuya status:', error);
+      }
+    };
     checkGoveeStatus();
+    checkTuyaStatus();
   }, [api]);
 
   const handleScan = async () => {
@@ -159,6 +179,85 @@ function DeviceTab() {
       }, 2000);
     } catch (error) {
       console.error('Govee test failed:', error);
+    }
+  };
+
+  // Tuya handlers
+  const handleTuyaConnect = async () => {
+    if (!tuyaAccessId.trim() || !tuyaAccessSecret.trim()) return;
+    setTuyaConnecting(true);
+    setTuyaError(null);
+    try {
+      const result = await api.connectTuya(tuyaAccessId.trim(), tuyaAccessSecret.trim(), tuyaRegion);
+      if (result.success) {
+        setTuyaConnected(true);
+        setShowTuyaConnect(false);
+        setTuyaAccessId('');
+        setTuyaAccessSecret('');
+      } else {
+        setTuyaError(result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Tuya connect failed:', error);
+      setTuyaError('Failed to connect to Tuya');
+    }
+    setTuyaConnecting(false);
+  };
+
+  const handleTuyaScan = async () => {
+    setScanningTuya(true);
+    setDiscoveredTuya([]);
+    setTuyaError(null);
+    try {
+      const result = await api.scanTuyaDevices();
+      if (result.error) {
+        setTuyaError(result.error);
+        setScanningTuya(false);
+        return;
+      }
+      const tuyaDevices = result.devices || [];
+      // Filter out already configured devices
+      const configuredIds = new Set(
+        devices.filter(d => d.brand === 'tuya').map(d => d.deviceId)
+      );
+      const newDevices = tuyaDevices.filter(d => !configuredIds.has(d.id));
+      if (newDevices.length === 0 && tuyaDevices.length === 0) {
+        setTuyaError('No Tuya devices found. Make sure your devices are set up in the Tuya/Smart Life app.');
+      } else if (newDevices.length === 0) {
+        setTuyaError('All Tuya devices are already configured.');
+      }
+      setDiscoveredTuya(newDevices);
+    } catch (error) {
+      console.error('Tuya scan failed:', error);
+      setTuyaError(error.message || 'Failed to scan for Tuya devices');
+    }
+    setScanningTuya(false);
+  };
+
+  const handleAddTuyaDevice = async (tuyaDevice) => {
+    try {
+      await api.addDevice({
+        deviceId: tuyaDevice.id,
+        name: tuyaDevice.name,
+        label: tuyaDevice.name,
+        deviceType: 'PUMP',
+        brand: 'tuya'
+      });
+      // Remove from discovered list
+      setDiscoveredTuya(discoveredTuya.filter(d => d.id !== tuyaDevice.id));
+    } catch (error) {
+      console.error('Failed to add Tuya device:', error);
+    }
+  };
+
+  const handleTestTuyaDevice = async (device) => {
+    try {
+      await api.tuyaDeviceOn(device.deviceId);
+      setTimeout(async () => {
+        await api.tuyaDeviceOff(device.deviceId);
+      }, 2000);
+    } catch (error) {
+      console.error('Tuya test failed:', error);
     }
   };
 
@@ -365,6 +464,120 @@ function DeviceTab() {
         )}
       </div>
 
+      {/* Tuya Section */}
+      <div className="tuya-section">
+        <div className="tab-header">
+          <h3>Tuya / Smart Life Devices</h3>
+          <div className="header-actions">
+            {tuyaConnected && (
+              <span className="connection-status connected">Connected</span>
+            )}
+            {!tuyaConnected && !showTuyaConnect && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowTuyaConnect(true)}
+              >
+                Connect
+              </button>
+            )}
+            {tuyaConnected && (
+              <button
+                className="btn btn-primary"
+                onClick={handleTuyaScan}
+                disabled={scanningTuya}
+              >
+                {scanningTuya ? 'Scanning...' : 'Scan Devices'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tuya Error Message */}
+        {tuyaError && (
+          <div className="tuya-error">
+            {tuyaError}
+          </div>
+        )}
+
+        {/* Tuya Connect Form */}
+        {showTuyaConnect && !tuyaConnected && (
+          <div className="tuya-connect-form">
+            <div className="tuya-form-row">
+              <input
+                type="text"
+                value={tuyaAccessId}
+                onChange={(e) => setTuyaAccessId(e.target.value)}
+                placeholder="Access ID"
+              />
+              <input
+                type="password"
+                value={tuyaAccessSecret}
+                onChange={(e) => setTuyaAccessSecret(e.target.value)}
+                placeholder="Access Secret"
+              />
+              <select
+                value={tuyaRegion}
+                onChange={(e) => setTuyaRegion(e.target.value)}
+                className="tuya-region-select"
+              >
+                <option value="us">US</option>
+                <option value="eu">Europe</option>
+                <option value="cn">China</option>
+                <option value="in">India</option>
+              </select>
+            </div>
+            <div className="tuya-form-actions">
+              <button
+                className="btn btn-primary"
+                onClick={handleTuyaConnect}
+                disabled={tuyaConnecting || !tuyaAccessId.trim() || !tuyaAccessSecret.trim()}
+              >
+                {tuyaConnecting ? 'Connecting...' : 'Connect'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowTuyaConnect(false);
+                  setTuyaAccessId('');
+                  setTuyaAccessSecret('');
+                  setTuyaError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="hint">Get credentials from Tuya IoT Platform: iot.tuya.com → Cloud → Your Project</p>
+          </div>
+        )}
+
+        {/* Discovered Tuya Devices */}
+        {discoveredTuya.length > 0 && (
+          <div className="discovered-section">
+            <h4>Discovered Tuya Devices</h4>
+            <div className="list">
+              {discoveredTuya.map((device) => (
+                <div key={device.id} className="list-item discovered tuya">
+                  <div className="list-item-info">
+                    <div className="list-item-name">{device.name}</div>
+                    <div className="list-item-meta">
+                      <span className="device-category">{device.category}</span>
+                    </div>
+                  </div>
+                  <div className="list-item-actions">
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => handleAddTuyaDevice(device)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Configured Devices */}
       <div className="configured-section">
         <h4>Configured Devices</h4>
@@ -379,7 +592,7 @@ function DeviceTab() {
                 <div className="device-info">
                   <div className="device-header">
                     <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                      {device.brand === 'govee' ? 'Govee' : 'TPLink'}
+                      {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : 'TPLink'}
                     </span>
                     <input
                       type="text"
@@ -390,6 +603,8 @@ function DeviceTab() {
                     />
                     {device.brand === 'govee' ? (
                       <span className="device-sku">{device.sku}</span>
+                    ) : device.brand === 'tuya' ? (
+                      <span className="device-sku">Tuya</span>
                     ) : (
                       <span className="device-ip">{device.ip}</span>
                     )}
@@ -417,19 +632,19 @@ function DeviceTab() {
                     )}
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : handleTestDevice(device.ip)}
+                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip)}
                     >
                       Test
                     </button>
                     <button
                       className="btn btn-sm btn-success"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : api.deviceOn(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOn(device.deviceId) : api.deviceOn(device.ip)}
                     >
                       On
                     </button>
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : api.deviceOff(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOff(device.deviceId) : api.deviceOff(device.ip)}
                     >
                       Off
                     </button>

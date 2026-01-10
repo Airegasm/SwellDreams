@@ -16,6 +16,7 @@ const llmService = require('./services/llm-service');
 const DeviceService = require('./services/device-service');
 const EventEngine = require('./services/event-engine');
 const goveeService = require('./services/govee-service');
+const tuyaService = require('./services/tuya-service');
 
 // Initialize Express
 const app = express();
@@ -789,6 +790,16 @@ const startupSettings = loadData(DATA_FILES.settings) || {};
 if (startupSettings.goveeApiKey) {
   goveeService.setApiKey(startupSettings.goveeApiKey);
   console.log('[Startup] Govee API key loaded');
+}
+
+// Load Tuya credentials from settings if saved
+if (startupSettings.tuyaAccessId && startupSettings.tuyaAccessSecret) {
+  tuyaService.setCredentials(
+    startupSettings.tuyaAccessId,
+    startupSettings.tuyaAccessSecret,
+    startupSettings.tuyaRegion || 'us'
+  );
+  console.log('[Startup] Tuya credentials loaded');
 }
 
 wss.on('connection', async (ws) => {
@@ -2509,6 +2520,93 @@ app.get('/api/govee/devices/:deviceId/state', async (req, res) => {
     res.json({ state, relay_state: state === 'on' ? 1 : 0 });
   } catch (error) {
     console.error('[Govee] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Tuya API Routes
+// ============================================
+
+// Connect to Tuya (save credentials)
+app.post('/api/tuya/connect', async (req, res) => {
+  const { accessId, accessSecret, region } = req.body;
+  if (!accessId || !accessSecret) {
+    return res.status(400).json({ error: 'Access ID and Access Secret required' });
+  }
+
+  tuyaService.setCredentials(accessId, accessSecret, region || 'us');
+  const success = await tuyaService.testConnection();
+
+  if (success) {
+    // Save credentials to settings
+    const settings = loadData(DATA_FILES.settings) || {};
+    settings.tuyaAccessId = accessId;
+    settings.tuyaAccessSecret = accessSecret;
+    settings.tuyaRegion = region || 'us';
+    saveData(DATA_FILES.settings, settings);
+    res.json({ success: true, message: 'Connected to Tuya' });
+  } else {
+    tuyaService.setCredentials(null, null);
+    res.status(401).json({ error: 'Invalid credentials or connection failed' });
+  }
+});
+
+// Check Tuya connection status
+app.get('/api/tuya/status', (req, res) => {
+  res.json({ connected: tuyaService.isConnected() });
+});
+
+// List Tuya devices
+app.get('/api/tuya/devices', async (req, res) => {
+  if (!tuyaService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tuya' });
+  }
+
+  try {
+    const devices = await tuyaService.listDevices();
+    res.json({ devices });
+  } catch (error) {
+    console.error('[Tuya] Failed to list devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Tuya device on
+app.post('/api/tuya/devices/:deviceId/on', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    await tuyaService.turnOn(deviceId);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Tuya] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Tuya device off
+app.post('/api/tuya/devices/:deviceId/off', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    await tuyaService.turnOff(deviceId);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Tuya] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Tuya device state
+app.get('/api/tuya/devices/:deviceId/state', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    const state = await tuyaService.getPowerState(deviceId);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Tuya] Failed to get device state:', error);
     res.status(500).json({ error: error.message });
   }
 });

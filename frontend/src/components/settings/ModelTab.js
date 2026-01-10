@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import './ModelTab.css';
 
+const API_BASE = `http://${window.location.hostname}:8889`;
+
 // Reusable Slider component
 function Slider({ label, value, onChange, min, max, step = 0.01, defaultValue, info }) {
   return (
@@ -145,7 +147,7 @@ function ModelTab() {
     setOpenRouterError(null);
 
     try {
-      const response = await fetch('/api/openrouter/connect', {
+      const response = await fetch(`${API_BASE}/api/openrouter/connect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: openRouterApiKey })
@@ -272,7 +274,7 @@ function ModelTab() {
       if (endpointStandard === 'openrouter' && openRouterApiKey && openRouterModels.length === 0 && !openRouterConnecting) {
         // First try to get cached models from backend
         try {
-          const response = await fetch('/api/openrouter/models');
+          const response = await fetch(`${API_BASE}/api/openrouter/models`);
           const data = await response.json();
           if (data.models && data.models.length > 0) {
             setOpenRouterModels(data.models);
