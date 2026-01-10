@@ -1,0 +1,630 @@
+/* Base Node Styles */
+.custom-node {
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  min-width: 180px;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease;
+}
+
+.custom-node.selected {
+  box-shadow: 0 0 0 2px var(--accent-primary), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.node-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.node-icon {
+  font-size: 14px;
+}
+
+.node-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-body {
+  padding: 10px;
+}
+
+/* Node Type Colors */
+.trigger-node {
+  border-color: #fbbf24;
+}
+
+.trigger-node .node-header {
+  background-color: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.action-node {
+  border-color: #3b82f6;
+}
+
+.action-node .node-header {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.condition-node {
+  border-color: #a855f7;
+}
+
+.condition-node .node-header {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.branch-node {
+  border-color: #ec4899;
+}
+
+.branch-node .node-header {
+  background-color: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+}
+
+.delay-node {
+  border-color: #6b7280;
+}
+
+.delay-node .node-header {
+  background-color: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+}
+
+/* Node Config */
+.node-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-input,
+.node-select,
+.node-textarea {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.node-input:focus,
+.node-select:focus,
+.node-textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.node-input.small {
+  width: 60px;
+}
+
+.node-input.tiny {
+  width: 40px;
+}
+
+.node-textarea {
+  resize: none;
+  min-height: 40px;
+}
+
+.node-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.node-checkbox input {
+  width: 14px;
+  height: 14px;
+}
+
+/* Disabled form groups */
+.form-group.disabled {
+  opacity: 0.5;
+}
+
+.form-group.disabled label {
+  color: var(--text-muted);
+}
+
+.form-group.disabled textarea,
+.form-group.disabled input {
+  background-color: var(--bg-secondary);
+  cursor: not-allowed;
+}
+
+/* Config Rows */
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.config-row label {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+/* Config Hint (for informational triggers) */
+.config-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Condition Node */
+.condition-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.condition-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.probability-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+}
+
+/* Branch Node */
+.branch-type {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.branch-type label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.branches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.branch-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.branch-remove {
+  background: none;
+  border: none;
+  color: var(--accent-error);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+.branch-add {
+  background-color: var(--bg-input);
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 4px;
+  transition: all 0.15s ease;
+}
+
+.branch-add:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Delay Node */
+.delay-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Handle Labels */
+.handle-labels {
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  pointer-events: none;
+}
+
+.handle-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.handle-label.true {
+  color: var(--accent-success);
+}
+
+.handle-label.false {
+  color: var(--accent-error);
+}
+
+.handle-label.immediate {
+  color: var(--accent-success);
+}
+
+.handle-label.completion {
+  color: var(--accent-warning);
+}
+
+.branch-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+/* React Flow Handle Styles */
+.custom-node .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background-color: var(--bg-input);
+  border: 2px solid var(--border-color);
+}
+
+.custom-node .react-flow__handle:hover {
+  background-color: var(--accent-primary);
+}
+
+.trigger-node .react-flow__handle-bottom {
+  border-color: #fbbf24;
+}
+
+.action-node .react-flow__handle {
+  border-color: #3b82f6;
+}
+
+.condition-node .react-flow__handle {
+  border-color: #a855f7;
+}
+
+.branch-node .react-flow__handle {
+  border-color: #ec4899;
+}
+
+.delay-node .react-flow__handle {
+  border-color: #6b7280;
+}
+
+/* Player Choice Node */
+.player-choice-node {
+  border-color: #10b981;
+  min-width: 280px;
+}
+
+.player-choice-node .node-header {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.player-choice-node .react-flow__handle {
+  border-color: #10b981;
+}
+
+.choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choice-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.choice-header {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.choice-remove {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.choice-remove:hover {
+  background-color: #dc2626;
+}
+
+.choice-add {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.choice-add:hover {
+  background-color: #059669;
+}
+
+.choice-labels {
+  display: flex;
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.node-textarea.small {
+  font-size: 10px;
+  min-height: 40px;
+}
+
+/* Player State Change Trigger */
+.priority-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.priority-row .node-checkbox {
+  flex: 0 0 auto;
+}
+
+.priority-row .node-input.tiny {
+  width: 40px;
+}
+
+/* Multi-Condition Node */
+.condition-node.multi-condition {
+  min-width: 320px;
+}
+
+.condition-node .add-else-btn {
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.condition-node .add-else-btn:hover {
+  background-color: #7c3aed;
+}
+
+.conditions-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.condition-row-container {
+  position: relative;
+}
+
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.condition-remove {
+  background-color: var(--accent-error);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.condition-remove:hover {
+  background-color: #dc2626;
+}
+
+.range-separator {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.node-checkbox.compact {
+  font-size: 9px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.node-checkbox.compact input {
+  width: 12px;
+  height: 12px;
+}
+
+/* Right-side TRUE handles for condition node */
+.condition-node.multi-condition .react-flow__handle-right {
+  right: -5px;
+}
+
+.condition-handle-label {
+  position: absolute;
+  right: 12px;
+  font-size: 9px;
+  color: var(--accent-success);
+  font-weight: 600;
+}
+
+/* Bottom FALSE handle */
+.handle-label.bottom-false {
+  position: absolute;
+  bottom: -18px;
+  right: 10px;
+  font-size: 9px;
+  color: var(--accent-error);
+}
+
+/* Multi-Phrase Trigger Nodes */
+.phrases-config {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.phrases-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.phrases-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.add-phrase-btn {
+  background-color: #fbbf24;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.add-phrase-btn:hover {
+  background-color: #f59e0b;
+}
+
+.phrase-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.phrase-remove {
+  background-color: var(--accent-error);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.phrase-remove:hover {
+  background-color: #dc2626;
+}
+
+.phrase-row .node-input {
+  flex: 1;
+}
+
+/* Simple A/B Node */
+.simple-ab-node {
+  border-color: #14b8a6;
+  min-width: 260px;
+}
+
+.simple-ab-node .node-header {
+  background-color: rgba(20, 184, 166, 0.15);
+  color: #14b8a6;
+}
+
+.simple-ab-node .react-flow__handle {
+  border-color: #14b8a6;
+}
+
+.simple-ab-options {
+  display: flex;
+  gap: 8px;
+}
+
+.ab-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.ab-option label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ab-labels {
+  display: flex;
+  position: absolute;
+  bottom: -20px;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.ab-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+  color: #14b8a6;
+}

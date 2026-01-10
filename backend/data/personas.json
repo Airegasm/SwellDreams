@@ -1,0 +1,13 @@
+[
+  {
+    "id": "default-persona",
+    "displayName": "Player",
+    "pronouns": "they/them",
+    "appearance": "",
+    "personality": "",
+    "relationshipWithInflation": "",
+    "avatar": "",
+    "createdAt": 1700000000000,
+    "updatedAt": 1700000000000
+  }
+]

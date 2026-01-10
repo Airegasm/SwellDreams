@@ -1,0 +1,31 @@
+{
+  "llm": {
+    "llmUrl": "",
+    "maxTokens": 200,
+    "contextTokens": 8192,
+    "streaming": true,
+    "temperature": 0.92,
+    "topK": 0,
+    "topP": 0.92,
+    "typicalP": 1,
+    "minP": 0.08,
+    "topA": 0,
+    "tfs": 1,
+    "topNsigma": 0,
+    "repetitionPenalty": 1.05,
+    "repPenRange": 2048,
+    "repPenSlope": 1,
+    "frequencyPenalty": 0.58,
+    "presencePenalty": 0.2,
+    "neutralizeSamplers": false,
+    "samplerOrder": [],
+    "apiType": "auto",
+    "promptTemplate": "chatml"
+  },
+  "activePersonaId": null,
+  "activeCharacterId": "char-006",
+  "activeFlowIds": [],
+  "globalPrompt": "",
+  "globalReminders": [],
+  "globalFlows": []
+}

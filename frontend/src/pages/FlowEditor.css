@@ -1,0 +1,284 @@
+.flow-editor-page {
+  display: flex;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* Sidebar */
+.flow-sidebar {
+  width: 280px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.sidebar-section h3 {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Flow List */
+.flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+}
+
+.flow-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.flow-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.flow-item.active {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+/* Node Palette */
+.node-palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.palette-node {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius);
+  cursor: grab;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.palette-node:hover {
+  transform: translateX(4px);
+}
+
+.palette-node:active {
+  cursor: grabbing;
+}
+
+.palette-node.trigger {
+  background-color: rgba(251, 191, 36, 0.2);
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.palette-node.action {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.palette-node.condition {
+  background-color: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+.palette-node.branch {
+  background-color: rgba(236, 72, 153, 0.2);
+  border-color: #ec4899;
+  color: #ec4899;
+}
+
+.palette-node.delay {
+  background-color: rgba(107, 114, 128, 0.2);
+  border-color: #6b7280;
+  color: #9ca3af;
+}
+
+.palette-node.player-choice {
+  background-color: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.palette-node.simple-ab {
+  background-color: rgba(20, 184, 166, 0.2);
+  border-color: #14b8a6;
+  color: #14b8a6;
+}
+
+/* Canvas */
+.flow-canvas {
+  flex: 1;
+  height: 100%;
+}
+
+.canvas-toolbar {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+/* React Flow Overrides */
+.react-flow__node {
+  font-family: var(--font-family);
+}
+
+.react-flow__controls {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+.react-flow__controls-button {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  fill: var(--text-primary);
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.react-flow__minimap {
+  background-color: var(--bg-secondary);
+}
+
+.react-flow__background {
+  background-color: var(--bg-primary);
+}
+
+/* Flow List Modal */
+.flow-list-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.flow-list-modal::-webkit-scrollbar {
+  width: 12px;
+}
+
+.flow-list-modal::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: var(--border-radius);
+}
+
+.flow-list-modal::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  border: 2px solid var(--bg-secondary);
+}
+
+.flow-list-modal::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.flow-list-modal::-webkit-scrollbar-corner {
+  border-radius: var(--border-radius);
+}
+
+.flow-item-modal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.flow-item-modal:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.flow-item-info {
+  flex: 1;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.flow-item-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.flow-item-category {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Node Context Menu */
+.node-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+  padding: var(--spacing-xs) 0;
+  overflow: hidden;
+}
+
+.node-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.node-context-menu button:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.node-context-menu button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.node-context-menu button.delete {
+  color: var(--accent-error);
+}
+
+.node-context-menu button.delete:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.node-context-menu .menu-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: var(--spacing-xs) 0;
+}
+
+.node-context-menu .menu-icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+}

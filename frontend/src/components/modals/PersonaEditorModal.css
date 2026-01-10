@@ -1,0 +1,163 @@
+.persona-editor-modal {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.persona-editor-modal .modal-body {
+  padding: 1.5rem;
+  max-height: calc(90vh - 160px);
+  overflow-y: auto;
+}
+
+/* Two-column layout for basic info and avatar */
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+}
+
+.editor-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.editor-right {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Avatar Upload Area */
+.avatar-upload-area {
+  width: 100%;
+  aspect-ratio: 3/4;
+  background: var(--bg-tertiary, #1a1a1a);
+  border: 2px dashed var(--border-color, #444);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+}
+
+.avatar-upload-area:hover {
+  border-color: var(--accent-color, #4CAF50);
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.avatar-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-secondary, #999);
+}
+
+.upload-icon {
+  font-size: 3rem;
+}
+
+.upload-text {
+  font-size: 0.9rem;
+}
+
+.avatar-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.persona-editor-modal .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.persona-editor-modal label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.persona-editor-modal input[type="text"],
+.persona-editor-modal textarea,
+.persona-editor-modal select {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg-tertiary, #1a1a1a);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 4px;
+  color: var(--text-primary, #e0e0e0);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.persona-editor-modal textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Scrollbar matching flow modal */
+.persona-editor-modal::-webkit-scrollbar,
+.persona-editor-modal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.persona-editor-modal::-webkit-scrollbar-track,
+.persona-editor-modal .modal-body::-webkit-scrollbar-track {
+  background: var(--bg-primary, #121212);
+}
+
+.persona-editor-modal::-webkit-scrollbar-thumb,
+.persona-editor-modal .modal-body::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary, #2a2a2a);
+  border-radius: 4px;
+}
+
+.persona-editor-modal::-webkit-scrollbar-thumb:hover,
+.persona-editor-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color, #444);
+}
+
+/* Crop Modal */
+.crop-modal {
+  width: 90%;
+  max-width: 600px;
+}
+
+.crop-preview {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-tertiary, #1a1a1a);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.crop-canvas {
+  max-width: 100%;
+  border: 2px solid var(--border-color, #333);
+  border-radius: 4px;
+}
+
+.crop-canvas.portrait {
+  width: 384px;
+  height: 512px;
+  max-height: 60vh;
+}
+
+.crop-preview.portrait {
+  flex-direction: column;
+  align-items: center;
+}
+
+.text-muted {
+  color: var(--text-secondary, #999);
+  font-size: 0.85rem;
+  text-align: center;
+  margin: 0;
+}
