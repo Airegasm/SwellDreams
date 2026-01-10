@@ -36,21 +36,25 @@ if not exist "%SCRIPT_DIR%frontend\node_modules" (
     call npm install
 )
 
-REM Start backend in new window
+REM Start backend in new window with title for easy identification
 echo Starting backend server...
-start "SwellDreams Backend" cmd /c "cd /d "%SCRIPT_DIR%backend" && node server.js"
+start "SwellDreams-Backend" /MIN cmd /c "cd /d "%SCRIPT_DIR%backend" && node server.js"
 
 REM Wait for backend
 timeout /t 2 /nobreak >nul
 
-REM Start frontend
+REM Start frontend in new window
 echo Starting frontend...
-cd /d "%SCRIPT_DIR%frontend"
-call npm start
+start "SwellDreams-Frontend" /MIN cmd /c "cd /d "%SCRIPT_DIR%frontend" && set PORT=3001 && npm start"
 
 echo.
+echo ========================================
 echo SwellDreams is running!
 echo   Backend:  http://localhost:8889
 echo   Frontend: http://localhost:3001
+echo ========================================
+echo.
+echo To stop: run stop.bat or close the
+echo SwellDreams-Backend and SwellDreams-Frontend windows
 echo.
 pause
