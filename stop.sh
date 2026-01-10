@@ -34,6 +34,7 @@ fi
 # Also kill any orphaned processes
 pkill -f "node.*server.js" 2>/dev/null && echo "  Killed orphaned backend processes" && STOPPED=1
 pkill -f "react-scripts start" 2>/dev/null && echo "  Killed orphaned frontend processes" && STOPPED=1
+pkill -f "serve.*build.*3001" 2>/dev/null && echo "  Killed orphaned serve processes" && STOPPED=1
 
 if [ $STOPPED -eq 0 ]; then
     echo "SwellDreams was not running."

@@ -72,7 +72,7 @@ sleep 2
 # Start frontend production server
 echo "Starting frontend server..."
 cd "$SCRIPT_DIR/frontend"
-npm run serve > /dev/null 2>&1 &
+npx serve -s build -l 3001 > /dev/null 2>&1 &
 FRONTEND_PID=$!
 echo $FRONTEND_PID > "$PID_DIR/frontend.pid"
 

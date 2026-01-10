@@ -59,7 +59,7 @@ timeout /t 2 /nobreak >nul
 
 REM Start frontend production server
 echo Starting frontend server...
-start "SwellDreams-Frontend" /MIN cmd /c "cd /d "%SCRIPT_DIR%frontend" && npm run serve"
+start "SwellDreams-Frontend" /MIN cmd /c "cd /d "%SCRIPT_DIR%frontend" && npx serve -s build -l 3001"
 
 echo.
 echo ========================================
