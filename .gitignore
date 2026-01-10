@@ -45,6 +45,9 @@ yarn-error.log*
 backend/data/autosave.json
 backend/data/connection-profiles.json
 backend/data/devices.json
+backend/data/personas.json
+backend/data/characters.json
+backend/data/flows.json
 
 # Settings contains API keys - use settings.template.json instead
 backend/data/settings.json
