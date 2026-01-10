@@ -1069,6 +1069,49 @@ class EventEngine {
         return true;
       }
 
+      case 'toggle_button': {
+        if (!data.buttonId) {
+          console.log('[EventEngine] toggle_button: No buttonId specified');
+          return false;
+        }
+
+        const characters = loadData(DATA_FILES.characters);
+        const settings = loadData(DATA_FILES.settings);
+        const activeCharId = settings?.activeCharacterId;
+
+        if (!characters || !activeCharId) {
+          console.log('[EventEngine] toggle_button: No characters or active character');
+          return false;
+        }
+
+        const character = characters.find(c => c.id === activeCharId);
+        if (!character || !character.buttons) {
+          console.log(`[EventEngine] toggle_button: Character ${activeCharId} not found or has no buttons`);
+          return false;
+        }
+
+        const button = character.buttons.find(b => String(b.buttonId) === String(data.buttonId));
+        if (!button) {
+          console.log(`[EventEngine] toggle_button: Button ${data.buttonId} not found in character`);
+          return false;
+        }
+
+        if (data.action === 'enable') {
+          button.enabled = true;
+          console.log(`[EventEngine] toggle_button: Enabled button "${button.name}" (#${button.buttonId})`);
+        } else if (data.action === 'disable') {
+          button.enabled = false;
+          console.log(`[EventEngine] toggle_button: Disabled button "${button.name}" (#${button.buttonId})`);
+        }
+
+        saveData(DATA_FILES.characters, characters);
+
+        // Broadcast update so frontend can refresh
+        this.broadcast('characters_update', characters);
+
+        return true;
+      }
+
       default:
         return true;
     }

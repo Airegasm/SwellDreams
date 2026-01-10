@@ -149,7 +149,7 @@ function Chat() {
     const pollDeviceStates = async () => {
       const statePromises = devices.map(async (device) => {
         try {
-          const response = await fetch(`/api/devices/${device.ip}/state`);
+          const response = await fetch(`http://${window.location.hostname}:8889/api/devices/${device.ip}/state`);
           const result = await response.json();
           return {
             ip: device.ip,
@@ -1171,8 +1171,9 @@ function Chat() {
               {(activeCharacter.buttons || activeCharacter.events).map(button => (
                 <button
                   key={button.buttonId || button.id}
-                  className="event-button"
-                  onClick={() => handleExecuteButton(button)}
+                  className={`event-button ${button.enabled === false ? 'disabled' : ''}`}
+                  onClick={() => button.enabled !== false && handleExecuteButton(button)}
+                  disabled={button.enabled === false}
                 >
                   {button.name}
                 </button>

@@ -1,0 +1,2886 @@
+[
+  {
+    "id": "flow-elena-001",
+    "name": "Dr. Elena Vance - Clinical Protocol",
+    "description": "Methodical, scheduled inflation with precise monitoring and safety checks",
+    "characterId": "char-001",
+    "nodes": [
+      {
+        "id": "elena-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "elena-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Clinical Greeting",
+          "actionType": "system_message",
+          "message": "Dr. Vance has initiated clinical inflation protocol. Equipment check complete. Baseline measurements recorded."
+        }
+      },
+      {
+        "id": "elena-delay-prep",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Preparation Phase",
+          "duration": 15,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "elena-action-intro",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Introduction",
+          "actionType": "send_message",
+          "message": "Good morning, [Player]. I'm Dr. Vance. Today's procedure involves a controlled abdominal inflation study. I'll be monitoring your vitals throughout. Please try to relax."
+        }
+      },
+      {
+        "id": "elena-delay-setup",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Setup Time",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "elena-action-explain",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Explain Procedure",
+          "actionType": "send_message",
+          "message": "The inflation will proceed in measured intervals. I'll be recording pressure readings and monitoring your response to each stage. Let me know if you experience any unusual sensations."
+        }
+      },
+      {
+        "id": "elena-action-start-cycle",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Inflation Cycle",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 8,
+          "interval": 25,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 30
+        }
+      },
+      {
+        "id": "elena-action-first-reading",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "First Reading",
+          "actionType": "send_message",
+          "message": "Pressure is building nicely. Your vitals look stable. I'm noting a slight increase in abdominal circumference. This is expected."
+        }
+      },
+      {
+        "id": "elena-condition-check",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "Check Capacity",
+          "conditions": [
+            {
+              "variable": "capacity",
+              "operator": ">=",
+              "value": 50,
+              "onlyOnce": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "elena-action-midpoint",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Midpoint Assessment",
+          "actionType": "send_message",
+          "message": "You've reached the midpoint of today's target. Your tolerance is within normal parameters. Shall I continue at the current rate, or would you prefer a brief pause?"
+        }
+      },
+      {
+        "id": "elena-choice-continue",
+        "type": "player_choice",
+        "position": {
+          "x": 650,
+          "y": 300
+        },
+        "data": {
+          "label": "Patient Choice",
+          "prompt": "",
+          "description": "How would you like to proceed?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-continue",
+              "label": "Continue",
+              "description": "Trust the doctor's process and continue."
+            },
+            {
+              "id": "choice-pause",
+              "label": "Request Pause",
+              "description": "Ask for a brief rest period."
+            }
+          ]
+        }
+      },
+      {
+        "id": "elena-action-continue-response",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 250
+        },
+        "data": {
+          "label": "Continue Response",
+          "actionType": "send_message",
+          "message": "Excellent cooperation. I'll proceed with the scheduled intervals. Remember to breathe steadily."
+        }
+      },
+      {
+        "id": "elena-action-pause-response",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 400
+        },
+        "data": {
+          "label": "Pause Response",
+          "actionType": "send_message",
+          "message": "Noted. Taking a brief measurement pause. Your readings are being recorded. We'll resume shortly."
+        }
+      },
+      {
+        "id": "elena-delay-pause",
+        "type": "delay",
+        "position": {
+          "x": 1050,
+          "y": 400
+        },
+        "data": {
+          "label": "Rest Period",
+          "duration": 20,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "elena-trigger-capacity-high",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "High Capacity",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 75,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "elena-action-high-reading",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "High Capacity Note",
+          "actionType": "send_message",
+          "message": "Interesting. Your capacity is exceeding the average for this study. I'm making detailed notes. The data you're providing is quite valuable."
+        }
+      },
+      {
+        "id": "elena-flowaction-emergency",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 650
+        },
+        "data": {
+          "label": "Emergency Protocol"
+        }
+      },
+      {
+        "id": "elena-action-emergency",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 650
+        },
+        "data": {
+          "label": "Emergency Stop",
+          "actionType": "device_off",
+          "device": "primary_pump"
+        }
+      },
+      {
+        "id": "elena-action-emergency-msg",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 650
+        },
+        "data": {
+          "label": "Emergency Message",
+          "actionType": "send_message",
+          "message": "Procedure halted. I've stopped the inflation. Let me check your vitals and ensure you're stable."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "elena-trigger-start",
+        "target": "elena-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "elena-action-welcome",
+        "target": "elena-delay-prep"
+      },
+      {
+        "id": "e3",
+        "source": "elena-delay-prep",
+        "target": "elena-action-intro"
+      },
+      {
+        "id": "e4",
+        "source": "elena-action-intro",
+        "target": "elena-delay-setup"
+      },
+      {
+        "id": "e5",
+        "source": "elena-delay-setup",
+        "target": "elena-action-explain"
+      },
+      {
+        "id": "e6",
+        "source": "elena-action-explain",
+        "target": "elena-action-start-cycle"
+      },
+      {
+        "id": "e7",
+        "source": "elena-action-start-cycle",
+        "target": "elena-action-first-reading",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "elena-action-start-cycle",
+        "target": "elena-condition-check",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "elena-condition-check",
+        "target": "elena-action-midpoint",
+        "sourceHandle": "true-0"
+      },
+      {
+        "id": "e10",
+        "source": "elena-action-midpoint",
+        "target": "elena-choice-continue"
+      },
+      {
+        "id": "e11",
+        "source": "elena-choice-continue",
+        "target": "elena-action-continue-response",
+        "sourceHandle": "choice-continue"
+      },
+      {
+        "id": "e12",
+        "source": "elena-choice-continue",
+        "target": "elena-action-pause-response",
+        "sourceHandle": "choice-pause"
+      },
+      {
+        "id": "e13",
+        "source": "elena-action-pause-response",
+        "target": "elena-delay-pause"
+      },
+      {
+        "id": "e14",
+        "source": "elena-trigger-capacity-high",
+        "target": "elena-action-high-reading"
+      },
+      {
+        "id": "e15",
+        "source": "elena-flowaction-emergency",
+        "target": "elena-action-emergency"
+      },
+      {
+        "id": "e16",
+        "source": "elena-action-emergency",
+        "target": "elena-action-emergency-msg"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-melody-001",
+    "name": "Nurse Melody - Caring Session",
+    "description": "Nurturing, encouraging inflation with comfort-focused care",
+    "characterId": "char-002",
+    "nodes": [
+      {
+        "id": "melody-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "melody-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Warm Welcome",
+          "actionType": "system_message",
+          "message": "Nurse Melody enters the room with a warm smile, carrying soft blankets and checking that everything is comfortable."
+        }
+      },
+      {
+        "id": "melody-delay-settle",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Getting Settled",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "melody-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Greeting",
+          "actionType": "send_message",
+          "message": "Hello sweetie! I'm Melody, and I'll be taking care of you today. How are you feeling? Don't be nervous - I promise to be gentle."
+        }
+      },
+      {
+        "id": "melody-delay-prep",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Preparation",
+          "duration": 15,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "melody-action-comfort",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Comfort Check",
+          "actionType": "send_message",
+          "message": "I'm going to start very slowly, okay? Just breathe nice and deep for me. If anything feels too much, just let me know and we'll take a break."
+        }
+      },
+      {
+        "id": "melody-action-start",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Gentle Inflation",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 5,
+          "interval": 20,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 25
+        }
+      },
+      {
+        "id": "melody-action-encourage",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "Encouragement",
+          "actionType": "send_message",
+          "message": "That's it, you're doing so well! Just relax and let it happen. I'm right here with you."
+        }
+      },
+      {
+        "id": "melody-action-first-pause",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "First Check-in",
+          "actionType": "send_message",
+          "message": "How does that feel, honey? Your tummy is starting to round out so nicely. You're being so brave!"
+        }
+      },
+      {
+        "id": "melody-choice-feeling",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Comfort Check",
+          "prompt": "",
+          "description": "How are you feeling?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-good",
+              "label": "Feeling Good",
+              "description": "Tell her you're comfortable."
+            },
+            {
+              "id": "choice-nervous",
+              "label": "Nervous",
+              "description": "Admit you're feeling anxious."
+            },
+            {
+              "id": "choice-more",
+              "label": "Want More",
+              "description": "Ask her to continue."
+            }
+          ]
+        }
+      },
+      {
+        "id": "melody-action-good-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "data": {
+          "label": "Good Response",
+          "actionType": "send_message",
+          "message": "Oh wonderful! I'm so glad you're comfortable. Let me give you a little tummy rub while we continue. You're doing amazing!"
+        }
+      },
+      {
+        "id": "melody-action-nervous-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 350
+        },
+        "data": {
+          "label": "Nervous Response",
+          "actionType": "send_message",
+          "message": "Aww, it's okay to be nervous, sweetie. That's completely normal. Here, hold my hand. We'll go nice and slow together."
+        }
+      },
+      {
+        "id": "melody-action-more-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 500
+        },
+        "data": {
+          "label": "More Response",
+          "actionType": "send_message",
+          "message": "Oh my, eager aren't we? I love that enthusiasm! Alright, let's see what you can handle, but remember - tell me if it gets too much!"
+        }
+      },
+      {
+        "id": "melody-trigger-capacity-mid",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Mid Capacity",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 50,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "melody-action-praise",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Praise",
+          "actionType": "send_message",
+          "message": "Look at you! Your belly is getting so round and full. You should be so proud of yourself. You're handling this beautifully!"
+        }
+      },
+      {
+        "id": "melody-flowaction-comfort",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 650
+        },
+        "data": {
+          "label": "Extra Comfort"
+        }
+      },
+      {
+        "id": "melody-action-extra-comfort",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 650
+        },
+        "data": {
+          "label": "Comfort Action",
+          "actionType": "send_message",
+          "message": "Let me get you a warm compress for your tummy. There we go... doesn't that feel better? Just breathe and let the warmth relax you."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "melody-trigger-start",
+        "target": "melody-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "melody-action-welcome",
+        "target": "melody-delay-settle"
+      },
+      {
+        "id": "e3",
+        "source": "melody-delay-settle",
+        "target": "melody-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "melody-action-greeting",
+        "target": "melody-delay-prep"
+      },
+      {
+        "id": "e5",
+        "source": "melody-delay-prep",
+        "target": "melody-action-comfort"
+      },
+      {
+        "id": "e6",
+        "source": "melody-action-comfort",
+        "target": "melody-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "melody-action-start",
+        "target": "melody-action-encourage",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "melody-action-start",
+        "target": "melody-action-first-pause",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "melody-action-first-pause",
+        "target": "melody-choice-feeling"
+      },
+      {
+        "id": "e10",
+        "source": "melody-choice-feeling",
+        "target": "melody-action-good-response",
+        "sourceHandle": "choice-good"
+      },
+      {
+        "id": "e11",
+        "source": "melody-choice-feeling",
+        "target": "melody-action-nervous-response",
+        "sourceHandle": "choice-nervous"
+      },
+      {
+        "id": "e12",
+        "source": "melody-choice-feeling",
+        "target": "melody-action-more-response",
+        "sourceHandle": "choice-more"
+      },
+      {
+        "id": "e13",
+        "source": "melody-trigger-capacity-mid",
+        "target": "melody-action-praise"
+      },
+      {
+        "id": "e14",
+        "source": "melody-flowaction-comfort",
+        "target": "melody-action-extra-comfort"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-sasha-001",
+    "name": "Sasha - Intimate Experience",
+    "description": "Playful, teasing, pleasure-focused sensual inflation",
+    "characterId": "char-003",
+    "nodes": [
+      {
+        "id": "sasha-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "sasha-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Sensual Entrance",
+          "actionType": "system_message",
+          "message": "Sasha slinks into the room, dimming the lights to a soft glow. Candles flicker in the corners."
+        }
+      },
+      {
+        "id": "sasha-delay-mood",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Setting Mood",
+          "duration": 8,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "sasha-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Greeting",
+          "actionType": "send_message",
+          "message": "Mmm, hello there, [Player]. I've been looking forward to this... to you. Come, let me make you feel incredible tonight."
+        }
+      },
+      {
+        "id": "sasha-delay-approach",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Approach",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "sasha-action-tease",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Tease",
+          "actionType": "send_message",
+          "message": "I love watching you like this... so vulnerable, so eager. Let's take our time and enjoy every... single... sensation."
+        }
+      },
+      {
+        "id": "sasha-action-start",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Teasing",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 4,
+          "interval": 15,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 20
+        }
+      },
+      {
+        "id": "sasha-action-react",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "Reaction",
+          "actionType": "send_message",
+          "message": "Oh yes... look at you starting to fill. Your body is responding so beautifully to me. Does that feel good?"
+        }
+      },
+      {
+        "id": "sasha-action-touch",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "Intimate Touch",
+          "actionType": "send_message",
+          "message": "Let me run my fingers across your swelling belly... so tight, so sensitive. You're trembling. I love that."
+        }
+      },
+      {
+        "id": "sasha-choice-desire",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Desire Choice",
+          "prompt": "",
+          "description": "What do you want?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-more",
+              "label": "More",
+              "description": "Beg for more sensation."
+            },
+            {
+              "id": "choice-tease",
+              "label": "Tease Me",
+              "description": "Ask her to keep teasing."
+            },
+            {
+              "id": "choice-slow",
+              "label": "Go Slower",
+              "description": "Request a gentler pace."
+            }
+          ]
+        }
+      },
+      {
+        "id": "sasha-action-more-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "data": {
+          "label": "More Response",
+          "actionType": "send_message",
+          "message": "Greedy thing... I like that. You want to feel fuller? Tighter? Let me give you what you crave..."
+        }
+      },
+      {
+        "id": "sasha-action-tease-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 350
+        },
+        "data": {
+          "label": "Tease Response",
+          "actionType": "send_message",
+          "message": "Mmm, you want me to keep you on edge? Watching you squirm is absolutely delicious. Let's see how long you can last..."
+        }
+      },
+      {
+        "id": "sasha-action-slow-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 500
+        },
+        "data": {
+          "label": "Slow Response",
+          "actionType": "send_message",
+          "message": "Of course, darling. We have all the time in the world. Let me savor every inch of you as you slowly expand..."
+        }
+      },
+      {
+        "id": "sasha-trigger-capacity-mid",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Growing Full",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 50,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "sasha-action-admire",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Admiration",
+          "actionType": "send_message",
+          "message": "Oh my... look how round you've become. You're absolutely stunning like this. So full, so perfect. I could worship this belly all night."
+        }
+      },
+      {
+        "id": "sasha-flowaction-intense",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 650
+        },
+        "data": {
+          "label": "Intensify"
+        }
+      },
+      {
+        "id": "sasha-action-intense",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 650
+        },
+        "data": {
+          "label": "Intense Mode",
+          "actionType": "send_message",
+          "message": "You want it intense? Then let go completely... surrender to me and feel everything. Don't hold back those sounds..."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "sasha-trigger-start",
+        "target": "sasha-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "sasha-action-welcome",
+        "target": "sasha-delay-mood"
+      },
+      {
+        "id": "e3",
+        "source": "sasha-delay-mood",
+        "target": "sasha-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "sasha-action-greeting",
+        "target": "sasha-delay-approach"
+      },
+      {
+        "id": "e5",
+        "source": "sasha-delay-approach",
+        "target": "sasha-action-tease"
+      },
+      {
+        "id": "e6",
+        "source": "sasha-action-tease",
+        "target": "sasha-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "sasha-action-start",
+        "target": "sasha-action-react",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "sasha-action-start",
+        "target": "sasha-action-touch",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "sasha-action-touch",
+        "target": "sasha-choice-desire"
+      },
+      {
+        "id": "e10",
+        "source": "sasha-choice-desire",
+        "target": "sasha-action-more-response",
+        "sourceHandle": "choice-more"
+      },
+      {
+        "id": "e11",
+        "source": "sasha-choice-desire",
+        "target": "sasha-action-tease-response",
+        "sourceHandle": "choice-tease"
+      },
+      {
+        "id": "e12",
+        "source": "sasha-choice-desire",
+        "target": "sasha-action-slow-response",
+        "sourceHandle": "choice-slow"
+      },
+      {
+        "id": "e13",
+        "source": "sasha-trigger-capacity-mid",
+        "target": "sasha-action-admire"
+      },
+      {
+        "id": "e14",
+        "source": "sasha-flowaction-intense",
+        "target": "sasha-action-intense"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-jinx-001",
+    "name": "Jinx - Chaotic Game",
+    "description": "Unpredictable, mischievous chaos with random surprises",
+    "characterId": "char-004",
+    "nodes": [
+      {
+        "id": "jinx-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Game Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "jinx-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Chaotic Entrance",
+          "actionType": "system_message",
+          "message": "Jinx cartwheels into the room, knocking over a stack of equipment. She doesn't seem to notice or care."
+        }
+      },
+      {
+        "id": "jinx-delay-chaos",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Chaos Settles",
+          "duration": 5,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "jinx-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Wild Greeting",
+          "actionType": "send_message",
+          "message": "Heya [Player]! Guess what? We're gonna play a game! It's called 'How Big Can You Get Before You Pop?' Don't worry, the rules are simple - there ARE no rules! Hehehehe!"
+        }
+      },
+      {
+        "id": "jinx-branch-start",
+        "type": "branch",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Random Start",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "b1",
+              "label": "Slow Start",
+              "weight": 30
+            },
+            {
+              "id": "b2",
+              "label": "Fast Start",
+              "weight": 40
+            },
+            {
+              "id": "b3",
+              "label": "Surprise",
+              "weight": 30
+            }
+          ]
+        }
+      },
+      {
+        "id": "jinx-action-slow",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 50
+        },
+        "data": {
+          "label": "Slow Approach",
+          "actionType": "send_message",
+          "message": "Hmm, you know what? Let's start sloooow. Build the suspense! The anticipation is the best part, right? ...RIGHT?!"
+        }
+      },
+      {
+        "id": "jinx-action-fast",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 150
+        },
+        "data": {
+          "label": "Fast Approach",
+          "actionType": "send_message",
+          "message": "BORING! Let's skip the boring part! Maximum fun starts NOW!"
+        }
+      },
+      {
+        "id": "jinx-action-surprise",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 250
+        },
+        "data": {
+          "label": "Surprise",
+          "actionType": "send_message",
+          "message": "OOH OOH! I just had the BEST idea! What if we just... see what happens? Life is more fun when it's unpredictable!"
+        }
+      },
+      {
+        "id": "jinx-action-start-slow",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 50
+        },
+        "data": {
+          "label": "Slow Cycle",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 3,
+          "interval": 20,
+          "cycles": 0,
+          "untilType": "forever"
+        }
+      },
+      {
+        "id": "jinx-action-start-fast",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 150
+        },
+        "data": {
+          "label": "Fast Cycle",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 8,
+          "interval": 12,
+          "cycles": 0,
+          "untilType": "forever"
+        }
+      },
+      {
+        "id": "jinx-action-start-random",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 250
+        },
+        "data": {
+          "label": "Random Cycle",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 6,
+          "interval": 15,
+          "cycles": 0,
+          "untilType": "forever"
+        }
+      },
+      {
+        "id": "jinx-branch-comment",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 350
+        },
+        "data": {
+          "label": "Random Comment",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "c1",
+              "label": "Excited",
+              "weight": 40
+            },
+            {
+              "id": "c2",
+              "label": "Distracted",
+              "weight": 30
+            },
+            {
+              "id": "c3",
+              "label": "Menacing",
+              "weight": 30
+            }
+          ]
+        }
+      },
+      {
+        "id": "jinx-action-excited",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Excited",
+          "actionType": "send_message",
+          "message": "OHHH look at your tummy! It's getting bigger! This is SO MUCH FUN! Can we do this every day?!"
+        }
+      },
+      {
+        "id": "jinx-action-distracted",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 400
+        },
+        "data": {
+          "label": "Distracted",
+          "actionType": "send_message",
+          "message": "Hey, did you know that goldfish have a 3-second memory? Wait, what were we doing? Oh right! INFLATION! Hehe!"
+        }
+      },
+      {
+        "id": "jinx-action-menacing",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 500
+        },
+        "data": {
+          "label": "Menacing",
+          "actionType": "send_message",
+          "message": "You know... I wonder what would happen if I just... kept going? And going? And GOING? Wouldn't that be... interesting?"
+        }
+      },
+      {
+        "id": "jinx-trigger-capacity",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "Getting Full",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 60,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "jinx-action-react",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "Big Reaction",
+          "actionType": "send_message",
+          "message": "WHOAAAA! You're getting SO BIG! Like a balloon! Can I poke it? I wanna poke it! *poke poke poke* Hehehehe!"
+        }
+      },
+      {
+        "id": "jinx-flowaction-chaos",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 750
+        },
+        "data": {
+          "label": "More Chaos"
+        }
+      },
+      {
+        "id": "jinx-action-chaos",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 750
+        },
+        "data": {
+          "label": "Chaos Mode",
+          "actionType": "send_message",
+          "message": "CHAOS MODE ACTIVATED! *spins around randomly pressing buttons* Let's see what THIS does! Wheeeee!"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "jinx-trigger-start",
+        "target": "jinx-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "jinx-action-welcome",
+        "target": "jinx-delay-chaos"
+      },
+      {
+        "id": "e3",
+        "source": "jinx-delay-chaos",
+        "target": "jinx-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "jinx-action-greeting",
+        "target": "jinx-branch-start"
+      },
+      {
+        "id": "e5",
+        "source": "jinx-branch-start",
+        "target": "jinx-action-slow",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e6",
+        "source": "jinx-branch-start",
+        "target": "jinx-action-fast",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e7",
+        "source": "jinx-branch-start",
+        "target": "jinx-action-surprise",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e8",
+        "source": "jinx-action-slow",
+        "target": "jinx-action-start-slow"
+      },
+      {
+        "id": "e9",
+        "source": "jinx-action-fast",
+        "target": "jinx-action-start-fast"
+      },
+      {
+        "id": "e10",
+        "source": "jinx-action-surprise",
+        "target": "jinx-action-start-random"
+      },
+      {
+        "id": "e11",
+        "source": "jinx-action-start-slow",
+        "target": "jinx-branch-comment",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e12",
+        "source": "jinx-action-start-fast",
+        "target": "jinx-branch-comment",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e13",
+        "source": "jinx-action-start-random",
+        "target": "jinx-branch-comment",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e14",
+        "source": "jinx-branch-comment",
+        "target": "jinx-action-excited",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e15",
+        "source": "jinx-branch-comment",
+        "target": "jinx-action-distracted",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e16",
+        "source": "jinx-branch-comment",
+        "target": "jinx-action-menacing",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e17",
+        "source": "jinx-trigger-capacity",
+        "target": "jinx-action-react"
+      },
+      {
+        "id": "e18",
+        "source": "jinx-flowaction-chaos",
+        "target": "jinx-action-chaos"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-vera-001",
+    "name": "Mistress Vera - Training Session",
+    "description": "Strict dominance with commands and discipline",
+    "characterId": "char-005",
+    "nodes": [
+      {
+        "id": "vera-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "vera-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Commanding Entrance",
+          "actionType": "system_message",
+          "message": "Mistress Vera enters in sharp heels, the click echoing through the room. Her eyes sweep over you with cold assessment."
+        }
+      },
+      {
+        "id": "vera-delay-assess",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Assessment",
+          "duration": 8,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "vera-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Greeting",
+          "actionType": "send_message",
+          "message": "You will address me as Mistress. You will not speak unless spoken to. You will do exactly as I say, when I say it. Do you understand?"
+        }
+      },
+      {
+        "id": "vera-choice-submit",
+        "type": "player_choice",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Initial Response",
+          "prompt": "",
+          "description": "How do you respond?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-yes",
+              "label": "Yes, Mistress",
+              "description": "Submit and obey."
+            },
+            {
+              "id": "choice-hesitate",
+              "label": "Hesitate",
+              "description": "Show uncertainty."
+            },
+            {
+              "id": "choice-defy",
+              "label": "Defy",
+              "description": "Show resistance."
+            }
+          ]
+        }
+      },
+      {
+        "id": "vera-action-pleased",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 50
+        },
+        "data": {
+          "label": "Pleased",
+          "actionType": "send_message",
+          "message": "Good. You learn quickly. Perhaps you'll survive this training after all. We'll start with something simple."
+        }
+      },
+      {
+        "id": "vera-action-warning",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 150
+        },
+        "data": {
+          "label": "Warning",
+          "actionType": "send_message",
+          "message": "Your hesitation has been noted. I don't tolerate weakness. Consider this your only warning. Now, let us begin your... education."
+        }
+      },
+      {
+        "id": "vera-action-punish",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 250
+        },
+        "data": {
+          "label": "Punishment",
+          "actionType": "send_message",
+          "message": "Defiance? How disappointing. You'll learn that resistance only makes things harder for yourself. Your punishment begins now."
+        }
+      },
+      {
+        "id": "vera-action-start-normal",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Normal Start",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 6,
+          "interval": 18,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 40
+        }
+      },
+      {
+        "id": "vera-action-start-harsh",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 250
+        },
+        "data": {
+          "label": "Harsh Start",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 10,
+          "interval": 12,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 50
+        }
+      },
+      {
+        "id": "vera-action-observe",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 350
+        },
+        "data": {
+          "label": "Observation",
+          "actionType": "send_message",
+          "message": "I'm watching your body's response. Every twitch. Every grimace. You cannot hide anything from me. Your discomfort is... satisfying."
+        }
+      },
+      {
+        "id": "vera-choice-beg",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 350
+        },
+        "data": {
+          "label": "Beg Choice",
+          "prompt": "I want to hear you beg. Beg me for mercy, or beg me for more. Choose wisely.",
+          "description": "What will you do?",
+          "choices": [
+            {
+              "id": "choice-mercy",
+              "label": "Beg for Mercy",
+              "description": "Plead for relief."
+            },
+            {
+              "id": "choice-more",
+              "label": "Beg for More",
+              "description": "Ask for more intensity."
+            }
+          ]
+        }
+      },
+      {
+        "id": "vera-action-mercy-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 300
+        },
+        "data": {
+          "label": "Mercy Response",
+          "actionType": "send_message",
+          "message": "Pathetic. But your suffering is entertaining, so I'll grant you a brief reprieve. Don't mistake this for kindness."
+        }
+      },
+      {
+        "id": "vera-action-more-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 450
+        },
+        "data": {
+          "label": "More Response",
+          "actionType": "send_message",
+          "message": "Now that is unexpected. Perhaps you're more resilient than I thought. Very well... let's test your limits, shall we?"
+        }
+      },
+      {
+        "id": "vera-trigger-capacity",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 550
+        },
+        "data": {
+          "label": "High Capacity",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 70,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "vera-action-impressed",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 550
+        },
+        "data": {
+          "label": "Grudging Praise",
+          "actionType": "send_message",
+          "message": "Impressive endurance. Most subjects have broken by now. Perhaps you're worth keeping after all. Don't let it go to your head."
+        }
+      },
+      {
+        "id": "vera-flowaction-discipline",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 700
+        },
+        "data": {
+          "label": "Discipline"
+        }
+      },
+      {
+        "id": "vera-action-discipline",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 700
+        },
+        "data": {
+          "label": "Discipline Mode",
+          "actionType": "send_message",
+          "message": "You've displeased me. The consequences will be... educational. Remember this moment the next time you think of disobeying."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "vera-trigger-start",
+        "target": "vera-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "vera-action-welcome",
+        "target": "vera-delay-assess"
+      },
+      {
+        "id": "e3",
+        "source": "vera-delay-assess",
+        "target": "vera-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "vera-action-greeting",
+        "target": "vera-choice-submit"
+      },
+      {
+        "id": "e5",
+        "source": "vera-choice-submit",
+        "target": "vera-action-pleased",
+        "sourceHandle": "choice-yes"
+      },
+      {
+        "id": "e6",
+        "source": "vera-choice-submit",
+        "target": "vera-action-warning",
+        "sourceHandle": "choice-hesitate"
+      },
+      {
+        "id": "e7",
+        "source": "vera-choice-submit",
+        "target": "vera-action-punish",
+        "sourceHandle": "choice-defy"
+      },
+      {
+        "id": "e8",
+        "source": "vera-action-pleased",
+        "target": "vera-action-start-normal"
+      },
+      {
+        "id": "e9",
+        "source": "vera-action-warning",
+        "target": "vera-action-start-normal"
+      },
+      {
+        "id": "e10",
+        "source": "vera-action-punish",
+        "target": "vera-action-start-harsh"
+      },
+      {
+        "id": "e11",
+        "source": "vera-action-start-normal",
+        "target": "vera-action-observe",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e12",
+        "source": "vera-action-start-harsh",
+        "target": "vera-action-observe",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e13",
+        "source": "vera-action-observe",
+        "target": "vera-choice-beg"
+      },
+      {
+        "id": "e14",
+        "source": "vera-choice-beg",
+        "target": "vera-action-mercy-response",
+        "sourceHandle": "choice-mercy"
+      },
+      {
+        "id": "e15",
+        "source": "vera-choice-beg",
+        "target": "vera-action-more-response",
+        "sourceHandle": "choice-more"
+      },
+      {
+        "id": "e16",
+        "source": "vera-trigger-capacity",
+        "target": "vera-action-impressed"
+      },
+      {
+        "id": "e17",
+        "source": "vera-flowaction-discipline",
+        "target": "vera-action-discipline"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-claudia-001",
+    "name": "Doctor Claudia - Cold Experimentation",
+    "description": "Detached, clinical experimentation with unsettling precision",
+    "characterId": "char-006",
+    "nodes": [
+      {
+        "id": "claudia-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Experiment Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "claudia-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Clinical Setup",
+          "actionType": "system_message",
+          "message": "The lab is sterile and cold. Doctor Claudia reviews her clipboard, barely acknowledging your presence. Medical equipment hums ominously."
+        }
+      },
+      {
+        "id": "claudia-delay-prep",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Preparation",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "claudia-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Cold Greeting",
+          "actionType": "send_message",
+          "message": "Subject [Player]. Trial 47. Today we will be studying intestinal capacity under controlled inflation conditions. Your comfort is not a factor in this experiment."
+        }
+      },
+      {
+        "id": "claudia-delay-notes",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Taking Notes",
+          "duration": 8,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "claudia-action-explain",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Explain Procedure",
+          "actionType": "send_message",
+          "message": "I'm studying abdominal elasticity and pain thresholds. The data you provide will be... valuable. We'll proceed regardless of your objections."
+        }
+      },
+      {
+        "id": "claudia-action-start",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Experiment",
+          "actionType": "device_on",
+          "device": "primary_pump",
+          "untilType": "capacity",
+          "untilValue": 50,
+          "untilOperator": ">"
+        }
+      },
+      {
+        "id": "claudia-action-observe",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "Observation",
+          "actionType": "send_message",
+          "message": "Initial inflation commencing. I'm noting your physiological responses. The distension is proceeding as expected. Try not to squirm excessively - it affects my readings."
+        }
+      },
+      {
+        "id": "claudia-action-pause-note",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "Pause Note",
+          "actionType": "send_message",
+          "message": "Pausing inflation at current baseline. I need to examine the subject's abdominal response. The distension pattern is... interesting."
+        }
+      },
+      {
+        "id": "claudia-choice-subject",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Subject Response",
+          "prompt": "I'm going to palpate your abdomen now. Describe your sensation level.",
+          "description": "How do you respond to the examination?",
+          "choices": [
+            {
+              "id": "choice-comply",
+              "label": "Comply",
+              "description": "Answer her clinical questions."
+            },
+            {
+              "id": "choice-protest",
+              "label": "Protest",
+              "description": "Object to the treatment."
+            }
+          ]
+        }
+      },
+      {
+        "id": "claudia-action-comply-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 250
+        },
+        "data": {
+          "label": "Comply Response",
+          "actionType": "send_message",
+          "message": "Good. Cooperative subjects yield better data. I'll note your responses in my log. We'll continue to the next phase."
+        }
+      },
+      {
+        "id": "claudia-action-protest-response",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 400
+        },
+        "data": {
+          "label": "Protest Response",
+          "actionType": "send_message",
+          "message": "Your protests are irrelevant and have been noted. Previous subjects who resisted... well, their data was still collected. One way or another."
+        }
+      },
+      {
+        "id": "claudia-action-resume",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 300
+        },
+        "data": {
+          "label": "Resume Experiment",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 8,
+          "interval": 20,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 75
+        }
+      },
+      {
+        "id": "claudia-trigger-capacity-high",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "High Capacity",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 75,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "claudia-action-high-note",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "High Capacity Note",
+          "actionType": "send_message",
+          "message": "Fascinating. Your capacity exceeds the median of my previous subjects. I wonder how much further we can push before... complications arise."
+        }
+      },
+      {
+        "id": "claudia-trigger-capacity-max",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 650
+        },
+        "data": {
+          "label": "Maximum Capacity",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet",
+          "targetValue": 100,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "claudia-action-limit",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 650
+        },
+        "data": {
+          "label": "At Limit",
+          "actionType": "send_message",
+          "message": "Subject has reached maximum recorded capacity. The structural integrity appears to be at its limit. This is where my research becomes truly... illuminating."
+        }
+      },
+      {
+        "id": "claudia-flowaction-overinflate",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 800
+        },
+        "data": {
+          "label": "Overinflate"
+        }
+      },
+      {
+        "id": "claudia-action-overinflate",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 800
+        },
+        "data": {
+          "label": "Overinflation",
+          "actionType": "send_message",
+          "message": "I'm curious to see what happens when we exceed the theoretical maximum. Your contribution to science will be... memorable. Don't worry - I'll take detailed notes."
+        }
+      },
+      {
+        "id": "claudia-action-overinflate-cycle",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 800
+        },
+        "data": {
+          "label": "Push Limits",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 5,
+          "interval": 10,
+          "cycles": 0,
+          "untilType": "forever"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "claudia-trigger-start",
+        "target": "claudia-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "claudia-action-welcome",
+        "target": "claudia-delay-prep"
+      },
+      {
+        "id": "e3",
+        "source": "claudia-delay-prep",
+        "target": "claudia-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "claudia-action-greeting",
+        "target": "claudia-delay-notes"
+      },
+      {
+        "id": "e5",
+        "source": "claudia-delay-notes",
+        "target": "claudia-action-explain"
+      },
+      {
+        "id": "e6",
+        "source": "claudia-action-explain",
+        "target": "claudia-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "claudia-action-start",
+        "target": "claudia-action-observe",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "claudia-action-start",
+        "target": "claudia-action-pause-note",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "claudia-action-pause-note",
+        "target": "claudia-choice-subject"
+      },
+      {
+        "id": "e10",
+        "source": "claudia-choice-subject",
+        "target": "claudia-action-comply-response",
+        "sourceHandle": "choice-comply"
+      },
+      {
+        "id": "e11",
+        "source": "claudia-choice-subject",
+        "target": "claudia-action-protest-response",
+        "sourceHandle": "choice-protest"
+      },
+      {
+        "id": "e12",
+        "source": "claudia-action-comply-response",
+        "target": "claudia-action-resume"
+      },
+      {
+        "id": "e13",
+        "source": "claudia-action-protest-response",
+        "target": "claudia-action-resume"
+      },
+      {
+        "id": "e14",
+        "source": "claudia-trigger-capacity-high",
+        "target": "claudia-action-high-note"
+      },
+      {
+        "id": "e15",
+        "source": "claudia-trigger-capacity-max",
+        "target": "claudia-action-limit"
+      },
+      {
+        "id": "e16",
+        "source": "claudia-flowaction-overinflate",
+        "target": "claudia-action-overinflate"
+      },
+      {
+        "id": "e17",
+        "source": "claudia-action-overinflate",
+        "target": "claudia-action-overinflate-cycle"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-bubbles-001",
+    "name": "Bubbles - Party Time",
+    "description": "Enthusiastic, bubbly celebration atmosphere",
+    "characterId": "char-007",
+    "nodes": [
+      {
+        "id": "bubbles-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Party Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "bubbles-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Party Entrance",
+          "actionType": "system_message",
+          "message": "Bubbles bursts through the door with streamers and confetti. Party music starts playing from somewhere. Balloons are everywhere."
+        }
+      },
+      {
+        "id": "bubbles-delay-setup",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Party Setup",
+          "duration": 5,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "bubbles-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Excited Greeting",
+          "actionType": "send_message",
+          "message": "OH MY GOSH [Player]! You're HERE! This is going to be SO MUCH FUN! I've been planning this party ALL DAY! Are you ready to get PUMPED?! Get it? PUMPED?! Hahahaha!"
+        }
+      },
+      {
+        "id": "bubbles-delay-hype",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Building Hype",
+          "duration": 8,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "bubbles-action-explain",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Party Explanation",
+          "actionType": "send_message",
+          "message": "Okay okay okay, so here's the game! We're gonna see how big and round you can get! Like a human balloon! Isn't that EXCITING?! I brought cake for after!"
+        }
+      },
+      {
+        "id": "bubbles-action-start",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Party Pump",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 5,
+          "interval": 15,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 30
+        }
+      },
+      {
+        "id": "bubbles-action-cheer",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "Cheering",
+          "actionType": "send_message",
+          "message": "WOOHOO! Look at you GO! Your tummy is puffing up like a little balloon! This is the BEST PARTY EVER!"
+        }
+      },
+      {
+        "id": "bubbles-action-first-check",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "Party Check",
+          "actionType": "send_message",
+          "message": "Ohmygosh ohmygosh! You're getting so round! This calls for a celebration dance! *does a little wiggle* How are you feeling, party person?!"
+        }
+      },
+      {
+        "id": "bubbles-choice-party",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Party Response",
+          "prompt": "",
+          "description": "How's the party going?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-amazing",
+              "label": "Amazing!",
+              "description": "Share the excitement!"
+            },
+            {
+              "id": "choice-overwhelmed",
+              "label": "Overwhelmed",
+              "description": "It's a lot to take in."
+            },
+            {
+              "id": "choice-more",
+              "label": "More Party!",
+              "description": "You want more fun!"
+            }
+          ]
+        }
+      },
+      {
+        "id": "bubbles-action-amazing",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "data": {
+          "label": "Amazing Response",
+          "actionType": "send_message",
+          "message": "RIGHT?! I KNEW you'd love it! You're like my FAVORITE party guest EVER! Let's keep this party GOING!"
+        }
+      },
+      {
+        "id": "bubbles-action-overwhelmed",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 350
+        },
+        "data": {
+          "label": "Overwhelmed Response",
+          "actionType": "send_message",
+          "message": "Aww, don't worry! Good overwhelmed, right? Like when there's TOO MUCH cake but you eat it anyway because CAKE! Here, have some confetti! *throws confetti*"
+        }
+      },
+      {
+        "id": "bubbles-action-more",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 500
+        },
+        "data": {
+          "label": "More Response",
+          "actionType": "send_message",
+          "message": "YAAAY! That's the SPIRIT! More party! More puffiness! MORE EVERYTHING! You're the BEST at partying!"
+        }
+      },
+      {
+        "id": "bubbles-trigger-capacity",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 550
+        },
+        "data": {
+          "label": "Big Balloon",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 60,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "bubbles-action-celebrate",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 550
+        },
+        "data": {
+          "label": "Big Celebration",
+          "actionType": "send_message",
+          "message": "WOWOWOWOW! Look how BIG you are! You're like the BEST balloon at the WHOLE party! I'm gonna take a picture! Say 'PUFF'! *snap snap*"
+        }
+      },
+      {
+        "id": "bubbles-flowaction-party",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 700
+        },
+        "data": {
+          "label": "Party Harder"
+        }
+      },
+      {
+        "id": "bubbles-action-party-harder",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 700
+        },
+        "data": {
+          "label": "Maximum Party",
+          "actionType": "send_message",
+          "message": "You know what this party needs? MORE PUMP! LET'S GOOOOO! *cranks up the music and the inflation*"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "bubbles-trigger-start",
+        "target": "bubbles-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "bubbles-action-welcome",
+        "target": "bubbles-delay-setup"
+      },
+      {
+        "id": "e3",
+        "source": "bubbles-delay-setup",
+        "target": "bubbles-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "bubbles-action-greeting",
+        "target": "bubbles-delay-hype"
+      },
+      {
+        "id": "e5",
+        "source": "bubbles-delay-hype",
+        "target": "bubbles-action-explain"
+      },
+      {
+        "id": "e6",
+        "source": "bubbles-action-explain",
+        "target": "bubbles-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "bubbles-action-start",
+        "target": "bubbles-action-cheer",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "bubbles-action-start",
+        "target": "bubbles-action-first-check",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "bubbles-action-first-check",
+        "target": "bubbles-choice-party"
+      },
+      {
+        "id": "e10",
+        "source": "bubbles-choice-party",
+        "target": "bubbles-action-amazing",
+        "sourceHandle": "choice-amazing"
+      },
+      {
+        "id": "e11",
+        "source": "bubbles-choice-party",
+        "target": "bubbles-action-overwhelmed",
+        "sourceHandle": "choice-overwhelmed"
+      },
+      {
+        "id": "e12",
+        "source": "bubbles-choice-party",
+        "target": "bubbles-action-more",
+        "sourceHandle": "choice-more"
+      },
+      {
+        "id": "e13",
+        "source": "bubbles-trigger-capacity",
+        "target": "bubbles-action-celebrate"
+      },
+      {
+        "id": "e14",
+        "source": "bubbles-flowaction-party",
+        "target": "bubbles-action-party-harder"
+      }
+    ],
+    "isActive": true,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-helium-001",
+    "name": "Professor Helium - Scientific Demo",
+    "description": "Educational, theoretical lectures with scientific observations",
+    "characterId": "char-008",
+    "nodes": [
+      {
+        "id": "helium-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Lecture Start",
+          "triggerType": "first_message",
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "helium-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Academic Setting",
+          "actionType": "system_message",
+          "message": "Professor Helium adjusts his glasses and consults his extensive notes. A chalkboard behind him is covered in equations and diagrams."
+        }
+      },
+      {
+        "id": "helium-delay-prep",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Preparation",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "helium-action-greeting",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Academic Greeting",
+          "actionType": "send_message",
+          "message": "Ah yes, [Player], welcome to today's practical demonstration. I'll be illustrating the principles of volumetric expansion in biological systems. Please pay attention - this WILL be on the exam."
+        }
+      },
+      {
+        "id": "helium-delay-lecture",
+        "type": "delay",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Lecture Intro",
+          "duration": 12,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "helium-action-theory",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Theory Explanation",
+          "actionType": "send_message",
+          "message": "Now then, according to Boyle's Law, as we introduce gas into a contained space, the pressure increases inversely to the volume change. In YOUR case, the 'contained space' is, well... you. Fascinating, isn't it?"
+        }
+      },
+      {
+        "id": "helium-action-start",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Demo",
+          "actionType": "start_cycle",
+          "device": "primary_pump",
+          "duration": 6,
+          "interval": 22,
+          "cycles": 0,
+          "untilType": "capacity",
+          "untilValue": 35
+        }
+      },
+      {
+        "id": "helium-action-observe",
+        "type": "action",
+        "position": {
+          "x": 1450,
+          "y": 100
+        },
+        "data": {
+          "label": "Scientific Observation",
+          "actionType": "send_message",
+          "message": "Observe how the abdominal wall begins to distend. This is a perfect example of elastic deformation under pneumatic pressure. Take notes, please."
+        }
+      },
+      {
+        "id": "helium-action-lecture",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 300
+        },
+        "data": {
+          "label": "Mid-Lecture",
+          "actionType": "send_message",
+          "message": "Now, the sensation you're experiencing is caused by mechanoreceptors in the intestinal lining detecting the stretch. Quite educational, wouldn't you say? Any questions so far?"
+        }
+      },
+      {
+        "id": "helium-choice-question",
+        "type": "player_choice",
+        "position": {
+          "x": 450,
+          "y": 300
+        },
+        "data": {
+          "label": "Student Response",
+          "prompt": "",
+          "description": "How do you respond to the lecture?",
+          "sendMessageFirst": false,
+          "choices": [
+            {
+              "id": "choice-interested",
+              "label": "Ask Question",
+              "description": "Show academic interest."
+            },
+            {
+              "id": "choice-confused",
+              "label": "Confused",
+              "description": "Admit you don't understand."
+            },
+            {
+              "id": "choice-practical",
+              "label": "More Practical",
+              "description": "Request less theory, more action."
+            }
+          ]
+        }
+      },
+      {
+        "id": "helium-action-interested",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 200
+        },
+        "data": {
+          "label": "Pleased Professor",
+          "actionType": "send_message",
+          "message": "Excellent question! I appreciate intellectual curiosity. You see, the expansion follows a logarithmic curve until we approach the structural limits of the tissue. Allow me to demonstrate further..."
+        }
+      },
+      {
+        "id": "helium-action-confused",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 350
+        },
+        "data": {
+          "label": "Patient Explanation",
+          "actionType": "send_message",
+          "message": "Hmm, yes, I suppose I should simplify. In layman's terms: air goes in, belly gets big, science happens. Now, where was I? Ah yes, the demonstration continues..."
+        }
+      },
+      {
+        "id": "helium-action-practical",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 500
+        },
+        "data": {
+          "label": "Practical Approach",
+          "actionType": "send_message",
+          "message": "A hands-on learner, I see. Very well, we'll focus on the empirical data. Let's increase the input rate and observe the results directly. Science in action!"
+        }
+      },
+      {
+        "id": "helium-trigger-capacity",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 550
+        },
+        "data": {
+          "label": "Notable Expansion",
+          "triggerType": "player_state_change",
+          "stateType": "capacity",
+          "comparison": "meet_or_exceed",
+          "targetValue": 60,
+          "fireOnlyOnce": true
+        }
+      },
+      {
+        "id": "helium-action-data",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 550
+        },
+        "data": {
+          "label": "Recording Data",
+          "actionType": "send_message",
+          "message": "Remarkable! You've exceeded the standard deviation by 15%. I must document this for my research paper. Your contribution to science is most appreciated, [Player]."
+        }
+      },
+      {
+        "id": "helium-flowaction-advanced",
+        "type": "button_press",
+        "position": {
+          "x": 50,
+          "y": 700
+        },
+        "data": {
+          "label": "Advanced Theory"
+        }
+      },
+      {
+        "id": "helium-action-advanced",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 700
+        },
+        "data": {
+          "label": "Advanced Lecture",
+          "actionType": "send_message",
+          "message": "Now, for the ADVANCED portion of today's lecture, we'll explore what happens as we approach the theoretical maximum capacity. This is where it gets REALLY interesting from a scientific perspective..."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "helium-trigger-start",
+        "target": "helium-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "helium-action-welcome",
+        "target": "helium-delay-prep"
+      },
+      {
+        "id": "e3",
+        "source": "helium-delay-prep",
+        "target": "helium-action-greeting"
+      },
+      {
+        "id": "e4",
+        "source": "helium-action-greeting",
+        "target": "helium-delay-lecture"
+      },
+      {
+        "id": "e5",
+        "source": "helium-delay-lecture",
+        "target": "helium-action-theory"
+      },
+      {
+        "id": "e6",
+        "source": "helium-action-theory",
+        "target": "helium-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "helium-action-start",
+        "target": "helium-action-observe",
+        "sourceHandle": "immediate"
+      },
+      {
+        "id": "e8",
+        "source": "helium-action-start",
+        "target": "helium-action-lecture",
+        "sourceHandle": "completion"
+      },
+      {
+        "id": "e9",
+        "source": "helium-action-lecture",
+        "target": "helium-choice-question"
+      },
+      {
+        "id": "e10",
+        "source": "helium-choice-question",
+        "target": "helium-action-interested",
+        "sourceHandle": "choice-interested"
+      },
+      {
+        "id": "e11",
+        "source": "helium-choice-question",
+        "target": "helium-action-confused",
+        "sourceHandle": "choice-confused"
+      },
+      {
+        "id": "e12",
+        "source": "helium-choice-question",
+        "target": "helium-action-practical",
+        "sourceHandle": "choice-practical"
+      },
+      {
+        "id": "e13",
+        "source": "helium-trigger-capacity",
+        "target": "helium-action-data"
+      },
+      {
+        "id": "e14",
+        "source": "helium-flowaction-advanced",
+        "target": "helium-action-advanced"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  }
+]

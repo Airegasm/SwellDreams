@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import './SettingsTabs.css';
 
@@ -15,6 +15,28 @@ function DeviceTab() {
   const [discovered, setDiscovered] = useState([]);
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualIp, setManualIp] = useState('');
+
+  // Govee state
+  const [goveeConnected, setGoveeConnected] = useState(false);
+  const [goveeApiKey, setGoveeApiKey] = useState('');
+  const [showGoveeConnect, setShowGoveeConnect] = useState(false);
+  const [discoveredGovee, setDiscoveredGovee] = useState([]);
+  const [scanningGovee, setScanningGovee] = useState(false);
+  const [goveeConnecting, setGoveeConnecting] = useState(false);
+  const [goveeError, setGoveeError] = useState(null);
+
+  // Check Govee connection status on mount
+  useEffect(() => {
+    const checkGoveeStatus = async () => {
+      try {
+        const status = await api.getGoveeStatus();
+        setGoveeConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Govee status:', error);
+      }
+    };
+    checkGoveeStatus();
+  }, [api]);
 
   const handleScan = async () => {
     setScanning(true);
@@ -34,7 +56,8 @@ function DeviceTab() {
         ip: deviceInfo.ip,
         name: deviceInfo.name || `Device ${deviceInfo.ip}`,
         label: deviceInfo.name || deviceInfo.ip,
-        deviceType: 'PUMP'
+        deviceType: 'PUMP',
+        brand: 'tplink'
       });
       // Remove from discovered list
       setDiscovered(discovered.filter(d => d.ip !== deviceInfo.ip));
@@ -50,12 +73,92 @@ function DeviceTab() {
         ip: manualIp.trim(),
         name: `Device ${manualIp}`,
         label: manualIp.trim(),
-        deviceType: 'PUMP'
+        deviceType: 'PUMP',
+        brand: 'tplink'
       });
       setManualIp('');
       setShowManualAdd(false);
     } catch (error) {
       console.error('Failed to add device:', error);
+    }
+  };
+
+  // Govee handlers
+  const handleGoveeConnect = async () => {
+    if (!goveeApiKey.trim()) return;
+    setGoveeConnecting(true);
+    try {
+      const result = await api.connectGovee(goveeApiKey.trim());
+      if (result.success) {
+        setGoveeConnected(true);
+        setShowGoveeConnect(false);
+        setGoveeApiKey('');
+      } else {
+        alert('Failed to connect: ' + (result.error || 'Invalid API key'));
+      }
+    } catch (error) {
+      console.error('Govee connect failed:', error);
+      alert('Failed to connect to Govee');
+    }
+    setGoveeConnecting(false);
+  };
+
+  const handleGoveeScan = async () => {
+    setScanningGovee(true);
+    setDiscoveredGovee([]);
+    setGoveeError(null);
+    try {
+      const result = await api.scanGoveeDevices();
+      // Check for error response
+      if (result.error) {
+        setGoveeError(result.error);
+        setScanningGovee(false);
+        return;
+      }
+      const goveeDevices = result.devices || result || [];
+      // Filter out already configured devices
+      const configuredIds = new Set(
+        devices.filter(d => d.brand === 'govee').map(d => d.deviceId)
+      );
+      const newDevices = goveeDevices.filter(d => !configuredIds.has(d.device));
+      if (newDevices.length === 0 && goveeDevices.length === 0) {
+        setGoveeError('No Govee devices found. Make sure your devices are set up in the Govee Home app.');
+      } else if (newDevices.length === 0) {
+        setGoveeError('All Govee devices are already configured.');
+      }
+      setDiscoveredGovee(newDevices);
+    } catch (error) {
+      console.error('Govee scan failed:', error);
+      setGoveeError(error.message || 'Failed to scan for Govee devices');
+    }
+    setScanningGovee(false);
+  };
+
+  const handleAddGoveeDevice = async (goveeDevice) => {
+    try {
+      await api.addDevice({
+        deviceId: goveeDevice.device,
+        sku: goveeDevice.sku,
+        name: goveeDevice.deviceName,
+        label: goveeDevice.deviceName,
+        deviceType: 'PUMP',
+        brand: 'govee'
+      });
+      // Remove from discovered list
+      setDiscoveredGovee(discoveredGovee.filter(d => d.device !== goveeDevice.device));
+    } catch (error) {
+      console.error('Failed to add Govee device:', error);
+    }
+  };
+
+  const handleTestGoveeDevice = async (device) => {
+    try {
+      await api.goveeDeviceOn(device.deviceId, device.sku);
+      setTimeout(async () => {
+        await api.goveeDeviceOff(device.deviceId, device.sku);
+      }, 2000);
+    } catch (error) {
+      console.error('Govee test failed:', error);
     }
   };
 
@@ -144,10 +247,10 @@ function DeviceTab() {
         </div>
       )}
 
-      {/* Discovered Devices */}
+      {/* Discovered TPLink Devices */}
       {discovered.length > 0 && (
         <div className="discovered-section">
-          <h4>Discovered Devices</h4>
+          <h4>Discovered TPLink Devices</h4>
           <div className="list">
             {discovered.map((device) => (
               <div key={device.ip} className="list-item discovered">
@@ -169,6 +272,99 @@ function DeviceTab() {
         </div>
       )}
 
+      {/* Govee Section */}
+      <div className="govee-section">
+        <div className="tab-header">
+          <h3>Govee Devices</h3>
+          <div className="header-actions">
+            {goveeConnected && (
+              <span className="connection-status connected">Connected</span>
+            )}
+            {!goveeConnected && !showGoveeConnect && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowGoveeConnect(true)}
+              >
+                Connect
+              </button>
+            )}
+            {goveeConnected && (
+              <button
+                className="btn btn-primary"
+                onClick={handleGoveeScan}
+                disabled={scanningGovee}
+              >
+                {scanningGovee ? 'Scanning...' : 'Scan Devices'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Govee Error Message */}
+        {goveeError && (
+          <div className="govee-error">
+            {goveeError}
+          </div>
+        )}
+
+        {/* Govee Connect Form */}
+        {showGoveeConnect && !goveeConnected && (
+          <div className="govee-connect-form">
+            <input
+              type="password"
+              value={goveeApiKey}
+              onChange={(e) => setGoveeApiKey(e.target.value)}
+              placeholder="Enter Govee API Key"
+              onKeyDown={(e) => e.key === 'Enter' && handleGoveeConnect()}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={handleGoveeConnect}
+              disabled={goveeConnecting || !goveeApiKey.trim()}
+            >
+              {goveeConnecting ? 'Connecting...' : 'Connect'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setShowGoveeConnect(false);
+                setGoveeApiKey('');
+              }}
+            >
+              Cancel
+            </button>
+            <p className="hint">Get your API key from Govee Home app: Profile → Settings → About Us → Apply for API Key</p>
+          </div>
+        )}
+
+        {/* Discovered Govee Devices */}
+        {discoveredGovee.length > 0 && (
+          <div className="discovered-section">
+            <h4>Discovered Govee Devices</h4>
+            <div className="list">
+              {discoveredGovee.map((device) => (
+                <div key={device.device} className="list-item discovered govee">
+                  <div className="list-item-info">
+                    <div className="list-item-name">{device.deviceName}</div>
+                    <div className="list-item-meta">
+                      <span className="device-sku">{device.sku}</span>
+                    </div>
+                  </div>
+                  <div className="list-item-actions">
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => handleAddGoveeDevice(device)}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Configured Devices */}
       <div className="configured-section">
         <h4>Configured Devices</h4>
@@ -182,6 +378,9 @@ function DeviceTab() {
               <div key={device.id} className="list-item device-item">
                 <div className="device-info">
                   <div className="device-header">
+                    <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
+                      {device.brand === 'govee' ? 'Govee' : 'TPLink'}
+                    </span>
                     <input
                       type="text"
                       className="device-label"
@@ -189,7 +388,11 @@ function DeviceTab() {
                       onChange={(e) => handleUpdateDevice(device.id, { label: e.target.value })}
                       placeholder="Device label"
                     />
-                    <span className="device-ip">{device.ip}</span>
+                    {device.brand === 'govee' ? (
+                      <span className="device-sku">{device.sku}</span>
+                    ) : (
+                      <span className="device-ip">{device.ip}</span>
+                    )}
                   </div>
                   <div className="device-controls">
                     <select
@@ -214,19 +417,19 @@ function DeviceTab() {
                     )}
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => handleTestDevice(device.ip)}
+                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : handleTestDevice(device.ip)}
                     >
                       Test
                     </button>
                     <button
                       className="btn btn-sm btn-success"
-                      onClick={() => api.deviceOn(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : api.deviceOn(device.ip)}
                     >
                       On
                     </button>
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => api.deviceOff(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : api.deviceOff(device.ip)}
                     >
                       Off
                     </button>

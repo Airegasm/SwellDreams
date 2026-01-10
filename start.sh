@@ -16,10 +16,42 @@ echo "  $NAME v$VERSION $CODENAME"
 echo "========================================"
 echo ""
 
-# Check if Node.js is installed
+# Function to install Node.js
+install_node() {
+    echo "Node.js not found. Attempting to install..."
+
+    # Try to detect package manager and install
+    if command -v apt-get &> /dev/null; then
+        echo "Using apt to install Node.js..."
+        sudo apt-get update && sudo apt-get install -y nodejs npm
+    elif command -v dnf &> /dev/null; then
+        echo "Using dnf to install Node.js..."
+        sudo dnf install -y nodejs npm
+    elif command -v pacman &> /dev/null; then
+        echo "Using pacman to install Node.js..."
+        sudo pacman -S --noconfirm nodejs npm
+    elif command -v brew &> /dev/null; then
+        echo "Using Homebrew to install Node.js..."
+        brew install node
+    else
+        echo "Could not detect package manager. Installing via nvm..."
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install --lts
+    fi
+
+    # Verify installation
+    if ! command -v node &> /dev/null; then
+        echo "Error: Failed to install Node.js. Please install manually."
+        exit 1
+    fi
+    echo "Node.js installed successfully: $(node --version)"
+}
+
+# Check if Node.js is installed, install if not
 if ! command -v node &> /dev/null; then
-    echo "Error: Node.js is not installed. Please install Node.js first."
-    exit 1
+    install_node
 fi
 
 # Check if Python3 is installed
@@ -85,6 +117,17 @@ echo "  Backend:  http://localhost:8889"
 echo "  Frontend: http://localhost:3001"
 echo "========================================"
 echo ""
+
+# Open browser
+echo "Opening browser..."
+if command -v xdg-open &> /dev/null; then
+    xdg-open "http://localhost:3001" &> /dev/null &
+elif command -v open &> /dev/null; then
+    open "http://localhost:3001" &> /dev/null &
+elif command -v wslview &> /dev/null; then
+    wslview "http://localhost:3001" &> /dev/null &
+fi
+
 echo "Press Ctrl+C to stop, or run ./stop.sh"
 
 # Cleanup function

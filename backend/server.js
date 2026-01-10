@@ -15,6 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const llmService = require('./services/llm-service');
 const DeviceService = require('./services/device-service');
 const EventEngine = require('./services/event-engine');
+const goveeService = require('./services/govee-service');
 
 // Initialize Express
 const app = express();
@@ -149,6 +150,29 @@ function initializeDataFiles() {
 }
 
 initializeDataFiles();
+
+// ============================================
+// Device Brand Migration
+// ============================================
+// Add brand field to existing devices that don't have it
+function migrateDeviceBrands() {
+  const devices = loadData(DATA_FILES.devices) || [];
+  let migrated = false;
+
+  for (const device of devices) {
+    if (!device.brand) {
+      device.brand = 'tplink'; // Default existing devices to TPLink
+      migrated = true;
+    }
+  }
+
+  if (migrated) {
+    saveData(DATA_FILES.devices, devices);
+    console.log('[Server] Migrated existing devices with brand field');
+  }
+}
+
+migrateDeviceBrands();
 
 // ============================================
 // Simulation Mode Detection
@@ -759,6 +783,13 @@ console.log('[Startup] Flow assignments loaded from persisted data');
 // Activate flows for current character/persona on startup
 activateAssignedFlows();
 console.log('[Startup] Flows activated for current session');
+
+// Load Govee API key from settings if saved
+const startupSettings = loadData(DATA_FILES.settings) || {};
+if (startupSettings.goveeApiKey) {
+  goveeService.setApiKey(startupSettings.goveeApiKey);
+  console.log('[Startup] Govee API key loaded');
+}
 
 wss.on('connection', async (ws) => {
   wsClients.add(ws);
@@ -2382,6 +2413,104 @@ app.post('/api/devices/:ip/cycle/start', async (req, res) => {
 app.post('/api/devices/:ip/cycle/stop', (req, res) => {
   const result = deviceService.stopCycle(req.params.ip);
   res.json(result);
+});
+
+// --- Govee Device API ---
+
+// Connect to Govee (save API key and test connection)
+app.post('/api/govee/connect', async (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'API key required' });
+  }
+
+  goveeService.setApiKey(apiKey);
+  const success = await goveeService.testConnection();
+
+  if (success) {
+    // Save API key to settings
+    const settings = loadData(DATA_FILES.settings) || {};
+    settings.goveeApiKey = apiKey;
+    saveData(DATA_FILES.settings, settings);
+    res.json({ success: true, message: 'Connected to Govee' });
+  } else {
+    goveeService.setApiKey(null);
+    res.status(401).json({ error: 'Invalid API key or connection failed' });
+  }
+});
+
+// Check Govee connection status
+app.get('/api/govee/status', (req, res) => {
+  res.json({ connected: goveeService.isConnected() });
+});
+
+// List Govee devices
+app.get('/api/govee/devices', async (req, res) => {
+  if (!goveeService.isConnected()) {
+    return res.status(401).json({ error: 'Govee not connected' });
+  }
+
+  try {
+    const devices = await goveeService.listDevices();
+    res.json({ devices });
+  } catch (error) {
+    console.error('[Govee] Failed to list devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Govee device ON
+app.post('/api/govee/devices/:deviceId/on', async (req, res) => {
+  const { deviceId } = req.params;
+  const { sku } = req.body;
+
+  if (!sku) {
+    return res.status(400).json({ error: 'SKU required' });
+  }
+
+  try {
+    await goveeService.turnOn(deviceId, sku);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Govee] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Govee device OFF
+app.post('/api/govee/devices/:deviceId/off', async (req, res) => {
+  const { deviceId } = req.params;
+  const { sku } = req.body;
+
+  if (!sku) {
+    return res.status(400).json({ error: 'SKU required' });
+  }
+
+  try {
+    await goveeService.turnOff(deviceId, sku);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Govee] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Govee device state
+app.get('/api/govee/devices/:deviceId/state', async (req, res) => {
+  const { deviceId } = req.params;
+  const { sku } = req.query;
+
+  if (!sku) {
+    return res.status(400).json({ error: 'SKU required as query param' });
+  }
+
+  try {
+    const state = await goveeService.getPowerState(deviceId, sku);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Govee] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- Emergency Stop (ALL devices, flows, and LLM) ---

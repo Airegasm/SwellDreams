@@ -915,6 +915,21 @@
   transform: translateY(0);
 }
 
+.event-button.disabled,
+.event-button:disabled {
+  background-color: var(--bg-secondary);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.event-button.disabled:hover,
+.event-button:disabled:hover {
+  background-color: var(--bg-secondary);
+  transform: none;
+  box-shadow: none;
+}
+
 /* Control Panel Section */
 .control-panel-section {
   border-bottom: 1px solid var(--border-color);

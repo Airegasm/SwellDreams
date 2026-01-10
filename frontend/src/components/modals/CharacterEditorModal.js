@@ -253,8 +253,15 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
 
   const handleAddButton = () => {
     setEditingButtonId(null);
-    setButtonForm({ name: '', buttonId: getNextButtonId(), actions: [] });
+    setButtonForm({ name: '', buttonId: getNextButtonId(), actions: [], enabled: true });
     setShowButtonForm(true);
+  };
+
+  const handleToggleButton = (buttonId, enabled) => {
+    const updatedButtons = formData.buttons.map(b =>
+      b.buttonId === buttonId ? { ...b, enabled } : b
+    );
+    setFormData({ ...formData, buttons: updatedButtons });
   };
 
   const handleEditButton = (button) => {
@@ -771,9 +778,17 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                       <p className="text-muted">No buttons yet. Buttons execute actions like cycling pumps or sending messages.</p>
                     ) : (
                       formData.buttons.map((button) => (
-                        <div key={button.buttonId} className="event-item">
+                        <div key={button.buttonId} className={`event-item ${button.enabled === false ? 'disabled' : ''}`}>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={button.enabled !== false}
+                              onChange={(e) => handleToggleButton(button.buttonId, e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
                           <div className="event-info">
-                            <div className="event-name">{button.name} <span style={{color: '#888'}}>#{button.buttonId}</span></div>
+                            <div className={`event-name ${button.enabled === false ? 'strikethrough' : ''}`}>{button.name} <span style={{color: '#888'}}>#{button.buttonId}</span></div>
                             <div className="event-meta">{button.actions.length} action(s)</div>
                           </div>
                           <div className="event-actions">

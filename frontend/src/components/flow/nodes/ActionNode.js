@@ -294,18 +294,15 @@ function ActionNode({ data, selected }) {
               <option value="custom">Custom Variable</option>
             </select>
 
-            {/* Variable Selection Dropdown */}
+            {/* Variable Selection - Text input for custom, dropdown for system */}
             {data.varType === 'custom' ? (
-              <select
+              <input
+                type="text"
                 value={data.variable || ''}
                 onChange={(e) => data.onChange?.('variable', e.target.value)}
-                className="node-select"
-              >
-                <option value="">Select Variable</option>
-                {flowVars.map(v => (
-                  <option key={v} value={v}>[Flow:{v}]</option>
-                ))}
-              </select>
+                placeholder="Variable name (e.g. myVar)"
+                className="node-input"
+              />
             ) : (
               <select
                 value={data.variable || ''}
@@ -436,6 +433,36 @@ function ActionNode({ data, selected }) {
                 rows={2}
               />
             )}
+          </div>
+        );
+      }
+
+      case 'toggle_button': {
+        const availableButtons = data.characterButtons || [];
+
+        return (
+          <div className="node-config">
+            {/* Button Selector */}
+            <select
+              value={data.buttonId || ''}
+              onChange={(e) => data.onChange?.('buttonId', e.target.value)}
+              className="node-select"
+            >
+              <option value="">Select Button</option>
+              {availableButtons.map(b => (
+                <option key={b.buttonId} value={b.buttonId}>{b.name} #{b.buttonId}</option>
+              ))}
+            </select>
+
+            {/* Enable/Disable */}
+            <select
+              value={data.action || 'enable'}
+              onChange={(e) => data.onChange?.('action', e.target.value)}
+              className="node-select"
+            >
+              <option value="enable">Enable</option>
+              <option value="disable">Disable</option>
+            </select>
           </div>
         );
       }

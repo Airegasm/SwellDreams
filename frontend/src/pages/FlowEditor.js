@@ -75,7 +75,8 @@ const NODE_TEMPLATES = {
     stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '' },
     declare_variable: { label: 'Declare Variable', actionType: 'declare_variable', name: '', value: '' },
     set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '' },
-    toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '' }
+    toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '' },
+    toggle_button: { label: 'Toggle Button', actionType: 'toggle_button', buttonId: '', action: 'enable' }
   },
   condition: {
     default: {
@@ -121,10 +122,11 @@ const getId = () => `node_${nodeId++}`;
 function FlowEditor() {
   const { flows, api, devices, settings, characters } = useApp();
 
-  // Get reminders for flow nodes
+  // Get reminders and buttons for flow nodes
   const globalReminders = settings?.globalReminders || [];
   const activeCharacter = characters?.find(c => c.id === settings?.activeCharacterId);
   const characterReminders = activeCharacter?.constantReminders || [];
+  const characterButtons = activeCharacter?.buttons || [];
 
   // Extract all declared flow variable names from Declare Variable actions across all flows
   const flowVariables = useMemo(() => {
@@ -231,6 +233,7 @@ function FlowEditor() {
         devices,
         globalReminders,
         characterReminders,
+        characterButtons,
         flowVariables,
         onChange: (field, value) => updateNodeData(newNodeId, field, value)
       }
@@ -238,7 +241,7 @@ function FlowEditor() {
 
     setNodes((nds) => nds.concat(newNode));
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, flowVariables, updateNodeData, setNodes, closeContextMenu]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, closeContextMenu]);
 
   const handleUnlinkAll = useCallback(() => {
     if (!contextMenu) return;
@@ -328,6 +331,7 @@ function FlowEditor() {
             devices,
             globalReminders,
             characterReminders,
+            characterButtons,
             flowVariables,
             onChange: (field, value) => updateNodeData(newNodeId, field, value)
           }
@@ -356,6 +360,7 @@ function FlowEditor() {
           devices,
           globalReminders,
           characterReminders,
+          characterButtons,
           flowVariables,
           onChange: (field, value) => updateNodeData(newNodeId, field, value)
         }
@@ -363,7 +368,7 @@ function FlowEditor() {
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
@@ -536,6 +541,7 @@ function FlowEditor() {
           devices,
           globalReminders,
           characterReminders,
+          characterButtons,
           flowVariables,
           onChange: (field, value) => updateNodeData(nodeId, field, value)
         }
@@ -543,7 +549,7 @@ function FlowEditor() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, flowVariables, updateNodeData]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -606,6 +612,7 @@ function FlowEditor() {
         devices,
         globalReminders,
         characterReminders,
+        characterButtons,
         flowVariables,
         onChange: (field, value) => updateNodeData(node.id, field, value)
       }
@@ -614,7 +621,7 @@ function FlowEditor() {
     setNodes(nodesWithHandlers);
     setEdges(flow.edges || []);
     setShowLoadModal(false);
-  }, [devices, globalReminders, characterReminders, flowVariables, updateNodeData, setNodes, setEdges]);
+  }, [devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges]);
 
   const handleNewFlow = () => {
     setSelectedFlow(null);

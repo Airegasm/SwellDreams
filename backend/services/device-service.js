@@ -1,9 +1,11 @@
 /**
- * Device Service - TP-Link Kasa device management
+ * Device Service - Multi-brand smart device management
+ * Supports: TP-Link Kasa, Govee
  */
 
 const { spawn } = require('child_process');
 const path = require('path');
+const goveeService = require('./govee-service');
 
 const PYTHON_DIR = path.join(__dirname, '..', 'python');
 
@@ -97,13 +99,36 @@ class DeviceService {
   }
 
   /**
-   * Get device state
+   * Get device state (routes by brand)
+   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
+   * @param {Object} device - Optional device object with brand info
    */
-  async getDeviceState(ip) {
+  async getDeviceState(ipOrDeviceId, device = null) {
+    // Try to get device from registered devices if not provided
+    if (!device) {
+      device = this.devices.get(ipOrDeviceId);
+    }
+
     try {
-      const result = await executePython('kasa_api.py', ['state', ip]);
+      // Route by brand
+      if (device?.brand === 'govee') {
+        const state = await goveeService.getPowerState(device.deviceId, device.sku);
+        const result = {
+          state,
+          relay_state: state === 'on' ? 1 : 0
+        };
+        this.deviceStates.set(device.deviceId, {
+          state: result.state,
+          relayState: result.relay_state,
+          lastUpdate: Date.now()
+        });
+        return result;
+      }
+
+      // Default: TPLink
+      const result = await executePython('kasa_api.py', ['state', ipOrDeviceId]);
       if (!result.error) {
-        this.deviceStates.set(ip, {
+        this.deviceStates.set(ipOrDeviceId, {
           state: result.state,
           relayState: result.relay_state,
           lastUpdate: Date.now()
@@ -116,18 +141,38 @@ class DeviceService {
   }
 
   /**
-   * Turn device on
+   * Turn device on (routes by brand)
+   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
+   * @param {Object} device - Optional device object with brand info
    */
-  async turnOn(ip) {
+  async turnOn(ipOrDeviceId, device = null) {
+    // Try to get device from registered devices if not provided
+    if (!device) {
+      device = this.devices.get(ipOrDeviceId);
+    }
+
     try {
-      const result = await executePython('kasa_api.py', ['on', ip]);
-      if (!result.error) {
-        this.deviceStates.set(ip, {
+      // Route by brand
+      if (device?.brand === 'govee') {
+        await goveeService.turnOn(device.deviceId, device.sku);
+        this.deviceStates.set(device.deviceId, {
           state: 'on',
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip, device: this.devices.get(ip) });
+        this.emitEvent('device_on', { ip: device.deviceId, device });
+        return { success: true, state: 'on' };
+      }
+
+      // Default: TPLink
+      const result = await executePython('kasa_api.py', ['on', ipOrDeviceId]);
+      if (!result.error) {
+        this.deviceStates.set(ipOrDeviceId, {
+          state: 'on',
+          relayState: 1,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_on', { ip: ipOrDeviceId, device: this.devices.get(ipOrDeviceId) });
       }
       return result;
     } catch (error) {
@@ -136,18 +181,38 @@ class DeviceService {
   }
 
   /**
-   * Turn device off
+   * Turn device off (routes by brand)
+   * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
+   * @param {Object} device - Optional device object with brand info
    */
-  async turnOff(ip) {
+  async turnOff(ipOrDeviceId, device = null) {
+    // Try to get device from registered devices if not provided
+    if (!device) {
+      device = this.devices.get(ipOrDeviceId);
+    }
+
     try {
-      const result = await executePython('kasa_api.py', ['off', ip]);
-      if (!result.error) {
-        this.deviceStates.set(ip, {
+      // Route by brand
+      if (device?.brand === 'govee') {
+        await goveeService.turnOff(device.deviceId, device.sku);
+        this.deviceStates.set(device.deviceId, {
           state: 'off',
           relayState: 0,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_off', { ip, device: this.devices.get(ip) });
+        this.emitEvent('device_off', { ip: device.deviceId, device });
+        return { success: true, state: 'off' };
+      }
+
+      // Default: TPLink
+      const result = await executePython('kasa_api.py', ['off', ipOrDeviceId]);
+      if (!result.error) {
+        this.deviceStates.set(ipOrDeviceId, {
+          state: 'off',
+          relayState: 0,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_off', { ip: ipOrDeviceId, device: this.devices.get(ipOrDeviceId) });
       }
       return result;
     } catch (error) {
@@ -276,19 +341,22 @@ class DeviceService {
   }
 
   /**
-   * Register a device
+   * Register a device (supports both TPLink and Govee)
    */
   registerDevice(device) {
-    this.devices.set(device.ip, device);
+    // Use ip for TPLink, deviceId for Govee
+    const key = device.brand === 'govee' ? device.deviceId : device.ip;
+    this.devices.set(key, device);
   }
 
   /**
    * Unregister a device
+   * @param {string} ipOrDeviceId - IP for TPLink, deviceId for Govee
    */
-  unregisterDevice(ip) {
-    this.stopCycle(ip);
-    this.devices.delete(ip);
-    this.deviceStates.delete(ip);
+  unregisterDevice(ipOrDeviceId) {
+    this.stopCycle(ipOrDeviceId);
+    this.devices.delete(ipOrDeviceId);
+    this.deviceStates.delete(ipOrDeviceId);
   }
 
   /**

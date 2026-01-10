@@ -503,6 +503,44 @@ export function AppProvider({ children }) {
       return res.json();
     },
 
+    // Govee devices
+    async connectGovee(apiKey) {
+      const res = await fetch(`${API_BASE}/api/govee/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey })
+      });
+      return res.json();
+    },
+    async getGoveeStatus() {
+      const res = await fetch(`${API_BASE}/api/govee/status`);
+      return res.json();
+    },
+    async scanGoveeDevices() {
+      const res = await fetch(`${API_BASE}/api/govee/devices`);
+      return res.json();
+    },
+    async goveeDeviceOn(deviceId, sku) {
+      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/on`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku })
+      });
+      return res.json();
+    },
+    async goveeDeviceOff(deviceId, sku) {
+      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/off`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku })
+      });
+      return res.json();
+    },
+    async getGoveeDeviceState(deviceId, sku) {
+      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/state?sku=${encodeURIComponent(sku)}`);
+      return res.json();
+    },
+
     // Simulation status
     async getSimulationStatus() {
       const res = await fetch(`${API_BASE}/api/simulation-status`);
