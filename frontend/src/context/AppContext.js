@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
 const AppContext = createContext(null);
 
+// API base URL - in production, frontend runs on different port than backend
+const API_BASE = `http://${window.location.hostname}:8889`;
+
 export function AppProvider({ children }) {
   // WebSocket connection
   const ws = useRef(null);
@@ -330,11 +333,11 @@ export function AppProvider({ children }) {
   const api = {
     // Settings
     async getSettings() {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`${API_BASE}/api/settings`);
       return res.json();
     },
     async updateSettings(data) {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${API_BASE}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -342,7 +345,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updateLlmSettings(data) {
-      const res = await fetch('/api/settings/llm', {
+      const res = await fetch(`${API_BASE}/api/settings/llm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -352,7 +355,7 @@ export function AppProvider({ children }) {
 
     // LLM
     async testLlm(settings) {
-      const res = await fetch('/api/llm/test', {
+      const res = await fetch(`${API_BASE}/api/llm/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -362,11 +365,11 @@ export function AppProvider({ children }) {
 
     // Connection Profiles
     async getConnectionProfiles() {
-      const res = await fetch('/api/connection-profiles');
+      const res = await fetch(`${API_BASE}/api/connection-profiles`);
       return res.json();
     },
     async createConnectionProfile(data) {
-      const res = await fetch('/api/connection-profiles', {
+      const res = await fetch(`${API_BASE}/api/connection-profiles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -374,7 +377,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updateConnectionProfile(id, data) {
-      const res = await fetch(`/api/connection-profiles/${id}`, {
+      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -382,21 +385,21 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async deleteConnectionProfile(id) {
-      const res = await fetch(`/api/connection-profiles/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}`, { method: 'DELETE' });
       return res.json();
     },
     async activateConnectionProfile(id) {
-      const res = await fetch(`/api/connection-profiles/${id}/activate`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}/activate`, { method: 'POST' });
       return res.json();
     },
 
     // Personas
     async getPersonas() {
-      const res = await fetch('/api/personas');
+      const res = await fetch(`${API_BASE}/api/personas`);
       return res.json();
     },
     async createPersona(data) {
-      const res = await fetch('/api/personas', {
+      const res = await fetch(`${API_BASE}/api/personas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -404,7 +407,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updatePersona(id, data) {
-      const res = await fetch(`/api/personas/${id}`, {
+      const res = await fetch(`${API_BASE}/api/personas/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -412,17 +415,17 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async deletePersona(id) {
-      const res = await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/personas/${id}`, { method: 'DELETE' });
       return res.json();
     },
 
     // Characters
     async getCharacters() {
-      const res = await fetch('/api/characters');
+      const res = await fetch(`${API_BASE}/api/characters`);
       return res.json();
     },
     async createCharacter(data) {
-      const res = await fetch('/api/characters', {
+      const res = await fetch(`${API_BASE}/api/characters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -430,7 +433,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updateCharacter(id, data) {
-      const res = await fetch(`/api/characters/${id}`, {
+      const res = await fetch(`${API_BASE}/api/characters/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -438,17 +441,17 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async deleteCharacter(id) {
-      const res = await fetch(`/api/characters/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/characters/${id}`, { method: 'DELETE' });
       return res.json();
     },
 
     // Devices
     async getDevices() {
-      const res = await fetch('/api/devices');
+      const res = await fetch(`${API_BASE}/api/devices`);
       return res.json();
     },
     async scanDevices(timeout = 10) {
-      const res = await fetch('/api/devices/scan', {
+      const res = await fetch(`${API_BASE}/api/devices/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timeout })
@@ -456,7 +459,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async addDevice(data) {
-      const res = await fetch('/api/devices', {
+      const res = await fetch(`${API_BASE}/api/devices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -464,7 +467,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updateDevice(id, data) {
-      const res = await fetch(`/api/devices/${id}`, {
+      const res = await fetch(`${API_BASE}/api/devices/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -472,19 +475,19 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async deleteDevice(id) {
-      const res = await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/devices/${id}`, { method: 'DELETE' });
       return res.json();
     },
     async deviceOn(ip) {
-      const res = await fetch(`/api/devices/${ip}/on`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/devices/${ip}/on`, { method: 'POST' });
       return res.json();
     },
     async deviceOff(ip) {
-      const res = await fetch(`/api/devices/${ip}/off`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/devices/${ip}/off`, { method: 'POST' });
       return res.json();
     },
     async startCycle(ip, options) {
-      const res = await fetch(`/api/devices/${ip}/cycle/start`, {
+      const res = await fetch(`${API_BASE}/api/devices/${ip}/cycle/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(options)
@@ -492,27 +495,27 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async stopCycle(ip) {
-      const res = await fetch(`/api/devices/${ip}/cycle/stop`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/devices/${ip}/cycle/stop`, { method: 'POST' });
       return res.json();
     },
     async emergencyStop() {
-      const res = await fetch('/api/emergency-stop', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/emergency-stop`, { method: 'POST' });
       return res.json();
     },
 
     // Simulation status
     async getSimulationStatus() {
-      const res = await fetch('/api/simulation-status');
+      const res = await fetch(`${API_BASE}/api/simulation-status`);
       return res.json();
     },
 
     // Flows
     async getFlows() {
-      const res = await fetch('/api/flows');
+      const res = await fetch(`${API_BASE}/api/flows`);
       return res.json();
     },
     async createFlow(data) {
-      const res = await fetch('/api/flows', {
+      const res = await fetch(`${API_BASE}/api/flows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -520,7 +523,7 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async updateFlow(id, data) {
-      const res = await fetch(`/api/flows/${id}`, {
+      const res = await fetch(`${API_BASE}/api/flows/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -528,17 +531,17 @@ export function AppProvider({ children }) {
       return res.json();
     },
     async deleteFlow(id) {
-      const res = await fetch(`/api/flows/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/flows/${id}`, { method: 'DELETE' });
       return res.json();
     },
 
     // Session
     async resetSession() {
-      const res = await fetch('/api/session/reset', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/session/reset`, { method: 'POST' });
       return res.json();
     },
     async saveSession(data) {
-      const res = await fetch('/api/sessions/save', {
+      const res = await fetch(`${API_BASE}/api/sessions/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -549,15 +552,15 @@ export function AppProvider({ children }) {
       const params = new URLSearchParams();
       if (personaId) params.append('personaId', personaId);
       if (characterId) params.append('characterId', characterId);
-      const res = await fetch(`/api/sessions/list?${params}`);
+      const res = await fetch(`${API_BASE}/api/sessions/list?${params}`);
       return res.json();
     },
     async loadSession(id) {
-      const res = await fetch(`/api/sessions/${id}/load`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/sessions/${id}/load`, { method: 'POST' });
       return res.json();
     },
     async deleteSession(id) {
-      const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/sessions/${id}`, { method: 'DELETE' });
       return res.json();
     }
   };
@@ -604,7 +607,7 @@ export function AppProvider({ children }) {
       if (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) {
         try {
           // First check if we have cached models
-          const cachedRes = await fetch('/api/openrouter/models');
+          const cachedRes = await fetch(`${API_BASE}/api/openrouter/models`);
           const cachedData = await cachedRes.json();
           if (cachedData.models && cachedData.models.length > 0) {
             console.log('[AppContext] OpenRouter models already cached');
@@ -612,7 +615,7 @@ export function AppProvider({ children }) {
           }
           // If not cached, connect to OpenRouter
           console.log('[AppContext] Auto-connecting to OpenRouter...');
-          const res = await fetch('/api/openrouter/connect', {
+          const res = await fetch(`${API_BASE}/api/openrouter/connect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: settings.llm.openRouterApiKey })
