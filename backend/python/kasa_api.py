@@ -2,6 +2,7 @@
 """
 Kasa API Wrapper for SwellDreams
 Command-line interface for controlling Kasa devices from JavaScript
+Supports single-outlet and multi-outlet (power strip) devices
 """
 
 import sys
@@ -18,10 +19,11 @@ def main():
             "commands": {
                 "discover": "Discover devices on network",
                 "info": "Get device info (requires ip)",
-                "state": "Get device state (requires ip)",
-                "on": "Turn device on (requires ip)",
-                "off": "Turn device off (requires ip)",
-                "toggle": "Toggle device state (requires ip)",
+                "state": "Get device state (requires ip, optional child_id for strips)",
+                "children": "Get child outlets for power strips (requires ip)",
+                "on": "Turn device on (requires ip, optional child_id for strips)",
+                "off": "Turn device off (requires ip, optional child_id for strips)",
+                "toggle": "Toggle device state (requires ip, optional child_id)",
                 "emeter": "Get energy meter data (requires ip)",
                 "led": "Set LED state (requires ip, state)",
                 "reboot": "Reboot device (requires ip)"
@@ -48,47 +50,61 @@ def main():
             result = device.get_info()
             print(json.dumps(result))
 
-        elif command == "state":
-            # Get device state
+        elif command == "children":
+            # Get child outlets for power strips
             if len(sys.argv) < 3:
                 print(json.dumps({"error": "IP address required"}))
                 sys.exit(1)
             ip = sys.argv[2]
             device = KasaDevice(ip)
+            result = device.get_children()
+            print(json.dumps(result))
+
+        elif command == "state":
+            # Get device state (supports optional child_id for power strips)
+            if len(sys.argv) < 3:
+                print(json.dumps({"error": "IP address required"}))
+                sys.exit(1)
+            ip = sys.argv[2]
+            child_id = sys.argv[3] if len(sys.argv) > 3 else None
+            device = KasaDevice(ip, child_id=child_id)
             result = device.get_state()
             print(json.dumps(result))
 
         elif command == "on":
-            # Turn device on
+            # Turn device on (supports optional child_id for power strips)
             if len(sys.argv) < 3:
                 print(json.dumps({"error": "IP address required"}))
                 sys.exit(1)
             ip = sys.argv[2]
-            device = KasaDevice(ip)
+            child_id = sys.argv[3] if len(sys.argv) > 3 else None
+            device = KasaDevice(ip, child_id=child_id)
             result = device.turn_on()
             # Get updated state
             state = device.get_state()
             print(json.dumps({"result": result, "state": state}))
 
         elif command == "off":
-            # Turn device off
+            # Turn device off (supports optional child_id for power strips)
             if len(sys.argv) < 3:
                 print(json.dumps({"error": "IP address required"}))
                 sys.exit(1)
             ip = sys.argv[2]
-            device = KasaDevice(ip)
+            child_id = sys.argv[3] if len(sys.argv) > 3 else None
+            device = KasaDevice(ip, child_id=child_id)
             result = device.turn_off()
             # Get updated state
             state = device.get_state()
             print(json.dumps({"result": result, "state": state}))
 
         elif command == "toggle":
-            # Toggle device state
+            # Toggle device state (supports optional child_id for power strips)
             if len(sys.argv) < 3:
                 print(json.dumps({"error": "IP address required"}))
                 sys.exit(1)
             ip = sys.argv[2]
-            device = KasaDevice(ip)
+            child_id = sys.argv[3] if len(sys.argv) > 3 else None
+            device = KasaDevice(ip, child_id=child_id)
             # Get current state
             current = device.get_state()
             if "error" in current:

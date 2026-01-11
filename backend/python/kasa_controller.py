@@ -1,6 +1,7 @@
 """
 Kasa Device Controller
 High-level interface for controlling TP-Link Kasa smart devices
+Supports single-outlet devices and multi-outlet power strips (HS300, KP303, etc.)
 """
 
 from tplink_protocol import send_command
@@ -9,25 +10,33 @@ from tplink_protocol import send_command
 class KasaDevice:
     """Represents a TP-Link Kasa smart device"""
 
-    def __init__(self, ip, port=9999):
+    def __init__(self, ip, port=9999, child_id=None):
         """
         Initialize a Kasa device.
 
         Args:
             ip (str): Device IP address
             port (int): Device port (default 9999)
+            child_id (str): Optional child ID for multi-outlet devices (HS300, etc.)
         """
         self.ip = ip
         self.port = port
+        self.child_id = child_id
+
+    def _wrap_command(self, command):
+        """Wrap command with context for multi-outlet devices"""
+        if self.child_id:
+            return {"context": {"child_ids": [self.child_id]}, **command}
+        return command
 
     def turn_on(self):
-        """Turn the device on"""
-        command = {"system": {"set_relay_state": {"state": 1}}}
+        """Turn the device (or specific outlet) on"""
+        command = self._wrap_command({"system": {"set_relay_state": {"state": 1}}})
         return send_command(self.ip, self.port, command)
 
     def turn_off(self):
-        """Turn the device off"""
-        command = {"system": {"set_relay_state": {"state": 0}}}
+        """Turn the device (or specific outlet) off"""
+        command = self._wrap_command({"system": {"set_relay_state": {"state": 0}}})
         return send_command(self.ip, self.port, command)
 
     def get_info(self):
@@ -41,10 +50,77 @@ class KasaDevice:
         if "error" in info:
             return info
         try:
-            relay_state = info["system"]["get_sysinfo"]["relay_state"]
+            sysinfo = info["system"]["get_sysinfo"]
+
+            # Check if this is a multi-outlet device with children
+            if "children" in sysinfo:
+                children = sysinfo["children"]
+
+                # If we have a specific child_id, return that outlet's state
+                if self.child_id:
+                    for child in children:
+                        if child.get("id") == self.child_id:
+                            state = child.get("state", 0)
+                            return {
+                                "state": "on" if state == 1 else "off",
+                                "relay_state": state,
+                                "outlet_id": self.child_id,
+                                "outlet_alias": child.get("alias", "")
+                            }
+                    return {"error": f"Child ID {self.child_id} not found"}
+
+                # No specific child_id - return all outlet states
+                outlet_states = []
+                for child in children:
+                    state = child.get("state", 0)
+                    outlet_states.append({
+                        "id": child.get("id"),
+                        "alias": child.get("alias", f"Outlet {len(outlet_states)+1}"),
+                        "state": "on" if state == 1 else "off",
+                        "relay_state": state
+                    })
+                return {
+                    "is_strip": True,
+                    "outlet_count": len(children),
+                    "outlets": outlet_states,
+                    "model": sysinfo.get("model", ""),
+                    "alias": sysinfo.get("alias", "")
+                }
+
+            # Single outlet device
+            relay_state = sysinfo["relay_state"]
             return {"state": "on" if relay_state == 1 else "off", "relay_state": relay_state}
         except KeyError:
             return {"error": "Could not parse relay state from response"}
+
+    def get_children(self):
+        """Get list of child outlets for multi-outlet devices"""
+        info = self.get_info()
+        if "error" in info:
+            return info
+        try:
+            sysinfo = info["system"]["get_sysinfo"]
+            if "children" not in sysinfo:
+                return {"is_strip": False, "children": []}
+
+            children = []
+            for idx, child in enumerate(sysinfo["children"]):
+                children.append({
+                    "id": child.get("id"),
+                    "index": idx,
+                    "alias": child.get("alias", f"Outlet {idx+1}"),
+                    "state": "on" if child.get("state", 0) == 1 else "off",
+                    "relay_state": child.get("state", 0)
+                })
+            return {
+                "is_strip": True,
+                "model": sysinfo.get("model", ""),
+                "alias": sysinfo.get("alias", ""),
+                "child_num": sysinfo.get("child_num", len(children)),
+                "children": children
+            }
+        except KeyError:
+            return {"error": "Could not parse children from response"}
 
     def get_emeter_realtime(self):
         """Get real-time energy meter data (HS110/KP115 only)"""

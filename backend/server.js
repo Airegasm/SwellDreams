@@ -2492,7 +2492,10 @@ app.delete('/api/devices/:id', (req, res) => {
 
 app.post('/api/devices/:ip/on', async (req, res) => {
   try {
-    const result = await deviceService.turnOn(req.params.ip);
+    // Support optional childId in body for power strip outlets
+    const childId = req.body.childId;
+    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
+    const result = await deviceService.turnOn(req.params.ip, device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2501,7 +2504,10 @@ app.post('/api/devices/:ip/on', async (req, res) => {
 
 app.post('/api/devices/:ip/off', async (req, res) => {
   try {
-    const result = await deviceService.turnOff(req.params.ip);
+    // Support optional childId in body for power strip outlets
+    const childId = req.body.childId;
+    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
+    const result = await deviceService.turnOff(req.params.ip, device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2510,7 +2516,20 @@ app.post('/api/devices/:ip/off', async (req, res) => {
 
 app.get('/api/devices/:ip/state', async (req, res) => {
   try {
-    const result = await deviceService.getDeviceState(req.params.ip);
+    // Support optional childId query param for power strip outlets
+    const childId = req.query.childId;
+    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
+    const result = await deviceService.getDeviceState(req.params.ip, device);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get children/outlets for multi-outlet devices (power strips like HS300)
+app.get('/api/devices/:ip/children', async (req, res) => {
+  try {
+    const result = await deviceService.getChildren(req.params.ip);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });

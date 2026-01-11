@@ -156,15 +156,42 @@ class DeviceService {
   }
 
   /**
+   * Get child outlets for multi-outlet devices (power strips like HS300)
+   * @param {string} ip - Device IP address
+   * @returns {Object} { is_strip, children: [{id, index, alias, state, relay_state}] }
+   */
+  async getChildren(ip) {
+    try {
+      return await executePython('kasa_api.py', ['children', ip]);
+    } catch (error) {
+      return { error: error.message, is_strip: false, children: [] };
+    }
+  }
+
+  /**
+   * Get unique key for device state tracking
+   * For single outlets: ip
+   * For power strip outlets: ip:childId
+   */
+  _getDeviceKey(ipOrDeviceId, device = null) {
+    if (device?.childId) {
+      return `${device.ip}:${device.childId}`;
+    }
+    return ipOrDeviceId;
+  }
+
+  /**
    * Get device state (routes by brand)
    * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee
-   * @param {Object} device - Optional device object with brand info
+   * @param {Object} device - Optional device object with brand info (may include childId for power strips)
    */
   async getDeviceState(ipOrDeviceId, device = null) {
     // Try to get device from registered devices if not provided
     if (!device) {
       device = this.devices.get(ipOrDeviceId);
     }
+
+    const stateKey = this._getDeviceKey(ipOrDeviceId, device);
 
     try {
       // Route by brand
@@ -196,10 +223,14 @@ class DeviceService {
         return result;
       }
 
-      // Default: TPLink
-      const result = await executePython('kasa_api.py', ['state', ipOrDeviceId]);
+      // Default: TPLink (with optional childId for power strips)
+      const args = ['state', device?.ip || ipOrDeviceId];
+      if (device?.childId) {
+        args.push(device.childId);
+      }
+      const result = await executePython('kasa_api.py', args);
       if (!result.error) {
-        this.deviceStates.set(ipOrDeviceId, {
+        this.deviceStates.set(stateKey, {
           state: result.state,
           relayState: result.relay_state,
           lastUpdate: Date.now()
@@ -214,13 +245,15 @@ class DeviceService {
   /**
    * Turn device on (routes by brand)
    * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
-   * @param {Object} device - Optional device object with brand info
+   * @param {Object} device - Optional device object with brand info (may include childId for power strips)
    */
   async turnOn(ipOrDeviceId, device = null) {
     // Try to get device from registered devices if not provided
     if (!device) {
       device = this.devices.get(ipOrDeviceId);
     }
+
+    const stateKey = this._getDeviceKey(ipOrDeviceId, device);
 
     try {
       // Route by brand
@@ -246,15 +279,19 @@ class DeviceService {
         return { success: true, state: 'on' };
       }
 
-      // Default: TPLink
-      const result = await executePython('kasa_api.py', ['on', ipOrDeviceId]);
+      // Default: TPLink (with optional childId for power strips)
+      const args = ['on', device?.ip || ipOrDeviceId];
+      if (device?.childId) {
+        args.push(device.childId);
+      }
+      const result = await executePython('kasa_api.py', args);
       if (!result.error) {
-        this.deviceStates.set(ipOrDeviceId, {
+        this.deviceStates.set(stateKey, {
           state: 'on',
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: ipOrDeviceId, device: this.devices.get(ipOrDeviceId) });
+        this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
       }
       return result;
     } catch (error) {
@@ -265,13 +302,15 @@ class DeviceService {
   /**
    * Turn device off (routes by brand)
    * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
-   * @param {Object} device - Optional device object with brand info
+   * @param {Object} device - Optional device object with brand info (may include childId for power strips)
    */
   async turnOff(ipOrDeviceId, device = null) {
     // Try to get device from registered devices if not provided
     if (!device) {
       device = this.devices.get(ipOrDeviceId);
     }
+
+    const stateKey = this._getDeviceKey(ipOrDeviceId, device);
 
     try {
       // Route by brand
@@ -297,15 +336,19 @@ class DeviceService {
         return { success: true, state: 'off' };
       }
 
-      // Default: TPLink
-      const result = await executePython('kasa_api.py', ['off', ipOrDeviceId]);
+      // Default: TPLink (with optional childId for power strips)
+      const args = ['off', device?.ip || ipOrDeviceId];
+      if (device?.childId) {
+        args.push(device.childId);
+      }
+      const result = await executePython('kasa_api.py', args);
       if (!result.error) {
-        this.deviceStates.set(ipOrDeviceId, {
+        this.deviceStates.set(stateKey, {
           state: 'off',
           relayState: 0,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_off', { ip: ipOrDeviceId, device: this.devices.get(ipOrDeviceId) });
+        this.emitEvent('device_off', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
       }
       return result;
     } catch (error) {

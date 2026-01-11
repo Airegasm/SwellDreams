@@ -423,13 +423,17 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
-    deviceOn: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/on`, {
-      method: 'POST'
+    deviceOn: (ip, childId = null) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/on`, {
+      method: 'POST',
+      body: childId ? JSON.stringify({ childId }) : undefined
     }),
 
-    deviceOff: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/off`, {
-      method: 'POST'
+    deviceOff: (ip, childId = null) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/off`, {
+      method: 'POST',
+      body: childId ? JSON.stringify({ childId }) : undefined
     }),
+
+    getDeviceChildren: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/children`),
 
     startCycle: (ip, options) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/cycle/start`, {
       method: 'POST',

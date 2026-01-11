@@ -16,6 +16,11 @@ function DeviceTab() {
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualIp, setManualIp] = useState('');
 
+  // Power strip state - tracks which strips are expanded and their children
+  const [expandedStrips, setExpandedStrips] = useState({});
+  const [stripChildren, setStripChildren] = useState({}); // ip -> children array
+  const [loadingChildren, setLoadingChildren] = useState({});
+
   // Govee state
   const [goveeConnected, setGoveeConnected] = useState(false);
   const [goveeApiKey, setGoveeApiKey] = useState('');
@@ -61,13 +66,42 @@ function DeviceTab() {
   const handleScan = async () => {
     setScanning(true);
     setDiscovered([]);
+    setStripChildren({});
+    setExpandedStrips({});
     try {
       const result = await api.scanDevices(10);
-      setDiscovered(result.devices || []);
+      const discoveredDevices = result.devices || [];
+
+      // Check each device for power strip children
+      const childrenMap = {};
+      for (const device of discoveredDevices) {
+        try {
+          const childResult = await api.getDeviceChildren(device.ip);
+          if (childResult.is_strip && childResult.children?.length > 0) {
+            childrenMap[device.ip] = childResult.children;
+            device.isStrip = true;
+            device.stripModel = childResult.model;
+            device.stripAlias = childResult.alias;
+          }
+        } catch (e) {
+          // Not a strip or failed to get children
+        }
+      }
+
+      setStripChildren(childrenMap);
+      setDiscovered(discoveredDevices);
     } catch (error) {
       console.error('Scan failed:', error);
     }
     setScanning(false);
+  };
+
+  // Toggle power strip expansion to show outlets
+  const toggleStripExpansion = (ip) => {
+    setExpandedStrips(prev => ({
+      ...prev,
+      [ip]: !prev[ip]
+    }));
   };
 
   const handleAddDevice = async (deviceInfo) => {
@@ -83,6 +117,52 @@ function DeviceTab() {
       setDiscovered(discovered.filter(d => d.ip !== deviceInfo.ip));
     } catch (error) {
       console.error('Failed to add device:', error);
+    }
+  };
+
+  // Add a single outlet from a power strip
+  const handleAddOutlet = async (stripIp, outlet) => {
+    try {
+      await api.addDevice({
+        ip: stripIp,
+        childId: outlet.id,
+        name: outlet.alias || `Outlet ${outlet.index + 1}`,
+        label: outlet.alias || `Outlet ${outlet.index + 1}`,
+        deviceType: 'PUMP',
+        brand: 'tplink'
+      });
+      // Remove this outlet from the strip's children list
+      setStripChildren(prev => ({
+        ...prev,
+        [stripIp]: prev[stripIp].filter(o => o.id !== outlet.id)
+      }));
+    } catch (error) {
+      console.error('Failed to add outlet:', error);
+    }
+  };
+
+  // Add all outlets from a power strip
+  const handleAddAllOutlets = async (stripIp, outlets) => {
+    try {
+      for (const outlet of outlets) {
+        await api.addDevice({
+          ip: stripIp,
+          childId: outlet.id,
+          name: outlet.alias || `Outlet ${outlet.index + 1}`,
+          label: outlet.alias || `Outlet ${outlet.index + 1}`,
+          deviceType: 'PUMP',
+          brand: 'tplink'
+        });
+      }
+      // Remove this strip from discovered
+      setDiscovered(discovered.filter(d => d.ip !== stripIp));
+      setStripChildren(prev => {
+        const newState = { ...prev };
+        delete newState[stripIp];
+        return newState;
+      });
+    } catch (error) {
+      console.error('Failed to add outlets:', error);
     }
   };
 
@@ -300,11 +380,11 @@ function DeviceTab() {
     }
   };
 
-  const handleTestDevice = async (ip) => {
+  const handleTestDevice = async (ip, childId = null) => {
     try {
-      await api.deviceOn(ip);
+      await api.deviceOn(ip, childId);
       setTimeout(async () => {
-        await api.deviceOff(ip);
+        await api.deviceOff(ip, childId);
       }, 2000);
     } catch (error) {
       console.error('Test failed:', error);
@@ -352,19 +432,77 @@ function DeviceTab() {
           <h4>Discovered TPLink Devices</h4>
           <div className="list">
             {discovered.map((device) => (
-              <div key={device.ip} className="list-item discovered">
-                <div className="list-item-info">
-                  <div className="list-item-name">{device.name}</div>
-                  <div className="list-item-meta">{device.ip}</div>
+              <div key={device.ip} className="discovered-device-container">
+                <div className={`list-item discovered ${device.isStrip ? 'power-strip' : ''}`}>
+                  <div className="list-item-info">
+                    <div className="list-item-name">
+                      {device.isStrip && (
+                        <span className="strip-badge">Power Strip</span>
+                      )}
+                      {device.name || device.stripAlias || device.ip}
+                    </div>
+                    <div className="list-item-meta">
+                      {device.ip}
+                      {device.isStrip && device.stripModel && (
+                        <span className="strip-model"> • {device.stripModel}</span>
+                      )}
+                      {device.isStrip && stripChildren[device.ip] && (
+                        <span className="strip-outlets"> • {stripChildren[device.ip].length} outlets</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="list-item-actions">
+                    {device.isStrip ? (
+                      <>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => toggleStripExpansion(device.ip)}
+                        >
+                          {expandedStrips[device.ip] ? 'Collapse' : 'Show Outlets'}
+                        </button>
+                        <button
+                          className="btn btn-sm btn-success"
+                          onClick={() => handleAddAllOutlets(device.ip, stripChildren[device.ip])}
+                        >
+                          Add All
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="btn btn-sm btn-success"
+                        onClick={() => handleAddDevice(device)}
+                      >
+                        Add
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="list-item-actions">
-                  <button
-                    className="btn btn-sm btn-success"
-                    onClick={() => handleAddDevice(device)}
-                  >
-                    Add
-                  </button>
-                </div>
+                {/* Expandable outlets for power strips */}
+                {device.isStrip && expandedStrips[device.ip] && stripChildren[device.ip] && (
+                  <div className="strip-outlets-list">
+                    {stripChildren[device.ip].map((outlet) => (
+                      <div key={outlet.id} className="list-item outlet-item">
+                        <div className="list-item-info">
+                          <div className="list-item-name">
+                            <span className={`outlet-state-dot ${outlet.state}`}></span>
+                            {outlet.alias || `Outlet ${outlet.index + 1}`}
+                          </div>
+                          <div className="list-item-meta">
+                            Outlet #{outlet.index + 1} • {outlet.state.toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="list-item-actions">
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddOutlet(device.ip, outlet)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -632,19 +770,19 @@ function DeviceTab() {
                     )}
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip)}
+                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip, device.childId)}
                     >
                       Test
                     </button>
                     <button
                       className="btn btn-sm btn-success"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOn(device.deviceId) : api.deviceOn(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOn(device.deviceId) : api.deviceOn(device.ip, device.childId)}
                     >
                       On
                     </button>
                     <button
                       className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOff(device.deviceId) : api.deviceOff(device.ip)}
+                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOff(device.deviceId) : api.deviceOff(device.ip, device.childId)}
                     >
                       Off
                     </button>

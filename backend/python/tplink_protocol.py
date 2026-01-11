@@ -60,6 +60,8 @@ def send_command(ip, port, command):
         dict: Response from device, or error dict
     """
     try:
+        from struct import unpack
+
         # Convert command to JSON string
         json_cmd = json.dumps(command)
 
@@ -74,12 +76,34 @@ def send_command(ip, port, command):
         # Send encrypted command
         sock.send(encrypted)
 
-        # Receive response
-        data = sock.recv(4096)
+        # Read the 4-byte header first to get the response length
+        header = b''
+        while len(header) < 4:
+            chunk = sock.recv(4 - len(header))
+            if not chunk:
+                break
+            header += chunk
+
+        if len(header) < 4:
+            sock.close()
+            return {"error": "Incomplete header received"}
+
+        # Parse the length from header (big-endian unsigned int)
+        response_length = unpack(">I", header)[0]
+
+        # Read the full response body (up to 64KB to handle large strip responses)
+        data = b''
+        remaining = min(response_length, 65536)  # Cap at 64KB for safety
+        while len(data) < remaining:
+            chunk = sock.recv(min(4096, remaining - len(data)))
+            if not chunk:
+                break
+            data += chunk
+
         sock.close()
 
-        # Decrypt response (skip 4-byte header)
-        decrypted = decrypt(data[4:])
+        # Decrypt response
+        decrypted = decrypt(data)
 
         # Parse JSON response
         response = json.loads(decrypted)
