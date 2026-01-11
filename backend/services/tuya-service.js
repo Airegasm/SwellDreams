@@ -136,13 +136,12 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
-    const stringToSign = this.buildStringToSign(method, path, body);
 
-    // Authenticated request: accessId + token + timestamp + stringToSign
-    const signStr = this.accessId + token + t + stringToSign;
+    // Authenticated request V1: accessId + token + timestamp (NO stringToSign per SDK)
+    const signStr = this.accessId + token + t;
     const sign = this.calcSign(signStr);
 
-    console.log(`[Tuya] StringToSign: ${method}\\n{hash}\\n\\n${path}`);
+    console.log(`[Tuya] Sign: accessId + token + ${t}`);
     console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
     const headers = {
