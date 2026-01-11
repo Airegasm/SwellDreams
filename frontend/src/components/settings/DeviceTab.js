@@ -9,6 +9,8 @@ const DEVICE_TYPES = [
   { value: 'OTHER', label: 'Other' }
 ];
 
+const MAX_DEVICES = 5;
+
 function DeviceTab() {
   const { devices, api } = useApp();
   const [scanning, setScanning] = useState(false);
@@ -107,6 +109,10 @@ function DeviceTab() {
   };
 
   const handleAddDevice = async (deviceInfo) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
     try {
       await api.addDevice({
         ip: deviceInfo.ip,
@@ -124,6 +130,10 @@ function DeviceTab() {
 
   // Add a single outlet from a power strip
   const handleAddOutlet = async (stripIp, outlet) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
     try {
       await api.addDevice({
         ip: stripIp,
@@ -145,8 +155,17 @@ function DeviceTab() {
 
   // Add all outlets from a power strip
   const handleAddAllOutlets = async (stripIp, outlets) => {
+    const slotsAvailable = MAX_DEVICES - devices.length;
+    if (slotsAvailable <= 0) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove devices before adding more.`);
+      return;
+    }
+    const outletsToAdd = outlets.slice(0, slotsAvailable);
+    if (outletsToAdd.length < outlets.length) {
+      alert(`Only adding ${outletsToAdd.length} of ${outlets.length} outlets (${MAX_DEVICES} device limit).`);
+    }
     try {
-      for (const outlet of outlets) {
+      for (const outlet of outletsToAdd) {
         await api.addDevice({
           ip: stripIp,
           childId: outlet.id,
@@ -156,13 +175,22 @@ function DeviceTab() {
           brand: 'tplink'
         });
       }
-      // Remove this strip from discovered
-      setDiscovered(discovered.filter(d => d.ip !== stripIp));
-      setStripChildren(prev => {
-        const newState = { ...prev };
-        delete newState[stripIp];
-        return newState;
-      });
+      // Update strip children - remove added outlets
+      const remainingOutlets = outlets.slice(slotsAvailable);
+      if (remainingOutlets.length === 0) {
+        // Remove this strip from discovered
+        setDiscovered(discovered.filter(d => d.ip !== stripIp));
+        setStripChildren(prev => {
+          const newState = { ...prev };
+          delete newState[stripIp];
+          return newState;
+        });
+      } else {
+        setStripChildren(prev => ({
+          ...prev,
+          [stripIp]: remainingOutlets
+        }));
+      }
     } catch (error) {
       console.error('Failed to add outlets:', error);
     }
@@ -170,6 +198,10 @@ function DeviceTab() {
 
   const handleManualAdd = async () => {
     if (!manualIp.trim()) return;
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
     try {
       await api.addDevice({
         ip: manualIp.trim(),
@@ -237,6 +269,10 @@ function DeviceTab() {
   };
 
   const handleAddGoveeDevice = async (goveeDevice) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
     try {
       await api.addDevice({
         deviceId: goveeDevice.device,
@@ -335,6 +371,10 @@ function DeviceTab() {
   };
 
   const handleAddTuyaDevice = async (tuyaDevice) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
     try {
       await api.addDevice({
         deviceId: tuyaDevice.id,
@@ -776,7 +816,10 @@ function DeviceTab() {
 
       {/* Configured Devices */}
       <div className="configured-section">
-        <h4>Configured Devices</h4>
+        <h4>Configured Devices ({devices.length}/{MAX_DEVICES})</h4>
+        {devices.length >= MAX_DEVICES && (
+          <p className="limit-warning">Maximum device limit reached. Remove a device to add more.</p>
+        )}
         <div className="list">
           {devices.length === 0 ? (
             <p className="text-muted">

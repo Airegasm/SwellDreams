@@ -2102,29 +2102,32 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += `Continue from the text provided. Stay in character.`;
   }
 
-  // Build prompt from history
+  // Build prompt from history using [Player] and [Char] tags
   const recentMessages = sessionState.chatHistory.slice(-15);
   prompt += 'Current conversation:\n';
   recentMessages.forEach(msg => {
     if (msg.sender === 'player') {
-      prompt += `${playerName}: ${msg.content}\n`;
+      prompt += `[Player]: ${msg.content}\n`;
     } else {
-      prompt += `${character.name}: ${msg.content}\n`;
+      prompt += `[Char]: ${msg.content}\n`;
     }
   });
 
   if (mode === 'guided' || mode === 'guided_impersonate') {
-    const speaker = mode === 'guided_impersonate' ? playerName : character.name;
+    const speakerTag = mode === 'guided_impersonate' ? '[Player]' : '[Char]';
     if (guidedText) {
       // Add guidance as instruction
       prompt += `\n(Guidance: ${guidedText})\n`;
-      prompt += `${speaker}:`;
+      prompt += `${speakerTag}:`;
     } else {
-      prompt += `${speaker}:`;
+      prompt += `${speakerTag}:`;
     }
+  } else if (mode === 'impersonate') {
+    // For pure impersonate - generate as player
+    prompt += `[Player]:`;
   } else {
-    // For pure impersonate - give the LLM a better starting point
-    prompt += `${playerName}:`;
+    // Default - generate as character
+    prompt += `[Char]:`;
   }
 
   return { systemPrompt, prompt };

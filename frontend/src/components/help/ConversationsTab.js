@@ -4,6 +4,7 @@ import './HelpTabs.css';
 function ConversationsTab() {
   const [expanded, setExpanded] = useState({
     overview: true,
+    chatInterface: false,
     characters: false,
     characterFields: false,
     personas: false,
@@ -71,6 +72,94 @@ function ConversationsTab() {
               <strong>Quick Start:</strong> Create at least one Character and one Persona,
               then select both on the main Chat page to begin a conversation.
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chat Interface */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('chatInterface')}>
+          Chat Interface
+          <span className="expand-icon">{expanded.chatInterface ? '−' : '+'}</span>
+        </h3>
+        {expanded.chatInterface && (
+          <div className="section-content">
+            <p>
+              The Chat page features a three-column layout with your <strong>Persona</strong> on the left,
+              the <strong>conversation</strong> in the center, and the <strong>Character</strong> on the right.
+            </p>
+
+            <h4 className="subsection-header">Status Badges (Persona Column)</h4>
+            <p>
+              Below your persona's portrait are three interactive status badges that track your
+              character's current state:
+            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Badge</th>
+                  <th>Purpose</th>
+                  <th>Usage</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Emotion</strong></td>
+                  <td>Your persona's current emotional state</td>
+                  <td>Click to open emoji selector. Choose from 20 emotions including neutral, excited, aroused, submissive, confused, drunk, and more. Sets the <code>[Emotion]</code> variable.</td>
+                </tr>
+                <tr>
+                  <td><strong>Pain Level</strong></td>
+                  <td>Physical sensation intensity (0-10 scale)</td>
+                  <td>Click to open the pain chart selector. Based on the Wong-Baker FACES scale. Sets the <code>[Feeling]</code> variable as a number 0-10.</td>
+                </tr>
+                <tr>
+                  <td><strong>Capacity Gauge</strong></td>
+                  <td>Visual pressure/capacity indicator (0-100%)</td>
+                  <td>Displays current capacity with an animated needle. Use keyboard shortcuts to adjust. Sets the <code>[Capacity]</code> variable.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Keyboard Shortcuts</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Keys</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>↑ Up Arrow</strong></td>
+                  <td>Increase capacity by 1%</td>
+                </tr>
+                <tr>
+                  <td><strong>↓ Down Arrow</strong></td>
+                  <td>Decrease capacity by 1%</td>
+                </tr>
+                <tr>
+                  <td><strong>Shift + ↑</strong></td>
+                  <td>Increase capacity by 5%</td>
+                </tr>
+                <tr>
+                  <td><strong>Shift + ↓</strong></td>
+                  <td>Decrease capacity by 5%</td>
+                </tr>
+              </tbody>
+            </table>
+            <div className="tip-box">
+              <strong>Note:</strong> Keyboard shortcuts only work when you're not typing in a text field.
+            </div>
+
+            <h4 className="subsection-header">Character Column</h4>
+            <p>
+              The right column shows the active character's portrait along with:
+            </p>
+            <ul className="help-list">
+              <li><strong>Actions</strong> - Expandable panel with character-specific action buttons</li>
+              <li><strong>Devices</strong> - Quick access to connected device controls and status indicators</li>
+            </ul>
           </div>
         )}
       </div>

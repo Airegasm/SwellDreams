@@ -531,3 +531,16 @@
 .event-name.strikethrough {
   text-decoration: line-through;
 }
+
+/* Events header with limit warning */
+.events-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.limit-warning {
+  font-size: 0.75rem;
+  color: #f59e0b;
+  font-style: italic;
+}

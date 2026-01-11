@@ -22,6 +22,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         description: character.description || '',
         personality: character.personality || '',
         startingEmotion: character.startingEmotion || 'neutral',
+        autoReplyEnabled: character.autoReplyEnabled || false,
         welcomeMessages,
         scenarios,
         activeWelcomeMessageId: character.activeWelcomeMessageId || (welcomeMessages[0]?.id || null),
@@ -41,6 +42,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       description: '',
       personality: '',
       startingEmotion: 'neutral',
+      autoReplyEnabled: false,
       welcomeMessages: [initialWelcome],
       scenarios: [initialScenario],
       activeWelcomeMessageId: 'wm-1',
@@ -487,6 +489,21 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                     <option value="blissful">Blissful</option>
                   </select>
                 </div>
+
+                <div className="form-group auto-reply-group">
+                  <label className="toggle-label">
+                    <span>Auto Reply</span>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={formData.autoReplyEnabled}
+                        onChange={(e) => setFormData({ ...formData, autoReplyEnabled: e.target.checked })}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                  </label>
+                  <p className="form-help">Automatically send character response after player message</p>
+                </div>
               </div>
 
               {/* Right Column - Avatar Upload */}
@@ -763,13 +780,19 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                 <>
                   <div className="events-header">
                     <h4>Character Buttons</h4>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={handleAddButton}
-                    >
-                      + Add Button
-                    </button>
+                    <div className="events-header-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleAddButton}
+                        disabled={formData.buttons.length >= 20}
+                      >
+                        + Add Button
+                      </button>
+                      {formData.buttons.length >= 20 && (
+                        <span className="limit-warning">Maximum 20 buttons</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="events-list-editor">

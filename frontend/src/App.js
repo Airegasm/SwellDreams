@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, NavLink } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { useApp } from './context/AppContext';
 import { useError } from './context/ErrorContext';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import FlowEditor from './pages/FlowEditor';
 import Help from './pages/Help';
+import Personas from './pages/Personas';
+import Characters from './pages/Characters';
+import HamburgerMenu from './components/HamburgerMenu';
+import SaveSessionModal from './components/modals/SaveSessionModal';
+import LoadSessionModal from './components/modals/LoadSessionModal';
 import './styles/App.css';
 import './styles/mobile.css';
 
@@ -70,11 +75,84 @@ These Terms shall be governed by and construed in accordance with applicable law
 **BY USING SWELLDREAMS, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS OF SERVICE AND ACCEPT FULL RESPONSIBILITY FOR YOUR ACTIONS AND SAFETY.**`;
 
 function App() {
-  const { connected, api, controlMode, settings } = useApp();
+  const location = useLocation();
+  const isChatPage = location.pathname === '/';
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState } = useApp();
   const { showError } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Session management state (lifted from Chat.js)
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [savedSessions, setSavedSessions] = useState([]);
+
+  // Get active character and persona
+  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+  const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // Check if there are messages beyond welcome message
+  const hasUnsavedChanges = messages.length > 1;
+
+  // Generate default session name
+  const getDefaultSessionName = () => {
+    const personaName = activePersona?.displayName || 'Player';
+    const charName = activeCharacter?.name || 'Character';
+    const timestamp = new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return `${personaName}-${charName}-${timestamp}`;
+  };
+
+  // Session handlers
+  const handleNewSession = async () => {
+    if (window.confirm('Start a new session? This will clear chat history.')) {
+      await api.resetSession();
+    }
+  };
+
+  const handleSaveSession = async (name) => {
+    try {
+      await api.saveSession({
+        name,
+        personaId: settings?.activePersonaId,
+        characterId: settings?.activeCharacterId
+      });
+      setShowSaveModal(false);
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      showError('Failed to save session');
+    }
+  };
+
+  const handleOpenLoadModal = async () => {
+    try {
+      const sessions = await api.listSessions(
+        settings?.activePersonaId,
+        settings?.activeCharacterId
+      );
+      setSavedSessions(sessions);
+      setShowLoadModal(true);
+    } catch (error) {
+      console.error('Failed to list sessions:', error);
+      showError('Failed to load sessions list');
+    }
+  };
+
+  const handleLoadSession = async (sessionId) => {
+    try {
+      await api.loadSession(sessionId);
+      setShowLoadModal(false);
+    } catch (error) {
+      console.error('Failed to load session:', error);
+      showError('Failed to load session');
+    }
+  };
 
   // Load connection profiles
   useEffect(() => {
@@ -101,6 +179,17 @@ function App() {
     return profile?.name || null;
   };
 
+  // Get LLM status for badge
+  const getLlmStatus = () => {
+    if (!isLlmConfigured()) {
+      return { text: 'LLM: Offline', className: 'llm-offline' };
+    }
+    if (sessionState?.isGenerating) {
+      return { text: 'LLM: Generating', className: 'llm-generating' };
+    }
+    return { text: 'LLM: Idle', className: 'llm-idle' };
+  };
+
   // Check if TOS was accepted this session
   useEffect(() => {
     const tosAccepted = sessionStorage.getItem('swelldreams_tos_accepted');
@@ -108,6 +197,13 @@ function App() {
       setShowTOS(true);
     }
   }, []);
+
+  // Reset banner dismissed state when connection is restored
+  useEffect(() => {
+    if (connected) {
+      setBannerDismissed(false);
+    }
+  }, [connected]);
 
   const handleAcceptTOS = () => {
     sessionStorage.setItem('swelldreams_tos_accepted', 'true');
@@ -131,63 +227,46 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app ${isChatPage ? 'chat-layout' : ''}`}>
       <nav className="nav-bar">
-        <div className="nav-brand">
-          <img src="/logo.png" alt="SwellDreams" />
-          <span className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
-            {connected ? 'SD Server Live' : 'SD Server Offline'}
-          </span>
-          <span className={`connection-status ${isLlmConfigured() ? 'llm-connected' : 'llm-disconnected'}`}>
-            {isLlmConfigured()
-              ? `LLM: ${getActiveProfileName() || 'Connected'}`
-              : 'No LLM Connected'}
-          </span>
-        </div>
-        {controlMode === 'simulated' ? (
-          <div
-            className="simulation-mode-indicator"
-            title="Simulation Mode - Device actions are simulated"
-          >
-            SIMULATION MODE
+        <img src="/logo.png" alt="SwellDreams" className="nav-logo" />
+        <div className="nav-right">
+          <div className="nav-badges">
+            <span className={`connection-status ${getLlmStatus().className}`}>
+              🤖
+            </span>
+            <span className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
+              🖥️
+            </span>
           </div>
-        ) : (
-          <button
-            className="emergency-stop-btn"
-            onClick={handleEmergencyStop}
-            disabled={stopping}
-            title="Emergency Stop - Immediately stops all pumps and cycles"
-          >
-            {stopping ? 'STOPPING...' : 'EMERGENCY STOP'}
-          </button>
-        )}
-        <div className="nav-links">
-          <NavLink to="/" className={({ isActive }) => isActive ? 'active' : ''}>
-            Chat
-          </NavLink>
-          <NavLink to="/flows" className={({ isActive }) => isActive ? 'active' : ''}>
-            Flows
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => isActive ? 'active' : ''}>
-            Settings
-          </NavLink>
-          <NavLink to="/help" className={({ isActive }) => isActive ? 'active' : ''}>
-            Help
-          </NavLink>
+          <HamburgerMenu
+            onNewSession={handleNewSession}
+            onSaveSession={() => setShowSaveModal(true)}
+            onLoadSession={handleOpenLoadModal}
+          />
         </div>
       </nav>
 
       {/* Offline Banner */}
-      {!connected && (
+      {!connected && !bannerDismissed && (
         <div className="offline-banner">
           <span className="offline-icon">&#x26A0;</span>
           <span>Backend Disconnected - Attempting to reconnect...</span>
+          <button
+            className="offline-banner-close"
+            onClick={() => setBannerDismissed(true)}
+            title="Dismiss"
+          >
+            &times;
+          </button>
         </div>
       )}
 
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Chat />} />
+          <Route path="/personas" element={<Personas />} />
+          <Route path="/characters" element={<Characters />} />
           <Route path="/flows" element={<FlowEditor />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/settings/:tab" element={<Settings />} />
@@ -223,6 +302,24 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Session Modals */}
+      <SaveSessionModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveSession}
+        defaultName={getDefaultSessionName()}
+      />
+
+      <LoadSessionModal
+        isOpen={showLoadModal}
+        onClose={() => setShowLoadModal(false)}
+        onLoad={handleLoadSession}
+        onSaveFirst={handleSaveSession}
+        sessions={savedSessions}
+        hasUnsavedChanges={hasUnsavedChanges}
+        defaultSaveName={getDefaultSessionName()}
+      />
     </div>
   );
 }

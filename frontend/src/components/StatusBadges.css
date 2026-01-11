@@ -1,0 +1,205 @@
+/* Status Badges Container - matches collapsible-section/Actions card width */
+.status-badges-container {
+  width: calc(100% + var(--spacing-sm));
+  margin-left: calc(-0.5 * var(--spacing-sm));
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: center;
+}
+
+/* Individual Badge - square, equal sizing */
+.status-badge {
+  flex: 1;
+  aspect-ratio: 1;
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.status-badge:hover {
+  border-color: var(--accent-primary);
+  background: linear-gradient(180deg, #32363b 0%, #22252a 100%);
+}
+
+/* Badge Content */
+.badge-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.badge-pain-face {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+/* Badge Popup - positioned above badge, centered in sidebar */
+.badge-popup {
+  position: fixed;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: var(--spacing-sm);
+  z-index: 200;
+}
+
+.emotion-popup {
+  width: auto;
+  left: 10px;
+  bottom: 100px;
+}
+
+.pain-popup {
+  width: 200px;
+  left: 30px;
+  bottom: 100px;
+}
+
+/* Emotion Grid - 4 columns */
+.emotion-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 40px);
+  gap: var(--spacing-xs);
+}
+
+.emotion-option {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 1.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.emotion-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.emotion-option.selected {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+/* Pain Scale Grid */
+.pain-scale-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  justify-content: center;
+}
+
+.pain-option {
+  width: 36px;
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all var(--transition-fast);
+}
+
+.pain-option:hover {
+  border-color: var(--accent-warning);
+}
+
+.pain-option.selected {
+  background: var(--accent-warning);
+  border-color: var(--accent-warning);
+}
+
+.pain-number {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pain-option.selected .pain-number {
+  color: white;
+}
+
+/* Pressure Gauge Badge */
+.gauge-badge {
+  cursor: default;
+}
+
+.gauge-badge:hover {
+  border-color: var(--border-color);
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+}
+
+.pressure-gauge {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Gauge Background Arc */
+.gauge-background {
+  position: absolute;
+  width: 75%;
+  height: 75%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 225deg,
+    var(--accent-success) 0deg,
+    var(--accent-warning) 135deg,
+    var(--accent-error) 270deg,
+    transparent 270deg
+  );
+  mask: radial-gradient(circle at center, transparent 60%, black 61%);
+  -webkit-mask: radial-gradient(circle at center, transparent 60%, black 61%);
+}
+
+/* Needle */
+.gauge-needle {
+  position: absolute;
+  width: 2px;
+  height: 28%;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transform-origin: bottom center;
+  transform: rotate(calc(-135deg + (var(--capacity) * 2.7deg)));
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  bottom: 50%;
+  left: calc(50% - 1px);
+}
+
+/* Center dot */
+.gauge-center {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--text-primary);
+  border-radius: 50%;
+}
+
+/* Percentage overlay */
+.gauge-value {
+  position: absolute;
+  bottom: 18%;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}

@@ -32,57 +32,137 @@ body {
 /* Navigation */
 .nav-bar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   height: 64px;
   min-height: 64px;
   max-height: 64px;
   padding: 0 var(--spacing-lg);
-  background-color: var(--bg-secondary);
+  background: linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+  position: relative;
 }
 
-.nav-brand img {
+.nav-logo {
+  position: absolute;
+  left: calc(var(--spacing-lg) + 120px);
+  top: 50%;
+  transform: translate(-50%, -50%);
   height: 56px;
   width: auto;
   object-fit: contain;
 }
 
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+/* Chat Layout - Split Header */
+.chat-layout .nav-bar {
+  justify-content: space-between;
+  padding: 0;
+  background: transparent;
+  border-bottom: none;
+  z-index: 8;
 }
 
-.nav-brand h1 {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--accent-primary);
+.chat-layout .nav-bar::before,
+.chat-layout .nav-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 239px;
+  background: linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 8;
+}
+
+.chat-layout .nav-bar::before {
+  left: 0;
+  border-right: 1px solid var(--border-color);
+}
+
+.chat-layout .nav-bar::after {
+  right: 0;
+  border-left: 1px solid var(--border-color);
+}
+
+.chat-layout .nav-logo {
+  position: relative;
+  left: auto;
+  top: auto;
+  transform: none;
+  margin-left: calc(var(--spacing-md) + 14px);
+  z-index: 9;
+}
+
+.chat-layout .nav-right {
+  margin-right: var(--spacing-md);
+  z-index: 9;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.nav-badges {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  margin-right: 1.5px;
 }
 
 .connection-status {
-  font-size: var(--font-size-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 1.8rem;
+  padding: 8px 0;
   border-radius: var(--border-radius-sm);
+  width: 79px;
+  text-align: center;
+  display: inline-block;
+  line-height: 1;
 }
 
+.nav-badges .connection-status:last-child {
+  margin-left: 2px;
+}
+
+/* Server Ready - green */
 .connection-status.connected {
   background-color: rgba(16, 185, 129, 0.2);
   color: var(--accent-success);
 }
 
+/* Server Error - red */
 .connection-status.disconnected {
   background-color: rgba(239, 68, 68, 0.2);
   color: var(--accent-error);
 }
 
-.connection-status.llm-connected {
+/* LLM Idle - blue */
+.connection-status.llm-idle {
   background-color: rgba(59, 130, 246, 0.2);
   color: #3b82f6;
 }
 
-.connection-status.llm-disconnected {
+/* LLM Generating - pulsating bright glow */
+.connection-status.llm-generating {
+  background-color: rgba(59, 130, 246, 0.3);
+  animation: llm-pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes llm-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.7), 0 0 30px rgba(59, 130, 246, 0.5);
+    background-color: rgba(59, 130, 246, 0.5);
+  }
+}
+
+/* LLM Offline - red */
+.connection-status.llm-offline {
   background-color: rgba(239, 68, 68, 0.2);
   color: var(--accent-error);
 }
@@ -186,6 +266,11 @@ body {
   flex-direction: column;
   overflow: hidden;
   min-height: 0; /* Allow flex child to shrink */
+}
+
+/* Allow chat page to extend into header area */
+.chat-layout .main-content {
+  overflow: visible;
 }
 
 /* Common Components */
@@ -742,10 +827,31 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: var(--font-size-sm);
   font-weight: 500;
   animation: pulse-banner 2s ease-in-out infinite;
+  position: relative;
 }
 
 .offline-icon {
   font-size: 16px;
+}
+
+.offline-banner-close {
+  position: absolute;
+  right: var(--spacing-md);
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.offline-banner-close:hover {
+  opacity: 1;
 }
 
 @keyframes pulse-banner {

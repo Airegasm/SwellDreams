@@ -1,0 +1,224 @@
+/* Hamburger Menu Container */
+.hamburger-menu {
+  position: relative;
+  z-index: 1000;
+}
+
+/* Hamburger Button */
+.hamburger-button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+}
+
+.hamburger-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.hamburger-bar {
+  display: block;
+  width: 32px;
+  height: 3px;
+  background-color: var(--text-primary);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  transform: translateX(4px);
+}
+
+.hamburger-bar + .hamburger-bar {
+  margin-top: 5px;
+}
+
+/* Transform to X when open */
+.hamburger-button.open .hamburger-bar:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-button.open .hamburger-bar:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-button.open .hamburger-bar:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Menu Overlay */
+.hamburger-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--overlay-bg);
+  z-index: 998;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.hamburger-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Menu Panel */
+.hamburger-menu-panel {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  width: 240px;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  z-index: 999;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+.hamburger-menu-panel.open {
+  transform: translateX(0);
+}
+
+/* Menu Items */
+.hamburger-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  color: var(--text-primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+}
+
+.hamburger-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.hamburger-menu-item.active {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+/* Session item with submenu */
+.hamburger-menu-item.has-submenu {
+  position: relative;
+  justify-content: flex-start;
+}
+
+.hamburger-menu-item.has-submenu.submenu-active {
+  background-color: var(--bg-hover);
+}
+
+.submenu-arrow {
+  font-size: 10px;
+  margin-right: var(--spacing-xs);
+  transition: transform 0.2s ease;
+}
+
+/* Session Submenu - positioned to the LEFT */
+.session-submenu {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  width: 140px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(10px);
+  transition: all 0.2s ease;
+  z-index: 1001;
+}
+
+.session-submenu.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+
+/* Submenu items */
+.session-submenu-item {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  transition: background-color var(--transition-fast);
+}
+
+.session-submenu-item:last-child {
+  border-bottom: none;
+}
+
+.session-submenu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .hamburger-overlay {
+    top: var(--mobile-nav-height);
+  }
+
+  .hamburger-menu-panel {
+    top: var(--mobile-nav-height);
+    width: 80%;
+    max-width: 300px;
+  }
+
+  /* Session submenu appears below on mobile */
+  .session-submenu {
+    position: relative;
+    right: auto;
+    top: auto;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    border-top: 1px solid var(--border-color);
+    transform: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
+  }
+
+  .session-submenu.open {
+    max-height: 200px;
+    transform: none;
+  }
+
+  .session-submenu-item {
+    padding-left: var(--spacing-xl);
+    background-color: var(--bg-primary);
+  }
+
+  .submenu-arrow {
+    transform: rotate(-90deg);
+  }
+
+  .hamburger-menu-item.has-submenu.submenu-active .submenu-arrow {
+    transform: rotate(0deg);
+  }
+}

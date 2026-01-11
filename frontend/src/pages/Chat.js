@@ -2,29 +2,28 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
 import { API_BASE, CONFIG } from '../config';
-import SaveSessionModal from '../components/modals/SaveSessionModal';
-import LoadSessionModal from '../components/modals/LoadSessionModal';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { substituteVariables } from '../utils/variableSubstitution';
+import StatusBadges from '../components/StatusBadges';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, devices, infiniteCycles, simulationRequired, simulationReason, controlMode, setControlMode } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, devices, infiniteCycles, controlMode } = useApp();
+  const { showError } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showLoadModal, setShowLoadModal] = useState(false);
-  const [savedSessions, setSavedSessions] = useState([]);
-  const [activeTab, setActiveTab] = useState('player');
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [messageHistory, setMessageHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentDraft, setCurrentDraft] = useState('');
   const [rightColumnTab, setRightColumnTab] = useState('events');
+  const [stopping, setStopping] = useState(false);
+  const [actionsExpanded, setActionsExpanded] = useState(false);
+  const [devicesExpanded, setDevicesExpanded] = useState(false);
 
   // Mobile drawer state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
@@ -57,8 +56,6 @@ function Chat() {
   const markRecentAction = (deviceKey) => {
     recentActionsRef.current[deviceKey] = Date.now();
   };
-
-  // Auto reply - uses sessionState.autoReply from context (synced with server)
 
   // Emergency stop alert state
   const [emergencyStopAlert, setEmergencyStopAlert] = useState(null);
@@ -161,7 +158,30 @@ function Chat() {
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sessionState.isGenerating]);
+
+  // Keyboard shortcuts for capacity control
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const increment = e.shiftKey ? 5 : 1;
+        const newCapacity = Math.min(100, (sessionState.capacity || 0) + increment);
+        sendWsMessage('update_capacity', { capacity: newCapacity });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const decrement = e.shiftKey ? 5 : 1;
+        const newCapacity = Math.max(0, (sessionState.capacity || 0) - decrement);
+        sendWsMessage('update_capacity', { capacity: newCapacity });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sessionState.capacity, sendWsMessage]);
 
   // Periodic device state polling
   useEffect(() => {
@@ -276,7 +296,7 @@ function Chat() {
     if (!inputValue.trim() || isGenerating) return;
 
     // Check if LLM is configured when auto-reply is on
-    if (sessionState.autoReply && !isLlmConfigured()) {
+    if (activeCharacter?.autoReplyEnabled && !isLlmConfigured()) {
       setShowLlmError(true);
       return;
     }
@@ -393,66 +413,6 @@ function Chat() {
 
   const handleDeleteMessage = (msgId) => {
     sendWsMessage('delete_message', { id: msgId });
-  };
-
-  const handleNewSession = async () => {
-    if (window.confirm('Start a new session? This will clear chat history.')) {
-      await api.resetSession();
-    }
-  };
-
-  // Generate default session name
-  const getDefaultSessionName = () => {
-    const personaName = activePersona?.displayName || 'Player';
-    const charName = activeCharacter?.name || 'Character';
-    const timestamp = new Date().toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    return `${personaName}-${charName}-${timestamp}`;
-  };
-
-  // Check if there are messages beyond welcome message
-  const hasUnsavedChanges = messages.length > 1;
-
-  // Save session handler
-  const handleSaveSession = async (name) => {
-    try {
-      await api.saveSession({
-        name,
-        personaId: settings?.activePersonaId,
-        characterId: settings?.activeCharacterId
-      });
-      setShowSaveModal(false);
-    } catch (error) {
-      console.error('Failed to save session:', error);
-    }
-  };
-
-  // Load sessions list
-  const handleOpenLoadModal = async () => {
-    try {
-      const sessions = await api.listSessions(
-        settings?.activePersonaId,
-        settings?.activeCharacterId
-      );
-      setSavedSessions(sessions);
-      setShowLoadModal(true);
-    } catch (error) {
-      console.error('Failed to list sessions:', error);
-    }
-  };
-
-  // Load session handler
-  const handleLoadSession = async (sessionId) => {
-    try {
-      await api.loadSession(sessionId);
-      setShowLoadModal(false);
-    } catch (error) {
-      console.error('Failed to load session:', error);
-    }
   };
 
   // Constant reminder handlers
@@ -572,6 +532,18 @@ function Chat() {
     }
   };
 
+  // Emergency stop handler
+  const handleEmergencyStop = async () => {
+    setStopping(true);
+    try {
+      await api.emergencyStop();
+    } catch (error) {
+      console.error('Emergency stop failed:', error);
+      showError('Emergency stop failed - check device connections!');
+    }
+    setTimeout(() => setStopping(false), 1000);
+  };
+
   // Event execution handler
   const handleExecuteButton = (button) => {
     if (!button || !button.actions) return;
@@ -622,12 +594,7 @@ function Chat() {
     setNewQuickText('');
   };
 
-  // Control panel handlers
-  const handleModeChange = (mode) => {
-    setControlMode(mode);
-    console.log('[ControlPanel] Mode changed to:', mode);
-  };
-
+  // Device control handlers
   const handleManualDeviceOn = async (device) => {
     const deviceKey = getDeviceKey(device);
     // Optimistic UI update
@@ -698,6 +665,12 @@ function Chat() {
     }
   };
 
+  // Cycle device (turn on, wait 5s, turn off)
+  const handleCycleDevice = async (device) => {
+    await handleManualDeviceOn(device);
+    setTimeout(() => handleManualDeviceOff(device), 5000);
+  };
+
   return (
     <div className="chat-page">
       {/* Emergency Stop Alert Banner */}
@@ -725,242 +698,33 @@ function Chat() {
         onClick={closeDrawers}
       />
 
-      {/* Sidebar */}
+      {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''}`}>
-        <div className="sidebar-section">
-          <h3>Session</h3>
-          <div className="session-buttons">
-            <button className="btn btn-secondary session-btn" onClick={handleNewSession}>New</button>
-            <button className="btn btn-secondary session-btn" onClick={() => setShowSaveModal(true)}>Save</button>
-            <button className="btn btn-secondary session-btn" onClick={handleOpenLoadModal}>Load</button>
-          </div>
+        {/* Persona Name */}
+        <div className="sidebar-entity-header">
+          <span className="entity-name-display">
+            {activePersona?.displayName || 'None'}
+          </span>
         </div>
 
-        <div className="sidebar-tabs">
-          <button
-            className={`sidebar-tab ${activeTab === 'player' ? 'active' : ''}`}
-            onClick={() => setActiveTab('player')}
-          >
-            Player
-          </button>
-          <button
-            className={`sidebar-tab ${activeTab === 'ai' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ai')}
-          >
-            AI
-            {sessionState.isGenerating && (
-              <span className="ai-generating-indicator"></span>
-            )}
-          </button>
+        {/* Persona Portrait */}
+        <div className="entity-portrait-large">
+          {activePersona?.avatar ? (
+            <img src={activePersona.avatar} alt={activePersona.displayName} />
+          ) : (
+            <div className="portrait-placeholder">?</div>
+          )}
         </div>
 
-        {activeTab === 'player' && (
-          <div className="sidebar-tab-content">
-            <div className="entity-card">
-              {activePersona ? (
-                <>
-                  <div className="entity-avatar">
-                    <span>{activePersona.displayName[0]}</span>
-                  </div>
-                  <div className="entity-info">
-                    <span className="entity-name">{activePersona.displayName}</span>
-                    {activePersona.appearance && (
-                      <span className="entity-meta">{activePersona.appearance.substring(0, 100)}...</span>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="text-muted">No persona selected. Go to Settings to create one.</p>
-              )}
-            </div>
+        {/* Status Badges */}
+        <StatusBadges
+          selectedEmotion={sessionState.emotion || 'neutral'}
+          onEmotionChange={(emotion) => setSessionState(prev => ({ ...prev, emotion }))}
+          selectedPainLevel={typeof sessionState.sensation === 'number' ? sessionState.sensation : 0}
+          onPainLevelChange={(level) => setSessionState(prev => ({ ...prev, sensation: level }))}
+          capacity={sessionState.capacity || 0}
+        />
 
-            <div className="status-section">
-              <div className="status-control">
-                <div className="capacity-header">
-                  <label>Capacity: {sessionState.capacity}%</label>
-                  <div className="capacity-buttons">
-                    <button
-                      className="capacity-btn"
-                      onClick={() => {
-                        const newCapacity = Math.max(0, sessionState.capacity - 5);
-                        sendWsMessage('update_capacity', { capacity: newCapacity });
-                      }}
-                    >−</button>
-                    <button
-                      className="capacity-btn"
-                      onClick={() => {
-                        const newCapacity = Math.min(100, sessionState.capacity + 5);
-                        sendWsMessage('update_capacity', { capacity: newCapacity });
-                      }}
-                    >+</button>
-                  </div>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={sessionState.capacity}
-                  onChange={(e) => sendWsMessage('update_capacity', { capacity: parseInt(e.target.value) })}
-                />
-                <div className="capacity-bar">
-                  <div
-                    className="capacity-fill"
-                    style={{ width: `${sessionState.capacity}%` }}
-                  />
-                </div>
-              </div>
-              <div className="status-control">
-                <label>Sensation</label>
-                <select
-                  value={sessionState.sensation}
-                  onChange={(e) => sendWsMessage('update_sensation', { sensation: e.target.value })}
-                >
-                  <option value="normal">Normal</option>
-                  <option value="slight fullness">Slight Fullness</option>
-                  <option value="full">Full</option>
-                  <option value="very full">Very Full</option>
-                  <option value="bloated">Bloated</option>
-                  <option value="tight">Tight</option>
-                  <option value="stretched">Stretched</option>
-                  <option value="cramping">Cramping</option>
-                  <option value="pressure">Pressure</option>
-                  <option value="stuffed">Stuffed</option>
-                  <option value="bursting">Bursting</option>
-                </select>
-              </div>
-              <div className="status-control">
-                <label>Emotion</label>
-                <select
-                  value={sessionState.emotion}
-                  onChange={(e) => sendWsMessage('update_emotion', { emotion: e.target.value })}
-                >
-                  <option value="neutral">Neutral</option>
-                  <option value="relaxed">Relaxed</option>
-                  <option value="curious">Curious</option>
-                  <option value="nervous">Nervous</option>
-                  <option value="excited">Excited</option>
-                  <option value="aroused">Aroused</option>
-                  <option value="embarrassed">Embarrassed</option>
-                  <option value="anxious">Anxious</option>
-                  <option value="submissive">Submissive</option>
-                  <option value="defiant">Defiant</option>
-                  <option value="overwhelmed">Overwhelmed</option>
-                  <option value="blissful">Blissful</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'ai' && (
-          <div className="sidebar-tab-content">
-            {activeCharacter ? (
-              <div className="character-portrait">
-                {activeCharacter.avatar ? (
-                  <img src={activeCharacter.avatar} alt={activeCharacter.name} />
-                ) : (
-                  <div className="character-portrait-placeholder">
-                    <span>{activeCharacter.name[0]}</span>
-                  </div>
-                )}
-                <div className="character-portrait-name">{activeCharacter.name}</div>
-              </div>
-            ) : (
-              <p className="text-muted">No character selected. Go to Settings to select one.</p>
-            )}
-
-            {/* Auto Reply Toggle */}
-            {activeCharacter && (
-              <div className="auto-reply-section">
-                <label className="auto-reply-toggle">
-                  <input
-                    type="checkbox"
-                    checked={sessionState.autoReply || false}
-                    onChange={(e) => {
-                      setSessionState(prev => ({ ...prev, autoReply: e.target.checked }));
-                      sendWsMessage('set_auto_reply', { enabled: e.target.checked });
-                    }}
-                  />
-                  <span>Auto Reply</span>
-                </label>
-              </div>
-            )}
-
-            {activeCharacter && (
-              <div className="reminders-section">
-                <div className="reminders-header">
-                  <h4>Constant Reminders</h4>
-                  <button
-                    className="btn-icon"
-                    onClick={handleAddReminder}
-                    title="Add reminder"
-                  >+</button>
-                </div>
-                <div className="reminders-list">
-                  {(activeCharacter.constantReminders || []).length === 0 ? (
-                    <p className="text-muted">No reminders yet.</p>
-                  ) : (
-                    (activeCharacter.constantReminders || []).map(reminder => (
-                      <div key={reminder.id} className={`reminder-item ${reminder.enabled === false ? 'disabled' : ''}`}>
-                        <label className="toggle-switch">
-                          <input
-                            type="checkbox"
-                            checked={reminder.enabled !== false}
-                            onChange={(e) => handleToggleReminder(reminder.id, e.target.checked)}
-                          />
-                          <span className="toggle-slider"></span>
-                        </label>
-                        <div className="reminder-content">
-                          <div className={`reminder-name ${reminder.enabled === false ? 'strikethrough' : ''}`}>{reminder.name}</div>
-                          <div className="reminder-text">{substituteVariables(reminder.text, subContext).substring(0, 60)}{reminder.text.length > 60 ? '...' : ''}</div>
-                        </div>
-                        <div className="reminder-actions">
-                          <button
-                            className="btn-icon-small"
-                            onClick={() => handleEditReminder(reminder)}
-                            title="Edit"
-                          >✏️</button>
-                          <button
-                            className="btn-icon-small"
-                            onClick={() => handleDeleteReminder(reminder.id)}
-                            title="Delete"
-                          >🗑️</button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Global Reminders */}
-            {settings?.globalReminders && settings.globalReminders.length > 0 && (
-              <div className="reminders-section global-reminders-section">
-                <div className="reminders-header">
-                  <h4>Global Reminders</h4>
-                </div>
-                <div className="reminders-list">
-                  {settings.globalReminders.map(reminder => (
-                    <div key={reminder.id} className={`reminder-item ${reminder.enabled === false ? 'disabled' : ''}`}>
-                      <label className="toggle-switch">
-                        <input
-                          type="checkbox"
-                          checked={reminder.enabled !== false}
-                          onChange={(e) => handleToggleGlobalReminder(reminder.id, e.target.checked)}
-                        />
-                        <span className="toggle-slider"></span>
-                      </label>
-                      <div className="reminder-content">
-                        <div className={`reminder-name ${reminder.enabled === false ? 'strikethrough' : ''}`}>{reminder.name || 'Global'}</div>
-                        <div className="reminder-text">{substituteVariables(reminder.text, subContext).substring(0, 60)}{reminder.text?.length > 60 ? '...' : ''}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Main Chat Area */}
@@ -1003,7 +767,7 @@ function Chat() {
               >
                 <div className="message-header">
                   <span className="message-sender">
-                    {msg.sender === 'player' ? 'You' : msg.characterName || 'Character'}
+                    {msg.sender === 'player' ? `${activePersona?.displayName || 'Player'} (You)` : msg.characterName || 'Character'}
                   </span>
                   <div className="message-controls">
                     <button
@@ -1064,219 +828,246 @@ function Chat() {
         </div>
 
         <form className="chat-input-form" onSubmit={handleSubmit}>
-          <div className="input-with-history">
-            <input
-              type="text"
+          <div className="input-buttons-row">
+            <div className="chat-buttons">
+              <button
+                type="submit"
+                className="chat-btn send-btn"
+                disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                title="Send message"
+              >➤</button>
+              <button
+                type="button"
+                className="chat-btn impersonate-btn"
+                disabled={!activeCharacter || isGenerating}
+                onClick={() => handleGuidedGenerate('guided_impersonate')}
+                title="Guided Impersonate (continue as you)"
+              >👤</button>
+              <div className="quick-text-container" ref={quickMenuRef}>
+                <button
+                  type="button"
+                  className="chat-btn quick-btn"
+                  onClick={() => setShowQuickMenu(!showQuickMenu)}
+                  title="Quick Texts"
+                >Q</button>
+                {showQuickMenu && (
+                  <div className="quick-text-menu">
+                    {quickTexts.map(qt => (
+                      <button
+                        key={qt.id}
+                        className="quick-menu-item"
+                        onClick={() => handleQuickTextClick(qt.text)}
+                      >
+                        {qt.text.length > 30 ? qt.text.substring(0, 30) + '...' : qt.text}
+                      </button>
+                    ))}
+                    <div className="quick-menu-divider" />
+                    <button
+                      className="quick-menu-item quick-menu-action"
+                      onClick={() => { setShowQuickMenu(false); setShowQuickAddModal(true); }}
+                    >
+                      + Add New Quick Text
+                    </button>
+                    <button
+                      className="quick-menu-item quick-menu-action"
+                      onClick={() => { setShowQuickMenu(false); setShowQuickManageModal(true); }}
+                    >
+                      Manage Quick Texts
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="chat-btn guided-btn"
+                disabled={!activeCharacter || isGenerating}
+                onClick={() => handleGuidedGenerate('guided')}
+                title="Guided Response (AI continues)"
+              >↩</button>
+            </div>
+          </div>
+          <div className="chat-input-row">
+            <div className="input-arrow-buttons">
+              <button
+                type="button"
+                className="arrow-btn"
+                onClick={() => {
+                  if (messageHistory.length === 0) return;
+                  if (historyIndex === -1) {
+                    setCurrentDraft(inputValue);
+                    setHistoryIndex(messageHistory.length - 1);
+                    setInputValue(messageHistory[messageHistory.length - 1]);
+                  } else if (historyIndex > 0) {
+                    setHistoryIndex(historyIndex - 1);
+                    setInputValue(messageHistory[historyIndex - 1]);
+                  }
+                }}
+                disabled={!activeCharacter || messageHistory.length === 0}
+                title="Previous message"
+              >&#9650;</button>
+              <button
+                type="button"
+                className="arrow-btn"
+                onClick={() => {
+                  if (historyIndex === -1) {
+                    setInputValue('');
+                    setCurrentDraft('');
+                  } else if (historyIndex < messageHistory.length - 1) {
+                    setHistoryIndex(historyIndex + 1);
+                    setInputValue(messageHistory[historyIndex + 1]);
+                  } else {
+                    setHistoryIndex(-1);
+                    setInputValue(currentDraft);
+                  }
+                }}
+                disabled={!activeCharacter}
+                title="Next message / Clear"
+              >&#9660;</button>
+            </div>
+            <textarea
+              className="chat-input-textarea"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder={activeCharacter ? `Message ${activeCharacter.name}...` : 'Select a character to chat...'}
               disabled={!activeCharacter || isGenerating}
+              rows={3}
             />
-            <div className="history-arrows">
-              <button
-                type="button"
-                className="history-arrow"
-                onClick={() => handleInputKeyDown({ key: 'ArrowUp', preventDefault: () => {} })}
-                disabled={messageHistory.length === 0}
-                title="Previous message"
-              >▲</button>
-              <button
-                type="button"
-                className="history-arrow"
-                onClick={() => handleInputKeyDown({ key: 'ArrowDown', preventDefault: () => {} })}
-                disabled={historyIndex === -1}
-                title="Next message"
-              >▼</button>
-            </div>
-          </div>
-          <div className="chat-buttons">
-            <button
-              type="submit"
-              className="chat-btn send-btn"
-              disabled={!activeCharacter || !inputValue.trim() || isGenerating}
-              title="Send message"
-            >➤</button>
-            <button
-              type="button"
-              className="chat-btn impersonate-btn"
-              disabled={!activeCharacter || isGenerating}
-              onClick={() => handleGuidedGenerate('guided_impersonate')}
-              title="Guided Impersonate (continue as you)"
-            >👤</button>
-            <div className="quick-text-container" ref={quickMenuRef}>
-              <button
-                type="button"
-                className="chat-btn quick-btn"
-                onClick={() => setShowQuickMenu(!showQuickMenu)}
-                title="Quick Texts"
-              >Q</button>
-              {showQuickMenu && (
-                <div className="quick-text-menu">
-                  {quickTexts.map(qt => (
-                    <button
-                      key={qt.id}
-                      className="quick-menu-item"
-                      onClick={() => handleQuickTextClick(qt.text)}
-                    >
-                      {qt.text.length > 30 ? qt.text.substring(0, 30) + '...' : qt.text}
-                    </button>
-                  ))}
-                  <div className="quick-menu-divider" />
-                  <button
-                    className="quick-menu-item quick-menu-action"
-                    onClick={() => { setShowQuickMenu(false); setShowQuickAddModal(true); }}
-                  >
-                    + Add New Quick Text
-                  </button>
-                  <button
-                    className="quick-menu-item quick-menu-action"
-                    onClick={() => { setShowQuickMenu(false); setShowQuickManageModal(true); }}
-                  >
-                    Manage Quick Texts
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="chat-btn guided-btn"
-              disabled={!activeCharacter || isGenerating}
-              onClick={() => handleGuidedGenerate('guided')}
-              title="Guided Response (AI continues)"
-            >↩</button>
           </div>
         </form>
       </div>
 
-      {/* Session Modals */}
-      <SaveSessionModal
-        isOpen={showSaveModal}
-        onClose={() => setShowSaveModal(false)}
-        onSave={handleSaveSession}
-        defaultName={getDefaultSessionName()}
-      />
-
-      <LoadSessionModal
-        isOpen={showLoadModal}
-        onClose={() => setShowLoadModal(false)}
-        onLoad={handleLoadSession}
-        onSaveFirst={handleSaveSession}
-        sessions={savedSessions}
-        hasUnsavedChanges={hasUnsavedChanges}
-        defaultSaveName={getDefaultSessionName()}
-      />
-
-      {/* Right Sidebar */}
+      {/* Right Sidebar - Character */}
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
-        {/* Control Panel Section - ABOVE tabs */}
-        <div className="sidebar-section control-panel-section">
-          <h3>Control Panel</h3>
+        {/* Character Name */}
+        <div className="sidebar-entity-header">
+          <span className="entity-name-display">
+            {activeCharacter?.name || 'None'}
+          </span>
+        </div>
 
-          {/* Mode Selection */}
-          <div className="control-panel-row">
-            <div className="status-control">
-              <label>
-                Mode
-                <span
-                  className="info-icon"
-                  title="Interactive: Commands execute on real devices. Simulated: Commands are logged but not executed (for testing)."
-                >?</span>
-                {simulationRequired && <span className="mode-locked-indicator">(Locked)</span>}
-              </label>
-              <select
-                value={controlMode}
-                onChange={(e) => handleModeChange(e.target.value)}
-                className={`control-panel-select ${simulationRequired ? 'locked' : ''}`}
-                disabled={simulationRequired}
-                title={simulationRequired ? `Locked: ${simulationReason}` : ''}
-              >
-                <option value="interactive">Interactive</option>
-                <option value="simulated">Simulated</option>
-              </select>
+        {/* Character Portrait */}
+        <div className="entity-portrait-large">
+          {activeCharacter?.avatar ? (
+            <img src={activeCharacter.avatar} alt={activeCharacter.name} />
+          ) : (
+            <div className="portrait-placeholder">?</div>
+          )}
+        </div>
+
+        {/* Actions Section - Collapsible */}
+        <div className={`collapsible-section actions-section ${actionsExpanded ? 'expanded' : ''}`}>
+          <button
+            className="collapsible-header"
+            onClick={() => {
+              setActionsExpanded(!actionsExpanded);
+              if (!actionsExpanded) setDevicesExpanded(false);
+            }}
+          >
+            <span className={`collapsible-chevron ${actionsExpanded ? 'expanded' : ''}`}>›</span>
+            Actions
+          </button>
+          {actionsExpanded && (
+            <div className="collapsible-overlay actions-overlay">
+              {activeCharacter?.buttons?.length > 0 ? (
+                <div className="actions-grid">
+                  {activeCharacter.buttons.filter(b => b.enabled !== false).map(button => (
+                    <button
+                      key={button.buttonId || button.id}
+                      className="action-overlay-btn"
+                      onClick={() => handleExecuteButton(button)}
+                    >
+                      {button.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted">No buttons configured</p>
+              )}
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Device States List */}
-          <div className="device-states-section">
-            <h4>Device States</h4>
-            {devices.length === 0 ? (
-              <p className="text-muted">No devices configured</p>
-            ) : (
-              <div className="device-states-list">
-                {devices.map(device => {
+        {/* Devices Section - Collapsible */}
+        <div className={`collapsible-section devices-section ${devicesExpanded ? 'expanded' : ''}`}>
+          <div className="collapsible-header devices-header">
+            <span
+              className={`collapsible-chevron ${devicesExpanded ? 'expanded' : ''}`}
+              onClick={() => {
+                setDevicesExpanded(!devicesExpanded);
+                if (!devicesExpanded) setActionsExpanded(false);
+              }}
+            >›</span>
+            <span
+              className="collapsible-label"
+              onClick={() => {
+                setDevicesExpanded(!devicesExpanded);
+                if (!devicesExpanded) setActionsExpanded(false);
+              }}
+            >Devices</span>
+            {controlMode !== 'simulated' && (
+              <button
+                className="e-stop-btn mini"
+                onClick={handleEmergencyStop}
+                disabled={stopping}
+              >
+                {stopping ? 'STOP' : 'E-STOP'}
+              </button>
+            )}
+          </div>
+          {/* Sub-card with indicators (only when collapsed) */}
+          {!devicesExpanded && (
+            <div className="devices-subcard">
+              <div className="indicator-grid">
+                {[0,1,2,3,4].map(i => {
+                  const device = devices[i];
+                  if (!device) {
+                    return <span key={i} className="indicator-light empty"></span>;
+                  }
                   const deviceKey = getDeviceKey(device);
                   const deviceState = polledDeviceStates[deviceKey];
                   const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
                   const isUnknown = !deviceState || deviceState?.state === 'unknown';
-                  const isInfiniteCycle = infiniteCycles && infiniteCycles[deviceKey];
-
-                  return (
-                    <div key={device.id} className={`device-state-item ${isInfiniteCycle ? 'expanded' : ''}`}>
-                      <div className="device-state-row">
-                        <span className={`device-state-dot ${isUnknown ? 'unknown' : isOn ? 'on' : 'off'}`}></span>
-                        <span className="device-state-name">
-                          {device.label || device.name}
-                        </span>
-                        <div className="device-state-controls">
-                          <button
-                            className="device-control-btn on-btn"
-                            onClick={() => handleManualDeviceOn(device)}
-                            disabled={controlMode === 'simulated' ? false : (isOn && !isUnknown)}
-                            title="Turn ON"
-                          >
-                            ON
-                          </button>
-                          <button
-                            className="device-control-btn off-btn"
-                            onClick={() => handleManualDeviceOff(device)}
-                            disabled={controlMode === 'simulated' ? false : (!isOn && !isUnknown)}
-                            title="Turn OFF"
-                          >
-                            OFF
-                          </button>
-                        </div>
-                      </div>
-                      {isInfiniteCycle && (
-                        <div className="device-state-row infinite-cycle-row">
-                          <span className="infinite-cycle-label">Infinite Cycle</span>
-                          <button
-                            className="device-control-btn end-btn"
-                            onClick={() => sendWsMessage('end_infinite_cycle', { deviceIp: deviceKey })}
-                            title="End Cycle"
-                          >
-                            END
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
+                  const statusClass = isUnknown ? 'unavailable' : isOn ? 'on' : 'off';
+                  return <span key={i} className={`indicator-light ${statusClass}`}></span>;
                 })}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Character Buttons - Direct display */}
-        <div className="events-section">
-          <h4>Character Events</h4>
-          {activeCharacter && (activeCharacter.buttons || activeCharacter.events) && (activeCharacter.buttons?.length > 0 || activeCharacter.events?.length > 0) ? (
-            <div className="events-list">
-              {(activeCharacter.buttons || activeCharacter.events).map(button => (
-                <button
-                  key={button.buttonId || button.id}
-                  className={`event-button ${button.enabled === false ? 'disabled' : ''}`}
-                  onClick={() => button.enabled !== false && handleExecuteButton(button)}
-                  disabled={button.enabled === false}
-                >
-                  {button.name}
-                </button>
-              ))}
             </div>
-          ) : (
-            <p className="text-muted">No buttons configured for this character.</p>
+          )}
+          {devicesExpanded && (
+            <div className="collapsible-overlay devices-overlay">
+              {devices.length === 0 ? (
+                <p className="text-muted">No devices configured</p>
+              ) : (
+                devices.map((device, index) => {
+                  const deviceKey = getDeviceKey(device);
+                  const deviceState = polledDeviceStates[deviceKey];
+                  const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
+                  const isUnknown = !deviceState || deviceState?.state === 'unknown';
+                  const statusClass = isUnknown ? 'unavailable' : isOn ? 'on' : 'off';
+                  const isPrimary = index === 0;
+
+                  return (
+                    <div key={device.id} className="device-overlay-item">
+                      <div className="device-overlay-row">
+                        <span className={`device-indicator ${statusClass}`}></span>
+                        <span className="device-overlay-name">{device.label || device.name}</span>
+                        {isPrimary && <span className="primary-star">★</span>}
+                      </div>
+                      <div className="device-overlay-controls">
+                        <button onClick={() => isOn ? handleManualDeviceOff(device) : handleManualDeviceOn(device)}>
+                          {isOn ? 'Off' : 'On'}
+                        </button>
+                        <button onClick={() => handleCycleDevice(device)}>Cycle</button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
+
       </div>
 
       {/* Mobile drawer toggle buttons (hidden on desktop via CSS) */}

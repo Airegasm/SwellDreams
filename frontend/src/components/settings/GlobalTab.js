@@ -5,7 +5,7 @@ import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import './SettingsTabs.css';
 
 function GlobalTab() {
-  const { flows, sessionState, sendWsMessage, settings, api } = useApp();
+  const { flows, sessionState, sendWsMessage, settings, api, controlMode, setControlMode, simulationRequired, simulationReason } = useApp();
   const { showError } = useError();
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [globalPrompt, setGlobalPrompt] = useState('');
@@ -203,6 +203,33 @@ function GlobalTab() {
 
   return (
     <div className="settings-tab">
+      {/* Control Mode Section */}
+      <div className="control-mode-section">
+        <h3>Control Mode</h3>
+        <p className="text-muted">
+          Choose how device commands are executed. Interactive mode sends real commands to devices.
+          Simulated mode logs actions without executing them (for testing).
+        </p>
+        <div className="form-group">
+          <label>
+            Mode
+            {simulationRequired && (
+              <span className="mode-locked-indicator" title={simulationReason}> (Locked)</span>
+            )}
+          </label>
+          <select
+            value={controlMode}
+            onChange={(e) => setControlMode(e.target.value)}
+            disabled={simulationRequired}
+            title={simulationRequired ? `Locked: ${simulationReason}` : ''}
+            className={simulationRequired ? 'locked' : ''}
+          >
+            <option value="interactive">Interactive</option>
+            <option value="simulated">Simulated</option>
+          </select>
+        </div>
+      </div>
+
       {/* Global Prompt / Author Note Section */}
       <div className="global-prompt-section">
         <div className="section-header-with-draft">
