@@ -52,8 +52,8 @@ class TuyaService {
   }
 
   /**
-   * Get access token - V2 format
-   * Sign: accessKey + t + nonce + stringToSign
+   * Get access token
+   * Sign: accessKey + timestamp + stringToSign (per SO example)
    */
   async getAccessToken() {
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
@@ -61,22 +61,20 @@ class TuyaService {
       return this.accessToken;
     }
 
-    console.log('[Tuya] Requesting new access token (V2 format)...');
+    console.log('[Tuya] Requesting new access token...');
     const t = Date.now().toString();
-    const nonce = '';
     const method = 'GET';
-    const path = '/v1.0/token?grant_type=1';
+    const signUrl = '/v1.0/token?grant_type=1';
 
-    // V2: hash empty string for token request (no body)
     const contentHash = crypto.createHash('sha256').update('').digest('hex');
-    const stringToSign = [method, contentHash, '', path].join('\n');
-    const signStr = this.accessId + t + nonce + stringToSign;
+    const stringToSign = [method, contentHash, '', signUrl].join('\n');
+    const signStr = this.accessId + t + stringToSign;
     const signature = this.sign(signStr);
 
-    console.log(`[Tuya] Sign: accessId + ${t} + "" + stringToSign`);
+    console.log(`[Tuya] Sign: accessId + ${t} + stringToSign`);
     console.log(`[Tuya] Signature: ${signature.substring(0, 16)}...`);
 
-    const url = `${this.getBaseUrl()}${path}`;
+    const url = `${this.getBaseUrl()}${signUrl}`;
     console.log(`[Tuya] Fetching: ${url}`);
 
     const response = await fetch(url, {
@@ -86,7 +84,6 @@ class TuyaService {
         'sign': signature,
         'client_id': this.accessId,
         'sign_method': 'HMAC-SHA256',
-        'nonce': nonce,
       },
     });
 
@@ -118,38 +115,38 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
-    const nonce = '';
 
-    // SDK uses JSON.stringify(body) for all requests
-    const bodyStr = JSON.stringify(body);
+    // Per StackOverflow example:
+    // - GET requests: hash empty string
+    // - POST/PUT/DELETE: hash JSON.stringify(body)
+    const isGet = method === 'GET';
+    const bodyStr = isGet ? '' : JSON.stringify(body);
     const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign = [method, contentHash, '', path].join('\n');
-    // Try with nonce per official docs: client_id + access_token + t + nonce + stringToSign
-    const signStr = this.accessId + token + t + nonce + stringToSign;
+    // NO nonce! Just: accessKey + token + t + stringToSign
+    const signStr = this.accessId + token + t + stringToSign;
     const signature = this.sign(signStr);
 
-    console.log(`[Tuya] Body: ${bodyStr}`);
-    console.log(`[Tuya] ContentHash: ${contentHash.substring(0, 16)}...`);
-    console.log(`[Tuya] StringToSign: ${method}\\n${contentHash.substring(0,16)}...\\n\\n${path}`);
-    console.log(`[Tuya] Sign: accessId + token + ${t} + nonce + stringToSign`);
-    console.log(`[Tuya] Signature: ${signature.substring(0, 16)}...`);
+    console.log(`[Tuya] Body: ${bodyStr || '(empty)'}`);
+    console.log(`[Tuya] ContentHash: ${contentHash}`);
+    console.log(`[Tuya] StringToSign: ${method}\\n${contentHash}\\n\\n${path}`);
+    console.log(`[Tuya] SignStr: ${this.accessId.substring(0,8)}...${token.substring(0,8)}...${t}${method}\\n...`);
+    console.log(`[Tuya] Signature: ${signature}`);
 
     const headers = {
       't': t,
       'sign': signature,
       'client_id': this.accessId,
       'sign_method': 'HMAC-SHA256',
-      'nonce': nonce,
       'access_token': token,
       'Content-Type': 'application/json',
-      'Dev_lang': 'javascript',
-      'Dev_channel': 'SaaSFramework',
+      'mode': 'cors',
     };
 
     const options = { method, headers };
 
     // Only send body for non-GET requests
-    if (method !== 'GET' && Object.keys(body).length > 0) {
+    if (!isGet) {
       options.body = bodyStr;
     }
 
