@@ -30,6 +30,7 @@ function Chat() {
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileSessionModal, setShowMobileSessionModal] = useState(false);
   const closeDrawers = () => { setLeftDrawerOpen(false); setRightDrawerOpen(false); };
   const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
@@ -869,15 +870,8 @@ function Chat() {
                       <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/'); }}>
                         💬 Chat
                       </button>
-                      <div className="mobile-menu-divider" />
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-new-session')); }}>
-                        📄 New Session
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-save-session')); }}>
-                        💾 Save Session
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-load-session')); }}>
-                        📂 Load Session
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); setShowMobileSessionModal(true); }}>
+                        📁 Session
                       </button>
                       <div className="mobile-menu-divider" />
                       <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/personas'); }}>
@@ -1301,6 +1295,43 @@ function Chat() {
               </button>
               <button className="btn btn-secondary" onClick={() => { setShowQuickManageModal(false); setEditingQuickText(null); setNewQuickText(''); }}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Session Modal */}
+      {showMobileSessionModal && (
+        <div className="modal-overlay" onClick={() => setShowMobileSessionModal(false)}>
+          <div className="modal mobile-session-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Session</h3>
+              <button className="modal-close" onClick={() => setShowMobileSessionModal(false)}>×</button>
+            </div>
+            <div className="modal-body mobile-session-buttons">
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setShowMobileSessionModal(false); window.dispatchEvent(new Event('mobile-new-session')); }}
+              >
+                New
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setShowMobileSessionModal(false); window.dispatchEvent(new Event('mobile-load-session')); }}
+              >
+                Load
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => { setShowMobileSessionModal(false); window.dispatchEvent(new Event('mobile-save-session')); }}
+              >
+                Save
+              </button>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowMobileSessionModal(false)}>
+                Cancel
               </button>
             </div>
           </div>

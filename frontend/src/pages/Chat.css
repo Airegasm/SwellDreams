@@ -1880,3 +1880,21 @@
   text-align: center;
   line-height: 1.4;
 }
+
+/* Mobile Session Modal */
+.mobile-session-modal {
+  max-width: 300px;
+  min-width: 260px;
+}
+
+.mobile-session-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.mobile-session-buttons .btn {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: var(--font-size-base);
+}
