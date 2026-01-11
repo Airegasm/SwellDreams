@@ -1029,6 +1029,8 @@ async function handleWsMessage(ws, type, data) {
     case 'set_auto_reply':
       sessionState.autoReply = data.enabled;
       console.log(`[Settings] Auto Reply set to: ${data.enabled}`);
+      // Broadcast back to confirm state change
+      broadcast('auto_reply_update', { enabled: sessionState.autoReply });
       break;
 
     case 'set_control_mode':
@@ -1536,6 +1538,7 @@ async function handleButtonAdjustCapacity(action) {
 
 async function handleChatMessage(data) {
   const { content, sender = 'player' } = data;
+  console.log(`[Chat] Message received. autoReply=${sessionState.autoReply}`);
 
   // Add to chat history
   const playerMessage = {

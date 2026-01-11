@@ -237,6 +237,10 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, isGenerating: false, generatingFor: null, isPlayerVoice: false }));
         break;
 
+      case 'auto_reply_update':
+        setSessionState(prev => ({ ...prev, autoReply: data.enabled }));
+        break;
+
       case 'infinite_cycle_start':
         setInfiniteCycles(prev => ({ ...prev, [data.device]: true }));
         break;
