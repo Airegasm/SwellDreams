@@ -222,6 +222,13 @@ function ExternalApisTab() {
               it likely works with this API.
             </p>
 
+            <div className="warning-box">
+              <strong>Critical:</strong> You must use the official <strong>"Smart Life"</strong> app by{' '}
+              <strong>Volcano Technology Limited</strong> (or the official Tuya Smart app). Third-party apps
+              like "SmartLife" (one word, by other developers) will NOT work with the Tuya IoT Platform.
+              Check the app developer in your app store before proceeding.
+            </div>
+
             <h4 className="subsection-header">Supported Brands</h4>
             <p>Devices from these brands typically use Tuya's platform:</p>
             <ul className="help-list">
@@ -235,7 +242,24 @@ function ExternalApisTab() {
               <li>Many others (if it uses Smart Life app, it's Tuya-based)</li>
             </ul>
 
-            <h4 className="subsection-header">Creating a Tuya IoT Account</h4>
+            <h4 className="subsection-header">Step 1: Set Up Your Devices in Smart Life App</h4>
+            <ol className="help-list numbered">
+              <li>
+                Install the official <strong>Smart Life</strong> app by Volcano Technology Limited
+                from the{' '}
+                <a href="https://apps.apple.com/app/smart-life-smart-living/id1115101477" target="_blank" rel="noopener noreferrer">
+                  App Store
+                </a>
+                {' '}or{' '}
+                <a href="https://play.google.com/store/apps/details?id=com.tuya.smartlife" target="_blank" rel="noopener noreferrer">
+                  Google Play
+                </a>
+              </li>
+              <li>Create an account and add your devices to the app</li>
+              <li>Make sure your devices work in the Smart Life app before proceeding</li>
+            </ol>
+
+            <h4 className="subsection-header">Step 2: Create a Tuya IoT Account</h4>
             <ol className="help-list numbered">
               <li>
                 Go to{' '}
@@ -248,7 +272,7 @@ function ExternalApisTab() {
               <li>Complete any required profile information</li>
             </ol>
 
-            <h4 className="subsection-header">Creating a Cloud Project</h4>
+            <h4 className="subsection-header">Step 3: Create a Cloud Project</h4>
             <ol className="help-list numbered">
               <li>Log in to Tuya IoT Platform</li>
               <li>Go to <strong>Cloud → Development → My Cloud Projects</strong></li>
@@ -272,8 +296,8 @@ function ExternalApisTab() {
               <li>Click <strong>Create</strong></li>
             </ol>
 
-            <h4 className="subsection-header">Authorizing API Services</h4>
-            <p>During setup, you'll be asked to authorize API services. You need these three:</p>
+            <h4 className="subsection-header">Step 4: Authorize API Services</h4>
+            <p>During setup, you'll be asked to authorize API services. You need these:</p>
             <ul className="help-list">
               <li><strong>IoT Core</strong> (Free Basic Resource Pack) - Required for API access</li>
               <li><strong>Authorization Token Management</strong> - Required for authentication</li>
@@ -281,7 +305,7 @@ function ExternalApisTab() {
             </ul>
             <p>You can remove others like "Data Dashboard Service" - they're not needed.</p>
 
-            <h4 className="subsection-header">Getting API Credentials</h4>
+            <h4 className="subsection-header">Step 5: Get Your API Credentials</h4>
             <ol className="help-list numbered">
               <li>Open your project</li>
               <li>Go to the <strong>Overview</strong> tab</li>
@@ -289,29 +313,50 @@ function ExternalApisTab() {
               <li>Copy both values</li>
             </ol>
 
-            <h4 className="subsection-header">Linking Your Smart Life Account</h4>
+            <h4 className="subsection-header">Step 6: Link Your Smart Life Account</h4>
             <ol className="help-list numbered">
               <li>In your project, go to <strong>Devices → Link Tuya App Account</strong></li>
               <li>Click <strong>Add App Account</strong></li>
-              <li>Scan the QR code with your <strong>Smart Life</strong> app (Globe devices work with Smart Life)</li>
+              <li>Scan the QR code with your <strong>Smart Life</strong> app</li>
               <li>Confirm linking in the app</li>
-              <li>Your devices should now appear in the project</li>
+              <li>Your devices should now appear in the <strong>All Devices</strong> tab</li>
             </ol>
 
-            <h4 className="subsection-header">SwellDreams Configuration</h4>
+            <h4 className="subsection-header">Step 7: Get Your Device IDs</h4>
+            <div className="info-box">
+              <strong>Note:</strong> Tuya's Cloud Authorization API does not support automatic device discovery.
+              You must manually add each device using its Device ID from the Tuya IoT Platform.
+            </div>
+            <ol className="help-list numbered">
+              <li>In your Tuya IoT project, go to <strong>Devices → All Devices</strong></li>
+              <li>Find your device in the list</li>
+              <li>Copy the <strong>Device ID</strong> (a long alphanumeric string like <code>eb7ea012e9d2b4fb43lk1c</code>)</li>
+              <li>Keep this ID handy for SwellDreams configuration</li>
+            </ol>
+
+            <h4 className="subsection-header">Step 8: Configure SwellDreams</h4>
             <ol className="help-list numbered">
               <li>Go to <strong>Settings → Devices</strong></li>
               <li>In the Tuya section, click <strong>Connect</strong></li>
               <li>Enter your Access ID and Access Secret</li>
               <li>Select your region (must match your Tuya project data center)</li>
               <li>Click <strong>Connect</strong></li>
-              <li>Click <strong>Scan Devices</strong> to discover your devices</li>
+              <li>Click <strong>+ Add Device</strong></li>
+              <li>Paste your Device ID from Step 7</li>
+              <li>Click <strong>Add</strong> to fetch the device</li>
+              <li>Repeat for each device you want to control</li>
             </ol>
 
             <div className="warning-box">
-              <strong>Important:</strong> Your Data Center region in Tuya IoT must match the region
-              you select in SwellDreams, or authentication will fail. If your devices don't appear,
-              double-check that you selected the correct data center when creating the project.
+              <strong>Troubleshooting:</strong>
+              <ul className="help-list" style={{marginTop: '8px', marginBottom: 0}}>
+                <li><strong>Authentication fails:</strong> Make sure your Data Center region in Tuya IoT matches
+                  the region you selected in SwellDreams (us, eu, cn, or in).</li>
+                <li><strong>Device not found:</strong> Verify the Device ID is correct by checking the Tuya IoT
+                  Platform → Devices → All Devices tab.</li>
+                <li><strong>Devices not appearing in Tuya IoT:</strong> Make sure you're using the official
+                  Smart Life app (by Volcano Technology Limited), not a third-party app.</li>
+              </ul>
             </div>
           </div>
         )}

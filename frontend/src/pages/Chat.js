@@ -10,7 +10,7 @@ import { substituteVariables } from '../utils/variableSubstitution';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, devices, infiniteCycles, simulationRequired, simulationReason, controlMode, setControlMode } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, devices, infiniteCycles, simulationRequired, simulationReason, controlMode, setControlMode } = useApp();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -58,8 +58,7 @@ function Chat() {
     recentActionsRef.current[deviceKey] = Date.now();
   };
 
-  // Auto reply state - when false, AI only responds via Guided Response/Events/Flows
-  const [autoReply, setAutoReply] = useState(false);
+  // Auto reply - uses sessionState.autoReply from context (synced with server)
 
   // Emergency stop alert state
   const [emergencyStopAlert, setEmergencyStopAlert] = useState(null);
@@ -277,7 +276,7 @@ function Chat() {
     if (!inputValue.trim() || isGenerating) return;
 
     // Check if LLM is configured when auto-reply is on
-    if (autoReply && !isLlmConfigured()) {
+    if (sessionState.autoReply && !isLlmConfigured()) {
       setShowLlmError(true);
       return;
     }
@@ -876,9 +875,9 @@ function Chat() {
                 <label className="auto-reply-toggle">
                   <input
                     type="checkbox"
-                    checked={autoReply}
+                    checked={sessionState.autoReply || false}
                     onChange={(e) => {
-                      setAutoReply(e.target.checked);
+                      setSessionState(prev => ({ ...prev, autoReply: e.target.checked }));
                       sendWsMessage('set_auto_reply', { enabled: e.target.checked });
                     }}
                   />
