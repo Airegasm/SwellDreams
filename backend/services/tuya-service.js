@@ -2,6 +2,8 @@
  * Tuya Smart Device Service
  * Communicates with Tuya cloud API for device discovery and control
  * Works with Tuya, Smart Life, Treatlife, Gosund, Teckin, and other Tuya-based brands
+ *
+ * Based on official tuya-connector-nodejs SDK signature implementation
  */
 
 const crypto = require('crypto');
@@ -20,6 +22,7 @@ class TuyaService {
     this.accessSecret = null;
     this.region = 'us';
     this.accessToken = null;
+    this.refreshToken = null;
     this.tokenExpiry = null;
   }
 
@@ -32,19 +35,9 @@ class TuyaService {
     this.accessSecret = accessSecret;
     this.region = region;
     this.accessToken = null;
+    this.refreshToken = null;
     this.tokenExpiry = null;
     console.log(`[Tuya] Credentials ${accessId ? 'set' : 'cleared'}, token cache cleared`);
-  }
-
-  /**
-   * Get current credentials (without secret)
-   */
-  getCredentials() {
-    return {
-      accessId: this.accessId,
-      region: this.region,
-      hasSecret: !!this.accessSecret
-    };
   }
 
   /**
@@ -62,67 +55,53 @@ class TuyaService {
   }
 
   /**
-   * Generate signature for Tuya API request (V1 API format)
-   * V1: signStr = clientId + [accessToken] + timestamp
-   * V2: signStr = clientId + accessToken + timestamp + nonce + stringToSign
+   * Calculate HMAC-SHA256 signature (matches official SDK)
    */
-  generateSign(timestamp, accessToken = '') {
-    // V1 API format - no stringToSign needed
-    const signStr = this.accessId + accessToken + timestamp;
-
-    console.log('[Tuya] ---- SIGNATURE DEBUG ----');
-    console.log(`[Tuya] Has Access Token: ${!!accessToken}`);
-    console.log(`[Tuya] Sign String: ${this.accessId.substring(0, 8)}... + ${accessToken ? 'token' : ''} + ${timestamp}`);
-
-    const signature = crypto
+  calcSign(str) {
+    return crypto
       .createHmac('sha256', this.accessSecret)
-      .update(signStr)
+      .update(str, 'utf8')
       .digest('hex')
       .toUpperCase();
-
-    console.log(`[Tuya] Final Signature: ${signature.substring(0, 16)}...`);
-    return signature;
   }
 
   /**
-   * Get access token (with caching)
+   * Get access token
    */
   async getAccessToken() {
     // Return cached token if still valid
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-      console.log('[Tuya] Using cached token (expires in', Math.round((this.tokenExpiry - Date.now()) / 1000), 'seconds)');
+      console.log('[Tuya] Using cached token');
       return this.accessToken;
     }
 
     console.log('[Tuya] Requesting new access token...');
-    console.log(`[Tuya] API Base URL: ${this.getBaseUrl()}`);
-    console.log(`[Tuya] Access ID: ${this.accessId ? this.accessId.substring(0, 8) + '...' : 'NOT SET'}`);
-    console.log(`[Tuya] Access Secret: ${this.accessSecret ? '***' + this.accessSecret.slice(-4) : 'NOT SET'}`);
+    const t = Date.now().toString();
 
-    const timestamp = Date.now().toString();
-    const path = '/v1.0/token?grant_type=1';
-    const sign = this.generateSign(timestamp); // No token for initial auth
+    // V1 token signature: accessKey + t (from official SDK refreshSign method)
+    const signStr = this.accessId + t;
+    const sign = this.calcSign(signStr);
 
-    console.log(`[Tuya] Request timestamp: ${timestamp}`);
-    console.log(`[Tuya] Generated signature: ${sign.substring(0, 16)}...`);
+    console.log(`[Tuya] Sign string: ${this.accessId} + ${t}`);
+    console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
-    const url = `${this.getBaseUrl()}${path}`;
+    const url = `${this.getBaseUrl()}/v1.0/token?grant_type=1`;
     console.log(`[Tuya] Fetching: ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'client_id': this.accessId,
+        't': t,
         'sign': sign,
+        'client_id': this.accessId,
         'sign_method': 'HMAC-SHA256',
-        't': timestamp,
+        'Dev_lang': 'javascript',
+        'Dev_channel': 'SwellDreams',
       },
     });
 
-    console.log(`[Tuya] Response status: ${response.status} ${response.statusText}`);
-
     const data = await response.json();
-    console.log(`[Tuya] Response success: ${data.success}, code: ${data.code}, msg: ${data.msg || 'none'}`);
+    console.log(`[Tuya] Response: success=${data.success}, code=${data.code}, msg=${data.msg || 'none'}`);
 
     if (!data.success) {
       console.error(`[Tuya] AUTH FAILED - Code: ${data.code}, Message: ${data.msg}`);
@@ -130,6 +109,7 @@ class TuyaService {
     }
 
     this.accessToken = data.result.access_token;
+    this.refreshToken = data.result.refresh_token;
     // Token expires in expire_time seconds, refresh 5 minutes early
     this.tokenExpiry = Date.now() + (data.result.expire_time - 300) * 1000;
 
@@ -138,7 +118,7 @@ class TuyaService {
   }
 
   /**
-   * Make authenticated request to Tuya API
+   * Make authenticated request to Tuya API (V1 format)
    */
   async request(method, path, body = null) {
     if (!this.accessId || !this.accessSecret) {
@@ -148,28 +128,37 @@ class TuyaService {
     console.log(`[Tuya] ---- API Request: ${method} ${path} ----`);
 
     const token = await this.getAccessToken();
-    const timestamp = Date.now().toString();
-    const sign = this.generateSign(timestamp, token); // V1 format: clientId + token + timestamp
+    const t = Date.now().toString();
 
-    console.log(`[Tuya] Token: ${token ? token.substring(0, 16) + '...' : 'NONE'}`);
-    console.log(`[Tuya] Timestamp: ${timestamp}`);
+    // V1 authenticated signature: accessKey + accessToken + t (from official SDK requestSign method)
+    const signStr = this.accessId + token + t;
+    const sign = this.calcSign(signStr);
+
+    console.log(`[Tuya] Sign string: accessId + token + ${t}`);
     console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
+
+    const headers = {
+      't': t,
+      'sign': sign,
+      'client_id': this.accessId,
+      'sign_method': 'HMAC-SHA256',
+      'access_token': token,
+      'Dev_lang': 'javascript',
+      'Dev_channel': 'SwellDreams',
+    };
+
+    if (body) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     const options = {
       method,
-      headers: {
-        'client_id': this.accessId,
-        'access_token': token,
-        'sign': sign,
-        'sign_method': 'HMAC-SHA256',
-        't': timestamp,
-        'Content-Type': 'application/json',
-      },
+      headers,
     };
 
     if (body) {
       options.body = JSON.stringify(body);
-      console.log(`[Tuya] Body: ${options.body.substring(0, 100)}...`);
+      console.log(`[Tuya] Body: ${options.body.substring(0, 100)}`);
     }
 
     const url = `${this.getBaseUrl()}${path}`;
@@ -199,13 +188,6 @@ class TuyaService {
     // Then get devices for this user
     const devices = await this.request('GET', `/v1.0/users/${uid}/devices`);
     return devices || [];
-  }
-
-  /**
-   * Get device details
-   */
-  async getDevice(deviceId) {
-    return await this.request('GET', `/v1.0/devices/${deviceId}`);
   }
 
   /**
@@ -269,11 +251,6 @@ class TuyaService {
    */
   async testConnection() {
     console.log('[Tuya] ========== CONNECTION TEST START ==========');
-    console.log(`[Tuya] Testing connection with credentials...`);
-    console.log(`[Tuya] Access ID set: ${!!this.accessId}`);
-    console.log(`[Tuya] Access Secret set: ${!!this.accessSecret}`);
-    console.log(`[Tuya] Region: ${this.region}`);
-
     try {
       await this.getAccessToken();
       console.log('[Tuya] ========== CONNECTION TEST SUCCESS ==========');
