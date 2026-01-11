@@ -55,7 +55,7 @@ class TuyaService {
   }
 
   /**
-   * Calculate HMAC-SHA256 signature (matches official SDK)
+   * Calculate HMAC-SHA256 signature
    */
   calcSign(str) {
     return crypto
@@ -63,6 +63,14 @@ class TuyaService {
       .update(str, 'utf8')
       .digest('hex')
       .toUpperCase();
+  }
+
+  /**
+   * Build stringToSign component
+   */
+  buildStringToSign(method, path, body = null) {
+    const contentHash = crypto.createHash('sha256').update(body ? JSON.stringify(body) : '').digest('hex');
+    return [method, contentHash, '', path].join('\n');
   }
 
   /**
@@ -77,15 +85,17 @@ class TuyaService {
 
     console.log('[Tuya] Requesting new access token...');
     const t = Date.now().toString();
+    const path = '/v1.0/token?grant_type=1';
+    const stringToSign = this.buildStringToSign('GET', path);
 
-    // V1 token signature: accessKey + t (from official SDK refreshSign method)
-    const signStr = this.accessId + t;
+    // Token request: accessId + timestamp + stringToSign (this format worked before!)
+    const signStr = this.accessId + t + stringToSign;
     const sign = this.calcSign(signStr);
 
-    console.log(`[Tuya] Sign string: ${this.accessId} + ${t}`);
+    console.log(`[Tuya] StringToSign: GET\\n{hash}\\n\\n${path}`);
     console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
-    const url = `${this.getBaseUrl()}/v1.0/token?grant_type=1`;
+    const url = `${this.getBaseUrl()}${path}`;
     console.log(`[Tuya] Fetching: ${url}`);
 
     const response = await fetch(url, {
@@ -95,8 +105,6 @@ class TuyaService {
         'sign': sign,
         'client_id': this.accessId,
         'sign_method': 'HMAC-SHA256',
-        'Dev_lang': 'javascript',
-        'Dev_channel': 'SwellDreams',
       },
     });
 
@@ -110,7 +118,6 @@ class TuyaService {
 
     this.accessToken = data.result.access_token;
     this.refreshToken = data.result.refresh_token;
-    // Token expires in expire_time seconds, refresh 5 minutes early
     this.tokenExpiry = Date.now() + (data.result.expire_time - 300) * 1000;
 
     console.log(`[Tuya] Token obtained successfully, expires in ${data.result.expire_time} seconds`);
@@ -118,7 +125,7 @@ class TuyaService {
   }
 
   /**
-   * Make authenticated request to Tuya API (V1 format)
+   * Make authenticated request to Tuya API
    */
   async request(method, path, body = null) {
     if (!this.accessId || !this.accessSecret) {
@@ -129,12 +136,13 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
+    const stringToSign = this.buildStringToSign(method, path, body);
 
-    // V1 authenticated signature: accessKey + accessToken + t (from official SDK requestSign method)
-    const signStr = this.accessId + token + t;
+    // Authenticated request: accessId + token + timestamp + stringToSign
+    const signStr = this.accessId + token + t + stringToSign;
     const sign = this.calcSign(signStr);
 
-    console.log(`[Tuya] Sign string: accessId + token + ${t}`);
+    console.log(`[Tuya] StringToSign: ${method}\\n{hash}\\n\\n${path}`);
     console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
     const headers = {
@@ -143,22 +151,16 @@ class TuyaService {
       'client_id': this.accessId,
       'sign_method': 'HMAC-SHA256',
       'access_token': token,
-      'Dev_lang': 'javascript',
-      'Dev_channel': 'SwellDreams',
     };
 
     if (body) {
       headers['Content-Type'] = 'application/json';
     }
 
-    const options = {
-      method,
-      headers,
-    };
+    const options = { method, headers };
 
     if (body) {
       options.body = JSON.stringify(body);
-      console.log(`[Tuya] Body: ${options.body.substring(0, 100)}`);
     }
 
     const url = `${this.getBaseUrl()}${path}`;
