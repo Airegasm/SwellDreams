@@ -224,8 +224,14 @@
   }
 }
 
+/* Make Actions card same height as Devices card */
+.actions-section .collapsible-header {
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
 .devices-section {
-  margin-top: -4px;
+  margin-top: -7px;
   transition: margin-top 0.25s ease-out;
 }
 
