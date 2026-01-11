@@ -4,6 +4,10 @@
 
 const http = require('http');
 const https = require('https');
+const { extractJsonFromResponse, safeJsonParse } = require('../utils/errors');
+const { createLogger, sanitizeForLog } = require('../utils/logger');
+
+const log = createLogger('LLM');
 
 // Track active requests for abort capability
 const activeRequests = new Set();
@@ -560,22 +564,21 @@ async function generate(options) {
     }
   }
 
-  console.log(`[LLM] Making ${apiType} request to ${endpoint}`);
-  console.log('[LLM] Request prompt (first 300):', JSON.stringify(requestBody.prompt || requestBody.messages).substring(0, 300));
-  console.log('[LLM] Request prompt (last 100):', JSON.stringify(requestBody.prompt || requestBody.messages).slice(-100));
+  log.info(`Making ${apiType} request to ${endpoint}`);
+  log.debug('Request size:', sanitizeForLog(requestBody.prompt || requestBody.messages));
 
   const response = await makeRequest(endpoint, requestBody);
-  console.log('[LLM] Raw response:', JSON.stringify(response).substring(0, 500));
+  log.debug('Response received:', sanitizeForLog(response));
 
   let generatedText = extractGeneratedText(response, apiType);
-  console.log('[LLM] Extracted text:', generatedText ? generatedText.substring(0, 100) : 'null/empty');
+  log.debug('Extracted text length:', generatedText ? generatedText.length : 0);
 
   // Apply sentence trimming if enabled
   if (mergedSettings.trimIncompleteSentences) {
     const beforeTrim = generatedText;
     generatedText = trimIncompleteSentences(generatedText);
     if (beforeTrim !== generatedText) {
-      console.log('[LLM] Trimmed incomplete sentence. New length:', generatedText.length);
+      log.debug('Trimmed incomplete sentence. New length:', generatedText.length);
     }
   }
 
@@ -838,31 +841,27 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
       }
     };
 
-    console.log(`[LLM] Making OpenRouter request to ${endpoint}`);
+    log.info(`Making OpenRouter request to ${endpoint}`);
 
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
-          // Trim leading/trailing whitespace and find the JSON object
-          let jsonStr = data.trim();
-          // Find the start of the JSON object (skip any SSE artifacts)
-          const jsonStart = jsonStr.indexOf('{');
-          if (jsonStart > 0) {
-            jsonStr = jsonStr.substring(jsonStart);
-          }
-          console.log('[LLM] OpenRouter raw response:', jsonStr.substring(0, 500));
-          const parsed = JSON.parse(jsonStr);
+          // Use robust JSON extraction that handles SSE and malformed responses
+          const parsed = extractJsonFromResponse(data);
+
+          log.debug('OpenRouter response parsed successfully');
+
           if (parsed.error) {
             reject(new Error(parsed.error.message || 'OpenRouter API error'));
             return;
           }
           resolve(parsed);
         } catch (e) {
-          console.error('[LLM] Failed to parse OpenRouter response:', e.message);
-          console.error('[LLM] Raw data:', data.substring(0, 1000));
-          reject(new Error('Failed to parse OpenRouter response'));
+          log.error('Failed to parse OpenRouter response:', e.message);
+          log.debug('Raw response preview:', sanitizeForLog(data, 200));
+          reject(new Error(`Failed to parse OpenRouter response: ${e.message}`));
         }
       });
     });

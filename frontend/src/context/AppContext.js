@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch, ApiError } from '../utils/api';
+import { API_BASE, WS_URL, CONFIG } from '../config';
 
 const AppContext = createContext(null);
-
-// API base URL - in production, frontend runs on different port than backend
-const API_BASE = `http://${window.location.hostname}:8889`;
 
 export function AppProvider({ children }) {
   // WebSocket connection
@@ -80,10 +79,7 @@ export function AppProvider({ children }) {
 
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:8889`;
-
-    ws.current = new WebSocket(wsUrl);
+    ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
       console.log('[WS] Connected');
@@ -93,8 +89,8 @@ export function AppProvider({ children }) {
     ws.current.onclose = () => {
       console.log('[WS] Disconnected');
       setConnected(false);
-      // Reconnect after 3 seconds
-      setTimeout(connectWebSocket, 3000);
+      // Reconnect after delay
+      setTimeout(connectWebSocket, CONFIG.WS_RECONNECT_DELAY_MS);
     };
 
     ws.current.onerror = (error) => {
@@ -141,16 +137,14 @@ export function AppProvider({ children }) {
         // Refresh settings or characters when a reminder is toggled by a flow
         if (data.isGlobal) {
           // Refresh settings to get updated global reminders
-          fetch(`http://${window.location.hostname}:8889/api/settings`)
-            .then(res => res.json())
+          apiFetch(`${API_BASE}/api/settings`)
             .then(setSettings)
-            .catch(console.error);
+            .catch(err => console.error('[WS] Failed to refresh settings:', err.message));
         } else {
           // Refresh characters to get updated character reminders
-          fetch(`http://${window.location.hostname}:8889/api/characters`)
-            .then(res => res.json())
+          apiFetch(`${API_BASE}/api/characters`)
             .then(setCharacters)
-            .catch(console.error);
+            .catch(err => console.error('[WS] Failed to refresh characters:', err.message));
         }
         break;
 
@@ -329,314 +323,217 @@ export function AppProvider({ children }) {
     setSimpleABData(null);
   }, [simpleABData, sendWsMessage]);
 
-  // API calls
+  // API calls - all using apiFetch with proper error handling and timeouts
   const api = {
     // Settings
-    async getSettings() {
-      const res = await fetch(`${API_BASE}/api/settings`);
-      return res.json();
-    },
-    async updateSettings(data) {
-      const res = await fetch(`${API_BASE}/api/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updateLlmSettings(data) {
-      const res = await fetch(`${API_BASE}/api/settings/llm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
+    getSettings: () => apiFetch(`${API_BASE}/api/settings`),
 
-    // LLM
-    async testLlm(settings) {
-      const res = await fetch(`${API_BASE}/api/llm/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
-      return res.json();
-    },
+    updateSettings: (data) => apiFetch(`${API_BASE}/api/settings`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateLlmSettings: (data) => apiFetch(`${API_BASE}/api/settings/llm`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    // LLM - longer timeout for generation
+    testLlm: (settings) => apiFetch(`${API_BASE}/api/llm/test`, {
+      method: 'POST',
+      body: JSON.stringify(settings),
+      timeout: CONFIG.LLM_TIMEOUT_MS
+    }),
 
     // Connection Profiles
-    async getConnectionProfiles() {
-      const res = await fetch(`${API_BASE}/api/connection-profiles`);
-      return res.json();
-    },
-    async createConnectionProfile(data) {
-      const res = await fetch(`${API_BASE}/api/connection-profiles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updateConnectionProfile(id, data) {
-      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async deleteConnectionProfile(id) {
-      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}`, { method: 'DELETE' });
-      return res.json();
-    },
-    async activateConnectionProfile(id) {
-      const res = await fetch(`${API_BASE}/api/connection-profiles/${id}/activate`, { method: 'POST' });
-      return res.json();
-    },
+    getConnectionProfiles: () => apiFetch(`${API_BASE}/api/connection-profiles`),
+
+    createConnectionProfile: (data) => apiFetch(`${API_BASE}/api/connection-profiles`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateConnectionProfile: (id, data) => apiFetch(`${API_BASE}/api/connection-profiles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteConnectionProfile: (id) => apiFetch(`${API_BASE}/api/connection-profiles/${id}`, {
+      method: 'DELETE'
+    }),
+
+    activateConnectionProfile: (id) => apiFetch(`${API_BASE}/api/connection-profiles/${id}/activate`, {
+      method: 'POST'
+    }),
 
     // Personas
-    async getPersonas() {
-      const res = await fetch(`${API_BASE}/api/personas`);
-      return res.json();
-    },
-    async createPersona(data) {
-      const res = await fetch(`${API_BASE}/api/personas`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updatePersona(id, data) {
-      const res = await fetch(`${API_BASE}/api/personas/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async deletePersona(id) {
-      const res = await fetch(`${API_BASE}/api/personas/${id}`, { method: 'DELETE' });
-      return res.json();
-    },
+    getPersonas: () => apiFetch(`${API_BASE}/api/personas`),
+
+    createPersona: (data) => apiFetch(`${API_BASE}/api/personas`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updatePersona: (id, data) => apiFetch(`${API_BASE}/api/personas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deletePersona: (id) => apiFetch(`${API_BASE}/api/personas/${id}`, {
+      method: 'DELETE'
+    }),
 
     // Characters
-    async getCharacters() {
-      const res = await fetch(`${API_BASE}/api/characters`);
-      return res.json();
-    },
-    async createCharacter(data) {
-      const res = await fetch(`${API_BASE}/api/characters`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updateCharacter(id, data) {
-      const res = await fetch(`${API_BASE}/api/characters/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async deleteCharacter(id) {
-      const res = await fetch(`${API_BASE}/api/characters/${id}`, { method: 'DELETE' });
-      return res.json();
-    },
+    getCharacters: () => apiFetch(`${API_BASE}/api/characters`),
+
+    createCharacter: (data) => apiFetch(`${API_BASE}/api/characters`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateCharacter: (id, data) => apiFetch(`${API_BASE}/api/characters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteCharacter: (id) => apiFetch(`${API_BASE}/api/characters/${id}`, {
+      method: 'DELETE'
+    }),
 
     // Devices
-    async getDevices() {
-      const res = await fetch(`${API_BASE}/api/devices`);
-      return res.json();
-    },
-    async scanDevices(timeout = 10) {
-      const res = await fetch(`${API_BASE}/api/devices/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timeout })
-      });
-      return res.json();
-    },
-    async addDevice(data) {
-      const res = await fetch(`${API_BASE}/api/devices`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updateDevice(id, data) {
-      const res = await fetch(`${API_BASE}/api/devices/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async deleteDevice(id) {
-      const res = await fetch(`${API_BASE}/api/devices/${id}`, { method: 'DELETE' });
-      return res.json();
-    },
-    async deviceOn(ip) {
-      const res = await fetch(`${API_BASE}/api/devices/${ip}/on`, { method: 'POST' });
-      return res.json();
-    },
-    async deviceOff(ip) {
-      const res = await fetch(`${API_BASE}/api/devices/${ip}/off`, { method: 'POST' });
-      return res.json();
-    },
-    async startCycle(ip, options) {
-      const res = await fetch(`${API_BASE}/api/devices/${ip}/cycle/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(options)
-      });
-      return res.json();
-    },
-    async stopCycle(ip) {
-      const res = await fetch(`${API_BASE}/api/devices/${ip}/cycle/stop`, { method: 'POST' });
-      return res.json();
-    },
-    async emergencyStop() {
-      const res = await fetch(`${API_BASE}/api/emergency-stop`, { method: 'POST' });
-      return res.json();
-    },
+    getDevices: () => apiFetch(`${API_BASE}/api/devices`),
+
+    scanDevices: (timeout = 10) => apiFetch(`${API_BASE}/api/devices/scan`, {
+      method: 'POST',
+      body: JSON.stringify({ timeout }),
+      timeout: CONFIG.DEVICE_SCAN_TIMEOUT_MS
+    }),
+
+    addDevice: (data) => apiFetch(`${API_BASE}/api/devices`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateDevice: (id, data) => apiFetch(`${API_BASE}/api/devices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteDevice: (id) => apiFetch(`${API_BASE}/api/devices/${id}`, {
+      method: 'DELETE'
+    }),
+
+    deviceOn: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/on`, {
+      method: 'POST'
+    }),
+
+    deviceOff: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/off`, {
+      method: 'POST'
+    }),
+
+    startCycle: (ip, options) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/cycle/start`, {
+      method: 'POST',
+      body: JSON.stringify(options)
+    }),
+
+    stopCycle: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/cycle/stop`, {
+      method: 'POST'
+    }),
+
+    emergencyStop: () => apiFetch(`${API_BASE}/api/emergency-stop`, {
+      method: 'POST'
+    }),
 
     // Govee devices
-    async connectGovee(apiKey) {
-      const res = await fetch(`${API_BASE}/api/govee/connect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey })
-      });
-      return res.json();
-    },
-    async getGoveeStatus() {
-      const res = await fetch(`${API_BASE}/api/govee/status`);
-      return res.json();
-    },
-    async scanGoveeDevices() {
-      const res = await fetch(`${API_BASE}/api/govee/devices`);
-      return res.json();
-    },
-    async goveeDeviceOn(deviceId, sku) {
-      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/on`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku })
-      });
-      return res.json();
-    },
-    async goveeDeviceOff(deviceId, sku) {
-      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/off`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku })
-      });
-      return res.json();
-    },
-    async getGoveeDeviceState(deviceId, sku) {
-      const res = await fetch(`${API_BASE}/api/govee/devices/${deviceId}/state?sku=${encodeURIComponent(sku)}`);
-      return res.json();
-    },
+    connectGovee: (apiKey) => apiFetch(`${API_BASE}/api/govee/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ apiKey })
+    }),
+
+    getGoveeStatus: () => apiFetch(`${API_BASE}/api/govee/status`),
+
+    scanGoveeDevices: () => apiFetch(`${API_BASE}/api/govee/devices`),
+
+    goveeDeviceOn: (deviceId, sku) => apiFetch(`${API_BASE}/api/govee/devices/${encodeURIComponent(deviceId)}/on`, {
+      method: 'POST',
+      body: JSON.stringify({ sku })
+    }),
+
+    goveeDeviceOff: (deviceId, sku) => apiFetch(`${API_BASE}/api/govee/devices/${encodeURIComponent(deviceId)}/off`, {
+      method: 'POST',
+      body: JSON.stringify({ sku })
+    }),
+
+    getGoveeDeviceState: (deviceId, sku) => apiFetch(
+      `${API_BASE}/api/govee/devices/${encodeURIComponent(deviceId)}/state?sku=${encodeURIComponent(sku)}`
+    ),
 
     // Tuya devices (Smart Life, Treatlife, Gosund, etc.)
-    async connectTuya(accessId, accessSecret, region = 'us') {
-      const res = await fetch(`${API_BASE}/api/tuya/connect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessId, accessSecret, region })
-      });
-      return res.json();
-    },
-    async getTuyaStatus() {
-      const res = await fetch(`${API_BASE}/api/tuya/status`);
-      return res.json();
-    },
-    async scanTuyaDevices() {
-      const res = await fetch(`${API_BASE}/api/tuya/devices`);
-      return res.json();
-    },
-    async tuyaDeviceOn(deviceId) {
-      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/on`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return res.json();
-    },
-    async tuyaDeviceOff(deviceId) {
-      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/off`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return res.json();
-    },
-    async getTuyaDeviceState(deviceId) {
-      const res = await fetch(`${API_BASE}/api/tuya/devices/${deviceId}/state`);
-      return res.json();
-    },
+    connectTuya: (accessId, accessSecret, region = 'us') => apiFetch(`${API_BASE}/api/tuya/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ accessId, accessSecret, region })
+    }),
+
+    getTuyaStatus: () => apiFetch(`${API_BASE}/api/tuya/status`),
+
+    scanTuyaDevices: () => apiFetch(`${API_BASE}/api/tuya/devices`),
+
+    tuyaDeviceOn: (deviceId) => apiFetch(`${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/on`, {
+      method: 'POST'
+    }),
+
+    tuyaDeviceOff: (deviceId) => apiFetch(`${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/off`, {
+      method: 'POST'
+    }),
+
+    getTuyaDeviceState: (deviceId) => apiFetch(
+      `${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/state`
+    ),
 
     // Simulation status
-    async getSimulationStatus() {
-      const res = await fetch(`${API_BASE}/api/simulation-status`);
-      return res.json();
-    },
+    getSimulationStatus: () => apiFetch(`${API_BASE}/api/simulation-status`),
 
     // Flows
-    async getFlows() {
-      const res = await fetch(`${API_BASE}/api/flows`);
-      return res.json();
-    },
-    async createFlow(data) {
-      const res = await fetch(`${API_BASE}/api/flows`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async updateFlow(id, data) {
-      const res = await fetch(`${API_BASE}/api/flows/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async deleteFlow(id) {
-      const res = await fetch(`${API_BASE}/api/flows/${id}`, { method: 'DELETE' });
-      return res.json();
-    },
+    getFlows: () => apiFetch(`${API_BASE}/api/flows`),
+
+    createFlow: (data) => apiFetch(`${API_BASE}/api/flows`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateFlow: (id, data) => apiFetch(`${API_BASE}/api/flows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteFlow: (id) => apiFetch(`${API_BASE}/api/flows/${id}`, {
+      method: 'DELETE'
+    }),
 
     // Session
-    async resetSession() {
-      const res = await fetch(`${API_BASE}/api/session/reset`, { method: 'POST' });
-      return res.json();
-    },
-    async saveSession(data) {
-      const res = await fetch(`${API_BASE}/api/sessions/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      return res.json();
-    },
-    async listSessions(personaId, characterId) {
+    resetSession: () => apiFetch(`${API_BASE}/api/session/reset`, {
+      method: 'POST'
+    }),
+
+    saveSession: (data) => apiFetch(`${API_BASE}/api/sessions/save`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    listSessions: (personaId, characterId) => {
       const params = new URLSearchParams();
       if (personaId) params.append('personaId', personaId);
       if (characterId) params.append('characterId', characterId);
-      const res = await fetch(`${API_BASE}/api/sessions/list?${params}`);
-      return res.json();
+      return apiFetch(`${API_BASE}/api/sessions/list?${params}`);
     },
-    async loadSession(id) {
-      const res = await fetch(`${API_BASE}/api/sessions/${id}/load`, { method: 'POST' });
-      return res.json();
-    },
-    async deleteSession(id) {
-      const res = await fetch(`${API_BASE}/api/sessions/${id}`, { method: 'DELETE' });
-      return res.json();
-    }
+
+    loadSession: (id) => apiFetch(`${API_BASE}/api/sessions/${id}/load`, {
+      method: 'POST'
+    }),
+
+    deleteSession: (id) => apiFetch(`${API_BASE}/api/sessions/${id}`, {
+      method: 'DELETE'
+    })
   };
 
   // Fetch simulation status
@@ -681,25 +578,22 @@ export function AppProvider({ children }) {
       if (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) {
         try {
           // First check if we have cached models
-          const cachedRes = await fetch(`${API_BASE}/api/openrouter/models`);
-          const cachedData = await cachedRes.json();
+          const cachedData = await apiFetch(`${API_BASE}/api/openrouter/models`);
           if (cachedData.models && cachedData.models.length > 0) {
             console.log('[AppContext] OpenRouter models already cached');
             return;
           }
           // If not cached, connect to OpenRouter
           console.log('[AppContext] Auto-connecting to OpenRouter...');
-          const res = await fetch(`${API_BASE}/api/openrouter/connect`, {
+          const data = await apiFetch(`${API_BASE}/api/openrouter/connect`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ apiKey: settings.llm.openRouterApiKey })
           });
-          const data = await res.json();
           if (data.success) {
             console.log(`[AppContext] OpenRouter connected, ${data.models.length} models available`);
           }
         } catch (e) {
-          console.error('[AppContext] Failed to auto-connect to OpenRouter:', e);
+          console.error('[AppContext] Failed to auto-connect to OpenRouter:', e.message);
         }
       }
     };

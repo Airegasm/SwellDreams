@@ -7,45 +7,101 @@ const { spawn } = require('child_process');
 const path = require('path');
 const goveeService = require('./govee-service');
 const tuyaService = require('./tuya-service');
+const { safeJsonParse } = require('../utils/errors');
+const { createLogger } = require('../utils/logger');
 
+const log = createLogger('DeviceService');
 const PYTHON_DIR = path.join(__dirname, '..', 'python');
+
+// Track active Python processes for cleanup
+const activeProcesses = new Set();
+
+/**
+ * Kill all active Python processes (for emergency stop/shutdown)
+ */
+function killAllPythonProcesses() {
+  for (const proc of activeProcesses) {
+    try {
+      proc.kill('SIGKILL');
+    } catch (e) {
+      log.error('Failed to kill process:', e.message);
+    }
+  }
+  activeProcesses.clear();
+}
 
 /**
  * Execute Python script and return JSON result
+ * @param {string} script - Script filename
+ * @param {string[]} args - Arguments to pass
+ * @param {number} timeoutMs - Timeout in milliseconds (default 30s)
  */
-function executePython(script, args = []) {
+function executePython(script, args = [], timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(PYTHON_DIR, script);
-    const process = spawn('python3', [scriptPath, ...args], {
+    const proc = spawn('python3', [scriptPath, ...args], {
       cwd: PYTHON_DIR
     });
 
+    activeProcesses.add(proc);
+
     let stdout = '';
     let stderr = '';
+    let killed = false;
 
-    process.stdout.on('data', (data) => {
+    // Set timeout for process
+    const timeout = setTimeout(() => {
+      killed = true;
+      proc.kill('SIGTERM');
+      // Force kill if SIGTERM doesn't work after 5 seconds
+      setTimeout(() => {
+        if (!proc.killed) {
+          proc.kill('SIGKILL');
+        }
+      }, 5000);
+      activeProcesses.delete(proc);
+      reject(new Error(`Python script ${script} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    process.stderr.on('data', (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    process.on('close', (code) => {
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      activeProcesses.delete(proc);
+
+      if (killed) return; // Already rejected via timeout
+
       if (code !== 0 && !stdout) {
         reject(new Error(stderr || `Python script exited with code ${code}`));
         return;
       }
 
-      try {
-        const result = JSON.parse(stdout);
-        resolve(result);
-      } catch (e) {
-        reject(new Error(`Failed to parse Python output: ${stdout}`));
+      const trimmed = stdout.trim();
+      if (!trimmed) {
+        reject(new Error(`Python script ${script} returned empty output`));
+        return;
       }
+
+      const result = safeJsonParse(trimmed);
+      if (!result.success) {
+        log.error('JSON parse error:', result.error);
+        log.debug('Raw output preview:', trimmed.substring(0, 200));
+        reject(new Error(`Invalid JSON from Python script: ${result.error}`));
+        return;
+      }
+
+      resolve(result.data);
     });
 
-    process.on('error', (err) => {
+    proc.on('error', (err) => {
+      clearTimeout(timeout);
+      activeProcesses.delete(proc);
       reject(err);
     });
   });
@@ -415,4 +471,4 @@ class DeviceService {
   }
 }
 
-module.exports = DeviceService;
+module.exports = { DeviceService, killAllPythonProcesses, activeProcesses };

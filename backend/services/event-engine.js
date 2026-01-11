@@ -253,8 +253,13 @@ class EventEngine {
   deactivateFlow(flowId) {
     const state = this.flowStates.get(flowId);
     if (state) {
-      // Clear timers
-      state.timers.forEach(timer => clearTimeout(timer));
+      // Clear all timers (both timeout and interval)
+      state.timers.forEach(timer => {
+        clearTimeout(timer);
+        clearInterval(timer);
+      });
+      // Clear the array to release references
+      state.timers.length = 0;
     }
 
     this.activeFlows.delete(flowId);
@@ -1813,8 +1818,16 @@ class EventEngine {
     // Clear device monitors
     this.deviceMonitors.clear();
 
-    // Reset flow states (executedOnceNodes) so triggers can fire again
+    // Reset flow states and clear any accumulated timers
     for (const [flowId, state] of this.flowStates) {
+      // Clear any timers stored in flow state
+      if (state.timers && state.timers.length > 0) {
+        state.timers.forEach(timer => {
+          clearTimeout(timer);
+          clearInterval(timer);
+        });
+        state.timers.length = 0;
+      }
       state.executedOnceNodes.clear();
       state.triggeredNodes.clear();
     }

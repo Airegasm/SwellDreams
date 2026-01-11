@@ -5,6 +5,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
@@ -13,19 +14,75 @@ const { v4: uuidv4 } = require('uuid');
 
 // Services
 const llmService = require('./services/llm-service');
-const DeviceService = require('./services/device-service');
+const { DeviceService, killAllPythonProcesses, activeProcesses } = require('./services/device-service');
 const EventEngine = require('./services/event-engine');
 const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
+
+// Utilities
+const { createLogger } = require('./utils/logger');
+const { AppError, ValidationError } = require('./utils/errors');
+const validators = require('./utils/validators');
+
+const log = createLogger('Server');
 
 // Initialize Express
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// CORS Configuration - restrict to known origins
+const CORS_OPTIONS = {
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      undefined, // Allow requests with no origin (same-origin, curl, etc.)
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(CORS_OPTIONS));
 app.use(express.json({ limit: '10mb' }));
+
+// Rate limiting configurations
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 200, // 200 requests per minute
+  message: { success: false, error: 'Too many requests, please slow down' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const deviceScanLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30 seconds
+  max: 1, // 1 scan per 30 seconds
+  message: { success: false, error: 'Device scan in progress, please wait' },
+});
+
+const llmLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 LLM requests per minute
+  message: { success: false, error: 'Too many LLM requests, please slow down' },
+});
+
+// Apply general rate limiting (but not to emergency stop)
+app.use('/api', (req, res, next) => {
+  // Skip rate limiting for emergency stop - safety critical
+  if (req.path === '/emergency-stop') {
+    return next();
+  }
+  generalLimiter(req, res, next);
+});
 
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
@@ -33,8 +90,36 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Welcome message lock to prevent duplicates
-let sendingWelcomeMessage = false;
+// Simple async lock for race condition prevention
+class SimpleLock {
+  constructor() {
+    this.locked = false;
+    this.queue = [];
+  }
+
+  async acquire() {
+    return new Promise((resolve) => {
+      if (!this.locked) {
+        this.locked = true;
+        resolve();
+      } else {
+        this.queue.push(resolve);
+      }
+    });
+  }
+
+  release() {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+
+// Welcome message lock to prevent duplicates (using proper mutex)
+const welcomeMessageLock = new SimpleLock();
 
 // Track if first AI message event has fired this session
 let firstAiMessageFired = false;
@@ -863,11 +948,31 @@ wss.on('connection', async (ws) => {
     }
   });
 
-  ws.on('close', () => {
-    wsClients.delete(ws);
-    console.log('[WS] Client disconnected');
+  // Cleanup function for WebSocket
+  const cleanup = () => {
+    if (wsClients.has(ws)) {
+      wsClients.delete(ws);
+      log.info('Client removed, remaining:', wsClients.size);
+    }
+  };
+
+  ws.on('close', cleanup);
+
+  ws.on('error', (err) => {
+    log.error('Client error:', err.message);
+    cleanup();
   });
 });
+
+// Periodic cleanup of stale WebSocket connections (every 30 seconds)
+setInterval(() => {
+  for (const client of wsClients) {
+    if (client.readyState === WebSocket.CLOSED || client.readyState === WebSocket.CLOSING) {
+      wsClients.delete(client);
+      log.debug('Cleaned up stale WebSocket connection');
+    }
+  }
+}, 30000);
 
 async function handleWsMessage(ws, type, data) {
   switch (type) {
@@ -2127,7 +2232,7 @@ app.post('/api/settings/llm', (req, res) => {
 
 // --- LLM ---
 
-app.post('/api/llm/test', async (req, res) => {
+app.post('/api/llm/test', llmLimiter, async (req, res) => {
   try {
     const settings = req.body;
     const result = await llmService.testConnection(settings);
@@ -2137,7 +2242,7 @@ app.post('/api/llm/test', async (req, res) => {
   }
 });
 
-app.post('/api/llm/generate', async (req, res) => {
+app.post('/api/llm/generate', llmLimiter, async (req, res) => {
   try {
     const { prompt, messages, systemPrompt } = req.body;
     const settings = loadData(DATA_FILES.settings)?.llm || DEFAULT_SETTINGS.llm;
@@ -2337,7 +2442,7 @@ app.get('/api/simulation-status', (req, res) => {
   });
 });
 
-app.post('/api/devices/scan', async (req, res) => {
+app.post('/api/devices/scan', deviceScanLimiter, async (req, res) => {
   try {
     const timeout = req.body.timeout || 10;
     const discovered = await deviceService.scanNetwork(timeout);
@@ -2858,10 +2963,58 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Global 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.path
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  log.error('Express error:', err.message);
+
+  // Handle operational errors (our custom errors)
+  if (err.isOperational) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      code: err.code
+    });
+  }
+
+  // Handle validation errors
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: err.message,
+      code: 'VALIDATION_ERROR'
+    });
+  }
+
+  // Handle JSON parsing errors
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON in request body',
+      code: 'PARSE_ERROR'
+    });
+  }
+
+  // Unknown errors - don't leak details
+  res.status(500).json({
+    success: false,
+    error: 'An unexpected error occurred',
+    code: 'INTERNAL_ERROR'
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 8889;
 server.listen(PORT, () => {
-  console.log(`SwellDreams server running on http://localhost:${PORT}`);
+  log.always(`SwellDreams server running on http://localhost:${PORT}`);
 });
 
 // ============================================
@@ -2910,13 +3063,28 @@ async function triggerEmergencyStop(reason) {
     llmService.abortAllRequests();
     console.log('[FAILSAFE] LLM requests aborted');
 
-    // 4. Notify connected clients
+    // 4. Kill any lingering Python processes
+    killAllPythonProcesses();
+    console.log('[FAILSAFE] Python processes terminated');
+
+    // 5. Notify connected clients
     broadcast('emergency_stop', {
       timestamp: Date.now(),
       reason,
       automatic: true
     });
     console.log('[FAILSAFE] Clients notified');
+
+    // 6. Close WebSocket connections gracefully
+    for (const client of wsClients) {
+      try {
+        client.close(1001, 'Server shutting down');
+      } catch (e) {
+        // Ignore errors closing clients
+      }
+    }
+    wsClients.clear();
+    console.log('[FAILSAFE] WebSocket connections closed');
 
   } catch (err) {
     console.error('[FAILSAFE] Error during emergency stop:', err.message);

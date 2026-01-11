@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { useError } from '../context/ErrorContext';
+import { API_BASE, CONFIG } from '../config';
 import SaveSessionModal from '../components/modals/SaveSessionModal';
 import LoadSessionModal from '../components/modals/LoadSessionModal';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
@@ -142,14 +144,14 @@ function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Periodic device state polling (2.5 seconds)
+  // Periodic device state polling
   useEffect(() => {
     if (!devices || devices.length === 0) return;
 
     const pollDeviceStates = async () => {
       const statePromises = devices.map(async (device) => {
         try {
-          const response = await fetch(`http://${window.location.hostname}:8889/api/devices/${device.ip}/state`);
+          const response = await fetch(`${API_BASE}/api/devices/${device.ip}/state`);
           const result = await response.json();
           return {
             ip: device.ip,
@@ -178,8 +180,8 @@ function Chat() {
     // Initial poll
     pollDeviceStates();
 
-    // Set up interval (2.5 seconds)
-    const pollInterval = setInterval(pollDeviceStates, 2500);
+    // Set up interval using config constant
+    const pollInterval = setInterval(pollDeviceStates, CONFIG.POLL_INTERVAL_MS);
 
     return () => clearInterval(pollInterval);
   }, [devices]);
@@ -1090,7 +1092,14 @@ function Chat() {
           {/* Mode Selection */}
           <div className="control-panel-row">
             <div className="status-control">
-              <label>Mode {simulationRequired && <span className="mode-locked-indicator">(Locked)</span>}</label>
+              <label>
+                Mode
+                <span
+                  className="info-icon"
+                  title="Interactive: Commands execute on real devices. Simulated: Commands are logged but not executed (for testing)."
+                >?</span>
+                {simulationRequired && <span className="mode-locked-indicator">(Locked)</span>}
+              </label>
               <select
                 value={controlMode}
                 onChange={(e) => handleModeChange(e.target.value)}

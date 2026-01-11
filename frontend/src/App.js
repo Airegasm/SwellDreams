@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { useApp } from './context/AppContext';
+import { useError } from './context/ErrorContext';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import FlowEditor from './pages/FlowEditor';
@@ -69,13 +70,19 @@ These Terms shall be governed by and construed in accordance with applicable law
 
 function App() {
   const { connected, api, controlMode, settings } = useApp();
+  const { showError } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
 
   // Load connection profiles
   useEffect(() => {
-    api.getConnectionProfiles().then(setConnectionProfiles).catch(console.error);
+    api.getConnectionProfiles()
+      .then(setConnectionProfiles)
+      .catch(err => {
+        console.error('Failed to load connection profiles:', err);
+        // Don't show error toast on initial load failure - might just be starting up
+      });
   }, [api]);
 
   // Check if LLM is configured
@@ -116,6 +123,7 @@ function App() {
       await api.emergencyStop();
     } catch (error) {
       console.error('Emergency stop failed:', error);
+      showError('Emergency stop failed - check device connections!');
     }
     // Keep button disabled briefly to prevent double-clicks
     setTimeout(() => setStopping(false), 1000);
@@ -167,6 +175,14 @@ function App() {
           </NavLink>
         </div>
       </nav>
+
+      {/* Offline Banner */}
+      {!connected && (
+        <div className="offline-banner">
+          <span className="offline-icon">&#x26A0;</span>
+          <span>Backend Disconnected - Attempting to reconnect...</span>
+        </div>
+      )}
 
       <main className="main-content">
         <Routes>
