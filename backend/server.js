@@ -2701,20 +2701,39 @@ app.post('/api/tuya/connect', async (req, res) => {
   }
 
   tuyaService.setCredentials(accessId, accessSecret, region || 'us');
-  const success = await tuyaService.testConnection();
 
-  if (success) {
-    // Save credentials to settings
-    const settings = loadData(DATA_FILES.settings) || {};
-    settings.tuyaAccessId = accessId;
-    settings.tuyaAccessSecret = accessSecret;
-    settings.tuyaRegion = region || 'us';
-    saveData(DATA_FILES.settings, settings);
-    res.json({ success: true, message: 'Connected to Tuya' });
-  } else {
+  try {
+    const success = await tuyaService.testConnection();
+
+    if (success) {
+      // Save credentials to settings
+      const settings = loadData(DATA_FILES.settings) || {};
+      settings.tuyaAccessId = accessId;
+      settings.tuyaAccessSecret = accessSecret;
+      settings.tuyaRegion = region || 'us';
+      saveData(DATA_FILES.settings, settings);
+      res.json({ success: true, message: 'Connected to Tuya' });
+    } else {
+      tuyaService.setCredentials(null, null);
+      res.status(401).json({ error: 'Invalid credentials or connection failed' });
+    }
+  } catch (error) {
+    console.error('[Tuya] Connect error:', error);
     tuyaService.setCredentials(null, null);
-    res.status(401).json({ error: 'Invalid credentials or connection failed' });
+    res.status(401).json({ error: error.message || 'Connection failed' });
   }
+});
+
+// Disconnect from Tuya (clear credentials)
+app.post('/api/tuya/disconnect', (req, res) => {
+  tuyaService.setCredentials(null, null);
+  // Remove from settings
+  const settings = loadData(DATA_FILES.settings) || {};
+  delete settings.tuyaAccessId;
+  delete settings.tuyaAccessSecret;
+  delete settings.tuyaRegion;
+  saveData(DATA_FILES.settings, settings);
+  res.json({ success: true, message: 'Disconnected from Tuya' });
 });
 
 // Check Tuya connection status

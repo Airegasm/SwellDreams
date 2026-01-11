@@ -495,6 +495,10 @@ export function AppProvider({ children }) {
 
     getTuyaStatus: () => apiFetch(`${API_BASE}/api/tuya/status`),
 
+    disconnectTuya: () => apiFetch(`${API_BASE}/api/tuya/disconnect`, {
+      method: 'POST'
+    }),
+
     scanTuyaDevices: () => apiFetch(`${API_BASE}/api/tuya/devices`),
 
     tuyaDeviceOn: (deviceId) => apiFetch(`${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/on`, {

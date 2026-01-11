@@ -263,6 +263,17 @@ function DeviceTab() {
   };
 
   // Tuya handlers
+  const handleTuyaDisconnect = async () => {
+    try {
+      await api.disconnectTuya();
+      setTuyaConnected(false);
+      setDiscoveredTuya([]);
+      setTuyaError(null);
+    } catch (error) {
+      console.error('Tuya disconnect failed:', error);
+    }
+  };
+
   const handleTuyaConnect = async () => {
     if (!tuyaAccessId.trim() || !tuyaAccessSecret.trim()) return;
     setTuyaConnecting(true);
@@ -619,13 +630,21 @@ function DeviceTab() {
               </button>
             )}
             {tuyaConnected && (
-              <button
-                className="btn btn-primary"
-                onClick={handleTuyaScan}
-                disabled={scanningTuya}
-              >
-                {scanningTuya ? 'Scanning...' : 'Scan Devices'}
-              </button>
+              <>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleTuyaScan}
+                  disabled={scanningTuya}
+                >
+                  {scanningTuya ? 'Scanning...' : 'Scan Devices'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleTuyaDisconnect}
+                >
+                  Disconnect
+                </button>
+              </>
             )}
           </div>
         </div>
