@@ -107,7 +107,8 @@ class TuyaService {
 
   /**
    * Make authenticated request - V2 format
-   * Sign: accessKey + accessToken + t + stringToSign
+   * Based on official tuya-connector-nodejs SDK getSignHeaders method
+   * Sign: accessKey + accessToken + t + stringToSign (no nonce!)
    */
   async request(method, path, body = {}) {
     if (!this.accessId || !this.accessSecret) {
@@ -118,19 +119,18 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
-    const nonce = '';
 
-    // For GET requests, hash empty string like token request
-    // For other methods, hash the JSON body
-    const bodyStr = method === 'GET' ? '' : JSON.stringify(body);
+    // SDK always uses JSON.stringify(body), even for GET with empty body {}
+    const bodyStr = JSON.stringify(body);
     const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign = [method, contentHash, '', path].join('\n');
-    const signStr = this.accessId + token + t + nonce + stringToSign;
+    // SDK signature: accessKey + accessToken + t + stringToSign (NO nonce)
+    const signStr = this.accessId + token + t + stringToSign;
     const signature = this.sign(signStr);
 
     console.log(`[Tuya] Body: ${bodyStr}`);
     console.log(`[Tuya] ContentHash: ${contentHash.substring(0, 16)}...`);
-    console.log(`[Tuya] Sign: accessId + token + ${t} + nonce + stringToSign`);
+    console.log(`[Tuya] Sign: accessId + token + ${t} + stringToSign`);
     console.log(`[Tuya] Signature: ${signature.substring(0, 16)}...`);
 
     const headers = {
@@ -138,7 +138,6 @@ class TuyaService {
       'sign': signature,
       'client_id': this.accessId,
       'sign_method': 'HMAC-SHA256',
-      'nonce': nonce,
       'access_token': token,
       'Content-Type': 'application/json',
     };
