@@ -36,6 +36,13 @@ class TuyaService {
     return !!(this.accessId && this.accessSecret);
   }
 
+  clearTokenCache() {
+    console.log('[Tuya] Clearing token cache');
+    this.accessToken = null;
+    this.refreshToken = null;
+    this.tokenExpiry = null;
+  }
+
   getBaseUrl() {
     return TUYA_REGIONS[this.region] || TUYA_REGIONS.us;
   }
@@ -127,10 +134,16 @@ class TuyaService {
     const signStr = this.accessId + token + t + stringToSign;
     const signature = this.sign(signStr);
 
-    console.log(`[Tuya] Body: ${bodyStr || '(empty)'}`);
+    // Full debug output
+    console.log(`[Tuya] Token (len=${token.length}): ${token.substring(0,16)}...`);
+    console.log(`[Tuya] Timestamp: ${t}`);
     console.log(`[Tuya] ContentHash: ${contentHash}`);
-    console.log(`[Tuya] StringToSign: ${method}\\n${contentHash}\\n\\n${path}`);
-    console.log(`[Tuya] SignStr: ${this.accessId.substring(0,8)}...${token.substring(0,8)}...${t}${method}\\n...`);
+    console.log(`[Tuya] Path: ${path}`);
+    console.log(`[Tuya] Full signStr for verification:`);
+    console.log(`[Tuya]   ${this.accessId}${token}${t}${method}`);
+    console.log(`[Tuya]   ${contentHash}`);
+    console.log(`[Tuya]   `);
+    console.log(`[Tuya]   ${path}`);
     console.log(`[Tuya] Signature: ${signature}`);
 
     const headers = {
