@@ -124,6 +124,7 @@ class SimpleLock {
 
 // Welcome message lock to prevent duplicates (using proper mutex)
 const welcomeMessageLock = new SimpleLock();
+let sendingWelcomeMessage = false;
 
 // Track if first AI message event has fired this session
 let firstAiMessageFired = false;
