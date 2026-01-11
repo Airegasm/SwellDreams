@@ -75,12 +75,10 @@ if not exist "%SCRIPT_DIR%frontend\node_modules" (
     call npm install
 )
 
-REM Build frontend if needed
-if not exist "%SCRIPT_DIR%frontend\build" (
-    echo Building frontend for production...
-    cd /d "%SCRIPT_DIR%frontend"
-    call npm run build
-)
+REM Build frontend (always rebuild to ensure latest changes)
+echo Building frontend for production...
+cd /d "%SCRIPT_DIR%frontend"
+call npm run build
 
 REM Start backend in new window
 echo Starting backend server...
