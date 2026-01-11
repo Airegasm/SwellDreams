@@ -613,7 +613,9 @@ eventEngine.setBroadcast(async (type, data) => {
     }
 
     // If LLM is available, enhance the message
-    if (settings?.llm?.llmUrl && data.content) {
+    const hasLlmConfig = settings?.llm?.llmUrl ||
+      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    if (hasLlmConfig && data.content) {
       broadcast('generating_start', { characterName: activeCharacter.name });
 
       try {
@@ -752,7 +754,9 @@ eventEngine.setBroadcast(async (type, data) => {
     }
 
     // If LLM is available, enhance the message
-    if (settings?.llm?.llmUrl && data.content && activeCharacter) {
+    const hasLlmConfig = settings?.llm?.llmUrl ||
+      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    if (hasLlmConfig && data.content && activeCharacter) {
       broadcast('generating_start', { characterName: playerName, isPlayerVoice: true });
 
       try {
@@ -1342,7 +1346,9 @@ async function handleButtonSendMessage(action, characterId) {
   instructionText = instructionText.replace(/\[Player\]/g, playerName);
 
   // Use LLM enhancement if available
-  if (settings?.llm?.llmUrl && instructionText) {
+  const hasLlmConfig = settings?.llm?.llmUrl ||
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+  if (hasLlmConfig && instructionText) {
     // Create placeholder message with "..."
     const placeholderMessage = {
       id: uuidv4(),
@@ -1565,9 +1571,13 @@ async function handleChatMessage(data) {
   const characters = loadData(DATA_FILES.characters) || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
-  console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, llmUrl=${settings?.llm?.llmUrl ? 'set' : 'not set'}`);
+  // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
+  const hasLlmConfig = settings?.llm?.llmUrl ||
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
 
-  if (activeCharacter && settings?.llm?.llmUrl) {
+  console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, hasLlmConfig=${hasLlmConfig ? 'yes' : 'no'}`);
+
+  if (activeCharacter && hasLlmConfig) {
     // Notify UI that AI is generating
     broadcast('generating_start', { characterName: activeCharacter.name });
 
