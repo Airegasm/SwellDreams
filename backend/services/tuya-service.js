@@ -5,7 +5,6 @@
  */
 
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
 
 // Tuya API regions
 const TUYA_REGIONS = {
@@ -63,20 +62,17 @@ class TuyaService {
   }
 
   /**
-   * Generate signature for Tuya API request
+   * Generate signature for Tuya API request (V1 API format)
+   * V1: signStr = clientId + [accessToken] + timestamp
+   * V2: signStr = clientId + accessToken + timestamp + nonce + stringToSign
    */
-  generateSign(method, path, timestamp, accessToken = '', nonce = '') {
-    const contentHash = crypto.createHash('sha256').update('').digest('hex');
-    const stringToSign = [method, contentHash, '', path].join('\n');
-    const signStr = this.accessId + accessToken + timestamp + nonce + stringToSign;
+  generateSign(timestamp, accessToken = '') {
+    // V1 API format - no stringToSign needed
+    const signStr = this.accessId + accessToken + timestamp;
 
     console.log('[Tuya] ---- SIGNATURE DEBUG ----');
-    console.log(`[Tuya] Method: ${method}`);
-    console.log(`[Tuya] Path: ${path}`);
-    console.log(`[Tuya] Content Hash: ${contentHash}`);
     console.log(`[Tuya] Has Access Token: ${!!accessToken}`);
-    console.log(`[Tuya] Nonce: ${nonce || 'none'}`);
-    console.log(`[Tuya] Sign String (escaped): ${JSON.stringify(signStr)}`);
+    console.log(`[Tuya] Sign String: ${this.accessId.substring(0, 8)}... + ${accessToken ? 'token' : ''} + ${timestamp}`);
 
     const signature = crypto
       .createHmac('sha256', this.accessSecret)
@@ -84,7 +80,7 @@ class TuyaService {
       .digest('hex')
       .toUpperCase();
 
-    console.log(`[Tuya] Final Signature: ${signature}`);
+    console.log(`[Tuya] Final Signature: ${signature.substring(0, 16)}...`);
     return signature;
   }
 
@@ -105,7 +101,7 @@ class TuyaService {
 
     const timestamp = Date.now().toString();
     const path = '/v1.0/token?grant_type=1';
-    const sign = this.generateSign('GET', path, timestamp);
+    const sign = this.generateSign(timestamp); // No token for initial auth
 
     console.log(`[Tuya] Request timestamp: ${timestamp}`);
     console.log(`[Tuya] Generated signature: ${sign.substring(0, 16)}...`);
@@ -153,12 +149,10 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const timestamp = Date.now().toString();
-    const nonce = uuidv4().replace(/-/g, '');
-    const sign = this.generateSign(method, path, timestamp, token, nonce);
+    const sign = this.generateSign(timestamp, token); // V1 format: clientId + token + timestamp
 
     console.log(`[Tuya] Token: ${token ? token.substring(0, 16) + '...' : 'NONE'}`);
     console.log(`[Tuya] Timestamp: ${timestamp}`);
-    console.log(`[Tuya] Nonce: ${nonce}`);
     console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
     const options = {
@@ -169,7 +163,6 @@ class TuyaService {
         'sign': sign,
         'sign_method': 'HMAC-SHA256',
         't': timestamp,
-        'nonce': nonce,
         'Content-Type': 'application/json',
       },
     };
