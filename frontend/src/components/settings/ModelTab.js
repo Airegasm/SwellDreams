@@ -241,13 +241,13 @@ function ModelTab() {
     // eslint-disable-next-line
   }, []);
 
-  // Auto-test when settings are loaded and URL exists
+  // Auto-test when settings are loaded and URL exists (only for non-OpenRouter endpoints)
   useEffect(() => {
-    if (llmSettings.llmUrl && connectionStatus === 'offline') {
+    if (llmSettings.llmUrl && connectionStatus === 'offline' && endpointStandard !== 'openrouter') {
       handleTest();
     }
     // eslint-disable-next-line
-  }, [llmSettings.llmUrl]);
+  }, [llmSettings.llmUrl, endpointStandard]);
 
   // Load connection profiles on mount
   useEffect(() => {
