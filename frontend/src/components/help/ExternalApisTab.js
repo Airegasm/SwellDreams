@@ -41,7 +41,7 @@ function ExternalApisTab() {
             <ul className="help-list">
               <li><strong>TP-Link Kasa</strong> - Local network discovery, no cloud account needed</li>
               <li><strong>Govee</strong> - Cloud API, requires free Govee account and API key</li>
-              <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Treatlife, Gosund, Teckin, etc.</li>
+              <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Globe, Treatlife, Gosund, Teckin, etc.</li>
             </ul>
           </div>
         )}
@@ -217,9 +217,23 @@ function ExternalApisTab() {
         {expanded.tuya && (
           <div className="section-content">
             <p>
-              Tuya powers many smart home brands including Smart Life, Treatlife, Gosund, Teckin,
-              and dozens more. If your device uses the Smart Life or Tuya app, it likely works with this API.
+              Tuya powers many smart home brands including Smart Life, <strong>Globe</strong>, Treatlife,
+              Gosund, Teckin, and dozens more. If your device uses the Smart Life, Tuya, or Globe app,
+              it likely works with this API.
             </p>
+
+            <h4 className="subsection-header">Supported Brands</h4>
+            <p>Devices from these brands typically use Tuya's platform:</p>
+            <ul className="help-list">
+              <li>Smart Life</li>
+              <li><strong>Globe Electric</strong></li>
+              <li>Treatlife</li>
+              <li>Gosund</li>
+              <li>Teckin</li>
+              <li>Lumary</li>
+              <li>Avatar Controls</li>
+              <li>Many others (if it uses Smart Life app, it's Tuya-based)</li>
+            </ul>
 
             <h4 className="subsection-header">Creating a Tuya IoT Account</h4>
             <ol className="help-list numbered">
@@ -241,14 +255,31 @@ function ExternalApisTab() {
               <li>Click <strong>Create Cloud Project</strong></li>
               <li>Fill in project details:
                 <ul className="help-list">
-                  <li>Project Name: anything (e.g., "SwellDreams")</li>
-                  <li>Industry: Smart Home</li>
-                  <li>Development Method: Smart Home</li>
-                  <li>Data Center: Choose your region (US, EU, etc.)</li>
+                  <li><strong>Project Name:</strong> anything (e.g., "SwellDreams")</li>
+                  <li><strong>Industry:</strong> Smart Home</li>
+                  <li><strong>Development Method:</strong> Smart Home</li>
+                  <li><strong>Data Center:</strong> Choose based on your location:
+                    <ul className="help-list">
+                      <li>USA West Coast → Western America</li>
+                      <li>USA East Coast → Eastern America</li>
+                      <li>Europe → Central Europe</li>
+                      <li>China → China</li>
+                      <li>India → India</li>
+                    </ul>
+                  </li>
                 </ul>
               </li>
               <li>Click <strong>Create</strong></li>
             </ol>
+
+            <h4 className="subsection-header">Authorizing API Services</h4>
+            <p>During setup, you'll be asked to authorize API services. You need these three:</p>
+            <ul className="help-list">
+              <li><strong>IoT Core</strong> (Free Basic Resource Pack) - Required for API access</li>
+              <li><strong>Authorization Token Management</strong> - Required for authentication</li>
+              <li><strong>Smart Home Basic Service</strong> - Required for device control</li>
+            </ul>
+            <p>You can remove others like "Data Dashboard Service" - they're not needed.</p>
 
             <h4 className="subsection-header">Getting API Credentials</h4>
             <ol className="help-list numbered">
@@ -262,7 +293,7 @@ function ExternalApisTab() {
             <ol className="help-list numbered">
               <li>In your project, go to <strong>Devices → Link Tuya App Account</strong></li>
               <li>Click <strong>Add App Account</strong></li>
-              <li>Scan the QR code with your Smart Life or Tuya app</li>
+              <li>Scan the QR code with your <strong>Smart Life</strong> app (Globe devices work with Smart Life)</li>
               <li>Confirm linking in the app</li>
               <li>Your devices should now appear in the project</li>
             </ol>
@@ -279,7 +310,8 @@ function ExternalApisTab() {
 
             <div className="warning-box">
               <strong>Important:</strong> Your Data Center region in Tuya IoT must match the region
-              you select in SwellDreams, or authentication will fail.
+              you select in SwellDreams, or authentication will fail. If your devices don't appear,
+              double-check that you selected the correct data center when creating the project.
             </div>
           </div>
         )}
