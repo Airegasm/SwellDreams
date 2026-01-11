@@ -118,17 +118,19 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
+    const nonce = '';
 
-    // V2: hash JSON.stringify(body) - empty object becomes "{}"
-    const bodyStr = JSON.stringify(body);
+    // For GET requests, hash empty string like token request
+    // For other methods, hash the JSON body
+    const bodyStr = method === 'GET' ? '' : JSON.stringify(body);
     const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign = [method, contentHash, '', path].join('\n');
-    const signStr = this.accessId + token + t + stringToSign;
+    const signStr = this.accessId + token + t + nonce + stringToSign;
     const signature = this.sign(signStr);
 
     console.log(`[Tuya] Body: ${bodyStr}`);
     console.log(`[Tuya] ContentHash: ${contentHash.substring(0, 16)}...`);
-    console.log(`[Tuya] Sign: accessId + token + ${t} + stringToSign`);
+    console.log(`[Tuya] Sign: accessId + token + ${t} + nonce + stringToSign`);
     console.log(`[Tuya] Signature: ${signature.substring(0, 16)}...`);
 
     const headers = {
@@ -136,6 +138,7 @@ class TuyaService {
       'sign': signature,
       'client_id': this.accessId,
       'sign_method': 'HMAC-SHA256',
+      'nonce': nonce,
       'access_token': token,
       'Content-Type': 'application/json',
     };
