@@ -2741,6 +2741,16 @@ app.get('/api/tuya/status', (req, res) => {
   res.json({ connected: tuyaService.isConnected() });
 });
 
+// Add Tuya device IDs (required for Cloud Authorization)
+app.post('/api/tuya/devices/add', (req, res) => {
+  const { deviceIds } = req.body;
+  if (!deviceIds) {
+    return res.status(400).json({ error: 'deviceIds required (string or array)' });
+  }
+  tuyaService.addDeviceIds(deviceIds);
+  res.json({ success: true, knownDevices: tuyaService.knownDeviceIds });
+});
+
 // List Tuya devices
 app.get('/api/tuya/devices', async (req, res) => {
   if (!tuyaService.isConnected()) {
@@ -2748,7 +2758,9 @@ app.get('/api/tuya/devices', async (req, res) => {
   }
 
   try {
-    const devices = await tuyaService.listDevices();
+    // Accept device_ids as query param: ?device_ids=id1,id2
+    const deviceIds = req.query.device_ids ? req.query.device_ids.split(',') : null;
+    const devices = await tuyaService.listDevices(deviceIds);
     res.json({ devices });
   } catch (error) {
     console.error('[Tuya] Failed to list devices:', error);

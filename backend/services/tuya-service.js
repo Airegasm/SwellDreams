@@ -21,6 +21,7 @@ class TuyaService {
     this.refreshToken = null;
     this.uid = null;
     this.tokenExpiry = null;
+    this.knownDeviceIds = [];  // Store known device IDs
   }
 
   setCredentials(accessId, accessSecret, region = 'us') {
@@ -170,14 +171,28 @@ class TuyaService {
     return data.result;
   }
 
-  async listDevices(deviceIds) {
-    // Cloud Authorization requires device_ids parameter
-    // Get device IDs from Tuya IoT Platform: Devices tab
-    if (!deviceIds || (Array.isArray(deviceIds) && deviceIds.length === 0)) {
-      throw new Error('Device IDs required. Get them from Tuya IoT Platform → Devices tab');
+  addDeviceIds(deviceIds) {
+    const ids = Array.isArray(deviceIds) ? deviceIds : [deviceIds];
+    for (const id of ids) {
+      if (id && !this.knownDeviceIds.includes(id)) {
+        this.knownDeviceIds.push(id);
+      }
     }
-    const ids = Array.isArray(deviceIds) ? deviceIds.join(',') : deviceIds;
-    const path = `/v1.0/iot-03/devices?device_ids=${ids}`;
+    console.log(`[Tuya] Known device IDs: ${this.knownDeviceIds.join(', ')}`);
+  }
+
+  async listDevices(deviceIds = null) {
+    // Use provided IDs, or fall back to known IDs
+    let ids = deviceIds;
+    if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+      ids = this.knownDeviceIds;
+    }
+    if (!ids || ids.length === 0) {
+      console.log('[Tuya] No device IDs configured. Add devices via /api/tuya/devices/add');
+      return [];
+    }
+    const idStr = Array.isArray(ids) ? ids.join(',') : ids;
+    const path = `/v1.0/iot-03/devices?device_ids=${idStr}`;
     console.log(`[Tuya] Listing devices: ${path}`);
     const result = await this.request('GET', path);
     return result?.list || [];
