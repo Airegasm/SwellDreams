@@ -153,7 +153,7 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const timestamp = Date.now().toString();
-    const nonce = uuidv4();
+    const nonce = uuidv4().replace(/-/g, '');
     const sign = this.generateSign(method, path, timestamp, token, nonce);
 
     console.log(`[Tuya] Token: ${token ? token.substring(0, 16) + '...' : 'NONE'}`);
