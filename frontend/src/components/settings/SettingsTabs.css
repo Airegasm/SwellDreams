@@ -758,6 +758,34 @@
   margin: 0;
 }
 
+.tuya-add-device-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  align-items: center;
+}
+
+.tuya-add-device-form input {
+  flex: 1;
+  min-width: 250px;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+}
+
+.tuya-add-device-form .hint {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
 /* Tuya Brand Badge */
 .brand-tuya {
   background-color: rgba(255, 87, 34, 0.15);

@@ -499,7 +499,12 @@ export function AppProvider({ children }) {
       method: 'POST'
     }),
 
-    scanTuyaDevices: () => apiFetch(`${API_BASE}/api/tuya/devices`),
+    scanTuyaDevices: (deviceIds) => {
+      const url = deviceIds
+        ? `${API_BASE}/api/tuya/devices?device_ids=${encodeURIComponent(deviceIds)}`
+        : `${API_BASE}/api/tuya/devices`;
+      return apiFetch(url);
+    },
 
     tuyaDeviceOn: (deviceId) => apiFetch(`${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/on`, {
       method: 'POST'

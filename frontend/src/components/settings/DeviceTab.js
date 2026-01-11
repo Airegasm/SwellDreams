@@ -36,8 +36,10 @@ function DeviceTab() {
   const [tuyaAccessSecret, setTuyaAccessSecret] = useState('');
   const [tuyaRegion, setTuyaRegion] = useState('us');
   const [showTuyaConnect, setShowTuyaConnect] = useState(false);
+  const [showTuyaAddDevice, setShowTuyaAddDevice] = useState(false);
+  const [tuyaDeviceId, setTuyaDeviceId] = useState('');
   const [discoveredTuya, setDiscoveredTuya] = useState([]);
-  const [scanningTuya, setScanningTuya] = useState(false);
+  const [addingTuyaDevice, setAddingTuyaDevice] = useState(false);
   const [tuyaConnecting, setTuyaConnecting] = useState(false);
   const [tuyaError, setTuyaError] = useState(null);
 
@@ -295,34 +297,41 @@ function DeviceTab() {
     setTuyaConnecting(false);
   };
 
-  const handleTuyaScan = async () => {
-    setScanningTuya(true);
-    setDiscoveredTuya([]);
+  const handleTuyaFetchDevice = async () => {
+    if (!tuyaDeviceId.trim()) return;
+    setAddingTuyaDevice(true);
     setTuyaError(null);
     try {
-      const result = await api.scanTuyaDevices();
+      // Fetch device info by ID
+      const result = await api.scanTuyaDevices(tuyaDeviceId.trim());
       if (result.error) {
         setTuyaError(result.error);
-        setScanningTuya(false);
+        setAddingTuyaDevice(false);
         return;
       }
       const tuyaDevices = result.devices || [];
+      if (tuyaDevices.length === 0) {
+        setTuyaError('Device not found. Check the device ID and make sure it\'s linked to your Tuya IoT project.');
+        setAddingTuyaDevice(false);
+        return;
+      }
       // Filter out already configured devices
       const configuredIds = new Set(
         devices.filter(d => d.brand === 'tuya').map(d => d.deviceId)
       );
       const newDevices = tuyaDevices.filter(d => !configuredIds.has(d.id));
-      if (newDevices.length === 0 && tuyaDevices.length === 0) {
-        setTuyaError('No Tuya devices found. Make sure your devices are set up in the Tuya/Smart Life app.');
-      } else if (newDevices.length === 0) {
-        setTuyaError('All Tuya devices are already configured.');
+      if (newDevices.length === 0) {
+        setTuyaError('This device is already configured.');
+      } else {
+        setDiscoveredTuya(prev => [...prev, ...newDevices]);
+        setTuyaDeviceId('');
+        setShowTuyaAddDevice(false);
       }
-      setDiscoveredTuya(newDevices);
     } catch (error) {
-      console.error('Tuya scan failed:', error);
-      setTuyaError(error.message || 'Failed to scan for Tuya devices');
+      console.error('Tuya fetch device failed:', error);
+      setTuyaError(error.message || 'Failed to fetch device');
     }
-    setScanningTuya(false);
+    setAddingTuyaDevice(false);
   };
 
   const handleAddTuyaDevice = async (tuyaDevice) => {
@@ -633,10 +642,9 @@ function DeviceTab() {
               <>
                 <button
                   className="btn btn-primary"
-                  onClick={handleTuyaScan}
-                  disabled={scanningTuya}
+                  onClick={() => setShowTuyaAddDevice(!showTuyaAddDevice)}
                 >
-                  {scanningTuya ? 'Scanning...' : 'Scan Devices'}
+                  + Add Device
                 </button>
                 <button
                   className="btn btn-secondary"
@@ -704,6 +712,37 @@ function DeviceTab() {
               </button>
             </div>
             <p className="hint">Get credentials from Tuya IoT Platform: iot.tuya.com → Cloud → Your Project</p>
+          </div>
+        )}
+
+        {/* Tuya Add Device Form */}
+        {showTuyaAddDevice && tuyaConnected && (
+          <div className="tuya-add-device-form">
+            <input
+              type="text"
+              value={tuyaDeviceId}
+              onChange={(e) => setTuyaDeviceId(e.target.value)}
+              placeholder="Enter Device ID from Tuya IoT Platform"
+              onKeyDown={(e) => e.key === 'Enter' && handleTuyaFetchDevice()}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={handleTuyaFetchDevice}
+              disabled={addingTuyaDevice || !tuyaDeviceId.trim()}
+            >
+              {addingTuyaDevice ? 'Fetching...' : 'Fetch Device'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setShowTuyaAddDevice(false);
+                setTuyaDeviceId('');
+                setTuyaError(null);
+              }}
+            >
+              Cancel
+            </button>
+            <p className="hint">Find Device ID in Tuya IoT Platform → Devices tab → copy the Device ID</p>
           </div>
         )}
 
