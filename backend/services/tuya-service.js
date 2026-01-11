@@ -137,9 +137,15 @@ class TuyaService {
       throw new Error('Tuya credentials not configured');
     }
 
+    console.log(`[Tuya] ---- API Request: ${method} ${path} ----`);
+
     const token = await this.getAccessToken();
     const timestamp = Date.now().toString();
     const sign = this.generateSign(method, path, timestamp, token);
+
+    console.log(`[Tuya] Token: ${token ? token.substring(0, 16) + '...' : 'NONE'}`);
+    console.log(`[Tuya] Timestamp: ${timestamp}`);
+    console.log(`[Tuya] Signature: ${sign.substring(0, 16)}...`);
 
     const options = {
       method,
@@ -155,13 +161,20 @@ class TuyaService {
 
     if (body) {
       options.body = JSON.stringify(body);
+      console.log(`[Tuya] Body: ${options.body.substring(0, 100)}...`);
     }
 
-    const response = await fetch(`${this.getBaseUrl()}${path}`, options);
+    const url = `${this.getBaseUrl()}${path}`;
+    console.log(`[Tuya] Full URL: ${url}`);
+
+    const response = await fetch(url, options);
     const data = await response.json();
 
+    console.log(`[Tuya] Response: success=${data.success}, code=${data.code}, msg=${data.msg || 'none'}`);
+
     if (!data.success) {
-      throw new Error(`Tuya API error: ${data.msg || 'Request failed'}`);
+      console.error(`[Tuya] API ERROR - Code: ${data.code}, Message: ${data.msg}`);
+      throw new Error(`Tuya API error: ${data.msg || 'Request failed'} (code: ${data.code})`);
     }
 
     return data.result;
