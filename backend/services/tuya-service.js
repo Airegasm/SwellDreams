@@ -108,7 +108,6 @@ class TuyaService {
   /**
    * Make authenticated request - V2 format
    * Based on official tuya-connector-nodejs SDK getSignHeaders method
-   * Sign: accessKey + accessToken + t + stringToSign (no nonce!)
    */
   async request(method, path, body = {}) {
     if (!this.accessId || !this.accessSecret) {
@@ -119,18 +118,20 @@ class TuyaService {
 
     const token = await this.getAccessToken();
     const t = Date.now().toString();
+    const nonce = '';
 
-    // SDK always uses JSON.stringify(body), even for GET with empty body {}
+    // SDK uses JSON.stringify(body) for all requests
     const bodyStr = JSON.stringify(body);
     const contentHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     const stringToSign = [method, contentHash, '', path].join('\n');
-    // SDK signature: accessKey + accessToken + t + stringToSign (NO nonce)
-    const signStr = this.accessId + token + t + stringToSign;
+    // Try with nonce per official docs: client_id + access_token + t + nonce + stringToSign
+    const signStr = this.accessId + token + t + nonce + stringToSign;
     const signature = this.sign(signStr);
 
     console.log(`[Tuya] Body: ${bodyStr}`);
     console.log(`[Tuya] ContentHash: ${contentHash.substring(0, 16)}...`);
-    console.log(`[Tuya] Sign: accessId + token + ${t} + stringToSign`);
+    console.log(`[Tuya] StringToSign: ${method}\\n${contentHash.substring(0,16)}...\\n\\n${path}`);
+    console.log(`[Tuya] Sign: accessId + token + ${t} + nonce + stringToSign`);
     console.log(`[Tuya] Signature: ${signature.substring(0, 16)}...`);
 
     const headers = {
@@ -138,8 +139,11 @@ class TuyaService {
       'sign': signature,
       'client_id': this.accessId,
       'sign_method': 'HMAC-SHA256',
+      'nonce': nonce,
       'access_token': token,
       'Content-Type': 'application/json',
+      'Dev_lang': 'javascript',
+      'Dev_channel': 'SaaSFramework',
     };
 
     const options = { method, headers };
