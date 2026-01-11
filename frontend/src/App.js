@@ -7,6 +7,7 @@ import Settings from './pages/Settings';
 import FlowEditor from './pages/FlowEditor';
 import Help from './pages/Help';
 import './styles/App.css';
+import './styles/mobile.css';
 
 const TERMS_OF_SERVICE = `# SwellDreams - Terms of Service
 

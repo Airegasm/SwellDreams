@@ -26,6 +26,11 @@ function Chat() {
   const [currentDraft, setCurrentDraft] = useState('');
   const [rightColumnTab, setRightColumnTab] = useState('events');
 
+  // Mobile drawer state
+  const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+  const closeDrawers = () => { setLeftDrawerOpen(false); setRightDrawerOpen(false); };
+
   // Quick text state
   const [quickTexts, setQuickTexts] = useState([]);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
@@ -715,8 +720,14 @@ function Chat() {
         </div>
       )}
 
+      {/* Mobile drawer overlay */}
+      <div
+        className={`drawer-overlay ${leftDrawerOpen || rightDrawerOpen ? 'visible' : ''}`}
+        onClick={closeDrawers}
+      />
+
       {/* Sidebar */}
-      <div className="chat-sidebar">
+      <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''}`}>
         <div className="sidebar-section">
           <h3>Session</h3>
           <div className="session-buttons">
@@ -1158,7 +1169,7 @@ function Chat() {
       />
 
       {/* Right Sidebar */}
-      <div className="chat-sidebar chat-sidebar-right">
+      <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Control Panel Section - ABOVE tabs */}
         <div className="sidebar-section control-panel-section">
           <h3>Control Panel</h3>
@@ -1267,6 +1278,24 @@ function Chat() {
             <p className="text-muted">No buttons configured for this character.</p>
           )}
         </div>
+      </div>
+
+      {/* Mobile drawer toggle buttons (hidden on desktop via CSS) */}
+      <div className="mobile-drawer-toggles">
+        <button
+          className="mobile-drawer-toggle left-toggle"
+          onClick={() => setLeftDrawerOpen(!leftDrawerOpen)}
+          aria-label="Toggle player panel"
+        >
+          ☰
+        </button>
+        <button
+          className="mobile-drawer-toggle right-toggle"
+          onClick={() => setRightDrawerOpen(!rightDrawerOpen)}
+          aria-label="Toggle control panel"
+        >
+          ⚙
+        </button>
       </div>
 
       {/* Constant Reminder Modal */}
