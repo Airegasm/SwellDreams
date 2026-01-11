@@ -84,14 +84,14 @@ if not exist "%SCRIPT_DIR%frontend\build" (
 
 REM Start backend in new window
 echo Starting backend server...
-start "SwellDreams-Backend" /MIN cmd /c "cd /d "%SCRIPT_DIR%backend" && node server.js"
+start "SwellDreams-Backend" /MIN cmd /c "cd /d %SCRIPT_DIR%backend && node server.js"
 
 REM Wait for backend
 timeout /t 2 /nobreak >nul
 
 REM Start frontend production server
 echo Starting frontend server...
-start "SwellDreams-Frontend" /MIN cmd /c "cd /d "%SCRIPT_DIR%frontend" && npx serve -s build -l 3001"
+start "SwellDreams-Frontend" /MIN cmd /c "cd /d %SCRIPT_DIR%frontend && npx serve -s build -l 3001"
 
 echo.
 echo ========================================
