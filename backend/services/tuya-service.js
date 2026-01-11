@@ -19,6 +19,7 @@ class TuyaService {
     this.region = 'us';
     this.accessToken = null;
     this.refreshToken = null;
+    this.uid = null;
     this.tokenExpiry = null;
   }
 
@@ -29,6 +30,7 @@ class TuyaService {
     this.region = region;
     this.accessToken = null;
     this.refreshToken = null;
+    this.uid = null;
     this.tokenExpiry = null;
   }
 
@@ -40,6 +42,7 @@ class TuyaService {
     console.log('[Tuya] Clearing token cache');
     this.accessToken = null;
     this.refreshToken = null;
+    this.uid = null;
     this.tokenExpiry = null;
   }
 
@@ -103,9 +106,10 @@ class TuyaService {
 
     this.accessToken = data.result.access_token;
     this.refreshToken = data.result.refresh_token;
+    this.uid = data.result.uid;  // Store UID from token response
     this.tokenExpiry = Date.now() + (data.result.expire_time - 300) * 1000;
 
-    console.log(`[Tuya] Token obtained, expires in ${data.result.expire_time}s`);
+    console.log(`[Tuya] Token obtained, expires in ${data.result.expire_time}s, uid=${this.uid}`);
     return this.accessToken;
   }
 
@@ -179,9 +183,13 @@ class TuyaService {
   }
 
   async listDevices() {
-    const tokenInfo = await this.request('GET', '/v1.0/token/info');
-    const uid = tokenInfo.uid;
-    const devices = await this.request('GET', `/v1.0/users/${uid}/devices`);
+    // Ensure we have a token (which also gets the UID)
+    await this.getAccessToken();
+    if (!this.uid) {
+      throw new Error('No UID available - token request may have failed');
+    }
+    console.log(`[Tuya] Listing devices for uid: ${this.uid}`);
+    const devices = await this.request('GET', `/v1.0/users/${this.uid}/devices`);
     return devices || [];
   }
 
