@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import CharacterEditorModal from '../modals/CharacterEditorModal';
@@ -10,6 +10,14 @@ function CharacterTab() {
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState(null);
+  const listRef = useRef(null);
+
+  // Sort characters with active one first
+  const sortedCharacters = [...characters].sort((a, b) => {
+    if (a.id === settings.activeCharacterId) return -1;
+    if (b.id === settings.activeCharacterId) return 1;
+    return 0;
+  });
 
   const handleNew = () => {
     setEditingCharacter(null);
@@ -49,6 +57,10 @@ function CharacterTab() {
   const handleSetActive = async (id) => {
     try {
       await api.updateSettings({ activeCharacterId: id });
+      // Scroll to top after setting active
+      if (listRef.current) {
+        listRef.current.scrollTop = 0;
+      }
     } catch (error) {
       console.error('Failed to set active character:', error);
     }
@@ -80,8 +92,7 @@ function CharacterTab() {
 
   return (
     <div className="settings-tab">
-      <div className="tab-header">
-        <h3>AI Characters</h3>
+      <div className="tab-header-actions">
         <button
           className="btn btn-primary"
           onClick={handleNew}
@@ -90,19 +101,21 @@ function CharacterTab() {
         </button>
       </div>
 
-      <div className="list">
+      <div className="list" ref={listRef}>
         {characters.length === 0 ? (
           <p className="text-muted">No characters yet. Create one to get started!</p>
         ) : (
-          characters.map((character) => (
+          sortedCharacters.map((character) => (
             <div
               key={character.id}
               className={`list-item card-style ${settings.activeCharacterId === character.id ? 'active' : ''}`}
             >
               <div className="card-header">
                 <div className="card-info">
-                  <div className="list-item-name">
-                    {character.name}
+                  <div className="name-row">
+                    <div className="list-item-name">
+                      {character.name}
+                    </div>
                     {settings.activeCharacterId === character.id && (
                       <span className="active-badge">Active</span>
                     )}

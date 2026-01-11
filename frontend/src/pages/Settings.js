@@ -6,9 +6,9 @@ import DeviceTab from '../components/settings/DeviceTab';
 import './Settings.css';
 
 const TABS = [
-  { id: 'model', label: 'Model' },
-  { id: 'global', label: 'Global' },
-  { id: 'devices', label: 'Devices' }
+  { id: 'model', label: 'LLM Backend' },
+  { id: 'devices', label: 'Smart Devices' },
+  { id: 'global', label: 'Global States' }
 ];
 
 function Settings() {
@@ -36,6 +36,10 @@ function Settings() {
 
   return (
     <div className="settings-page page">
+      <div className="page-header">
+        <h1>Settings</h1>
+      </div>
+
       <div className="tabs">
         {TABS.map((t) => (
           <button

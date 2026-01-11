@@ -57,6 +57,26 @@ function ModelTab() {
   const [openRouterConnecting, setOpenRouterConnecting] = useState(false);
   const [openRouterError, setOpenRouterError] = useState(null);
 
+  // Collapsible section states (collapsed by default)
+  const [expandedSections, setExpandedSections] = useState({
+    connection: true, // Keep connection expanded by default
+    models: false,
+    tokenSettings: false,
+    advancedControl: false, // Parent collapsible for KoboldCpp/OpenAI settings
+    samplerSettings: false,
+    repetitionPenalty: false,
+    dryPenalty: false,
+    xtc: false,
+    smoothing: false,
+    dynamicTemp: false,
+    mirostat: false,
+    stopSequences: false
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
 
   const updateSetting = async (key, value) => {
     const newSettings = { ...llmSettings, [key]: value };
@@ -485,140 +505,249 @@ function ModelTab() {
 
   return (
     <div className="settings-tab">
-      <div className="tab-header">
-        <h3>Model Settings</h3>
-        <span className="model-status">{modelStatus}</span>
-      </div>
-
+      <h2 className="settings-title">Give SwellDreams the Will to Inflate</h2>
       <div className="model-tab">
-        {/* Connection Profiles */}
-        <div className="settings-section" style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-            <label style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Connection Profile:</label>
-            <select
-              value={selectedProfileId || 'none'}
-              onChange={(e) => handleProfileSelect(e.target.value)}
-              style={{ padding: '6px 12px', minWidth: '180px' }}
-            >
-              <option value="none">-- No Profile --</option>
-              {connectionProfiles.map(profile => (
-                <option key={profile.id} value={profile.id}>{profile.name}</option>
-              ))}
-              <option value="new">+ Save as New Profile...</option>
-            </select>
-            {selectedProfileId && (
-              <>
-                <button
-                  onClick={handleUpdateProfile}
-                  className="btn-secondary"
-                  style={{ padding: '6px 12px' }}
-                  title="Update profile with current settings"
-                >
-                  Update
-                </button>
-                <button
-                  onClick={handleDeleteProfile}
-                  className="btn-danger"
-                  style={{ padding: '6px 12px' }}
-                  title="Delete this profile"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-          {showNewProfileInput && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-md)' }}>
-              <input
-                type="text"
-                value={newProfileName}
-                onChange={(e) => setNewProfileName(e.target.value)}
-                placeholder="Profile name (e.g., Lyonade, Local LLM)"
-                style={{ flex: 1, padding: '6px 12px' }}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveNewProfile()}
-                autoFocus
-              />
-              <button
-                onClick={handleSaveNewProfile}
-                className="btn-primary"
-                style={{ padding: '6px 12px' }}
-                disabled={!newProfileName.trim()}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => { setShowNewProfileInput(false); setNewProfileName(''); }}
-                className="btn-secondary"
-                style={{ padding: '6px 12px' }}
-              >
-                Cancel
-              </button>
+        {/* Combined Connection Settings */}
+        <div className="settings-section-collapsible">
+          <div className="settings-section-header" onClick={() => toggleSection('connection')}>
+            <span>Connection Settings</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+              <span className="model-status">{modelStatus}</span>
+              <span className="collapse-icon">{expandedSections.connection ? '▼' : '▶'}</span>
             </div>
-          )}
-        </div>
-
-        {/* Endpoint Standard */}
-        <div className="settings-section" style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <label style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>Endpoint Standard:</label>
-            <select
-              value={endpointStandard}
-              onChange={(e) => handleEndpointStandardChange(e.target.value)}
-              style={{ padding: '6px 12px', minWidth: '180px' }}
-            >
-              <option value="openai">OpenAI Compatible</option>
-              <option value="kobold">KoboldCPP</option>
-              <option value="openrouter">OpenRouter</option>
-            </select>
           </div>
-        </div>
+          {expandedSections.connection && (
+          <div className="settings-section-content connection-grid">
+            {/* Row 1: Profile */}
+            <div className="connection-row">
+              <label>Profile</label>
+              <select
+                value={selectedProfileId || 'none'}
+                onChange={(e) => handleProfileSelect(e.target.value)}
+                className="connection-field-twothirds"
+              >
+                <option value="none">-- No Profile --</option>
+                {connectionProfiles.map(profile => (
+                  <option key={profile.id} value={profile.id}>{profile.name}</option>
+                ))}
+                <option value="new">+ Save as New Profile...</option>
+              </select>
+              <div className="connection-field-onethird-buttons">
+                {selectedProfileId ? (
+                  <>
+                    <button onClick={handleUpdateProfile} className="btn btn-sm btn-secondary">Update</button>
+                    <button onClick={handleDeleteProfile} className="btn btn-sm btn-danger">Delete</button>
+                  </>
+                ) : (
+                  <span></span>
+                )}
+              </div>
+            </div>
 
-        {/* OpenRouter Settings */}
-        {endpointStandard === 'openrouter' ? (
-          <>
-            {/* OpenRouter Connection */}
-            <div className="settings-section">
-              <h3>OpenRouter Connection</h3>
-              <div className="form-group">
-                <label>API URL</label>
+            {showNewProfileInput && (
+              <div className="connection-row">
+                <label></label>
                 <input
                   type="text"
-                  value="https://openrouter.ai/api/v1/chat/completions"
-                  disabled
-                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Profile name (e.g., Lyonade, Local LLM)"
+                  className="connection-field-twothirds"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveNewProfile()}
+                  autoFocus
                 />
+                <div className="connection-field-onethird-buttons">
+                  <button onClick={handleSaveNewProfile} className="btn btn-sm btn-primary" disabled={!newProfileName.trim()}>Save</button>
+                  <button onClick={() => { setShowNewProfileInput(false); setNewProfileName(''); }} className="btn btn-sm btn-secondary">Cancel</button>
+                </div>
               </div>
-              <div className="form-group">
-                <label>API Key</label>
-                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+            )}
+
+            {/* Row 2: Endpoint, API Type, Template (for non-OpenRouter) */}
+            <div className="connection-row">
+              <label>Endpoint</label>
+              {endpointStandard !== 'openrouter' ? (
+                <>
+                  <select
+                    value={endpointStandard}
+                    onChange={(e) => handleEndpointStandardChange(e.target.value)}
+                    className="connection-field-third"
+                  >
+                    <option value="openai">OpenAI Compatible</option>
+                    <option value="kobold">KoboldCPP</option>
+                    <option value="openrouter">OpenRouter</option>
+                  </select>
+                  <select
+                    value={llmSettings.apiType || 'auto'}
+                    onChange={(e) => updateSetting('apiType', e.target.value)}
+                    className="connection-field-third"
+                  >
+                    <option value="auto">Auto-detect</option>
+                    <option value="text_completion">Text Completion</option>
+                    <option value="chat_completion">Chat Completion</option>
+                  </select>
+                  <select
+                    value={llmSettings.promptTemplate || 'none'}
+                    onChange={(e) => updateSetting('promptTemplate', e.target.value)}
+                    className="connection-field-third"
+                  >
+                    <option value="none">No Template</option>
+                    <option value="chatml">ChatML</option>
+                    <option value="llama">Llama 2</option>
+                    <option value="mistral">Mistral</option>
+                    <option value="alpaca">Alpaca</option>
+                    <option value="vicuna">Vicuna</option>
+                  </select>
+                </>
+              ) : (
+                <select
+                  value={endpointStandard}
+                  onChange={(e) => handleEndpointStandardChange(e.target.value)}
+                  className="connection-field"
+                >
+                  <option value="openai">OpenAI Compatible</option>
+                  <option value="kobold">KoboldCPP</option>
+                  <option value="openrouter">OpenRouter</option>
+                </select>
+              )}
+            </div>
+
+            {/* Row 3: URL/API Key + Connect */}
+            {endpointStandard === 'openrouter' ? (
+              <>
+                <div className="connection-row">
+                  <label>API Key</label>
                   <input
                     type="password"
                     value={openRouterApiKey}
                     onChange={(e) => setOpenRouterApiKey(e.target.value)}
                     placeholder="sk-or-v1-..."
-                    style={{ flex: 1 }}
+                    className="connection-field-twothirds"
                   />
-                  <button
-                    className={`btn ${connectionStatus === 'online' && openRouterModels.length > 0 ? 'btn-success' : 'btn-primary'}`}
-                    onClick={handleOpenRouterConnect}
-                    disabled={openRouterConnecting || !openRouterApiKey.trim()}
-                  >
-                    {openRouterConnecting ? 'Connecting...' : connectionStatus === 'online' && openRouterModels.length > 0 ? 'Connected' : 'Connect'}
-                  </button>
+                  <div className="connection-field-onethird-buttons">
+                    <button
+                      className={`btn btn-sm ${connectionStatus === 'online' && openRouterModels.length > 0 ? 'btn-success' : 'btn-primary'}`}
+                      onClick={handleOpenRouterConnect}
+                      disabled={openRouterConnecting || !openRouterApiKey.trim()}
+                    >
+                      {openRouterConnecting ? 'Connecting...' : connectionStatus === 'online' && openRouterModels.length > 0 ? 'Connected' : 'Connect'}
+                    </button>
+                  </div>
                 </div>
                 {openRouterError && (
-                  <span className="form-hint" style={{ color: 'var(--error)' }}>{openRouterError}</span>
+                  <div className="connection-row">
+                    <label></label>
+                    <span className="connection-error">{openRouterError}</span>
+                  </div>
                 )}
-              </div>
-            </div>
+                {/* OpenRouter Token Settings */}
+                <div className="connection-row token-row">
+                  <label>Response</label>
+                  <input
+                    type="number"
+                    value={llmSettings.maxTokens || 300}
+                    onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={32768}
+                  />
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={llmSettings.streaming ?? true}
+                      onChange={(e) => updateSetting('streaming', e.target.checked)}
+                    />
+                    <span>Streaming</span>
+                  </label>
+                </div>
+                <div className="connection-row token-row">
+                  <label>Context</label>
+                  <input
+                    type="number"
+                    value={llmSettings.contextTokens || 8192}
+                    onChange={(e) => updateSetting('contextTokens', parseInt(e.target.value))}
+                    min={512}
+                    max={200000}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="connection-row">
+                  <label>URL</label>
+                  <input
+                    type="text"
+                    value={llmSettings.llmUrl || ''}
+                    onChange={(e) => updateSetting('llmUrl', e.target.value)}
+                    placeholder={endpointStandard === 'kobold' ? 'http://localhost:5001/api/v1/generate' : 'http://localhost:1234/v1/chat/completions'}
+                    className="connection-field-twothirds"
+                  />
+                  <div className="connection-field-onethird-buttons">
+                    <button
+                      className={`btn btn-sm ${connectionStatus === 'online' ? 'btn-success' : 'btn-primary'}`}
+                      onClick={connectionStatus === 'online' ? handleDisconnect : handleTest}
+                      disabled={!llmSettings.llmUrl || testing}
+                    >
+                      {testing ? 'Testing...' : connectionStatus === 'online' ? 'Connected' : 'Connect'}
+                    </button>
+                  </div>
+                </div>
+                {/* Kobold/OpenAI Token Settings */}
+                <div className="connection-row token-row">
+                  <label>Response</label>
+                  <input
+                    type="number"
+                    value={llmSettings.maxTokens || 300}
+                    onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={4096}
+                  />
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={llmSettings.streaming ?? true}
+                      onChange={(e) => updateSetting('streaming', e.target.checked)}
+                    />
+                    <span>Streaming</span>
+                  </label>
+                </div>
+                <div className="connection-row token-row">
+                  <label>Context</label>
+                  <input
+                    type="number"
+                    value={llmSettings.contextTokens || 8192}
+                    onChange={(e) => updateSetting('contextTokens', parseInt(e.target.value))}
+                    min={512}
+                    max={131072}
+                  />
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={llmSettings.trimIncompleteSentences ?? true}
+                      onChange={(e) => updateSetting('trimIncompleteSentences', e.target.checked)}
+                    />
+                    <span>Trim Incomplete</span>
+                  </label>
+                </div>
+              </>
+            )}
+          </div>
+          )}
+        </div>
+
+        {/* OpenRouter Settings */}
+        {endpointStandard === 'openrouter' ? (
+          <>
 
             {/* OpenRouter Models List */}
             {openRouterModels.length > 0 && (
-              <div className="settings-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
-                  <h3 style={{ margin: 0 }}>
-                    Models ({sortedOpenRouterModels.length}{modelSearchQuery ? ` of ${openRouterModels.length}` : ''})
-                  </h3>
+              <div className="settings-section-collapsible">
+                <div className="settings-section-header" onClick={() => toggleSection('models')}>
+                  <span>Models ({sortedOpenRouterModels.length}{modelSearchQuery ? ` of ${openRouterModels.length}` : ''})</span>
+                  <span className="collapse-icon">{expandedSections.models ? '▼' : '▶'}</span>
+                </div>
+                {expandedSections.models && (
+                <div className="settings-section-content">
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-sm)' }}>
                   <select
                     value={modelSortOrder}
                     onChange={(e) => setModelSortOrder(e.target.value)}
@@ -666,48 +795,21 @@ function ModelTab() {
                     </div>
                   ))}
                 </div>
+                </div>
+                )}
               </div>
             )}
 
-            {/* OpenRouter Generation Settings */}
+            {/* OpenRouter Sampler Settings */}
             {selectedOpenRouterModel && (
               <>
-                <div className="settings-section">
-                  <h3>Token Settings</h3>
-                  <div className="settings-grid">
-                    <div className="form-group">
-                      <label>Max Tokens (Response)</label>
-                      <input
-                        type="number"
-                        value={llmSettings.maxTokens || 300}
-                        onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
-                        min={1}
-                        max={32768}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Context Window</label>
-                      <input
-                        type="number"
-                        value={llmSettings.contextTokens || 8192}
-                        onChange={(e) => updateSetting('contextTokens', parseInt(e.target.value))}
-                        min={512}
-                        max={200000}
-                      />
-                    </div>
+                <div className="settings-section-collapsible">
+                  <div className="settings-section-header" onClick={() => toggleSection('samplerSettings')}>
+                    <span>Sampler Settings</span>
+                    <span className="collapse-icon">{expandedSections.samplerSettings ? '▼' : '▶'}</span>
                   </div>
-                  <label className="checkbox-container" style={{ marginTop: 'var(--spacing-md)' }}>
-                    <input
-                      type="checkbox"
-                      checked={llmSettings.streaming ?? true}
-                      onChange={(e) => updateSetting('streaming', e.target.checked)}
-                    />
-                    <span>Streaming</span>
-                  </label>
-                </div>
-
-                <div className="settings-section">
-                  <h3>Sampler Settings</h3>
+                  {expandedSections.samplerSettings && (
+                  <div className="settings-section-content">
                   <div className="sampler-grid">
                     <Slider
                       label="Temperature"
@@ -764,131 +866,23 @@ function ModelTab() {
                       info="Penalizes repeated tokens. 1 = disabled"
                     />
                   </div>
+                  </div>
+                  )}
                 </div>
               </>
             )}
           </>
         ) : (
           <>
-        {/* LLM URL */}
-        <div className="settings-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
-          <h3 style={{ margin: 0 }}>LLM Connection</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-            <select
-              value={llmSettings.apiType || 'auto'}
-              onChange={(e) => updateSetting('apiType', e.target.value)}
-              style={{ padding: '4px 8px', fontSize: 'var(--font-size-sm)' }}
-              title="API Type"
-            >
-              <option value="auto">Auto-detect</option>
-              <option value="text_completion">Text Completion</option>
-              <option value="chat_completion">Chat Completion</option>
-            </select>
-            <select
-              value={llmSettings.promptTemplate || 'none'}
-              onChange={(e) => updateSetting('promptTemplate', e.target.value)}
-              style={{ padding: '4px 8px', fontSize: 'var(--font-size-sm)' }}
-              title="Instruct Template (for text completion)"
-            >
-              <option value="none">No Template</option>
-              <option value="chatml">ChatML</option>
-              <option value="llama">Llama 2</option>
-              <option value="mistral">Mistral</option>
-              <option value="alpaca">Alpaca</option>
-              <option value="vicuna">Vicuna</option>
-            </select>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: 'var(--font-size-sm)' }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: connectionStatus === 'online' ? '#10b981' : '#ef4444',
-                display: 'inline-block'
-              }}></span>
-              {connectionStatus === 'online' ? 'Online' : 'Offline'}
-            </span>
-          </div>
-        </div>
-        <div className="form-group">
-          <label>LLM API URL</label>
-          <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-            <input
-              type="text"
-              value={llmSettings.llmUrl || ''}
-              onChange={(e) => updateSetting('llmUrl', e.target.value)}
-              placeholder="http://localhost:5001/api/v1/generate or http://localhost:1234/v1/chat/completions"
-              style={{ flex: 1 }}
-            />
-            <button
-              className={`btn ${connectionStatus === 'online' ? 'btn-danger' : 'btn-secondary'}`}
-              onClick={connectionStatus === 'online' ? handleDisconnect : handleTest}
-              disabled={!llmSettings.llmUrl || testing}
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              {testing ? 'Connecting...' : connectionStatus === 'online' ? 'Disconnect' : 'Connect'}
-            </button>
-          </div>
-          <span className="form-hint">
-            KoboldCpp: /api/v1/generate | OpenAI-compatible: /v1/chat/completions
-          </span>
-        </div>
-      </div>
-
-      {/* Token Settings */}
-      <div className="settings-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
-          <h3 style={{ margin: 0 }}>Token Settings</h3>
-          <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-            <label className="checkbox-container">
-              <input
-                type="checkbox"
-                checked={llmSettings.trimIncompleteSentences ?? true}
-                onChange={(e) => updateSetting('trimIncompleteSentences', e.target.checked)}
-              />
-              <span>Trim Incomplete Sentences</span>
-              <span className="info-icon" title="Remove incomplete sentences from the end of responses">?</span>
-            </label>
-            <label className="checkbox-container">
-              <input
-                type="checkbox"
-                checked={llmSettings.streaming ?? true}
-                onChange={(e) => updateSetting('streaming', e.target.checked)}
-              />
-              <span>Streaming</span>
-              <span className="info-icon" title="Stream responses token by token">?</span>
-            </label>
-          </div>
-        </div>
-        <div className="settings-grid">
-          <div className="form-group">
-            <label>Response (tokens)</label>
-            <input
-              type="number"
-              value={llmSettings.maxTokens || 300}
-              onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
-              min={1}
-              max={4096}
-            />
-          </div>
-          <div className="form-group">
-            <label>Context (tokens)</label>
-            <input
-              type="number"
-              value={llmSettings.contextTokens || 8192}
-              onChange={(e) => updateSetting('contextTokens', parseInt(e.target.value))}
-              min={512}
-              max={131072}
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Sampler Controls */}
-      <div className="settings-section">
-        <div className="section-header">
-          <h3>Sampler Settings</h3>
-          <div className="sampler-buttons">
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('samplerSettings')}>
+          <span>Sampler Settings</span>
+          <span className="collapse-icon">{expandedSections.samplerSettings ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.samplerSettings && (
+        <div className="settings-section-content">
+          <div className="sampler-buttons" style={{ marginBottom: 'var(--spacing-md)' }}>
             <label className="checkbox-container" style={{ marginRight: 'var(--spacing-md)' }}>
               <input
                 type="checkbox"
@@ -905,383 +899,418 @@ function ModelTab() {
               Neutralize Samplers
             </button>
           </div>
+          <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+            <Slider
+              label="Temperature"
+              value={llmSettings.temperature ?? 0.92}
+              onChange={(v) => updateSetting('temperature', v)}
+              min={0}
+              max={2}
+              step={0.01}
+              info="Controls randomness. Higher = more creative, Lower = more focused"
+            />
+            <Slider
+              label="Top K"
+              value={llmSettings.topK ?? 0}
+              onChange={(v) => updateSetting('topK', v)}
+              min={0}
+              max={200}
+              step={1}
+              info="Limits vocabulary to top K tokens. 0 = disabled"
+            />
+            <Slider
+              label="Top P"
+              value={llmSettings.topP ?? 0.92}
+              onChange={(v) => updateSetting('topP', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Nucleus sampling. Considers tokens until cumulative probability reaches P"
+            />
+            <Slider
+              label="Typical P"
+              value={llmSettings.typicalP ?? 1}
+              onChange={(v) => updateSetting('typicalP', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Locally typical sampling. 1 = disabled"
+            />
+            <Slider
+              label="Min P"
+              value={llmSettings.minP ?? 0.08}
+              onChange={(v) => updateSetting('minP', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Minimum probability threshold relative to top token"
+            />
+            <Slider
+              label="Top A"
+              value={llmSettings.topA ?? 0}
+              onChange={(v) => updateSetting('topA', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Top-A sampling. 0 = disabled"
+            />
+            <Slider
+              label="TFS"
+              value={llmSettings.tfs ?? 1}
+              onChange={(v) => updateSetting('tfs', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Tail Free Sampling. 1 = disabled"
+            />
+            <Slider
+              label="Top NSigma"
+              value={llmSettings.topNsigma ?? 0}
+              onChange={(v) => updateSetting('topNsigma', v)}
+              min={0}
+              max={5}
+              step={0.1}
+              info="Top N-sigma sampling. 0 = disabled"
+            />
+          </div>
         </div>
-
-        <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <Slider
-            label="Temperature"
-            value={llmSettings.temperature ?? 0.92}
-            onChange={(v) => updateSetting('temperature', v)}
-            min={0}
-            max={2}
-            step={0.01}
-            info="Controls randomness. Higher = more creative, Lower = more focused"
-          />
-
-          <Slider
-            label="Top K"
-            value={llmSettings.topK ?? 0}
-            onChange={(v) => updateSetting('topK', v)}
-            min={0}
-            max={200}
-            step={1}
-            info="Limits vocabulary to top K tokens. 0 = disabled"
-          />
-
-          <Slider
-            label="Top P"
-            value={llmSettings.topP ?? 0.92}
-            onChange={(v) => updateSetting('topP', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Nucleus sampling. Considers tokens until cumulative probability reaches P"
-          />
-
-          <Slider
-            label="Typical P"
-            value={llmSettings.typicalP ?? 1}
-            onChange={(v) => updateSetting('typicalP', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Locally typical sampling. 1 = disabled"
-          />
-
-          <Slider
-            label="Min P"
-            value={llmSettings.minP ?? 0.08}
-            onChange={(v) => updateSetting('minP', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Minimum probability threshold relative to top token"
-          />
-
-          <Slider
-            label="Top A"
-            value={llmSettings.topA ?? 0}
-            onChange={(v) => updateSetting('topA', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Top-A sampling. 0 = disabled"
-          />
-
-          <Slider
-            label="TFS"
-            value={llmSettings.tfs ?? 1}
-            onChange={(v) => updateSetting('tfs', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Tail Free Sampling. 1 = disabled"
-          />
-
-          <Slider
-            label="Top NSigma"
-            value={llmSettings.topNsigma ?? 0}
-            onChange={(v) => updateSetting('topNsigma', v)}
-            min={0}
-            max={5}
-            step={0.1}
-            info="Top N-sigma sampling. 0 = disabled"
-          />
-        </div>
+        )}
       </div>
 
       {/* Repetition Penalty Settings */}
-      <div className="settings-section">
-        <h3>Repetition Penalty</h3>
-
-        <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <Slider
-            label="Repetition Penalty"
-            value={llmSettings.repetitionPenalty ?? 1.05}
-            onChange={(v) => updateSetting('repetitionPenalty', v)}
-            min={1}
-            max={2}
-            step={0.01}
-            info="Penalizes repeated tokens. 1 = disabled"
-          />
-
-          <Slider
-            label="Rep Pen Range"
-            value={llmSettings.repPenRange ?? 2048}
-            onChange={(v) => updateSetting('repPenRange', v)}
-            min={0}
-            max={8192}
-            step={64}
-            info="How many tokens back to apply repetition penalty"
-          />
-
-          <Slider
-            label="Rep Pen Slope"
-            value={llmSettings.repPenSlope ?? 1}
-            onChange={(v) => updateSetting('repPenSlope', v)}
-            min={0}
-            max={10}
-            step={0.1}
-            info="Slope for dynamic repetition penalty"
-          />
-
-          <Slider
-            label="Frequency Penalty"
-            value={llmSettings.frequencyPenalty ?? 0.58}
-            onChange={(v) => updateSetting('frequencyPenalty', v)}
-            min={0}
-            max={2}
-            step={0.01}
-            info="Penalizes frequent tokens. OpenAI-style"
-          />
-
-          <Slider
-            label="Presence Penalty"
-            value={llmSettings.presencePenalty ?? 0.2}
-            onChange={(v) => updateSetting('presencePenalty', v)}
-            min={0}
-            max={2}
-            step={0.01}
-            info="Penalizes tokens that appeared at all. OpenAI-style"
-          />
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('repetitionPenalty')}>
+          <span>Repetition Penalty</span>
+          <span className="collapse-icon">{expandedSections.repetitionPenalty ? '▼' : '▶'}</span>
         </div>
+        {expandedSections.repetitionPenalty && (
+        <div className="settings-section-content">
+          <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+            <Slider
+              label="Repetition Penalty"
+              value={llmSettings.repetitionPenalty ?? 1.05}
+              onChange={(v) => updateSetting('repetitionPenalty', v)}
+              min={1}
+              max={2}
+              step={0.01}
+              info="Penalizes repeated tokens. 1 = disabled"
+            />
+            <Slider
+              label="Rep Pen Range"
+              value={llmSettings.repPenRange ?? 2048}
+              onChange={(v) => updateSetting('repPenRange', v)}
+              min={0}
+              max={8192}
+              step={64}
+              info="How many tokens back to apply repetition penalty"
+            />
+            <Slider
+              label="Rep Pen Slope"
+              value={llmSettings.repPenSlope ?? 1}
+              onChange={(v) => updateSetting('repPenSlope', v)}
+              min={0}
+              max={10}
+              step={0.1}
+              info="Slope for dynamic repetition penalty"
+            />
+            <Slider
+              label="Frequency Penalty"
+              value={llmSettings.frequencyPenalty ?? 0.58}
+              onChange={(v) => updateSetting('frequencyPenalty', v)}
+              min={0}
+              max={2}
+              step={0.01}
+              info="Penalizes frequent tokens. OpenAI-style"
+            />
+            <Slider
+              label="Presence Penalty"
+              value={llmSettings.presencePenalty ?? 0.2}
+              onChange={(v) => updateSetting('presencePenalty', v)}
+              min={0}
+              max={2}
+              step={0.01}
+              info="Penalizes tokens that appeared at all. OpenAI-style"
+            />
+          </div>
+        </div>
+        )}
       </div>
 
-      {/* DRY Repetition Penalty (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>DRY Repetition Penalty <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-
-        <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <Slider
-            label="DRY Multiplier"
-            value={llmSettings.dryMultiplier ?? 0}
-            onChange={(v) => updateSetting('dryMultiplier', v)}
-            min={0}
-            max={2}
-            step={0.05}
-            info="DRY penalty multiplier. 0 = disabled"
-          />
-
-          <Slider
-            label="DRY Base"
-            value={llmSettings.dryBase ?? 1.75}
-            onChange={(v) => updateSetting('dryBase', v)}
-            min={1}
-            max={3}
-            step={0.05}
-            info="Base for DRY penalty calculation"
-          />
-
-          <Slider
-            label="DRY Allowed Length"
-            value={llmSettings.dryAllowedLength ?? 2}
-            onChange={(v) => updateSetting('dryAllowedLength', v)}
-            min={1}
-            max={10}
-            step={1}
-            info="Minimum sequence length before DRY applies"
-          />
-
-          <Slider
-            label="DRY Range"
-            value={llmSettings.dryPenaltyLastN ?? 0}
-            onChange={(v) => updateSetting('dryPenaltyLastN', v)}
-            min={0}
-            max={8192}
-            step={64}
-            info="How many tokens back to check. 0 = auto"
-          />
+      {/* Advanced Control - Parent collapsible for KoboldCpp-specific settings */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('advancedControl')}>
+          <span>Advanced Control (KoboldCpp Only)</span>
+          <span className="collapse-icon">{expandedSections.advancedControl ? '▼' : '▶'}</span>
         </div>
+        {expandedSections.advancedControl && (
+        <div className="settings-section-content">
 
-        <div className="form-group" style={{ marginTop: 'var(--spacing-md)', opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <label>DRY Sequence Breakers</label>
-          <input
-            type="text"
-            value={(llmSettings.drySequenceBreakers || []).join(', ')}
-            onChange={(e) => {
-              const breakers = e.target.value.split(',').map(s => s.trim()).filter(s => s);
-              updateSetting('drySequenceBreakers', breakers);
-            }}
-            placeholder='e.g. \n, :, ", *'
-          />
-          <span className="form-hint">Comma-separated tokens that break DRY sequences</span>
-        </div>
-      </div>
-
-      {/* XTC - Exclude Top Choices (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>XTC <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-
-        <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <Slider
-            label="XTC Probability"
-            value={llmSettings.xtcProbability ?? 0}
-            onChange={(v) => updateSetting('xtcProbability', v)}
-            min={0}
-            max={1}
-            step={0.05}
-            info="Chance to exclude top choices. 0 = disabled"
-          />
-
-          <Slider
-            label="XTC Threshold"
-            value={llmSettings.xtcThreshold ?? 0.1}
-            onChange={(v) => updateSetting('xtcThreshold', v)}
-            min={0}
-            max={0.5}
-            step={0.01}
-            info="Probability threshold for token exclusion"
-          />
-        </div>
-      </div>
-
-      {/* Smoothing (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>Smoothing <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-
-        <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
-          <Slider
-            label="Smoothing Factor"
-            value={llmSettings.smoothingFactor ?? 0}
-            onChange={(v) => updateSetting('smoothingFactor', v)}
-            min={0}
-            max={10}
-            step={0.1}
-            info="Smoothing factor. 0 = disabled"
-          />
-
-          <Slider
-            label="Smoothing Curve"
-            value={llmSettings.smoothingCurve ?? 1}
-            onChange={(v) => updateSetting('smoothingCurve', v)}
-            min={0.5}
-            max={3}
-            step={0.1}
-            info="Curve shape for smoothing"
-          />
-        </div>
-      </div>
-
-      {/* Dynamic Temperature (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>Dynamic Temperature <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-        <div className="sampler-grid">
-          <Slider
-            label="DynaTemp Range"
-            value={llmSettings.dynaTempRange ?? 0}
-            onChange={(v) => updateSetting('dynaTempRange', v)}
-            min={0}
-            max={2}
-            step={0.1}
-            info="Dynamic temp range. 0 = disabled. Varies temp based on token entropy."
-          />
-
-          <Slider
-            label="DynaTemp Exponent"
-            value={llmSettings.dynaTempExponent ?? 1}
-            onChange={(v) => updateSetting('dynaTempExponent', v)}
-            min={0.5}
-            max={2}
-            step={0.1}
-            info="Exponent for dynamic temperature scaling"
-          />
-        </div>
-      </div>
-
-      {/* Mirostat (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>Mirostat <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-        <div className="sampler-grid">
-          <div className="slider-container">
-            <div className="slider-header">
-              <span className="slider-label">
-                Mirostat Mode
-                <span className="info-icon" title="0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0">?</span>
-              </span>
-              <span className="slider-value">{llmSettings.mirostat ?? 0}</span>
+          {/* Sub-collapsible: DRY Repetition Penalty */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('dryPenalty')}>
+              <span>DRY Repetition Penalty</span>
+              <span className="collapse-icon">{expandedSections.dryPenalty ? '▼' : '▶'}</span>
             </div>
-            <select
-              value={llmSettings.mirostat ?? 0}
-              onChange={(e) => updateSetting('mirostat', parseInt(e.target.value))}
-              style={{ width: '100%', padding: '6px' }}
-            >
-              <option value={0}>Disabled</option>
-              <option value={1}>Mirostat 1</option>
-              <option value={2}>Mirostat 2.0</option>
-            </select>
+            {expandedSections.dryPenalty && (
+            <div className="settings-subsection-content">
+              <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+                <Slider
+                  label="DRY Multiplier"
+                  value={llmSettings.dryMultiplier ?? 0}
+                  onChange={(v) => updateSetting('dryMultiplier', v)}
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  info="DRY penalty multiplier. 0 = disabled"
+                />
+                <Slider
+                  label="DRY Base"
+                  value={llmSettings.dryBase ?? 1.75}
+                  onChange={(v) => updateSetting('dryBase', v)}
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  info="Base for DRY penalty calculation"
+                />
+                <Slider
+                  label="DRY Allowed Length"
+                  value={llmSettings.dryAllowedLength ?? 2}
+                  onChange={(v) => updateSetting('dryAllowedLength', v)}
+                  min={1}
+                  max={10}
+                  step={1}
+                  info="Minimum sequence length before DRY applies"
+                />
+                <Slider
+                  label="DRY Range"
+                  value={llmSettings.dryPenaltyLastN ?? 0}
+                  onChange={(v) => updateSetting('dryPenaltyLastN', v)}
+                  min={0}
+                  max={8192}
+                  step={64}
+                  info="How many tokens back to check. 0 = auto"
+                />
+              </div>
+              <div className="form-group" style={{ marginTop: 'var(--spacing-md)', opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+                <label>DRY Sequence Breakers</label>
+                <input
+                  type="text"
+                  value={(llmSettings.drySequenceBreakers || []).join(', ')}
+                  onChange={(e) => {
+                    const breakers = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                    updateSetting('drySequenceBreakers', breakers);
+                  }}
+                  placeholder='e.g. \n, :, ", *'
+                />
+                <span className="form-hint">Comma-separated tokens that break DRY sequences</span>
+              </div>
+            </div>
+            )}
           </div>
 
-          <Slider
-            label="Mirostat Tau"
-            value={llmSettings.mirostatTau ?? 5}
-            onChange={(v) => updateSetting('mirostatTau', v)}
-            min={0}
-            max={10}
-            step={0.1}
-            info="Target entropy (perplexity). Lower = more focused, higher = more random."
-          />
+          {/* Sub-collapsible: XTC */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('xtc')}>
+              <span>XTC (Exclude Top Choices)</span>
+              <span className="collapse-icon">{expandedSections.xtc ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.xtc && (
+            <div className="settings-subsection-content">
+              <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+                <Slider
+                  label="XTC Probability"
+                  value={llmSettings.xtcProbability ?? 0}
+                  onChange={(v) => updateSetting('xtcProbability', v)}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  info="Chance to exclude top choices. 0 = disabled"
+                />
+                <Slider
+                  label="XTC Threshold"
+                  value={llmSettings.xtcThreshold ?? 0.1}
+                  onChange={(v) => updateSetting('xtcThreshold', v)}
+                  min={0}
+                  max={0.5}
+                  step={0.01}
+                  info="Probability threshold for token exclusion"
+                />
+              </div>
+            </div>
+            )}
+          </div>
 
-          <Slider
-            label="Mirostat Eta"
-            value={llmSettings.mirostatEta ?? 0.1}
-            onChange={(v) => updateSetting('mirostatEta', v)}
-            min={0}
-            max={1}
-            step={0.01}
-            info="Learning rate. How fast Mirostat adjusts."
-          />
+          {/* Sub-collapsible: Smoothing */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('smoothing')}>
+              <span>Smoothing</span>
+              <span className="collapse-icon">{expandedSections.smoothing ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.smoothing && (
+            <div className="settings-subsection-content">
+              <div className="sampler-grid" style={{ opacity: lockSamplers ? 0.5 : 1, pointerEvents: lockSamplers ? 'none' : 'auto' }}>
+                <Slider
+                  label="Smoothing Factor"
+                  value={llmSettings.smoothingFactor ?? 0}
+                  onChange={(v) => updateSetting('smoothingFactor', v)}
+                  min={0}
+                  max={10}
+                  step={0.1}
+                  info="Smoothing factor. 0 = disabled"
+                />
+                <Slider
+                  label="Smoothing Curve"
+                  value={llmSettings.smoothingCurve ?? 1}
+                  onChange={(v) => updateSetting('smoothingCurve', v)}
+                  min={0.5}
+                  max={3}
+                  step={0.1}
+                  info="Curve shape for smoothing"
+                />
+              </div>
+            </div>
+            )}
+          </div>
+
+          {/* Sub-collapsible: Dynamic Temperature */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('dynamicTemp')}>
+              <span>Dynamic Temperature</span>
+              <span className="collapse-icon">{expandedSections.dynamicTemp ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.dynamicTemp && (
+            <div className="settings-subsection-content">
+              <div className="sampler-grid">
+                <Slider
+                  label="DynaTemp Range"
+                  value={llmSettings.dynaTempRange ?? 0}
+                  onChange={(v) => updateSetting('dynaTempRange', v)}
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  info="Dynamic temp range. 0 = disabled. Varies temp based on token entropy."
+                />
+                <Slider
+                  label="DynaTemp Exponent"
+                  value={llmSettings.dynaTempExponent ?? 1}
+                  onChange={(v) => updateSetting('dynaTempExponent', v)}
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  info="Exponent for dynamic temperature scaling"
+                />
+              </div>
+            </div>
+            )}
+          </div>
+
+          {/* Sub-collapsible: Mirostat */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('mirostat')}>
+              <span>Mirostat</span>
+              <span className="collapse-icon">{expandedSections.mirostat ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.mirostat && (
+            <div className="settings-subsection-content">
+              <div className="sampler-grid">
+                <div className="slider-container">
+                  <div className="slider-header">
+                    <span className="slider-label">
+                      Mirostat Mode
+                      <span className="info-icon" title="0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0">?</span>
+                    </span>
+                    <span className="slider-value">{llmSettings.mirostat ?? 0}</span>
+                  </div>
+                  <select
+                    value={llmSettings.mirostat ?? 0}
+                    onChange={(e) => updateSetting('mirostat', parseInt(e.target.value))}
+                    style={{ width: '100%', padding: '6px' }}
+                  >
+                    <option value={0}>Disabled</option>
+                    <option value={1}>Mirostat 1</option>
+                    <option value={2}>Mirostat 2.0</option>
+                  </select>
+                </div>
+                <Slider
+                  label="Mirostat Tau"
+                  value={llmSettings.mirostatTau ?? 5}
+                  onChange={(v) => updateSetting('mirostatTau', v)}
+                  min={0}
+                  max={10}
+                  step={0.1}
+                  info="Target entropy (perplexity). Lower = more focused, higher = more random."
+                />
+                <Slider
+                  label="Mirostat Eta"
+                  value={llmSettings.mirostatEta ?? 0.1}
+                  onChange={(v) => updateSetting('mirostatEta', v)}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  info="Learning rate. How fast Mirostat adjusts."
+                />
+              </div>
+            </div>
+            )}
+          </div>
+
+          {/* Sub-collapsible: Stop Sequences & Token Control */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('stopSequences')}>
+              <span>Stop Sequences & Token Control</span>
+              <span className="collapse-icon">{expandedSections.stopSequences ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.stopSequences && (
+            <div className="settings-subsection-content">
+              <div className="form-group">
+                <label>Stop Sequences</label>
+                <input
+                  type="text"
+                  value={(llmSettings.stopSequences || []).join(', ')}
+                  onChange={(e) => {
+                    const sequences = e.target.value
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(s => s.length > 0);
+                    updateSetting('stopSequences', sequences);
+                  }}
+                  placeholder="e.g., \nUser:, \n###, </s>"
+                />
+                <span className="form-hint">Comma-separated sequences that stop generation</span>
+              </div>
+              <div className="form-group">
+                <label>Banned Tokens</label>
+                <input
+                  type="text"
+                  value={(llmSettings.bannedTokens || []).join(', ')}
+                  onChange={(e) => {
+                    const tokens = e.target.value
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(s => s.length > 0);
+                    updateSetting('bannedTokens', tokens);
+                  }}
+                  placeholder="e.g., [, ], <|"
+                />
+                <span className="form-hint">Comma-separated tokens to ban from generation</span>
+              </div>
+              <div className="form-group">
+                <label>Grammar (GBNF)</label>
+                <textarea
+                  value={llmSettings.grammar || ''}
+                  onChange={(e) => updateSetting('grammar', e.target.value)}
+                  placeholder="GBNF grammar for structured output (leave empty to disable)"
+                  rows={4}
+                  style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}
+                />
+                <span className="form-hint">GBNF grammar to constrain output format (JSON, etc.)</span>
+              </div>
+            </div>
+            )}
+          </div>
+
         </div>
-      </div>
-
-      {/* Stop Sequences & Token Control (KoboldCpp) */}
-      <div className="settings-section">
-        <h3>Stop Sequences & Token Control <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>(KoboldCpp)</span></h3>
-
-        <div className="form-group">
-          <label>Stop Sequences</label>
-          <input
-            type="text"
-            value={(llmSettings.stopSequences || []).join(', ')}
-            onChange={(e) => {
-              const sequences = e.target.value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-              updateSetting('stopSequences', sequences);
-            }}
-            placeholder="e.g., \nUser:, \n###, </s>"
-          />
-          <span className="form-hint">Comma-separated sequences that stop generation</span>
-        </div>
-
-        <div className="form-group">
-          <label>Banned Tokens</label>
-          <input
-            type="text"
-            value={(llmSettings.bannedTokens || []).join(', ')}
-            onChange={(e) => {
-              const tokens = e.target.value
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s.length > 0);
-              updateSetting('bannedTokens', tokens);
-            }}
-            placeholder="e.g., [, ], <|"
-          />
-          <span className="form-hint">Comma-separated tokens to ban from generation</span>
-        </div>
-
-        <div className="form-group">
-          <label>Grammar (GBNF)</label>
-          <textarea
-            value={llmSettings.grammar || ''}
-            onChange={(e) => updateSetting('grammar', e.target.value)}
-            placeholder="GBNF grammar for structured output (leave empty to disable)"
-            rows={4}
-            style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}
-          />
-          <span className="form-hint">GBNF grammar to constrain output format (JSON, etc.)</span>
-        </div>
+        )}
       </div>
           </>
         )}

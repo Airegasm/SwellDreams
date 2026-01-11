@@ -1,31 +1,49 @@
-.page.help-page {
-  padding: var(--spacing-sm) var(--spacing-lg) 12px var(--spacing-lg) !important;
-}
-
 .help-page {
-  width: 800px;
-  max-width: 800px;
+  width: 100%;
   height: 100%;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  padding: 0 !important;
+}
+
+.help-page .page-header {
+  margin-bottom: 0;
 }
 
 .help-page .tabs {
   flex-shrink: 0;
   padding: var(--spacing-sm) var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  border-bottom: 1px solid var(--border-color);
+  gap: var(--spacing-md);
+}
+
+.help-page .tab {
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.help-page .tab:hover {
+  color: white;
+}
+
+.help-page .tab.active {
+  color: white;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .help-page .tab-content {
   background-color: var(--bg-secondary);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
   flex: 1;
   min-height: 0;
-  max-height: calc(100vh - 160px);
-  margin: 0 var(--spacing-lg);
   overflow-y: auto;
   padding: var(--spacing-lg);
   scrollbar-gutter: stable;

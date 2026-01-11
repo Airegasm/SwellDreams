@@ -133,8 +133,8 @@
 
 /* Large Portrait */
 .entity-portrait-large {
-  width: calc(100% + var(--spacing-sm));
-  margin-left: calc(-0.5 * var(--spacing-sm));
+  width: calc(100% + var(--spacing-sm) + 8px);
+  margin-left: calc(-0.5 * var(--spacing-sm) - 4px);
   aspect-ratio: 3/4;
   border-radius: var(--border-radius);
   overflow: hidden;

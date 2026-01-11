@@ -3,7 +3,7 @@ import './HelpTabs.css';
 
 function SystemTab() {
   const [expanded, setExpanded] = useState({
-    variables: true,
+    variables: false,
     flowvars: false,
     whereused: false,
     feelings: false,
@@ -16,7 +16,7 @@ function SystemTab() {
 
   return (
     <div className="help-tab">
-      <h2>System Variables</h2>
+      <h2>Variables and Persistent States</h2>
 
       {/* Built-in Variables */}
       <div className="help-section">
@@ -137,28 +137,43 @@ function SystemTab() {
         )}
       </div>
 
-      {/* Feeling States */}
+      {/* Pain Level */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('feelings')}>
-          Feeling States
+          Pain Level (Wong-Baker Scale)
           <span className="expand-icon">{expanded.feelings ? '−' : '+'}</span>
         </h3>
         {expanded.feelings && (
           <div className="section-content">
             <p>
               The <span className="variable-tag">[Feeling]</span> variable reflects physical sensation
-              and changes based on capacity level:
+              using the Wong-Baker FACES Pain Rating Scale (0-10). Click the pain badge in the persona
+              column to select your current level.
             </p>
-            <div style={{ marginTop: 'var(--spacing-sm)' }}>
-              <span className="state-tag">normal</span>
-              <span className="state-tag">slightly tight</span>
-              <span className="state-tag">comfortably full</span>
-              <span className="state-tag">stretched</span>
-              <span className="state-tag">very tight</span>
-              <span className="state-tag">painfully tight</span>
-            </div>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Face</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>0</td><td>😊</td><td>No hurt</td></tr>
+                <tr><td>1</td><td>🙂</td><td>Hurts a tiny bit</td></tr>
+                <tr><td>2</td><td>😐</td><td>Hurts a little bit</td></tr>
+                <tr><td>3</td><td>😕</td><td>Hurts a little more</td></tr>
+                <tr><td>4</td><td>😟</td><td>Hurts even more</td></tr>
+                <tr><td>5</td><td>😣</td><td>Hurts a medium amount</td></tr>
+                <tr><td>6</td><td>😫</td><td>Hurts a lot</td></tr>
+                <tr><td>7</td><td>😖</td><td>Hurts a whole lot</td></tr>
+                <tr><td>8</td><td>😭</td><td>Hurts really bad</td></tr>
+                <tr><td>9</td><td>🤮</td><td>Hurts terribly</td></tr>
+                <tr><td>10</td><td>😵</td><td>Hurts worst possible</td></tr>
+              </tbody>
+            </table>
             <p style={{ marginTop: 'var(--spacing-md)' }}>
-              These states progress naturally as capacity increases, providing context for AI responses.
+              The AI uses this value to understand your persona's current physical state and respond appropriately.
             </p>
           </div>
         )}
@@ -167,34 +182,41 @@ function SystemTab() {
       {/* Emotion States */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('emotions')}>
-          Emotion States
+          Emotion States (Emoji Selector)
           <span className="expand-icon">{expanded.emotions ? '−' : '+'}</span>
         </h3>
         {expanded.emotions && (
           <div className="section-content">
             <p>
-              The <span className="variable-tag">[Emotion]</span> variable represents the player's
-              current emotional state. Available emotions:
+              The <span className="variable-tag">[Emotion]</span> variable represents your persona's
+              current emotional state. Click the emotion badge in the persona column to select from
+              20 available emotions:
             </p>
-            <div style={{ marginTop: 'var(--spacing-sm)' }}>
-              <span className="state-tag">neutral</span>
-              <span className="state-tag">nervous</span>
-              <span className="state-tag">anxious</span>
-              <span className="state-tag">scared</span>
-              <span className="state-tag">curious</span>
-              <span className="state-tag">excited</span>
-              <span className="state-tag">aroused</span>
-              <span className="state-tag">embarrassed</span>
-              <span className="state-tag">humiliated</span>
-              <span className="state-tag">resigned</span>
-              <span className="state-tag">defiant</span>
-              <span className="state-tag">submissive</span>
-              <span className="state-tag">blissful</span>
-              <span className="state-tag">overwhelmed</span>
-            </div>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Emoji</th>
+                  <th>Emotion</th>
+                  <th>Emoji</th>
+                  <th>Emotion</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>😐</td><td>Neutral</td><td>😊</td><td>Happy</td></tr>
+                <tr><td>🤩</td><td>Excited</td><td>😏</td><td>Aroused</td></tr>
+                <tr><td>🔥</td><td>Horny</td><td>🥰</td><td>Loving</td></tr>
+                <tr><td>😳</td><td>Submissive</td><td>😈</td><td>Dominant</td></tr>
+                <tr><td>🫣</td><td>Shy</td><td>🥲</td><td>Embarrassed</td></tr>
+                <tr><td>😕</td><td>Confused</td><td>🤔</td><td>Curious</td></tr>
+                <tr><td>😨</td><td>Frightened</td><td>😰</td><td>Anxious</td></tr>
+                <tr><td>😢</td><td>Sad</td><td>😠</td><td>Angry</td></tr>
+                <tr><td>🥴</td><td>Drunk</td><td>😵</td><td>Dazed</td></tr>
+                <tr><td>😮‍💨</td><td>Exhausted</td><td>😍</td><td>Blissful</td></tr>
+              </tbody>
+            </table>
             <p style={{ marginTop: 'var(--spacing-md)' }}>
-              Emotions can be set via Flow actions or change based on game events, allowing
-              the AI to respond appropriately to the player's emotional context.
+              Emotions can also be set via Flow actions, allowing dynamic story progression
+              and letting the AI respond appropriately to your persona's emotional context.
             </p>
           </div>
         )}

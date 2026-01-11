@@ -503,6 +503,40 @@ input[type="range"]::-webkit-slider-thumb {
   border: 1px solid var(--border-color);
 }
 
+.list-item.card-style {
+  background-image: url('../assets/card-bg.png');
+  background-size: cover;
+  background-position: center;
+  border-color: #5a5d61;
+  position: relative;
+}
+
+.list-item.card-style:not(.active) {
+  background-image: none;
+  background-color: rgba(30, 30, 35, 0.4);
+}
+
+.list-item.card-style:not(.active)::before {
+  display: none;
+}
+
+.list-item.card-style:not(.active) > * {
+  position: relative;
+  z-index: 1;
+}
+
+.list-item.card-style:not(.active) .list-item-actions {
+  z-index: 2;
+}
+
+.list-item.card-style:not(.active) .card-footer .btn {
+  z-index: 2;
+}
+
+.list-item.card-style:not(.active) .list-item-meta {
+  color: #fff;
+}
+
 .list-item-info {
   flex: 1;
   min-width: 0;
@@ -517,8 +551,9 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .list-item-meta {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -861,4 +896,97 @@ input[type="range"]::-webkit-slider-thumb {
   50% {
     opacity: 0.8;
   }
+}
+
+/* Center Modal Overlay - covers only the middle chat section including header */
+.center-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 240px; /* After left sidebar */
+  right: 240px; /* Before right sidebar */
+  bottom: 0;
+  background-color: var(--bg-secondary);
+  border-left: 2px solid var(--border-color);
+  border-right: 2px solid var(--border-color);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Sidebar dimming overlays */
+.center-modal-overlay::before {
+  content: '';
+  position: fixed;
+  top: 64px;
+  left: 0;
+  width: 240px;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  pointer-events: none;
+}
+
+.center-modal-overlay::after {
+  content: '';
+  position: fixed;
+  top: 64px;
+  right: 0;
+  width: 240px;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  pointer-events: none;
+}
+
+/* Hide right dimming when hamburger menu is open */
+.app:has(.hamburger-menu-panel.open) .center-modal-overlay::after {
+  display: none;
+}
+
+.center-modal-overlay .page {
+  background-color: var(--bg-secondary);
+  background-image: url('../assets/chat-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: repeat;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-modal-overlay .settings-page,
+.center-modal-overlay .help-page {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  padding: 0;
+}
+
+.center-modal-overlay .tabs {
+  flex-shrink: 0;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--bg-secondary);
+}
+
+.center-modal-overlay .tab-content {
+  flex: 1;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  background-image: url('../assets/chat-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: repeat;
+}
+
+.center-modal-overlay .page-header {
+  flex-shrink: 0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--bg-secondary);
 }

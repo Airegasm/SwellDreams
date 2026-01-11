@@ -3,8 +3,8 @@ import './HelpTabs.css';
 
 function GettingStartedTab() {
   const [expanded, setExpanded] = useState({
-    welcome: true,
-    quickstart: true,
+    welcome: false,
+    quickstart: false,
     concepts: false,
     safety: false
   });
@@ -15,7 +15,7 @@ function GettingStartedTab() {
 
   return (
     <div className="help-tab">
-      <h2>Getting Started</h2>
+      <h2>Let's Get Down to Pumping!</h2>
 
       {/* Welcome Section */}
       <div className="help-section">

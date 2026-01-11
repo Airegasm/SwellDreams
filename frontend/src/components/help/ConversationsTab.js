@@ -3,7 +3,7 @@ import './HelpTabs.css';
 
 function ConversationsTab() {
   const [expanded, setExpanded] = useState({
-    overview: true,
+    overview: false,
     chatInterface: false,
     characters: false,
     characterFields: false,
@@ -20,7 +20,7 @@ function ConversationsTab() {
 
   return (
     <div className="help-tab">
-      <h2>Conversations</h2>
+      <h2>Characters, Personas, and Interactions Explained</h2>
 
       {/* Overview */}
       <div className="help-section">

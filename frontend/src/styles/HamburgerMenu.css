@@ -1,7 +1,7 @@
 /* Hamburger Menu Container */
 .hamburger-menu {
   position: relative;
-  z-index: 1000;
+  z-index: 3000;
 }
 
 /* Hamburger Button */
@@ -59,7 +59,7 @@
   right: 0;
   bottom: 0;
   background-color: var(--overlay-bg);
-  z-index: 998;
+  z-index: 2998;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -77,12 +77,13 @@
   right: 0;
   bottom: 0;
   width: 240px;
-  background-color: var(--bg-secondary);
+  background-color: #1a1c1f;
   border-left: 1px solid var(--border-color);
-  z-index: 999;
+  z-index: 2999;
   transform: translateX(100%);
   transition: transform 0.3s ease;
   overflow-y: auto;
+  opacity: 1 !important;
 }
 
 .hamburger-menu-panel.open {
@@ -98,7 +99,7 @@
   color: var(--text-primary);
   text-decoration: none;
   border-bottom: 1px solid var(--border-color);
-  transition: background-color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
   cursor: pointer;
   font-size: var(--font-size-base);
 }
@@ -111,6 +112,7 @@
   background-color: var(--accent-primary);
   color: white;
 }
+
 
 /* Session item with submenu */
 .hamburger-menu-item.has-submenu {
@@ -142,7 +144,7 @@
   visibility: hidden;
   transform: translateX(10px);
   transition: all 0.2s ease;
-  z-index: 1001;
+  z-index: 3001;
 }
 
 .session-submenu.open {

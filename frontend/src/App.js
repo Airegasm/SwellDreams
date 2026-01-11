@@ -76,7 +76,7 @@ These Terms shall be governed by and construed in accordance with applicable law
 
 function App() {
   const location = useLocation();
-  const isChatPage = location.pathname === '/';
+  const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
   const { connected, api, controlMode, settings, messages, characters, personas, sessionState } = useApp();
   const { showError } = useError();
   const [stopping, setStopping] = useState(false);
@@ -227,7 +227,7 @@ function App() {
   };
 
   return (
-    <div className={`app ${isChatPage ? 'chat-layout' : ''}`}>
+    <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
       <nav className="nav-bar">
         <img src="/logo.png" alt="SwellDreams" className="nav-logo" />
         <div className="nav-right">
@@ -263,15 +263,43 @@ function App() {
       )}
 
       <main className="main-content">
+        {/* Always render Chat in background */}
+        <Chat />
+
+        {/* Center Modal Overlays - positioned over middle section only */}
         <Routes>
-          <Route path="/" element={<Chat />} />
-          <Route path="/personas" element={<Personas />} />
-          <Route path="/characters" element={<Characters />} />
+          <Route path="/" element={null} />
+          <Route path="/personas" element={
+            <div className="center-modal-overlay">
+              <Personas />
+            </div>
+          } />
+          <Route path="/characters" element={
+            <div className="center-modal-overlay">
+              <Characters />
+            </div>
+          } />
           <Route path="/flows" element={<FlowEditor />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/settings/:tab" element={<Settings />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/help/:tab" element={<Help />} />
+          <Route path="/settings" element={
+            <div className="center-modal-overlay">
+              <Settings />
+            </div>
+          } />
+          <Route path="/settings/:tab" element={
+            <div className="center-modal-overlay">
+              <Settings />
+            </div>
+          } />
+          <Route path="/help" element={
+            <div className="center-modal-overlay">
+              <Help />
+            </div>
+          } />
+          <Route path="/help/:tab" element={
+            <div className="center-modal-overlay">
+              <Help />
+            </div>
+          } />
         </Routes>
       </main>
 

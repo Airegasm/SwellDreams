@@ -3,9 +3,9 @@ import './HelpTabs.css';
 
 function ExternalApisTab() {
   const [expanded, setExpanded] = useState({
-    overview: true,
+    overview: false,
     koboldcpp: false,
-    openrouter: true,
+    openrouter: false,
     freemodels: false,
     tuya: false,
     govee: false
@@ -17,7 +17,7 @@ function ExternalApisTab() {
 
   return (
     <div className="help-tab">
-      <h2>External APIs</h2>
+      <h2>LLM and Smart Device Guides</h2>
 
       {/* Overview */}
       <div className="help-section">

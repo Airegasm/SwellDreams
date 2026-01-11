@@ -218,9 +218,21 @@ function DeviceTab() {
   };
 
   // Govee handlers
+  const handleGoveeDisconnect = async () => {
+    try {
+      await api.disconnectGovee();
+      setGoveeConnected(false);
+      setDiscoveredGovee([]);
+      setGoveeError(null);
+    } catch (error) {
+      console.error('Govee disconnect failed:', error);
+    }
+  };
+
   const handleGoveeConnect = async () => {
     if (!goveeApiKey.trim()) return;
     setGoveeConnecting(true);
+    setGoveeError(null);
     try {
       const result = await api.connectGovee(goveeApiKey.trim());
       if (result.success) {
@@ -228,11 +240,11 @@ function DeviceTab() {
         setShowGoveeConnect(false);
         setGoveeApiKey('');
       } else {
-        alert('Failed to connect: ' + (result.error || 'Invalid API key'));
+        setGoveeError(result.error || 'Invalid API key');
       }
     } catch (error) {
       console.error('Govee connect failed:', error);
-      alert('Failed to connect to Govee');
+      setGoveeError('Failed to connect to Govee');
     }
     setGoveeConnecting(false);
   };
@@ -451,454 +463,418 @@ function DeviceTab() {
     }
   };
 
+  // Collapsible section states
+  const [expandedSections, setExpandedSections] = useState({
+    discovery: false,
+    tplink: false,
+    govee: false,
+    tuya: false
+  });
+
+  // Info popup state
+  const [infoPopupDevice, setInfoPopupDevice] = useState(null);
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const getDeviceInfo = (device) => {
+    if (device.brand === 'govee') return { label: 'SKU', value: device.sku };
+    if (device.brand === 'tuya') return { label: 'Device ID', value: device.deviceId };
+    return { label: 'IP', value: device.ip + (device.childId ? ` (Child: ${device.childId})` : '') };
+  };
+
   return (
     <div className="settings-tab">
-      <div className="tab-header">
-        <h3>TP-Link Kasa Devices</h3>
-        <div className="header-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowManualAdd(!showManualAdd)}
-          >
-            + Manual IP
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleScan}
-            disabled={scanning}
-          >
-            {scanning ? 'Scanning...' : 'Scan Network'}
-          </button>
-        </div>
-      </div>
+      <h2 className="settings-title">Give SwellDreams the Power to Inflate</h2>
 
-      {showManualAdd && (
-        <div className="manual-add-form">
-          <input
-            type="text"
-            value={manualIp}
-            onChange={(e) => setManualIp(e.target.value)}
-            placeholder="Enter device IP address (e.g., 192.168.1.100)"
-          />
-          <button className="btn btn-primary" onClick={handleManualAdd}>
-            Add Device
-          </button>
-        </div>
-      )}
-
-      {/* Discovered TPLink Devices */}
-      {discovered.length > 0 && (
-        <div className="discovered-section">
-          <h4>Discovered TPLink Devices</h4>
-          <div className="list">
-            {discovered.map((device) => (
-              <div key={device.ip} className="discovered-device-container">
-                <div className={`list-item discovered ${device.isStrip ? 'power-strip' : ''}`}>
-                  <div className="list-item-info">
-                    <div className="list-item-name">
-                      {device.isStrip && (
-                        <span className="strip-badge">Power Strip</span>
-                      )}
-                      {device.name || device.stripAlias || device.ip}
-                    </div>
-                    <div className="list-item-meta">
-                      {device.ip}
-                      {device.isStrip && device.stripModel && (
-                        <span className="strip-model"> • {device.stripModel}</span>
-                      )}
-                      {device.isStrip && stripChildren[device.ip] && (
-                        <span className="strip-outlets"> • {stripChildren[device.ip].length} outlets</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="list-item-actions">
-                    {device.isStrip ? (
-                      <>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => toggleStripExpansion(device.ip)}
-                        >
-                          {expandedStrips[device.ip] ? 'Collapse' : 'Show Outlets'}
-                        </button>
-                        <button
-                          className="btn btn-sm btn-success"
-                          onClick={() => handleAddAllOutlets(device.ip, stripChildren[device.ip])}
-                        >
-                          Add All
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className="btn btn-sm btn-success"
-                        onClick={() => handleAddDevice(device)}
-                      >
-                        Add
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {/* Expandable outlets for power strips */}
-                {device.isStrip && expandedStrips[device.ip] && stripChildren[device.ip] && (
-                  <div className="strip-outlets-list">
-                    {stripChildren[device.ip].map((outlet) => (
-                      <div key={outlet.id} className="list-item outlet-item">
-                        <div className="list-item-info">
-                          <div className="list-item-name">
-                            <span className={`outlet-state-dot ${outlet.state}`}></span>
-                            {outlet.alias || `Outlet ${outlet.index + 1}`}
-                          </div>
-                          <div className="list-item-meta">
-                            Outlet #{outlet.index + 1} • {outlet.state.toUpperCase()}
-                          </div>
-                        </div>
-                        <div className="list-item-actions">
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleAddOutlet(device.ip, outlet)}
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* Configured Devices - Non-collapsible card with styled header */}
+      <div className="configured-devices-card">
+        <div className="configured-devices-header">
+          <span>Configured Devices</span>
+          <div className="header-right">
+            {devices.length >= MAX_DEVICES && (
+              <span className="limit-warning">Limit reached</span>
+            )}
+            <span className="device-count">{devices.length}/{MAX_DEVICES}</span>
           </div>
         </div>
-      )}
-
-      {/* Govee Section */}
-      <div className="govee-section">
-        <div className="tab-header">
-          <h3>Govee Devices</h3>
-          <div className="header-actions">
-            {goveeConnected && (
-              <span className="connection-status connected">Connected</span>
-            )}
-            {!goveeConnected && !showGoveeConnect && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowGoveeConnect(true)}
-              >
-                Connect
-              </button>
-            )}
-            {goveeConnected && (
-              <button
-                className="btn btn-primary"
-                onClick={handleGoveeScan}
-                disabled={scanningGovee}
-              >
-                {scanningGovee ? 'Scanning...' : 'Scan Devices'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Govee Error Message */}
-        {goveeError && (
-          <div className="govee-error">
-            {goveeError}
-          </div>
-        )}
-
-        {/* Govee Connect Form */}
-        {showGoveeConnect && !goveeConnected && (
-          <div className="govee-connect-form">
-            <input
-              type="password"
-              value={goveeApiKey}
-              onChange={(e) => setGoveeApiKey(e.target.value)}
-              placeholder="Enter Govee API Key"
-              onKeyDown={(e) => e.key === 'Enter' && handleGoveeConnect()}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={handleGoveeConnect}
-              disabled={goveeConnecting || !goveeApiKey.trim()}
-            >
-              {goveeConnecting ? 'Connecting...' : 'Connect'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setShowGoveeConnect(false);
-                setGoveeApiKey('');
-              }}
-            >
-              Cancel
-            </button>
-            <p className="hint">Get your API key from Govee Home app: Profile → Settings → About Us → Apply for API Key</p>
-          </div>
-        )}
-
-        {/* Discovered Govee Devices */}
-        {discoveredGovee.length > 0 && (
-          <div className="discovered-section">
-            <h4>Discovered Govee Devices</h4>
-            <div className="list">
-              {discoveredGovee.map((device) => (
-                <div key={device.device} className="list-item discovered govee">
-                  <div className="list-item-info">
-                    <div className="list-item-name">{device.deviceName}</div>
-                    <div className="list-item-meta">
-                      <span className="device-sku">{device.sku}</span>
-                    </div>
-                  </div>
-                  <div className="list-item-actions">
-                    <button
-                      className="btn btn-sm btn-success"
-                      onClick={() => handleAddGoveeDevice(device)}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Tuya Section */}
-      <div className="tuya-section">
-        <div className="tab-header">
-          <h3>Tuya / Smart Life Devices</h3>
-          <div className="header-actions">
-            {tuyaConnected && (
-              <span className="connection-status connected">Connected</span>
-            )}
-            {!tuyaConnected && !showTuyaConnect && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowTuyaConnect(true)}
-              >
-                Connect
-              </button>
-            )}
-            {tuyaConnected && (
-              <>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setShowTuyaAddDevice(!showTuyaAddDevice)}
-                >
-                  + Add Device
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleTuyaDisconnect}
-                >
-                  Disconnect
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Tuya Error Message */}
-        {tuyaError && (
-          <div className="tuya-error">
-            {tuyaError}
-          </div>
-        )}
-
-        {/* Tuya Connect Form */}
-        {showTuyaConnect && !tuyaConnected && (
-          <div className="tuya-connect-form">
-            <div className="tuya-form-row">
-              <input
-                type="text"
-                value={tuyaAccessId}
-                onChange={(e) => setTuyaAccessId(e.target.value)}
-                placeholder="Access ID"
-              />
-              <input
-                type="password"
-                value={tuyaAccessSecret}
-                onChange={(e) => setTuyaAccessSecret(e.target.value)}
-                placeholder="Access Secret"
-              />
-              <select
-                value={tuyaRegion}
-                onChange={(e) => setTuyaRegion(e.target.value)}
-                className="tuya-region-select"
-              >
-                <option value="us">US</option>
-                <option value="eu">Europe</option>
-                <option value="cn">China</option>
-                <option value="in">India</option>
-              </select>
-            </div>
-            <div className="tuya-form-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleTuyaConnect}
-                disabled={tuyaConnecting || !tuyaAccessId.trim() || !tuyaAccessSecret.trim()}
-              >
-                {tuyaConnecting ? 'Connecting...' : 'Connect'}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setShowTuyaConnect(false);
-                  setTuyaAccessId('');
-                  setTuyaAccessSecret('');
-                  setTuyaError(null);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-            <p className="hint">Get credentials from Tuya IoT Platform: iot.tuya.com → Cloud → Your Project</p>
-          </div>
-        )}
-
-        {/* Tuya Add Device Form */}
-        {showTuyaAddDevice && tuyaConnected && (
-          <div className="tuya-add-device-form">
-            <input
-              type="text"
-              value={tuyaDeviceId}
-              onChange={(e) => setTuyaDeviceId(e.target.value)}
-              placeholder="Enter Device ID from Tuya IoT Platform"
-              onKeyDown={(e) => e.key === 'Enter' && handleTuyaFetchDevice()}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={handleTuyaFetchDevice}
-              disabled={addingTuyaDevice || !tuyaDeviceId.trim()}
-            >
-              {addingTuyaDevice ? 'Fetching...' : 'Fetch Device'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => {
-                setShowTuyaAddDevice(false);
-                setTuyaDeviceId('');
-                setTuyaError(null);
-              }}
-            >
-              Cancel
-            </button>
-            <p className="hint">Find Device ID in Tuya IoT Platform → Devices tab → copy the Device ID</p>
-          </div>
-        )}
-
-        {/* Discovered Tuya Devices */}
-        {discoveredTuya.length > 0 && (
-          <div className="discovered-section">
-            <h4>Discovered Tuya Devices</h4>
-            <div className="list">
-              {discoveredTuya.map((device) => (
-                <div key={device.id} className="list-item discovered tuya">
-                  <div className="list-item-info">
-                    <div className="list-item-name">{device.name}</div>
-                    <div className="list-item-meta">
-                      <span className="device-category">{device.category}</span>
-                    </div>
-                  </div>
-                  <div className="list-item-actions">
-                    <button
-                      className="btn btn-sm btn-success"
-                      onClick={() => handleAddTuyaDevice(device)}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Configured Devices */}
-      <div className="configured-section">
-        <h4>Configured Devices ({devices.length}/{MAX_DEVICES})</h4>
-        {devices.length >= MAX_DEVICES && (
-          <p className="limit-warning">Maximum device limit reached. Remove a device to add more.</p>
-        )}
-        <div className="list">
+        <div className="configured-devices-list">
           {devices.length === 0 ? (
-            <p className="text-muted">
-              No devices configured. Scan your network or add manually.
+            <p className="text-muted empty-message">
+              No devices configured. Use Device Discovery below to find and add devices.
             </p>
           ) : (
             devices.map((device) => (
-              <div key={device.id} className="list-item device-item">
-                <div className="device-info">
-                  <div className="device-header">
-                    <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                      {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : 'TPLink'}
-                    </span>
-                    <input
-                      type="text"
-                      className="device-label"
-                      value={device.label}
-                      onChange={(e) => handleUpdateDevice(device.id, { label: e.target.value })}
-                      placeholder="Device label"
-                    />
-                    {device.brand === 'govee' ? (
-                      <span className="device-sku">{device.sku}</span>
-                    ) : device.brand === 'tuya' ? (
-                      <span className="device-sku">Tuya</span>
-                    ) : (
-                      <span className="device-ip">{device.ip}</span>
-                    )}
-                  </div>
-                  <div className="device-controls">
-                    <select
-                      value={device.deviceType || 'PUMP'}
-                      onChange={(e) => handleUpdateDevice(device.id, { deviceType: e.target.value })}
-                      className="device-type-select"
-                    >
-                      {DEVICE_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                    {(device.deviceType === 'PUMP' || device.deviceType === 'VIBE') && (
-                      <button
-                        className={`btn btn-sm ${(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => handleSetPrimary(device)}
-                        title={`Set as Primary ${device.deviceType === 'PUMP' ? 'Pump' : 'Vibe'}`}
-                      >
-                        {(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? '★ Primary' : '☆ Set Primary'}
-                      </button>
-                    )}
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip, device.childId)}
-                    >
-                      Test
-                    </button>
-                    <button
-                      className="btn btn-sm btn-success"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOn(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOn(device.deviceId) : api.deviceOn(device.ip, device.childId)}
-                    >
-                      On
-                    </button>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => device.brand === 'govee' ? api.goveeDeviceOff(device.deviceId, device.sku) : device.brand === 'tuya' ? api.tuyaDeviceOff(device.deviceId) : api.deviceOff(device.ip, device.childId)}
-                    >
-                      Off
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleDeleteDevice(device.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+              <div key={device.id} className="configured-device-item">
+                <div className="device-badges">
+                  <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : 'TPLink'}
+                  </span>
+                  {device.childId && (
+                    <span className="device-brand-badge brand-strip">Strip</span>
+                  )}
                 </div>
+                <input
+                  type="text"
+                  className="device-label-input"
+                  value={device.label}
+                  onChange={(e) => handleUpdateDevice(device.id, { label: e.target.value })}
+                  placeholder="Device label"
+                />
+                <select
+                  value={device.deviceType || 'PUMP'}
+                  onChange={(e) => handleUpdateDevice(device.id, { deviceType: e.target.value })}
+                  className="device-type-select"
+                >
+                  {DEVICE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="configured-device-controls">
+                  {(device.deviceType === 'PUMP' || device.deviceType === 'VIBE') ? (
+                    <button
+                      className={`btn btn-sm ${(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => handleSetPrimary(device)}
+                      title={`Set as Primary ${device.deviceType === 'PUMP' ? 'Pump' : 'Vibe'}`}
+                    >
+                      {(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? '★' : '☆'}
+                    </button>
+                  ) : (
+                    <button className="btn btn-sm btn-secondary" disabled style={{visibility: 'hidden'}}>☆</button>
+                  )}
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => setInfoPopupDevice(infoPopupDevice === device.id ? null : device.id)}
+                  >
+                    Info
+                  </button>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip, device.childId)}
+                  >
+                    Test
+                  </button>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    onClick={() => handleDeleteDevice(device.id)}
+                  >
+                    Del
+                  </button>
+                </div>
+                {infoPopupDevice === device.id && (
+                  <div className="device-info-popup">
+                    <strong>{getDeviceInfo(device).label}:</strong> {getDeviceInfo(device).value}
+                    <button className="popup-close" onClick={() => setInfoPopupDevice(null)}>×</button>
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
+      </div>
+
+      {/* Device Discovery and Integration - Collapsible */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('discovery')}>
+          <span>Device Discovery and Integration</span>
+          <span className="collapse-icon">{expandedSections.discovery ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.discovery && (
+        <div className="settings-section-content">
+
+          {/* TPLink Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('tplink')}>
+              <span>TP-Link Kasa</span>
+              <span className="collapse-icon">{expandedSections.tplink ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.tplink && (
+            <div className="settings-subsection-content">
+              <div className="discovery-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleScan}
+                  disabled={scanning}
+                >
+                  {scanning ? 'Scanning...' : 'Scan Network'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowManualAdd(!showManualAdd)}
+                >
+                  + Manual IP
+                </button>
+              </div>
+
+              {showManualAdd && (
+                <div className="manual-add-form">
+                  <input
+                    type="text"
+                    value={manualIp}
+                    onChange={(e) => setManualIp(e.target.value)}
+                    placeholder="Enter device IP address (e.g., 192.168.1.100)"
+                  />
+                  <button className="btn btn-primary" onClick={handleManualAdd}>
+                    Add Device
+                  </button>
+                </div>
+              )}
+
+              {/* Discovered TPLink Devices */}
+              {discovered.length > 0 && (
+                <div className="discovered-devices-list">
+                  <h4>Discovered Devices</h4>
+                  {discovered.map((device) => (
+                    <div key={device.ip} className="discovered-device-container">
+                      <div className={`discovered-device-item ${device.isStrip ? 'power-strip' : ''}`}>
+                        <div className="discovered-device-info">
+                          <span className="discovered-device-name">
+                            {device.isStrip && <span className="strip-badge">Strip</span>}
+                            {device.name || device.stripAlias || device.ip}
+                          </span>
+                          <span className="discovered-device-meta">
+                            {device.ip}
+                            {device.isStrip && stripChildren[device.ip] && ` • ${stripChildren[device.ip].length} outlets`}
+                          </span>
+                        </div>
+                        <div className="discovered-device-actions">
+                          {device.isStrip ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => toggleStripExpansion(device.ip)}
+                              >
+                                {expandedStrips[device.ip] ? 'Hide' : 'Show'}
+                              </button>
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => handleAddAllOutlets(device.ip, stripChildren[device.ip])}
+                              >
+                                Add All
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => handleAddDevice(device)}
+                            >
+                              Add
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {device.isStrip && expandedStrips[device.ip] && stripChildren[device.ip] && (
+                        <div className="strip-outlets-list">
+                          {stripChildren[device.ip].map((outlet) => (
+                            <div key={outlet.id} className="outlet-item">
+                              <span className={`outlet-state-dot ${outlet.state}`}></span>
+                              <span className="outlet-name">{outlet.alias || `Outlet ${outlet.index + 1}`}</span>
+                              <button
+                                className="btn btn-sm btn-success"
+                                onClick={() => handleAddOutlet(device.ip, outlet)}
+                              >
+                                Add
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Govee Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('govee')}>
+              <span>Govee</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {goveeConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.govee ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.govee && (
+            <div className="settings-subsection-content">
+              {!goveeConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">Connect your Govee account to discover and control Govee smart devices.</p>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={goveeApiKey}
+                      onChange={(e) => setGoveeApiKey(e.target.value)}
+                      placeholder="Enter Govee API Key"
+                      onKeyDown={(e) => e.key === 'Enter' && handleGoveeConnect()}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleGoveeConnect}
+                      disabled={goveeConnecting || !goveeApiKey.trim()}
+                    >
+                      {goveeConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {goveeError && <div className="discovery-error">{goveeError}</div>}
+                  <p className="form-hint">Get your API key from Govee Home app: Profile → Settings → About Us → Apply for API Key</p>
+                </div>
+              ) : (
+                <>
+                  <div className="discovery-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleGoveeScan}
+                      disabled={scanningGovee}
+                    >
+                      {scanningGovee ? 'Scanning...' : 'Scan Devices'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={handleGoveeDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {goveeError && <div className="discovery-error">{goveeError}</div>}
+                  {discoveredGovee.length > 0 && (
+                    <div className="discovered-devices-list">
+                      <h4>Discovered Devices</h4>
+                      {discoveredGovee.map((device) => (
+                        <div key={device.device} className="discovered-device-item govee">
+                          <div className="discovered-device-info">
+                            <span className="discovered-device-name">{device.deviceName}</span>
+                            <span className="discovered-device-meta">{device.sku}</span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddGoveeDevice(device)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Tuya Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('tuya')}>
+              <span>Tuya / Smart Life</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {tuyaConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.tuya ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.tuya && (
+            <div className="settings-subsection-content">
+              {!tuyaConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">Connect your Tuya IoT Platform account to control Tuya/Smart Life devices.</p>
+                  <div className="connect-row">
+                    <input
+                      type="text"
+                      value={tuyaAccessId}
+                      onChange={(e) => setTuyaAccessId(e.target.value)}
+                      placeholder="Access ID"
+                    />
+                    <input
+                      type="password"
+                      value={tuyaAccessSecret}
+                      onChange={(e) => setTuyaAccessSecret(e.target.value)}
+                      placeholder="Access Secret"
+                    />
+                    <select
+                      value={tuyaRegion}
+                      onChange={(e) => setTuyaRegion(e.target.value)}
+                    >
+                      <option value="us">US</option>
+                      <option value="eu">Europe</option>
+                      <option value="cn">China</option>
+                      <option value="in">India</option>
+                    </select>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleTuyaConnect}
+                      disabled={tuyaConnecting || !tuyaAccessId.trim() || !tuyaAccessSecret.trim()}
+                    >
+                      {tuyaConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {tuyaError && <div className="discovery-error">{tuyaError}</div>}
+                  <p className="form-hint">Get credentials from Tuya IoT Platform: iot.tuya.com → Cloud → Your Project</p>
+                </div>
+              ) : (
+                <>
+                  <div className="discovery-actions">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setShowTuyaAddDevice(!showTuyaAddDevice)}
+                    >
+                      + Add by Device ID
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={handleTuyaDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {showTuyaAddDevice && (
+                    <div className="manual-add-form">
+                      <input
+                        type="text"
+                        value={tuyaDeviceId}
+                        onChange={(e) => setTuyaDeviceId(e.target.value)}
+                        placeholder="Enter Device ID from Tuya IoT Platform"
+                        onKeyDown={(e) => e.key === 'Enter' && handleTuyaFetchDevice()}
+                      />
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleTuyaFetchDevice}
+                        disabled={addingTuyaDevice || !tuyaDeviceId.trim()}
+                      >
+                        {addingTuyaDevice ? 'Fetching...' : 'Fetch'}
+                      </button>
+                    </div>
+                  )}
+                  {tuyaError && <div className="discovery-error">{tuyaError}</div>}
+                  {discoveredTuya.length > 0 && (
+                    <div className="discovered-devices-list">
+                      <h4>Discovered Devices</h4>
+                      {discoveredTuya.map((device) => (
+                        <div key={device.id} className="discovered-device-item tuya">
+                          <div className="discovered-device-info">
+                            <span className="discovered-device-name">{device.name}</span>
+                            <span className="discovered-device-meta">{device.category}</span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddTuyaDevice(device)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+        </div>
+        )}
       </div>
     </div>
   );

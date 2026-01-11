@@ -3,7 +3,7 @@ import './HelpTabs.css';
 
 function FlowTab() {
   const [expanded, setExpanded] = useState({
-    overview: true,
+    overview: false,
     triggers: false,
     actions: false,
     logic: false,
@@ -18,7 +18,7 @@ function FlowTab() {
 
   return (
     <div className="help-tab">
-      <h2>Flow System</h2>
+      <h2>Go With the Flow! (Internal Node Scripting Engine)</h2>
 
       {/* Overview */}
       <div className="help-section">
@@ -61,56 +61,68 @@ function FlowTab() {
                 <tr>
                   <th>Type</th>
                   <th>Description</th>
+                  <th>Options</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>first_message</strong></td>
+                  <td><strong>First Chat Message</strong></td>
                   <td>Fires on the first chat message of a session</td>
+                  <td>-</td>
                 </tr>
                 <tr>
-                  <td><strong>player_speaks</strong></td>
-                  <td>Fires when player message matches a pattern</td>
+                  <td><strong>New Session</strong></td>
+                  <td>Fires at the start of each new session</td>
+                  <td>-</td>
                 </tr>
                 <tr>
-                  <td><strong>ai_speaks</strong></td>
-                  <td>Fires when AI message matches a pattern</td>
+                  <td><strong>Player Speaks</strong></td>
+                  <td>Fires when player message matches keywords</td>
+                  <td>Keywords list with pattern matching</td>
                 </tr>
                 <tr>
-                  <td><strong>device_on</strong></td>
-                  <td>Fires when a device turns on</td>
+                  <td><strong>AI Speaks</strong></td>
+                  <td>Fires when AI message matches keywords</td>
+                  <td>Keywords list with pattern matching</td>
                 </tr>
                 <tr>
-                  <td><strong>device_off</strong></td>
-                  <td>Fires when a device turns off</td>
+                  <td><strong>Device Turns On</strong></td>
+                  <td>Fires when a specific device turns on</td>
+                  <td>Device selector</td>
                 </tr>
                 <tr>
-                  <td><strong>timer</strong></td>
+                  <td><strong>Device Turns Off</strong></td>
+                  <td>Fires when a specific device turns off</td>
+                  <td>Device selector</td>
+                </tr>
+                <tr>
+                  <td><strong>Timer</strong></td>
                   <td>Fires after a delay, optionally repeating</td>
+                  <td>Delay (seconds), Repeat toggle</td>
                 </tr>
                 <tr>
-                  <td><strong>random</strong></td>
-                  <td>Fires based on probability (0-100%)</td>
+                  <td><strong>Random</strong></td>
+                  <td>Fires based on probability each tick</td>
+                  <td>Probability (0-100%)</td>
                 </tr>
                 <tr>
-                  <td><strong>idle</strong></td>
+                  <td><strong>Idle</strong></td>
                   <td>Fires after player inactivity threshold</td>
+                  <td>Threshold (seconds)</td>
                 </tr>
                 <tr>
-                  <td><strong>new_session</strong></td>
-                  <td>Fires at the start of each session</td>
-                </tr>
-                <tr>
-                  <td><strong>player_state_change</strong></td>
-                  <td>Fires when capacity, feeling, or emotion changes</td>
+                  <td><strong>Player State Change</strong></td>
+                  <td>Fires when persona state changes</td>
+                  <td>State type (Capacity, Pain Level, Emotion), comparison operator, value</td>
                 </tr>
               </tbody>
             </table>
 
             <h4 className="subsection-header">Button Press Node</h4>
             <p>
-              <span className="node-type button">Button</span> A special trigger that creates a clickable
-              button in the chat UI. When clicked, the connected flow executes.
+              <span className="node-type button">Button</span> A special trigger linked to character buttons.
+              When a character button with "Link to Flow" action is clicked, the connected flow executes.
+              Configure buttons in the Character Editor under Custom Buttons tab.
             </p>
           </div>
         )}
@@ -127,62 +139,106 @@ function FlowTab() {
             <p>
               <span className="node-type action">Action</span> nodes perform operations when triggered.
             </p>
+
+            <h4 className="subsection-header">Message Actions</h4>
             <table className="help-table">
               <thead>
                 <tr>
                   <th>Action</th>
                   <th>Description</th>
+                  <th>Options</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>send_message</strong></td>
-                  <td>AI character speaks the specified text</td>
+                  <td><strong>Send AI Message</strong></td>
+                  <td>AI character speaks (LLM generates response)</td>
+                  <td>Message prompt, Suppress LLM toggle</td>
                 </tr>
                 <tr>
-                  <td><strong>send_player_message</strong></td>
-                  <td>Player automatically says the specified text</td>
+                  <td><strong>Send Player Message</strong></td>
+                  <td>Auto-generate a player message</td>
+                  <td>Message prompt, Suppress LLM toggle</td>
                 </tr>
                 <tr>
-                  <td><strong>system_message</strong></td>
+                  <td><strong>System Message</strong></td>
                   <td>Display a system notification in chat</td>
+                  <td>Message text</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Device Actions</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Description</th>
+                  <th>Options</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Turn Device On</strong></td>
+                  <td>Turn on a device with optional stop condition</td>
+                  <td>Device, Until condition (forever, capacity, time)</td>
                 </tr>
                 <tr>
-                  <td><strong>device_on</strong></td>
-                  <td>Turn on a device with optional settings</td>
+                  <td><strong>Turn Device Off</strong></td>
+                  <td>Turn off a device immediately</td>
+                  <td>Device selector</td>
                 </tr>
                 <tr>
-                  <td><strong>device_off</strong></td>
-                  <td>Turn off a device</td>
+                  <td><strong>Start Cycle</strong></td>
+                  <td>Start an on/off pump cycle pattern</td>
+                  <td>Device, Duration, Interval, Cycle count, Until condition</td>
                 </tr>
                 <tr>
-                  <td><strong>start_cycle</strong></td>
-                  <td>Start a pump cycle with on/off timing</td>
-                </tr>
-                <tr>
-                  <td><strong>stop_cycle</strong></td>
+                  <td><strong>Stop Cycle</strong></td>
                   <td>Stop an active pump cycle</td>
+                  <td>Device selector</td>
                 </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Variable & State Actions</h4>
+            <table className="help-table">
+              <thead>
                 <tr>
-                  <td><strong>declare_variable</strong></td>
+                  <th>Action</th>
+                  <th>Description</th>
+                  <th>Options</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Declare Variable</strong></td>
                   <td>Create a new custom flow variable</td>
+                  <td>Variable name, Initial value</td>
                 </tr>
                 <tr>
-                  <td><strong>set_variable</strong></td>
-                  <td>Update a variable's value</td>
+                  <td><strong>Set Variable</strong></td>
+                  <td>Update a system or flow variable</td>
+                  <td>Variable type, Variable name, New value</td>
                 </tr>
                 <tr>
-                  <td><strong>toggle_reminder</strong></td>
-                  <td>Enable or disable a reminder</td>
+                  <td><strong>Toggle Reminder</strong></td>
+                  <td>Enable, disable, or update a reminder</td>
+                  <td>Reminder selector, Action (enable/disable/update), New text</td>
+                </tr>
+                <tr>
+                  <td><strong>Toggle Button</strong></td>
+                  <td>Enable or disable a character button</td>
+                  <td>Button selector, Action (enable/disable)</td>
                 </tr>
               </tbody>
             </table>
 
             <div className="tip-box">
               <p>
-                <strong>Note:</strong> <code>device_on</code> and <code>start_cycle</code> actions have
+                <strong>Dual Outputs:</strong> <code>Turn Device On</code> and <code>Start Cycle</code> have
                 two outputs: <em>Immediate</em> (fires right away) and <em>Completion</em> (fires when
-                the action finishes, e.g., "until" condition met).
+                the "until" condition is met or cycle finishes).
               </p>
             </div>
           </div>
@@ -197,53 +253,59 @@ function FlowTab() {
         </h3>
         {expanded.logic && (
           <div className="section-content">
-            <h4 className="subsection-header">
-              <span className="node-type condition">Condition</span> Condition Node
-            </h4>
             <p>
-              Evaluates one or more conditions and routes to True or False outputs.
-              Multiple conditions use AND logic (all must be true).
-            </p>
-            <ul className="help-list">
-              <li>Compare variables to values</li>
-              <li>Check capacity, feeling, emotion states</li>
-              <li>Test custom flow variables</li>
-            </ul>
-
-            <h4 className="subsection-header">
-              <span className="node-type branch">Branch</span> Branch Node
-            </h4>
-            <p>
-              Splits flow into multiple paths. Can be configured for:
-            </p>
-            <ul className="help-list">
-              <li><strong>Weighted Random:</strong> Each path has a percentage chance</li>
-              <li><strong>Sequential:</strong> Cycles through paths in order</li>
-            </ul>
-
-            <h4 className="subsection-header">
-              <span className="node-type delay">Delay</span> Delay Node
-            </h4>
-            <p>
-              Pauses flow execution for a specified time (seconds or minutes)
-              before continuing to the next node.
+              Logic nodes control flow execution based on conditions, timing, and player input.
             </p>
 
-            <h4 className="subsection-header">
-              <span className="node-type choice">Choice</span> Player Choice Node
-            </h4>
-            <p>
-              Shows a modal popup with multiple choices. Optionally displays a
-              character message first. Each choice connects to its own output path.
-            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Description</th>
+                  <th>Outputs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span className="node-type condition">Condition</span></td>
+                  <td>Evaluates conditions and routes accordingly. Multiple conditions use AND logic. Compare capacity, pain level, emotion, or flow variables.</td>
+                  <td>True / False</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type branch">Conditional Branch</span></td>
+                  <td>Routes to different paths based on multiple conditions. First matching condition wins.</td>
+                  <td>Multiple conditional outputs</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type branch">Random Branch</span></td>
+                  <td>Randomly selects a path based on weighted percentages.</td>
+                  <td>Multiple weighted outputs</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type delay">Delay</span></td>
+                  <td>Pauses flow execution for a specified duration before continuing.</td>
+                  <td>Single output after delay</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type choice">Player Choice</span></td>
+                  <td>Shows a modal popup with multiple choices. Can include a prompt message and descriptions for each option.</td>
+                  <td>One output per choice</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type choice">Simple A/B</span></td>
+                  <td>Quick two-button popup for binary decisions. Silent (no chat message) - great for branching without output.</td>
+                  <td>Option A / Option B</td>
+                </tr>
+              </tbody>
+            </table>
 
-            <h4 className="subsection-header">
-              <span className="node-type choice">A/B</span> Simple A/B Node
-            </h4>
-            <p>
-              Shows a two-button popup for quick binary choices. Silent choice
-              (no message generated) - useful for branching without chat output.
-            </p>
+            <div className="info-box">
+              <p>
+                <strong>Condition Variables:</strong> You can check <code>[Capacity]</code> (0-100),
+                <code>[Feeling]</code> (pain level 0-10), <code>[Emotion]</code> (emoji state),
+                or any <code>[Flow:varName]</code> custom variable.
+              </p>
+            </div>
           </div>
         )}
       </div>

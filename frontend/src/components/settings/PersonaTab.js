@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import PersonaEditorModal from '../modals/PersonaEditorModal';
@@ -10,6 +10,14 @@ function PersonaTab() {
   const [editingPersona, setEditingPersona] = useState(null);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [selectedPersonaId, setSelectedPersonaId] = useState(null);
+  const listRef = useRef(null);
+
+  // Sort personas with active one first
+  const sortedPersonas = [...personas].sort((a, b) => {
+    if (a.id === settings.activePersonaId) return -1;
+    if (b.id === settings.activePersonaId) return 1;
+    return 0;
+  });
 
   const handleNew = () => {
     setEditingPersona(null);
@@ -49,6 +57,10 @@ function PersonaTab() {
   const handleSetActive = async (id) => {
     try {
       await api.updateSettings({ activePersonaId: id });
+      // Scroll to top after setting active
+      if (listRef.current) {
+        listRef.current.scrollTop = 0;
+      }
     } catch (error) {
       console.error('Failed to set active persona:', error);
     }
@@ -80,8 +92,7 @@ function PersonaTab() {
 
   return (
     <div className="settings-tab">
-      <div className="tab-header">
-        <h3>Your Personas</h3>
+      <div className="tab-header-actions">
         <button
           className="btn btn-primary"
           onClick={handleNew}
@@ -90,19 +101,21 @@ function PersonaTab() {
         </button>
       </div>
 
-      <div className="list">
+      <div className="list" ref={listRef}>
         {personas.length === 0 ? (
           <p className="text-muted">No personas yet. Create one to get started!</p>
         ) : (
-          personas.map((persona) => (
+          sortedPersonas.map((persona) => (
             <div
               key={persona.id}
               className={`list-item card-style ${settings.activePersonaId === persona.id ? 'active' : ''}`}
             >
               <div className="card-header">
                 <div className="card-info">
-                  <div className="list-item-name">
-                    {persona.displayName}
+                  <div className="name-row">
+                    <div className="list-item-name">
+                      {persona.displayName}
+                    </div>
                     {settings.activePersonaId === persona.id && (
                       <span className="active-badge">Active</span>
                     )}

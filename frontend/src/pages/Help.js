@@ -44,6 +44,10 @@ function Help() {
 
   return (
     <div className="help-page page">
+      <div className="page-header">
+        <h1>Help</h1>
+      </div>
+
       <div className="tabs">
         {TABS.map((t) => (
           <button

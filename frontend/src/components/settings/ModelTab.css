@@ -1,7 +1,7 @@
 .model-tab {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 0;
 }
 
 .settings-section {
@@ -13,8 +13,67 @@
 
 .settings-section h3 {
   font-size: var(--font-size-base);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
+}
+
+/* Combined connection settings card */
+.connection-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.connection-settings-header h3 {
+  margin: 0;
+}
+
+.connection-settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.connection-settings-row:last-child {
+  margin-bottom: 0;
+}
+
+.connection-settings-row label {
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.connection-settings-row select {
+  padding: 5px 10px;
+  min-width: 160px;
+}
+
+.connection-settings-row input {
+  padding: 5px 10px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: var(--font-size-sm);
+}
+
+.btn-sm.btn-success {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-sm.btn-primary {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.connection-settings-row input[type="text"],
+.connection-settings-row input[type="password"] {
+  flex: 1;
+  min-width: 200px;
 }
 
 .section-header {
