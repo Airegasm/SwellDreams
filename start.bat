@@ -61,19 +61,15 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM Install backend dependencies if needed
-if not exist "%SCRIPT_DIR%backend\node_modules" (
-    echo Installing backend dependencies...
-    cd /d "%SCRIPT_DIR%backend"
-    call npm install
-)
+REM Install/update backend dependencies
+echo Checking backend dependencies...
+cd /d "%SCRIPT_DIR%backend"
+call npm install
 
-REM Install frontend dependencies if needed
-if not exist "%SCRIPT_DIR%frontend\node_modules" (
-    echo Installing frontend dependencies...
-    cd /d "%SCRIPT_DIR%frontend"
-    call npm install
-)
+REM Install/update frontend dependencies
+echo Checking frontend dependencies...
+cd /d "%SCRIPT_DIR%frontend"
+call npm install
 
 REM Build frontend (always rebuild to ensure latest changes)
 echo Building frontend for production...
