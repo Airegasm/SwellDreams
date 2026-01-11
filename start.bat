@@ -9,7 +9,7 @@ set SCRIPT_DIR=%~dp0
 REM Read version (simplified for batch)
 echo.
 echo ========================================
-echo   SwellDreams v1.0b Production Server
+echo   SwellDreams v1.5b Production Server
 echo ========================================
 echo.
 
@@ -89,7 +89,7 @@ start "SwellDreams-Frontend" /MIN cmd /c "cd /d %SCRIPT_DIR%frontend && npx serv
 
 echo.
 echo ========================================
-echo   SwellDreams v1.0b is running!
+echo   SwellDreams v1.5b is running!
 echo   Backend:  http://localhost:8889
 echo   Frontend: http://localhost:3001
 echo ========================================
