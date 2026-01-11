@@ -114,6 +114,15 @@
 }
 
 
+/* Session section container */
+.session-section {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.session-section .hamburger-menu-item {
+  border-bottom: none;
+}
+
 /* Session item with submenu */
 .hamburger-menu-item.has-submenu {
   position: relative;
@@ -125,32 +134,20 @@
 }
 
 .submenu-arrow {
-  font-size: 10px;
+  font-size: 14px;
   margin-right: var(--spacing-xs);
   transition: transform 0.2s ease;
+  display: inline-block;
 }
 
-/* Session Submenu - positioned to the LEFT */
-.session-submenu {
-  position: absolute;
-  top: 0;
-  right: 100%;
-  width: 140px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(10px);
-  transition: all 0.2s ease;
-  z-index: 3001;
+.submenu-arrow.expanded {
+  transform: rotate(90deg);
 }
 
-.session-submenu.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(0);
+/* Session Submenu - inline, expands below */
+.session-submenu-inline {
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
 }
 
 /* Submenu items */
@@ -158,13 +155,14 @@
   display: block;
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: var(--spacing-xl);
   text-align: left;
   background: none;
   border: none;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-family: var(--font-family);
   transition: background-color var(--transition-fast);
 }
@@ -187,40 +185,5 @@
     top: var(--mobile-nav-height);
     width: 80%;
     max-width: 300px;
-  }
-
-  /* Session submenu appears below on mobile */
-  .session-submenu {
-    position: relative;
-    right: auto;
-    top: auto;
-    width: 100%;
-    margin-top: 0;
-    border-radius: 0;
-    box-shadow: none;
-    border: none;
-    border-top: 1px solid var(--border-color);
-    transform: none;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.2s ease, opacity 0.2s ease;
-  }
-
-  .session-submenu.open {
-    max-height: 200px;
-    transform: none;
-  }
-
-  .session-submenu-item {
-    padding-left: var(--spacing-xl);
-    background-color: var(--bg-primary);
-  }
-
-  .submenu-arrow {
-    transform: rotate(-90deg);
-  }
-
-  .hamburger-menu-item.has-submenu.submenu-active .submenu-arrow {
-    transform: rotate(0deg);
   }
 }

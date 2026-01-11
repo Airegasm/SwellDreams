@@ -14,8 +14,15 @@
 @media (min-width: 769px) {
   .drawer-overlay,
   .mobile-drawer-toggles,
-  .mobile-only {
+  .mobile-only,
+  .mobile-nav-cluster {
     display: none !important;
+  }
+
+  /* On desktop, mobile-action-cluster just acts as a normal flex container */
+  .mobile-action-cluster {
+    display: flex;
+    gap: var(--spacing-xs);
   }
 }
 
@@ -69,49 +76,18 @@
     letter-spacing: 0;
   }
 
-  /* Nav links become bottom tab bar */
+  /* Hide nav-links on mobile - navigation moved to chat input row */
   .nav-links {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 56px;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    z-index: 200;
-    padding: 0;
-    gap: 0;
+    display: none !important;
   }
 
-  .nav-links a {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spacing-xs);
-    height: 100%;
-    border-radius: 0;
-    font-size: var(--font-size-xs);
-    text-align: center;
-  }
-
-  .nav-links a.active {
-    background: transparent;
-    color: var(--accent-primary);
-    border-top: 2px solid var(--accent-primary);
-  }
-
-  /* Account for bottom nav in main content */
+  /* No bottom padding needed - nav bar removed */
   .main-content {
-    padding-bottom: 56px;
+    padding-bottom: 0;
   }
 
   .app {
-    padding-bottom: 56px;
+    padding-bottom: 0;
   }
 
   /* Offline banner - full width on mobile */
@@ -135,18 +111,45 @@
     min-height: 0;
   }
 
-  /* Left Sidebar - Slide-out drawer from left */
+  /* Left Sidebar - Slide-out drawer from left (full height) */
   .chat-sidebar:not(.chat-sidebar-right) {
     position: fixed;
-    top: var(--mobile-nav-height);
+    top: 0;
     left: 0;
-    bottom: 56px; /* Above bottom nav */
+    bottom: 0;
     width: var(--drawer-width);
     z-index: 100;
     transform: translateX(-100%);
     transition: var(--drawer-transition);
     box-shadow: none;
     border-right: 1px solid var(--border-color);
+    padding-top: var(--spacing-sm);
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+    gap: var(--spacing-xs);
+  }
+
+  /* Sidebar content - tighter spacing on mobile */
+  .chat-sidebar .sidebar-entity-header {
+    margin-bottom: 0;
+    min-height: 36px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .chat-sidebar .entity-name-display {
+    font-size: 1.1rem;
+  }
+
+  .chat-sidebar .entity-portrait-large {
+    margin-bottom: 0;
+  }
+
+  .chat-sidebar .status-badges {
+    margin-top: var(--spacing-xs);
+  }
+
+  .chat-sidebar .collapsible-section {
+    margin-bottom: 0;
   }
 
   .chat-sidebar:not(.chat-sidebar-right).drawer-open {
@@ -154,18 +157,22 @@
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   }
 
-  /* Right Sidebar - Slide-out drawer from right */
+  /* Right Sidebar - Slide-out drawer from right (full height) */
   .chat-sidebar.chat-sidebar-right {
     position: fixed;
-    top: var(--mobile-nav-height);
+    top: 0;
     right: 0;
-    bottom: 56px;
+    bottom: 0;
     width: var(--drawer-width);
     z-index: 100;
     transform: translateX(100%);
     transition: var(--drawer-transition);
     box-shadow: none;
     border-left: 1px solid var(--border-color);
+    padding-top: var(--spacing-sm);
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+    gap: var(--spacing-xs);
   }
 
   .chat-sidebar.chat-sidebar-right.drawer-open {
@@ -173,13 +180,13 @@
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
   }
 
-  /* Drawer overlay backdrop */
+  /* Drawer overlay backdrop (full viewport) */
   .drawer-overlay {
     position: fixed;
-    top: var(--mobile-nav-height);
+    top: 0;
     left: 0;
     right: 0;
-    bottom: 56px;
+    bottom: 0;
     background: var(--overlay-bg);
     z-index: 99;
     opacity: 0;
@@ -192,46 +199,46 @@
     pointer-events: auto;
   }
 
-  /* Mobile drawer toggle buttons */
+  /* Hide old floating FAB toggles - moved to input row */
   .mobile-drawer-toggles {
+    display: none !important;
+  }
+
+  /* Center modal overlay - full width on mobile, above input row */
+  .center-modal-overlay {
     position: fixed;
-    bottom: 70px; /* Above bottom nav */
+    top: 0;
     left: 0;
     right: 0;
-    z-index: 50;
-    display: flex;
-    justify-content: space-between;
-    padding: 0 var(--spacing-sm);
-    pointer-events: none;
+    bottom: 80px; /* Space for input row */
+    border-left: none;
+    border-right: none;
+    z-index: 150;
   }
 
-  .mobile-drawer-toggle {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    pointer-events: auto;
-    box-shadow: var(--shadow-lg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s, background-color 0.2s;
+  /* Hide sidebar dimming on mobile */
+  .center-modal-overlay::before,
+  .center-modal-overlay::after {
+    display: none !important;
   }
 
-  .mobile-drawer-toggle:active {
-    transform: scale(0.95);
+  /* Pages inside overlay - full mobile layout */
+  .center-modal-overlay .page {
+    padding: var(--spacing-sm);
+    overflow-y: auto;
   }
 
-  .mobile-drawer-toggle.left-toggle {
-    margin-right: auto;
+  .center-modal-overlay .settings-page,
+  .center-modal-overlay .help-page {
+    padding: var(--spacing-sm);
   }
 
-  .mobile-drawer-toggle.right-toggle {
-    margin-left: auto;
+  .center-modal-overlay .tabs {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .center-modal-overlay .tab-content {
+    padding: var(--spacing-sm);
   }
 
   /* Chat messages */
@@ -243,33 +250,141 @@
     max-width: 90%;
   }
 
-  /* Chat input form - stack on narrow screens */
+  /* Chat input form - new compact layout with nav in input row */
   .chat-input-form {
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
     padding: var(--spacing-sm);
     gap: var(--spacing-xs);
+    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
   }
 
+  /* Input field row */
   .input-with-history {
     flex: 1 1 100%;
     order: 1;
   }
 
+  /* Button row with nav cluster and action cluster */
   .chat-buttons {
-    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     order: 2;
-    justify-content: space-between;
+    width: 100%;
+  }
+
+  /* Mobile navigation cluster - left side of button row */
+  .mobile-nav-cluster {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-btn {
+    width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, background-color 0.15s;
+    padding: 0;
+  }
+
+  .mobile-nav-btn:active {
+    transform: scale(0.92);
+    background: var(--accent-primary);
+  }
+
+  .mobile-nav-btn.hamburger-btn {
+    font-size: 1.2rem;
+  }
+
+  /* Action buttons cluster - right side */
+  .mobile-action-cluster {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   .chat-btn {
-    width: var(--mobile-touch-target);
-    height: var(--mobile-touch-target);
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 0.75rem;
     flex-shrink: 0;
+  }
+
+  /* Make Send button more prominent */
+  .chat-btn.btn-primary {
+    background: var(--accent-primary);
+    min-width: 50px;
   }
 
   /* History arrows - hide on mobile */
   .history-arrows {
     display: none;
+  }
+
+  /* Hide desktop-only elements in chat buttons */
+  .chat-buttons .desktop-only {
+    display: none !important;
+  }
+
+  /* Mobile menu dropdown */
+  .mobile-menu-container {
+    position: relative;
+  }
+
+  .mobile-menu-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    min-width: 140px;
+    padding: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+    z-index: 200;
+  }
+
+  .mobile-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: transparent;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .mobile-menu-item:hover,
+  .mobile-menu-item:active {
+    background: var(--bg-hover);
+  }
+
+  .mobile-menu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: var(--spacing-xs) 0;
   }
 
   /* Emergency stop alert - full width on mobile */
@@ -286,13 +401,14 @@
   /* Player choice panel - bottom sheet on mobile */
   .player-choice-panel {
     top: auto;
-    bottom: 56px;
+    bottom: 0;
     width: 100%;
     max-height: 60vh;
     border-left: none;
     border-top: 2px solid var(--accent-primary);
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
     animation: slideUpFromBottom 0.3s ease-out;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   @keyframes slideUpFromBottom {
@@ -563,7 +679,7 @@
 
   .flow-editor-page {
     flex-direction: column;
-    height: calc(100vh - var(--mobile-nav-height) - 56px);
+    height: calc(100vh - var(--mobile-nav-height));
   }
 
   .flow-editor-page::before {

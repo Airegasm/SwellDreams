@@ -205,6 +205,23 @@ function App() {
     }
   }, [connected]);
 
+  // Listen for mobile menu session events
+  useEffect(() => {
+    const handleMobileNewSession = () => handleNewSession();
+    const handleMobileSaveSession = () => setShowSaveModal(true);
+    const handleMobileLoadSession = () => handleOpenLoadModal();
+
+    window.addEventListener('mobile-new-session', handleMobileNewSession);
+    window.addEventListener('mobile-save-session', handleMobileSaveSession);
+    window.addEventListener('mobile-load-session', handleMobileLoadSession);
+
+    return () => {
+      window.removeEventListener('mobile-new-session', handleMobileNewSession);
+      window.removeEventListener('mobile-save-session', handleMobileSaveSession);
+      window.removeEventListener('mobile-load-session', handleMobileLoadSession);
+    };
+  }, []);
+
   const handleAcceptTOS = () => {
     sessionStorage.setItem('swelldreams_tos_accepted', 'true');
     setShowTOS(false);

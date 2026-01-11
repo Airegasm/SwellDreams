@@ -66,44 +66,39 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
 
       {/* Menu Panel */}
       <div className={`hamburger-menu-panel ${isOpen ? 'open' : ''}`}>
-        {/* Session with submenu */}
-        <div
-          className={`hamburger-menu-item has-submenu ${isSessionSubmenuOpen ? 'submenu-active' : ''}`}
-          onClick={() => setIsSessionSubmenuOpen(!isSessionSubmenuOpen)}
-        >
-          <span className="submenu-arrow">&#9664;</span>
-          <span>Session</span>
-
-          {/* Session Submenu - opens to the left */}
-          <div className={`session-submenu ${isSessionSubmenuOpen ? 'open' : ''}`}>
-            <button
-              className="session-submenu-item"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSessionAction(onNewSession);
-              }}
-            >
-              New
-            </button>
-            <button
-              className="session-submenu-item"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSessionAction(onSaveSession);
-              }}
-            >
-              Save
-            </button>
-            <button
-              className="session-submenu-item"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSessionAction(onLoadSession);
-              }}
-            >
-              Load
-            </button>
+        {/* Session with expandable submenu */}
+        <div className="session-section">
+          <div
+            className={`hamburger-menu-item has-submenu ${isSessionSubmenuOpen ? 'submenu-active' : ''}`}
+            onClick={() => setIsSessionSubmenuOpen(!isSessionSubmenuOpen)}
+          >
+            <span className={`submenu-arrow ${isSessionSubmenuOpen ? 'expanded' : ''}`}>›</span>
+            <span>Session</span>
           </div>
+
+          {/* Session Submenu - expands below */}
+          {isSessionSubmenuOpen && (
+            <div className="session-submenu-inline">
+              <button
+                className="session-submenu-item"
+                onClick={() => handleSessionAction(onNewSession)}
+              >
+                New
+              </button>
+              <button
+                className="session-submenu-item"
+                onClick={() => handleSessionAction(onSaveSession)}
+              >
+                Save
+              </button>
+              <button
+                className="session-submenu-item"
+                onClick={() => handleSessionAction(onLoadSession)}
+              >
+                Load
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navigation Links */}

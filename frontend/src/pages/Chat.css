@@ -989,7 +989,7 @@
   flex: 1;
   min-height: 60px;
   padding: var(--spacing-sm);
-  background: linear-gradient(180deg, rgba(22, 33, 62, 0.8) 0%, rgba(13, 21, 38, 0.8) 100%);
+  background: rgba(200, 205, 215, 0.25);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   color: #ffffff;

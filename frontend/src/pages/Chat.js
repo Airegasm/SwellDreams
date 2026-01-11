@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
 import { API_BASE, CONFIG } from '../config';
@@ -28,7 +29,10 @@ function Chat() {
   // Mobile drawer state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const closeDrawers = () => { setLeftDrawerOpen(false); setRightDrawerOpen(false); };
+  const mobileMenuRef = useRef(null);
+  const navigate = useNavigate();
 
   // Quick text state
   const [quickTexts, setQuickTexts] = useState([]);
@@ -147,6 +151,19 @@ function Chat() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showQuickMenu]);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+        setShowMobileMenu(false);
+      }
+    };
+    if (showMobileMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMobileMenu]);
 
   // Send message history updates to backend
   useEffect(() => {
@@ -830,60 +847,123 @@ function Chat() {
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <div className="input-buttons-row">
             <div className="chat-buttons">
-              <button
-                type="submit"
-                className="chat-btn send-btn"
-                disabled={!activeCharacter || !inputValue.trim() || isGenerating}
-                title="Send message"
-              >➤</button>
-              <button
-                type="button"
-                className="chat-btn impersonate-btn"
-                disabled={!activeCharacter || isGenerating}
-                onClick={() => handleGuidedGenerate('guided_impersonate')}
-                title="Guided Impersonate (continue as you)"
-              >👤</button>
-              <div className="quick-text-container" ref={quickMenuRef}>
+              {/* Mobile Navigation Cluster - only visible on mobile */}
+              <div className="mobile-nav-cluster mobile-only">
                 <button
                   type="button"
-                  className="chat-btn quick-btn"
-                  onClick={() => setShowQuickMenu(!showQuickMenu)}
-                  title="Quick Texts"
-                >Q</button>
-                {showQuickMenu && (
-                  <div className="quick-text-menu">
-                    {quickTexts.map(qt => (
-                      <button
-                        key={qt.id}
-                        className="quick-menu-item"
-                        onClick={() => handleQuickTextClick(qt.text)}
-                      >
-                        {qt.text.length > 30 ? qt.text.substring(0, 30) + '...' : qt.text}
+                  className="mobile-nav-btn persona-toggle"
+                  onClick={() => setLeftDrawerOpen(!leftDrawerOpen)}
+                  aria-label="Toggle persona panel"
+                  title="Persona"
+                >🎈</button>
+                <div className="mobile-menu-container" ref={mobileMenuRef}>
+                  <button
+                    type="button"
+                    className="mobile-nav-btn hamburger-btn"
+                    onClick={() => setShowMobileMenu(!showMobileMenu)}
+                    aria-label="Menu"
+                    title="Menu"
+                  >☰</button>
+                  {showMobileMenu && (
+                    <div className="mobile-menu-dropdown">
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/'); }}>
+                        💬 Chat
                       </button>
-                    ))}
-                    <div className="quick-menu-divider" />
-                    <button
-                      className="quick-menu-item quick-menu-action"
-                      onClick={() => { setShowQuickMenu(false); setShowQuickAddModal(true); }}
-                    >
-                      + Add New Quick Text
-                    </button>
-                    <button
-                      className="quick-menu-item quick-menu-action"
-                      onClick={() => { setShowQuickMenu(false); setShowQuickManageModal(true); }}
-                    >
-                      Manage Quick Texts
-                    </button>
-                  </div>
-                )}
+                      <div className="mobile-menu-divider" />
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-new-session')); }}>
+                        📄 New Session
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-save-session')); }}>
+                        💾 Save Session
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); window.dispatchEvent(new Event('mobile-load-session')); }}>
+                        📂 Load Session
+                      </button>
+                      <div className="mobile-menu-divider" />
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/personas'); }}>
+                        👤 Personas
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/characters'); }}>
+                        🎭 Characters
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/flows'); }}>
+                        🔀 Flows
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/settings'); }}>
+                        ⚙️ Settings
+                      </button>
+                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/help'); }}>
+                        ❓ Help
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="mobile-nav-btn character-toggle"
+                  onClick={() => setRightDrawerOpen(!rightDrawerOpen)}
+                  aria-label="Toggle character panel"
+                  title="Character"
+                >😈</button>
               </div>
-              <button
-                type="button"
-                className="chat-btn guided-btn"
-                disabled={!activeCharacter || isGenerating}
-                onClick={() => handleGuidedGenerate('guided')}
-                title="Guided Response (AI continues)"
-              >↩</button>
+
+              {/* Action Buttons */}
+              <div className="mobile-action-cluster">
+                <button
+                  type="submit"
+                  className="chat-btn send-btn btn-primary"
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                  title="Send message"
+                >➤</button>
+                <button
+                  type="button"
+                  className="chat-btn impersonate-btn"
+                  disabled={!activeCharacter || isGenerating}
+                  onClick={() => handleGuidedGenerate('guided_impersonate')}
+                  title="Guided Impersonate (continue as you)"
+                >👤</button>
+                <div className="quick-text-container" ref={quickMenuRef}>
+                  <button
+                    type="button"
+                    className="chat-btn quick-btn"
+                    onClick={() => setShowQuickMenu(!showQuickMenu)}
+                    title="Quick Texts"
+                  >Q</button>
+                  {showQuickMenu && (
+                    <div className="quick-text-menu">
+                      {quickTexts.map(qt => (
+                        <button
+                          key={qt.id}
+                          className="quick-menu-item"
+                          onClick={() => handleQuickTextClick(qt.text)}
+                        >
+                          {qt.text.length > 30 ? qt.text.substring(0, 30) + '...' : qt.text}
+                        </button>
+                      ))}
+                      <div className="quick-menu-divider" />
+                      <button
+                        className="quick-menu-item quick-menu-action"
+                        onClick={() => { setShowQuickMenu(false); setShowQuickAddModal(true); }}
+                      >
+                        + Add New Quick Text
+                      </button>
+                      <button
+                        className="quick-menu-item quick-menu-action"
+                        onClick={() => { setShowQuickMenu(false); setShowQuickManageModal(true); }}
+                      >
+                        Manage Quick Texts
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="chat-btn guided-btn"
+                  disabled={!activeCharacter || isGenerating}
+                  onClick={() => handleGuidedGenerate('guided')}
+                  title="Guided Response (AI continues)"
+                >↩</button>
+              </div>
             </div>
           </div>
           <div className="chat-input-row">
