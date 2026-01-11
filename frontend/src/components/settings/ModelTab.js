@@ -241,65 +241,52 @@ function ModelTab() {
     // eslint-disable-next-line
   }, []);
 
-  // Auto-test when settings are loaded and URL exists (only for non-OpenRouter endpoints)
+  // Load connection profiles on mount and auto-connect to saved profile
   useEffect(() => {
-    if (llmSettings.llmUrl && connectionStatus === 'offline' && endpointStandard !== 'openrouter') {
-      handleTest();
-    }
-    // eslint-disable-next-line
-  }, [llmSettings.llmUrl, endpointStandard]);
-
-  // Load connection profiles on mount
-  useEffect(() => {
-    const loadProfiles = async () => {
+    const loadProfilesAndConnect = async () => {
       try {
         const profiles = await api.getConnectionProfiles();
         setConnectionProfiles(profiles);
-        // Set selected profile if one is active
+
+        // Auto-connect to saved active profile
         if (settings.llm?.activeProfileId) {
-          setSelectedProfileId(settings.llm.activeProfileId);
+          const activeProfile = profiles.find(p => p.id === settings.llm.activeProfileId);
+          if (activeProfile) {
+            setSelectedProfileId(settings.llm.activeProfileId);
+            // Connect based on endpoint type
+            if (activeProfile.endpointStandard === 'openrouter' && activeProfile.openRouterApiKey) {
+              // Load OpenRouter models
+              try {
+                const data = await apiFetch(`${API_BASE}/api/openrouter/models`);
+                if (data.models && data.models.length > 0) {
+                  setOpenRouterModels(data.models);
+                  setConnectionStatus('online');
+                  if (activeProfile.openRouterModel) {
+                    const savedModel = data.models.find(m => m.id === activeProfile.openRouterModel);
+                    setModelStatus(savedModel?.name || savedModel?.id || `${data.models.length} models available`);
+                  } else {
+                    setModelStatus(`${data.models.length} models available`);
+                  }
+                } else {
+                  // Fetch fresh models
+                  handleOpenRouterConnect();
+                }
+              } catch (e) {
+                handleOpenRouterConnect();
+              }
+            } else if (activeProfile.llmUrl) {
+              // Test Kobold/OpenAI connection
+              handleTest();
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load connection profiles:', error);
       }
     };
-    loadProfiles();
+    loadProfilesAndConnect();
     // eslint-disable-next-line
   }, []);
-
-  // Auto-connect to OpenRouter if API key is saved
-  useEffect(() => {
-    const autoConnectOpenRouter = async () => {
-      if (endpointStandard === 'openrouter' && openRouterApiKey && openRouterModels.length === 0 && !openRouterConnecting) {
-        // First try to get cached models from backend
-        try {
-          const data = await apiFetch(`${API_BASE}/api/openrouter/models`);
-          if (data.models && data.models.length > 0) {
-            setOpenRouterModels(data.models);
-            setConnectionStatus('online');
-            // If we have a previously selected model, show its name
-            if (selectedOpenRouterModel) {
-              const savedModel = data.models.find(m => m.id === selectedOpenRouterModel);
-              if (savedModel) {
-                setModelStatus(savedModel.name || savedModel.id);
-              } else {
-                setModelStatus(`${data.models.length} models available`);
-              }
-            } else {
-              setModelStatus(`${data.models.length} models available`);
-            }
-            return;
-          }
-        } catch (e) {
-          // Cached models not available, try to connect
-        }
-        // If no cached models, auto-connect
-        handleOpenRouterConnect();
-      }
-    };
-    autoConnectOpenRouter();
-    // eslint-disable-next-line
-  }, [endpointStandard, openRouterApiKey]);
 
   // Update model status when models load and we have a saved selection
   useEffect(() => {
@@ -311,36 +298,99 @@ function ModelTab() {
     }
   }, [openRouterModels, selectedOpenRouterModel]);
 
-  // Handle profile selection
+  // Handle profile selection - disconnect from current, then connect to new
   const handleProfileSelect = async (profileId) => {
     if (!profileId || profileId === 'none') {
+      // Disconnect from current profile
       setSelectedProfileId(null);
+      setConnectionStatus('offline');
+      setModelStatus('Disconnected');
+      setOpenRouterModels([]);
       return;
     }
     if (profileId === 'new') {
       setShowNewProfileInput(true);
       return;
     }
+
+    // First disconnect from current connection
+    setConnectionStatus('offline');
+    setModelStatus('Connecting...');
+    setOpenRouterModels([]);
+
     try {
       const result = await api.activateConnectionProfile(profileId);
       if (result.success && result.settings?.llm) {
-        setLlmSettings(result.settings.llm);
+        const profileSettings = result.settings.llm;
+        setLlmSettings(profileSettings);
         setSelectedProfileId(profileId);
+
         // Restore endpoint standard and OpenRouter settings
-        if (result.settings.llm.endpointStandard) {
-          setEndpointStandard(result.settings.llm.endpointStandard);
+        const newEndpoint = profileSettings.endpointStandard || 'openai';
+        setEndpointStandard(newEndpoint);
+
+        if (profileSettings.openRouterApiKey) {
+          setOpenRouterApiKey(profileSettings.openRouterApiKey);
         }
-        if (result.settings.llm.openRouterApiKey) {
-          setOpenRouterApiKey(result.settings.llm.openRouterApiKey);
+        if (profileSettings.openRouterModel) {
+          setSelectedOpenRouterModel(profileSettings.openRouterModel);
         }
-        if (result.settings.llm.openRouterModel) {
-          setSelectedOpenRouterModel(result.settings.llm.openRouterModel);
+
+        // Auto-connect based on endpoint type
+        if (newEndpoint === 'openrouter' && profileSettings.openRouterApiKey) {
+          // Connect to OpenRouter
+          try {
+            const data = await apiFetch(`${API_BASE}/api/openrouter/models`);
+            if (data.models && data.models.length > 0) {
+              setOpenRouterModels(data.models);
+              setConnectionStatus('online');
+              if (profileSettings.openRouterModel) {
+                const savedModel = data.models.find(m => m.id === profileSettings.openRouterModel);
+                setModelStatus(savedModel?.name || savedModel?.id || `${data.models.length} models available`);
+              } else {
+                setModelStatus(`${data.models.length} models available`);
+              }
+            } else {
+              // Need to fetch fresh - call connect
+              setOpenRouterConnecting(true);
+              const connectResult = await api.connectOpenRouter(profileSettings.openRouterApiKey);
+              setOpenRouterConnecting(false);
+              if (connectResult.success) {
+                setOpenRouterModels(connectResult.models);
+                setConnectionStatus('online');
+                setModelStatus(`${connectResult.models.length} models available`);
+              } else {
+                setConnectionStatus('offline');
+                setModelStatus('Connection failed');
+              }
+            }
+          } catch (e) {
+            setConnectionStatus('offline');
+            setModelStatus('Connection failed');
+          }
+        } else if (profileSettings.llmUrl) {
+          // Test Kobold/OpenAI connection
+          try {
+            const testResult = await api.testLlm(profileSettings);
+            if (testResult.success) {
+              setConnectionStatus('online');
+              setModelStatus(testResult.modelName || 'Connected');
+            } else {
+              setConnectionStatus('offline');
+              setModelStatus('Connection failed');
+            }
+          } catch (e) {
+            setConnectionStatus('offline');
+            setModelStatus('Connection failed');
+          }
+        } else {
+          setModelStatus('No endpoint configured');
         }
-        setConnectionStatus('offline'); // Trigger re-test
-        setOpenRouterModels([]); // Clear models to trigger re-fetch if OpenRouter
       }
     } catch (error) {
       console.error('Failed to activate profile:', error);
+      setConnectionStatus('offline');
+      setModelStatus('Profile activation failed');
     }
   };
 
