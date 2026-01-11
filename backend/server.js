@@ -1565,6 +1565,8 @@ async function handleChatMessage(data) {
   const characters = loadData(DATA_FILES.characters) || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
+  console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, llmUrl=${settings?.llm?.llmUrl ? 'set' : 'not set'}`);
+
   if (activeCharacter && settings?.llm?.llmUrl) {
     // Notify UI that AI is generating
     broadcast('generating_start', { characterName: activeCharacter.name });
