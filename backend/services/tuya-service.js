@@ -138,18 +138,6 @@ class TuyaService {
     const signStr = this.accessId + token + t + stringToSign;
     const signature = this.sign(signStr);
 
-    // Full debug output
-    console.log(`[Tuya] Token (len=${token.length}): ${token.substring(0,16)}...`);
-    console.log(`[Tuya] Timestamp: ${t}`);
-    console.log(`[Tuya] ContentHash: ${contentHash}`);
-    console.log(`[Tuya] Path: ${path}`);
-    console.log(`[Tuya] Full signStr for verification:`);
-    console.log(`[Tuya]   ${this.accessId}${token}${t}${method}`);
-    console.log(`[Tuya]   ${contentHash}`);
-    console.log(`[Tuya]   `);
-    console.log(`[Tuya]   ${path}`);
-    console.log(`[Tuya] Signature: ${signature}`);
-
     const headers = {
       't': t,
       'sign': signature,
@@ -182,15 +170,22 @@ class TuyaService {
     return data.result;
   }
 
-  async listDevices() {
-    // Ensure we have a token (which also gets the UID)
-    await this.getAccessToken();
-    if (!this.uid) {
-      throw new Error('No UID available - token request may have failed');
+  async listDevices(deviceIds) {
+    // Cloud Authorization requires device_ids parameter
+    // Get device IDs from Tuya IoT Platform: Devices tab
+    if (!deviceIds || (Array.isArray(deviceIds) && deviceIds.length === 0)) {
+      throw new Error('Device IDs required. Get them from Tuya IoT Platform → Devices tab');
     }
-    console.log(`[Tuya] Listing devices for uid: ${this.uid}`);
-    const devices = await this.request('GET', `/v1.0/users/${this.uid}/devices`);
-    return devices || [];
+    const ids = Array.isArray(deviceIds) ? deviceIds.join(',') : deviceIds;
+    const path = `/v1.0/iot-03/devices?device_ids=${ids}`;
+    console.log(`[Tuya] Listing devices: ${path}`);
+    const result = await this.request('GET', path);
+    return result?.list || [];
+  }
+
+  async getDeviceInfo(deviceId) {
+    console.log(`[Tuya] Getting device info: ${deviceId}`);
+    return await this.request('GET', `/v1.0/devices/${deviceId}`);
   }
 
   async getDeviceStatus(deviceId) {
@@ -198,7 +193,8 @@ class TuyaService {
   }
 
   async sendCommand(deviceId, commands) {
-    return await this.request('POST', `/v1.0/devices/${deviceId}/commands`, { commands });
+    // Use iot-03 endpoint for Cloud Authorization projects
+    return await this.request('POST', `/v1.0/iot-03/devices/${deviceId}/commands`, { commands });
   }
 
   async turnOn(deviceId) {
