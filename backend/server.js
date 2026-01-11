@@ -2501,10 +2501,20 @@ app.delete('/api/devices/:id', (req, res) => {
 
 app.post('/api/devices/:ip/on', async (req, res) => {
   try {
-    // Support optional childId in body for power strip outlets
-    const childId = req.body.childId;
-    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
-    const result = await deviceService.turnOn(req.params.ip, device);
+    // Support optional childId for power strip outlets and brand for Govee/Tuya
+    const { childId, brand, sku } = req.body;
+    const deviceIdOrIp = req.params.ip;
+
+    let device = null;
+    if (brand === 'govee') {
+      device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
+    } else if (brand === 'tuya') {
+      device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (childId) {
+      device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
+    }
+
+    const result = await deviceService.turnOn(deviceIdOrIp, device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2513,10 +2523,20 @@ app.post('/api/devices/:ip/on', async (req, res) => {
 
 app.post('/api/devices/:ip/off', async (req, res) => {
   try {
-    // Support optional childId in body for power strip outlets
-    const childId = req.body.childId;
-    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
-    const result = await deviceService.turnOff(req.params.ip, device);
+    // Support optional childId for power strip outlets and brand for Govee/Tuya
+    const { childId, brand, sku } = req.body;
+    const deviceIdOrIp = req.params.ip;
+
+    let device = null;
+    if (brand === 'govee') {
+      device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
+    } else if (brand === 'tuya') {
+      device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (childId) {
+      device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
+    }
+
+    const result = await deviceService.turnOff(deviceIdOrIp, device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -2525,10 +2545,21 @@ app.post('/api/devices/:ip/off', async (req, res) => {
 
 app.get('/api/devices/:ip/state', async (req, res) => {
   try {
-    // Support optional childId query param for power strip outlets
-    const childId = req.query.childId;
-    const device = childId ? { ip: req.params.ip, childId, brand: 'tplink' } : null;
-    const result = await deviceService.getDeviceState(req.params.ip, device);
+    // Support optional childId for power strip outlets and brand for Govee/Tuya
+    const { childId, brand, sku } = req.query;
+    const deviceIdOrIp = req.params.ip;
+
+    // Build device object if we have brand info or childId
+    let device = null;
+    if (brand === 'govee') {
+      device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
+    } else if (brand === 'tuya') {
+      device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (childId) {
+      device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
+    }
+
+    const result = await deviceService.getDeviceState(deviceIdOrIp, device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });

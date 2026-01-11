@@ -37,13 +37,20 @@ function Chat() {
 
   // Control panel state
   const [polledDeviceStates, setPolledDeviceStates] = useState({}); // { deviceKey: { state, relayState, lastUpdate } }
+  const recentActionsRef = useRef({}); // { deviceKey: timestamp } - skip polling for recently actioned devices
 
-  // Helper to get unique device key (ip for singles, ip:childId for power strip outlets)
+  // Helper to get unique device key (ip for TPLink singles, ip:childId for outlets, deviceId for Govee/Tuya)
   const getDeviceKey = (device) => {
     if (device.childId) {
       return `${device.ip}:${device.childId}`;
     }
-    return device.ip;
+    // Use deviceId for Govee/Tuya, ip for TPLink
+    return device.deviceId || device.ip;
+  };
+
+  // Mark device as recently actioned (skip polling for 10 seconds)
+  const markRecentAction = (deviceKey) => {
+    recentActionsRef.current[deviceKey] = Date.now();
   };
 
   // Auto reply state - when false, AI only responds via Guided Response/Events/Flows
@@ -157,16 +164,39 @@ function Chat() {
     if (!devices || devices.length === 0) return;
 
     const pollDeviceStates = async () => {
+      const now = Date.now();
+      const RECENT_ACTION_COOLDOWN = 10000; // 10 seconds
+
       const statePromises = devices.map(async (device) => {
+        const deviceKey = device.childId
+          ? `${device.ip}:${device.childId}`
+          : (device.deviceId || device.ip);
+
+        // Skip polling for devices with recent manual actions
+        const lastAction = recentActionsRef.current[deviceKey];
+        if (lastAction && (now - lastAction) < RECENT_ACTION_COOLDOWN) {
+          // Return existing state instead of polling
+          return null;
+        }
+
         try {
-          // Build URL with optional childId for power strip outlets
-          let url = `${API_BASE}/api/devices/${encodeURIComponent(device.ip)}/state`;
+          // Use deviceId for Govee/Tuya, ip for TPLink
+          const deviceIdentifier = device.deviceId || device.ip;
+          // Build URL with optional childId for power strip outlets and brand for Govee/Tuya
+          let url = `${API_BASE}/api/devices/${encodeURIComponent(deviceIdentifier)}/state`;
+          const params = new URLSearchParams();
           if (device.childId) {
-            url += `?childId=${encodeURIComponent(device.childId)}`;
+            params.append('childId', device.childId);
+          }
+          if (device.brand && device.brand !== 'tplink') {
+            params.append('brand', device.brand);
+            if (device.sku) params.append('sku', device.sku);
+          }
+          if (params.toString()) {
+            url += `?${params.toString()}`;
           }
           const response = await fetch(url);
           const result = await response.json();
-          const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
           return {
             key: deviceKey,
             state: result.error ? 'unknown' : result.state,
@@ -174,8 +204,7 @@ function Chat() {
             lastUpdate: Date.now()
           };
         } catch (error) {
-          console.error(`[Polling] Failed to get state for ${device.ip}:`, error);
-          const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
+          console.error(`[Polling] Failed to get state for ${device.deviceId || device.ip}:`, error);
           return {
             key: deviceKey,
             state: 'unknown',
@@ -185,11 +214,23 @@ function Chat() {
       });
 
       const states = await Promise.all(statePromises);
-      const statesMap = {};
-      states.forEach(s => {
-        statesMap[s.key] = s;
+      const resultsTime = Date.now();
+      setPolledDeviceStates(prev => {
+        const newStates = { ...prev };
+        states.forEach(s => {
+          // Skip null entries (devices with recent actions keep their current state)
+          if (s) {
+            // Double-check: also skip if a manual action happened WHILE this poll was in flight
+            const lastAction = recentActionsRef.current[s.key];
+            if (lastAction && (resultsTime - lastAction) < RECENT_ACTION_COOLDOWN) {
+              // A manual action happened after this poll started - keep optimistic state
+              return;
+            }
+            newStates[s.key] = s;
+          }
+        });
+        return newStates;
       });
-      setPolledDeviceStates(statesMap);
     };
 
     // Initial poll
@@ -590,6 +631,8 @@ function Chat() {
       ...prev,
       [deviceKey]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
     }));
+    // Mark as recently actioned to skip polling
+    markRecentAction(deviceKey);
 
     if (controlMode === 'simulated') {
       console.log('[ControlPanel] Simulated ON for:', device.name);
@@ -597,7 +640,13 @@ function Chat() {
     }
 
     try {
-      await api.deviceOn(device.ip, device.childId);
+      // Use deviceId for Govee/Tuya, ip for TPLink
+      const deviceIdOrIp = device.deviceId || device.ip;
+      await api.deviceOn(deviceIdOrIp, {
+        childId: device.childId,
+        brand: device.brand,
+        sku: device.sku
+      });
       console.log('[ControlPanel] Turned ON:', device.name);
     } catch (error) {
       console.error('[ControlPanel] Failed to turn on device:', error);
@@ -617,6 +666,8 @@ function Chat() {
       ...prev,
       [deviceKey]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
     }));
+    // Mark as recently actioned to skip polling
+    markRecentAction(deviceKey);
 
     if (controlMode === 'simulated') {
       console.log('[ControlPanel] Simulated OFF for:', device.name);
@@ -624,7 +675,13 @@ function Chat() {
     }
 
     try {
-      await api.deviceOff(device.ip, device.childId);
+      // Use deviceId for Govee/Tuya, ip for TPLink
+      const deviceIdOrIp = device.deviceId || device.ip;
+      await api.deviceOff(deviceIdOrIp, {
+        childId: device.childId,
+        brand: device.brand,
+        sku: device.sku
+      });
       console.log('[ControlPanel] Turned OFF:', device.name);
     } catch (error) {
       console.error('[ControlPanel] Failed to turn off device:', error);
@@ -1138,10 +1195,10 @@ function Chat() {
             ) : (
               <div className="device-states-list">
                 {devices.map(device => {
-                  const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
+                  const deviceKey = getDeviceKey(device);
                   const deviceState = polledDeviceStates[deviceKey];
                   const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
-                  const isUnknown = deviceState?.state === 'unknown';
+                  const isUnknown = !deviceState || deviceState?.state === 'unknown';
                   const isInfiniteCycle = infiniteCycles && infiniteCycles[deviceKey];
 
                   return (
@@ -1155,7 +1212,7 @@ function Chat() {
                           <button
                             className="device-control-btn on-btn"
                             onClick={() => handleManualDeviceOn(device)}
-                            disabled={controlMode === 'simulated' ? false : isOn}
+                            disabled={controlMode === 'simulated' ? false : (isOn && !isUnknown)}
                             title="Turn ON"
                           >
                             ON
@@ -1163,7 +1220,7 @@ function Chat() {
                           <button
                             className="device-control-btn off-btn"
                             onClick={() => handleManualDeviceOff(device)}
-                            disabled={controlMode === 'simulated' ? false : !isOn}
+                            disabled={controlMode === 'simulated' ? false : (!isOn && !isUnknown)}
                             title="Turn OFF"
                           >
                             OFF

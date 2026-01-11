@@ -423,15 +423,30 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
-    deviceOn: (ip, childId = null) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/on`, {
-      method: 'POST',
-      body: childId ? JSON.stringify({ childId }) : undefined
-    }),
+    // deviceOn/deviceOff now accept a device object with: ip/deviceId, childId, brand, sku
+    deviceOn: (deviceIdOrIp, options = {}) => {
+      const { childId, brand, sku } = options;
+      const body = {};
+      if (childId) body.childId = childId;
+      if (brand) body.brand = brand;
+      if (sku) body.sku = sku;
+      return apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(deviceIdOrIp)}/on`, {
+        method: 'POST',
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+      });
+    },
 
-    deviceOff: (ip, childId = null) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/off`, {
-      method: 'POST',
-      body: childId ? JSON.stringify({ childId }) : undefined
-    }),
+    deviceOff: (deviceIdOrIp, options = {}) => {
+      const { childId, brand, sku } = options;
+      const body = {};
+      if (childId) body.childId = childId;
+      if (brand) body.brand = brand;
+      if (sku) body.sku = sku;
+      return apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(deviceIdOrIp)}/off`, {
+        method: 'POST',
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+      });
+    },
 
     getDeviceChildren: (ip) => apiFetch(`${API_BASE}/api/devices/${encodeURIComponent(ip)}/children`),
 
