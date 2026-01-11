@@ -27,11 +27,13 @@ class TuyaService {
    * Set credentials for Tuya API
    */
   setCredentials(accessId, accessSecret, region = 'us') {
+    console.log(`[Tuya] Setting credentials - Access ID: ${accessId ? accessId.substring(0, 8) + '...' : 'null'}, Region: ${region}`);
     this.accessId = accessId;
     this.accessSecret = accessSecret;
     this.region = region;
     this.accessToken = null;
     this.tokenExpiry = null;
+    console.log(`[Tuya] Credentials ${accessId ? 'set' : 'cleared'}, token cache cleared`);
   }
 
   /**
@@ -80,14 +82,26 @@ class TuyaService {
   async getAccessToken() {
     // Return cached token if still valid
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      console.log('[Tuya] Using cached token (expires in', Math.round((this.tokenExpiry - Date.now()) / 1000), 'seconds)');
       return this.accessToken;
     }
+
+    console.log('[Tuya] Requesting new access token...');
+    console.log(`[Tuya] API Base URL: ${this.getBaseUrl()}`);
+    console.log(`[Tuya] Access ID: ${this.accessId ? this.accessId.substring(0, 8) + '...' : 'NOT SET'}`);
+    console.log(`[Tuya] Access Secret: ${this.accessSecret ? '***' + this.accessSecret.slice(-4) : 'NOT SET'}`);
 
     const timestamp = Date.now().toString();
     const path = '/v1.0/token?grant_type=1';
     const sign = this.generateSign('GET', path, timestamp);
 
-    const response = await fetch(`${this.getBaseUrl()}${path}`, {
+    console.log(`[Tuya] Request timestamp: ${timestamp}`);
+    console.log(`[Tuya] Generated signature: ${sign.substring(0, 16)}...`);
+
+    const url = `${this.getBaseUrl()}${path}`;
+    console.log(`[Tuya] Fetching: ${url}`);
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'client_id': this.accessId,
@@ -97,16 +111,21 @@ class TuyaService {
       },
     });
 
+    console.log(`[Tuya] Response status: ${response.status} ${response.statusText}`);
+
     const data = await response.json();
+    console.log(`[Tuya] Response success: ${data.success}, code: ${data.code}, msg: ${data.msg || 'none'}`);
 
     if (!data.success) {
-      throw new Error(`Tuya auth error: ${data.msg || 'Failed to get token'}`);
+      console.error(`[Tuya] AUTH FAILED - Code: ${data.code}, Message: ${data.msg}`);
+      throw new Error(`Tuya auth error: ${data.msg || 'Failed to get token'} (code: ${data.code})`);
     }
 
     this.accessToken = data.result.access_token;
     // Token expires in expire_time seconds, refresh 5 minutes early
     this.tokenExpiry = Date.now() + (data.result.expire_time - 300) * 1000;
 
+    console.log(`[Tuya] Token obtained successfully, expires in ${data.result.expire_time} seconds`);
     return this.accessToken;
   }
 
@@ -228,11 +247,19 @@ class TuyaService {
    * Test connection with current credentials
    */
   async testConnection() {
+    console.log('[Tuya] ========== CONNECTION TEST START ==========');
+    console.log(`[Tuya] Testing connection with credentials...`);
+    console.log(`[Tuya] Access ID set: ${!!this.accessId}`);
+    console.log(`[Tuya] Access Secret set: ${!!this.accessSecret}`);
+    console.log(`[Tuya] Region: ${this.region}`);
+
     try {
       await this.getAccessToken();
+      console.log('[Tuya] ========== CONNECTION TEST SUCCESS ==========');
       return true;
     } catch (error) {
-      console.error('[TuyaService] Connection test failed:', error.message);
+      console.error('[Tuya] ========== CONNECTION TEST FAILED ==========');
+      console.error('[Tuya] Error:', error.message);
       return false;
     }
   }
