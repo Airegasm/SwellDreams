@@ -69,11 +69,21 @@ class TuyaService {
     const stringToSign = [method, contentHash, '', path].join('\n');
     const signStr = this.accessId + accessToken + timestamp + stringToSign;
 
-    return crypto
+    console.log('[Tuya] ---- SIGNATURE DEBUG ----');
+    console.log(`[Tuya] Method: ${method}`);
+    console.log(`[Tuya] Path: ${path}`);
+    console.log(`[Tuya] Content Hash: ${contentHash}`);
+    console.log(`[Tuya] Has Access Token: ${!!accessToken}`);
+    console.log(`[Tuya] Sign String (escaped): ${JSON.stringify(signStr)}`);
+
+    const signature = crypto
       .createHmac('sha256', this.accessSecret)
       .update(signStr)
       .digest('hex')
       .toUpperCase();
+
+    console.log(`[Tuya] Final Signature: ${signature}`);
+    return signature;
   }
 
   /**
