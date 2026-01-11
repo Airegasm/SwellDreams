@@ -75,10 +75,14 @@ const llmLimiter = rateLimit({
   message: { success: false, error: 'Too many LLM requests, please slow down' },
 });
 
-// Apply general rate limiting (but not to emergency stop)
+// Apply general rate limiting (skip device endpoints and emergency stop)
 app.use('/api', (req, res, next) => {
   // Skip rate limiting for emergency stop - safety critical
   if (req.path === '/emergency-stop') {
+    return next();
+  }
+  // Skip rate limiting for device state polling and control - high frequency
+  if (req.path.startsWith('/devices/')) {
     return next();
   }
   generalLimiter(req, res, next);
@@ -1034,8 +1038,13 @@ async function handleWsMessage(ws, type, data) {
       break;
 
     case 'end_infinite_cycle':
-      console.log(`[WS] Ending infinite cycle for device: ${data.deviceIp}`);
-      deviceService.stopCycle(data.deviceIp);
+      // deviceIp can be just IP or IP:childId format
+      const cycleDeviceKey = data.deviceIp;
+      const [cycleIp, cycleChildId] = cycleDeviceKey.includes(':') ? cycleDeviceKey.split(':') : [cycleDeviceKey, null];
+      console.log(`[WS] Ending infinite cycle for device: ${cycleIp}${cycleChildId ? ` (child: ${cycleChildId})` : ''}`);
+      // Get device object if childId is present
+      const cycleDevice = cycleChildId ? { ip: cycleIp, childId: cycleChildId, brand: 'tplink' } : null;
+      deviceService.stopCycle(cycleIp, cycleDevice);
       break;
 
     case 'update_message_history':

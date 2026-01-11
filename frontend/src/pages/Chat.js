@@ -36,7 +36,15 @@ function Chat() {
   const quickMenuRef = useRef(null);
 
   // Control panel state
-  const [polledDeviceStates, setPolledDeviceStates] = useState({}); // { ip: { state, relayState, lastUpdate } }
+  const [polledDeviceStates, setPolledDeviceStates] = useState({}); // { deviceKey: { state, relayState, lastUpdate } }
+
+  // Helper to get unique device key (ip for singles, ip:childId for power strip outlets)
+  const getDeviceKey = (device) => {
+    if (device.childId) {
+      return `${device.ip}:${device.childId}`;
+    }
+    return device.ip;
+  };
 
   // Auto reply state - when false, AI only responds via Guided Response/Events/Flows
   const [autoReply, setAutoReply] = useState(false);
@@ -151,18 +159,25 @@ function Chat() {
     const pollDeviceStates = async () => {
       const statePromises = devices.map(async (device) => {
         try {
-          const response = await fetch(`${API_BASE}/api/devices/${device.ip}/state`);
+          // Build URL with optional childId for power strip outlets
+          let url = `${API_BASE}/api/devices/${encodeURIComponent(device.ip)}/state`;
+          if (device.childId) {
+            url += `?childId=${encodeURIComponent(device.childId)}`;
+          }
+          const response = await fetch(url);
           const result = await response.json();
+          const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
           return {
-            ip: device.ip,
+            key: deviceKey,
             state: result.error ? 'unknown' : result.state,
             relayState: result.relay_state,
             lastUpdate: Date.now()
           };
         } catch (error) {
           console.error(`[Polling] Failed to get state for ${device.ip}:`, error);
+          const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
           return {
-            ip: device.ip,
+            key: deviceKey,
             state: 'unknown',
             lastUpdate: Date.now()
           };
@@ -172,7 +187,7 @@ function Chat() {
       const states = await Promise.all(statePromises);
       const statesMap = {};
       states.forEach(s => {
-        statesMap[s.ip] = s;
+        statesMap[s.key] = s;
       });
       setPolledDeviceStates(statesMap);
     };
@@ -569,10 +584,11 @@ function Chat() {
   };
 
   const handleManualDeviceOn = async (device) => {
+    const deviceKey = getDeviceKey(device);
     // Optimistic UI update
     setPolledDeviceStates(prev => ({
       ...prev,
-      [device.ip]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
+      [deviceKey]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
     }));
 
     if (controlMode === 'simulated') {
@@ -581,24 +597,25 @@ function Chat() {
     }
 
     try {
-      await api.deviceOn(device.ip);
+      await api.deviceOn(device.ip, device.childId);
       console.log('[ControlPanel] Turned ON:', device.name);
     } catch (error) {
       console.error('[ControlPanel] Failed to turn on device:', error);
       // Revert on error
       setPolledDeviceStates(prev => ({
         ...prev,
-        [device.ip]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
+        [deviceKey]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
       }));
       alert(`Failed to turn on ${device.name}`);
     }
   };
 
   const handleManualDeviceOff = async (device) => {
+    const deviceKey = getDeviceKey(device);
     // Optimistic UI update
     setPolledDeviceStates(prev => ({
       ...prev,
-      [device.ip]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
+      [deviceKey]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
     }));
 
     if (controlMode === 'simulated') {
@@ -607,14 +624,14 @@ function Chat() {
     }
 
     try {
-      await api.deviceOff(device.ip);
+      await api.deviceOff(device.ip, device.childId);
       console.log('[ControlPanel] Turned OFF:', device.name);
     } catch (error) {
       console.error('[ControlPanel] Failed to turn off device:', error);
       // Revert on error
       setPolledDeviceStates(prev => ({
         ...prev,
-        [device.ip]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
+        [deviceKey]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
       }));
       alert(`Failed to turn off ${device.name}`);
     }
@@ -1121,10 +1138,11 @@ function Chat() {
             ) : (
               <div className="device-states-list">
                 {devices.map(device => {
-                  const deviceState = polledDeviceStates[device.ip];
+                  const deviceKey = device.childId ? `${device.ip}:${device.childId}` : device.ip;
+                  const deviceState = polledDeviceStates[deviceKey];
                   const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
                   const isUnknown = deviceState?.state === 'unknown';
-                  const isInfiniteCycle = infiniteCycles && infiniteCycles[device.ip];
+                  const isInfiniteCycle = infiniteCycles && infiniteCycles[deviceKey];
 
                   return (
                     <div key={device.id} className={`device-state-item ${isInfiniteCycle ? 'expanded' : ''}`}>
@@ -1157,7 +1175,7 @@ function Chat() {
                           <span className="infinite-cycle-label">Infinite Cycle</span>
                           <button
                             className="device-control-btn end-btn"
-                            onClick={() => sendWsMessage('end_infinite_cycle', { deviceIp: device.ip })}
+                            onClick={() => sendWsMessage('end_infinite_cycle', { deviceIp: deviceKey })}
                             title="End Cycle"
                           >
                             END

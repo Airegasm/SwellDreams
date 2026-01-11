@@ -375,33 +375,34 @@ class DeviceService {
    * @param {number} options.interval - Seconds between cycles
    * @param {number} options.cycles - Number of cycles (0 = infinite)
    * @param {boolean} options.repeat - Whether to repeat
+   * @param {Object} device - Optional device object with brand info (may include childId for power strips)
    */
-  async startCycle(ip, options = {}) {
+  async startCycle(ip, options = {}, device = null) {
     const { duration = 5, interval = 10, cycles = 0, repeat = false } = options;
 
     // Stop existing cycle if any
-    this.stopCycle(ip);
+    this.stopCycle(ip, device);
 
     let currentCycle = 0;
     const maxCycles = cycles > 0 ? cycles : Infinity;
 
     const runCycle = async () => {
       if (currentCycle >= maxCycles) {
-        this.stopCycle(ip);
-        this.emitEvent('cycle_complete', { ip, cycles: currentCycle });
+        this.stopCycle(ip, device);
+        this.emitEvent('cycle_complete', { ip, cycles: currentCycle, device });
         return;
       }
 
       currentCycle++;
 
-      // Turn on
-      await this.turnOn(ip);
-      this.emitEvent('cycle_on', { ip, cycle: currentCycle, duration });
+      // Turn on (pass device object for proper brand/childId support)
+      await this.turnOn(ip, device);
+      this.emitEvent('cycle_on', { ip, cycle: currentCycle, duration, device });
 
       // Schedule turn off
       const offTimer = setTimeout(async () => {
-        await this.turnOff(ip);
-        this.emitEvent('cycle_off', { ip, cycle: currentCycle });
+        await this.turnOff(ip, device);
+        this.emitEvent('cycle_off', { ip, cycle: currentCycle, device });
 
         // Schedule next cycle if not done
         if (currentCycle < maxCycles || repeat) {
@@ -411,8 +412,8 @@ class DeviceService {
             cycleInfo.intervalTimer = nextTimer;
           }
         } else {
-          this.stopCycle(ip);
-          this.emitEvent('cycle_complete', { ip, cycles: currentCycle });
+          this.stopCycle(ip, device);
+          this.emitEvent('cycle_complete', { ip, cycles: currentCycle, device });
         }
       }, duration * 1000);
 
@@ -420,6 +421,7 @@ class DeviceService {
         timer: offTimer,
         intervalTimer: null,
         settings: options,
+        device, // Store device object for stopCycle
         currentCycle,
         startTime: Date.now()
       });
@@ -433,20 +435,24 @@ class DeviceService {
 
   /**
    * Stop device cycling
+   * @param {string} ip - Device IP or ID
+   * @param {Object} device - Optional device object with brand info (may include childId for power strips)
    */
-  async stopCycle(ip) {
+  async stopCycle(ip, device = null) {
     const cycleInfo = this.activeCycles.get(ip);
     if (cycleInfo) {
       if (cycleInfo.timer) clearTimeout(cycleInfo.timer);
       if (cycleInfo.intervalTimer) clearTimeout(cycleInfo.intervalTimer);
       const cycleCount = cycleInfo.currentCycle || 0;
+      // Use stored device object if not provided
+      const deviceObj = device || cycleInfo.device;
       this.activeCycles.delete(ip);
 
-      // Turn off the device first
-      await this.turnOff(ip);
+      // Turn off the device first (pass device object for proper brand/childId support)
+      await this.turnOff(ip, deviceObj);
 
       // Emit cycle_complete when manually stopped
-      this.emitEvent('cycle_complete', { ip, cycles: cycleCount, manual: true });
+      this.emitEvent('cycle_complete', { ip, cycles: cycleCount, manual: true, device: deviceObj });
 
       return { success: true, message: 'Cycle stopped' };
     }

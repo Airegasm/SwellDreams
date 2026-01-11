@@ -43,29 +43,45 @@ function saveData(file, data) {
  * @returns {string|null} - Resolved device IP or null if not found
  */
 function resolveDeviceAlias(deviceRef) {
-  if (!deviceRef) return null;
+  const device = resolveDeviceObject(deviceRef);
+  if (!device) return null;
+  // Return IP for TPLink, deviceId for Govee/Tuya
+  return device.brand === 'govee' || device.brand === 'tuya' ? device.deviceId : device.ip;
+}
 
-  // If it's already an IP address, return as-is
-  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(deviceRef)) {
-    return deviceRef;
-  }
+/**
+ * Resolve device aliases to full device objects (includes childId, brand, sku, etc.)
+ * This is needed for proper device control including power strip outlets and Govee devices
+ * @param {string} deviceRef - Device reference (IP, alias, or name)
+ * @returns {Object|null} - Full device object or null if not found
+ */
+function resolveDeviceObject(deviceRef) {
+  if (!deviceRef) return null;
 
   // Load devices to resolve alias
   const devices = loadData(DATA_FILES.devices) || [];
+
+  // If it's already an IP address, find the matching device
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(deviceRef)) {
+    const device = devices.find(d => d.ip === deviceRef);
+    if (device) return device;
+    // If no device found but it's a valid IP, return a minimal object
+    return { ip: deviceRef, brand: 'tplink' };
+  }
 
   // Handle primary_pump alias
   if (deviceRef === 'primary_pump') {
     // First priority: device explicitly marked as isPrimaryPump
     const explicitPrimary = devices.find(d => d.isPrimaryPump === true && d.deviceType === 'PUMP');
     if (explicitPrimary) {
-      console.log(`[DeviceAlias] Resolved primary_pump to ${explicitPrimary.ip} (explicit isPrimaryPump)`);
-      return explicitPrimary.ip;
+      console.log(`[DeviceAlias] Resolved primary_pump to ${explicitPrimary.ip || explicitPrimary.deviceId} (explicit isPrimaryPump)`);
+      return explicitPrimary;
     }
     // Second priority: first device with deviceType === 'PUMP'
     const pump = devices.find(d => d.deviceType === 'PUMP');
     if (pump) {
-      console.log(`[DeviceAlias] Resolved primary_pump to ${pump.ip} (first PUMP device)`);
-      return pump.ip;
+      console.log(`[DeviceAlias] Resolved primary_pump to ${pump.ip || pump.deviceId} (first PUMP device)`);
+      return pump;
     }
     console.log('[DeviceAlias] No PUMP device found for primary_pump alias');
     return null;
@@ -76,14 +92,14 @@ function resolveDeviceAlias(deviceRef) {
     // First priority: device explicitly marked as isPrimaryVibe
     const explicitPrimary = devices.find(d => d.isPrimaryVibe === true && d.deviceType === 'VIBE');
     if (explicitPrimary) {
-      console.log(`[DeviceAlias] Resolved primary_vibe to ${explicitPrimary.ip} (explicit isPrimaryVibe)`);
-      return explicitPrimary.ip;
+      console.log(`[DeviceAlias] Resolved primary_vibe to ${explicitPrimary.ip || explicitPrimary.deviceId} (explicit isPrimaryVibe)`);
+      return explicitPrimary;
     }
     // Second priority: first device with deviceType === 'VIBE'
     const vibe = devices.find(d => d.deviceType === 'VIBE');
     if (vibe) {
-      console.log(`[DeviceAlias] Resolved primary_vibe to ${vibe.ip} (first VIBE device)`);
-      return vibe.ip;
+      console.log(`[DeviceAlias] Resolved primary_vibe to ${vibe.ip || vibe.deviceId} (first VIBE device)`);
+      return vibe;
     }
     console.log('[DeviceAlias] No VIBE device found for primary_vibe alias');
     return null;
@@ -95,8 +111,8 @@ function resolveDeviceAlias(deviceRef) {
     d.label?.toLowerCase() === deviceRef.toLowerCase()
   );
   if (byName) {
-    console.log(`[DeviceAlias] Resolved "${deviceRef}" to ${byName.ip} by name/label`);
-    return byName.ip;
+    console.log(`[DeviceAlias] Resolved "${deviceRef}" to ${byName.ip || byName.deviceId} by name/label`);
+    return byName;
   }
 
   console.log(`[DeviceAlias] Could not resolve device reference: ${deviceRef}`);
@@ -695,8 +711,11 @@ class EventEngine {
       case 'device_on': {
         if (!data.device) return false;
 
-        // Resolve device alias to actual IP
-        const resolvedDevice = resolveDeviceAlias(data.device);
+        // Resolve device alias to full device object (includes childId, brand, sku)
+        const deviceObj = resolveDeviceObject(data.device);
+        const resolvedDevice = deviceObj
+          ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+          : null;
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
@@ -712,7 +731,7 @@ class EventEngine {
           return 'device_on'; // Continue flow execution
         }
 
-        if (!resolvedDevice) {
+        if (!deviceObj || !resolvedDevice) {
           console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
           return false;
         }
@@ -727,7 +746,7 @@ class EventEngine {
           }
         }
 
-        await this.deviceService.turnOn(resolvedDevice);
+        await this.deviceService.turnOn(resolvedDevice, deviceObj);
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -745,7 +764,8 @@ class EventEngine {
         this.pendingDeviceOnCompletions.set(resolvedDevice, {
           flowId: flow.id,
           nodeId: nodeId,
-          isInfinite
+          isInfinite,
+          deviceObj // Store for debugging/future use
         });
         console.log(`[EventEngine] Tracking device_on completion for device ${resolvedDevice}, infinite: ${isInfinite}`);
 
@@ -755,7 +775,7 @@ class EventEngine {
             type: data.untilType,
             operator: data.untilOperator || '>',
             value: data.untilValue,
-            device: resolvedDevice,
+            deviceObj: deviceObj, // Store full device object for turnOff
             flowId: flow.id,
             monitorType: 'device_on'
           });
@@ -768,8 +788,11 @@ class EventEngine {
       case 'device_off': {
         if (!data.device) return false;
 
-        // Resolve device alias to actual IP
-        const resolvedDevice = resolveDeviceAlias(data.device);
+        // Resolve device alias to full device object (includes childId, brand, sku)
+        const deviceObj = resolveDeviceObject(data.device);
+        const resolvedDevice = deviceObj
+          ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+          : null;
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
@@ -784,7 +807,7 @@ class EventEngine {
           return true; // Continue flow execution
         }
 
-        if (!resolvedDevice) {
+        if (!deviceObj || !resolvedDevice) {
           console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
           return false;
         }
@@ -799,7 +822,7 @@ class EventEngine {
           }
         }
 
-        await this.deviceService.turnOff(resolvedDevice);
+        await this.deviceService.turnOff(resolvedDevice, deviceObj);
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -819,8 +842,11 @@ class EventEngine {
           return false;
         }
 
-        // Resolve device alias to actual IP
-        const resolvedDevice = resolveDeviceAlias(data.device);
+        // Resolve device alias to full device object (includes childId, brand, sku)
+        const deviceObj = resolveDeviceObject(data.device);
+        const resolvedDevice = deviceObj
+          ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+          : null;
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
@@ -836,7 +862,7 @@ class EventEngine {
           return 'start_cycle'; // Continue flow execution
         }
 
-        if (!resolvedDevice) {
+        if (!deviceObj || !resolvedDevice) {
           console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
           return false;
         }
@@ -856,7 +882,7 @@ class EventEngine {
           duration: data.duration || 5,
           interval: data.interval || 10,
           cycles: data.cycles || 0
-        });
+        }, deviceObj);
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -875,14 +901,17 @@ class EventEngine {
         this.pendingCycleCompletions.set(resolvedDevice, {
           flowId: flow.id,
           nodeId: nodeId,
-          isInfinite
+          isInfinite,
+          deviceObj // Store for debugging/future use
         });
         console.log(`[EventEngine] Tracking cycle completion for device ${resolvedDevice}, infinite: ${isInfinite}`);
 
         // Broadcast infinite cycle state to frontend
         if (isInfinite) {
+          // Use deviceKey format (ip:childId for power strip outlets)
+          const deviceKey = deviceObj.childId ? `${deviceObj.ip}:${deviceObj.childId}` : resolvedDevice;
           await this.broadcast('infinite_cycle_start', {
-            device: resolvedDevice,
+            device: deviceKey,
             flowId: flow.id,
             nodeId: nodeId
           });
@@ -893,7 +922,8 @@ class EventEngine {
           this.deviceMonitors.set(resolvedDevice, {
             type: data.untilType,
             value: data.untilValue,
-            device: resolvedDevice
+            deviceObj: deviceObj, // Store full device object for stopCycle
+            monitorType: 'cycle'
           });
           console.log(`[EventEngine] Monitoring device ${resolvedDevice} until ${data.untilType} ${data.untilType === 'capacity' ? '>=' : '='} ${data.untilValue}`);
         }
@@ -904,8 +934,11 @@ class EventEngine {
       case 'stop_cycle': {
         if (!data.device) return false;
 
-        // Resolve device alias to actual IP
-        const resolvedDevice = resolveDeviceAlias(data.device);
+        // Resolve device alias to full device object (includes childId, brand, sku)
+        const deviceObj = resolveDeviceObject(data.device);
+        const resolvedDevice = deviceObj
+          ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+          : null;
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
@@ -919,7 +952,7 @@ class EventEngine {
           return true; // Continue flow execution
         }
 
-        if (!resolvedDevice) {
+        if (!deviceObj || !resolvedDevice) {
           console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
           return false;
         }
@@ -934,7 +967,7 @@ class EventEngine {
           }
         }
 
-        this.deviceService.stopCycle(resolvedDevice);
+        this.deviceService.stopCycle(resolvedDevice, deviceObj);
 
         // Clear monitor for this device
         this.deviceMonitors.delete(resolvedDevice);
@@ -1677,9 +1710,12 @@ class EventEngine {
       }
 
       if (conditionMet) {
+        // Get the full device object from the monitor
+        const deviceObj = monitor.deviceObj;
+
         // Turn off the device
         if (monitor.monitorType === 'device_on') {
-          await this.deviceService.turnOff(deviceIp);
+          await this.deviceService.turnOff(deviceIp, deviceObj);
 
           // Update device state tracking
           if (this.sessionState.executionHistory && this.sessionState.executionHistory.deviceActions[deviceIp]) {
@@ -1701,8 +1737,8 @@ class EventEngine {
             this.pendingDeviceOnCompletions.delete(deviceIp);
           }
         } else {
-          // Stop cycle (legacy behavior)
-          this.deviceService.stopCycle(deviceIp);
+          // Stop cycle (pass device object for proper brand/childId support)
+          this.deviceService.stopCycle(deviceIp, deviceObj);
 
           // Update device state tracking
           if (this.sessionState.executionHistory && this.sessionState.executionHistory.deviceActions[deviceIp]) {
@@ -1731,7 +1767,11 @@ class EventEngine {
 
     // Broadcast to frontend that infinite cycle ended
     if (pending.isInfinite) {
-      await this.broadcast('infinite_cycle_end', { device: deviceIp });
+      // Use deviceKey format (ip:childId for power strip outlets)
+      const deviceKey = pending.deviceObj?.childId
+        ? `${pending.deviceObj.ip}:${pending.deviceObj.childId}`
+        : deviceIp;
+      await this.broadcast('infinite_cycle_end', { device: deviceKey });
     }
 
     // Update device state tracking
