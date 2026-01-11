@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useError } from '../../context/ErrorContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import './SettingsTabs.css';
 
 function GlobalTab() {
   const { flows, sessionState, sendWsMessage, settings, api } = useApp();
+  const { showError } = useError();
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [globalPrompt, setGlobalPrompt] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -16,6 +18,11 @@ function GlobalTab() {
   const [reminderForm, setReminderForm] = useState({ name: '', text: '' });
   const [editingReminder, setEditingReminder] = useState(null);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
+
+  // Remote Settings state
+  const [remoteSettings, setRemoteSettings] = useState({ allowRemote: false, whitelistedIps: [], isLocalRequest: false });
+  const [newIp, setNewIp] = useState('');
+  const [isLoadingRemote, setIsLoadingRemote] = useState(true);
 
   // Load global prompt from settings or restore draft
   useEffect(() => {
@@ -45,6 +52,59 @@ function GlobalTab() {
       setGlobalReminders(settings.globalReminders);
     }
   }, [settings?.globalReminders]);
+
+  // Load remote settings
+  useEffect(() => {
+    const loadRemoteSettings = async () => {
+      try {
+        const data = await api.getRemoteSettings();
+        setRemoteSettings(data);
+      } catch (error) {
+        console.error('Failed to load remote settings:', error);
+      }
+      setIsLoadingRemote(false);
+    };
+    loadRemoteSettings();
+  }, [api]);
+
+  // Remote settings handlers
+  const handleToggleAllowRemote = async (enabled) => {
+    try {
+      const data = await api.updateRemoteSettings({ allowRemote: enabled });
+      setRemoteSettings(data);
+    } catch (error) {
+      showError(error.message || 'Failed to update remote settings');
+    }
+  };
+
+  const handleAddIp = async () => {
+    const ip = newIp.trim();
+    if (!ip) return;
+
+    // Basic IPv4 validation
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipv4Regex.test(ip)) {
+      showError('Invalid IPv4 address format');
+      return;
+    }
+
+    try {
+      const data = await api.addWhitelistedIp(ip);
+      setRemoteSettings(data);
+      setNewIp('');
+    } catch (error) {
+      showError(error.message || 'Failed to add IP');
+    }
+  };
+
+  const handleRemoveIp = async (ip) => {
+    try {
+      const data = await api.removeWhitelistedIp(ip);
+      setRemoteSettings(data);
+    } catch (error) {
+      showError(error.message || 'Failed to remove IP');
+    }
+  };
 
   const handleSaveGlobalPrompt = async () => {
     setIsSaving(true);
@@ -274,6 +334,81 @@ function GlobalTab() {
               {getGlobalFlows().length} global flow{getGlobalFlows().length !== 1 ? 's' : ''} assigned
             </p>
           </div>
+        )}
+      </div>
+
+      {/* Remote Connections Section */}
+      <div className="remote-connections-section">
+        <h3>Remote Connections</h3>
+        <p className="text-muted">
+          Control access to this SwellDreams instance from other devices on your network or via Tailscale.
+          {!remoteSettings.isLocalRequest && (
+            <strong className="remote-warning"> You are viewing from a remote device - settings cannot be modified.</strong>
+          )}
+        </p>
+
+        {isLoadingRemote ? (
+          <p className="text-muted">Loading remote settings...</p>
+        ) : (
+          <>
+            <div className="remote-toggle-row">
+              <label className={`toggle-switch ${!remoteSettings.isLocalRequest ? 'disabled' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={remoteSettings.allowRemote}
+                  onChange={(e) => handleToggleAllowRemote(e.target.checked)}
+                  disabled={!remoteSettings.isLocalRequest}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+              <span className="toggle-label">Allow Remote Connections</span>
+            </div>
+
+            {remoteSettings.allowRemote && (
+              <div className="ip-whitelist-section">
+                <h4>IP Whitelist</h4>
+                <p className="text-muted text-sm">
+                  Only whitelisted IPs can access this instance remotely. Add your Tailscale or local network IPs.
+                </p>
+
+                {remoteSettings.isLocalRequest && (
+                  <div className="add-ip-form">
+                    <input
+                      type="text"
+                      value={newIp}
+                      onChange={(e) => setNewIp(e.target.value)}
+                      placeholder="e.g., 100.64.0.1"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddIp()}
+                    />
+                    <button className="btn btn-primary" onClick={handleAddIp}>
+                      Add IP
+                    </button>
+                  </div>
+                )}
+
+                <div className="ip-whitelist">
+                  {remoteSettings.whitelistedIps.length === 0 ? (
+                    <p className="text-muted empty-message">No IPs whitelisted. Remote access is effectively disabled.</p>
+                  ) : (
+                    remoteSettings.whitelistedIps.map((ip) => (
+                      <div key={ip} className="ip-item">
+                        <span className="ip-address">{ip}</span>
+                        {remoteSettings.isLocalRequest && (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => handleRemoveIp(ip)}
+                            title="Remove IP"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -382,6 +382,45 @@
     align-items: stretch;
   }
 
+  /* Card-style list items (personas, characters) */
+  .list-item.card-style {
+    display: block !important;
+  }
+
+  .list-item.card-style .card-header {
+    display: block !important;
+  }
+
+  .list-item.card-style .card-info {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .list-item.card-style .list-item-name {
+    display: block !important;
+    white-space: normal !important;
+    word-break: break-word;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .list-item.card-style .list-item-meta {
+    display: block !important;
+    white-space: normal !important;
+  }
+
+  .list-item.card-style .list-item-actions {
+    display: flex !important;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .list-item.card-style .card-footer {
+    display: block !important;
+  }
+
   .list-item-actions {
     flex-direction: row;
     margin-left: 0;

@@ -31,9 +31,10 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// CORS Configuration - restrict to known origins
+// CORS Configuration - dynamically uses remote settings whitelist
 const CORS_OPTIONS = {
   origin: function(origin, callback) {
+    // Always allow localhost
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
@@ -41,10 +42,36 @@ const CORS_OPTIONS = {
       'http://127.0.0.1:3001',
       undefined, // Allow requests with no origin (same-origin, curl, etc.)
     ];
+
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
+      return;
+    }
+
+    // Check remote settings for whitelist
+    let remoteSettings = { allowRemote: false, whitelistedIps: [] };
+    try {
+      const remoteSettingsPath = path.join(__dirname, 'data', 'remote-settings.json');
+      if (fs.existsSync(remoteSettingsPath)) {
+        remoteSettings = JSON.parse(fs.readFileSync(remoteSettingsPath, 'utf8'));
+      }
+    } catch (e) {
+      console.error('Error reading remote settings:', e);
+    }
+
+    if (!remoteSettings.allowRemote) {
+      callback(new Error('Remote access disabled'));
+      return;
+    }
+
+    // Extract IP from origin (e.g., "http://100.64.0.1:3000" -> "100.64.0.1")
+    const originMatch = origin.match(/^https?:\/\/([^:\/]+)/);
+    const originIp = originMatch ? originMatch[1] : null;
+
+    if (originIp && remoteSettings.whitelistedIps.includes(originIp)) {
+      callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('IP not in whitelist'));
     }
   },
   credentials: true
@@ -172,7 +199,8 @@ const DATA_FILES = {
   flows: path.join(DATA_DIR, 'flows.json'),
   sessions: path.join(DATA_DIR, 'sessions.json'),
   autosave: path.join(DATA_DIR, 'autosave.json'),
-  connectionProfiles: path.join(DATA_DIR, 'connection-profiles.json')
+  connectionProfiles: path.join(DATA_DIR, 'connection-profiles.json'),
+  remoteSettings: path.join(DATA_DIR, 'remote-settings.json')
 };
 
 // Initialize device service
@@ -220,6 +248,10 @@ const DEFAULT_PERSONAS = [];
 const DEFAULT_CHARACTERS = [];
 const DEFAULT_DEVICES = [];
 const DEFAULT_FLOWS = [];
+const DEFAULT_REMOTE_SETTINGS = {
+  allowRemote: false,
+  whitelistedIps: []
+};
 
 // Initialize data files if they don't exist
 function initializeDataFiles() {
@@ -238,6 +270,20 @@ function initializeDataFiles() {
   if (!loadData(DATA_FILES.flows)) {
     saveData(DATA_FILES.flows, DEFAULT_FLOWS);
   }
+  if (!loadData(DATA_FILES.remoteSettings)) {
+    saveData(DATA_FILES.remoteSettings, DEFAULT_REMOTE_SETTINGS);
+  }
+}
+
+// Helper to get remote settings
+function getRemoteSettings() {
+  return loadData(DATA_FILES.remoteSettings) || DEFAULT_REMOTE_SETTINGS;
+}
+
+// Helper to check if request is from localhost
+function isLocalRequest(req) {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
 }
 
 initializeDataFiles();
@@ -2471,6 +2517,84 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
   saveData(DATA_FILES.settings, settings);
   broadcast('settings_update', settings);
   res.json({ success: true, settings });
+});
+
+// --- Remote Settings ---
+
+app.get('/api/remote-settings', (req, res) => {
+  const settings = getRemoteSettings();
+  // Include whether this is a local request so the UI knows if editing is allowed
+  res.json({
+    ...settings,
+    isLocalRequest: isLocalRequest(req)
+  });
+});
+
+app.post('/api/remote-settings', (req, res) => {
+  // Only allow modifications from localhost
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: 'Remote settings can only be modified from the host machine' });
+  }
+
+  const currentSettings = getRemoteSettings();
+  const { allowRemote, whitelistedIps } = req.body;
+
+  const newSettings = {
+    allowRemote: allowRemote !== undefined ? allowRemote : currentSettings.allowRemote,
+    whitelistedIps: whitelistedIps !== undefined ? whitelistedIps : currentSettings.whitelistedIps
+  };
+
+  saveData(DATA_FILES.remoteSettings, newSettings);
+  log.info('Remote settings updated:', newSettings);
+  res.json({ ...newSettings, isLocalRequest: true });
+});
+
+app.post('/api/remote-settings/whitelist', (req, res) => {
+  // Only allow modifications from localhost
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: 'Remote settings can only be modified from the host machine' });
+  }
+
+  const { ip } = req.body;
+  if (!ip || typeof ip !== 'string') {
+    return res.status(400).json({ error: 'IP address is required' });
+  }
+
+  // Basic IP validation (IPv4)
+  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (!ipv4Regex.test(ip)) {
+    return res.status(400).json({ error: 'Invalid IPv4 address format' });
+  }
+
+  const settings = getRemoteSettings();
+  if (settings.whitelistedIps.includes(ip)) {
+    return res.status(400).json({ error: 'IP already whitelisted' });
+  }
+
+  settings.whitelistedIps.push(ip);
+  saveData(DATA_FILES.remoteSettings, settings);
+  log.info('Added IP to whitelist:', ip);
+  res.json({ ...settings, isLocalRequest: true });
+});
+
+app.delete('/api/remote-settings/whitelist/:ip', (req, res) => {
+  // Only allow modifications from localhost
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: 'Remote settings can only be modified from the host machine' });
+  }
+
+  const ipToRemove = decodeURIComponent(req.params.ip);
+  const settings = getRemoteSettings();
+
+  const index = settings.whitelistedIps.indexOf(ipToRemove);
+  if (index === -1) {
+    return res.status(404).json({ error: 'IP not found in whitelist' });
+  }
+
+  settings.whitelistedIps.splice(index, 1);
+  saveData(DATA_FILES.remoteSettings, settings);
+  log.info('Removed IP from whitelist:', ipToRemove);
+  res.json({ ...settings, isLocalRequest: true });
 });
 
 // --- Characters ---

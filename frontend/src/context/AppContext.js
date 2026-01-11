@@ -565,6 +565,23 @@ export function AppProvider({ children }) {
 
     deleteSession: (id) => apiFetch(`${API_BASE}/api/sessions/${id}`, {
       method: 'DELETE'
+    }),
+
+    // Remote Settings
+    getRemoteSettings: () => apiFetch(`${API_BASE}/api/remote-settings`),
+
+    updateRemoteSettings: (data) => apiFetch(`${API_BASE}/api/remote-settings`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    addWhitelistedIp: (ip) => apiFetch(`${API_BASE}/api/remote-settings/whitelist`, {
+      method: 'POST',
+      body: JSON.stringify({ ip })
+    }),
+
+    removeWhitelistedIp: (ip) => apiFetch(`${API_BASE}/api/remote-settings/whitelist/${encodeURIComponent(ip)}`, {
+      method: 'DELETE'
     })
   };
 
