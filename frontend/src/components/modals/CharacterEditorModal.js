@@ -785,12 +785,12 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                         type="button"
                         className="btn btn-primary btn-sm"
                         onClick={handleAddButton}
-                        disabled={formData.buttons.length >= 20}
+                        disabled={formData.buttons.length >= 12}
                       >
                         + Add Button
                       </button>
-                      {formData.buttons.length >= 20 && (
-                        <span className="limit-warning">Maximum 20 buttons</span>
+                      {formData.buttons.length >= 12 && (
+                        <span className="limit-warning">Maximum 12 buttons</span>
                       )}
                     </div>
                   </div>

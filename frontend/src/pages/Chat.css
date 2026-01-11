@@ -224,10 +224,11 @@
   }
 }
 
-/* Make Actions card same height as Devices card */
+/* Make Actions card same height as status badges (~69px) */
 .actions-section .collapsible-header {
-  padding-top: 11px;
-  padding-bottom: 11px;
+  min-height: 69px;
+  font-size: 1.1rem;
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
 }
 
 .devices-section {
@@ -238,7 +239,7 @@
 /* Devices section slides up to cover portrait when expanded */
 .devices-section.expanded {
   position: relative;
-  margin-top: -151px;
+  margin-top: -200px;
   z-index: 101;
 }
 
@@ -417,13 +418,13 @@
 }
 
 .e-stop-btn.mini {
-  padding: 6px 4px;
+  padding: 10px 4px;
   font-size: 1.05rem;
   border-width: 1px;
   margin-left: auto;
   margin-right: -4px;
-  margin-top: -6px;
-  margin-bottom: -6px;
+  margin-top: -4px;
+  margin-bottom: -4px;
   line-height: 1;
 }
 
@@ -436,6 +437,11 @@
   cursor: default;
   position: relative;
   z-index: 2;
+  min-height: 52px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 1.1rem;
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
 }
 
 .e-stop-btn:hover {
@@ -1309,7 +1315,7 @@
   color: white;
   border: none;
   border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
