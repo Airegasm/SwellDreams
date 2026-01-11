@@ -4,7 +4,7 @@ import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import './CharacterEditorModal.css';
 
 function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
-  const { flows } = useApp();
+  const { flows, devices } = useApp();
 
   // Calculate initial data from character prop
   const initialData = useMemo(() => {
@@ -890,12 +890,33 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                               )}
 
                               {(action.type === 'turn_on' || action.type === 'cycle') && (
-                                <input
-                                  type="text"
+                                <select
                                   value={action.config.device || ''}
                                   onChange={(e) => handleUpdateAction(index, 'device', e.target.value)}
-                                  placeholder="Device IP address"
-                                />
+                                >
+                                  <option value="">Select Device...</option>
+                                  <option value="primary_pump">Primary Pump</option>
+                                  {devices && devices.length > 0 && (
+                                    <>
+                                      <option disabled>──────────</option>
+                                      {devices.map((device) => {
+                                        const deviceKey = device.brand === 'govee'
+                                          ? `govee:${device.deviceId}`
+                                          : device.brand === 'tuya'
+                                            ? `tuya:${device.deviceId}`
+                                            : device.childId
+                                              ? `${device.ip}:${device.childId}`
+                                              : device.ip;
+                                        const deviceLabel = device.name || device.alias || device.ip || device.deviceId;
+                                        return (
+                                          <option key={deviceKey} value={deviceKey}>
+                                            {deviceLabel}
+                                          </option>
+                                        );
+                                      })}
+                                    </>
+                                  )}
+                                </select>
                               )}
 
                               {action.type === 'cycle' && (

@@ -1275,6 +1275,55 @@ function handleDeleteMessage(data) {
   }
 }
 
+/**
+ * Resolve a device key to deviceId and device object
+ * Supports: primary_pump, govee:deviceId, tuya:deviceId, ip:childId, ip
+ */
+function resolveDeviceKey(deviceKey) {
+  if (!deviceKey) {
+    return { deviceId: null, deviceObj: null };
+  }
+
+  const devices = loadData(DATA_FILES.devices) || [];
+  const settings = loadData(DATA_FILES.settings);
+
+  // Handle primary_pump - look up from settings
+  if (deviceKey === 'primary_pump') {
+    const primaryPumpId = settings?.primaryPump;
+    if (!primaryPumpId) {
+      console.log('[Device] Primary pump not configured in settings');
+      return { deviceId: null, deviceObj: null };
+    }
+    // Recursively resolve the primary pump device
+    return resolveDeviceKey(primaryPumpId);
+  }
+
+  // Handle govee:deviceId format
+  if (deviceKey.startsWith('govee:')) {
+    const deviceId = deviceKey.substring(6);
+    const device = devices.find(d => d.brand === 'govee' && d.deviceId === deviceId);
+    return { deviceId, deviceObj: device || { brand: 'govee', deviceId } };
+  }
+
+  // Handle tuya:deviceId format
+  if (deviceKey.startsWith('tuya:')) {
+    const deviceId = deviceKey.substring(5);
+    const device = devices.find(d => d.brand === 'tuya' && d.deviceId === deviceId);
+    return { deviceId, deviceObj: device || { brand: 'tuya', deviceId } };
+  }
+
+  // Handle ip:childId format (power strip outlet)
+  if (deviceKey.includes(':') && !deviceKey.startsWith('govee:') && !deviceKey.startsWith('tuya:')) {
+    const [ip, childId] = deviceKey.split(':');
+    const device = devices.find(d => d.ip === ip && d.childId === childId);
+    return { deviceId: ip, deviceObj: device || { ip, childId, brand: 'tplink' } };
+  }
+
+  // Handle plain IP (legacy or regular device)
+  const device = devices.find(d => d.ip === deviceKey);
+  return { deviceId: deviceKey, deviceObj: device || { ip: deviceKey, brand: 'tplink' } };
+}
+
 async function handleExecuteButton(data) {
   const { buttonId, eventId, characterId, actions } = data;
 
@@ -1433,22 +1482,38 @@ async function handleButtonSendMessage(action, characterId) {
 }
 
 async function handleButtonTurnOn(action) {
-  const device = action.config?.device;
+  const deviceKey = action.config?.device;
 
-  if (!device) {
+  if (!deviceKey) {
     console.log('[Button] No device specified for turn_on');
     return;
   }
 
-  console.log(`[Button] Turning on device ${device}`);
-  await deviceService.turnOn(device);
+  // Resolve device key to actual device
+  const { deviceId, deviceObj } = resolveDeviceKey(deviceKey);
+
+  if (!deviceId) {
+    console.log(`[Button] Could not resolve device key: ${deviceKey}`);
+    return;
+  }
+
+  console.log(`[Button] Turning on device ${deviceId}`);
+  await deviceService.turnOn(deviceId, deviceObj);
 }
 
 async function handleButtonCycle(action) {
-  const { device, duration, interval } = action.config || action.params || {};
+  const { device: deviceKey, duration, interval } = action.config || action.params || {};
 
-  if (!device) {
+  if (!deviceKey) {
     console.log('[Button] No device specified for cycle');
+    return;
+  }
+
+  // Resolve device key to actual device
+  const { deviceId, deviceObj } = resolveDeviceKey(deviceKey);
+
+  if (!deviceId) {
+    console.log(`[Button] Could not resolve device key: ${deviceKey}`);
     return;
   }
 
@@ -1457,8 +1522,8 @@ async function handleButtonCycle(action) {
     interval: parseInt(interval) || 2
   };
 
-  console.log(`[Button] Starting cycle on device ${device}: ${JSON.stringify(cycleData)}`);
-  await deviceService.startCycle(device, cycleData);
+  console.log(`[Button] Starting cycle on device ${deviceId}: ${JSON.stringify(cycleData)}`);
+  await deviceService.startCycle(deviceId, cycleData, deviceObj);
 }
 
 async function handleButtonLinkToFlow(action, characterId, buttonId) {
