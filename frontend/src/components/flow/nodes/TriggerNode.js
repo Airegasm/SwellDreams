@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import './Nodes.css';
 
 function TriggerNode({ data, selected }) {
@@ -128,8 +129,8 @@ function TriggerNode({ data, selected }) {
         );
 
       case 'player_state_change': {
-        const sensations = ['normal', 'slightly tight', 'comfortably full', 'stretched', 'very tight', 'painfully tight'];
-        const emotions = ['neutral', 'nervous', 'anxious', 'scared', 'curious', 'excited', 'aroused', 'embarrassed', 'humiliated', 'resigned', 'defiant', 'submissive', 'blissful', 'overwhelmed'];
+        // Helper to check if state type supports numeric comparison
+        const isNumericState = (type) => type === 'capacity' || type === 'pain' || !type;
 
         return (
           <div className="node-config">
@@ -144,20 +145,23 @@ function TriggerNode({ data, selected }) {
                   // Reset targetValue when type changes
                   if (e.target.value === 'capacity') {
                     data.onChange?.('targetValue', 50);
-                  } else if (e.target.value === 'feeling') {
-                    data.onChange?.('targetValue', 'normal');
+                    data.onChange?.('comparison', 'meet');
+                  } else if (e.target.value === 'pain') {
+                    data.onChange?.('targetValue', 5);
+                    data.onChange?.('comparison', 'meet');
                   } else {
                     data.onChange?.('targetValue', 'neutral');
+                    data.onChange?.('comparison', 'meet');
                   }
                 }}
               >
-                <option value="capacity">Capacity</option>
-                <option value="feeling">Feeling</option>
+                <option value="capacity">Capacity (0-100%)</option>
+                <option value="pain">Pain (0-10)</option>
                 <option value="emotion">Emotion</option>
               </select>
             </div>
 
-            {/* Comparison Dropdown */}
+            {/* Comparison Dropdown - different options for numeric vs emotion */}
             <div className="config-row">
               <label>When:</label>
               <select
@@ -165,10 +169,20 @@ function TriggerNode({ data, selected }) {
                 value={data.comparison || 'meet'}
                 onChange={(e) => data.onChange?.('comparison', e.target.value)}
               >
-                <option value="meet">MEET</option>
-                <option value="meet_or_exceed">MEET OR EXCEED</option>
-                {(data.stateType === 'capacity' || !data.stateType) && (
-                  <option value="range">RANGE</option>
+                {isNumericState(data.stateType) ? (
+                  <>
+                    <option value="meet">= (equals)</option>
+                    <option value="meet_or_exceed">>= (meet or exceed)</option>
+                    <option value="greater">> (greater than)</option>
+                    <option value="less">{'<'} (less than)</option>
+                    <option value="less_or_equal">{'<='} (less or equal)</option>
+                    <option value="range">range (between)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="meet">= (equals)</option>
+                    <option value="not_equal">!= (not equals)</option>
+                  </>
                 )}
               </select>
             </div>
@@ -211,21 +225,49 @@ function TriggerNode({ data, selected }) {
                     <span>%</span>
                   </>
                 )
-              ) : data.stateType === 'feeling' ? (
-                <select
-                  className="node-select"
-                  value={data.targetValue || 'normal'}
-                  onChange={(e) => data.onChange?.('targetValue', e.target.value)}
-                >
-                  {sensations.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+              ) : data.stateType === 'pain' ? (
+                data.comparison === 'range' ? (
+                  <>
+                    <select
+                      className="node-select"
+                      value={data.targetValue ?? 0}
+                      onChange={(e) => data.onChange?.('targetValue', parseInt(e.target.value))}
+                    >
+                      {PAIN_SCALE.map(p => (
+                        <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                      ))}
+                    </select>
+                    <span>to</span>
+                    <select
+                      className="node-select"
+                      value={data.targetValue2 ?? 10}
+                      onChange={(e) => data.onChange?.('targetValue2', parseInt(e.target.value))}
+                    >
+                      {PAIN_SCALE.map(p => (
+                        <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <select
+                    className="node-select"
+                    value={data.targetValue ?? 5}
+                    onChange={(e) => data.onChange?.('targetValue', parseInt(e.target.value))}
+                  >
+                    {PAIN_SCALE.map(p => (
+                      <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                    ))}
+                  </select>
+                )
               ) : (
                 <select
                   className="node-select"
                   value={data.targetValue || 'neutral'}
                   onChange={(e) => data.onChange?.('targetValue', e.target.value)}
                 >
-                  {emotions.map(em => <option key={em} value={em}>{em}</option>)}
+                  {EMOTIONS.map(em => (
+                    <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+                  ))}
                 </select>
               )}
             </div>

@@ -191,11 +191,12 @@ class EventEngine {
     this.sessionState = null;
     this.deviceMonitors = new Map(); // Track device "until" conditions
     this.pendingPlayerChoice = null; // Track pending player choice for flow continuation
+    this.pendingChallenge = null; // Track pending challenge for flow continuation
     this.pendingCycleCompletions = new Map(); // Track pending cycle completions: device -> { flowId, nodeId, isInfinite }
     this.pendingDeviceOnCompletions = new Map(); // Track pending device_on completions: device -> { flowId, nodeId, isInfinite }
     this.previousPlayerState = { // Track player state for change detection
       capacity: 0,
-      sensation: 'normal',
+      pain: 0, // 0-10 numeric pain scale
       emotion: 'neutral'
     };
     this.executedOnceConditions = new Set(); // Track conditions that have fired with onlyOnce
@@ -410,34 +411,41 @@ class EventEngine {
           // Check if this trigger's state type matches the change
           if (node.data.stateType !== eventData.stateType) return false;
 
-          const targetValue = node.data.stateType === 'capacity' ? Number(node.data.targetValue) : node.data.targetValue;
-          const targetValue2 = node.data.stateType === 'capacity' ? Number(node.data.targetValue2) : node.data.targetValue2;
-          const newValue = node.data.stateType === 'capacity' ? Number(eventData.newValue) : eventData.newValue;
+          // Both capacity and pain are numeric, emotion is string
+          const isNumeric = node.data.stateType === 'capacity' || node.data.stateType === 'pain';
+          const targetValue = isNumeric ? Number(node.data.targetValue) : node.data.targetValue;
+          const targetValue2 = isNumeric ? Number(node.data.targetValue2) : node.data.targetValue2;
+          const newValue = isNumeric ? Number(eventData.newValue) : eventData.newValue;
           const comparison = node.data.comparison || 'meet';
 
           console.log(`[EventEngine] player_state_change check: stateType=${node.data.stateType}, comparison=${comparison}, newValue=${newValue}, targetValue=${targetValue}, targetValue2=${targetValue2}`);
 
-          if (node.data.stateType === 'capacity') {
-            // Numeric comparison
-            if (comparison === 'meet') {
-              const result = newValue === targetValue;
-              console.log(`[EventEngine] MEET comparison: ${newValue} === ${targetValue} = ${result}`);
-              return result;
-            } else if (comparison === 'range') {
-              // Range comparison - value is between targetValue and targetValue2
-              const min = Math.min(targetValue, isNaN(targetValue2) ? 100 : targetValue2);
-              const max = Math.max(targetValue, isNaN(targetValue2) ? 100 : targetValue2);
-              const result = newValue >= min && newValue <= max;
-              console.log(`[EventEngine] RANGE comparison: ${newValue} in [${min}, ${max}] = ${result}`);
-              return result;
-            } else {
-              // meet_or_exceed
-              const result = newValue >= targetValue;
-              console.log(`[EventEngine] MEET_OR_EXCEED comparison: ${newValue} >= ${targetValue} = ${result}`);
-              return result;
+          if (isNumeric) {
+            // Numeric comparison for capacity and pain
+            switch (comparison) {
+              case 'meet':
+                return newValue === targetValue;
+              case 'meet_or_exceed':
+                return newValue >= targetValue;
+              case 'greater':
+                return newValue > targetValue;
+              case 'less':
+                return newValue < targetValue;
+              case 'less_or_equal':
+                return newValue <= targetValue;
+              case 'range': {
+                const min = Math.min(targetValue, isNaN(targetValue2) ? (node.data.stateType === 'capacity' ? 100 : 10) : targetValue2);
+                const max = Math.max(targetValue, isNaN(targetValue2) ? (node.data.stateType === 'capacity' ? 100 : 10) : targetValue2);
+                return newValue >= min && newValue <= max;
+              }
+              default:
+                return newValue === targetValue;
             }
           } else {
-            // String comparison (feeling/emotion) - exact match only
+            // String comparison (emotion) - supports equals and not_equal
+            if (comparison === 'not_equal') {
+              return newValue !== targetValue;
+            }
             return newValue === targetValue;
           }
 
@@ -579,6 +587,17 @@ class EventEngine {
       case 'simple_ab':
         return await this.executeSimpleAB(node, flow);
 
+      // Challenge nodes - interactive game elements
+      case 'prize_wheel':
+      case 'dice_roll':
+      case 'coin_flip':
+      case 'rps':
+      case 'timer_challenge':
+      case 'number_guess':
+      case 'slot_machine':
+      case 'card_draw':
+        return await this.executeChallenge(node, flow);
+
       default:
         return true;
     }
@@ -651,6 +670,80 @@ class EventEngine {
 
     console.log('[EventEngine] Simple A/B presented, chain paused waiting for user response');
     return 'wait';  // Pause chain execution until user responds
+  }
+
+  /**
+   * Execute a challenge node - show interactive challenge modal and wait for result
+   */
+  async executeChallenge(node, flow) {
+    const data = node.data;
+
+    // Store pending challenge info so we can resume with the correct branch
+    this.pendingChallenge = {
+      nodeId: node.id,
+      flowId: flow.id,
+      challengeType: node.type,
+      challengeData: data
+    };
+
+    // Broadcast challenge modal to frontend
+    console.log(`[EventEngine] Broadcasting challenge modal: ${node.type}`);
+    await this.broadcast('challenge', {
+      nodeId: node.id,
+      challengeType: node.type,
+      ...data  // Include all challenge-specific data (segments, diceCount, etc.)
+    });
+
+    console.log('[EventEngine] Challenge presented, chain paused waiting for result');
+    return 'wait';  // Pause chain execution until challenge completes
+  }
+
+  /**
+   * Handle challenge result - continue flow based on which output was selected
+   */
+  async handleChallengeResult(nodeId, outputId) {
+    console.log(`[EventEngine] Challenge result: output "${outputId}" for node ${nodeId}`);
+
+    if (!this.pendingChallenge) {
+      console.log('[EventEngine] No pending challenge to continue');
+      return;
+    }
+
+    const { nodeId: pendingNodeId, flowId } = this.pendingChallenge;
+
+    // Verify nodeId matches
+    if (pendingNodeId !== nodeId) {
+      console.log(`[EventEngine] Node ID mismatch: expected ${pendingNodeId}, got ${nodeId}`);
+      return;
+    }
+
+    const flowData = this.activeFlows.get(flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${flowId} not found for challenge continuation`);
+      return;
+    }
+
+    const flow = flowData.flow;
+
+    // Find the edge that matches the output (sourceHandle = outputId)
+    const edges = flow.edges.filter(e => e.source === nodeId);
+    console.log(`[EventEngine] Looking for edge with sourceHandle "${outputId}"`);
+    console.log(`[EventEngine] Available edges from ${nodeId}:`, edges.map(e => ({ target: e.target, sourceHandle: e.sourceHandle })));
+    const matchingEdge = edges.find(e => e.sourceHandle === outputId);
+
+    if (!matchingEdge) {
+      console.log(`[EventEngine] No edge found for output "${outputId}"`);
+      this.pendingChallenge = null;
+      return;
+    }
+
+    console.log(`[EventEngine] Continuing flow to node ${matchingEdge.target} via output "${outputId}"`);
+
+    // Clear pending challenge before continuing
+    this.pendingChallenge = null;
+
+    // Continue execution from the matched edge's target
+    await this.executeFromNode(flow, matchingEdge.target, null, true);
   }
 
   /**
@@ -1025,11 +1118,14 @@ class EventEngine {
               this.broadcast('capacity_update', { capacity: clampedValue });
               console.log(`[EventEngine] Set system variable [Capacity] = ${clampedValue}`);
             }
-          } else if (variable === 'feeling') {
+          } else if (variable === 'pain' || variable === 'feeling') {
+            // Handle both new 'pain' and legacy 'feeling' variable names
+            const numValue = parseInt(value) || 0;
+            const clampedValue = Math.max(0, Math.min(10, numValue));
             if (this.sessionState) {
-              this.sessionState.sensation = value;
-              this.broadcast('sensation_update', { sensation: value });
-              console.log(`[EventEngine] Set system variable [Feeling] = ${value}`);
+              this.sessionState.pain = clampedValue;
+              this.broadcast('pain_update', { pain: clampedValue });
+              console.log(`[EventEngine] Set system variable [Pain] = ${clampedValue}`);
             }
           } else if (variable === 'emotion') {
             if (this.sessionState) {
@@ -1453,8 +1549,13 @@ class EventEngine {
         case 'capacity':
           value = this.sessionState?.capacity ?? this.variables.capacity ?? 0;
           break;
+        case 'pain':
+          // Support new numeric pain scale (0-10)
+          value = this.sessionState?.pain ?? this.variables.pain ?? 0;
+          break;
         case 'feeling':
-          value = this.sessionState?.sensation ?? this.variables.feeling ?? 'normal';
+          // Legacy support - map to pain
+          value = this.sessionState?.pain ?? this.variables.pain ?? 0;
           break;
         case 'emotion':
           value = this.sessionState?.emotion ?? this.variables.emotion ?? 'neutral';
@@ -1567,7 +1668,12 @@ class EventEngine {
       result = result.replace(/\[Player\]/gi, this.sessionState.playerName || 'Player');
       result = result.replace(/\[Char\]/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
-      result = result.replace(/\[Feeling\]/gi, this.sessionState.sensation ?? 'normal');
+      // Convert pain number to descriptive label
+      const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+      const painValue = this.sessionState.pain ?? 0;
+      const painLabel = painLabels[painValue] || `Level ${painValue}`;
+      result = result.replace(/\[Pain\]/gi, painLabel);
+      result = result.replace(/\[Feeling\]/gi, painLabel); // Legacy support
       result = result.replace(/\[Emotion\]/gi, this.sessionState.emotion ?? 'neutral');
     }
 
@@ -1690,11 +1796,50 @@ class EventEngine {
           break;
         }
 
+        case 'pain': {
+          // Numeric pain scale (0-10) with operator support
+          const operator = monitor.operator || '>=';
+          const targetPain = parseFloat(monitor.value);
+          const currentPain = this.sessionState.pain ?? 0;
+
+          switch (operator) {
+            case '==':
+            case '=':
+              conditionMet = currentPain === targetPain;
+              break;
+            case '>=':
+              conditionMet = currentPain >= targetPain;
+              break;
+            case '>':
+              conditionMet = currentPain > targetPain;
+              break;
+            case '<':
+              conditionMet = currentPain < targetPain;
+              break;
+            case '<=':
+              conditionMet = currentPain <= targetPain;
+              break;
+          }
+
+          if (conditionMet) {
+            console.log(`[EventEngine] Pain ${operator} ${targetPain} reached (current: ${currentPain}), stopping device ${deviceIp}`);
+          }
+          break;
+        }
+
         case 'sensation': {
+          // Legacy support - treat as pain comparison
           const operator = monitor.operator || '=';
-          if (operator === '=' && this.sessionState.sensation === monitor.value) {
+          const currentPain = this.sessionState.pain ?? 0;
+          // Legacy sensation values map roughly to pain levels
+          const sensationToPain = {
+            'normal': 0, 'slightly tight': 2, 'comfortably full': 3,
+            'stretched': 5, 'very tight': 7, 'painfully tight': 9
+          };
+          const targetPain = sensationToPain[monitor.value] ?? 5;
+          if (operator === '=' && currentPain >= targetPain) {
             conditionMet = true;
-            console.log(`[EventEngine] Sensation reached "${this.sessionState.sensation}", stopping device ${deviceIp}`);
+            console.log(`[EventEngine] Legacy sensation "${monitor.value}" (pain >= ${targetPain}) reached, stopping device ${deviceIp}`);
           }
           break;
         }
@@ -1822,7 +1967,7 @@ class EventEngine {
     this.pendingDeviceOnCompletions.clear();
     this.previousPlayerState = {
       capacity: 0,
-      sensation: 'normal',
+      pain: 0,
       emotion: 'neutral'
     };
     this.executedOnceConditions.clear();
@@ -1884,7 +2029,7 @@ class EventEngine {
     // Reset player state tracking
     this.previousPlayerState = {
       capacity: 0,
-      sensation: 'normal',
+      pain: 0,
       emotion: 'neutral'
     };
 
@@ -1913,12 +2058,12 @@ class EventEngine {
       });
     }
 
-    // Check sensation (feeling) change
-    if (newState.sensation !== this.previousPlayerState.sensation) {
+    // Check pain change (numeric 0-10 scale)
+    if (newState.pain !== this.previousPlayerState.pain) {
       changes.push({
-        stateType: 'feeling',
-        oldValue: this.previousPlayerState.sensation,
-        newValue: newState.sensation
+        stateType: 'pain',
+        oldValue: this.previousPlayerState.pain,
+        newValue: newState.pain
       });
     }
 
@@ -1934,7 +2079,7 @@ class EventEngine {
     // Update previous state
     this.previousPlayerState = {
       capacity: newState.capacity,
-      sensation: newState.sensation,
+      pain: newState.pain,
       emotion: newState.emotion
     };
 

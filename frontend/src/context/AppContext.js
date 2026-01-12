@@ -46,7 +46,7 @@ export function AppProvider({ children }) {
   // Session state
   const [sessionState, setSessionState] = useState({
     capacity: 0,
-    sensation: 'normal',
+    pain: 0, // 0-10 numeric pain scale
     emotion: 'neutral',
     chatHistory: [],
     flowVariables: {},
@@ -66,6 +66,9 @@ export function AppProvider({ children }) {
 
   // Simple A/B choice state
   const [simpleABData, setSimpleABData] = useState(null);
+
+  // Challenge modal state
+  const [challengeData, setChallengeData] = useState(null);
 
   // Infinite cycle tracking
   const [infiniteCycles, setInfiniteCycles] = useState({}); // { deviceIp: true }
@@ -168,8 +171,18 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, capacity: data.capacity }));
         break;
 
+      case 'pain_update':
+        setSessionState(prev => ({ ...prev, pain: data.pain }));
+        break;
+
       case 'sensation_update':
-        setSessionState(prev => ({ ...prev, sensation: data.sensation }));
+        // Legacy support - convert sensation string to pain number
+        const sensationToPain = {
+          'normal': 0, 'slightly tight': 2, 'comfortably full': 3,
+          'stretched': 5, 'very tight': 7, 'painfully tight': 9
+        };
+        const painValue = typeof data.sensation === 'number' ? data.sensation : (sensationToPain[data.sensation] ?? 0);
+        setSessionState(prev => ({ ...prev, pain: painValue }));
         break;
 
       case 'emotion_update':
@@ -196,6 +209,10 @@ export function AppProvider({ children }) {
 
       case 'simple_ab':
         setSimpleABData(data);
+        break;
+
+      case 'challenge':
+        setChallengeData(data);
         break;
 
       case 'message_updated':
@@ -326,6 +343,18 @@ export function AppProvider({ children }) {
 
     setSimpleABData(null);
   }, [simpleABData, sendWsMessage]);
+
+  // Handle challenge result - sends back the output ID that determines flow path
+  const handleChallengeResult = useCallback((outputId) => {
+    if (!challengeData) return;
+
+    sendWsMessage('challenge_result', {
+      nodeId: challengeData.nodeId,
+      outputId: outputId
+    });
+
+    setChallengeData(null);
+  }, [challengeData, sendWsMessage]);
 
   // API calls - all using apiFetch with proper error handling and timeouts
   const api = {
@@ -699,6 +728,10 @@ export function AppProvider({ children }) {
     // Simple A/B Choice
     simpleABData,
     handleSimpleAB,
+
+    // Challenge Modal
+    challengeData,
+    handleChallengeResult,
 
     // Infinite Cycles
     infiniteCycles,

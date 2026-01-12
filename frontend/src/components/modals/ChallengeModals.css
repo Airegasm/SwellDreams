@@ -1,0 +1,566 @@
+/* Challenge Modal Base Styles */
+.challenge-modal {
+  background-color: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  max-width: 400px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.challenge-modal-header {
+  padding: 16px 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.challenge-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+}
+
+.challenge-modal-header .precision-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.challenge-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.challenge-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center;
+}
+
+.btn-large {
+  padding: 12px 32px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 150px;
+}
+
+.challenge-result {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  animation: resultPop 0.3s ease-out;
+}
+
+@keyframes resultPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Prize Wheel Modal */
+.wheel-container {
+  position: relative;
+}
+
+.wheel-container canvas {
+  display: block;
+}
+
+/* Dice Roll Modal */
+.dice-container {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.die {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.die.rolling {
+  animation: diceRoll 0.1s infinite;
+}
+
+.die.small {
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
+  border-radius: 8px;
+}
+
+@keyframes diceRoll {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(10deg) scale(1.05); }
+  50% { transform: rotate(0deg) scale(1); }
+  75% { transform: rotate(-10deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+.dice-total {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dice-total.small {
+  font-size: 0.9rem;
+}
+
+.character-roll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+}
+
+.vs-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.advantage {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Coin Flip Modal */
+.coin {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.1s;
+}
+
+.coin.flipping {
+  animation: coinFlip 1s ease-out;
+}
+
+.coin.heads .coin-side.heads {
+  transform: rotateY(0deg);
+}
+
+.coin.tails .coin-side.tails {
+  transform: rotateY(0deg);
+}
+
+@keyframes coinFlip {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(1800deg); }
+}
+
+.coin-side {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  backface-visibility: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.coin-side.heads {
+  background: linear-gradient(145deg, #fbbf24, #d97706);
+  color: #1a1a2e;
+}
+
+.coin-side.tails {
+  background: linear-gradient(145deg, #9ca3af, #4b5563);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.best-of-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Rock Paper Scissors Modal */
+.rps-arena {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.rps-player,
+.rps-character {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.rps-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.rps-choice {
+  width: 80px;
+  height: 80px;
+  background-color: var(--bg-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  border: 3px solid var(--border-color);
+}
+
+.rps-choice.revealed {
+  animation: revealChoice 0.3s ease-out;
+}
+
+@keyframes revealChoice {
+  0% { transform: scale(0.5); }
+  100% { transform: scale(1); }
+}
+
+.rps-vs {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.rps-choices {
+  display: flex;
+  gap: 12px;
+}
+
+.rps-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rps-btn:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.rps-emoji {
+  font-size: 2rem;
+}
+
+.rps-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.round-result {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.round-result.player {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.round-result.character {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.round-result.tie {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: #eab308;
+}
+
+/* Timer Challenge Modal */
+.timer-display {
+  font-size: 4rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--text-primary);
+  transition: color 0.2s;
+}
+
+.timer-display.urgent {
+  color: #ef4444;
+  animation: pulse 0.5s infinite;
+}
+
+.timer-display.precision-window {
+  color: #22c55e;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.timer-bar-container {
+  width: 100%;
+  height: 20px;
+  background-color: var(--bg-secondary);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.timer-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  transition: width 0.1s linear;
+  border-radius: 10px;
+}
+
+.timer-bar.urgent {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.timer-bar.precision-window {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.precision-zone {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  background: rgba(34, 197, 94, 0.3);
+  border-left: 2px dashed #22c55e;
+}
+
+.challenge-result.success {
+  color: #22c55e;
+}
+
+.challenge-result.timeout {
+  color: #ef4444;
+}
+
+.btn-success {
+  background-color: #22c55e !important;
+  border-color: #22c55e !important;
+}
+
+.btn-success:hover {
+  background-color: #16a34a !important;
+}
+
+/* Number Guess Modal */
+.guess-info {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.attempts-display {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.guess-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.guess-input {
+  width: 80px;
+  padding: 12px;
+  font-size: 1.5rem;
+  text-align: center;
+  background-color: var(--bg-input);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+
+.guess-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.guess-feedback {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #eab308;
+}
+
+.challenge-result.correct {
+  color: #22c55e;
+}
+
+.challenge-result.close {
+  color: #eab308;
+}
+
+.challenge-result.wrong {
+  color: #ef4444;
+}
+
+/* Slot Machine Modal */
+.slot-reels {
+  display: flex;
+  gap: 8px;
+}
+
+.slot-reel {
+  width: 80px;
+  height: 100px;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border: 3px solid #fbbf24;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.slot-reel.spinning {
+  animation: slotSpin 0.1s infinite;
+}
+
+@keyframes slotSpin {
+  0% { transform: translateY(-2px); }
+  50% { transform: translateY(2px); }
+  100% { transform: translateY(-2px); }
+}
+
+.challenge-result.win {
+  color: #fbbf24;
+}
+
+.challenge-result.no-match {
+  color: #6b7280;
+}
+
+/* Card Draw Modal */
+.card-display {
+  perspective: 1000px;
+}
+
+.card-display.drawing {
+  animation: cardFlip 1s ease-out;
+}
+
+@keyframes cardFlip {
+  0% { transform: rotateY(0deg); }
+  50% { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+.playing-card {
+  width: 120px;
+  height: 168px;
+  background: white;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.playing-card.red {
+  color: #ef4444;
+}
+
+.playing-card.black {
+  color: #1e293b;
+}
+
+.card-corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.card-corner.top-left {
+  top: 8px;
+  left: 8px;
+}
+
+.card-corner.bottom-right {
+  bottom: 8px;
+  right: 8px;
+  transform: rotate(180deg);
+}
+
+.card-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+}
+
+.card-back {
+  width: 120px;
+  height: 168px;
+  background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tarot-card {
+  width: 120px;
+  height: 180px;
+  background: linear-gradient(145deg, #7c3aed, #5b21b6);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tarot-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+}

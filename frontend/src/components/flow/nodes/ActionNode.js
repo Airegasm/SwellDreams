@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import './Nodes.css';
 
 function ActionNode({ data, selected }) {
@@ -70,25 +71,51 @@ function ActionNode({ data, selected }) {
               <label>Until:</label>
               <select
                 value={data.untilType || 'forever'}
-                onChange={(e) => data.onChange?.('untilType', e.target.value)}
+                onChange={(e) => {
+                  data.onChange?.('untilType', e.target.value);
+                  // Reset value when type changes
+                  if (e.target.value === 'capacity') {
+                    data.onChange?.('untilValue', 50);
+                  } else if (e.target.value === 'pain') {
+                    data.onChange?.('untilValue', 5);
+                  } else if (e.target.value === 'emotion') {
+                    data.onChange?.('untilValue', 'neutral');
+                  }
+                }}
                 className="node-select"
               >
                 <option value="forever">Forever</option>
                 <option value="capacity">Capacity</option>
-                <option value="sensation">Sensation</option>
+                <option value="pain">Pain</option>
                 <option value="emotion">Emotion</option>
               </select>
             </div>
-            {data.untilType && data.untilType !== 'forever' && (
+            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'emotion' && (
               <div className="config-row">
+                <label>When:</label>
                 <select
-                  value={data.untilOperator || '>'}
+                  value={data.untilOperator || '>='}
                   onChange={(e) => data.onChange?.('untilOperator', e.target.value)}
                   className="node-select small"
                 >
-                  <option value=">">{'>'}</option>
-                  <option value=">=">≥</option>
-                  <option value="=">=</option>
+                  <option value="==">= (equals)</option>
+                  <option value=">=">≥ (meet or exceed)</option>
+                  <option value=">">{'>'} (greater than)</option>
+                  <option value="<">{'<'} (less than)</option>
+                  <option value="<=">≤ (less or equal)</option>
+                </select>
+              </div>
+            )}
+            {data.untilType === 'emotion' && (
+              <div className="config-row">
+                <label>When:</label>
+                <select
+                  value={data.untilOperator || '=='}
+                  onChange={(e) => data.onChange?.('untilOperator', e.target.value)}
+                  className="node-select small"
+                >
+                  <option value="==">= (equals)</option>
+                  <option value="!=">!= (not equals)</option>
                 </select>
               </div>
             )}
@@ -96,8 +123,8 @@ function ActionNode({ data, selected }) {
               <div className="config-row">
                 <input
                   type="number"
-                  value={data.untilValue || 50}
-                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value))}
+                  value={data.untilValue ?? 50}
+                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value) || 0)}
                   min={0}
                   max={100}
                   className="node-input small"
@@ -105,18 +132,16 @@ function ActionNode({ data, selected }) {
                 <span>%</span>
               </div>
             )}
-            {data.untilType === 'sensation' && (
+            {data.untilType === 'pain' && (
               <div className="config-row">
                 <select
-                  value={data.untilValue || 'normal'}
-                  onChange={(e) => data.onChange?.('untilValue', e.target.value)}
+                  value={data.untilValue ?? 5}
+                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value))}
                   className="node-select"
                 >
-                  <option value="normal">Normal</option>
-                  <option value="full">Full</option>
-                  <option value="tight">Tight</option>
-                  <option value="stretched">Stretched</option>
-                  <option value="painful">Painful</option>
+                  {PAIN_SCALE.map(p => (
+                    <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -127,11 +152,9 @@ function ActionNode({ data, selected }) {
                   onChange={(e) => data.onChange?.('untilValue', e.target.value)}
                   className="node-select"
                 >
-                  <option value="neutral">Neutral</option>
-                  <option value="excited">Excited</option>
-                  <option value="nervous">Nervous</option>
-                  <option value="overwhelmed">Overwhelmed</option>
-                  <option value="blissful">Blissful</option>
+                  {EMOTIONS.map(em => (
+                    <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -207,21 +230,60 @@ function ActionNode({ data, selected }) {
               <label>Until:</label>
               <select
                 value={data.untilType || 'forever'}
-                onChange={(e) => data.onChange?.('untilType', e.target.value)}
+                onChange={(e) => {
+                  data.onChange?.('untilType', e.target.value);
+                  // Reset value when type changes
+                  if (e.target.value === 'capacity') {
+                    data.onChange?.('untilValue', 50);
+                  } else if (e.target.value === 'pain') {
+                    data.onChange?.('untilValue', 5);
+                  } else if (e.target.value === 'emotion') {
+                    data.onChange?.('untilValue', 'neutral');
+                  }
+                }}
                 className="node-select"
               >
                 <option value="forever">Forever</option>
-                <option value="capacity">Capacity ≥</option>
-                <option value="sensation">Sensation =</option>
-                <option value="emotion">Emotion =</option>
+                <option value="capacity">Capacity</option>
+                <option value="pain">Pain</option>
+                <option value="emotion">Emotion</option>
               </select>
             </div>
+            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'emotion' && (
+              <div className="config-row">
+                <label>When:</label>
+                <select
+                  value={data.untilOperator || '>='}
+                  onChange={(e) => data.onChange?.('untilOperator', e.target.value)}
+                  className="node-select small"
+                >
+                  <option value="==">= (equals)</option>
+                  <option value=">=">≥ (meet or exceed)</option>
+                  <option value=">">{'>'} (greater than)</option>
+                  <option value="<">{'<'} (less than)</option>
+                  <option value="<=">≤ (less or equal)</option>
+                </select>
+              </div>
+            )}
+            {data.untilType === 'emotion' && (
+              <div className="config-row">
+                <label>When:</label>
+                <select
+                  value={data.untilOperator || '=='}
+                  onChange={(e) => data.onChange?.('untilOperator', e.target.value)}
+                  className="node-select small"
+                >
+                  <option value="==">= (equals)</option>
+                  <option value="!=">!= (not equals)</option>
+                </select>
+              </div>
+            )}
             {data.untilType === 'capacity' && (
               <div className="config-row">
                 <input
                   type="number"
-                  value={data.untilValue || 50}
-                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value))}
+                  value={data.untilValue ?? 50}
+                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value) || 0)}
                   min={0}
                   max={100}
                   className="node-input small"
@@ -229,18 +291,16 @@ function ActionNode({ data, selected }) {
                 <span>%</span>
               </div>
             )}
-            {data.untilType === 'sensation' && (
+            {data.untilType === 'pain' && (
               <div className="config-row">
                 <select
-                  value={data.untilValue || 'normal'}
-                  onChange={(e) => data.onChange?.('untilValue', e.target.value)}
+                  value={data.untilValue ?? 5}
+                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value))}
                   className="node-select"
                 >
-                  <option value="normal">Normal</option>
-                  <option value="full">Full</option>
-                  <option value="tight">Tight</option>
-                  <option value="stretched">Stretched</option>
-                  <option value="painful">Painful</option>
+                  {PAIN_SCALE.map(p => (
+                    <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -251,11 +311,9 @@ function ActionNode({ data, selected }) {
                   onChange={(e) => data.onChange?.('untilValue', e.target.value)}
                   className="node-select"
                 >
-                  <option value="neutral">Neutral</option>
-                  <option value="excited">Excited</option>
-                  <option value="nervous">Nervous</option>
-                  <option value="overwhelmed">Overwhelmed</option>
-                  <option value="blissful">Blissful</option>
+                  {EMOTIONS.map(em => (
+                    <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -285,7 +343,7 @@ function ActionNode({ data, selected }) {
       case 'set_variable': {
         const systemVars = [
           { value: 'capacity', label: '[Capacity]' },
-          { value: 'feeling', label: '[Feeling]' },
+          { value: 'pain', label: '[Pain]' },
           { value: 'emotion', label: '[Emotion]' }
         ];
         const flowVars = data.flowVariables || [];
@@ -342,19 +400,16 @@ function ActionNode({ data, selected }) {
                 />
                 <span>%</span>
               </div>
-            ) : data.varType !== 'custom' && data.variable === 'feeling' ? (
+            ) : data.varType !== 'custom' && data.variable === 'pain' ? (
               <select
-                value={data.value || ''}
-                onChange={(e) => data.onChange?.('value', e.target.value)}
+                value={data.value ?? ''}
+                onChange={(e) => data.onChange?.('value', parseInt(e.target.value))}
                 className="node-select"
               >
-                <option value="">Select Feeling</option>
-                <option value="normal">Normal</option>
-                <option value="slightly tight">Slightly Tight</option>
-                <option value="comfortably full">Comfortably Full</option>
-                <option value="stretched">Stretched</option>
-                <option value="very tight">Very Tight</option>
-                <option value="painfully tight">Painfully Tight</option>
+                <option value="">Select Pain Level</option>
+                {PAIN_SCALE.map(p => (
+                  <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+                ))}
               </select>
             ) : data.varType !== 'custom' && data.variable === 'emotion' ? (
               <select
@@ -363,20 +418,9 @@ function ActionNode({ data, selected }) {
                 className="node-select"
               >
                 <option value="">Select Emotion</option>
-                <option value="neutral">Neutral</option>
-                <option value="nervous">Nervous</option>
-                <option value="anxious">Anxious</option>
-                <option value="scared">Scared</option>
-                <option value="curious">Curious</option>
-                <option value="excited">Excited</option>
-                <option value="aroused">Aroused</option>
-                <option value="embarrassed">Embarrassed</option>
-                <option value="humiliated">Humiliated</option>
-                <option value="resigned">Resigned</option>
-                <option value="defiant">Defiant</option>
-                <option value="submissive">Submissive</option>
-                <option value="blissful">Blissful</option>
-                <option value="overwhelmed">Overwhelmed</option>
+                {EMOTIONS.map(em => (
+                  <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+                ))}
               </select>
             ) : (
               <input

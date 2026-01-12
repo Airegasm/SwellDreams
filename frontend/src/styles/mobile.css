@@ -680,6 +680,7 @@
   .flow-editor-page {
     flex-direction: column;
     height: calc(100vh - var(--mobile-nav-height));
+    top: var(--mobile-nav-height);
   }
 
   .flow-editor-page::before {
@@ -690,6 +691,11 @@
     text-align: center;
     padding: var(--spacing-xs);
     font-size: var(--font-size-sm);
+  }
+
+  /* Hide flow header center on mobile - tools are in a condensed toolbar */
+  .flow-header-center {
+    display: none;
   }
 
   .flow-sidebar {

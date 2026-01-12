@@ -5,12 +5,13 @@ import { useError } from '../context/ErrorContext';
 import { API_BASE, CONFIG } from '../config';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
+import { ChallengeModal } from '../components/modals/ChallengeModals';
 import { substituteVariables } from '../utils/variableSubstitution';
 import StatusBadges from '../components/StatusBadges';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, devices, infiniteCycles, controlMode } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, devices, infiniteCycles, controlMode } = useApp();
   const { showError } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -718,9 +719,15 @@ function Chat() {
         {/* Status Badges */}
         <StatusBadges
           selectedEmotion={sessionState.emotion || 'neutral'}
-          onEmotionChange={(emotion) => setSessionState(prev => ({ ...prev, emotion }))}
-          selectedPainLevel={typeof sessionState.sensation === 'number' ? sessionState.sensation : 0}
-          onPainLevelChange={(level) => setSessionState(prev => ({ ...prev, sensation: level }))}
+          onEmotionChange={(emotion) => {
+            setSessionState(prev => ({ ...prev, emotion }));
+            sendWsMessage('update_emotion', { emotion });
+          }}
+          selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
+          onPainLevelChange={(level) => {
+            setSessionState(prev => ({ ...prev, pain: level }));
+            sendWsMessage('update_pain', { pain: level });
+          }}
           capacity={sessionState.capacity || 0}
         />
 
@@ -1212,6 +1219,16 @@ function Chat() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Challenge Modal */}
+      {challengeData && (
+        <div className="modal-overlay">
+          <ChallengeModal
+            challengeData={challengeData}
+            onResult={handleChallengeResult}
+          />
         </div>
       )}
 

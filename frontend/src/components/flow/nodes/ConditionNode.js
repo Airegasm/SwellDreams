@@ -1,23 +1,31 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import './Nodes.css';
 
 const VARIABLES = [
   { value: 'capacity', label: 'Capacity' },
-  { value: 'feeling', label: 'Feeling' },
+  { value: 'pain', label: 'Pain' },
   { value: 'emotion', label: 'Emotion' },
   { value: 'device_state', label: 'Device State' },
   { value: 'custom', label: 'Custom Variable' }
 ];
 
-const OPERATORS = [
+// Operators for numeric values (capacity, pain)
+const NUMERIC_OPERATORS = [
   { value: '==', label: '=' },
   { value: '!=', label: '≠' },
   { value: '>', label: '>' },
   { value: '<', label: '<' },
   { value: '>=', label: '≥' },
   { value: '<=', label: '≤' },
-  { value: 'range', label: 'RANGE' },
+  { value: 'range', label: 'RANGE' }
+];
+
+// Operators for non-numeric values (emotion, device_state, custom)
+const STRING_OPERATORS = [
+  { value: '==', label: '=' },
+  { value: '!=', label: '≠' },
   { value: 'contains', label: 'contains' }
 ];
 
@@ -47,11 +55,102 @@ function ConditionNode({ data, selected }) {
     if (field === 'operator' && value !== 'range') {
       newConditions[index].value2 = null;
     }
-    // When switching to custom, clear customVariable if not set
-    if (field === 'variable' && value === 'custom' && !newConditions[index].customVariable) {
-      newConditions[index].customVariable = flowVariables[0] || '';
+    // When switching variable type, reset value and operator appropriately
+    if (field === 'variable') {
+      if (value === 'capacity') {
+        newConditions[index].value = 50;
+        newConditions[index].value2 = null;
+        newConditions[index].operator = '>=';
+      } else if (value === 'pain') {
+        newConditions[index].value = 5;
+        newConditions[index].value2 = null;
+        newConditions[index].operator = '>=';
+      } else if (value === 'emotion') {
+        newConditions[index].value = 'neutral';
+        newConditions[index].value2 = null;
+        newConditions[index].operator = '==';
+      } else if (value === 'device_state') {
+        newConditions[index].value = 'on';
+        newConditions[index].operator = '==';
+      } else if (value === 'custom') {
+        newConditions[index].customVariable = flowVariables[0] || '';
+        newConditions[index].value = '';
+        newConditions[index].operator = '==';
+      }
     }
     data.onChange?.('conditions', newConditions);
+  };
+
+  // Helper to get operators based on variable type
+  const getOperatorsForVariable = (variable) => {
+    if (variable === 'capacity' || variable === 'pain') {
+      return NUMERIC_OPERATORS;
+    }
+    return STRING_OPERATORS;
+  };
+
+  // Render value input based on variable type
+  const renderValueInput = (condition, index, isSecondValue = false) => {
+    const field = isSecondValue ? 'value2' : 'value';
+    const currentValue = isSecondValue ? condition.value2 : condition.value;
+
+    switch (condition.variable) {
+      case 'capacity':
+        return (
+          <input
+            type="number"
+            className="node-input small"
+            value={currentValue ?? (isSecondValue ? 100 : 50)}
+            min={0}
+            max={100}
+            onChange={(e) => updateCondition(index, field, parseInt(e.target.value) || 0)}
+          />
+        );
+      case 'pain':
+        return (
+          <select
+            className="node-select"
+            value={currentValue ?? (isSecondValue ? 10 : 5)}
+            onChange={(e) => updateCondition(index, field, parseInt(e.target.value))}
+          >
+            {PAIN_SCALE.map(p => (
+              <option key={p.value} value={p.value}>{p.emoji} {p.value} - {p.label}</option>
+            ))}
+          </select>
+        );
+      case 'emotion':
+        return (
+          <select
+            className="node-select"
+            value={currentValue || 'neutral'}
+            onChange={(e) => updateCondition(index, field, e.target.value)}
+          >
+            {EMOTIONS.map(em => (
+              <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+            ))}
+          </select>
+        );
+      case 'device_state':
+        return (
+          <select
+            className="node-select"
+            value={currentValue || 'on'}
+            onChange={(e) => updateCondition(index, field, e.target.value)}
+          >
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        );
+      default:
+        return (
+          <input
+            type="text"
+            className="node-input small"
+            value={currentValue ?? ''}
+            onChange={(e) => updateCondition(index, field, e.target.value)}
+          />
+        );
+    }
   };
 
   return (
@@ -102,28 +201,20 @@ function ConditionNode({ data, selected }) {
 
               <select
                 className="node-select"
-                value={condition.operator || '>'}
+                value={condition.operator || '>='}
                 onChange={(e) => updateCondition(index, 'operator', e.target.value)}
               >
-                {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {getOperatorsForVariable(condition.variable).map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
 
-              <input
-                type={condition.variable === 'capacity' ? 'number' : 'text'}
-                className="node-input small"
-                value={condition.value ?? ''}
-                onChange={(e) => updateCondition(index, 'value', e.target.value)}
-              />
+              {renderValueInput(condition, index)}
 
               {condition.operator === 'range' && (
                 <>
                   <span className="range-separator">to</span>
-                  <input
-                    type="number"
-                    className="node-input small"
-                    value={condition.value2 ?? ''}
-                    onChange={(e) => updateCondition(index, 'value2', e.target.value)}
-                  />
+                  {renderValueInput(condition, index, true)}
                 </>
               )}
 

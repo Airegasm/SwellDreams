@@ -7,7 +7,6 @@ import {
   addEdge,
   useNodesState,
   useEdgesState,
-  Panel,
   useReactFlow,
   ReactFlowProvider
 } from '@xyflow/react';
@@ -24,6 +23,17 @@ import BranchNode from '../components/flow/nodes/BranchNode';
 import DelayNode from '../components/flow/nodes/DelayNode';
 import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
+// Challenge nodes
+import {
+  PrizeWheelNodeMemo as PrizeWheelNode,
+  DiceRollNodeMemo as DiceRollNode,
+  CoinFlipNodeMemo as CoinFlipNode,
+  RPSNodeMemo as RPSNode,
+  TimerChallengeNodeMemo as TimerChallengeNode,
+  NumberGuessNodeMemo as NumberGuessNode,
+  SlotMachineNodeMemo as SlotMachineNode,
+  CardDrawNodeMemo as CardDrawNode
+} from '../components/flow/nodes/ChallengeNodes';
 
 import './FlowEditor.css';
 
@@ -35,7 +45,16 @@ const nodeTypes = {
   branch: BranchNode,
   delay: DelayNode,
   player_choice: PlayerChoiceNode,
-  simple_ab: SimpleABNode
+  simple_ab: SimpleABNode,
+  // Challenge nodes
+  prize_wheel: PrizeWheelNode,
+  dice_roll: DiceRollNode,
+  coin_flip: CoinFlipNode,
+  rps: RPSNode,
+  timer_challenge: TimerChallengeNode,
+  number_guess: NumberGuessNode,
+  slot_machine: SlotMachineNode,
+  card_draw: CardDrawNode
 };
 
 const NODE_TEMPLATES = {
@@ -113,6 +132,79 @@ const NODE_TEMPLATES = {
       descriptionA: '',
       labelB: 'Option B',
       descriptionB: ''
+    }
+  },
+  // Challenge nodes
+  prize_wheel: {
+    default: {
+      label: 'Prize Wheel',
+      segments: [
+        { id: 'seg-1', label: 'Prize 1', color: '#fb923c', weight: 1 },
+        { id: 'seg-2', label: 'Prize 2', color: '#3b82f6', weight: 1 }
+      ]
+    }
+  },
+  dice_roll: {
+    default: {
+      label: 'Dice Roll',
+      diceCount: 2,
+      mode: 'ranges',
+      ranges: [
+        { id: 'range-1', label: 'Low', min: 2, max: 5 },
+        { id: 'range-2', label: 'Medium', min: 6, max: 9 },
+        { id: 'range-3', label: 'High', min: 10, max: 12 }
+      ],
+      characterAdvantage: 0
+    }
+  },
+  coin_flip: {
+    default: {
+      label: 'Coin Flip',
+      headsLabel: 'Heads',
+      tailsLabel: 'Tails',
+      headsWeight: 50,
+      bestOf: 1
+    }
+  },
+  rps: {
+    default: {
+      label: 'Rock Paper Scissors',
+      bestOf: 1,
+      characterBias: null
+    }
+  },
+  timer_challenge: {
+    default: {
+      label: 'Timer Challenge',
+      duration: 10,
+      precisionMode: false,
+      precisionWindow: 1
+    }
+  },
+  number_guess: {
+    default: {
+      label: 'Number Guess',
+      min: 1,
+      max: 10,
+      maxAttempts: 3,
+      closeThreshold: 0
+    }
+  },
+  slot_machine: {
+    default: {
+      label: 'Slot Machine',
+      symbols: ['🍒', '🍋', '🔔', '⭐', '7️⃣'],
+      matches: [
+        { id: 'match-1', pattern: 'three-of-a-kind', label: 'Jackpot' },
+        { id: 'match-2', pattern: 'two-of-a-kind', label: 'Small Win' }
+      ]
+    }
+  },
+  card_draw: {
+    default: {
+      label: 'Card Draw',
+      deckType: 'standard',
+      outputMode: 'suit'
     }
   }
 };
@@ -803,8 +895,112 @@ function FlowEditor() {
     }
   };
 
+  // Export flow as JSON file
+  const handleExportFlow = useCallback(() => {
+    if (!selectedFlow && nodes.length === 0) {
+      return; // Nothing to export
+    }
+
+    // Strip onChange handlers from nodes before exporting
+    const cleanNodes = nodes.map(node => {
+      const { onChange, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+      return { ...node, data: cleanData };
+    });
+
+    const flowData = {
+      name: flowName || 'Untitled Flow',
+      category: flowCategory,
+      nodes: cleanNodes,
+      edges: edges,
+      exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(flowData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${flowName || 'flow'}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [nodes, edges, flowName, flowCategory, selectedFlow]);
+
   return (
     <div className="flow-editor-page">
+      {/* Flow Editor Header Center */}
+      <div className="flow-header-center">
+        <div className="flow-header-toolbar">
+          {hasDraft && (
+            <span className="draft-indicator" title="Unsaved changes restored from previous session">
+              Draft
+            </span>
+          )}
+          <button
+            className="header-tool-btn"
+            onClick={handleUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7v6h6"/>
+              <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 13"/>
+            </svg>
+          </button>
+          <button
+            className="header-tool-btn"
+            onClick={handleRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Y)"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 7v6h-6"/>
+              <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6.36 2.64L21 13"/>
+            </svg>
+          </button>
+          <div className="header-tool-divider" />
+          <button
+            className="header-tool-btn"
+            onClick={handleOrganizeNodes}
+            title="Auto-arrange nodes"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            <span>Organize</span>
+          </button>
+          <div className="header-tool-divider" />
+          <button
+            className="header-tool-btn primary"
+            onClick={() => setShowSaveModal(true)}
+            title="Save Flow"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>Save</span>
+          </button>
+          <button
+            className="header-tool-btn"
+            onClick={handleExportFlow}
+            disabled={nodes.length === 0}
+            title="Export Flow as JSON"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Export</span>
+          </button>
+        </div>
+      </div>
+
       {/* Sidebar - Node Palette */}
       <div className="flow-sidebar">
         <div className="sidebar-section">
@@ -913,6 +1109,68 @@ function FlowEditor() {
             </div>
           </div>
         </div>
+
+        <div className="sidebar-section">
+          <h3>Challenges</h3>
+          <div className="node-palette">
+            <div
+              className="palette-node prize-wheel"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'prize_wheel', 'default')}
+            >
+              🎡 Prize Wheel
+            </div>
+            <div
+              className="palette-node dice-roll"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'dice_roll', 'default')}
+            >
+              🎲 Dice Roll
+            </div>
+            <div
+              className="palette-node coin-flip"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'coin_flip', 'default')}
+            >
+              🪙 Coin Flip
+            </div>
+            <div
+              className="palette-node card-draw"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'card_draw', 'default')}
+            >
+              🃏 Card Draw
+            </div>
+            <div
+              className="palette-node rps"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'rps', 'default')}
+            >
+              ✊ Rock Paper Scissors
+            </div>
+            <div
+              className="palette-node number-guess"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'number_guess', 'default')}
+            >
+              🔢 Number Guess
+            </div>
+            <div
+              className="palette-node timer-challenge"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'timer_challenge', 'default')}
+            >
+              ⏱️ Timer Challenge
+            </div>
+            <div
+              className="palette-node slot-machine"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'slot_machine', 'default')}
+            >
+              🎰 Slot Machine
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Canvas */}
@@ -939,44 +1197,6 @@ function FlowEditor() {
           <Controls />
           <MiniMap />
           <Background variant="dots" gap={12} size={1} />
-          <Panel position="top-right">
-            <div className="canvas-toolbar">
-              {hasDraft && (
-                <span className="draft-indicator" title="Unsaved changes restored from previous session">
-                  Draft restored
-                </span>
-              )}
-              <button
-                className="btn btn-secondary"
-                onClick={handleUndo}
-                disabled={!canUndo}
-                title="Undo (Ctrl+Z)"
-              >
-                Undo
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={handleRedo}
-                disabled={!canRedo}
-                title="Redo (Ctrl+Y)"
-              >
-                Redo
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={handleOrganizeNodes}
-                title="Auto-arrange nodes"
-              >
-                Organize
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowSaveModal(true)}
-              >
-                Save Flow
-              </button>
-            </div>
-          </Panel>
         </ReactFlow>
       </div>
 

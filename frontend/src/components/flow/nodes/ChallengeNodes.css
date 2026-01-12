@@ -1,0 +1,350 @@
+/* Challenge Nodes Base Styles */
+.challenge-node {
+  min-width: 240px;
+}
+
+/* Prize Wheel Node */
+.prize-wheel-node {
+  border-color: #fb923c;
+}
+
+.prize-wheel-node .node-header {
+  background-color: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.prize-wheel-node .react-flow__handle {
+  border-color: #fb923c;
+}
+
+.segments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.segment-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.segment-color {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.segment-remove {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.segment-remove:hover {
+  background-color: #dc2626;
+}
+
+.segment-add {
+  background-color: #fb923c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin-top: 4px;
+}
+
+.segment-add:hover {
+  background-color: #f97316;
+}
+
+.segment-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Dice Roll Node */
+.dice-roll-node {
+  border-color: #a855f7;
+  min-width: 260px;
+}
+
+.dice-roll-node .node-header {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.dice-roll-node .react-flow__handle {
+  border-color: #a855f7;
+}
+
+.dice-range {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.ranges-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.range-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.range-remove {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.range-remove:hover {
+  background-color: #dc2626;
+}
+
+.range-add {
+  background-color: #a855f7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin-top: 4px;
+}
+
+.range-add:hover {
+  background-color: #9333ea;
+}
+
+.dice-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  color: #a855f7;
+  font-weight: 600;
+}
+
+/* Coin Flip Node */
+.coin-flip-node {
+  border-color: #eab308;
+}
+
+.coin-flip-node .node-header {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.coin-flip-node .react-flow__handle {
+  border-color: #eab308;
+}
+
+.coin-options {
+  display: flex;
+  gap: 8px;
+}
+
+.coin-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.coin-option label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.weight-display {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.coin-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Rock Paper Scissors Node */
+.rps-node {
+  border-color: #ec4899;
+}
+
+.rps-node .node-header {
+  background-color: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+}
+
+.rps-node .react-flow__handle {
+  border-color: #ec4899;
+}
+
+.rps-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Timer Challenge Node */
+.timer-challenge-node {
+  border-color: #ef4444;
+}
+
+.timer-challenge-node .node-header {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.timer-challenge-node .react-flow__handle {
+  border-color: #ef4444;
+}
+
+.timer-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Number Guess Node */
+.number-guess-node {
+  border-color: #22c55e;
+}
+
+.number-guess-node .node-header {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.number-guess-node .react-flow__handle {
+  border-color: #22c55e;
+}
+
+.number-guess-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Slot Machine Node */
+.slot-machine-node {
+  border-color: #7c3aed;
+  min-width: 260px;
+}
+
+.slot-machine-node .node-header {
+  background-color: rgba(124, 58, 237, 0.15);
+  color: #7c3aed;
+}
+
+.slot-machine-node .react-flow__handle {
+  border-color: #7c3aed;
+}
+
+.matches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.match-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.match-remove {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.match-remove:hover {
+  background-color: #dc2626;
+}
+
+.match-add {
+  background-color: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  margin-top: 4px;
+}
+
+.match-add:hover {
+  background-color: #6d28d9;
+}
+
+.slot-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Card Draw Node */
+.card-draw-node {
+  border-color: #ef4444;
+}
+
+.card-draw-node .node-header {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.card-draw-node .react-flow__handle {
+  border-color: #ef4444;
+}
+
+.card-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}

@@ -407,7 +407,7 @@ function getSimulationStatus() {
 
 const sessionState = {
   capacity: 0,
-  sensation: 'normal',
+  pain: 0, // 0-10 numeric pain scale
   emotion: 'neutral',
   chatHistory: [],
   messageInputHistory: [], // Track input history for up/down arrow navigation
@@ -456,7 +456,12 @@ function substituteAllVariables(text, context = {}) {
 
   // Session state variables
   result = result.replace(/\[Capacity\]/gi, sessionState.capacity ?? 0);
-  result = result.replace(/\[Feeling\]/gi, sessionState.sensation ?? 'normal');
+  // Convert pain number to descriptive label
+  const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+  const painValue = sessionState.pain ?? 0;
+  const painLabel = painLabels[painValue] || `Level ${painValue}`;
+  result = result.replace(/\[Pain\]/gi, painLabel);
+  result = result.replace(/\[Feeling\]/gi, painLabel); // Legacy support
   result = result.replace(/\[Emotion\]/gi, sessionState.emotion ?? 'neutral');
 
   // Flow variables - [Flow:varname] syntax
@@ -477,7 +482,7 @@ function autosaveSession() {
       personaId: settings?.activePersonaId,
       characterId: settings?.activeCharacterId,
       capacity: sessionState.capacity,
-      sensation: sessionState.sensation,
+      pain: sessionState.pain,
       emotion: sessionState.emotion,
       chatHistory: sessionState.chatHistory,
       messageInputHistory: sessionState.messageInputHistory,
@@ -496,7 +501,19 @@ function loadAutosave() {
     const autosaveData = loadData(DATA_FILES.autosave);
     if (autosaveData && autosaveData.chatHistory) {
       sessionState.capacity = autosaveData.capacity || 0;
-      sessionState.sensation = autosaveData.sensation || 'normal';
+      // Support both new 'pain' and legacy 'sensation' values
+      if (typeof autosaveData.pain === 'number') {
+        sessionState.pain = autosaveData.pain;
+      } else if (autosaveData.sensation) {
+        // Migrate old sensation strings to pain numbers
+        const sensationToPain = {
+          'normal': 0, 'slightly tight': 2, 'comfortably full': 3,
+          'stretched': 5, 'very tight': 7, 'painfully tight': 9
+        };
+        sessionState.pain = sensationToPain[autosaveData.sensation] ?? 0;
+      } else {
+        sessionState.pain = 0;
+      }
       sessionState.emotion = autosaveData.emotion || 'neutral';
       sessionState.chatHistory = autosaveData.chatHistory || [];
       sessionState.messageInputHistory = autosaveData.messageInputHistory || [];
@@ -1114,18 +1131,34 @@ async function handleWsMessage(ws, type, data) {
       eventEngine.checkDeviceMonitors();
       await eventEngine.checkPlayerStateChanges({
         capacity: sessionState.capacity,
-        sensation: sessionState.sensation,
+        pain: sessionState.pain,
+        emotion: sessionState.emotion
+      });
+      break;
+
+    case 'update_pain':
+      sessionState.pain = data.pain;
+      broadcast('pain_update', { pain: sessionState.pain });
+      eventEngine.checkDeviceMonitors();
+      await eventEngine.checkPlayerStateChanges({
+        capacity: sessionState.capacity,
+        pain: sessionState.pain,
         emotion: sessionState.emotion
       });
       break;
 
     case 'update_sensation':
-      sessionState.sensation = data.sensation;
-      broadcast('sensation_update', { sensation: sessionState.sensation });
+      // Legacy support - convert sensation string to pain number
+      const sensationToPain = {
+        'normal': 0, 'slightly tight': 2, 'comfortably full': 3,
+        'stretched': 5, 'very tight': 7, 'painfully tight': 9
+      };
+      sessionState.pain = sensationToPain[data.sensation] ?? 0;
+      broadcast('pain_update', { pain: sessionState.pain });
       eventEngine.checkDeviceMonitors();
       await eventEngine.checkPlayerStateChanges({
         capacity: sessionState.capacity,
-        sensation: sessionState.sensation,
+        pain: sessionState.pain,
         emotion: sessionState.emotion
       });
       break;
@@ -1136,7 +1169,7 @@ async function handleWsMessage(ws, type, data) {
       eventEngine.checkDeviceMonitors();
       await eventEngine.checkPlayerStateChanges({
         capacity: sessionState.capacity,
-        sensation: sessionState.sensation,
+        pain: sessionState.pain,
         emotion: sessionState.emotion
       });
       break;
@@ -1233,6 +1266,13 @@ async function handleWsMessage(ws, type, data) {
         data.nodeId,
         data.choiceId,
         data.choiceLabel
+      );
+      break;
+
+    case 'challenge_result':
+      await eventEngine.handleChallengeResult(
+        data.nodeId,
+        data.outputId
       );
       break;
 
@@ -1705,7 +1745,7 @@ async function handleButtonAdjustCapacity(action) {
   // Check for player state change triggers
   await eventEngine.checkPlayerStateChanges({
     capacity: sessionState.capacity,
-    sensation: sessionState.sensation,
+    pain: sessionState.pain,
     emotion: sessionState.emotion
   });
 
@@ -2076,17 +2116,21 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
   };
 
   // Build strict belly state instructions
-  const buildBellyStateInstructions = (capacity, sensation, subjectName, isFirstPerson = false) => {
+  const buildBellyStateInstructions = (capacity, painLevel, subjectName, isFirstPerson = false) => {
     const bellyDesc = getCapacityDescription(capacity);
     const subject = isFirstPerson ? 'Your' : `${subjectName}'s`;
     const verb = isFirstPerson ? 'are' : 'is';
 
+    // Convert pain number to descriptive label
+    const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+    const painLabel = painLabels[painLevel] || 'None';
+
     let instructions = `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
     instructions += `${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-    instructions += `${subject} physical sensation ${verb} EXACTLY: "${sensation}" - use this description verbatim.\n`;
+    instructions += `${subject} pain/discomfort level ${verb} EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
     instructions += `STRICT RULES:\n`;
     instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-    instructions += `- Physical feelings must match "${sensation}" EXACTLY\n`;
+    instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
     instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
     instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
@@ -2125,7 +2169,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += '\n';
     }
 
-    systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.sensation, playerName, true);
+    systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
 
     // Add global prompt / author note
@@ -2142,7 +2186,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
 
-    systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.sensation, playerName, false);
+    systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
 
     // Add constant reminders (character + global, filtered by enabled)
@@ -2220,17 +2264,21 @@ function buildChatContext(character, settings) {
   };
 
   // Build strict belly state instructions
-  const buildBellyStateInstructions = (capacity, sensation, subjectName, isFirstPerson = false) => {
+  const buildBellyStateInstructions = (capacity, painLevel, subjectName, isFirstPerson = false) => {
     const bellyDesc = getCapacityDescription(capacity);
     const subject = isFirstPerson ? 'Your' : `${subjectName}'s`;
     const verb = isFirstPerson ? 'are' : 'is';
 
+    // Convert pain number to descriptive label
+    const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+    const painLabel = painLabels[painLevel] || 'None';
+
     let instructions = `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
     instructions += `${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-    instructions += `${subject} physical sensation ${verb} EXACTLY: "${sensation}" - use this description verbatim.\n`;
+    instructions += `${subject} pain/discomfort level ${verb} EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
     instructions += `STRICT RULES:\n`;
     instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-    instructions += `- Physical feelings must match "${sensation}" EXACTLY\n`;
+    instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
     instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
     instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
@@ -2269,7 +2317,7 @@ function buildChatContext(character, settings) {
 
   // Add player's current physical/emotional state
   const playerLabel = activePersona?.displayName || 'The player';
-  systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.sensation, playerLabel, false);
+  systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
 
   // Add constant reminders (character + global, filtered by enabled)
@@ -3566,7 +3614,7 @@ app.post('/api/session/reset', async (req, res) => {
   llmService.abortAllRequests();
 
   sessionState.capacity = 0;
-  sessionState.sensation = 'normal';
+  sessionState.pain = 0;
   sessionState.emotion = startingEmotion;
   sessionState.chatHistory = [];
   sessionState.flowVariables = {};
@@ -3619,7 +3667,7 @@ app.post('/api/sessions/save', (req, res) => {
     personaId,
     characterId,
     capacity: sessionState.capacity,
-    sensation: sessionState.sensation,
+    pain: sessionState.pain,
     emotion: sessionState.emotion,
     chatHistory: sessionState.chatHistory,
     flowVariables: sessionState.flowVariables,
@@ -3668,7 +3716,19 @@ app.post('/api/sessions/:id/load', (req, res) => {
 
   // Load session state
   sessionState.capacity = session.capacity || 0;
-  sessionState.sensation = session.sensation || 'normal';
+  // Support both new 'pain' and legacy 'sensation' values
+  if (typeof session.pain === 'number') {
+    sessionState.pain = session.pain;
+  } else if (session.sensation) {
+    // Migrate old sensation strings to pain numbers
+    const sensationToPain = {
+      'normal': 0, 'slightly tight': 2, 'comfortably full': 3,
+      'stretched': 5, 'very tight': 7, 'painfully tight': 9
+    };
+    sessionState.pain = sensationToPain[session.sensation] ?? 0;
+  } else {
+    sessionState.pain = 0;
+  }
   sessionState.emotion = session.emotion || 'neutral';
   sessionState.chatHistory = session.chatHistory || [];
   sessionState.flowVariables = session.flowVariables || {};
