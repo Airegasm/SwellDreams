@@ -3944,15 +3944,26 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+// Serve frontend static files from React build
+const FRONTEND_BUILD_PATH = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(FRONTEND_BUILD_PATH)) {
+  app.use(express.static(FRONTEND_BUILD_PATH));
+
+  // SPA fallback - serve index.html for non-API routes
+  app.get('*', (req, res, next) => {
+    // Don't catch API routes - let them fall through to 404 handler
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
   });
+
+  log.always('Serving frontend from: ' + FRONTEND_BUILD_PATH);
+} else {
+  log.always('Frontend build not found - run "npm run build" in frontend folder');
 }
 
-// Global 404 handler
+// Global 404 handler (for API routes only now)
 app.use((req, res) => {
   res.status(404).json({
     success: false,

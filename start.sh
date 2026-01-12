@@ -91,41 +91,31 @@ if [ ! -d "$SCRIPT_DIR/frontend/build" ] || [ "$1" = "--rebuild" ]; then
     cd "$SCRIPT_DIR/frontend" && npm run build
 fi
 
-# Start backend
-echo "Starting backend server..."
+# Start server
+echo "Starting SwellDreams server..."
 cd "$SCRIPT_DIR/backend"
 node server.js > /dev/null 2>&1 &
-BACKEND_PID=$!
-echo $BACKEND_PID > "$PID_DIR/backend.pid"
+SERVER_PID=$!
+echo $SERVER_PID > "$PID_DIR/server.pid"
 
-# Wait for backend to start
+# Wait for server to start
 sleep 2
-
-# Start frontend production server
-echo "Starting frontend server..."
-cd "$SCRIPT_DIR/frontend"
-npx serve -s build -l 3001 > /dev/null 2>&1 &
-FRONTEND_PID=$!
-echo $FRONTEND_PID > "$PID_DIR/frontend.pid"
-
-sleep 1
 
 echo ""
 echo "========================================"
 echo "  $NAME v$VERSION is running!"
-echo "  Backend:  http://localhost:8889"
-echo "  Frontend: http://localhost:3001"
+echo "  http://localhost:8889"
 echo "========================================"
 echo ""
 
 # Open browser
 echo "Opening browser..."
 if command -v xdg-open &> /dev/null; then
-    xdg-open "http://localhost:3001" &> /dev/null &
+    xdg-open "http://localhost:8889" &> /dev/null &
 elif command -v open &> /dev/null; then
-    open "http://localhost:3001" &> /dev/null &
+    open "http://localhost:8889" &> /dev/null &
 elif command -v wslview &> /dev/null; then
-    wslview "http://localhost:3001" &> /dev/null &
+    wslview "http://localhost:8889" &> /dev/null &
 fi
 
 echo "Press Ctrl+C to stop, or run ./stop.sh"
@@ -134,8 +124,8 @@ echo "Press Ctrl+C to stop, or run ./stop.sh"
 cleanup() {
     echo ""
     echo "Stopping SwellDreams..."
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-    rm -f "$PID_DIR/backend.pid" "$PID_DIR/frontend.pid"
+    kill $SERVER_PID 2>/dev/null
+    rm -f "$PID_DIR/server.pid"
     echo "Stopped."
     exit 0
 }

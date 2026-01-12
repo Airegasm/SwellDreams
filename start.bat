@@ -76,28 +76,23 @@ echo Building frontend for production...
 cd /d "%SCRIPT_DIR%frontend"
 call npm run build
 
-REM Start backend in new window
-echo Starting backend server...
-start "SwellDreams-Backend" /MIN cmd /c "cd /d %SCRIPT_DIR%backend && node server.js"
+REM Start server in new window
+echo Starting SwellDreams server...
+start "SwellDreams" /MIN cmd /c "cd /d %SCRIPT_DIR%backend && node server.js"
 
-REM Wait for backend
+REM Wait for server
 timeout /t 2 /nobreak >nul
-
-REM Start frontend production server
-echo Starting frontend server...
-start "SwellDreams-Frontend" /MIN cmd /c "cd /d %SCRIPT_DIR%frontend && npx serve -s build -l 3001"
 
 echo.
 echo ========================================
 echo   SwellDreams v1.5b is running!
-echo   Backend:  http://localhost:8889
-echo   Frontend: http://localhost:3001
+echo   http://localhost:8889
 echo ========================================
 echo.
 
 REM Open browser
 echo Opening browser...
-start "" "http://localhost:3001"
+start "" "http://localhost:8889"
 
 echo To stop: run stop.bat
 echo.
