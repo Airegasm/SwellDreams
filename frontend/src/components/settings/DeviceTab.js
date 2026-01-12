@@ -26,6 +26,7 @@ function DeviceTab() {
   // Govee state
   const [goveeConnected, setGoveeConnected] = useState(false);
   const [goveeApiKey, setGoveeApiKey] = useState('');
+  const [hasGoveeApiKey, setHasGoveeApiKey] = useState(false);
   const [showGoveeConnect, setShowGoveeConnect] = useState(false);
   const [discoveredGovee, setDiscoveredGovee] = useState([]);
   const [scanningGovee, setScanningGovee] = useState(false);
@@ -36,6 +37,7 @@ function DeviceTab() {
   const [tuyaConnected, setTuyaConnected] = useState(false);
   const [tuyaAccessId, setTuyaAccessId] = useState('');
   const [tuyaAccessSecret, setTuyaAccessSecret] = useState('');
+  const [hasTuyaCredentials, setHasTuyaCredentials] = useState(false);
   const [tuyaRegion, setTuyaRegion] = useState('us');
   const [showTuyaConnect, setShowTuyaConnect] = useState(false);
   const [showTuyaAddDevice, setShowTuyaAddDevice] = useState(false);
@@ -45,7 +47,7 @@ function DeviceTab() {
   const [tuyaConnecting, setTuyaConnecting] = useState(false);
   const [tuyaError, setTuyaError] = useState(null);
 
-  // Check connection status on mount
+  // Check connection status and stored key status on mount
   useEffect(() => {
     const checkGoveeStatus = async () => {
       try {
@@ -63,8 +65,22 @@ function DeviceTab() {
         console.error('Failed to check Tuya status:', error);
       }
     };
+    const checkStoredKeys = async () => {
+      try {
+        const settings = await api.getSettings();
+        if (settings.hasGoveeApiKey !== undefined) {
+          setHasGoveeApiKey(settings.hasGoveeApiKey);
+        }
+        if (settings.hasTuyaCredentials !== undefined) {
+          setHasTuyaCredentials(settings.hasTuyaCredentials);
+        }
+      } catch (error) {
+        console.error('Failed to check stored keys:', error);
+      }
+    };
     checkGoveeStatus();
     checkTuyaStatus();
+    checkStoredKeys();
   }, [api]);
 
   const handleScan = async () => {
@@ -709,7 +725,7 @@ function DeviceTab() {
                       type="password"
                       value={goveeApiKey}
                       onChange={(e) => setGoveeApiKey(e.target.value)}
-                      placeholder="Enter Govee API Key"
+                      placeholder={hasGoveeApiKey ? 'Key saved - enter new to replace' : 'Enter Govee API Key'}
                       onKeyDown={(e) => e.key === 'Enter' && handleGoveeConnect()}
                     />
                     <button
@@ -720,6 +736,7 @@ function DeviceTab() {
                       {goveeConnecting ? 'Connecting...' : 'Connect'}
                     </button>
                   </div>
+                  {hasGoveeApiKey && <p className="api-key-status">API key is securely stored (encrypted)</p>}
                   {goveeError && <div className="discovery-error">{goveeError}</div>}
                   <p className="form-hint">Get your API key from Govee Home app: Profile → Settings → About Us → Apply for API Key</p>
                 </div>
@@ -785,13 +802,13 @@ function DeviceTab() {
                       type="text"
                       value={tuyaAccessId}
                       onChange={(e) => setTuyaAccessId(e.target.value)}
-                      placeholder="Access ID"
+                      placeholder={hasTuyaCredentials ? 'Credentials saved - enter new to replace' : 'Access ID'}
                     />
                     <input
                       type="password"
                       value={tuyaAccessSecret}
                       onChange={(e) => setTuyaAccessSecret(e.target.value)}
-                      placeholder="Access Secret"
+                      placeholder={hasTuyaCredentials ? 'Enter new secret' : 'Access Secret'}
                     />
                     <select
                       value={tuyaRegion}
@@ -810,6 +827,7 @@ function DeviceTab() {
                       {tuyaConnecting ? 'Connecting...' : 'Connect'}
                     </button>
                   </div>
+                  {hasTuyaCredentials && <p className="api-key-status">Credentials are securely stored (encrypted)</p>}
                   {tuyaError && <div className="discovery-error">{tuyaError}</div>}
                   <p className="form-hint">Get credentials from Tuya IoT Platform: iot.tuya.com → Cloud → Your Project</p>
                 </div>

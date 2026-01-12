@@ -2168,3 +2168,139 @@
   display: block;
   margin-top: var(--spacing-xs);
 }
+
+/* ============================================
+   DATA TAB - EXPORT/IMPORT STYLES
+   ============================================ */
+
+/* Export category headers */
+.export-category {
+  margin-bottom: var(--spacing-md);
+}
+
+.export-category:last-child {
+  margin-bottom: 0;
+}
+
+.export-category h4 {
+  color: #000;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--spacing-sm) 0;
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Export list */
+.export-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.export-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius);
+}
+
+.export-item-name {
+  flex: 1;
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Backup summary */
+.backup-summary {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius);
+  flex-wrap: wrap;
+}
+
+.backup-summary span {
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+/* Import result */
+.import-result {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+  margin-top: var(--spacing-md);
+}
+
+.import-result.success {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #065f46;
+}
+
+.import-result.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #991b1b;
+}
+
+.import-result strong {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.import-result p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+/* Import info */
+.import-info {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius);
+}
+
+.import-info h4 {
+  color: #000;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.import-info ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.import-info li {
+  color: #1a1a1a;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin-bottom: var(--spacing-xs);
+}
+
+.import-info li:last-child {
+  margin-bottom: 0;
+}
+
+.import-info code {
+  background: rgba(255, 255, 255, 0.6);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: var(--font-size-xs);
+  color: #333;
+}

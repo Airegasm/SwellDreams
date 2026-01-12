@@ -3,12 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ModelTab from '../components/settings/ModelTab';
 import GlobalTab from '../components/settings/GlobalTab';
 import DeviceTab from '../components/settings/DeviceTab';
+import DataTab from '../components/settings/DataTab';
 import './Settings.css';
 
 const TABS = [
   { id: 'model', label: 'LLM Backend' },
   { id: 'devices', label: 'Smart Devices' },
-  { id: 'global', label: 'Global States' }
+  { id: 'global', label: 'Global States' },
+  { id: 'data', label: 'Data' }
 ];
 
 function Settings() {
@@ -29,6 +31,8 @@ function Settings() {
         return <GlobalTab />;
       case 'devices':
         return <DeviceTab />;
+      case 'data':
+        return <DataTab />;
       default:
         return <ModelTab />;
     }

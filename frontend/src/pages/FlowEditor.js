@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../context/AppContext';
+import { useFlowHistory } from '../hooks/useFlowHistory';
 
 // Custom node components
 import TriggerNode from '../components/flow/nodes/TriggerNode';
@@ -144,6 +145,17 @@ function FlowEditor() {
   const reactFlowWrapper = useRef(null);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Undo/Redo history
+  const {
+    pushSnapshot,
+    undo: undoHistory,
+    redo: redoHistory,
+    canUndo,
+    canRedo,
+    clearHistory
+  } = useFlowHistory(50);
+
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [flowName, setFlowName] = useState('');
   const [flowCategory, setFlowCategory] = useState('character');
@@ -158,9 +170,30 @@ function FlowEditor() {
   const [clipboard, setClipboard] = useState(null); // Can hold single node or array of nodes
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
 
+  // Undo handler
+  const handleUndo = useCallback(() => {
+    const previousState = undoHistory(nodes, edges);
+    if (previousState) {
+      setNodes(previousState.nodes);
+      setEdges(previousState.edges);
+    }
+  }, [nodes, edges, undoHistory, setNodes, setEdges]);
+
+  // Redo handler
+  const handleRedo = useCallback(() => {
+    const nextState = redoHistory(nodes, edges);
+    if (nextState) {
+      setNodes(nextState.nodes);
+      setEdges(nextState.edges);
+    }
+  }, [nodes, edges, redoHistory, setNodes, setEdges]);
+
   const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
-    [setEdges]
+    (params) => {
+      pushSnapshot(nodes, edges, 'add_edge');
+      setEdges((eds) => addEdge({ ...params, animated: true }, eds));
+    },
+    [setEdges, nodes, edges, pushSnapshot]
   );
 
   const onDragOver = useCallback((event) => {
@@ -253,10 +286,11 @@ function FlowEditor() {
 
   const handleDeleteNode = useCallback(() => {
     if (!contextMenu) return;
+    pushSnapshot(nodes, edges, 'delete_node');
     setNodes((nds) => nds.filter(n => n.id !== contextMenu.nodeId));
     setEdges((eds) => eds.filter(e => e.source !== contextMenu.nodeId && e.target !== contextMenu.nodeId));
     closeContextMenu();
-  }, [contextMenu, setNodes, setEdges, closeContextMenu]);
+  }, [contextMenu, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
 
   // Close context menu when clicking elsewhere
   const onPaneClick = useCallback(() => {
@@ -295,11 +329,12 @@ function FlowEditor() {
   // Delete selected nodes
   const handleDeleteSelected = useCallback(() => {
     if (selectedNodeIds.length === 0) return;
+    pushSnapshot(nodes, edges, 'delete_selected');
     setNodes((nds) => nds.filter(n => !selectedNodeIds.includes(n.id)));
     setEdges((eds) => eds.filter(e => !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)));
     setSelectedNodeIds([]);
     closeContextMenu();
-  }, [selectedNodeIds, setNodes, setEdges, closeContextMenu]);
+  }, [selectedNodeIds, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
 
   // Paste (handles both single and multiple nodes)
   const handlePaste = useCallback(() => {
@@ -307,6 +342,8 @@ function FlowEditor() {
       closeContextMenu();
       return;
     }
+
+    pushSnapshot(nodes, edges, 'paste');
 
     const position = contextMenu
       ? reactFlowInstance.screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y })
@@ -370,11 +407,12 @@ function FlowEditor() {
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
     if (nodes.length === 0) return;
+    pushSnapshot(nodes, edges, 'organize');
 
     const NODE_WIDTH = 200;
     const NODE_HEIGHT = 150;
@@ -457,7 +495,7 @@ function FlowEditor() {
         reactFlowInstance.fitView({ padding: 0.2 });
       }
     }, 50);
-  }, [nodes, edges, setNodes, reactFlowInstance]);
+  }, [nodes, edges, setNodes, reactFlowInstance, pushSnapshot]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -466,6 +504,18 @@ function FlowEditor() {
       const target = event.target;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
         return;
+      }
+
+      // Ctrl+Z - Undo
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      }
+
+      // Ctrl+Y or Ctrl+Shift+Z - Redo
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'y' || (event.key === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        handleRedo();
       }
 
       // Ctrl+C - Copy
@@ -501,7 +551,7 @@ function FlowEditor() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeIds, clipboard, reactFlowInstance, handleCopySelected, handlePaste, handleDeleteSelected]);
+  }, [selectedNodeIds, clipboard, reactFlowInstance, handleCopySelected, handlePaste, handleDeleteSelected, handleUndo, handleRedo]);
 
   // Right-click on empty pane for paste
   const onPaneContextMenu = useCallback((event) => {
@@ -525,6 +575,8 @@ function FlowEditor() {
       const subtype = event.dataTransfer.getData('application/reactflow/subtype');
 
       if (!type) return;
+
+      pushSnapshot(nodes, edges, 'add_node');
 
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
@@ -551,7 +603,7 @@ function FlowEditor() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -589,6 +641,9 @@ function FlowEditor() {
     // Reset draft state when loading a new flow
     draftInitialized.current = false;
     setHasDraft(false);
+
+    // Clear undo/redo history when loading a new flow
+    clearHistory();
 
     setSelectedFlow(flow);
     setFlowName(flow.name);
@@ -629,12 +684,15 @@ function FlowEditor() {
     setNodes(nodesWithHandlers);
     setEdges(flow.edges || []);
     setShowLoadModal(false);
-  }, [devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges]);
+  }, [devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
 
   const handleNewFlow = () => {
     // Reset draft state
     draftInitialized.current = false;
     setHasDraft(false);
+
+    // Clear undo/redo history
+    clearHistory();
 
     setSelectedFlow(null);
     setFlowName('');
@@ -888,6 +946,22 @@ function FlowEditor() {
                   Draft restored
                 </span>
               )}
+              <button
+                className="btn btn-secondary"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title="Undo (Ctrl+Z)"
+              >
+                Undo
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                title="Redo (Ctrl+Y)"
+              >
+                Redo
+              </button>
               <button
                 className="btn btn-secondary"
                 onClick={handleOrganizeNodes}

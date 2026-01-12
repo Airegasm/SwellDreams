@@ -1,11 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useError } from '../../context/ErrorContext';
+import { API_BASE } from '../../config';
+import { apiFetch } from '../../utils/api';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import PersonaEditorModal from '../modals/PersonaEditorModal';
 import './SettingsTabs.css';
 
 function PersonaTab() {
   const { personas, flows, settings, sessionState, api, sendWsMessage } = useApp();
+  const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
   const [showFlowModal, setShowFlowModal] = useState(false);
@@ -90,6 +94,25 @@ function PersonaTab() {
     }).filter(Boolean);
   };
 
+  const handleExport = async (persona) => {
+    try {
+      const response = await apiFetch(`${API_BASE}/api/export/persona/${persona.id}`);
+      const filename = `${persona.name.replace(/[^a-z0-9]/gi, '_')}_persona.json`;
+      const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess?.(`Exported "${persona.displayName || persona.name}"`);
+    } catch (error) {
+      showError(error.message || 'Failed to export persona');
+    }
+  };
+
   return (
     <div className="settings-tab">
       <div className="tab-header-actions">
@@ -139,6 +162,13 @@ function PersonaTab() {
                     onClick={() => handleEdit(persona)}
                   >
                     Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => handleExport(persona)}
+                    title="Export persona as JSON"
+                  >
+                    Export
                   </button>
                   <button
                     className="btn btn-sm btn-danger"

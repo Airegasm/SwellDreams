@@ -23,6 +23,18 @@ const tuyaService = require('./services/tuya-service');
 const { createLogger } = require('./utils/logger');
 const { AppError, ValidationError } = require('./utils/errors');
 const validators = require('./utils/validators');
+const {
+  encrypt,
+  decrypt,
+  isEncrypted,
+  encryptSettings,
+  decryptSettings,
+  maskSettingsForResponse,
+  encryptConnectionProfile,
+  decryptConnectionProfile,
+  maskApiKey,
+  hasApiKey
+} = require('./utils/crypto');
 
 const log = createLogger('Server');
 
@@ -287,6 +299,57 @@ function isLocalRequest(req) {
 }
 
 initializeDataFiles();
+
+// ============================================
+// API Key Encryption Migration
+// ============================================
+// Migrate plaintext API keys to encrypted format
+function migrateApiKeyEncryption() {
+  let migrated = false;
+
+  // Migrate settings
+  const settings = loadData(DATA_FILES.settings);
+  if (settings) {
+    if (settings.openRouterApiKey && !isEncrypted(settings.openRouterApiKey)) {
+      settings.openRouterApiKey = encrypt(settings.openRouterApiKey);
+      migrated = true;
+    }
+    if (settings.goveeApiKey && !isEncrypted(settings.goveeApiKey)) {
+      settings.goveeApiKey = encrypt(settings.goveeApiKey);
+      migrated = true;
+    }
+    if (settings.tuyaAccessId && !isEncrypted(settings.tuyaAccessId)) {
+      settings.tuyaAccessId = encrypt(settings.tuyaAccessId);
+      migrated = true;
+    }
+    if (settings.tuyaAccessSecret && !isEncrypted(settings.tuyaAccessSecret)) {
+      settings.tuyaAccessSecret = encrypt(settings.tuyaAccessSecret);
+      migrated = true;
+    }
+    if (migrated) {
+      saveData(DATA_FILES.settings, settings);
+      console.log('[Migration] Encrypted plaintext API keys in settings');
+    }
+  }
+
+  // Migrate connection profiles
+  const profiles = loadData(DATA_FILES.connectionProfiles);
+  if (profiles && Array.isArray(profiles)) {
+    let profilesMigrated = false;
+    for (const profile of profiles) {
+      if (profile.openRouterApiKey && !isEncrypted(profile.openRouterApiKey)) {
+        profile.openRouterApiKey = encrypt(profile.openRouterApiKey);
+        profilesMigrated = true;
+      }
+    }
+    if (profilesMigrated) {
+      saveData(DATA_FILES.connectionProfiles, profiles);
+      console.log('[Migration] Encrypted plaintext API keys in connection profiles');
+    }
+  }
+}
+
+migrateApiKeyEncryption();
 
 // ============================================
 // Device Brand Migration
@@ -925,8 +988,8 @@ console.log('[Startup] Flow assignments loaded from persisted data');
 activateAssignedFlows();
 console.log('[Startup] Flows activated for current session');
 
-// Load Govee API key from settings if saved
-const startupSettings = loadData(DATA_FILES.settings) || {};
+// Load and decrypt API keys from settings for service initialization
+const startupSettings = decryptSettings(loadData(DATA_FILES.settings) || {});
 if (startupSettings.goveeApiKey) {
   goveeService.setApiKey(startupSettings.goveeApiKey);
   console.log('[Startup] Govee API key loaded');
@@ -2258,12 +2321,40 @@ function buildChatContext(character, settings) {
 
 app.get('/api/settings', (req, res) => {
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
-  res.json(settings);
+  // Mask sensitive keys before sending to client
+  const maskedSettings = maskSettingsForResponse(settings);
+  res.json(maskedSettings);
 });
 
 app.post('/api/settings', async (req, res) => {
   const oldSettings = loadData(DATA_FILES.settings) || {};
+
+  // Merge new settings, preserving encrypted keys if not provided
   const settings = { ...oldSettings, ...req.body };
+
+  // Encrypt any new API keys provided in the request
+  if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
+    settings.openRouterApiKey = encrypt(req.body.openRouterApiKey);
+  } else if (!req.body.openRouterApiKey) {
+    // Keep existing encrypted key if not provided
+    settings.openRouterApiKey = oldSettings.openRouterApiKey;
+  }
+  if (req.body.goveeApiKey && req.body.goveeApiKey !== '') {
+    settings.goveeApiKey = encrypt(req.body.goveeApiKey);
+  } else if (!req.body.goveeApiKey) {
+    settings.goveeApiKey = oldSettings.goveeApiKey;
+  }
+  if (req.body.tuyaAccessId && req.body.tuyaAccessId !== '') {
+    settings.tuyaAccessId = encrypt(req.body.tuyaAccessId);
+  } else if (!req.body.tuyaAccessId) {
+    settings.tuyaAccessId = oldSettings.tuyaAccessId;
+  }
+  if (req.body.tuyaAccessSecret && req.body.tuyaAccessSecret !== '') {
+    settings.tuyaAccessSecret = encrypt(req.body.tuyaAccessSecret);
+  } else if (!req.body.tuyaAccessSecret) {
+    settings.tuyaAccessSecret = oldSettings.tuyaAccessSecret;
+  }
+
   saveData(DATA_FILES.settings, settings);
 
   // Auto-activate flows when character or persona changes
@@ -2286,18 +2377,19 @@ app.post('/api/settings', async (req, res) => {
     }
   }
 
-  broadcast('settings_update', settings);
+  // Broadcast masked settings to clients
+  broadcast('settings_update', maskSettingsForResponse(settings));
 
   // Send welcome message if character changed and chat is empty
   if (charChanged && sessionState.chatHistory.length === 0 && settings.activeCharacterId) {
     const characters = loadData(DATA_FILES.characters) || [];
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     if (activeCharacter) {
-      await sendWelcomeMessage(activeCharacter, settings);
+      await sendWelcomeMessage(activeCharacter, decryptSettings(settings));
     }
   }
 
-  res.json(settings);
+  res.json(maskSettingsForResponse(settings));
 });
 
 function activateAssignedFlows() {
@@ -2364,8 +2456,14 @@ function activateAssignedFlows() {
 app.post('/api/settings/llm', (req, res) => {
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
   settings.llm = { ...settings.llm, ...req.body };
+
+  // Encrypt OpenRouter API key if provided
+  if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
+    settings.openRouterApiKey = encrypt(req.body.openRouterApiKey);
+  }
+
   saveData(DATA_FILES.settings, settings);
-  broadcast('settings_update', settings);
+  broadcast('settings_update', maskSettingsForResponse(settings));
   res.json(settings.llm);
 });
 
@@ -2414,6 +2512,36 @@ app.post('/api/openrouter/connect', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('[OpenRouter] Connection error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reconnect to OpenRouter using stored API key
+app.post('/api/openrouter/reconnect', async (req, res) => {
+  try {
+    const settings = loadData(DATA_FILES.settings) || {};
+    if (!settings.openRouterApiKey) {
+      return res.status(400).json({ success: false, error: 'No stored API key found' });
+    }
+
+    // Decrypt the stored API key
+    const apiKey = decrypt(settings.openRouterApiKey);
+    if (!apiKey) {
+      return res.status(400).json({ success: false, error: 'Failed to retrieve stored API key' });
+    }
+
+    console.log('[OpenRouter] Reconnecting with stored key...');
+    const result = await llmService.testOpenRouterConnection(apiKey);
+
+    if (result.success) {
+      global.openRouterModels = result.models;
+      console.log(`[OpenRouter] Reconnected successfully, ${result.models.length} models available`);
+      result.maskedKey = maskApiKey(apiKey);
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('[OpenRouter] Reconnection error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -2467,9 +2595,23 @@ app.delete('/api/personas/:id', (req, res) => {
 
 // --- Connection Profiles ---
 
+// Helper to mask API keys in connection profiles for response
+function maskConnectionProfiles(profiles) {
+  return profiles.map(profile => {
+    const masked = { ...profile };
+    if (masked.openRouterApiKey) {
+      masked.openRouterApiKeyMasked = maskApiKey(masked.openRouterApiKey);
+      masked.hasOpenRouterApiKey = hasApiKey(masked.openRouterApiKey);
+      masked.openRouterApiKey = ''; // Don't send actual key
+    }
+    return masked;
+  });
+}
+
 app.get('/api/connection-profiles', (req, res) => {
   const profiles = loadData(DATA_FILES.connectionProfiles) || [];
-  res.json(profiles);
+  // Mask API keys before sending to client
+  res.json(maskConnectionProfiles(profiles));
 });
 
 app.post('/api/connection-profiles', (req, res) => {
@@ -2480,10 +2622,16 @@ app.post('/api/connection-profiles', (req, res) => {
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
+
+  // Encrypt API key if provided
+  if (newProfile.openRouterApiKey) {
+    newProfile.openRouterApiKey = encrypt(newProfile.openRouterApiKey);
+  }
+
   profiles.push(newProfile);
   saveData(DATA_FILES.connectionProfiles, profiles);
-  broadcast('connection_profiles_update', profiles);
-  res.json(newProfile);
+  broadcast('connection_profiles_update', maskConnectionProfiles(profiles));
+  res.json(maskConnectionProfiles([newProfile])[0]);
 });
 
 app.put('/api/connection-profiles/:id', (req, res) => {
@@ -2492,17 +2640,27 @@ app.put('/api/connection-profiles/:id', (req, res) => {
   if (index === -1) {
     return res.status(404).json({ error: 'Connection profile not found' });
   }
-  profiles[index] = { ...profiles[index], ...req.body, updatedAt: Date.now() };
+
+  const oldProfile = profiles[index];
+  profiles[index] = { ...oldProfile, ...req.body, updatedAt: Date.now() };
+
+  // Encrypt new API key if provided, otherwise keep existing
+  if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
+    profiles[index].openRouterApiKey = encrypt(req.body.openRouterApiKey);
+  } else if (!req.body.openRouterApiKey) {
+    profiles[index].openRouterApiKey = oldProfile.openRouterApiKey;
+  }
+
   saveData(DATA_FILES.connectionProfiles, profiles);
-  broadcast('connection_profiles_update', profiles);
-  res.json(profiles[index]);
+  broadcast('connection_profiles_update', maskConnectionProfiles(profiles));
+  res.json(maskConnectionProfiles([profiles[index]])[0]);
 });
 
 app.delete('/api/connection-profiles/:id', (req, res) => {
   let profiles = loadData(DATA_FILES.connectionProfiles) || [];
   profiles = profiles.filter(p => p.id !== req.params.id);
   saveData(DATA_FILES.connectionProfiles, profiles);
-  broadcast('connection_profiles_update', profiles);
+  broadcast('connection_profiles_update', maskConnectionProfiles(profiles));
   res.json({ success: true });
 });
 
@@ -2513,13 +2671,20 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
     return res.status(404).json({ error: 'Connection profile not found' });
   }
 
-  // Load current settings and update LLM config with profile values
+  // Decrypt profile for use, then save to settings (re-encrypted)
+  const decryptedProfile = decryptConnectionProfile(profile);
   const settings = loadData(DATA_FILES.settings) || {};
-  const { id, name, createdAt, updatedAt, ...llmSettings } = profile;
+  const { id, name, createdAt, updatedAt, openRouterApiKey, ...llmSettings } = decryptedProfile;
   settings.llm = { ...settings.llm, ...llmSettings, activeProfileId: profile.id };
+
+  // Re-encrypt the API key for storage
+  if (openRouterApiKey) {
+    settings.openRouterApiKey = encrypt(openRouterApiKey);
+  }
+
   saveData(DATA_FILES.settings, settings);
-  broadcast('settings_update', settings);
-  res.json({ success: true, settings });
+  broadcast('settings_update', maskSettingsForResponse(settings));
+  res.json({ success: true, settings: maskSettingsForResponse(settings) });
 });
 
 // --- Remote Settings ---
@@ -2811,9 +2976,9 @@ app.post('/api/govee/connect', async (req, res) => {
   const success = await goveeService.testConnection();
 
   if (success) {
-    // Save API key to settings
+    // Save encrypted API key to settings
     const settings = loadData(DATA_FILES.settings) || {};
-    settings.goveeApiKey = apiKey;
+    settings.goveeApiKey = encrypt(apiKey);
     saveData(DATA_FILES.settings, settings);
     res.json({ success: true, message: 'Connected to Govee' });
   } else {
@@ -2913,10 +3078,10 @@ app.post('/api/tuya/connect', async (req, res) => {
     const success = await tuyaService.testConnection();
 
     if (success) {
-      // Save credentials to settings
+      // Save encrypted credentials to settings
       const settings = loadData(DATA_FILES.settings) || {};
-      settings.tuyaAccessId = accessId;
-      settings.tuyaAccessSecret = accessSecret;
+      settings.tuyaAccessId = encrypt(accessId);
+      settings.tuyaAccessSecret = encrypt(accessSecret);
       settings.tuyaRegion = region || 'us';
       saveData(DATA_FILES.settings, settings);
       res.json({ success: true, message: 'Connected to Tuya' });
@@ -3088,6 +3253,268 @@ app.delete('/api/flows/:id', (req, res) => {
   saveData(DATA_FILES.flows, flows);
   broadcast('flows_update', flows);
   res.json({ success: true });
+});
+
+// ============================================
+// Data Export/Import
+// ============================================
+
+const EXPORT_VERSION = '1.5';
+
+// Export single character
+app.get('/api/export/character/:id', (req, res) => {
+  const characters = loadData(DATA_FILES.characters) || [];
+  const character = characters.find(c => c.id === req.params.id);
+  if (!character) {
+    return res.status(404).json({ error: 'Character not found' });
+  }
+
+  const exportData = {
+    type: 'swelldreams-character',
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: character
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${character.name.replace(/[^a-z0-9]/gi, '_')}_character.json"`);
+  res.json(exportData);
+});
+
+// Export single persona
+app.get('/api/export/persona/:id', (req, res) => {
+  const personas = loadData(DATA_FILES.personas) || [];
+  const persona = personas.find(p => p.id === req.params.id);
+  if (!persona) {
+    return res.status(404).json({ error: 'Persona not found' });
+  }
+
+  const exportData = {
+    type: 'swelldreams-persona',
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: persona
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${persona.name.replace(/[^a-z0-9]/gi, '_')}_persona.json"`);
+  res.json(exportData);
+});
+
+// Export single flow
+app.get('/api/export/flow/:id', (req, res) => {
+  const flows = loadData(DATA_FILES.flows) || [];
+  const flow = flows.find(f => f.id === req.params.id);
+  if (!flow) {
+    return res.status(404).json({ error: 'Flow not found' });
+  }
+
+  const exportData = {
+    type: 'swelldreams-flow',
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: flow
+  };
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${flow.name.replace(/[^a-z0-9]/gi, '_')}_flow.json"`);
+  res.json(exportData);
+});
+
+// Export full backup (all data, excluding sensitive API keys)
+app.get('/api/export/backup', (req, res) => {
+  const characters = loadData(DATA_FILES.characters) || [];
+  const personas = loadData(DATA_FILES.personas) || [];
+  const flows = loadData(DATA_FILES.flows) || [];
+  const settings = loadData(DATA_FILES.settings) || {};
+
+  // Remove sensitive data from settings export
+  const safeSettings = { ...settings };
+  delete safeSettings.openRouterApiKey;
+  delete safeSettings.goveeApiKey;
+  delete safeSettings.tuyaAccessId;
+  delete safeSettings.tuyaAccessSecret;
+
+  const exportData = {
+    type: 'swelldreams-backup',
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    data: {
+      characters,
+      personas,
+      flows,
+      settings: safeSettings
+    }
+  };
+
+  const filename = `swelldreams_backup_${new Date().toISOString().split('T')[0]}.json`;
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.json(exportData);
+});
+
+// Import character
+app.post('/api/import/character', (req, res) => {
+  try {
+    const importData = req.body;
+
+    if (importData.type !== 'swelldreams-character') {
+      return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-character.' });
+    }
+
+    const characters = loadData(DATA_FILES.characters) || [];
+    const newCharacter = {
+      ...importData.data,
+      id: uuidv4(), // Generate new ID to avoid conflicts
+      importedAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    characters.push(newCharacter);
+    saveData(DATA_FILES.characters, characters);
+    broadcast('characters_update', characters);
+
+    res.json({ success: true, character: newCharacter });
+  } catch (error) {
+    console.error('[Import] Character import error:', error);
+    res.status(400).json({ error: 'Failed to import character: ' + error.message });
+  }
+});
+
+// Import persona
+app.post('/api/import/persona', (req, res) => {
+  try {
+    const importData = req.body;
+
+    if (importData.type !== 'swelldreams-persona') {
+      return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-persona.' });
+    }
+
+    const personas = loadData(DATA_FILES.personas) || [];
+    const newPersona = {
+      ...importData.data,
+      id: uuidv4(),
+      importedAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    personas.push(newPersona);
+    saveData(DATA_FILES.personas, personas);
+    broadcast('personas_update', personas);
+
+    res.json({ success: true, persona: newPersona });
+  } catch (error) {
+    console.error('[Import] Persona import error:', error);
+    res.status(400).json({ error: 'Failed to import persona: ' + error.message });
+  }
+});
+
+// Import flow
+app.post('/api/import/flow', (req, res) => {
+  try {
+    const importData = req.body;
+
+    if (importData.type !== 'swelldreams-flow') {
+      return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-flow.' });
+    }
+
+    const flows = loadData(DATA_FILES.flows) || [];
+    const newFlow = {
+      ...importData.data,
+      id: uuidv4(),
+      importedAt: Date.now(),
+      updatedAt: Date.now(),
+      isActive: false // Imported flows start inactive
+    };
+
+    flows.push(newFlow);
+    saveData(DATA_FILES.flows, flows);
+    broadcast('flows_update', flows);
+
+    res.json({ success: true, flow: newFlow });
+  } catch (error) {
+    console.error('[Import] Flow import error:', error);
+    res.status(400).json({ error: 'Failed to import flow: ' + error.message });
+  }
+});
+
+// Import full backup
+app.post('/api/import/backup', (req, res) => {
+  try {
+    const importData = req.body;
+
+    if (importData.type !== 'swelldreams-backup') {
+      return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-backup.' });
+    }
+
+    const results = {
+      characters: 0,
+      personas: 0,
+      flows: 0,
+      errors: []
+    };
+
+    // Import characters
+    if (importData.data.characters && Array.isArray(importData.data.characters)) {
+      const characters = loadData(DATA_FILES.characters) || [];
+      for (const char of importData.data.characters) {
+        const newChar = {
+          ...char,
+          id: uuidv4(),
+          importedAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        characters.push(newChar);
+        results.characters++;
+      }
+      saveData(DATA_FILES.characters, characters);
+      broadcast('characters_update', characters);
+    }
+
+    // Import personas
+    if (importData.data.personas && Array.isArray(importData.data.personas)) {
+      const personas = loadData(DATA_FILES.personas) || [];
+      for (const persona of importData.data.personas) {
+        const newPersona = {
+          ...persona,
+          id: uuidv4(),
+          importedAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        personas.push(newPersona);
+        results.personas++;
+      }
+      saveData(DATA_FILES.personas, personas);
+      broadcast('personas_update', personas);
+    }
+
+    // Import flows
+    if (importData.data.flows && Array.isArray(importData.data.flows)) {
+      const flows = loadData(DATA_FILES.flows) || [];
+      for (const flow of importData.data.flows) {
+        const newFlow = {
+          ...flow,
+          id: uuidv4(),
+          importedAt: Date.now(),
+          updatedAt: Date.now(),
+          isActive: false
+        };
+        flows.push(newFlow);
+        results.flows++;
+      }
+      saveData(DATA_FILES.flows, flows);
+      broadcast('flows_update', flows);
+    }
+
+    res.json({
+      success: true,
+      message: `Imported ${results.characters} characters, ${results.personas} personas, ${results.flows} flows`,
+      results
+    });
+  } catch (error) {
+    console.error('[Import] Backup import error:', error);
+    res.status(400).json({ error: 'Failed to import backup: ' + error.message });
+  }
 });
 
 // --- Session ---

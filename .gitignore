@@ -52,6 +52,9 @@ backend/data/flows.json
 # Settings contains API keys - use settings.template.json instead
 backend/data/settings.json
 
+# Machine encryption key (auto-generated, do not share)
+backend/data/.machine-key
+
 # Remote connection whitelist (contains user IPs)
 backend/data/remote-settings.json
 

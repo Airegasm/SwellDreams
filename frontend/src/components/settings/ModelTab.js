@@ -49,7 +49,9 @@ function ModelTab() {
 
   // OpenRouter state
   const [endpointStandard, setEndpointStandard] = useState(settings.llm?.endpointStandard || 'openai');
-  const [openRouterApiKey, setOpenRouterApiKey] = useState(settings.llm?.openRouterApiKey || '');
+  const [openRouterApiKey, setOpenRouterApiKey] = useState('');
+  const [hasOpenRouterApiKey, setHasOpenRouterApiKey] = useState(settings.hasOpenRouterApiKey || false);
+  const [openRouterApiKeyMasked, setOpenRouterApiKeyMasked] = useState(settings.openRouterApiKeyMasked || '');
   const [openRouterModels, setOpenRouterModels] = useState([]);
   const [selectedOpenRouterModel, setSelectedOpenRouterModel] = useState(settings.llm?.openRouterModel || '');
   const [modelSortOrder, setModelSortOrder] = useState('cost-low');
@@ -158,7 +160,10 @@ function ModelTab() {
 
   // Connect to OpenRouter
   const handleOpenRouterConnect = async () => {
-    if (!openRouterApiKey.trim()) {
+    // If no new key entered but we have a saved key, just reconnect
+    const isReconnect = !openRouterApiKey.trim() && hasOpenRouterApiKey;
+
+    if (!openRouterApiKey.trim() && !hasOpenRouterApiKey) {
       setOpenRouterError('Please enter an API key');
       return;
     }
@@ -167,25 +172,37 @@ function ModelTab() {
     setOpenRouterError(null);
 
     try {
-      const result = await apiFetch(`${API_BASE}/api/openrouter/connect`, {
+      // For reconnect, call the reconnect endpoint that uses stored key
+      const endpoint = isReconnect
+        ? `${API_BASE}/api/openrouter/reconnect`
+        : `${API_BASE}/api/openrouter/connect`;
+
+      const result = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: openRouterApiKey })
+        body: isReconnect ? '{}' : JSON.stringify({ apiKey: openRouterApiKey })
       });
 
       if (result.success) {
         setOpenRouterModels(result.models);
         setConnectionStatus('online');
         setModelStatus(`${result.models.length} models available`);
+        setHasOpenRouterApiKey(true);
+        if (result.maskedKey) {
+          setOpenRouterApiKeyMasked(result.maskedKey);
+        }
 
-        // Save the API key to settings
-        const newSettings = {
-          ...llmSettings,
-          endpointStandard: 'openrouter',
-          openRouterApiKey: openRouterApiKey
-        };
-        setLlmSettings(newSettings);
-        await api.updateLlmSettings(newSettings);
+        // Save the settings (key will be encrypted on backend)
+        if (!isReconnect) {
+          const newSettings = {
+            ...llmSettings,
+            endpointStandard: 'openrouter',
+            openRouterApiKey: openRouterApiKey
+          };
+          setLlmSettings(newSettings);
+          await api.updateLlmSettings(newSettings);
+          setOpenRouterApiKey(''); // Clear the input after saving
+        }
       } else {
         setOpenRouterError(result.error || 'Connection failed');
         setConnectionStatus('offline');
@@ -246,12 +263,16 @@ function ModelTab() {
           if (loadedSettings.llm.endpointStandard) {
             setEndpointStandard(loadedSettings.llm.endpointStandard);
           }
-          if (loadedSettings.llm.openRouterApiKey) {
-            setOpenRouterApiKey(loadedSettings.llm.openRouterApiKey);
-          }
           if (loadedSettings.llm.openRouterModel) {
             setSelectedOpenRouterModel(loadedSettings.llm.openRouterModel);
           }
+        }
+        // Handle masked API key info
+        if (loadedSettings.hasOpenRouterApiKey !== undefined) {
+          setHasOpenRouterApiKey(loadedSettings.hasOpenRouterApiKey);
+        }
+        if (loadedSettings.openRouterApiKeyMasked) {
+          setOpenRouterApiKeyMasked(loadedSettings.openRouterApiKeyMasked);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -621,19 +642,25 @@ function ModelTab() {
                     type="password"
                     value={openRouterApiKey}
                     onChange={(e) => setOpenRouterApiKey(e.target.value)}
-                    placeholder="sk-or-v1-..."
+                    placeholder={hasOpenRouterApiKey ? `Key saved (${openRouterApiKeyMasked || '****'}) - enter new to replace` : 'sk-or-v1-...'}
                     className="connection-field-twothirds"
                   />
                   <div className="connection-field-onethird-buttons">
                     <button
                       className={`btn btn-sm ${connectionStatus === 'online' && openRouterModels.length > 0 ? 'btn-success' : 'btn-primary'}`}
                       onClick={handleOpenRouterConnect}
-                      disabled={openRouterConnecting || !openRouterApiKey.trim()}
+                      disabled={openRouterConnecting || (!openRouterApiKey.trim() && !hasOpenRouterApiKey)}
                     >
-                      {openRouterConnecting ? 'Connecting...' : connectionStatus === 'online' && openRouterModels.length > 0 ? 'Connected' : 'Connect'}
+                      {openRouterConnecting ? 'Connecting...' : connectionStatus === 'online' && openRouterModels.length > 0 ? 'Connected' : (hasOpenRouterApiKey && !openRouterApiKey.trim() ? 'Reconnect' : 'Connect')}
                     </button>
                   </div>
                 </div>
+                {hasOpenRouterApiKey && (
+                  <div className="connection-row">
+                    <label></label>
+                    <span className="api-key-status">API key is securely stored (encrypted)</span>
+                  </div>
+                )}
                 {openRouterError && (
                   <div className="connection-row">
                     <label></label>

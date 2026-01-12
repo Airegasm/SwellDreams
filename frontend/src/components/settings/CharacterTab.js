@@ -1,11 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useError } from '../../context/ErrorContext';
+import { API_BASE } from '../../config';
+import { apiFetch } from '../../utils/api';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import CharacterEditorModal from '../modals/CharacterEditorModal';
 import './SettingsTabs.css';
 
 function CharacterTab() {
   const { characters, flows, settings, sessionState, api, sendWsMessage } = useApp();
+  const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [showFlowModal, setShowFlowModal] = useState(false);
@@ -90,6 +94,25 @@ function CharacterTab() {
     }).filter(Boolean);
   };
 
+  const handleExport = async (character) => {
+    try {
+      const response = await apiFetch(`${API_BASE}/api/export/character/${character.id}`);
+      const filename = `${character.name.replace(/[^a-z0-9]/gi, '_')}_character.json`;
+      const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess?.(`Exported "${character.name}"`);
+    } catch (error) {
+      showError(error.message || 'Failed to export character');
+    }
+  };
+
   return (
     <div className="settings-tab">
       <div className="tab-header-actions">
@@ -136,6 +159,13 @@ function CharacterTab() {
                     onClick={() => handleEdit(character)}
                   >
                     Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => handleExport(character)}
+                    title="Export character as JSON"
+                  >
+                    Export
                   </button>
                   <button
                     className="btn btn-sm btn-danger"
