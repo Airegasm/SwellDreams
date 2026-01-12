@@ -86,7 +86,7 @@
 .chat-sidebar {
   width: 240px;
   background-color: var(--bg-secondary);
-  background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('../assets/sidebar-bg-left.png');
+  background-image: url('../assets/sidebar-bg-left.png');
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -105,7 +105,7 @@
   border-right: none;
   border-left: 1px solid var(--border-color);
   overflow-y: hidden;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('../assets/sidebar-bg-right.png');
+  background-image: url('../assets/sidebar-bg-right.png');
 }
 
 /* Entity Header with Name - Gunmetal Card */
