@@ -19,6 +19,7 @@ All notable changes to SwellDreams will be documented in this file.
 - **Report Issue link** - Direct link to GitHub issues for bug reporting
 
 ### Changed
+- **Single server architecture** - Backend now serves frontend directly from port 8889 (simplified deployment)
 - **Character writing style** - Hybrid first/third person (dialogue uses "I", actions use character name)
 - **Help documentation** - Updated with Challenge Nodes, Global Character Controls, and API encryption sections
 - Added airegasm.com community link to Getting Started

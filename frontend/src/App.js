@@ -253,9 +253,6 @@ function App() {
             <span className={`connection-status ${getLlmStatus().className}`}>
               🤖
             </span>
-            <span className={`connection-status ${connected ? 'connected' : 'disconnected'}`}>
-              🖥️
-            </span>
           </div>
           <HamburgerMenu
             onNewSession={handleNewSession}
@@ -270,8 +267,8 @@ function App() {
         <div className="offline-banner">
           <span className="offline-icon">&#x26A0;</span>
           <div className="offline-message">
-            <strong>Backend Disconnected</strong>
-            <span className="offline-hint">Double-click <code>start-backend.bat</code> in the backend folder to start the server</span>
+            <strong>Server Disconnected</strong>
+            <span className="offline-hint">Run <code>start.bat</code> (Windows) or <code>./start.sh</code> (Linux/Mac) to start the server</span>
           </div>
           <button
             className="offline-banner-close"

@@ -61,9 +61,10 @@ chmod +x start.sh
 The application will:
 1. Install dependencies (first run)
 2. Build the frontend
-3. Start the backend server (port 8889)
-4. Start the frontend server (port 3001)
-5. Open your browser to http://localhost:3001
+3. Start the server (port 8889)
+4. Open your browser to http://localhost:8889
+
+The backend serves both the API and the frontend from a single process.
 
 ### Stopping
 ```batch
