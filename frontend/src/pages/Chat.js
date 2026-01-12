@@ -691,25 +691,6 @@ function Chat() {
 
   return (
     <div className="chat-page">
-      {/* Emergency Stop Alert Banner */}
-      {emergencyStopAlert && (
-        <div className="emergency-stop-alert">
-          <div className="emergency-stop-content">
-            <span className="emergency-icon">!</span>
-            <div className="emergency-text">
-              <strong>EMERGENCY STOP TRIGGERED</strong>
-              <p>{emergencyStopAlert.reason}</p>
-            </div>
-            <button
-              className="emergency-dismiss"
-              onClick={() => setEmergencyStopAlert(null)}
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Mobile drawer overlay */}
       <div
         className={`drawer-overlay ${leftDrawerOpen || rightDrawerOpen ? 'visible' : ''}`}
@@ -747,6 +728,25 @@ function Chat() {
 
       {/* Main Chat Area */}
       <div className="chat-main">
+        {/* Emergency Stop Alert Banner */}
+        {emergencyStopAlert && (
+          <div className="emergency-stop-alert">
+            <div className="emergency-stop-content">
+              <span className="emergency-icon">!</span>
+              <div className="emergency-text">
+                <strong>EMERGENCY STOP TRIGGERED</strong>
+                <p>{emergencyStopAlert.reason}</p>
+              </div>
+              <button
+                className="emergency-dismiss"
+                onClick={() => setEmergencyStopAlert(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="chat-messages">
           {messages.length === 0 ? (
             <div className="chat-empty">

@@ -11,15 +11,17 @@
 
 /* Emergency Stop Alert Banner */
 .emergency-stop-alert {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10000;
+  z-index: 100;
   background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
   color: white;
   padding: var(--spacing-md);
   animation: emergency-pulse 1s ease-in-out infinite;
+  border-radius: var(--border-radius);
+  margin: var(--spacing-sm);
 }
 
 @keyframes emergency-pulse {
@@ -792,6 +794,8 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative; /* For emergency stop alert positioning */
+  z-index: 10;
   background-color: var(--bg-primary);
   background-image: url('../assets/chat-bg.png');
   background-size: cover;
@@ -799,8 +803,6 @@
   background-repeat: repeat;
   min-height: 0; /* Allow flex child to shrink */
   padding-top: 0; /* Extends to top of browser */
-  position: relative;
-  z-index: 10;
 }
 
 .chat-messages {
