@@ -747,7 +747,12 @@ eventEngine.setBroadcast(async (type, data) => {
     const characters = loadData(DATA_FILES.characters) || [];
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
-    if (!activeCharacter) return;
+    console.log(`[EventEngine] ai_message: activeCharId=${settings?.activeCharacterId}, found=${activeCharacter?.name || 'none'}, content=${data.content?.substring(0, 50)}...`);
+
+    if (!activeCharacter) {
+      console.log('[EventEngine] No active character found for ai_message - skipping');
+      return;
+    }
 
     // Create placeholder message with "..."
     const placeholderMessage = {
