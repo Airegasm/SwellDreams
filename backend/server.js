@@ -1030,6 +1030,8 @@ wss.on('connection', async (ws) => {
     const characters = loadData(DATA_FILES.characters) || [];
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     sessionState.characterName = activeCharacter?.name || null;
+    // Sync character's autoReplyEnabled to session state
+    sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
   }
   if (settings?.activePersonaId) {
     const personas = loadData(DATA_FILES.personas) || [];
@@ -2369,6 +2371,9 @@ app.post('/api/settings', async (req, res) => {
       const characters = loadData(DATA_FILES.characters) || [];
       const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
       sessionState.characterName = activeCharacter?.name || null;
+      // Sync character's autoReplyEnabled to session state
+      sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
+      broadcast('auto_reply_update', { enabled: sessionState.autoReply });
     }
     if (personaChanged && settings.activePersonaId) {
       const personas = loadData(DATA_FILES.personas) || [];
@@ -2795,6 +2800,14 @@ app.put('/api/characters/:id', (req, res) => {
   characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
   saveData(DATA_FILES.characters, characters);
   broadcast('characters_update', characters);
+
+  // If this is the active character, sync autoReplyEnabled to session state
+  const settings = loadData(DATA_FILES.settings);
+  if (settings?.activeCharacterId === req.params.id && req.body.autoReplyEnabled !== undefined) {
+    sessionState.autoReply = req.body.autoReplyEnabled;
+    broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+  }
+
   res.json(characters[index]);
 });
 
