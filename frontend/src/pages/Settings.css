@@ -3,11 +3,29 @@
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .page-header h1 {
   font-size: var(--font-size-xl);
   margin: 0;
+  color: var(--text-primary);
+}
+
+.header-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.header-close-btn:hover {
   color: var(--text-primary);
 }
 

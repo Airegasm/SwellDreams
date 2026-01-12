@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { apiFetch, ApiError } from '../utils/api';
 import { API_BASE, WS_URL, CONFIG } from '../config';
 
@@ -61,6 +61,9 @@ export function AppProvider({ children }) {
   // Chat messages (separate for UI updates)
   const [messages, setMessages] = useState([]);
 
+  // Session loading state (for new session spinner)
+  const [sessionLoading, setSessionLoading] = useState(false);
+
   // Player choice state
   const [playerChoiceData, setPlayerChoiceData] = useState(null);
 
@@ -79,6 +82,15 @@ export function AppProvider({ children }) {
 
   // Control mode - shared between Chat and App header
   const [controlMode, setControlModeInternal] = useState('interactive'); // 'interactive' or 'simulated'
+
+  // Flow pause state - tracks whether flows are paused due to navigation or tab visibility
+  const [flowsPaused, setFlowsPaused] = useState(false);
+  const flowsPausedRef = useRef(false); // Ref for use in effects to avoid stale closures
+  const isOnChatPageRef = useRef(true); // Track if user is on Chat page
+
+  // Flow execution state for UI status panel - now tracks multiple active flows
+  // Each execution: { flowId, flowName, triggerType, triggerLabel, currentNodeLabel, startTime }
+  const [flowExecutions, setFlowExecutions] = useState([]);
 
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
@@ -192,6 +204,7 @@ export function AppProvider({ children }) {
       case 'session_reset':
         setSessionState(data);
         setMessages([]);
+        setSessionLoading(false);
         break;
 
       case 'session_loaded':
@@ -301,6 +314,18 @@ export function AppProvider({ children }) {
         }
         break;
 
+      case 'flow_paused':
+        setFlowsPaused(data.paused);
+        flowsPausedRef.current = data.paused;
+        console.log(`[WS] Flows ${data.paused ? 'PAUSED' : 'RESUMED'}`);
+        break;
+
+      case 'flow_executions_update':
+        // Update the array of active flow executions
+        setFlowExecutions(data.executions || []);
+        console.log(`[WS] Flow executions update: ${(data.executions || []).length} active`);
+        break;
+
       default:
         console.log('[WS] Unknown message:', type, data);
     }
@@ -317,6 +342,27 @@ export function AppProvider({ children }) {
   const sendChatMessage = useCallback((content) => {
     sendWsMessage('chat_message', { content, sender: 'player' });
   }, [sendWsMessage]);
+
+  // Start new session - clears UI immediately, shows loading while backend resets
+  const startNewSession = useCallback(async () => {
+    // Immediately clear messages and show loading
+    setMessages([]);
+    setSessionLoading(true);
+    // Reset states instantly
+    setSessionState(prev => ({
+      ...prev,
+      capacity: 0,
+      pain: 0,
+      chatHistory: []
+    }));
+    // Call API - backend will send session_reset when done
+    try {
+      await apiFetch(`${API_BASE}/api/session/reset`, { method: 'POST' });
+    } catch (error) {
+      console.error('Session reset failed:', error);
+      setSessionLoading(false);
+    }
+  }, []);
 
   // Handle player choice response
   const handlePlayerChoice = useCallback((choice) => {
@@ -357,7 +403,8 @@ export function AppProvider({ children }) {
   }, [challengeData, sendWsMessage]);
 
   // API calls - all using apiFetch with proper error handling and timeouts
-  const api = {
+  // Wrapped in useMemo to maintain stable reference and prevent useEffect loops
+  const api = useMemo(() => ({
     // Settings
     getSettings: () => apiFetch(`${API_BASE}/api/settings`),
 
@@ -612,7 +659,7 @@ export function AppProvider({ children }) {
     removeWhitelistedIp: (ip) => apiFetch(`${API_BASE}/api/remote-settings/whitelist/${encodeURIComponent(ip)}`, {
       method: 'DELETE'
     })
-  };
+  }), []);
 
   // Fetch simulation status
   const fetchSimulationStatus = useCallback(async () => {
@@ -697,6 +744,61 @@ export function AppProvider({ children }) {
     }
   }, [simulationRequired, sendWsMessage]);
 
+  // Refs to track challenge/choice state without causing re-renders
+  const hasPendingChallengeRef = useRef(false);
+  const hasPendingChoiceRef = useRef(false);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    hasPendingChallengeRef.current = !!challengeData;
+  }, [challengeData]);
+
+  useEffect(() => {
+    hasPendingChoiceRef.current = !!playerChoiceData;
+  }, [playerChoiceData]);
+
+  // Helper to check if flows should be paused based on current state
+  // Only pause when user actually navigates away from Chat page
+  // Tab visibility changes are too unreliable (modals trigger them incorrectly)
+  const checkAndUpdateFlowPause = useCallback((source = 'unknown') => {
+    const isOnChat = isOnChatPageRef.current;
+
+    // Only pause/resume based on Chat page navigation, ignore visibility changes
+    // Visibility changes are too unreliable with modals
+    if (source === 'visibility') {
+      console.log(`[AppContext] Ignoring visibility change - modals cause false triggers`);
+      return;
+    }
+
+    if (!isOnChat && !flowsPausedRef.current) {
+      console.log(`[AppContext] Pausing flows - left Chat page`);
+      sendWsMessage('flow_pause', {});
+    } else if (isOnChat && flowsPausedRef.current) {
+      console.log(`[AppContext] Resuming flows - returned to Chat page`);
+      sendWsMessage('flow_resume', {});
+    }
+  }, [sendWsMessage]);
+
+  // Track browser tab visibility changes (ignored for pause/resume - too unreliable)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      console.log(`[AppContext] Tab visibility changed: ${document.visibilityState}`);
+      checkAndUpdateFlowPause('visibility');
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkAndUpdateFlowPause]);
+
+  // Function to notify context when entering/leaving Chat page
+  const setOnChatPage = useCallback((isOnChat) => {
+    isOnChatPageRef.current = isOnChat;
+    console.log(`[AppContext] Chat page: ${isOnChat ? 'ENTERED' : 'LEFT'}`);
+    checkAndUpdateFlowPause('navigation');
+  }, [checkAndUpdateFlowPause]);
+
   const value = {
     // Connection
     connected,
@@ -720,6 +822,8 @@ export function AppProvider({ children }) {
     setSessionState,
     messages,
     setMessages,
+    sessionLoading,
+    startNewSession,
 
     // Player Choice
     playerChoiceData,
@@ -741,6 +845,13 @@ export function AppProvider({ children }) {
     simulationReason,
     controlMode,
     setControlMode,
+
+    // Flow Pause State
+    flowsPaused,
+    setOnChatPage,
+
+    // Flow Executions (array of active flows for UI status panel)
+    flowExecutions,
 
     // Actions
     sendChatMessage,

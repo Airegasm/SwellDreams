@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 5;
+  z-index: 5; /* Below nav-bar elements so hamburger menu stays accessible */
   background: var(--bg-primary);
   display: flex;
   overflow: hidden;
@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 25; /* Above nav-bar (20) but constrained to center area */
   border-bottom: 1px solid var(--border-color);
 }
 

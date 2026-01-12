@@ -233,6 +233,18 @@
   background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
 }
 
+/* Actions section slides up when expanded to show full list */
+.actions-section {
+  margin-top: 0;
+  transition: margin-top 0.25s ease-out;
+}
+
+.actions-section.expanded {
+  position: relative;
+  margin-top: -30px;
+  z-index: 101;
+}
+
 .devices-section {
   margin-top: -7px;
   transition: margin-top 0.25s ease-out;
@@ -941,6 +953,8 @@
 .input-buttons-row {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .chat-buttons {
@@ -1899,4 +1913,34 @@
   width: 100%;
   padding: var(--spacing-md);
   font-size: var(--font-size-base);
+}
+
+/* Session Loading Spinner */
+.chat-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-md);
+  color: var(--text-muted);
+}
+
+.chat-loading p {
+  font-size: var(--font-size-sm);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

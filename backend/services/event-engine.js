@@ -61,10 +61,30 @@ function resolveDeviceObject(deviceRef) {
   // Load devices to resolve alias
   const devices = loadData(DATA_FILES.devices) || [];
 
-  // If it's already an IP address, find the matching device
+  // Check for ip:childId format (power strip outlets)
+  const ipChildIdMatch = deviceRef.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):(\d+)$/);
+  if (ipChildIdMatch) {
+    const [, ip, childIdStr] = ipChildIdMatch;
+    const childId = parseInt(childIdStr, 10);
+    // Find device matching both IP and childId
+    const device = devices.find(d => d.ip === ip && d.childId === childId);
+    if (device) {
+      console.log(`[DeviceAlias] Resolved ${deviceRef} to power strip outlet childId=${childId}`);
+      return device;
+    }
+    // If no device found but valid format, return minimal object with childId
+    console.log(`[DeviceAlias] No device found for ${deviceRef}, using minimal object`);
+    return { ip, childId, brand: 'tplink' };
+  }
+
+  // If it's already an IP address (no childId), find the matching device
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(deviceRef)) {
-    const device = devices.find(d => d.ip === deviceRef);
+    // For plain IP, prefer devices without childId (non-power-strip devices)
+    const device = devices.find(d => d.ip === deviceRef && (d.childId === undefined || d.childId === null));
     if (device) return device;
+    // Fallback: any device with that IP (first match)
+    const anyMatch = devices.find(d => d.ip === deviceRef);
+    if (anyMatch) return anyMatch;
     // If no device found but it's a valid IP, return a minimal object
     return { ip: deviceRef, brand: 'tplink' };
   }
@@ -201,6 +221,16 @@ class EventEngine {
     };
     this.executedOnceConditions = new Set(); // Track conditions that have fired with onlyOnce
     this.simulationMode = false; // When true, device actions are simulated (not executed)
+
+    // Flow pause/resume state
+    this.isPaused = false;
+    this.pausedExecution = null; // { flowId, nodeId, content, type } - for resuming after LLM generation interrupt
+    this.currentGenerationAborted = false; // Flag to discard in-progress LLM generation on pause
+
+    // Flow execution state for UI status panel - track multiple active flows
+    this.activeExecutions = new Map(); // flowId -> { flowId, flowName, triggerType, triggerLabel, currentNodeLabel, startTime }
+    this.executionDepths = new Map(); // flowId -> depth count
+    this.maxTrackedExecutions = 10; // Limit to prevent memory issues
   }
 
   /**
@@ -236,6 +266,99 @@ class EventEngine {
     } else {
       console.log('[EventEngine] WARNING: No broadcastFn registered!');
     }
+  }
+
+  /**
+   * Pause flow execution - call when user navigates away from Chat or switches tabs
+   * If LLM generation is in progress, it will be aborted and queued for re-execution
+   * @param {string} reason - Reason for pausing (e.g., "Player defocused chat.", "LLM is busy.")
+   */
+  pauseFlows(reason = 'Player defocused chat.') {
+    if (this.isPaused) return;
+
+    this.isPaused = true;
+    this.pauseReason = reason;
+    this.currentGenerationAborted = true; // Signal to abort any in-progress generation
+    console.log(`[EventEngine] Flows PAUSED - ${reason}`);
+
+    // Broadcast pause state to frontend with current node info
+    if (this.broadcastFn) {
+      this.broadcastFn('flow_paused', {
+        paused: true,
+        reason,
+        currentNodeLabel: this.currentExecution?.currentNodeLabel || null
+      });
+    }
+  }
+
+  /**
+   * Resume flow execution - call when user returns to Chat
+   * Will re-execute any queued flow action that was interrupted
+   */
+  async resumeFlows() {
+    if (!this.isPaused) return;
+
+    this.isPaused = false;
+    this.pauseReason = null;
+    this.currentGenerationAborted = false;
+    console.log('[EventEngine] Flows RESUMED - user returned to Chat');
+
+    // Determine what node we're resuming at
+    const resumingAt = this.pausedExecution?.nodeId
+      ? this.currentExecution?.currentNodeLabel
+      : null;
+
+    // Broadcast resume state to frontend
+    if (this.broadcastFn) {
+      this.broadcastFn('flow_paused', { paused: false, resumingAt });
+    }
+
+    // If there's a queued execution from an interrupted LLM generation, resume it
+    if (this.pausedExecution) {
+      const { flowId, nodeId, content, type } = this.pausedExecution;
+      console.log(`[EventEngine] Resuming interrupted ${type} generation for node ${nodeId}`);
+      this.pausedExecution = null;
+
+      // Find the flow and re-execute from the paused node
+      const activeFlow = this.activeFlows.get(flowId);
+      if (activeFlow) {
+        // Re-broadcast the message to trigger LLM generation again
+        if (type === 'ai_message') {
+          await this.broadcast('ai_message', { content, flowId, nodeId });
+        } else if (type === 'player_message') {
+          await this.broadcast('player_message', { content, flowId, nodeId });
+        }
+
+        // Continue execution from the next node after the message node
+        const flow = activeFlow.flow;
+        const edges = flow.edges.filter(e => e.source === nodeId);
+        for (const edge of edges) {
+          await this.executeFromNode(flow, edge.target, null, true);
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if flows are paused
+   */
+  isFlowsPaused() {
+    return this.isPaused;
+  }
+
+  /**
+   * Queue an interrupted LLM generation for resumption
+   */
+  queuePausedExecution(flowId, nodeId, content, type) {
+    this.pausedExecution = { flowId, nodeId, content, type };
+    console.log(`[EventEngine] Queued interrupted ${type} for resumption: node ${nodeId}`);
+  }
+
+  /**
+   * Check if current generation should be aborted
+   */
+  shouldAbortGeneration() {
+    return this.currentGenerationAborted;
   }
 
   /**
@@ -500,6 +623,43 @@ class EventEngine {
       return;
     }
 
+    // Track execution depth per flow for completion detection
+    const currentDepth = this.executionDepths.get(flow.id) || 0;
+    const isEntryPoint = currentDepth === 0;
+    this.executionDepths.set(flow.id, currentDepth + 1);
+
+    // Track new flow execution when entering from a trigger node
+    if (isEntryPoint && (node.type === 'trigger' || node.type === 'button_press')) {
+      const triggerType = node.data.triggerType || node.type;
+
+      // Add to active executions (or update if already exists)
+      this.activeExecutions.set(flow.id, {
+        flowId: flow.id,
+        flowName: flow.name,
+        triggerType: triggerType,
+        triggerLabel: node.data.label,
+        currentNodeLabel: node.data.label,
+        startTime: Date.now()
+      });
+
+      // Trim old executions if we have too many
+      if (this.activeExecutions.size > this.maxTrackedExecutions) {
+        // Remove oldest execution
+        let oldestKey = null;
+        let oldestTime = Infinity;
+        for (const [key, exec] of this.activeExecutions) {
+          if (exec.startTime < oldestTime) {
+            oldestTime = exec.startTime;
+            oldestKey = key;
+          }
+        }
+        if (oldestKey) this.activeExecutions.delete(oldestKey);
+      }
+
+      // Broadcast updated executions list
+      await this.broadcastExecutionsUpdate();
+    }
+
     const state = this.flowStates.get(flow.id);
     // For trigger nodes, fireOnlyOnce defaults to true if undefined (matches frontend checkbox display)
     const fireOnlyOnce = node.type === 'trigger' ? (node.data.fireOnlyOnce !== false) : node.data.fireOnlyOnce;
@@ -514,6 +674,14 @@ class EventEngine {
     // If result is 'wait', stop chain execution here (will resume when condition is met)
     if (result === 'wait') {
       console.log(`[EventEngine] Chain paused at node "${node.data.label}" - waiting for condition`);
+      // Decrement depth for this flow (not global)
+      const waitDepth = (this.executionDepths.get(flow.id) || 1) - 1;
+      if (waitDepth <= 0) {
+        this.executionDepths.delete(flow.id);
+      } else {
+        this.executionDepths.set(flow.id, waitDepth);
+      }
+      // Don't broadcast completion - we're waiting for async continuation
       return;
     }
 
@@ -553,6 +721,41 @@ class EventEngine {
     for (const edge of edges) {
       await this.executeFromNode(flow, edge.target, null, true);
     }
+
+    // Decrement execution depth for this flow
+    const newDepth = (this.executionDepths.get(flow.id) || 1) - 1;
+    if (newDepth <= 0) {
+      this.executionDepths.delete(flow.id);
+    } else {
+      this.executionDepths.set(flow.id, newDepth);
+    }
+
+    // Check if this flow's execution is complete
+    if (newDepth <= 0) {
+      // Check for pending async operations for THIS flow
+      const hasPendingCycle = Array.from(this.pendingCycleCompletions.values()).some(p => p.flowId === flow.id);
+      const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flow.id);
+      const hasPendingChoice = this.pendingPlayerChoice?.flowId === flow.id;
+      const hasPendingChallenge = this.pendingChallenge?.flowId === flow.id;
+
+      const hasPendingOps = hasPendingCycle || hasPendingDeviceOn || hasPendingChoice || hasPendingChallenge;
+
+      if (!hasPendingOps && this.activeExecutions.has(flow.id)) {
+        // Flow complete - remove from active executions
+        this.activeExecutions.delete(flow.id);
+        await this.broadcastExecutionsUpdate();
+      } else if (hasPendingOps) {
+        console.log(`[EventEngine] Flow ${flow.id} paused - waiting for async ops`);
+      }
+    }
+  }
+
+  /**
+   * Broadcast current active executions to frontend
+   */
+  async broadcastExecutionsUpdate() {
+    const executions = Array.from(this.activeExecutions.values());
+    await this.broadcast('flow_executions_update', { executions });
   }
 
   /**
@@ -560,6 +763,18 @@ class EventEngine {
    */
   async executeNode(node, flow) {
     console.log(`[EventEngine] Executing node: ${node.type} - ${node.data.label}`);
+
+    // Update current node label in active execution
+    const execution = this.activeExecutions.get(flow.id);
+    if (execution) {
+      execution.currentNodeLabel = node.data.label;
+      // Only broadcast updates for significant nodes (not every tiny step)
+      const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+        'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw'];
+      if (significantTypes.includes(node.type)) {
+        await this.broadcastExecutionsUpdate();
+      }
+    }
 
     switch (node.type) {
       case 'trigger':
@@ -758,7 +973,9 @@ class EventEngine {
         const broadcastData = {
           content: this.substituteVariables(data.message),
           sender: 'flow',
-          suppressLlm: data.suppressLlm || false
+          suppressLlm: data.suppressLlm || false,
+          flowId: flow.id,
+          nodeId: nodeId
         };
 
         console.log(`[EventEngine] Broadcasting ai_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
@@ -778,7 +995,9 @@ class EventEngine {
         const broadcastData = {
           content: this.substituteVariables(data.message),
           sender: 'flow',
-          suppressLlm: data.suppressLlm || false
+          suppressLlm: data.suppressLlm || false,
+          flowId: flow.id,
+          nodeId: nodeId
         };
 
         console.log(`[EventEngine] Broadcasting player_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
@@ -1940,6 +2159,22 @@ class EventEngine {
 
     for (const edge of completionEdges) {
       await this.executeFromNode(flowData.flow, edge.target, null, true);
+    }
+
+    // Check if flow execution is now complete (no more pending ops for this flow)
+    const flowId = pending.flowId;
+    const hasPendingCycle = Array.from(this.pendingCycleCompletions.values()).some(p => p.flowId === flowId);
+    const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flowId);
+    const hasPendingChoice = this.pendingPlayerChoice?.flowId === flowId;
+    const hasPendingChallenge = this.pendingChallenge?.flowId === flowId;
+    const depthRemaining = this.executionDepths.get(flowId) || 0;
+
+    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && depthRemaining <= 0) {
+      if (this.activeExecutions.has(flowId)) {
+        console.log(`[EventEngine] Flow ${flowId} complete after cycle - removing from activeExecutions`);
+        this.activeExecutions.delete(flowId);
+        await this.broadcastExecutionsUpdate();
+      }
     }
   }
 

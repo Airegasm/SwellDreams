@@ -24,9 +24,16 @@ function GlobalTab() {
   const [newIp, setNewIp] = useState('');
   const [isLoadingRemote, setIsLoadingRemote] = useState(true);
 
+  // Global Character Controls state
+  const [characterControls, setCharacterControls] = useState({
+    autoLinkCapacityToPain: true,
+    emotionalDecline: true
+  });
+
   // Collapsible section states
   const [expandedSections, setExpandedSections] = useState({
     controlMode: true,
+    characterControls: false,
     authorNote: false,
     reminders: false,
     flows: false,
@@ -65,6 +72,13 @@ function GlobalTab() {
       setGlobalReminders(settings.globalReminders);
     }
   }, [settings?.globalReminders]);
+
+  // Load character controls from settings
+  useEffect(() => {
+    if (settings?.globalCharacterControls) {
+      setCharacterControls(settings.globalCharacterControls);
+    }
+  }, [settings?.globalCharacterControls]);
 
   // Load remote settings
   useEffect(() => {
@@ -130,6 +144,17 @@ function GlobalTab() {
       console.error('Failed to save global prompt:', error);
     }
     setIsSaving(false);
+  };
+
+  // Character Controls handlers
+  const handleCharacterControlChange = async (key, value) => {
+    const updated = { ...characterControls, [key]: value };
+    setCharacterControls(updated);
+    try {
+      await api.updateSettings({ globalCharacterControls: updated });
+    } catch (error) {
+      console.error('Failed to save character controls:', error);
+    }
   };
 
   // Global Reminders handlers
@@ -247,6 +272,51 @@ function GlobalTab() {
               <option value="interactive">Interactive</option>
               <option value="simulated">Simulated</option>
             </select>
+          </div>
+        </div>
+        )}
+      </div>
+
+      {/* Global Character Controls Section */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('characterControls')}>
+          <span>Global Character Controls</span>
+          <span className="collapse-icon">{expandedSections.characterControls ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.characterControls && (
+        <div className="settings-section-content">
+          <p className="section-description">
+            Automatic adjustments to character state based on capacity changes.
+          </p>
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.autoLinkCapacityToPain}
+                onChange={(e) => handleCharacterControlChange('autoLinkCapacityToPain', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Auto-Link Capacity to Pain Scale</span>
+              <span className="control-hint">Pain 0-10 scales evenly with capacity 0-100%</span>
+            </div>
+          </div>
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.emotionalDecline}
+                onChange={(e) => handleCharacterControlChange('emotionalDecline', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Emotional Decline</span>
+              <span className="control-hint">Emotion degrades as capacity increases (slow 0-40%, faster 41-60%, rapid 61-80%, locked at Frightened by 75%)</span>
+            </div>
           </div>
         </div>
         )}

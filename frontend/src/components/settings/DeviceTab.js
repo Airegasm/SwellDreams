@@ -470,9 +470,10 @@ function DeviceTab() {
 
   const handleTestDevice = async (ip, childId = null) => {
     try {
-      await api.deviceOn(ip, childId);
+      const options = childId ? { childId } : {};
+      await api.deviceOn(ip, options);
       setTimeout(async () => {
-        await api.deviceOff(ip, childId);
+        await api.deviceOff(ip, options);
       }, 2000);
     } catch (error) {
       console.error('Test failed:', error);

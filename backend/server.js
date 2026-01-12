@@ -429,6 +429,23 @@ const sessionState = {
   characterName: null // Active character's name
 };
 
+// LLM State - tracks busy state and queues flow messages when LLM is busy
+const llmState = {
+  isGenerating: false,
+  queuedFlowMessage: null // { type, data } - single queued flow message to process when LLM is free
+};
+
+// Process queued flow message when LLM becomes free
+async function processQueuedFlowMessage() {
+  if (llmState.queuedFlowMessage && !llmState.isGenerating) {
+    const { type, data } = llmState.queuedFlowMessage;
+    llmState.queuedFlowMessage = null;
+    console.log(`[LLM Queue] Processing queued ${type} message`);
+    // Re-broadcast to trigger the message generation
+    await eventEngine.broadcast(type, data);
+  }
+}
+
 // ============================================
 // Universal Variable Substitution
 // ============================================
@@ -605,8 +622,10 @@ async function sendWelcomeMessage(character, settings) {
   console.log('[WELCOME] Sending welcome message for', character.name, 'llmEnhanced:', welcomeMsg.llmEnhanced);
 
   // Check if welcome message is already being sent or was already sent (race condition protection)
-  if (sendingWelcomeMessage || sessionState.chatHistory.length > 0) {
-    console.log('[WELCOME] Skipping - already sending or chat history not empty');
+  // Only count character/player messages - system messages from flow triggers shouldn't block welcome
+  const hasCharacterMessages = sessionState.chatHistory.some(msg => msg.sender === 'character' || msg.sender === 'player');
+  if (sendingWelcomeMessage || hasCharacterMessages) {
+    console.log('[WELCOME] Skipping - already sending or character messages exist');
     return;
   }
 
@@ -635,7 +654,8 @@ async function sendWelcomeMessage(character, settings) {
       broadcast('generating_start', { characterName: character.name });
 
       // Build system prompt with constant reminders
-      let systemPrompt = `You are ${character.name}. ${character.description}\n\n`;
+      let systemPrompt = `You are ${character.name}. ${character.description}\n`;
+      systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
       if (character.personality) {
         systemPrompt += `Personality: ${character.personality}\n\n`;
       }
@@ -707,6 +727,22 @@ eventEngine.setBroadcast(async (type, data) => {
       return;
     }
 
+    // If flows are paused, queue this for later and skip
+    if (eventEngine.isFlowsPaused()) {
+      console.log('[EventEngine] Flows paused - queueing ai_message for later');
+      if (data.flowId && data.nodeId) {
+        eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'ai_message');
+      }
+      return;
+    }
+
+    // If LLM is already busy (e.g., user triggered guided impersonate), queue this flow message
+    if (llmState.isGenerating && !data.suppressLlm) {
+      console.log('[EventEngine] LLM busy - queueing ai_message for later');
+      llmState.queuedFlowMessage = { type: 'ai_message', data };
+      return;
+    }
+
     const settings = loadData(DATA_FILES.settings);
     const characters = loadData(DATA_FILES.characters) || [];
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
@@ -742,6 +778,7 @@ eventEngine.setBroadcast(async (type, data) => {
     const hasLlmConfig = settings?.llm?.llmUrl ||
       (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
     if (hasLlmConfig && data.content) {
+      llmState.isGenerating = true;
       broadcast('generating_start', { characterName: activeCharacter.name });
 
       try {
@@ -763,6 +800,19 @@ eventEngine.setBroadcast(async (type, data) => {
           systemPrompt: context.systemPrompt,
           settings: settings.llm
         });
+
+        // Check if generation was aborted (user navigated away during generation)
+        if (eventEngine.shouldAbortGeneration()) {
+          console.log('[EventEngine] Generation aborted - user navigated away');
+          llmState.isGenerating = false;
+          broadcast('generating_stop', {});
+          broadcast('message_deleted', { id: placeholderMessage.id });
+          // Queue for resumption if we have flow info
+          if (data.flowId && data.nodeId) {
+            eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'ai_message');
+          }
+          return;
+        }
 
         let finalText = result.text;
         let retryCount = 0;
@@ -791,17 +841,20 @@ eventEngine.setBroadcast(async (type, data) => {
 
         // Update placeholder with final result
         placeholderMessage.content = finalText;
+        llmState.isGenerating = false;
         broadcast('generating_stop', {});
 
         // Final validation - only skip if still invalid after retries
         if (isBlankMessage(finalText)) {
           console.log('[EventEngine] Skipping blank response after retries');
           broadcast('message_deleted', { id: placeholderMessage.id });
+          await processQueuedFlowMessage();
           return;
         }
         if (isDuplicateMessage(finalText)) {
           console.log('[EventEngine] Skipping duplicate response after retries');
           broadcast('message_deleted', { id: placeholderMessage.id });
+          await processQueuedFlowMessage();
           return;
         }
 
@@ -811,8 +864,11 @@ eventEngine.setBroadcast(async (type, data) => {
         autosaveSession();
         // Trigger first AI message event
         await triggerFirstAiMessageEvent(finalText);
+        // Process any queued flow message
+        await processQueuedFlowMessage();
       } catch (error) {
         console.error('[EventEngine] LLM enhancement failed:', error);
+        llmState.isGenerating = false;
         broadcast('generating_stop', {});
 
         // Validate fallback content
@@ -829,6 +885,8 @@ eventEngine.setBroadcast(async (type, data) => {
         autosaveSession();
         // Trigger first AI message event
         await triggerFirstAiMessageEvent(data.content);
+        // Process any queued flow message
+        await processQueuedFlowMessage();
       }
     } else {
       // No LLM available - validate raw content
@@ -849,6 +907,15 @@ eventEngine.setBroadcast(async (type, data) => {
     // Player messages from flow - optionally LLM enhanced
     if (isBlankMessage(data.content)) {
       console.log('[EventEngine] Skipping blank player_message');
+      return;
+    }
+
+    // If flows are paused, queue this for later and skip
+    if (eventEngine.isFlowsPaused()) {
+      console.log('[EventEngine] Flows paused - queueing player_message for later');
+      if (data.flowId && data.nodeId) {
+        eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'player_message');
+      }
       return;
     }
 
@@ -879,10 +946,18 @@ eventEngine.setBroadcast(async (type, data) => {
       return;
     }
 
+    // If LLM is already busy, queue this flow message
+    if (llmState.isGenerating && !data.suppressLlm) {
+      console.log('[EventEngine] LLM busy - queueing player_message for later');
+      llmState.queuedFlowMessage = { type: 'player_message', data };
+      return;
+    }
+
     // If LLM is available, enhance the message
     const hasLlmConfig = settings?.llm?.llmUrl ||
       (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
     if (hasLlmConfig && data.content && activeCharacter) {
+      llmState.isGenerating = true;
       broadcast('generating_start', { characterName: playerName, isPlayerVoice: true });
 
       try {
@@ -906,8 +981,22 @@ STRICT RULES:
           settings: settings.llm
         });
 
+        // Check if generation was aborted (user navigated away during generation)
+        if (eventEngine.shouldAbortGeneration()) {
+          console.log('[EventEngine] Player message generation aborted - user navigated away');
+          llmState.isGenerating = false;
+          broadcast('generating_stop', {});
+          broadcast('message_deleted', { id: placeholderMessage.id });
+          // Queue for resumption if we have flow info
+          if (data.flowId && data.nodeId) {
+            eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'player_message');
+          }
+          return;
+        }
+
         // Apply variable substitution
         placeholderMessage.content = substituteAllVariables(result.text);
+        llmState.isGenerating = false;
         broadcast('generating_stop', {});
 
         if (isBlankMessage(result.text)) {
@@ -917,13 +1006,16 @@ STRICT RULES:
         sessionState.chatHistory.push(placeholderMessage);
         broadcast('message_updated', placeholderMessage);
         autosaveSession();
+        await processQueuedFlowMessage();
       } catch (error) {
         console.error('[EventEngine] Player message LLM enhancement failed:', error);
+        llmState.isGenerating = false;
         broadcast('generating_stop', {});
         placeholderMessage.content = data.content;
         sessionState.chatHistory.push(placeholderMessage);
         broadcast('message_updated', placeholderMessage);
         autosaveSession();
+        await processQueuedFlowMessage();
       }
     } else {
       // No LLM - use raw content
@@ -1128,6 +1220,50 @@ async function handleWsMessage(ws, type, data) {
     case 'update_capacity':
       sessionState.capacity = data.capacity;
       broadcast('capacity_update', { capacity: sessionState.capacity });
+
+      // Load settings for character controls
+      const capacitySettings = loadData(DATA_FILES.settings) || {};
+
+      // Auto-link capacity to pain if enabled (defaults to true if not set)
+      if (capacitySettings.globalCharacterControls?.autoLinkCapacityToPain !== false) {
+        const newPain = Math.min(10, Math.floor(sessionState.capacity / 10));
+        if (newPain !== sessionState.pain) {
+          sessionState.pain = newPain;
+          broadcast('pain_update', { pain: sessionState.pain });
+        }
+      }
+
+      // Emotional decline if enabled (defaults to true if not set)
+      if (capacitySettings.globalCharacterControls?.emotionalDecline !== false) {
+        const capacity = sessionState.capacity;
+        let newEmotion = sessionState.emotion;
+
+        // At 75%+, lock to frightened
+        if (capacity >= 75) {
+          newEmotion = 'frightened';
+        }
+        // 61-74%: rapid decline - anxious or frightened
+        else if (capacity >= 61) {
+          if (sessionState.emotion !== 'frightened') {
+            newEmotion = 'anxious';
+          }
+        }
+        // 41-60%: faster decline - nervous states
+        else if (capacity >= 41) {
+          const negativeEmotions = ['anxious', 'frightened', 'sad', 'exhausted'];
+          if (!negativeEmotions.includes(sessionState.emotion)) {
+            newEmotion = 'anxious';
+          }
+        }
+        // 0-40%: slow decline - stay at current or mild anxiety
+        // No forced change in this range
+
+        if (newEmotion !== sessionState.emotion) {
+          sessionState.emotion = newEmotion;
+          broadcast('emotion_update', { emotion: sessionState.emotion });
+        }
+      }
+
       eventEngine.checkDeviceMonitors();
       await eventEngine.checkPlayerStateChanges({
         capacity: sessionState.capacity,
@@ -1279,6 +1415,14 @@ async function handleWsMessage(ws, type, data) {
     case 'execute_button':
     case 'execute_event':  // Keep for backwards compatibility
       await handleExecuteButton(data);
+      break;
+
+    case 'flow_pause':
+      eventEngine.pauseFlows();
+      break;
+
+    case 'flow_resume':
+      await eventEngine.resumeFlows();
       break;
 
     default:
@@ -1563,6 +1707,7 @@ async function handleButtonSendMessage(action, characterId) {
     broadcast('chat_message', placeholderMessage);
 
     // Notify UI that AI is generating
+    llmState.isGenerating = true;
     broadcast('generating_start', { characterName: character.name });
 
     try {
@@ -1594,9 +1739,11 @@ async function handleButtonSendMessage(action, characterId) {
         sessionState.chatHistory[msgIndex] = placeholderMessage;
       }
 
+      llmState.isGenerating = false;
       broadcast('generating_stop', {});
       broadcast('message_updated', placeholderMessage);
       autosaveSession();
+      await processQueuedFlowMessage();
 
       console.log(`[Button] Sent LLM-enhanced message from ${character.name}`);
 
@@ -1610,9 +1757,11 @@ async function handleButtonSendMessage(action, characterId) {
         sessionState.chatHistory[msgIndex] = placeholderMessage;
       }
 
+      llmState.isGenerating = false;
       broadcast('generating_stop', {});
       broadcast('message_updated', placeholderMessage);
       autosaveSession();
+      await processQueuedFlowMessage();
     }
   } else {
     // No LLM available, send raw text
@@ -2069,6 +2218,7 @@ async function handleImpersonateRequest(data) {
   }
 
   try {
+    llmState.isGenerating = true;
     broadcast('generating_start', { characterName: activePersona?.displayName || 'Player', isPlayerVoice: true });
 
     // Use pure impersonate mode if no guided text provided
@@ -2083,13 +2233,17 @@ async function handleImpersonateRequest(data) {
 
     // Apply variable substitution and send result
     const substitutedText = substituteAllVariables(result.text);
+    llmState.isGenerating = false;
     broadcast('generating_stop', {});
     broadcast('impersonate_result', { text: substitutedText });
+    await processQueuedFlowMessage();
 
   } catch (error) {
     console.error('[Impersonate Request] Error:', error);
+    llmState.isGenerating = false;
     broadcast('generating_stop', {});
     broadcast('error', { message: 'Failed to generate impersonation', error: error.message });
+    await processQueuedFlowMessage();
   }
 }
 
@@ -2101,6 +2255,34 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
   // Substitute variables in character fields (uses global substituteAllVariables)
   const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
+
+  // Convert second-person character descriptions to third-person for impersonate mode
+  // e.g., "You are a doctor" -> "Dr. Elena is a doctor"
+  const toThirdPerson = (text, name) => {
+    if (!text) return text;
+    return text
+      .replace(/\bYou are\b/gi, `${name} is`)
+      .replace(/\bYou're\b/gi, `${name}'s`)
+      .replace(/\bYou have\b/gi, `${name} has`)
+      .replace(/\bYou speak\b/gi, `${name} speaks`)
+      .replace(/\bYou use\b/gi, `${name} uses`)
+      .replace(/\bYou treat\b/gi, `${name} treats`)
+      .replace(/\bYou get\b/gi, `${name} gets`)
+      .replace(/\bYou push\b/gi, `${name} pushes`)
+      .replace(/\bYou love\b/gi, `${name} loves`)
+      .replace(/\bYou view\b/gi, `${name} views`)
+      .replace(/\bYou genuinely\b/gi, `${name} genuinely`)
+      .replace(/\bYou focus\b/gi, `${name} focuses`)
+      .replace(/\bYou maintain\b/gi, `${name} maintains`)
+      .replace(/\bYou approach\b/gi, `${name} approaches`)
+      .replace(/\bYou live\b/gi, `${name} lives`)
+      .replace(/\bYou delight\b/gi, `${name} delights`)
+      .replace(/\bYou ramble\b/gi, `${name} rambles`)
+      .replace(/\bYou laugh\b/gi, `${name} laughs`)
+      .replace(/\bYou document\b/gi, `${name} documents`)
+      .replace(/\bYour\b/g, `${name}'s`)
+      .replace(/\bYou\b/g, name); // Catch remaining "You" as fallback
+  };
 
   // Map capacity percentage to belly description
   const getCapacityDescription = (capacity) => {
@@ -2150,7 +2332,9 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += '\n';
     }
 
-    systemPrompt += `You are interacting with ${character.name}. ${substituteVars(character.description)}\n`;
+    // Convert character description to third-person to avoid "You are" confusion
+    const charDescThirdPerson = toThirdPerson(substituteVars(character.description), character.name);
+    systemPrompt += `You are interacting with ${character.name}. ${charDescThirdPerson}\n`;
     const scenario = getActiveScenario(character);
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
@@ -2180,7 +2364,8 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += `Write ${playerName}'s next response. Stay in character and be descriptive.`;
   } else {
     // Guided response - generate as character
-    systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n\n`;
+    systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
+    systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
     systemPrompt += `Personality: ${substituteVars(character.personality)}\n`;
     const scenario = getActiveScenario(character);
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
@@ -2289,7 +2474,8 @@ function buildChatContext(character, settings) {
   };
 
   // Build system prompt from character
-  let systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n\n`;
+  let systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
+  systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
   systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
   const scenario = getActiveScenario(character);
   if (scenario) {

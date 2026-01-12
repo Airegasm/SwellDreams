@@ -77,7 +77,7 @@ These Terms shall be governed by and construed in accordance with applicable law
 function App() {
   const location = useLocation();
   const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
-  const { connected, api, controlMode, settings, messages, characters, personas, sessionState } = useApp();
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession } = useApp();
   const { showError } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
@@ -112,7 +112,7 @@ function App() {
   // Session handlers
   const handleNewSession = async () => {
     if (window.confirm('Start a new session? This will clear chat history.')) {
-      await api.resetSession();
+      await startNewSession();
     }
   };
 
@@ -245,6 +245,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
+      <span className="version-badge">v1.5b</span>
       <nav className="nav-bar">
         <img src="/logo.png" alt="SwellDreams" className="nav-logo" />
         <div className="nav-right">
@@ -268,7 +269,10 @@ function App() {
       {!connected && !bannerDismissed && (
         <div className="offline-banner">
           <span className="offline-icon">&#x26A0;</span>
-          <span>Backend Disconnected - Attempting to reconnect...</span>
+          <div className="offline-message">
+            <strong>Backend Disconnected</strong>
+            <span className="offline-hint">Double-click <code>start-backend.bat</code> in the backend folder to start the server</span>
+          </div>
           <button
             className="offline-banner-close"
             onClick={() => setBannerDismissed(true)}

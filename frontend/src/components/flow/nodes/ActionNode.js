@@ -3,6 +3,22 @@ import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import './Nodes.css';
 
+// Helper to create unique device identifier (handles power strip outlets with same IP)
+const getDeviceValue = (device) => {
+  if (device.childId !== undefined && device.childId !== null) {
+    return `${device.ip}:${device.childId}`;
+  }
+  return device.ip;
+};
+
+// Helper to create unique key for React
+const getDeviceKey = (device) => {
+  if (device.childId !== undefined && device.childId !== null) {
+    return `${device.ip}-${device.childId}`;
+  }
+  return device.ip;
+};
+
 function ActionNode({ data, selected }) {
   const renderConfig = () => {
     switch (data.actionType) {
@@ -63,8 +79,9 @@ function ActionNode({ data, selected }) {
             >
               <option value="">Select Device</option>
               <option value="primary_pump">Primary Pump</option>
+              <option value="primary_vibe">Primary Vibe</option>
               {data.devices?.map(d => (
-                <option key={d.ip} value={d.ip}>{d.label}</option>
+                <option key={getDeviceKey(d)} value={getDeviceValue(d)}>{d.label}</option>
               ))}
             </select>
             <div className="config-row">
@@ -172,8 +189,9 @@ function ActionNode({ data, selected }) {
             >
               <option value="">Select Device</option>
               <option value="primary_pump">Primary Pump</option>
+              <option value="primary_vibe">Primary Vibe</option>
               {data.devices?.map(d => (
-                <option key={d.ip} value={d.ip}>{d.label}</option>
+                <option key={getDeviceKey(d)} value={getDeviceValue(d)}>{d.label}</option>
               ))}
             </select>
           </div>
@@ -189,8 +207,9 @@ function ActionNode({ data, selected }) {
             >
               <option value="">Select Device</option>
               <option value="primary_pump">Primary Pump</option>
+              <option value="primary_vibe">Primary Vibe</option>
               {data.devices?.map(d => (
-                <option key={d.ip} value={d.ip}>{d.label}</option>
+                <option key={getDeviceKey(d)} value={getDeviceValue(d)}>{d.label}</option>
               ))}
             </select>
             <div className="config-row">

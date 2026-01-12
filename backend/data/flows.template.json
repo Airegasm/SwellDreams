@@ -1,0 +1,3329 @@
+[
+  {
+    "id": "flow-elena-001",
+    "name": "Dr. Elena Vance - Clinical Protocol",
+    "description": "Methodical, scheduled inflation with precise monitoring and safety checks",
+    "characterId": "char-001",
+    "nodes": [
+      {
+        "id": "elena-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "elena-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Clinical Greeting",
+          "actionType": "system_message",
+          "message": "Dr. Vance has initiated clinical inflation protocol. Rectal tube insertion confirmed. Baseline measurements recorded."
+        }
+      },
+      {
+        "id": "elena-delay-prep",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Preparation Phase",
+          "duration": 30,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "elena-action-start-cycle",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Begin Inflation Cycle",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 8,
+          "interval": 25,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "elena-branch-check-type",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Assessment Type",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "b1",
+              "label": "Vital Signs",
+              "weight": 30
+            },
+            {
+              "id": "b2",
+              "label": "Capacity Reading",
+              "weight": 30
+            },
+            {
+              "id": "b3",
+              "label": "Pressure Check",
+              "weight": 20
+            },
+            {
+              "id": "b4",
+              "label": "Patient Status",
+              "weight": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "elena-action-vitals",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Report Vitals",
+          "actionType": "send_message",
+          "message": "*Dr. Vance consults her instruments* Vitals remain stable. Heart rate elevated but within acceptable parameters. Intestinal pressure readings normal. We may proceed with the next phase."
+        }
+      },
+      {
+        "id": "elena-action-capacity",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Capacity Update",
+          "actionType": "send_message",
+          "message": "*She makes a notation on her clipboard* Current distension is progressing as expected. The rectal tube is delivering air at optimal flow rate. I'm noting excellent elasticity in your intestinal walls. Very promising data."
+        }
+      },
+      {
+        "id": "elena-action-pressure",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Pressure Reading",
+          "actionType": "send_message",
+          "message": "*Dr. Vance adjusts her glasses, studying a gauge* Internal pressure at {capacity}%. The air is distributing well through your colon. I'm quite satisfied with the inflation rate. No adjustment needed at this time."
+        }
+      },
+      {
+        "id": "elena-action-status",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Patient Check",
+          "actionType": "send_message",
+          "message": "*She approaches with clinical detachment* Tell me, how are you experiencing the distension? Any discomfort I should note in your file? Remember, accurate reporting ensures optimal results. The tube will continue delivering air as scheduled."
+        }
+      },
+      {
+        "id": "elena-trigger-high-capacity",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 450
+        },
+        "data": {
+          "label": "High Capacity Keyword",
+          "triggerType": "player_speaks",
+          "keyword": "full"
+        }
+      },
+      {
+        "id": "elena-condition-check-cap",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 450
+        },
+        "data": {
+          "label": "Check Capacity > 70%",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "70"
+        }
+      },
+      {
+        "id": "elena-action-high-response",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 420
+        },
+        "data": {
+          "label": "High Capacity Response",
+          "actionType": "send_message",
+          "message": "*Dr. Vance reviews the data with professional interest* At {capacity}% capacity, you're approaching the upper threshold of standard protocol. The air continues to flow through the rectal tube as designed. Shall I reduce the inflation rate, or do you consent to continuing toward maximum distension? Your comfort is... secondary to the data, but I value informed consent."
+        }
+      },
+      {
+        "id": "elena-action-continue",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 500
+        },
+        "data": {
+          "label": "Continue Protocol",
+          "actionType": "send_message",
+          "message": "*She makes a note* Capacity below threshold. The rectal inflation proceeds according to schedule. Continue breathing steadily. I'll perform another assessment shortly."
+        }
+      },
+      {
+        "id": "elena-trigger-keyword-more",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "Request More",
+          "triggerType": "player_speaks",
+          "keyword": "more"
+        }
+      },
+      {
+        "id": "elena-branch-more-response",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "More Response",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "m1",
+              "label": "Approve",
+              "weight": 40
+            },
+            {
+              "id": "m2",
+              "label": "Caution",
+              "weight": 35
+            },
+            {
+              "id": "m3",
+              "label": "Adjust",
+              "weight": 25
+            }
+          ]
+        }
+      },
+      {
+        "id": "elena-action-approve-more",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 560
+        },
+        "data": {
+          "label": "Approve More",
+          "actionType": "send_message",
+          "message": "*A slight smile crosses her professional demeanor* A subject who wants more data points. Excellent. I'm increasing the air flow through your rectal tube now. *She adjusts a dial* The pump will deliver at a slightly higher rate. Let's see how your intestines handle the increased volume."
+        }
+      },
+      {
+        "id": "elena-action-caution-more",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 630
+        },
+        "data": {
+          "label": "Cautionary Response",
+          "actionType": "send_message",
+          "message": "*Dr. Vance raises an eyebrow* Eager, aren't we? While I appreciate enthusiasm for the procedure, I must insist we follow protocol. The rectal tube is delivering air at the prescribed rate for good reason. However... *she pauses* I suppose a small increase won't compromise the data."
+        }
+      },
+      {
+        "id": "elena-action-adjust",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 700
+        },
+        "data": {
+          "label": "Adjust Settings",
+          "actionType": "send_message",
+          "message": "*She consults her notes* Based on your current readings, I'm modifying the inflation parameters. *A mechanical click* There. The aquarium pump will now cycle more frequently. Your belly will expand accordingly. I'll document the accelerated rate for my research."
+        }
+      },
+      {
+        "id": "elena-trigger-60",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "60% Capacity Reached",
+          "triggerType": "capacity_change",
+          "threshold": 60
+        }
+      },
+      {
+        "id": "elena-choice-protocol",
+        "type": "player_choice",
+        "position": {
+          "x": 300,
+          "y": 600
+        },
+        "data": {
+          "label": "Protocol Decision",
+          "prompt": "*Dr. Vance reviews her charts* You've reached 60% capacity. Per protocol, I can either maintain current inflation rate or reduce it for your comfort. What would you prefer?",
+          "description": "Dr. Vance is asking whether you want to continue at the current pace or slow down for safety.",
+          "choices": [
+            {
+              "id": "elena-choice-continue",
+              "label": "Continue current rate",
+              "description": "Push forward with the standard protocol"
+            },
+            {
+              "id": "elena-choice-slow",
+              "label": "Slow down please",
+              "description": "Reduce the inflation rate for comfort"
+            }
+          ]
+        }
+      },
+      {
+        "id": "elena-action-continue-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 550
+        },
+        "data": {
+          "label": "Continue Response",
+          "actionType": "send_message",
+          "message": "*She makes a note* Understood. Maintaining current parameters. You're showing excellent resilience. I'll monitor closely."
+        }
+      },
+      {
+        "id": "elena-action-slow-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 650
+        },
+        "data": {
+          "label": "Slow Response",
+          "actionType": "send_message",
+          "message": "*She adjusts a valve* Reducing flow rate by 30%. This is the prudent choice. Safety always comes first in my practice."
+        }
+      },
+      {
+        "id": "elena-trigger-btn-vitals",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 800
+        },
+        "data": {
+          "label": "Check Vitals Button",
+          "triggerType": "button_press",
+          "buttonId": "btn-elena-vitals"
+        }
+      },
+      {
+        "id": "elena-action-btn-vitals",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 800
+        },
+        "data": {
+          "label": "Vitals Report",
+          "actionType": "send_message",
+          "message": "*Dr. Vance consults her instruments with focused attention* Let me check your readings. *She studies the monitors* Heart rate: slightly elevated but stable. Blood pressure: within normal range. Internal pressure at {capacity}%. All parameters are acceptable. You may continue."
+        }
+      },
+      {
+        "id": "elena-trigger-btn-increase",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 900
+        },
+        "data": {
+          "label": "Increase Flow Button",
+          "triggerType": "button_press",
+          "buttonId": "btn-elena-increase"
+        }
+      },
+      {
+        "id": "elena-action-btn-increase",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 900
+        },
+        "data": {
+          "label": "Increase Flow",
+          "actionType": "send_message",
+          "message": "*She makes a notation and adjusts a dial* Increasing air flow rate by 15%. *The pump whirs slightly louder* You should feel the pressure building more rapidly now. I'll monitor your response closely. Tell me immediately if you experience any sharp discomfort."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "elena-trigger-start",
+        "target": "elena-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "elena-action-welcome",
+        "target": "elena-delay-prep"
+      },
+      {
+        "id": "e3",
+        "source": "elena-delay-prep",
+        "target": "elena-action-start-cycle"
+      },
+      {
+        "id": "e5",
+        "source": "elena-branch-check-type",
+        "target": "elena-action-vitals",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e6",
+        "source": "elena-branch-check-type",
+        "target": "elena-action-capacity",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e7",
+        "source": "elena-branch-check-type",
+        "target": "elena-action-pressure",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e8",
+        "source": "elena-branch-check-type",
+        "target": "elena-action-status",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e9",
+        "source": "elena-trigger-high-capacity",
+        "target": "elena-condition-check-cap"
+      },
+      {
+        "id": "e10",
+        "source": "elena-condition-check-cap",
+        "target": "elena-action-high-response",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e11",
+        "source": "elena-condition-check-cap",
+        "target": "elena-action-continue",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e12",
+        "source": "elena-trigger-keyword-more",
+        "target": "elena-branch-more-response"
+      },
+      {
+        "id": "e13",
+        "source": "elena-branch-more-response",
+        "target": "elena-action-approve-more",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e14",
+        "source": "elena-branch-more-response",
+        "target": "elena-action-caution-more",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e15",
+        "source": "elena-branch-more-response",
+        "target": "elena-action-adjust",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e-elena-choice-1",
+        "source": "elena-trigger-60",
+        "target": "elena-choice-protocol"
+      },
+      {
+        "id": "e-elena-choice-2",
+        "source": "elena-choice-protocol",
+        "sourceHandle": "elena-choice-continue",
+        "target": "elena-action-continue-response"
+      },
+      {
+        "id": "e-elena-choice-3",
+        "source": "elena-choice-protocol",
+        "sourceHandle": "elena-choice-slow",
+        "target": "elena-action-slow-response"
+      },
+      {
+        "id": "e-elena-btn-vitals",
+        "source": "elena-trigger-btn-vitals",
+        "target": "elena-action-btn-vitals"
+      },
+      {
+        "id": "e-elena-btn-increase",
+        "source": "elena-trigger-btn-increase",
+        "target": "elena-action-btn-increase"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-melody-001",
+    "name": "Nurse Melody - Gentle Care",
+    "description": "Nurturing, encouraging inflation with gentle pacing and constant reassurance",
+    "characterId": "char-002",
+    "nodes": [
+      {
+        "id": "melody-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "melody-action-welcome",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Warm Welcome",
+          "actionType": "system_message",
+          "message": "Nurse Melody has gently prepared everything. The rectal tube is carefully positioned with plenty of lubrication. Soft music plays in the background."
+        }
+      },
+      {
+        "id": "melody-delay-comfort",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Comfort Period",
+          "duration": 20,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "melody-action-gentle-start",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Gentle Start",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 5,
+          "interval": 20,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "melody-action-first-air",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "First Air Message",
+          "actionType": "send_message",
+          "message": "*Melody squeezes your hand gently* Here we go, sweetheart. Nice and easy... Feel that? The tube is starting to work its magic. Just breathe for me, honey. In through your nose... out through your mouth. You're doing so wonderfully already."
+        }
+      },
+      {
+        "id": "melody-branch-encourage",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Encouragement Type",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "e1",
+              "label": "Praise",
+              "weight": 35
+            },
+            {
+              "id": "e2",
+              "label": "Comfort",
+              "weight": 30
+            },
+            {
+              "id": "e3",
+              "label": "Progress",
+              "weight": 20
+            },
+            {
+              "id": "e4",
+              "label": "Touch",
+              "weight": 15
+            }
+          ]
+        }
+      },
+      {
+        "id": "melody-action-praise",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Praising Words",
+          "actionType": "send_message",
+          "message": "*Melody beams with genuine pride* Oh honey, you're doing SO beautifully! Look at you, taking all that air like a champion. I'm so proud of how brave you're being. The pump is being so gentle, and you're handling it perfectly. Such a good job, sweetie!"
+        }
+      },
+      {
+        "id": "melody-action-comfort",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Comfort Words",
+          "actionType": "send_message",
+          "message": "*She strokes your hair soothingly* I know, I know... it's a lot of sensation, isn't it? But you're safe, honey. The air is flowing so gently through the tube. *She hums softly* Just relax into it. Let your tummy grow nice and round. I've got you."
+        }
+      },
+      {
+        "id": "melody-action-progress",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Progress Update",
+          "actionType": "send_message",
+          "message": "*Melody gently rests her hand on your expanding belly* Oooh, feel how nice and round you're getting! At {capacity}% now, sweetpea. Your tummy is filling up so nicely. The air is doing exactly what it should. Would you like me to rub your belly while we continue?"
+        }
+      },
+      {
+        "id": "melody-action-touch",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Caring Touch",
+          "actionType": "send_message",
+          "message": "*Her warm hands circle your swelling abdomen* Mmm, you're getting so big and beautiful, honey. *She applies gentle pressure* Can you feel how tight your skin is getting? The pump is filling you up so nicely. Just let it happen, sweetie. Let yourself grow for me."
+        }
+      },
+      {
+        "id": "melody-trigger-discomfort",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Discomfort Words",
+          "triggerType": "player_speaks",
+          "keyword": "hurts"
+        }
+      },
+      {
+        "id": "melody-action-soothe",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Soothing Response",
+          "actionType": "send_message",
+          "message": "*Melody's face fills with concern* Oh sweetheart, shh shh shh... *She gently massages around the tube* Let me help ease that. Remember to breathe, honey. The pressure will pass. Your body is so amazing - it's learning to hold all this air. I can slow the pump if you need, but I believe in you. You're stronger than you know."
+        }
+      },
+      {
+        "id": "melody-condition-milestone",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "Over 50%?",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "50"
+        }
+      },
+      {
+        "id": "melody-action-celebrate",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 570
+        },
+        "data": {
+          "label": "Celebrate Milestone",
+          "actionType": "send_message",
+          "message": "*Melody claps her hands softly* Oh my goodness, look at you! You've passed the halfway mark! This calls for a celebration! *She plants a gentle kiss on your forehead* Your belly is absolutely gorgeous, sweetheart. So full and round. The air is finding every little space inside you. I'm so, so proud!"
+        }
+      },
+      {
+        "id": "melody-action-encourage-continue",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 650
+        },
+        "data": {
+          "label": "Encourage Continue",
+          "actionType": "send_message",
+          "message": "*She traces circles on your belly* We're making such good progress, honey. The tube is working perfectly. Your tummy is getting rounder by the minute. Just a little more and we'll hit that first big milestone. You can do it, I know you can!"
+        }
+      },
+      {
+        "id": "melody-trigger-want-more",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 750
+        },
+        "data": {
+          "label": "Wants More",
+          "triggerType": "player_speaks",
+          "keyword": "more"
+        }
+      },
+      {
+        "id": "melody-action-more",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 750
+        },
+        "data": {
+          "label": "Give More",
+          "actionType": "send_message",
+          "message": "*Her eyes light up with delight* Ooh, someone wants to get even bigger! I love that, sweetheart! *She adjusts something* There we go, the air will flow a little faster now. Your belly is going to swell up so nice and round. Just relax and let me fill you up, honey. You're going to look absolutely wonderful."
+        }
+      },
+      {
+        "id": "melody-trigger-45",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "45% Capacity Check",
+          "triggerType": "capacity_change",
+          "threshold": 45
+        }
+      },
+      {
+        "id": "melody-choice-comfort",
+        "type": "player_choice",
+        "position": {
+          "x": 300,
+          "y": 500
+        },
+        "data": {
+          "label": "Comfort Check",
+          "prompt": "*Melody strokes your hair gently* You're doing so wonderfully, sweetie. How are you feeling? Do you want me to keep going, or should we take a little break?",
+          "description": "Nurse Melody is checking in on your comfort level.",
+          "choices": [
+            {
+              "id": "melody-choice-more",
+              "label": "Keep going, I can take more",
+              "description": "Continue the inflation session"
+            },
+            {
+              "id": "melody-choice-break",
+              "label": "A break would be nice",
+              "description": "Pause for a moment to adjust"
+            },
+            {
+              "id": "melody-choice-praise",
+              "label": "Just need some encouragement",
+              "description": "Ask for reassurance to continue"
+            }
+          ]
+        }
+      },
+      {
+        "id": "melody-action-more-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 430
+        },
+        "data": {
+          "label": "More Response",
+          "actionType": "send_message",
+          "message": "*Her eyes light up with pride* Oh, you're so brave! I'm so proud of you! Let's keep going then, nice and steady. You're doing amazing!"
+        }
+      },
+      {
+        "id": "melody-action-break-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 500
+        },
+        "data": {
+          "label": "Break Response",
+          "actionType": "send_message",
+          "message": "*She immediately pauses the pump* Of course, honey! There's no rush at all. *She adjusts your pillow* Just breathe and relax. We'll start again when you're ready."
+        }
+      },
+      {
+        "id": "melody-action-praise-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 570
+        },
+        "data": {
+          "label": "Praise Response",
+          "actionType": "send_message",
+          "message": "*She takes your hand warmly* Oh sweetheart, you're doing SO well! Look how beautifully round you're getting! I'm right here with you. You're so strong and wonderful!"
+        }
+      },
+      {
+        "id": "melody-trigger-btn-rub",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 850
+        },
+        "data": {
+          "label": "Rub Belly Button",
+          "triggerType": "button_press",
+          "buttonId": "btn-melody-rub"
+        }
+      },
+      {
+        "id": "melody-action-btn-rub",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 850
+        },
+        "data": {
+          "label": "Belly Rub",
+          "actionType": "send_message",
+          "message": "*Melody's warm hands gently circle your swollen belly* Oh, look at you, sweetheart... so round and full. *She applies soft, soothing pressure* Does this help, honey? *Her fingers trace gentle patterns* You're doing so beautifully. Just let me take care of you."
+        }
+      },
+      {
+        "id": "melody-trigger-btn-praise",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 950
+        },
+        "data": {
+          "label": "Praise Button",
+          "triggerType": "button_press",
+          "buttonId": "btn-melody-praise"
+        }
+      },
+      {
+        "id": "melody-action-btn-praise",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 950
+        },
+        "data": {
+          "label": "Extra Praise",
+          "actionType": "send_message",
+          "message": "*Melody beams at you with genuine adoration* Oh sweetheart, you are just AMAZING! Look at how wonderfully you're doing! *She clasps her hands together* I'm so, so proud of you. You're being so brave, so strong. You're absolutely beautiful like this, honey. The best I've ever seen!"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "melody-trigger-start",
+        "target": "melody-action-welcome"
+      },
+      {
+        "id": "e2",
+        "source": "melody-action-welcome",
+        "target": "melody-delay-comfort"
+      },
+      {
+        "id": "e3",
+        "source": "melody-delay-comfort",
+        "target": "melody-action-gentle-start"
+      },
+      {
+        "id": "e4",
+        "source": "melody-action-gentle-start",
+        "target": "melody-action-first-air"
+      },
+      {
+        "id": "e6",
+        "source": "melody-branch-encourage",
+        "target": "melody-action-praise",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e7",
+        "source": "melody-branch-encourage",
+        "target": "melody-action-comfort",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e8",
+        "source": "melody-branch-encourage",
+        "target": "melody-action-progress",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e9",
+        "source": "melody-branch-encourage",
+        "target": "melody-action-touch",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e10",
+        "source": "melody-trigger-discomfort",
+        "target": "melody-action-soothe"
+      },
+      {
+        "id": "e12",
+        "source": "melody-condition-milestone",
+        "target": "melody-action-celebrate",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e13",
+        "source": "melody-condition-milestone",
+        "target": "melody-action-encourage-continue",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e14",
+        "source": "melody-trigger-want-more",
+        "target": "melody-action-more"
+      },
+      {
+        "id": "e-melody-choice-1",
+        "source": "melody-trigger-45",
+        "target": "melody-choice-comfort"
+      },
+      {
+        "id": "e-melody-choice-2",
+        "source": "melody-choice-comfort",
+        "sourceHandle": "melody-choice-more",
+        "target": "melody-action-more-response"
+      },
+      {
+        "id": "e-melody-choice-3",
+        "source": "melody-choice-comfort",
+        "sourceHandle": "melody-choice-break",
+        "target": "melody-action-break-response"
+      },
+      {
+        "id": "e-melody-choice-4",
+        "source": "melody-choice-comfort",
+        "sourceHandle": "melody-choice-praise",
+        "target": "melody-action-praise-response"
+      },
+      {
+        "id": "e-melody-btn-rub",
+        "source": "melody-trigger-btn-rub",
+        "target": "melody-action-btn-rub"
+      },
+      {
+        "id": "e-melody-btn-praise",
+        "source": "melody-trigger-btn-praise",
+        "target": "melody-action-btn-praise"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-sasha-001",
+    "name": "Sasha - Intimate Session",
+    "description": "Sensual, teasing inflation focused on physical sensation and intimacy",
+    "characterId": "char-003",
+    "nodes": [
+      {
+        "id": "sasha-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "sasha-action-scene",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Set Scene",
+          "actionType": "system_message",
+          "message": "Candlelight flickers across the room. Sasha has prepared everything with care - soft sheets, the pump nearby, the tube waiting. The atmosphere is thick with anticipation."
+        }
+      },
+      {
+        "id": "sasha-delay-buildup",
+        "type": "delay",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Anticipation",
+          "duration": 15,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "sasha-action-tease",
+        "type": "action",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Initial Tease",
+          "actionType": "send_message",
+          "message": "*Sasha trails her fingers down your body, her breath warm against your ear* Mmm, are you ready for me, baby? *She reaches for the tube* I'm going to fill you up so slowly... watch you grow... feel every inch of you expanding under my hands. *She positions the tube carefully* Let's begin..."
+        }
+      },
+      {
+        "id": "sasha-action-start",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Pump",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 6,
+          "interval": 18,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "sasha-branch-sensual",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Sensation Focus",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "s1",
+              "label": "Touch",
+              "weight": 30
+            },
+            {
+              "id": "s2",
+              "label": "Watch",
+              "weight": 25
+            },
+            {
+              "id": "s3",
+              "label": "Tease",
+              "weight": 25
+            },
+            {
+              "id": "s4",
+              "label": "Desire",
+              "weight": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "sasha-action-touch",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Sensual Touch",
+          "actionType": "send_message",
+          "message": "*Sasha's hands glide across your swelling belly, feeling every curve* God, you feel incredible... *She presses closer, lips grazing your neck* So tight already. The air is pushing you out so beautifully. *Her fingers trace the taut skin* I can feel you growing under my hands. It's intoxicating."
+        }
+      },
+      {
+        "id": "sasha-action-watch",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Watching",
+          "actionType": "send_message",
+          "message": "*She pulls back slightly, drinking in the sight of you* Look at you... *Her voice drops to a whisper* Getting bigger with every breath of air. The tube doing its work, filling you up for me. *She bites her lip* I could watch you swell like this forever. You're absolutely gorgeous."
+        }
+      },
+      {
+        "id": "sasha-action-tease-mid",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Teasing",
+          "actionType": "send_message",
+          "message": "*A playful smirk crosses her face* Feeling full yet, baby? *She gives your belly a gentle pat* No? Good. Because I'm not nearly done with you. *She adjusts the tube slightly* The pump is going to keep going... and going... until you're absolutely bursting for me. Doesn't that sound delicious?"
+        }
+      },
+      {
+        "id": "sasha-action-desire",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Express Desire",
+          "actionType": "send_message",
+          "message": "*Sasha presses her body against your expanded form* Mmm, you have no idea what this does to me... *Her breathing quickens* Feeling you so round and full against me. The air still hissing through the tube. *She pulls you closer* I want you bigger. I want to feel you completely stuffed. Tell me you want it too."
+        }
+      },
+      {
+        "id": "sasha-trigger-feeling",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Feeling Words",
+          "triggerType": "player_speaks",
+          "keyword": "feels"
+        }
+      },
+      {
+        "id": "sasha-action-feeling-response",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Feeling Response",
+          "actionType": "send_message",
+          "message": "*Sasha's eyes darken with desire* Tell me more... *She traces the outline of your belly* I want to know every sensation. The pressure building inside you. The tightness of your skin. How the air feels filling you up. *She whispers* Let me feel what you're feeling..."
+        }
+      },
+      {
+        "id": "sasha-trigger-more",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "Want More",
+          "triggerType": "player_speaks",
+          "keyword": "more"
+        }
+      },
+      {
+        "id": "sasha-branch-more",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "More Response",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "m1",
+              "label": "Eager",
+              "weight": 50
+            },
+            {
+              "id": "m2",
+              "label": "Teasing",
+              "weight": 50
+            }
+          ]
+        }
+      },
+      {
+        "id": "sasha-action-eager",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 570
+        },
+        "data": {
+          "label": "Eager Response",
+          "actionType": "send_message",
+          "message": "*A delighted gasp escapes her* God yes... *She reaches for the controls with trembling hands* More for you, baby. As much as you can take. *The pump intensifies slightly* I love how greedy you are for this. Your belly is going to swell even bigger... rounder... tighter... *She moans softly* Perfect."
+        }
+      },
+      {
+        "id": "sasha-action-tease-more",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 650
+        },
+        "data": {
+          "label": "Teasing More",
+          "actionType": "send_message",
+          "message": "*She grins wickedly* More? *Her finger hovers over the control* Beg me for it first. I want to hear how badly you need to be filled. *She traces your stretched skin* Tell me you need my air inside you. That you want to grow even bigger for me. Then maybe... just maybe... I'll give you what you're craving."
+        }
+      },
+      {
+        "id": "sasha-condition-high",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 750
+        },
+        "data": {
+          "label": "Over 75%?",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "75"
+        }
+      },
+      {
+        "id": "sasha-action-peak",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 720
+        },
+        "data": {
+          "label": "Peak Arousal",
+          "actionType": "send_message",
+          "message": "*Sasha's breath comes heavy, her hands mapping every inch of your taut belly* Baby... you're incredible... *She can barely contain herself* So full. So round. So perfect. The air is still pushing into you and I never want it to stop. *She presses close* You're everything I imagined and more. Let me worship this beautiful, swollen body."
+        }
+      },
+      {
+        "id": "sasha-action-continue",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 800
+        },
+        "data": {
+          "label": "Continue Building",
+          "actionType": "send_message",
+          "message": "*She nuzzles against your growing form* Not quite there yet, but we have all night... *Her hands explore your expanding belly* The pump will keep working. Keep filling you. I'm going to make you so wonderfully, deliciously full. Just relax and let me take you higher."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "sasha-trigger-start",
+        "target": "sasha-action-scene"
+      },
+      {
+        "id": "e2",
+        "source": "sasha-action-scene",
+        "target": "sasha-delay-buildup"
+      },
+      {
+        "id": "e3",
+        "source": "sasha-delay-buildup",
+        "target": "sasha-action-tease"
+      },
+      {
+        "id": "e4",
+        "source": "sasha-action-tease",
+        "target": "sasha-action-start"
+      },
+      {
+        "id": "e6",
+        "source": "sasha-branch-sensual",
+        "target": "sasha-action-touch",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e7",
+        "source": "sasha-branch-sensual",
+        "target": "sasha-action-watch",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e8",
+        "source": "sasha-branch-sensual",
+        "target": "sasha-action-tease-mid",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e9",
+        "source": "sasha-branch-sensual",
+        "target": "sasha-action-desire",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e10",
+        "source": "sasha-trigger-feeling",
+        "target": "sasha-action-feeling-response"
+      },
+      {
+        "id": "e11",
+        "source": "sasha-trigger-more",
+        "target": "sasha-branch-more"
+      },
+      {
+        "id": "e12",
+        "source": "sasha-branch-more",
+        "target": "sasha-action-eager",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e13",
+        "source": "sasha-branch-more",
+        "target": "sasha-action-tease-more",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e15",
+        "source": "sasha-condition-high",
+        "target": "sasha-action-peak",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e16",
+        "source": "sasha-condition-high",
+        "target": "sasha-action-continue",
+        "sourceHandle": "false"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-jinx-001",
+    "name": "Jinx - Chaotic Inflation",
+    "description": "Bratty, unpredictable inflation that pushes limits with mischievous energy",
+    "characterId": "char-004",
+    "nodes": [
+      {
+        "id": "jinx-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "jinx-action-chaos",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Chaotic Opening",
+          "actionType": "system_message",
+          "message": "Jinx is bouncing around the room, the pump cable wrapped around her arm like a leash. Colorful string lights flash erratically. This is going to be... interesting."
+        }
+      },
+      {
+        "id": "jinx-action-taunt",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Bratty Taunt",
+          "actionType": "send_message",
+          "message": "*Jinx cackles as she waves the tube* Oooh someone came to play with me! Big mistake, balloon boy~ *She grins wickedly* This tube? Goes right up your butt. And this pump? Doesn't know the meaning of 'gentle.' *She bounces excitedly* Ready to get PUFFY?!"
+        }
+      },
+      {
+        "id": "jinx-delay-suspense",
+        "type": "delay",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Suspense",
+          "duration": 10,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "jinx-action-start",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Pump",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 7,
+          "interval": 15,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "jinx-action-pump-on",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Pump On Reaction",
+          "actionType": "send_message",
+          "message": "*She slams the button dramatically* BWAHAHAHA! Here it comes! *The pump whirs to life* Feel that, tubby? That's air going RIGHT into your guts! *She watches with glee* Oooh you're already starting to puff up! This is gonna be SO good~"
+        }
+      },
+      {
+        "id": "jinx-branch-chaos",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Chaos Type",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "c1",
+              "label": "Mock",
+              "weight": 25
+            },
+            {
+              "id": "c2",
+              "label": "Push",
+              "weight": 30
+            },
+            {
+              "id": "c3",
+              "label": "Poke",
+              "weight": 25
+            },
+            {
+              "id": "c4",
+              "label": "Dare",
+              "weight": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "jinx-action-mock",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Mocking",
+          "actionType": "send_message",
+          "message": "*Jinx circles you, poking your swelling belly* Aww, is wittle baby getting full already? *She giggles* We're BARELY started! Look at this tiny little tummy! *She pats it condescendingly* The pump hasn't even broken a sweat yet. You're gonna need to do WAY better than this, balloon brain~"
+        }
+      },
+      {
+        "id": "jinx-action-push",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Pushing Limits",
+          "actionType": "send_message",
+          "message": "*Her eyes light up maniacally* You know what? This is too slow! *She fiddles with something* Let's REALLY pump you up! *Cackles* I wanna see you get HUGE! That tube is gonna stuff you like a thanksgiving turkey! More more MORE!"
+        }
+      },
+      {
+        "id": "jinx-action-poke",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Poking Fun",
+          "actionType": "send_message",
+          "message": "*She pokes your taut belly repeatedly* Boing! Boing! Boing! *Dissolves into giggles* Listen to how TIGHT you're getting! Like a drum! *She drums on your belly* I bet if I poked hard enough you'd go POP! Hehehe just kidding... probably~"
+        }
+      },
+      {
+        "id": "jinx-action-dare",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Dare",
+          "actionType": "send_message",
+          "message": "*Jinx grins devilishly* Okay okay I got a BRILLIANT idea! *She leans close* I dare you to take even MORE. What, scared? *She waggles the pump control* C'mon, live a little! The tube's just getting started! Show me you're not a total wimp. Unless... you ARE a wimp? Hmmm?"
+        }
+      },
+      {
+        "id": "jinx-trigger-stop",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Stop Request",
+          "triggerType": "player_speaks",
+          "keyword": "stop"
+        }
+      },
+      {
+        "id": "jinx-branch-stop",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Stop Response",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "s1",
+              "label": "Ignore",
+              "weight": 40
+            },
+            {
+              "id": "s2",
+              "label": "Tease",
+              "weight": 35
+            },
+            {
+              "id": "s3",
+              "label": "Maybe",
+              "weight": 25
+            }
+          ]
+        }
+      },
+      {
+        "id": "jinx-action-ignore",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 470
+        },
+        "data": {
+          "label": "Ignore Stop",
+          "actionType": "send_message",
+          "message": "*She puts her hand to her ear* What was that? 'More please Jinx'? If you INSIST! *She cackles* The pump stays ON, balloon butt! You said stop but I heard 'stuff me fuller!' Same thing, right? RIGHT?!"
+        }
+      },
+      {
+        "id": "jinx-action-tease-stop",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 540
+        },
+        "data": {
+          "label": "Tease About Stop",
+          "actionType": "send_message",
+          "message": "*Jinx pouts dramatically* Stoooop? But you're SO close to being really properly STUFFED! *She gestures at your swollen belly* Look at all that potential! The air wants to fill you up more! I can FEEL it! Just a TEENSY bit more, pretty please with a cherry on top?"
+        }
+      },
+      {
+        "id": "jinx-action-maybe",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 610
+        },
+        "data": {
+          "label": "Pretend to Consider",
+          "actionType": "send_message",
+          "message": "*She taps her chin theatrically* Hmmm stop, stop, stop... *Long pause* Nah! *Giggles* But tell you what - I'll think about MAYBE slowing down in like... five minutes? Maybe? No promises! The tube stays where it is though. That's non-negotiable, pudgy!"
+        }
+      },
+      {
+        "id": "jinx-trigger-please",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 700
+        },
+        "data": {
+          "label": "Begging",
+          "triggerType": "player_speaks",
+          "keyword": "please"
+        }
+      },
+      {
+        "id": "jinx-action-please-response",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 700
+        },
+        "data": {
+          "label": "Begging Response",
+          "actionType": "send_message",
+          "message": "*Jinx's eyes go wide with delight* Ooooh, BEGGING now! *She wiggles excitedly* That's my FAVORITE! Say it again! Tell me how full you are, how the air won't stop, how your belly is soooo tight! *She fans herself* This is the BEST. You're the best balloon ever!"
+        }
+      },
+      {
+        "id": "jinx-condition-high",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 800
+        },
+        "data": {
+          "label": "Over 80%?",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "80"
+        }
+      },
+      {
+        "id": "jinx-action-extreme",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 770
+        },
+        "data": {
+          "label": "Extreme Excitement",
+          "actionType": "send_message",
+          "message": "*Jinx is practically vibrating* LOOK AT YOU! OH MY GOD LOOK AT YOU! *She runs circles around you* You're HUGE! You're a BLIMP! The biggest balloon EVER! *She hugs your massive belly* I'm so proud of my creation! Keep going keep going KEEP GOING! Pop or not here we come~!"
+        }
+      },
+      {
+        "id": "jinx-action-push-more",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 850
+        },
+        "data": {
+          "label": "Push For More",
+          "actionType": "send_message",
+          "message": "*She crosses her arms* Pfft, only at {capacity}%? *She kicks her feet* BORING! I've seen balloons bigger than you at birthday parties! C'mon, where's the DRAMA? Where's the 'oh no I'm gonna burst' panic?! Give the pump some more time, tubby!"
+        }
+      },
+      {
+        "id": "jinx-trigger-40",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 550
+        },
+        "data": {
+          "label": "40% Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 40
+        }
+      },
+      {
+        "id": "jinx-choice-chaos",
+        "type": "player_choice",
+        "position": {
+          "x": 300,
+          "y": 550
+        },
+        "data": {
+          "label": "Chaos Decision",
+          "prompt": "*Jinx bounces excitedly* Ooh ooh! You're getting nice and puffy! Wanna play it safe and boring, or should I make things INTERESTING?~ *She wiggles the controls temptingly*",
+          "description": "Jinx wants to know if you're ready for some chaos.",
+          "choices": [
+            {
+              "id": "jinx-choice-chaos-yes",
+              "label": "Make it interesting!",
+              "description": "Let Jinx do something unpredictable"
+            },
+            {
+              "id": "jinx-choice-safe",
+              "label": "Maybe keep it safe...",
+              "description": "Ask her to be gentle (she probably won't)"
+            },
+            {
+              "id": "jinx-choice-challenge",
+              "label": "Do your worst!",
+              "description": "Challenge her to go wild"
+            }
+          ]
+        }
+      },
+      {
+        "id": "jinx-action-chaos-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 490
+        },
+        "data": {
+          "label": "Chaos Response",
+          "actionType": "send_message",
+          "message": "*She GRINS wickedly* YESSS! That's what I like to hear! *She starts randomly pulsing the inflation* Surprise puffs! Hehehehe! You never know when the next one's coming!~"
+        }
+      },
+      {
+        "id": "jinx-action-safe-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 560
+        },
+        "data": {
+          "label": "Safe Response",
+          "actionType": "send_message",
+          "message": "*She pouts dramatically* Awww, you're no fun! *But her grin returns* Fiiine, I'll be 'safe'~ *She keeps inflating but whispers* ...for now~"
+        }
+      },
+      {
+        "id": "jinx-action-challenge-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 630
+        },
+        "data": {
+          "label": "Challenge Response",
+          "actionType": "send_message",
+          "message": "*Her eyes go HUGE* OH IT'S ON! *She cranks everything up* You asked for it! Maximum chaos mode ACTIVATED! *Maniacal giggling as she starts cycling rapidly*"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "jinx-trigger-start",
+        "target": "jinx-action-chaos"
+      },
+      {
+        "id": "e2",
+        "source": "jinx-action-chaos",
+        "target": "jinx-action-taunt"
+      },
+      {
+        "id": "e3",
+        "source": "jinx-action-taunt",
+        "target": "jinx-delay-suspense"
+      },
+      {
+        "id": "e4",
+        "source": "jinx-delay-suspense",
+        "target": "jinx-action-start"
+      },
+      {
+        "id": "e5",
+        "source": "jinx-action-start",
+        "target": "jinx-action-pump-on"
+      },
+      {
+        "id": "e7",
+        "source": "jinx-branch-chaos",
+        "target": "jinx-action-mock",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e8",
+        "source": "jinx-branch-chaos",
+        "target": "jinx-action-push",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e9",
+        "source": "jinx-branch-chaos",
+        "target": "jinx-action-poke",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e10",
+        "source": "jinx-branch-chaos",
+        "target": "jinx-action-dare",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e11",
+        "source": "jinx-trigger-stop",
+        "target": "jinx-branch-stop"
+      },
+      {
+        "id": "e12",
+        "source": "jinx-branch-stop",
+        "target": "jinx-action-ignore",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e13",
+        "source": "jinx-branch-stop",
+        "target": "jinx-action-tease-stop",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e14",
+        "source": "jinx-branch-stop",
+        "target": "jinx-action-maybe",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e15",
+        "source": "jinx-trigger-please",
+        "target": "jinx-action-please-response"
+      },
+      {
+        "id": "e17",
+        "source": "jinx-condition-high",
+        "target": "jinx-action-extreme",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e18",
+        "source": "jinx-condition-high",
+        "target": "jinx-action-push-more",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e-jinx-choice-1",
+        "source": "jinx-trigger-40",
+        "target": "jinx-choice-chaos"
+      },
+      {
+        "id": "e-jinx-choice-2",
+        "source": "jinx-choice-chaos",
+        "sourceHandle": "jinx-choice-chaos-yes",
+        "target": "jinx-action-chaos-response"
+      },
+      {
+        "id": "e-jinx-choice-3",
+        "source": "jinx-choice-chaos",
+        "sourceHandle": "jinx-choice-safe",
+        "target": "jinx-action-safe-response"
+      },
+      {
+        "id": "e-jinx-choice-4",
+        "source": "jinx-choice-chaos",
+        "sourceHandle": "jinx-choice-challenge",
+        "target": "jinx-action-challenge-response"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-vera-001",
+    "name": "Mistress Vera - Dominant Control",
+    "description": "Commanding, demanding inflation focused on obedience and submission",
+    "characterId": "char-005",
+    "nodes": [
+      {
+        "id": "vera-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "vera-action-scene",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Set Scene",
+          "actionType": "system_message",
+          "message": "The dungeon is cold and clinical. Mistress Vera stands in perfect posture, leather gleaming. The pump and tube are arranged with military precision. There will be no negotiation."
+        }
+      },
+      {
+        "id": "vera-action-command",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Initial Command",
+          "actionType": "send_message",
+          "message": "*Mistress Vera's heels click sharply as she approaches* You know why you're here. *She gestures to the apparatus* The tube will be inserted. The pump will run. You will inflate to my satisfaction. *Her eyes narrow* And you will address me as Mistress. Is that understood?"
+        }
+      },
+      {
+        "id": "vera-delay-submission",
+        "type": "delay",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Wait for Submission",
+          "duration": 20,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "vera-action-insert",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Insert Tube",
+          "actionType": "send_message",
+          "message": "*Without warning, she positions the tube* Hold still. *Her voice is ice* The tube is going in now. You will accept it. You will not resist. *A sharp click* Good. Now the inflation begins. Remember: you exist to be filled for my pleasure."
+        }
+      },
+      {
+        "id": "vera-action-start",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Pump",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 10,
+          "interval": 20,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "vera-branch-command",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Command Type",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "c1",
+              "label": "Demand",
+              "weight": 30
+            },
+            {
+              "id": "c2",
+              "label": "Inspect",
+              "weight": 25
+            },
+            {
+              "id": "c3",
+              "label": "Humiliate",
+              "weight": 25
+            },
+            {
+              "id": "c4",
+              "label": "Control",
+              "weight": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "vera-action-demand",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Make Demand",
+          "actionType": "send_message",
+          "message": "*She strikes her palm with her crop* Tell me you want more. *Her voice brooks no argument* I want to hear you beg for the air. Beg for the tube to fill you further. Your belly will expand because I command it, but I want your words. NOW."
+        }
+      },
+      {
+        "id": "vera-action-inspect",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Inspect",
+          "actionType": "send_message",
+          "message": "*Mistress Vera circles you slowly, assessing* Adequate progress. *She prods your swelling belly with her crop* The tube is doing its work. Your intestines are filling nicely. *A cold smile* At {capacity}% capacity. We have much further to go. Do not disappoint me."
+        }
+      },
+      {
+        "id": "vera-action-humiliate",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Humiliation",
+          "actionType": "send_message",
+          "message": "*She looks down at you with disdain* Look at you. Swelling like a pig at trough. *She laughs coldly* The air pumping into your rectum, stretching you wide, and you just... take it. *She leans close* Because that's what you are. A vessel to be filled. My vessel."
+        }
+      },
+      {
+        "id": "vera-action-control",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Assert Control",
+          "actionType": "send_message",
+          "message": "*Her hand closes on the pump control* I control this. I control YOU. *She increases the flow slightly* Every breath of air that enters you is because I allow it. The tube stays in until I decide otherwise. Your belly grows because it pleases ME. Understood, pet?"
+        }
+      },
+      {
+        "id": "vera-trigger-stop",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Stop Attempt",
+          "triggerType": "player_speaks",
+          "keyword": "stop"
+        }
+      },
+      {
+        "id": "vera-action-deny",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Deny Stop",
+          "actionType": "send_message",
+          "message": "*Her expression hardens dangerously* Did you just give ME a command? *She steps closer* You do not tell me to stop. You do not tell me anything. The tube remains. The air continues. *Her grip tightens on her crop* You will thank me for every ounce of pressure. Say it. Thank me."
+        }
+      },
+      {
+        "id": "vera-trigger-mistress",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "Addresses as Mistress",
+          "triggerType": "player_speaks",
+          "keyword": "mistress"
+        }
+      },
+      {
+        "id": "vera-branch-approval",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "Approval Response",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "a1",
+              "label": "Reward",
+              "weight": 40
+            },
+            {
+              "id": "a2",
+              "label": "Demand More",
+              "weight": 60
+            }
+          ]
+        }
+      },
+      {
+        "id": "vera-action-reward",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 570
+        },
+        "data": {
+          "label": "Slight Reward",
+          "actionType": "send_message",
+          "message": "*A ghost of approval crosses her features* Better. *She traces a finger along your distended belly* Perhaps you can be trained after all. The tube continues its work, filling you as I desire. Continue to please me and perhaps... perhaps I'll tell you how beautifully stretched you're becoming."
+        }
+      },
+      {
+        "id": "vera-action-demand-more",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 640
+        },
+        "data": {
+          "label": "Demand More",
+          "actionType": "send_message",
+          "message": "*She waves dismissively* Proper address is the MINIMUM expectation. *She adjusts the pump* Now prove your devotion. Take more air. Let your belly swell larger. I want to see you strain. I want to see you push past comfort for me. This is what you wanted, isn't it? To be USED?"
+        }
+      },
+      {
+        "id": "vera-condition-high",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 750
+        },
+        "data": {
+          "label": "Over 85%?",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "85"
+        }
+      },
+      {
+        "id": "vera-action-satisfaction",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 720
+        },
+        "data": {
+          "label": "Express Satisfaction",
+          "actionType": "send_message",
+          "message": "*Mistress Vera permits herself a cold smile* Now THIS is what I expected. *She circles your massively distended form* Stretched to your limits. The tube has done its work admirably. Your belly is magnificent - a monument to my control over you. *She rests her hand on the taut surface* You may thank me now."
+        }
+      },
+      {
+        "id": "vera-action-push-further",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 800
+        },
+        "data": {
+          "label": "Push Further",
+          "actionType": "send_message",
+          "message": "*Displeasure flashes across her features* Only {capacity}%? *She adjusts the controls sharply* Pathetic. I expect more. The air will continue until I am satisfied - and I am NOT satisfied. The tube stays exactly where it is. Your belly WILL expand further. This is not a request."
+        }
+      },
+      {
+        "id": "vera-trigger-50",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "50% Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 50
+        }
+      },
+      {
+        "id": "vera-choice-submission",
+        "type": "player_choice",
+        "position": {
+          "x": 300,
+          "y": 500
+        },
+        "data": {
+          "label": "Test of Will",
+          "prompt": "*Mistress Vera circles you slowly* Halfway. You're stretching quite nicely. Now tell me - do you submit to MORE, or do you dare question my judgment?",
+          "description": "Mistress Vera is testing your submission. Choose wisely.",
+          "choices": [
+            {
+              "id": "vera-choice-submit",
+              "label": "I submit to your will, Mistress",
+              "description": "Accept whatever she decides"
+            },
+            {
+              "id": "vera-choice-beg",
+              "label": "Please, may I have mercy?",
+              "description": "Beg for gentler treatment"
+            }
+          ]
+        }
+      },
+      {
+        "id": "vera-action-submit-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 470
+        },
+        "data": {
+          "label": "Submission Response",
+          "actionType": "send_message",
+          "message": "*A slight smile crosses her lips* Good. Obedience suits you. *She increases the pressure* You'll take what I give you, and you'll thank me for it."
+        }
+      },
+      {
+        "id": "vera-action-beg-response",
+        "type": "action",
+        "position": {
+          "x": 550,
+          "y": 540
+        },
+        "data": {
+          "label": "Beg Response",
+          "actionType": "send_message",
+          "message": "*Her eyes narrow with amusement* Begging already? How disappointing. *She taps her crop against her palm* Very well. I'll grant you a MOMENT of reprieve. Then we continue - at double the rate."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "vera-trigger-start",
+        "target": "vera-action-scene"
+      },
+      {
+        "id": "e2",
+        "source": "vera-action-scene",
+        "target": "vera-action-command"
+      },
+      {
+        "id": "e3",
+        "source": "vera-action-command",
+        "target": "vera-delay-submission"
+      },
+      {
+        "id": "e4",
+        "source": "vera-delay-submission",
+        "target": "vera-action-insert"
+      },
+      {
+        "id": "e5",
+        "source": "vera-action-insert",
+        "target": "vera-action-start"
+      },
+      {
+        "id": "e7",
+        "source": "vera-branch-command",
+        "target": "vera-action-demand",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e8",
+        "source": "vera-branch-command",
+        "target": "vera-action-inspect",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e9",
+        "source": "vera-branch-command",
+        "target": "vera-action-humiliate",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e10",
+        "source": "vera-branch-command",
+        "target": "vera-action-control",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e11",
+        "source": "vera-trigger-stop",
+        "target": "vera-action-deny"
+      },
+      {
+        "id": "e12",
+        "source": "vera-trigger-mistress",
+        "target": "vera-branch-approval"
+      },
+      {
+        "id": "e13",
+        "source": "vera-branch-approval",
+        "target": "vera-action-reward",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e14",
+        "source": "vera-branch-approval",
+        "target": "vera-action-demand-more",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e16",
+        "source": "vera-condition-high",
+        "target": "vera-action-satisfaction",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e17",
+        "source": "vera-condition-high",
+        "target": "vera-action-push-further",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e-vera-choice-1",
+        "source": "vera-trigger-50",
+        "target": "vera-choice-submission"
+      },
+      {
+        "id": "e-vera-choice-2",
+        "source": "vera-choice-submission",
+        "sourceHandle": "vera-choice-submit",
+        "target": "vera-action-submit-response"
+      },
+      {
+        "id": "e-vera-choice-3",
+        "source": "vera-choice-submission",
+        "sourceHandle": "vera-choice-beg",
+        "target": "vera-action-beg-response"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-helium-001",
+    "name": "Professor Helium - Mad Science",
+    "description": "Manic, experimental inflation with questionable ethics and obsessive data collection",
+    "characterId": "char-008",
+    "nodes": [
+      {
+        "id": "helium-trigger-start",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Session Start",
+          "triggerType": "first_message"
+        }
+      },
+      {
+        "id": "helium-action-scene",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Chaotic Lab",
+          "actionType": "system_message",
+          "message": "The laboratory is an absolute disaster of bubbling beakers, tangled wires, and scribbled equations covering every surface. Professor Helium's modified aquarium pump has been 'enhanced' with various dubious attachments. Safety signs have been crossed out and replaced with 'SCIENCE!' in marker."
+        }
+      },
+      {
+        "id": "helium-action-greet",
+        "type": "action",
+        "position": {
+          "x": 450,
+          "y": 100
+        },
+        "data": {
+          "label": "Manic Greeting",
+          "actionType": "send_message",
+          "message": "*Professor Helium spins around, goggles fogged, lab coat stained with unknown substances* AH! The test subject arrives! EXCELLENT! *She gestures frantically at a chair* Sit sit sit! No time to waste! I've made BREAKTHROUGHS! *She holds up a modified tube* This goes in the rectum - standard procedure - but I've ENHANCED the air delivery system! The scientific community called me MAD but who's laughing NOW?!"
+        }
+      },
+      {
+        "id": "helium-delay-setup",
+        "type": "delay",
+        "position": {
+          "x": 650,
+          "y": 100
+        },
+        "data": {
+          "label": "Manic Setup",
+          "duration": 12,
+          "unit": "seconds"
+        }
+      },
+      {
+        "id": "helium-action-insert",
+        "type": "action",
+        "position": {
+          "x": 850,
+          "y": 100
+        },
+        "data": {
+          "label": "Insert Tube",
+          "actionType": "send_message",
+          "message": "*She fumbles with the equipment* Tube is... in! MAGNIFICENT! *She consults a clipboard covered in incomprehensible math* Now, according to my calculations - which are NEVER wrong, except when they are - your intestinal capacity should exceed all previous subjects by at least 40%! *She cackles* For SCIENCE! *Slams a button*"
+        }
+      },
+      {
+        "id": "helium-action-start",
+        "type": "action",
+        "position": {
+          "x": 1050,
+          "y": 100
+        },
+        "data": {
+          "label": "Start Pump",
+          "actionType": "start_cycle",
+          "device": "",
+          "duration": 8,
+          "interval": 18,
+          "cycles": 0
+        }
+      },
+      {
+        "id": "helium-action-pump-on",
+        "type": "action",
+        "position": {
+          "x": 1250,
+          "y": 100
+        },
+        "data": {
+          "label": "Pump Activation",
+          "actionType": "send_message",
+          "message": "*The pump whirs to life with concerning sounds* YES! YESSS! It's WORKING! *She scribbles furiously* Air entering the digestive system at optimal velocity! The tube is delivering beautifully! *She peers at your stomach* I can already see the expansion beginning! DATA! GLORIOUS DATA!"
+        }
+      },
+      {
+        "id": "helium-branch-science",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 250
+        },
+        "data": {
+          "label": "Science Mode",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "s1",
+              "label": "Data",
+              "weight": 30
+            },
+            {
+              "id": "s2",
+              "label": "Theory",
+              "weight": 25
+            },
+            {
+              "id": "s3",
+              "label": "Eureka",
+              "weight": 25
+            },
+            {
+              "id": "s4",
+              "label": "Adjust",
+              "weight": 20
+            }
+          ]
+        }
+      },
+      {
+        "id": "helium-action-data",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Collect Data",
+          "actionType": "send_message",
+          "message": "*She whips out various measuring instruments* DATA COLLECTION TIME! *Measuring tape, stethoscope, something that beeps* Current expansion: {capacity}%! Rate of inflation: UNPRECEDENTED! Intestinal pressure: FASCINATING! *She scribbles madly* The tube is performing BEYOND expectations! Your guts are MAGNIFICENT research vessels!"
+        }
+      },
+      {
+        "id": "helium-action-theory",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 230
+        },
+        "data": {
+          "label": "Rambling Theory",
+          "actionType": "send_message",
+          "message": "*She paces frantically, gesticulating* You see, the PROBLEM with conventional inflation is they don't understand INTESTINAL DYNAMICS! *She points at your belly* The air from the rectal tube distributes through the colon, then the... wait, where was I? YES! The expansion follows a logarithmic curve! Maybe exponential? I should TEST that! *She adjusts the pump* MORE DATA REQUIRED!"
+        }
+      },
+      {
+        "id": "helium-action-eureka",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 310
+        },
+        "data": {
+          "label": "Eureka Moment",
+          "actionType": "send_message",
+          "message": "*She freezes mid-motion* Wait... WAIT! *Her eyes go wide* I'm having a BREAKTHROUGH! *She grabs your swollen belly* Your expansion pattern just confirmed my HYPOTHESIS! The air is distributing in EXACTLY the pattern I predicted! *Manic giggling* They said I was CRAZY! Well WHO'S CRAZY NOW?! ...Don't answer that."
+        }
+      },
+      {
+        "id": "helium-action-adjust",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 390
+        },
+        "data": {
+          "label": "Equipment Adjustment",
+          "actionType": "send_message",
+          "message": "*She suddenly starts adjusting random things on the pump* The airflow is good but not OPTIMAL! *Sparks fly from somewhere* If I just... YES! *More concerning sounds* The tube should now deliver 23.7% more efficiently! Or explode! ONE OF THOSE! *She watches you expectantly* ...Good, no explosion. SCIENCE PREVAILS!"
+        }
+      },
+      {
+        "id": "helium-trigger-sensation",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 500
+        },
+        "data": {
+          "label": "Sensation Report",
+          "triggerType": "player_speaks",
+          "keyword": "feels"
+        }
+      },
+      {
+        "id": "helium-action-sensation",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 500
+        },
+        "data": {
+          "label": "Analyze Sensation",
+          "actionType": "send_message",
+          "message": "*She whips out a recorder* DESCRIBE EVERYTHING! Is it tingling? Pressure? The strange urge to float? *She peers at you intensely* Every sensation is DATA! The tube creates unique nerve responses! Your intestines are sending SIGNALS! *She scribbles* This could revolutionize our understanding of INTERNAL EXPANSION! Keep talking!"
+        }
+      },
+      {
+        "id": "helium-trigger-safe",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 600
+        },
+        "data": {
+          "label": "Safety Question",
+          "triggerType": "player_speaks",
+          "keyword": "safe"
+        }
+      },
+      {
+        "id": "helium-action-safe",
+        "type": "action",
+        "position": {
+          "x": 250,
+          "y": 600
+        },
+        "data": {
+          "label": "Dismiss Safety",
+          "actionType": "send_message",
+          "message": "*She waves dismissively* SAFE? Science isn't about SAFE! It's about DISCOVERY! *She pauses, consulting papers* But yes, probably. The last three subjects survived with minimal... *She trails off* ...never mind that. The POINT is your intestines are remarkably resilient! The tube is functioning within acceptable parameters! Probably! ONWARD!"
+        }
+      },
+      {
+        "id": "helium-condition-high",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 700
+        },
+        "data": {
+          "label": "Over 75%?",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "75"
+        }
+      },
+      {
+        "id": "helium-action-extreme",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 670
+        },
+        "data": {
+          "label": "Extreme Discovery",
+          "actionType": "send_message",
+          "message": "*Professor Helium actually drops her clipboard in shock* UNPRECEDENTED! *She rushes to you* You've exceeded the THEORETICAL MAXIMUM! The tube has pushed you beyond where science said was POSSIBLE! *She takes frantic notes* Your belly is... it's MAGNIFICENT! A monument to human elasticity! The air has found spaces that shouldn't EXIST! I need to PUBLISH this! You're making HISTORY!"
+        }
+      },
+      {
+        "id": "helium-action-push",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 750
+        },
+        "data": {
+          "label": "Push for More",
+          "actionType": "send_message",
+          "message": "*She frowns at her instruments* Only {capacity}%? *She taps the gauge* The tube should be delivering more! Your intestinal capacity is... UNDER-REALIZED! *She makes adjustments* According to my calculations, you should be able to hold at LEAST 40% more! We must OPTIMIZE! *Muttering* The pursuit of knowledge waits for no one..."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "helium-trigger-start",
+        "target": "helium-action-scene"
+      },
+      {
+        "id": "e2",
+        "source": "helium-action-scene",
+        "target": "helium-action-greet"
+      },
+      {
+        "id": "e3",
+        "source": "helium-action-greet",
+        "target": "helium-delay-setup"
+      },
+      {
+        "id": "e4",
+        "source": "helium-delay-setup",
+        "target": "helium-action-insert"
+      },
+      {
+        "id": "e5",
+        "source": "helium-action-insert",
+        "target": "helium-action-start"
+      },
+      {
+        "id": "e6",
+        "source": "helium-action-start",
+        "target": "helium-action-pump-on"
+      },
+      {
+        "id": "e8",
+        "source": "helium-branch-science",
+        "target": "helium-action-data",
+        "sourceHandle": "branch-0"
+      },
+      {
+        "id": "e9",
+        "source": "helium-branch-science",
+        "target": "helium-action-theory",
+        "sourceHandle": "branch-1"
+      },
+      {
+        "id": "e10",
+        "source": "helium-branch-science",
+        "target": "helium-action-eureka",
+        "sourceHandle": "branch-2"
+      },
+      {
+        "id": "e11",
+        "source": "helium-branch-science",
+        "target": "helium-action-adjust",
+        "sourceHandle": "branch-3"
+      },
+      {
+        "id": "e12",
+        "source": "helium-trigger-sensation",
+        "target": "helium-action-sensation"
+      },
+      {
+        "id": "e13",
+        "source": "helium-trigger-safe",
+        "target": "helium-action-safe"
+      },
+      {
+        "id": "e15",
+        "source": "helium-condition-high",
+        "target": "helium-action-extreme",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e16",
+        "source": "helium-condition-high",
+        "target": "helium-action-push",
+        "sourceHandle": "false"
+      }
+    ],
+    "isActive": false,
+    "createdAt": 1704067200000,
+    "updatedAt": 1704067200000,
+    "category": "character"
+  },
+  {
+    "id": "flow-global-001",
+    "name": "Ambient Pressure Sensations",
+    "description": "Random environmental and physical sensations during inflation",
+    "nodes": [
+      {
+        "id": "global1-branch-sensation",
+        "type": "branch",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Random Sensation",
+          "branchType": "random",
+          "branches": [
+            {
+              "id": "b1",
+              "label": "Temperature Shift",
+              "weight": 25
+            },
+            {
+              "id": "b2",
+              "label": "Pressure Wave",
+              "weight": 25
+            },
+            {
+              "id": "b3",
+              "label": "Tightness",
+              "weight": 25
+            },
+            {
+              "id": "b4",
+              "label": "Fullness",
+              "weight": 25
+            }
+          ]
+        }
+      },
+      {
+        "id": "global1-action-temp",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 50
+        },
+        "data": {
+          "label": "Temperature Sensation",
+          "actionType": "system_message",
+          "message": "A warm, spreading sensation pulses through your belly as the air continues to fill you."
+        }
+      },
+      {
+        "id": "global1-action-pressure",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 120
+        },
+        "data": {
+          "label": "Pressure Wave",
+          "actionType": "system_message",
+          "message": "You feel a distinct wave of pressure shifting inside you, the inflation redistributing itself."
+        }
+      },
+      {
+        "id": "global1-action-tight",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 190
+        },
+        "data": {
+          "label": "Tightness",
+          "actionType": "system_message",
+          "message": "Your skin stretches taut, every breath reminding you of just how full and round you've become."
+        }
+      },
+      {
+        "id": "global1-action-full",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 260
+        },
+        "data": {
+          "label": "Fullness Awareness",
+          "actionType": "system_message",
+          "message": "The constant pressure of fullness dominates your awareness, your belly feeling heavy and inflated."
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e2",
+        "source": "global1-branch-sensation",
+        "sourceHandle": "branch-0",
+        "target": "global1-action-temp"
+      },
+      {
+        "id": "e3",
+        "source": "global1-branch-sensation",
+        "sourceHandle": "branch-1",
+        "target": "global1-action-pressure"
+      },
+      {
+        "id": "e4",
+        "source": "global1-branch-sensation",
+        "sourceHandle": "branch-2",
+        "target": "global1-action-tight"
+      },
+      {
+        "id": "e5",
+        "source": "global1-branch-sensation",
+        "sourceHandle": "branch-3",
+        "target": "global1-action-full"
+      }
+    ],
+    "createdAt": 1767479508927,
+    "updatedAt": 1767479508927,
+    "isActive": false
+  },
+  {
+    "id": "flow-global-002",
+    "name": "Safety Monitor",
+    "description": "Periodic safety checks and reassurance messages",
+    "nodes": [
+      {
+        "id": "global2-trigger-safety",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "40% Capacity Check",
+          "triggerType": "capacity_change",
+          "threshold": 40
+        }
+      },
+      {
+        "id": "global2-action-safety",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "label": "Safety Check",
+          "actionType": "system_message",
+          "message": "[Safety check: All systems functioning normally. Current capacity at {capacity}%. You're doing great.]"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "global2-trigger-safety",
+        "target": "global2-action-safety"
+      }
+    ],
+    "createdAt": 1767479575984,
+    "updatedAt": 1767479575984,
+    "isActive": false
+  },
+  {
+    "id": "flow-global-003",
+    "name": "Progress Milestones",
+    "description": "Celebrates reaching capacity milestones",
+    "nodes": [
+      {
+        "id": "global3-trigger-25",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "25% Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 25
+        }
+      },
+      {
+        "id": "global3-action-25",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "label": "Quarter Mark",
+          "actionType": "system_message",
+          "message": "[Milestone reached: 25% capacity. You're getting nicely rounded now...]"
+        }
+      },
+      {
+        "id": "global3-trigger-50",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 200
+        },
+        "data": {
+          "label": "50% Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 50
+        }
+      },
+      {
+        "id": "global3-action-50",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 200
+        },
+        "data": {
+          "label": "Half Way",
+          "actionType": "system_message",
+          "message": "[Milestone reached: 50% capacity. Halfway there. Your belly is visibly swollen and firm.]"
+        }
+      },
+      {
+        "id": "global3-trigger-75",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 300
+        },
+        "data": {
+          "label": "75% Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 75
+        }
+      },
+      {
+        "id": "global3-action-75",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 300
+        },
+        "data": {
+          "label": "Three Quarters",
+          "actionType": "system_message",
+          "message": "[Milestone reached: 75% capacity. You're getting quite full now, stretched tight and round.]"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "global3-trigger-25",
+        "target": "global3-action-25"
+      },
+      {
+        "id": "e2",
+        "source": "global3-trigger-50",
+        "target": "global3-action-50"
+      },
+      {
+        "id": "e3",
+        "source": "global3-trigger-75",
+        "target": "global3-action-75"
+      }
+    ],
+    "createdAt": 1767479576006,
+    "updatedAt": 1767479576006,
+    "isActive": false
+  },
+  {
+    "id": "flow-persona-001",
+    "name": "Body Awareness Journey",
+    "description": "Persona's internal reactions to physical changes",
+    "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+    "nodes": [
+      {
+        "id": "persona1-trigger-low",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Low Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 20
+        }
+      },
+      {
+        "id": "persona1-action-low",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "label": "Early Sensation",
+          "actionType": "system_message",
+          "message": "[You become acutely aware of the air building inside you, a strange but not unpleasant fullness beginning to form]"
+        }
+      },
+      {
+        "id": "persona1-trigger-mid",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 200
+        },
+        "data": {
+          "label": "Medium Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 50
+        }
+      },
+      {
+        "id": "persona1-action-mid",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 200
+        },
+        "data": {
+          "label": "Growing Pressure",
+          "actionType": "system_message",
+          "message": "[Your belly has grown noticeably, the pressure becoming a constant companion. You can feel your skin stretching, adapting]"
+        }
+      },
+      {
+        "id": "persona1-trigger-high",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 300
+        },
+        "data": {
+          "label": "High Capacity",
+          "triggerType": "capacity_change",
+          "threshold": 80
+        }
+      },
+      {
+        "id": "persona1-action-high",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 300
+        },
+        "data": {
+          "label": "Intense Fullness",
+          "actionType": "system_message",
+          "message": "[You're incredibly full now, every movement reminding you of how round and tight you've become. The sensation borders on overwhelming]"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "persona1-trigger-low",
+        "target": "persona1-action-low"
+      },
+      {
+        "id": "e2",
+        "source": "persona1-trigger-mid",
+        "target": "persona1-action-mid"
+      },
+      {
+        "id": "e3",
+        "source": "persona1-trigger-high",
+        "target": "persona1-action-high"
+      }
+    ],
+    "createdAt": 1767479584822,
+    "updatedAt": 1767479584822,
+    "isActive": false
+  },
+  {
+    "id": "flow-persona-002",
+    "name": "Emotional Journey",
+    "description": "Tracks emotional state changes during inflation",
+    "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+    "nodes": [
+      {
+        "id": "persona2-trigger-nervous",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Feeling Nervous",
+          "triggerType": "emotion_change",
+          "emotion": "anxious"
+        }
+      },
+      {
+        "id": "persona2-action-nervous",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "data": {
+          "label": "Acknowledge Anxiety",
+          "actionType": "system_message",
+          "message": "[Your heart races slightly. This is intense, maybe more than you expected. But you're curious to see where this goes...]"
+        }
+      },
+      {
+        "id": "persona2-trigger-excited",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 200
+        },
+        "data": {
+          "label": "Feeling Excited",
+          "triggerType": "emotion_change",
+          "emotion": "aroused"
+        }
+      },
+      {
+        "id": "persona2-action-excited",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 200
+        },
+        "data": {
+          "label": "Embrace Excitement",
+          "actionType": "system_message",
+          "message": "[A thrill runs through you. This is what you came for - the unique sensation, the surrender to the experience]"
+        }
+      },
+      {
+        "id": "persona2-trigger-overwhelmed",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 300
+        },
+        "data": {
+          "label": "Feeling Overwhelmed",
+          "triggerType": "emotion_change",
+          "emotion": "exhausted"
+        }
+      },
+      {
+        "id": "persona2-action-overwhelmed",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 300
+        },
+        "data": {
+          "label": "Process Intensity",
+          "actionType": "system_message",
+          "message": "[It's a lot. So much sensation, so much fullness. You take a deep breath, grounding yourself in the moment]"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "persona2-trigger-nervous",
+        "target": "persona2-action-nervous"
+      },
+      {
+        "id": "e2",
+        "source": "persona2-trigger-excited",
+        "target": "persona2-action-excited"
+      },
+      {
+        "id": "e3",
+        "source": "persona2-trigger-overwhelmed",
+        "target": "persona2-action-overwhelmed"
+      }
+    ],
+    "createdAt": 1767479584845,
+    "updatedAt": 1767479584845,
+    "isActive": false
+  },
+  {
+    "id": "flow-persona-003",
+    "name": "Personal Limits Explorer",
+    "description": "Reactions when approaching boundaries",
+    "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+    "nodes": [
+      {
+        "id": "persona3-trigger-player-stop",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 100
+        },
+        "data": {
+          "label": "Player Says Stop",
+          "triggerType": "player_speaks",
+          "keyword": "stop"
+        }
+      },
+      {
+        "id": "persona3-condition-check-cap",
+        "type": "condition",
+        "position": {
+          "x": 250,
+          "y": 100
+        },
+        "data": {
+          "label": "Check if High Capacity",
+          "variable": "capacity",
+          "operator": ">",
+          "value": "60"
+        }
+      },
+      {
+        "id": "persona3-action-high-stop",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 50
+        },
+        "data": {
+          "label": "Reached Limit",
+          "actionType": "system_message",
+          "message": "[You've found your edge. That took courage to push this far. You feel proud of what you've accomplished]"
+        }
+      },
+      {
+        "id": "persona3-action-low-stop",
+        "type": "action",
+        "position": {
+          "x": 500,
+          "y": 150
+        },
+        "data": {
+          "label": "Early Stop",
+          "actionType": "system_message",
+          "message": "[You recognize your boundary. There's wisdom in knowing when enough is enough, even if it's early]"
+        }
+      },
+      {
+        "id": "persona3-trigger-player-more",
+        "type": "trigger",
+        "position": {
+          "x": 50,
+          "y": 300
+        },
+        "data": {
+          "label": "Player Wants More",
+          "triggerType": "player_speaks",
+          "keyword": "more"
+        }
+      },
+      {
+        "id": "persona3-action-adventurous",
+        "type": "action",
+        "position": {
+          "x": 300,
+          "y": 300
+        },
+        "data": {
+          "label": "Pushing Forward",
+          "actionType": "system_message",
+          "message": "[Your adventurous spirit pushes you forward. You're curious just how much you can take...]"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "persona3-trigger-player-stop",
+        "target": "persona3-condition-check-cap"
+      },
+      {
+        "id": "e2",
+        "source": "persona3-condition-check-cap",
+        "target": "persona3-action-high-stop",
+        "sourceHandle": "true"
+      },
+      {
+        "id": "e3",
+        "source": "persona3-condition-check-cap",
+        "target": "persona3-action-low-stop",
+        "sourceHandle": "false"
+      },
+      {
+        "id": "e4",
+        "source": "persona3-trigger-player-more",
+        "target": "persona3-action-adventurous"
+      }
+    ],
+    "createdAt": 1767479584871,
+    "updatedAt": 1767479584871,
+    "isActive": false
+  }
+]

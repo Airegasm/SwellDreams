@@ -8,10 +8,11 @@ import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import { substituteVariables } from '../utils/variableSubstitution';
 import StatusBadges from '../components/StatusBadges';
+import FlowStatusPanel from '../components/FlowStatusPanel';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, devices, infiniteCycles, controlMode } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading } = useApp();
   const { showError } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -103,6 +104,14 @@ function Chat() {
     }
     return null;
   };
+
+  // Notify context that we're on the Chat page (for flow pause/resume)
+  useEffect(() => {
+    setOnChatPage(true);
+    return () => {
+      setOnChatPage(false);
+    };
+  }, [setOnChatPage]);
 
   // Load message input history from session state
   useEffect(() => {
@@ -731,6 +740,9 @@ function Chat() {
           capacity={sessionState.capacity || 0}
         />
 
+        {/* Flow Status Panel */}
+        <FlowStatusPanel />
+
       </div>
 
       {/* Main Chat Area */}
@@ -755,7 +767,12 @@ function Chat() {
         )}
 
         <div className="chat-messages">
-          {messages.length === 0 ? (
+          {sessionLoading ? (
+            <div className="chat-loading">
+              <div className="loading-spinner"></div>
+              <p>Starting new session...</p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="chat-empty">
               {activeCharacter ? (
                 <>
@@ -1126,7 +1143,7 @@ function Chat() {
                   const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
                   const isUnknown = !deviceState || deviceState?.state === 'unknown';
                   const statusClass = isUnknown ? 'unavailable' : isOn ? 'on' : 'off';
-                  const isPrimary = index === 0;
+                  const isPrimary = device.isPrimaryPump === true || device.isPrimaryVibe === true;
 
                   return (
                     <div key={device.id} className="device-overlay-item">

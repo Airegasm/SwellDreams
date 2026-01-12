@@ -797,6 +797,32 @@ function FlowEditor() {
     localStorage.removeItem('lastFlowId');
   };
 
+  // Save viewport position when panning/zooming ends
+  const handleMoveEnd = useCallback((event, viewport) => {
+    if (selectedFlow && viewport) {
+      localStorage.setItem(`flow-viewport-${selectedFlow.id}`, JSON.stringify(viewport));
+    }
+  }, [selectedFlow]);
+
+  // Restore viewport position for a flow
+  const restoreViewport = useCallback((flowId) => {
+    if (!reactFlowInstance || !flowId) return;
+
+    const savedViewport = localStorage.getItem(`flow-viewport-${flowId}`);
+    if (savedViewport) {
+      try {
+        const viewport = JSON.parse(savedViewport);
+        setTimeout(() => {
+          reactFlowInstance.setViewport(viewport);
+        }, 50);
+        return true;
+      } catch (e) {
+        console.error('[FlowEditor] Failed to restore viewport:', e);
+      }
+    }
+    return false;
+  }, [reactFlowInstance]);
+
   // Auto-load last worked-on flow when component mounts
   useEffect(() => {
     const lastFlowId = localStorage.getItem('lastFlowId');
@@ -808,6 +834,20 @@ function FlowEditor() {
       }
     }
   }, [flows, handleLoadFlow, selectedFlow]);
+
+  // Restore viewport after flow is loaded and reactFlowInstance is ready
+  useEffect(() => {
+    if (selectedFlow && reactFlowInstance && nodes.length > 0) {
+      // Small delay to let React Flow render the nodes first
+      const restored = restoreViewport(selectedFlow.id);
+      if (!restored) {
+        // If no saved viewport, fit view
+        setTimeout(() => {
+          reactFlowInstance.fitView({ padding: 0.2 });
+        }, 50);
+      }
+    }
+  }, [selectedFlow, reactFlowInstance, nodes.length, restoreViewport]);
 
   // Draft persistence - get draft key based on current flow
   const getDraftKey = useCallback(() => {
@@ -927,8 +967,8 @@ function FlowEditor() {
   }, [nodes, edges, flowName, flowCategory, selectedFlow]);
 
   return (
-    <div className="flow-editor-page">
-      {/* Flow Editor Header Center */}
+    <>
+      {/* Flow Editor Header Center - Outside flow-editor-page for independent z-index */}
       <div className="flow-header-center">
         <div className="flow-header-toolbar">
           {hasDraft && (
@@ -1001,7 +1041,8 @@ function FlowEditor() {
         </div>
       </div>
 
-      {/* Sidebar - Node Palette */}
+      <div className="flow-editor-page">
+        {/* Sidebar - Node Palette */}
       <div className="flow-sidebar">
         <div className="sidebar-section">
           <h3>Flows</h3>
@@ -1188,11 +1229,11 @@ function FlowEditor() {
           onPaneClick={onPaneClick}
           onPaneContextMenu={onPaneContextMenu}
           onSelectionChange={onSelectionChange}
+          onMoveEnd={handleMoveEnd}
           nodeTypes={nodeTypes}
           selectionOnDrag
           selectionMode="partial"
           panOnDrag={[1, 2]}
-          fitView
         >
           <Controls />
           <MiniMap />
@@ -1342,7 +1383,8 @@ function FlowEditor() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

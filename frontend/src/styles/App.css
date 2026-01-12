@@ -60,7 +60,7 @@ body {
   padding: 0;
   background: transparent;
   border-bottom: none;
-  z-index: 8;
+  z-index: 20;
 }
 
 .chat-layout .nav-bar::before,
@@ -97,6 +97,21 @@ body {
 .chat-layout .nav-right {
   margin-right: var(--spacing-md);
   z-index: 9;
+}
+
+.version-badge {
+  position: fixed;
+  top: 4px;
+  left: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  letter-spacing: 0.5px;
+  z-index: 9999;
+  opacity: 0.7;
 }
 
 .nav-right {
@@ -867,6 +882,26 @@ input[type="range"]::-webkit-slider-thumb {
 
 .offline-icon {
   font-size: 16px;
+}
+
+.offline-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.offline-hint {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.offline-hint code {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: monospace;
 }
 
 .offline-banner-close {

@@ -7,6 +7,7 @@ function FlowTab() {
     triggers: false,
     actions: false,
     logic: false,
+    challenges: false,
     patterns: false,
     priority: false,
     tips: false
@@ -306,6 +307,90 @@ function FlowTab() {
                 or any <code>[Flow:varName]</code> custom variable.
               </p>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Challenge Nodes */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('challenges')}>
+          Challenge Nodes (Interactive Games)
+          <span className="expand-icon">{expanded.challenges ? '−' : '+'}</span>
+        </h3>
+        {expanded.challenges && (
+          <div className="section-content">
+            <p>
+              Challenge nodes are interactive game elements that pause flow execution until the player
+              completes a mini-game. Each has a <strong>Win</strong> and <strong>Lose</strong> output
+              for branching based on the result.
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Description</th>
+                  <th>Configuration</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span className="node-type challenge">Prize Wheel</span></td>
+                  <td>Spin a wheel with customizable segments. Each segment can have different weights.</td>
+                  <td>Segment labels, weights, win/lose designation per segment</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Dice Roll</span></td>
+                  <td>Roll dice and compare total to a target number.</td>
+                  <td>Number of dice, target number, comparison (over/under/exact)</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Coin Flip</span></td>
+                  <td>Simple 50/50 coin toss with heads or tails.</td>
+                  <td>Win condition (heads/tails)</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Rock Paper Scissors</span></td>
+                  <td>Play RPS against the AI. Best of 1, 3, or 5 rounds.</td>
+                  <td>Number of rounds</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Timer Challenge</span></td>
+                  <td>Press a button before time runs out. Creates tension and urgency.</td>
+                  <td>Time limit (seconds), button label</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Number Guess</span></td>
+                  <td>Guess a number within a range. Configurable attempts and hints.</td>
+                  <td>Min/max range, number of attempts, show hints toggle</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Slot Machine</span></td>
+                  <td>Spin 3 reels with symbols. Match patterns to win.</td>
+                  <td>Symbols list, win patterns (3 match, 2 match, specific combos)</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Card Draw</span></td>
+                  <td>Draw a card from a deck. Configure winning suits/values.</td>
+                  <td>Win conditions (specific suits, value ranges, face cards)</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="tip-box">
+              <p>
+                <strong>Game Flow:</strong> When a challenge node executes, a modal appears for the player.
+                The flow pauses until the game completes, then continues down the Win or Lose path based on the result.
+              </p>
+            </div>
+
+            <h4 className="subsection-header">Example Use Cases</h4>
+            <ul className="help-list">
+              <li><strong>Gambling scenarios:</strong> Use Dice Roll or Card Draw where losing increases intensity</li>
+              <li><strong>Timed pressure:</strong> Timer Challenge to add urgency - fail to stop in time and consequences occur</li>
+              <li><strong>Random rewards:</strong> Prize Wheel with different outcomes (device actions, messages, etc.)</li>
+              <li><strong>Competitive play:</strong> Rock Paper Scissors against the character for stakes</li>
+            </ul>
           </div>
         )}
       </div>

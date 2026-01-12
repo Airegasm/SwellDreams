@@ -4,6 +4,7 @@ import './HelpTabs.css';
 function ExternalApisTab() {
   const [expanded, setExpanded] = useState({
     overview: false,
+    security: false,
     koboldcpp: false,
     openrouter: false,
     freemodels: false,
@@ -43,6 +44,51 @@ function ExternalApisTab() {
               <li><strong>Govee</strong> - Cloud API, requires free Govee account and API key</li>
               <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Globe, Treatlife, Gosund, Teckin, etc.</li>
             </ul>
+          </div>
+        )}
+      </div>
+
+      {/* API Security */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('security')}>
+          API Key Security & Encryption
+          <span className="expand-icon">{expanded.security ? '−' : '+'}</span>
+        </h3>
+        {expanded.security && (
+          <div className="section-content">
+            <p>
+              SwellDreams automatically encrypts all API keys stored on your system using
+              AES-256-GCM encryption with a unique machine-specific key.
+            </p>
+
+            <h4 className="subsection-header">How It Works</h4>
+            <ul className="help-list">
+              <li>A unique encryption key is generated for your machine on first run</li>
+              <li>All API keys (OpenRouter, Tuya, Govee) are encrypted before saving</li>
+              <li>Keys are decrypted only when needed for API requests</li>
+              <li>Encrypted keys appear as <code>enc:v1:...</code> in configuration files</li>
+            </ul>
+
+            <h4 className="subsection-header">What This Means For You</h4>
+            <ul className="help-list">
+              <li><strong>Safe to commit:</strong> Settings files can be backed up without exposing raw API keys</li>
+              <li><strong>Machine-bound:</strong> Encrypted keys only work on the machine that created them</li>
+              <li><strong>Transparent:</strong> Encryption/decryption happens automatically - just enter your keys normally</li>
+            </ul>
+
+            <div className="info-box">
+              <p>
+                <strong>Note:</strong> If you move SwellDreams to a new machine, you'll need to re-enter
+                your API keys since the encryption is tied to the original machine's unique identifier.
+              </p>
+            </div>
+
+            <h4 className="subsection-header">Machine Key Location</h4>
+            <p>
+              The encryption key is stored at <code>backend/data/.machine-key</code>. This file
+              is automatically added to <code>.gitignore</code> and should never be shared or
+              committed to version control.
+            </p>
           </div>
         )}
       </div>

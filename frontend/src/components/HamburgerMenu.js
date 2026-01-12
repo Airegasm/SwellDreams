@@ -144,6 +144,15 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         >
           Help
         </NavLink>
+
+        <a
+          href="https://github.com/airegasm/swelldreams/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hamburger-menu-item report-issue"
+        >
+          Report Issue
+        </a>
       </div>
     </div>
   );

@@ -1,6 +1,10 @@
 # SwellDreams
 
+**v1.5b "Midnight Oil"**
+
 An AI-powered interactive roleplay platform with smart device integration.
+
+> **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
 ## Features
 
@@ -23,6 +27,7 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Event Triggers**: Respond to player messages, capacity changes, emotions, and more
 - **Conditional Logic**: Branch flows based on variables and state
 - **Device Integration**: Control smart devices directly from flows
+- **Challenge Nodes**: Interactive games (dice roll, prize wheel, coin flip, RPS, etc.)
 
 ### Custom Buttons
 - **Quick Actions**: Add custom buttons to characters for one-click actions
@@ -141,10 +146,15 @@ SwellDreams/
 - `POST /api/sessions` - Save session
 - `GET /api/sessions/:id` - Load session
 
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/airegasm/swelldreams/issues)
+- **Community**: [airegasm.com](https://airegasm.com)
+
 ## License
 
-Private software. All rights reserved.
+Private beta - All rights reserved.
 
-## Version
+---
 
-v1.5b "Midnight Oil"
+Made with care by the Airegasm team.

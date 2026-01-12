@@ -5,6 +5,7 @@ import ConversationsTab from '../components/help/ConversationsTab';
 import SystemTab from '../components/help/SystemTab';
 import FlowTab from '../components/help/FlowTab';
 import ExternalApisTab from '../components/help/ExternalApisTab';
+import './Settings.css';
 import './Help.css';
 
 const TABS = [
@@ -46,6 +47,9 @@ function Help() {
     <div className="help-page page">
       <div className="page-header">
         <h1>Help</h1>
+        <button className="header-close-btn" onClick={() => navigate('/')} title="Back to Chat">
+          &times;
+        </button>
       </div>
 
       <div className="tabs">

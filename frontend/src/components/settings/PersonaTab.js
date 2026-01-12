@@ -134,6 +134,17 @@ function PersonaTab() {
               className={`list-item card-style ${settings.activePersonaId === persona.id ? 'active' : ''}`}
             >
               <div className="card-header">
+                {persona.avatar ? (
+                  <img
+                    src={persona.avatar}
+                    alt={persona.displayName}
+                    className="card-avatar"
+                  />
+                ) : (
+                  <div className="card-avatar-placeholder">
+                    {persona.displayName?.charAt(0)?.toUpperCase() || 'P'}
+                  </div>
+                )}
                 <div className="card-info">
                   <div className="name-row">
                     <div className="list-item-name">

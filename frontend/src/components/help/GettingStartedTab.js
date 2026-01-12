@@ -34,6 +34,12 @@ function GettingStartedTab() {
               The application combines natural language AI with a visual flow system that lets you
               create automated behaviors, triggers, and responses based on events and conditions.
             </p>
+            <p>
+              For community resources, hardware guides, and more, visit{' '}
+              <a href="https://airegasm.com" target="_blank" rel="noopener noreferrer">
+                airegasm.com
+              </a>
+            </p>
           </div>
         )}
       </div>

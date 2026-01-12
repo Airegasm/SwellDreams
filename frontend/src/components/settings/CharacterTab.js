@@ -134,6 +134,17 @@ function CharacterTab() {
               className={`list-item card-style ${settings.activeCharacterId === character.id ? 'active' : ''}`}
             >
               <div className="card-header">
+                {character.avatar ? (
+                  <img
+                    src={character.avatar}
+                    alt={character.name}
+                    className="card-avatar"
+                  />
+                ) : (
+                  <div className="card-avatar-placeholder">
+                    {character.name?.charAt(0)?.toUpperCase() || 'C'}
+                  </div>
+                )}
                 <div className="card-info">
                   <div className="name-row">
                     <div className="list-item-name">

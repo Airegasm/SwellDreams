@@ -42,6 +42,9 @@ function Settings() {
     <div className="settings-page page">
       <div className="page-header">
         <h1>Settings</h1>
+        <button className="header-close-btn" onClick={() => navigate('/')} title="Back to Chat">
+          &times;
+        </button>
       </div>
 
       <div className="tabs">

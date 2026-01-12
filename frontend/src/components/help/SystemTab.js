@@ -7,7 +7,8 @@ function SystemTab() {
     flowvars: false,
     whereused: false,
     feelings: false,
-    emotions: false
+    emotions: false,
+    charcontrols: false
   });
 
   const toggle = (section) => {
@@ -218,6 +219,69 @@ function SystemTab() {
               Emotions can also be set via Flow actions, allowing dynamic story progression
               and letting the AI respond appropriately to your persona's emotional context.
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Global Character Controls */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('charcontrols')}>
+          Global Character Controls
+          <span className="expand-icon">{expanded.charcontrols ? '−' : '+'}</span>
+        </h3>
+        {expanded.charcontrols && (
+          <div className="section-content">
+            <p>
+              Global Character Controls in Settings → Global allow automatic linking between
+              capacity, pain, and emotion states. These create dynamic responses as your
+              session progresses.
+            </p>
+
+            <h4 className="subsection-header">Auto-Link Capacity to Pain Scale</h4>
+            <p>
+              When enabled (default), the Pain Level automatically updates based on Capacity:
+            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Capacity Range</th>
+                  <th>Pain Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>0-10%</td><td>0 (No hurt)</td></tr>
+                <tr><td>11-20%</td><td>1 (Hurts a tiny bit)</td></tr>
+                <tr><td>21-30%</td><td>2 (Hurts a little bit)</td></tr>
+                <tr><td>31-40%</td><td>3 (Hurts a little more)</td></tr>
+                <tr><td>41-50%</td><td>4 (Hurts even more)</td></tr>
+                <tr><td>51-60%</td><td>5 (Hurts a medium amount)</td></tr>
+                <tr><td>61-70%</td><td>6 (Hurts a lot)</td></tr>
+                <tr><td>71-80%</td><td>7 (Hurts a whole lot)</td></tr>
+                <tr><td>81-90%</td><td>8 (Hurts really bad)</td></tr>
+                <tr><td>91-100%</td><td>9-10 (Hurts worst possible)</td></tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Emotional Decline</h4>
+            <p>
+              When enabled (default), emotions automatically shift as capacity increases,
+              simulating the psychological effects of intense physical sensations:
+            </p>
+            <ul className="help-list">
+              <li><strong>Below 75% capacity:</strong> Emotion remains under player control</li>
+              <li><strong>At 75%+ capacity:</strong> Emotion locks to "Frightened" (😨)</li>
+            </ul>
+            <p>
+              This creates realistic character reactions - as fullness increases, the persona
+              naturally becomes more overwhelmed regardless of the starting emotional state.
+            </p>
+
+            <div className="tip-box">
+              <p>
+                <strong>Tip:</strong> Both features can be toggled independently in Settings → Global
+                under "Global Character Controls". Disable them for full manual control over pain and emotion.
+              </p>
+            </div>
           </div>
         )}
       </div>
