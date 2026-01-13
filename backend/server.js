@@ -561,6 +561,52 @@ function broadcast(type, data) {
   });
 }
 
+// ============================================
+// Console -> Browser DevTools Bridge
+// ============================================
+// Intercept console methods and broadcast to frontend for debugging
+const originalConsole = {
+  log: console.log.bind(console),
+  error: console.error.bind(console),
+  warn: console.warn.bind(console)
+};
+
+let consoleBroadcastEnabled = true;
+
+function formatConsoleArgs(args) {
+  return args.map(arg => {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg, null, 2);
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  }).join(' ');
+}
+
+console.log = (...args) => {
+  originalConsole.log(...args);
+  if (consoleBroadcastEnabled && wsClients.size > 0) {
+    broadcast('server_log', { level: 'log', message: formatConsoleArgs(args) });
+  }
+};
+
+console.error = (...args) => {
+  originalConsole.error(...args);
+  if (consoleBroadcastEnabled && wsClients.size > 0) {
+    broadcast('server_log', { level: 'error', message: formatConsoleArgs(args) });
+  }
+};
+
+console.warn = (...args) => {
+  originalConsole.warn(...args);
+  if (consoleBroadcastEnabled && wsClients.size > 0) {
+    broadcast('server_log', { level: 'warn', message: formatConsoleArgs(args) });
+  }
+};
+
 // Device service event handler
 deviceService.setEventEmitter((eventType, data) => {
   broadcast(eventType, data);
@@ -1222,6 +1268,39 @@ async function handleWsMessage(ws, type, data) {
 
     case 'impersonate_request':
       await handleImpersonateRequest(data);
+      break;
+
+    case 'ai_message':
+      // Handle user-initiated character message (verbatim, no LLM)
+      {
+        const settings = loadData(DATA_FILES.settings);
+        const characters = loadData(DATA_FILES.characters) || [];
+        const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+
+        if (!activeCharacter) {
+          console.log('[ai_message] No active character found - skipping');
+          break;
+        }
+
+        if (!data.content || data.content.trim() === '') {
+          console.log('[ai_message] Empty content - skipping');
+          break;
+        }
+
+        const message = {
+          id: uuidv4(),
+          content: data.content,
+          sender: 'character',
+          characterId: activeCharacter.id,
+          characterName: activeCharacter.name,
+          timestamp: Date.now()
+        };
+
+        sessionState.chatHistory.push(message);
+        broadcast('chat_message', message);
+        autosaveSession();
+        console.log(`[ai_message] Sent verbatim as ${activeCharacter.name}: ${data.content.substring(0, 50)}...`);
+      }
       break;
 
     case 'update_capacity':
@@ -3976,7 +4055,22 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  log.error('Express error:', err.message);
+  // Log full error details to backend console
+  console.error('\n[Express Error]', {
+    message: err.message,
+    path: req.path,
+    method: req.method,
+    stack: err.stack
+  });
+
+  // Broadcast to frontend dev console via WebSocket
+  broadcast('server_error', {
+    message: err.message,
+    path: req.path,
+    method: req.method,
+    stack: err.stack,
+    timestamp: Date.now()
+  });
 
   // Handle operational errors (our custom errors)
   if (err.isOperational) {

@@ -18,12 +18,6 @@
   .mobile-nav-cluster {
     display: none !important;
   }
-
-  /* On desktop, mobile-action-cluster just acts as a normal flex container */
-  .mobile-action-cluster {
-    display: flex;
-    gap: var(--spacing-xs);
-  }
 }
 
 /* ==========================================================================
@@ -31,6 +25,11 @@
    ========================================================================== */
 
 @media (max-width: 768px) {
+
+  /* Hide desktop-only elements on mobile */
+  .input-action-buttons {
+    display: none !important;
+  }
 
   /* --------------------------------------------------------------------------
      Navigation Bar - Compact top bar with bottom navigation

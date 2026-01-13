@@ -246,6 +246,9 @@ function App() {
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
       <span className="version-badge">v1.5b</span>
+      {/* Top metallic frame border */}
+      <div className="top-frame-border"></div>
+
       <nav className="nav-bar">
         <img src="/logo.png" alt="SwellDreams" className="nav-logo" />
         <div className="nav-right">
@@ -261,6 +264,13 @@ function App() {
           />
         </div>
       </nav>
+
+      {/* Bottom metallic frame border */}
+      <div className="bottom-frame-border"></div>
+
+      {/* Column bottom bars */}
+      <div className="left-column-bottom-bar"></div>
+      <div className="right-column-bottom-bar"></div>
 
       {/* Offline Banner */}
       {!connected && !bannerDismissed && (

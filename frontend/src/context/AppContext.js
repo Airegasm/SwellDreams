@@ -292,6 +292,27 @@ export function AppProvider({ children }) {
         console.error('[WS] Server error:', data.message, data.error);
         break;
 
+      case 'server_error':
+        console.error('[Express Error]', data.method, data.path, '-', data.message);
+        if (data.stack) console.error(data.stack);
+        break;
+
+      case 'server_log': {
+        // Backend console output piped to browser DevTools
+        const prefix = '%c[Backend]';
+        const style = data.level === 'error' ? 'color: #ff6b6b; font-weight: bold'
+                    : data.level === 'warn' ? 'color: #ffa500; font-weight: bold'
+                    : 'color: #4ecdc4';
+        if (data.level === 'error') {
+          console.error(prefix, style, data.message);
+        } else if (data.level === 'warn') {
+          console.warn(prefix, style, data.message);
+        } else {
+          console.log(prefix, style, data.message);
+        }
+        break;
+      }
+
       case 'device_on':
       case 'device_off':
       case 'cycle_on':

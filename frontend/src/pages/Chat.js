@@ -8,7 +8,6 @@ import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import { substituteVariables } from '../utils/variableSubstitution';
 import StatusBadges from '../components/StatusBadges';
-import FlowStatusPanel from '../components/FlowStatusPanel';
 import './Chat.css';
 
 function Chat() {
@@ -333,6 +332,24 @@ function Chat() {
 
     setIsGenerating(true);
     sendChatMessage(messageText);
+
+    // Add to history
+    setMessageHistory(prev => [...prev, messageText]);
+    setHistoryIndex(-1);
+    setCurrentDraft('');
+    setInputValue('');
+
+    setTimeout(() => setIsGenerating(false), 100);
+  };
+
+  const handleSendAsCharacter = async (e) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isGenerating) return;
+
+    const messageText = inputValue.trim();
+
+    setIsGenerating(true);
+    sendWsMessage('ai_message', { content: messageText, suppressLlm: true });
 
     // Add to history
     setMessageHistory(prev => [...prev, messageText]);
@@ -709,39 +726,29 @@ function Chat() {
 
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''}`}>
-        {/* Persona Name */}
-        <div className="sidebar-entity-header">
-          <span className="entity-name-display">
-            {activePersona?.displayName || 'None'}
-          </span>
-        </div>
-
-        {/* Persona Portrait */}
+        {/* Persona Portrait with Status Badges Overlay */}
         <div className="entity-portrait-large">
           {activePersona?.avatar ? (
             <img src={activePersona.avatar} alt={activePersona.displayName} />
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
+          {/* Status Badges overlaid on portrait */}
+          <StatusBadges
+            selectedEmotion={sessionState.emotion || 'neutral'}
+            onEmotionChange={(emotion) => {
+              setSessionState(prev => ({ ...prev, emotion }));
+              sendWsMessage('update_emotion', { emotion });
+            }}
+            selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
+            onPainLevelChange={(level) => {
+              setSessionState(prev => ({ ...prev, pain: level }));
+              sendWsMessage('update_pain', { pain: level });
+            }}
+            capacity={sessionState.capacity || 0}
+            personaName={activePersona?.displayName}
+          />
         </div>
-
-        {/* Status Badges */}
-        <StatusBadges
-          selectedEmotion={sessionState.emotion || 'neutral'}
-          onEmotionChange={(emotion) => {
-            setSessionState(prev => ({ ...prev, emotion }));
-            sendWsMessage('update_emotion', { emotion });
-          }}
-          selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
-          onPainLevelChange={(level) => {
-            setSessionState(prev => ({ ...prev, pain: level }));
-            sendWsMessage('update_pain', { pain: level });
-          }}
-          capacity={sessionState.capacity || 0}
-        />
-
-        {/* Flow Status Panel */}
-        <FlowStatusPanel />
 
       </div>
 
@@ -925,63 +932,6 @@ function Chat() {
                 >😈</button>
               </div>
 
-              {/* Action Buttons */}
-              <div className="mobile-action-cluster">
-                <button
-                  type="submit"
-                  className="chat-btn send-btn btn-primary"
-                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
-                  title="Send message"
-                >➤</button>
-                <button
-                  type="button"
-                  className="chat-btn impersonate-btn"
-                  disabled={!activeCharacter || isGenerating}
-                  onClick={() => handleGuidedGenerate('guided_impersonate')}
-                  title="Guided Impersonate (continue as you)"
-                >👤</button>
-                <div className="quick-text-container" ref={quickMenuRef}>
-                  <button
-                    type="button"
-                    className="chat-btn quick-btn"
-                    onClick={() => setShowQuickMenu(!showQuickMenu)}
-                    title="Quick Texts"
-                  >Q</button>
-                  {showQuickMenu && (
-                    <div className="quick-text-menu">
-                      {quickTexts.map(qt => (
-                        <button
-                          key={qt.id}
-                          className="quick-menu-item"
-                          onClick={() => handleQuickTextClick(qt.text)}
-                        >
-                          {qt.text.length > 30 ? qt.text.substring(0, 30) + '...' : qt.text}
-                        </button>
-                      ))}
-                      <div className="quick-menu-divider" />
-                      <button
-                        className="quick-menu-item quick-menu-action"
-                        onClick={() => { setShowQuickMenu(false); setShowQuickAddModal(true); }}
-                      >
-                        + Add New Quick Text
-                      </button>
-                      <button
-                        className="quick-menu-item quick-menu-action"
-                        onClick={() => { setShowQuickMenu(false); setShowQuickManageModal(true); }}
-                      >
-                        Manage Quick Texts
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className="chat-btn guided-btn"
-                  disabled={!activeCharacter || isGenerating}
-                  onClick={() => handleGuidedGenerate('guided')}
-                  title="Guided Response (AI continues)"
-                >↩</button>
-              </div>
             </div>
           </div>
           <div className="chat-input-row">
@@ -1031,19 +981,46 @@ function Chat() {
               disabled={!activeCharacter || isGenerating}
               rows={3}
             />
+            {/* Action Buttons Stack */}
+            <div className="input-action-stack">
+              <div className="action-stack-top">
+                <button
+                  type="button"
+                  className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
+                  disabled={!activeCharacter || isGenerating}
+                  onClick={() => handleGuidedGenerate('guided_impersonate')}
+                  title="Guided Impersonate (continue as you)"
+                >🤖</button>
+                <button
+                  type="button"
+                  className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
+                  disabled={!activeCharacter || isGenerating}
+                  onClick={() => handleGuidedGenerate('guided')}
+                  title="Guided Response (AI continues)"
+                >🤖</button>
+              </div>
+              <div className="action-stack-bottom">
+                <button
+                  type="submit"
+                  className="action-btn send-persona-btn"
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                  title="Send as Persona"
+                >↖</button>
+                <button
+                  type="button"
+                  className="action-btn send-character-btn"
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                  onClick={handleSendAsCharacter}
+                  title="Send as Character"
+                >↖</button>
+              </div>
+            </div>
           </div>
         </form>
       </div>
 
       {/* Right Sidebar - Character */}
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
-        {/* Character Name */}
-        <div className="sidebar-entity-header">
-          <span className="entity-name-display">
-            {activeCharacter?.name || 'None'}
-          </span>
-        </div>
-
         {/* Character Portrait */}
         <div className="entity-portrait-large">
           {activeCharacter?.avatar ? (
@@ -1051,119 +1028,90 @@ function Chat() {
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
-        </div>
-
-        {/* Actions Section - Collapsible */}
-        <div className={`collapsible-section actions-section ${actionsExpanded ? 'expanded' : ''}`}>
-          <button
-            className="collapsible-header"
-            onClick={() => {
-              setActionsExpanded(!actionsExpanded);
-              if (!actionsExpanded) setDevicesExpanded(false);
-            }}
-          >
-            <span className={`collapsible-chevron ${actionsExpanded ? 'expanded' : ''}`}>›</span>
-            Actions
-          </button>
-          {actionsExpanded && (
-            <div className="collapsible-overlay actions-overlay">
-              {activeCharacter?.buttons?.length > 0 ? (
-                <div className="actions-grid">
-                  {activeCharacter.buttons.filter(b => b.enabled !== false).map(button => (
-                    <button
-                      key={button.buttonId || button.id}
-                      className="action-overlay-btn"
-                      onClick={() => handleExecuteButton(button)}
-                    >
-                      {button.name}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted">No buttons configured</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Devices Section - Collapsible */}
-        <div className={`collapsible-section devices-section ${devicesExpanded ? 'expanded' : ''}`}>
-          <div className="collapsible-header devices-header">
-            <span
-              className={`collapsible-chevron ${devicesExpanded ? 'expanded' : ''}`}
-              onClick={() => {
-                setDevicesExpanded(!devicesExpanded);
-                if (!devicesExpanded) setActionsExpanded(false);
-              }}
-            >›</span>
-            <span
-              className="collapsible-label"
-              onClick={() => {
-                setDevicesExpanded(!devicesExpanded);
-                if (!devicesExpanded) setActionsExpanded(false);
-              }}
-            >Devices</span>
-            {controlMode !== 'simulated' && (
-              <button
-                className="e-stop-btn mini"
-                onClick={handleEmergencyStop}
-                disabled={stopping}
-              >
-                {stopping ? 'STOP' : 'E-STOP'}
-              </button>
-            )}
-          </div>
-          {/* Sub-card with indicators (only when collapsed) */}
-          {!devicesExpanded && (
-            <div className="devices-subcard">
-              <div className="indicator-grid">
-                {[0,1,2,3,4].map(i => {
-                  const device = devices[i];
-                  if (!device) {
-                    return <span key={i} className="indicator-light empty"></span>;
-                  }
-                  const deviceKey = getDeviceKey(device);
-                  const deviceState = polledDeviceStates[deviceKey];
-                  const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
-                  const isUnknown = !deviceState || deviceState?.state === 'unknown';
-                  const statusClass = isUnknown ? 'unavailable' : isOn ? 'on' : 'off';
-                  return <span key={i} className={`indicator-light ${statusClass}`}></span>;
-                })}
+          {/* Frame overlay to match persona portrait */}
+          <div className="status-badges-overlay">
+            <div className="metallic-frame">
+              <div className="frame-left"></div>
+              <div className="frame-right"></div>
+              <div className="frame-top">
+                {activeCharacter?.name && <span className="frame-name character-name">{activeCharacter.name}</span>}
               </div>
             </div>
-          )}
-          {devicesExpanded && (
-            <div className="collapsible-overlay devices-overlay">
-              {devices.length === 0 ? (
-                <p className="text-muted">No devices configured</p>
-              ) : (
-                devices.map((device, index) => {
-                  const deviceKey = getDeviceKey(device);
-                  const deviceState = polledDeviceStates[deviceKey];
-                  const isOn = deviceState?.state === 'on' || deviceState?.relayState === 1;
-                  const isUnknown = !deviceState || deviceState?.state === 'unknown';
-                  const statusClass = isUnknown ? 'unavailable' : isOn ? 'on' : 'off';
-                  const isPrimary = device.isPrimaryPump === true || device.isPrimaryVibe === true;
-
-                  return (
-                    <div key={device.id} className="device-overlay-item">
-                      <div className="device-overlay-row">
-                        <span className={`device-indicator ${statusClass}`}></span>
-                        <span className="device-overlay-name">{device.label || device.name}</span>
-                        {isPrimary && <span className="primary-star">★</span>}
-                      </div>
-                      <div className="device-overlay-controls">
-                        <button onClick={() => isOn ? handleManualDeviceOff(device) : handleManualDeviceOn(device)}>
-                          {isOn ? 'Off' : 'On'}
-                        </button>
-                        <button onClick={() => handleCycleDevice(device)}>Cycle</button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div className="character-bottom-bar">
+              <button
+                className={`frame-btn ${devicesExpanded ? 'active' : ''}`}
+                onClick={() => {
+                  if (devicesExpanded) {
+                    setDevicesExpanded(false);
+                  } else {
+                    setActionsExpanded(false);
+                    setDevicesExpanded(true);
+                  }
+                }}
+              >
+                Devices
+              </button>
+              <button
+                className={`frame-btn ${actionsExpanded ? 'active' : ''}`}
+                onClick={() => {
+                  if (actionsExpanded) {
+                    setActionsExpanded(false);
+                  } else {
+                    setDevicesExpanded(false);
+                    setActionsExpanded(true);
+                  }
+                }}
+              >
+                Actions
+              </button>
             </div>
-          )}
+
+            {/* Sliding panels */}
+            <div className={`character-panel devices-panel ${devicesExpanded ? 'expanded' : ''}`}>
+              <div className="panel-content">
+                {devices && devices.length > 0 ? (
+                  <div className="panel-device-list">
+                    {devices.map((device, idx) => {
+                      const deviceKey = device.childId ? `${device.ip}:${device.childId}` : (device.deviceId || device.ip);
+                      const deviceState = polledDeviceStates[deviceKey];
+                      return (
+                        <div key={idx} className="panel-device-item">
+                          <span className={`panel-device-indicator ${deviceState?.state || 'unknown'}`}></span>
+                          <span className="panel-device-name">{device.label || device.name}</span>
+                          <div className="panel-device-controls">
+                            <button className="device-ctrl-btn" onClick={() => handleManualDeviceOn(device)}>On</button>
+                            <button className="device-ctrl-btn" onClick={() => handleManualDeviceOff(device)}>Off</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="panel-empty">No devices configured</p>
+                )}
+              </div>
+            </div>
+
+            <div className={`character-panel actions-panel ${actionsExpanded ? 'expanded' : ''}`}>
+              <div className="panel-content">
+                {activeCharacter?.buttons && activeCharacter.buttons.length > 0 ? (
+                  <div className="panel-actions-grid">
+                    {activeCharacter.buttons.map((button, idx) => (
+                      <button
+                        key={idx}
+                        className="panel-action-btn"
+                        onClick={() => handleExecuteButton(button)}
+                      >
+                        {button.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="panel-empty">No actions configured</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>

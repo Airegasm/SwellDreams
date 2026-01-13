@@ -63,26 +63,241 @@ body {
   z-index: 20;
 }
 
+/* Top metallic border - spans full width */
+.chat-layout .top-frame-border {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(
+    180deg,
+    #5c6169 0%,
+    #4a4e54 20%,
+    #3d4147 40%,
+    #2d3036 60%,
+    #1a1d21 80%,
+    #0d0f12 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Left outer metallic border */
+.chat-layout::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(
+    90deg,
+    #5c6169 0%,
+    #4a4e54 20%,
+    #3d4147 40%,
+    #1a1d21 60%,
+    #0d0f12 80%,
+    #1a1d21 100%
+  );
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.1),
+    2px 0 4px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+/* Right outer metallic border */
+.chat-layout::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  background: linear-gradient(
+    90deg,
+    #1a1d21 0%,
+    #0d0f12 20%,
+    #1a1d21 40%,
+    #3d4147 60%,
+    #4a4e54 80%,
+    #5c6169 100%
+  );
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.1),
+    -2px 0 4px rgba(0, 0, 0, 0.3);
+  z-index: 9998;
+}
+
+/* Bottom metallic border */
+.chat-layout .bottom-frame-border {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(
+    180deg,
+    #0d0f12 0%,
+    #1a1d21 20%,
+    #2d3036 40%,
+    #3d4147 60%,
+    #4a4e54 80%,
+    #5c6169 100%
+  );
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    0 -2px 4px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Left column bottom bar - matches frame-top style, flipped */
+.chat-layout .left-column-bottom-bar {
+  position: fixed;
+  bottom: 6px;
+  left: 6px;
+  width: 231px;
+  height: 35px;
+  background: linear-gradient(
+    180deg,
+    #1a1d21 0%,
+    #0d0f12 20%,
+    #1a1d21 40%,
+    #3d4147 60%,
+    #5c6169 75%,
+    #2d3036 85%,
+    #4a4e54 92%,
+    #5c6169 100%
+  );
+  border-radius: 0 0 8px 8px;
+  box-shadow:
+    inset 0 -2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(0, 0, 0, 0.4);
+  z-index: 9998;
+  pointer-events: none;
+}
+
+/* Left column bottom bar interior corner curves */
+.chat-layout .left-column-bottom-bar::before,
+.chat-layout .left-column-bottom-bar::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 12px;
+  height: 12px;
+}
+
+.chat-layout .left-column-bottom-bar::before {
+  left: 0;
+  background: radial-gradient(circle at top right, transparent 11px, #1a1d21 11px, #1a1d21 12px);
+}
+
+.chat-layout .left-column-bottom-bar::after {
+  right: 0;
+  background: radial-gradient(circle at top left, transparent 11px, #1a1d21 11px, #1a1d21 12px);
+}
+
+/* Right column bottom bar - matches frame-top style, flipped */
+.chat-layout .right-column-bottom-bar {
+  position: fixed;
+  bottom: 6px;
+  right: 6px;
+  width: 231px;
+  height: 35px;
+  background: linear-gradient(
+    180deg,
+    #1a1d21 0%,
+    #0d0f12 20%,
+    #1a1d21 40%,
+    #3d4147 60%,
+    #5c6169 75%,
+    #2d3036 85%,
+    #4a4e54 92%,
+    #5c6169 100%
+  );
+  border-radius: 0 0 8px 8px;
+  box-shadow:
+    inset 0 -2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(0, 0, 0, 0.4);
+  z-index: 9998;
+  pointer-events: none;
+}
+
+/* Right column bottom bar interior corner curves */
+.chat-layout .right-column-bottom-bar::before,
+.chat-layout .right-column-bottom-bar::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 12px;
+  height: 12px;
+}
+
+.chat-layout .right-column-bottom-bar::before {
+  left: 0;
+  background: radial-gradient(circle at top right, transparent 11px, #1a1d21 11px, #1a1d21 12px);
+}
+
+.chat-layout .right-column-bottom-bar::after {
+  right: 0;
+  background: radial-gradient(circle at top left, transparent 11px, #1a1d21 11px, #1a1d21 12px);
+}
+
+/* Left header area - metallic silver treatment */
 .chat-layout .nav-bar::before,
 .chat-layout .nav-bar::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 239px;
-  background: linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%);
-  border-bottom: 1px solid var(--border-color);
+  width: 237px;
+  background: linear-gradient(
+    180deg,
+    #5c6169 0%,
+    #4a4e54 8%,
+    #2d3036 15%,
+    #5c6169 25%,
+    #3d4147 40%,
+    #1a1d21 60%,
+    #0d0f12 80%,
+    #1a1d21 100%
+  );
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4);
   z-index: 8;
 }
 
 .chat-layout .nav-bar::before {
   left: 0;
-  border-right: 1px solid var(--border-color);
+  border-right: 6px solid transparent;
+  border-image: linear-gradient(
+    180deg,
+    #4a4e54 0%,
+    #5c6169 20%,
+    #3d4147 40%,
+    #1a1d21 60%,
+    #0d0f12 80%,
+    #1a1d21 100%
+  ) 1;
 }
 
 .chat-layout .nav-bar::after {
   right: 0;
-  border-left: 1px solid var(--border-color);
+  border-left: 6px solid transparent;
+  border-image: linear-gradient(
+    180deg,
+    #4a4e54 0%,
+    #5c6169 20%,
+    #3d4147 40%,
+    #1a1d21 60%,
+    #0d0f12 80%,
+    #1a1d21 100%
+  ) 1;
 }
 
 .chat-layout .nav-logo {
@@ -90,7 +305,7 @@ body {
   left: auto;
   top: auto;
   transform: none;
-  margin-left: calc(var(--spacing-md) + 14px);
+  margin-left: var(--spacing-sm);
   z-index: 9;
 }
 
@@ -101,17 +316,27 @@ body {
 
 .version-badge {
   position: fixed;
-  top: 4px;
-  left: 4px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.4);
+  top: 22px;
+  left: 190px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #00ff88;
+  background: transparent;
   padding: 2px 6px;
   border-radius: var(--border-radius-sm);
   letter-spacing: 0.5px;
   z-index: 9999;
-  opacity: 0.7;
+  text-shadow: 0 0 8px #00ff88, 0 0 16px #00ff88, 0 0 24px rgba(0, 255, 136, 0.5);
+  animation: version-glow 2s ease-in-out infinite;
+}
+
+@keyframes version-glow {
+  0%, 100% {
+    text-shadow: 0 0 8px #00ff88, 0 0 16px #00ff88, 0 0 24px rgba(0, 255, 136, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 12px #00ff88, 0 0 24px #00ff88, 0 0 36px rgba(0, 255, 136, 0.7);
+  }
 }
 
 .nav-right {
@@ -120,66 +345,130 @@ body {
   gap: var(--spacing-sm);
 }
 
-.nav-badges {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  margin-right: 1.5px;
-}
-
+/* Robot head - dark with glowing features */
 .connection-status {
   font-size: 1.8rem;
   padding: 8px 0;
   border-radius: var(--border-radius-sm);
-  width: 79px;
+  width: auto;
   text-align: center;
   display: inline-block;
   line-height: 1;
+  background: transparent;
+  filter: brightness(0.3) saturate(0);
+  transition: filter 0.3s ease, text-shadow 0.3s ease;
+}
+
+.nav-badges {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  margin-right: auto;
+  margin-left: -200px;
 }
 
 .nav-badges .connection-status:last-child {
   margin-left: 2px;
 }
 
-/* Server Ready - green */
-.connection-status.connected {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: var(--accent-success);
-}
-
-/* Server Error - red */
-.connection-status.disconnected {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: var(--accent-error);
-}
-
-/* LLM Idle - blue */
+/* LLM Idle - dark robot, bright green-white glowing eyes/mouth */
 .connection-status.llm-idle {
-  background-color: rgba(59, 130, 246, 0.2);
-  color: #3b82f6;
+  background-color: transparent;
+  filter: brightness(0.4) saturate(0.3);
+  text-shadow:
+    0 0 6px #ffffff,
+    0 0 12px #88ffcc,
+    0 0 20px #00ff88,
+    0 0 32px rgba(0, 255, 136, 0.8);
+  animation: idle-glow 2s ease-in-out infinite;
 }
 
-/* LLM Generating - pulsating bright glow */
-.connection-status.llm-generating {
-  background-color: rgba(59, 130, 246, 0.3);
-  animation: llm-pulse-glow 1.5s ease-in-out infinite;
-}
-
-@keyframes llm-pulse-glow {
+@keyframes idle-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
-    background-color: rgba(59, 130, 246, 0.3);
+    text-shadow:
+      0 0 6px #ffffff,
+      0 0 12px #88ffcc,
+      0 0 20px #00ff88,
+      0 0 32px rgba(0, 255, 136, 0.8);
   }
   50% {
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.7), 0 0 30px rgba(59, 130, 246, 0.5);
-    background-color: rgba(59, 130, 246, 0.5);
+    text-shadow:
+      0 0 10px #ffffff,
+      0 0 18px #aaffdd,
+      0 0 28px #00ff88,
+      0 0 42px rgba(0, 255, 136, 1);
   }
 }
 
-/* LLM Offline - red */
+/* LLM Generating - pulsating white-blue glow */
+.connection-status.llm-generating {
+  background-color: transparent;
+  filter: brightness(0.4) saturate(0.3);
+  animation: generating-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes generating-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 8px #88ccff,
+      0 0 16px #ffffff,
+      0 0 24px rgba(136, 204, 255, 0.6);
+    filter: brightness(0.4) saturate(0.3);
+  }
+  50% {
+    text-shadow:
+      0 0 16px #ffffff,
+      0 0 28px #88ccff,
+      0 0 40px rgba(255, 255, 255, 0.9);
+    filter: brightness(0.5) saturate(0.4);
+  }
+}
+
+/* LLM Offline - red glowing eyes/mouth */
 .connection-status.llm-offline {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: var(--accent-error);
+  background-color: transparent;
+  filter: brightness(0.4) saturate(0.3);
+  text-shadow:
+    0 0 8px #ff4444,
+    0 0 16px #ff4444,
+    0 0 24px rgba(255, 68, 68, 0.6);
+  animation: offline-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes offline-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 8px #ff4444,
+      0 0 16px #ff4444,
+      0 0 24px rgba(255, 68, 68, 0.6);
+  }
+  50% {
+    text-shadow:
+      0 0 12px #ff6666,
+      0 0 20px #ff4444,
+      0 0 32px rgba(255, 68, 68, 0.8);
+  }
+}
+
+/* Server connected - same as idle */
+.connection-status.connected {
+  background-color: transparent;
+  filter: brightness(0.4) saturate(0.3);
+  text-shadow:
+    0 0 6px #ffffff,
+    0 0 12px #88ffcc,
+    0 0 20px #00ff88,
+    0 0 32px rgba(0, 255, 136, 0.8);
+}
+
+/* Server disconnected - red glow */
+.connection-status.disconnected {
+  background-color: transparent;
+  filter: brightness(0.4) saturate(0.3);
+  text-shadow:
+    0 0 8px #ff4444,
+    0 0 16px #ff4444,
+    0 0 24px rgba(255, 68, 68, 0.6);
 }
 
 /* Emergency Stop Button */
