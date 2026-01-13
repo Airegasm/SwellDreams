@@ -11,6 +11,7 @@ function SlidePanel({
   onPlayerChoice,
   onSimpleAB,
   onChallengeResult,
+  onChallengeCancel,
   subContext
 }) {
   const isOpen = !!(playerChoiceData || simpleABData || challengeData);
@@ -67,6 +68,7 @@ function SlidePanel({
         <ChallengeModal
           challengeData={challengeData}
           onResult={onChallengeResult}
+          onCancel={onChallengeCancel}
           compact={true}
         />
       );

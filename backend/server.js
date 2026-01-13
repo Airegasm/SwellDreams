@@ -1498,6 +1498,13 @@ async function handleWsMessage(ws, type, data) {
       );
       break;
 
+    case 'challenge_cancelled':
+      // User skipped/cancelled the challenge - just clear the pending state
+      // The flow will not continue (no branch taken)
+      console.log(`[WS] Challenge cancelled for node ${data.nodeId}`);
+      eventEngine.clearPendingChallenge(data.nodeId);
+      break;
+
     case 'execute_button':
     case 'execute_event':  // Keep for backwards compatibility
       await handleExecuteButton(data);

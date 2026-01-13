@@ -962,6 +962,24 @@ class EventEngine {
   }
 
   /**
+   * Clear pending challenge without continuing flow (user cancelled/skipped)
+   */
+  clearPendingChallenge(nodeId) {
+    if (!this.pendingChallenge) {
+      console.log('[EventEngine] No pending challenge to clear');
+      return;
+    }
+
+    if (this.pendingChallenge.nodeId !== nodeId) {
+      console.log(`[EventEngine] Node ID mismatch for clear: expected ${this.pendingChallenge.nodeId}, got ${nodeId}`);
+      return;
+    }
+
+    console.log(`[EventEngine] Challenge cancelled for node ${nodeId} - flow will not continue from this branch`);
+    this.pendingChallenge = null;
+  }
+
+  /**
    * Execute an action node
    */
   async executeAction(data, flow, nodeId) {

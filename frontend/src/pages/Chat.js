@@ -10,7 +10,7 @@ import SlidePanel from '../components/SlidePanel/SlidePanel';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading } = useApp();
   const { showError } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -776,6 +776,7 @@ function Chat() {
             onPlayerChoice={handlePlayerChoice}
             onSimpleAB={handleSimpleAB}
             onChallengeResult={handleChallengeResult}
+            onChallengeCancel={handleChallengeCancel}
             subContext={subContext}
           />
         </div>

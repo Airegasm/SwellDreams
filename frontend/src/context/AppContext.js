@@ -423,6 +423,17 @@ export function AppProvider({ children }) {
     setChallengeData(null);
   }, [challengeData, sendWsMessage]);
 
+  // Handle challenge cancellation - user skips/backs out of challenge
+  const handleChallengeCancel = useCallback(() => {
+    if (!challengeData) return;
+
+    sendWsMessage('challenge_cancelled', {
+      nodeId: challengeData.nodeId
+    });
+
+    setChallengeData(null);
+  }, [challengeData, sendWsMessage]);
+
   // API calls - all using apiFetch with proper error handling and timeouts
   // Wrapped in useMemo to maintain stable reference and prevent useEffect loops
   const api = useMemo(() => ({
@@ -857,6 +868,7 @@ export function AppProvider({ children }) {
     // Challenge Modal
     challengeData,
     handleChallengeResult,
+    handleChallengeCancel,
 
     // Infinite Cycles
     infiniteCycles,

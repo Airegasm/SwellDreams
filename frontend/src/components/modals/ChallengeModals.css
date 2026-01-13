@@ -41,6 +41,17 @@
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: center;
+  gap: 12px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.btn-cancel:hover {
+  opacity: 1;
 }
 
 .btn-large {
@@ -605,6 +616,11 @@
   padding: 10px 20px;
   font-size: 0.95rem;
   min-width: 100px;
+}
+
+.challenge-modal.compact .btn-cancel {
+  padding: 6px 12px;
+  font-size: 0.8rem;
 }
 
 .challenge-modal.compact .challenge-result {

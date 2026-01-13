@@ -5,8 +5,10 @@
   top: calc(100% - 20px);  /* Overlap portrait bottom slightly */
   left: -6px;
   right: -6px;
-  max-height: calc(100vh - 480px);  /* Leave room below */
-  overflow: hidden; /* Lock - no scrolling */
+  max-height: calc(100vh - 380px);  /* Leave room below - adjusted for challenge modals */
+  min-height: 280px;  /* Ensure minimum space for challenge controls */
+  overflow-y: auto; /* Allow scrolling if content overflows */
+  overflow-x: hidden;
 
   /* Initial hidden state */
   clip-path: inset(100% 0 0 0);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './ChallengeModals.css';
 
 // Prize Wheel Modal
-export function PrizeWheelModal({ challengeData, onResult, compact = false }) {
+export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = false }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
@@ -159,6 +159,14 @@ export function PrizeWheelModal({ challengeData, onResult, compact = false }) {
         )}
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !isSpinning && !result && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleSpin}
@@ -172,7 +180,7 @@ export function PrizeWheelModal({ challengeData, onResult, compact = false }) {
 }
 
 // Dice Roll Modal
-export function DiceRollModal({ challengeData, onResult, compact = false }) {
+export function DiceRollModal({ challengeData, onResult, onCancel, compact = false }) {
   const [isRolling, setIsRolling] = useState(false);
   const [diceValues, setDiceValues] = useState([]);
   const [displayValues, setDisplayValues] = useState([]);
@@ -291,6 +299,14 @@ export function DiceRollModal({ challengeData, onResult, compact = false }) {
         )}
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !isRolling && !result && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleRoll}
@@ -304,7 +320,7 @@ export function DiceRollModal({ challengeData, onResult, compact = false }) {
 }
 
 // Coin Flip Modal
-export function CoinFlipModal({ challengeData, onResult, compact = false }) {
+export function CoinFlipModal({ challengeData, onResult, onCancel, compact = false }) {
   const [isFlipping, setIsFlipping] = useState(false);
   const [result, setResult] = useState(null);
   const [flipCount, setFlipCount] = useState(0);
@@ -381,6 +397,14 @@ export function CoinFlipModal({ challengeData, onResult, compact = false }) {
         )}
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !isFlipping && !isGameOver && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleFlip}
@@ -394,7 +418,7 @@ export function CoinFlipModal({ challengeData, onResult, compact = false }) {
 }
 
 // Rock Paper Scissors Modal
-export function RPSModal({ challengeData, onResult, compact = false }) {
+export function RPSModal({ challengeData, onResult, onCancel, compact = false }) {
   const [playerChoice, setPlayerChoice] = useState(null);
   const [characterChoice, setCharacterChoice] = useState(null);
   const [roundResult, setRoundResult] = useState(null);
@@ -530,12 +554,22 @@ export function RPSModal({ challengeData, onResult, compact = false }) {
           </div>
         )}
       </div>
+      {onCancel && !isRevealing && !gameOver && (
+        <div className="challenge-modal-footer">
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 // Timer Challenge Modal
-export function TimerChallengeModal({ challengeData, onResult, compact = false }) {
+export function TimerChallengeModal({ challengeData, onResult, onCancel, compact = false }) {
   const [timeLeft, setTimeLeft] = useState(challengeData?.duration || 10);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -626,6 +660,18 @@ export function TimerChallengeModal({ challengeData, onResult, compact = false }
         )}
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !result && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={() => {
+              clearInterval(intervalRef.current);
+              setIsRunning(false);
+              onCancel();
+            }}
+          >
+            Skip
+          </button>
+        )}
         <button
           className={`btn btn-large ${isPrecisionWindow ? 'btn-success' : 'btn-primary'}`}
           onClick={handlePress}
@@ -639,7 +685,7 @@ export function TimerChallengeModal({ challengeData, onResult, compact = false }
 }
 
 // Number Guess Modal
-export function NumberGuessModal({ challengeData, onResult, compact = false }) {
+export function NumberGuessModal({ challengeData, onResult, onCancel, compact = false }) {
   const [targetNumber] = useState(() => {
     const min = challengeData?.min ?? 1;
     const max = challengeData?.max ?? 10;
@@ -723,12 +769,22 @@ export function NumberGuessModal({ challengeData, onResult, compact = false }) {
           </div>
         )}
       </div>
+      {onCancel && !result && (
+        <div className="challenge-modal-footer">
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 // Slot Machine Modal
-export function SlotMachineModal({ challengeData, onResult, compact = false }) {
+export function SlotMachineModal({ challengeData, onResult, onCancel, compact = false }) {
   const [reels, setReels] = useState(['?', '?', '?']);
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
@@ -821,6 +877,14 @@ export function SlotMachineModal({ challengeData, onResult, compact = false }) {
         )}
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !isSpinning && !result && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleSpin}
@@ -834,7 +898,7 @@ export function SlotMachineModal({ challengeData, onResult, compact = false }) {
 }
 
 // Card Draw Modal
-export function CardDrawModal({ challengeData, onResult, compact = false }) {
+export function CardDrawModal({ challengeData, onResult, onCancel, compact = false }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnCard, setDrawnCard] = useState(null);
 
@@ -929,6 +993,14 @@ export function CardDrawModal({ challengeData, onResult, compact = false }) {
         </div>
       </div>
       <div className="challenge-modal-footer">
+        {onCancel && !isDrawing && !drawnCard && (
+          <button
+            className="btn btn-secondary btn-cancel"
+            onClick={onCancel}
+          >
+            Skip
+          </button>
+        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleDraw}
@@ -942,28 +1014,28 @@ export function CardDrawModal({ challengeData, onResult, compact = false }) {
 }
 
 // Main Challenge Modal Dispatcher
-export function ChallengeModal({ challengeData, onResult, compact = false }) {
+export function ChallengeModal({ challengeData, onResult, onCancel, compact = false }) {
   if (!challengeData) return null;
 
   const { challengeType } = challengeData;
 
   switch (challengeType) {
     case 'prize_wheel':
-      return <PrizeWheelModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <PrizeWheelModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'dice_roll':
-      return <DiceRollModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <DiceRollModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'coin_flip':
-      return <CoinFlipModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <CoinFlipModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'rps':
-      return <RPSModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <RPSModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'timer_challenge':
-      return <TimerChallengeModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <TimerChallengeModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'number_guess':
-      return <NumberGuessModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <NumberGuessModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'slot_machine':
-      return <SlotMachineModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <SlotMachineModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'card_draw':
-      return <CardDrawModal challengeData={challengeData} onResult={onResult} compact={compact} />;
+      return <CardDrawModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     default:
       return <div>Unknown challenge type: {challengeType}</div>;
   }
