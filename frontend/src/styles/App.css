@@ -54,13 +54,68 @@ body {
   object-fit: contain;
 }
 
-/* Chat Layout - Split Header */
+/* Left column top bar - metallic topper with logo */
+.chat-layout .left-column-top-bar {
+  position: fixed;
+  top: 6px;
+  left: 6px;
+  width: 231px;
+  height: 64px;
+  background: linear-gradient(
+    180deg,
+    #5c6169 0%,
+    #4a4e54 8%,
+    #2d3036 15%,
+    #3d4147 25%,
+    #1a1d21 40%,
+    #0d0f12 50%,
+    #1a1d21 70%,
+    #1a1d21 100%
+  );
+  border-radius: 8px 8px 0 0;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-layout .left-column-top-bar .nav-logo {
+  max-height: 50px;
+  width: auto;
+}
+
+/* Right column top bar - metallic topper with hamburger menu */
+.chat-layout .right-column-top-bar {
+  position: fixed;
+  top: 6px;
+  right: 6px;
+  width: 231px;
+  height: 64px;
+  background: linear-gradient(
+    180deg,
+    #5c6169 0%,
+    #4a4e54 8%,
+    #2d3036 15%,
+    #3d4147 25%,
+    #1a1d21 40%,
+    #0d0f12 50%,
+    #1a1d21 70%,
+    #1a1d21 100%
+  );
+  border-radius: 8px 8px 0 0;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding-right: var(--spacing-md);
+}
+
+/* Hide the old nav-bar */
 .chat-layout .nav-bar {
-  justify-content: space-between;
-  padding: 0;
-  background: transparent;
-  border-bottom: none;
-  z-index: 20;
+  display: none;
 }
 
 /* Top metallic border - spans full width */

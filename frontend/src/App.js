@@ -249,21 +249,22 @@ function App() {
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
-      <nav className="nav-bar">
+      {/* Column top bars - contain logo and nav elements */}
+      <div className="left-column-top-bar">
         <img src="/logo.png" alt="SwellDreams" className="nav-logo" />
-        <div className="nav-right">
-          <div className="nav-badges">
-            <span className={`connection-status ${getLlmStatus().className}`}>
-              🤖
-            </span>
-          </div>
-          <HamburgerMenu
-            onNewSession={handleNewSession}
-            onSaveSession={() => setShowSaveModal(true)}
-            onLoadSession={handleOpenLoadModal}
-          />
+      </div>
+      <div className="right-column-top-bar">
+        <div className="nav-badges">
+          <span className={`connection-status ${getLlmStatus().className}`}>
+            🤖
+          </span>
         </div>
-      </nav>
+        <HamburgerMenu
+          onNewSession={handleNewSession}
+          onSaveSession={() => setShowSaveModal(true)}
+          onLoadSession={handleOpenLoadModal}
+        />
+      </div>
 
       {/* Bottom metallic frame border */}
       <div className="bottom-frame-border"></div>

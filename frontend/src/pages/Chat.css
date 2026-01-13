@@ -4,9 +4,7 @@
   overflow: hidden;
   min-height: 0; /* Allow flex child to shrink */
   position: relative;
-  z-index: 5;
-  margin-top: -64px; /* Extend up into header space */
-  padding-top: 0;
+  z-index: 1;
 }
 
 /* Emergency Stop Alert Banner */
@@ -124,7 +122,7 @@
   background-repeat: no-repeat;
   border-right: none;
   padding: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
-  padding-top: calc(64px + 33px); /* Account for header + gap */
+  padding-top: calc(64px + 33px); /* Account for column top bar + gap */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
@@ -1178,7 +1176,7 @@
   display: flex;
   flex-direction: column;
   position: relative; /* For emergency stop alert positioning */
-  z-index: 10;
+  z-index: 1;
   background-color: var(--bg-primary);
   background-image: url('../assets/chat-bg.png');
   background-size: cover;
