@@ -69,6 +69,7 @@ function Chat() {
   const [showLlmError, setShowLlmError] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // Check if LLM is configured
   const isLlmConfigured = () => {
@@ -185,10 +186,21 @@ function Chat() {
   }, [messageHistory, sendWsMessage]);
 
   // Auto-scroll to bottom (only when there are messages and not loading)
+  // Scroll to bottom helper - uses scrollTop instead of scrollIntoView to avoid scrolling parent containers
+  const scrollToBottom = (smooth = true) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
+  };
+
   useEffect(() => {
     // Don't auto-scroll while panel is blocking (challenge/choice in progress)
     if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom();
     }
   }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
 
@@ -436,14 +448,14 @@ function Chat() {
     setEditingId(null);
     setEditText('');
     // Scroll to bottom after a brief delay to let DOM update
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditText('');
     // Scroll to bottom after a brief delay to let DOM update
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleSwipeMessage = (msg) => {
@@ -793,7 +805,7 @@ function Chat() {
           </div>
         )}
 
-        <div className="chat-messages">
+        <div className="chat-messages" ref={messagesContainerRef}>
           {sessionLoading ? (
             <div className="chat-loading">
               <div className="loading-spinner"></div>

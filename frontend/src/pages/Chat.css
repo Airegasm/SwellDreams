@@ -1185,6 +1185,7 @@
   background-size: cover;
   background-position: center;
   background-repeat: repeat;
+  overflow: hidden; /* Prevent chat-main from scrolling - only chat-messages should scroll */
   min-height: 0; /* Allow flex child to shrink */
   padding-top: 0; /* Extends to top of browser */
 }
