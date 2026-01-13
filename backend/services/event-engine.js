@@ -1049,16 +1049,58 @@ class EventEngine {
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
-          console.log(`[SIMULATION] Device ${resolvedDevice || data.device} would turn ON`);
-          // Still update state tracking for flow continuity
+          const deviceKey = resolvedDevice || data.device;
+          console.log(`[SIMULATION] Device ${deviceKey} would turn ON`);
+
+          // Update state tracking for flow continuity
           if (this.sessionState?.executionHistory) {
-            const deviceKey = resolvedDevice || data.device;
             if (!this.sessionState.executionHistory.deviceActions[deviceKey]) {
               this.sessionState.executionHistory.deviceActions[deviceKey] = {};
             }
             this.sessionState.executionHistory.deviceActions[deviceKey].state = 'on';
           }
-          return 'device_on'; // Continue flow execution
+
+          // Determine if this is infinite (no until condition)
+          const isInfinite = !data.untilType || data.untilType === 'forever';
+
+          // Track pending completion even in simulation mode
+          this.pendingDeviceOnCompletions = this.pendingDeviceOnCompletions || new Map();
+          this.pendingDeviceOnCompletions.set(deviceKey, {
+            flowId: flow.id,
+            nodeId: nodeId,
+            isInfinite,
+            deviceObj: deviceObj || { ip: deviceKey }
+          });
+          console.log(`[SIMULATION] Tracking device_on completion for device ${deviceKey}, infinite: ${isInfinite}`);
+
+          // Set up "until" monitoring if specified (works for simulation too)
+          if (data.untilType && data.untilType !== 'forever') {
+            this.deviceMonitors.set(deviceKey, {
+              type: data.untilType,
+              operator: data.untilOperator || '>',
+              value: data.untilValue,
+              deviceObj: deviceObj || { ip: deviceKey },
+              flowId: flow.id,
+              monitorType: 'device_on'
+            });
+            console.log(`[SIMULATION] Monitoring device ${deviceKey} until ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}`);
+
+            // For timer-based until, schedule simulated completion
+            if (data.untilType === 'timer' && data.untilValue > 0) {
+              const timerMs = data.untilValue * 1000;
+              console.log(`[SIMULATION] Scheduling device_on completion in ${timerMs}ms (timer until)`);
+              setTimeout(() => {
+                console.log(`[SIMULATION] Timer complete for device ${deviceKey}`);
+                if (this.sessionState?.executionHistory?.deviceActions[deviceKey]) {
+                  this.sessionState.executionHistory.deviceActions[deviceKey].state = 'off';
+                }
+                this.deviceMonitors.delete(deviceKey);
+                this.handleDeviceOnComplete(deviceKey);
+              }, timerMs);
+            }
+          }
+
+          return 'device_on'; // Continue flow execution with dual outputs
         }
 
         if (!deviceObj || !resolvedDevice) {
@@ -1126,14 +1168,24 @@ class EventEngine {
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
-          console.log(`[SIMULATION] Device ${resolvedDevice || data.device} would turn OFF`);
+          const deviceKey = resolvedDevice || data.device;
+          console.log(`[SIMULATION] Device ${deviceKey} would turn OFF`);
+
           if (this.sessionState?.executionHistory) {
-            const deviceKey = resolvedDevice || data.device;
             if (!this.sessionState.executionHistory.deviceActions[deviceKey]) {
               this.sessionState.executionHistory.deviceActions[deviceKey] = {};
             }
             this.sessionState.executionHistory.deviceActions[deviceKey].state = 'off';
           }
+
+          // Clear any monitor for this device
+          this.deviceMonitors.delete(deviceKey);
+
+          // Trigger device_on completion to execute completion edges (if any pending)
+          if (this.pendingDeviceOnCompletions?.has(deviceKey)) {
+            this.handleDeviceOnComplete(deviceKey);
+          }
+
           return true; // Continue flow execution
         }
 
@@ -1162,6 +1214,14 @@ class EventEngine {
           this.sessionState.executionHistory.deviceActions[resolvedDevice].state = 'off';
         }
 
+        // Clear any monitor for this device
+        this.deviceMonitors.delete(resolvedDevice);
+
+        // Trigger device_on completion to execute completion edges (if any pending)
+        if (this.pendingDeviceOnCompletions?.has(resolvedDevice)) {
+          this.handleDeviceOnComplete(resolvedDevice);
+        }
+
         return true;
       }
 
@@ -1180,16 +1240,48 @@ class EventEngine {
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
-          console.log(`[SIMULATION] Device ${resolvedDevice || data.device} would START CYCLE (duration: ${data.duration || 5}s, interval: ${data.interval || 10}s, cycles: ${data.cycles || 0})`);
+          const deviceKey = resolvedDevice || data.device;
+          console.log(`[SIMULATION] Device ${deviceKey} would START CYCLE (duration: ${data.duration || 5}s, interval: ${data.interval || 10}s, cycles: ${data.cycles || 0})`);
+
           if (this.sessionState?.executionHistory) {
-            const deviceKey = resolvedDevice || data.device;
             if (!this.sessionState.executionHistory.deviceActions[deviceKey]) {
               this.sessionState.executionHistory.deviceActions[deviceKey] = {};
             }
             this.sessionState.executionHistory.deviceActions[deviceKey].cycling = true;
             this.sessionState.executionHistory.deviceActions[deviceKey].state = 'on';
           }
-          return 'start_cycle'; // Continue flow execution
+
+          // Determine if this is an infinite cycle
+          const isInfinite = (!data.cycles || data.cycles === 0) &&
+                             (!data.untilType || data.untilType === 'forever');
+
+          // Track pending completion even in simulation mode
+          this.pendingCycleCompletions.set(deviceKey, {
+            flowId: flow.id,
+            nodeId: nodeId,
+            isInfinite,
+            deviceObj: deviceObj || { ip: deviceKey }
+          });
+          console.log(`[SIMULATION] Tracking cycle completion for device ${deviceKey}, infinite: ${isInfinite}`);
+
+          // For finite cycles, schedule simulated completion
+          if (!isInfinite && data.cycles > 0) {
+            const cycleDuration = (data.duration || 5) * 1000;
+            const cycleInterval = (data.interval || 10) * 1000;
+            const totalTime = data.cycles * (cycleDuration + cycleInterval);
+            console.log(`[SIMULATION] Scheduling cycle completion in ${totalTime}ms (${data.cycles} cycles)`);
+
+            setTimeout(() => {
+              console.log(`[SIMULATION] Cycle complete for ${deviceKey}`);
+              if (this.sessionState?.executionHistory?.deviceActions[deviceKey]) {
+                this.sessionState.executionHistory.deviceActions[deviceKey].cycling = false;
+                this.sessionState.executionHistory.deviceActions[deviceKey].state = 'off';
+              }
+              this.handleCycleComplete(deviceKey);
+            }, totalTime);
+          }
+
+          return 'start_cycle'; // Continue flow execution with dual outputs
         }
 
         if (!deviceObj || !resolvedDevice) {
@@ -1272,13 +1364,21 @@ class EventEngine {
 
         // In simulation mode, skip actual device calls but continue flow
         if (this.simulationMode) {
-          console.log(`[SIMULATION] Device ${resolvedDevice || data.device} would STOP CYCLE`);
+          const deviceKey = resolvedDevice || data.device;
+          console.log(`[SIMULATION] Device ${deviceKey} would STOP CYCLE`);
+
           if (this.sessionState?.executionHistory) {
-            const deviceKey = resolvedDevice || data.device;
             if (this.sessionState.executionHistory.deviceActions[deviceKey]) {
               this.sessionState.executionHistory.deviceActions[deviceKey].cycling = false;
             }
           }
+
+          // Clear monitor for this device
+          this.deviceMonitors.delete(deviceKey);
+
+          // Trigger cycle completion to execute completion edges
+          this.handleCycleComplete(deviceKey);
+
           return true; // Continue flow execution
         }
 
@@ -2095,9 +2195,13 @@ class EventEngine {
         // Get the full device object from the monitor
         const deviceObj = monitor.deviceObj;
 
-        // Turn off the device
+        // Turn off the device (skip in simulation mode)
         if (monitor.monitorType === 'device_on') {
-          await this.deviceService.turnOff(deviceIp, deviceObj);
+          if (this.simulationMode) {
+            console.log(`[SIMULATION] Device ${deviceIp} would turn OFF (until condition met)`);
+          } else {
+            await this.deviceService.turnOff(deviceIp, deviceObj);
+          }
 
           // Update device state tracking
           if (this.sessionState.executionHistory && this.sessionState.executionHistory.deviceActions[deviceIp]) {
@@ -2119,12 +2223,22 @@ class EventEngine {
             this.pendingDeviceOnCompletions.delete(deviceIp);
           }
         } else {
-          // Stop cycle (pass device object for proper brand/childId support)
-          this.deviceService.stopCycle(deviceIp, deviceObj);
+          // Stop cycle (skip actual device call in simulation mode)
+          if (this.simulationMode) {
+            console.log(`[SIMULATION] Device ${deviceIp} would STOP CYCLE (until condition met)`);
+          } else {
+            // Stop cycle (pass device object for proper brand/childId support)
+            this.deviceService.stopCycle(deviceIp, deviceObj);
+          }
 
           // Update device state tracking
           if (this.sessionState.executionHistory && this.sessionState.executionHistory.deviceActions[deviceIp]) {
             this.sessionState.executionHistory.deviceActions[deviceIp].cycling = false;
+          }
+
+          // Trigger cycle completion in simulation mode (completion edges are handled by handleCycleComplete)
+          if (this.simulationMode) {
+            this.handleCycleComplete(deviceIp);
           }
         }
 
@@ -2190,6 +2304,60 @@ class EventEngine {
     if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && depthRemaining <= 0) {
       if (this.activeExecutions.has(flowId)) {
         console.log(`[EventEngine] Flow ${flowId} complete after cycle - removing from activeExecutions`);
+        this.activeExecutions.delete(flowId);
+        await this.broadcastExecutionsUpdate();
+      }
+    }
+  }
+
+  /**
+   * Handle device_on completion - executes completion edges
+   * Called when a device_on action's "until" condition is met
+   */
+  async handleDeviceOnComplete(deviceIp) {
+    const pending = this.pendingDeviceOnCompletions?.get(deviceIp);
+    if (!pending) {
+      console.log(`[EventEngine] Device on complete for ${deviceIp}, but no pending completion tracked`);
+      return;
+    }
+
+    console.log(`[EventEngine] Device on complete for ${deviceIp}, executing completion chain`);
+    this.pendingDeviceOnCompletions.delete(deviceIp);
+
+    // Update device state tracking
+    if (this.sessionState?.executionHistory?.deviceActions?.[deviceIp]) {
+      this.sessionState.executionHistory.deviceActions[deviceIp].state = 'off';
+    }
+
+    // Find the flow and node
+    const flowData = this.activeFlows.get(pending.flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${pending.flowId} no longer active, cannot execute completion chain`);
+      return;
+    }
+
+    // Find and execute completion edges
+    const completionEdges = flowData.flow.edges.filter(
+      e => e.source === pending.nodeId && e.sourceHandle === 'completion'
+    );
+
+    console.log(`[EventEngine] Found ${completionEdges.length} device_on completion edges to execute`);
+
+    for (const edge of completionEdges) {
+      await this.executeFromNode(flowData.flow, edge.target, null, true);
+    }
+
+    // Check if flow execution is now complete (no more pending ops for this flow)
+    const flowId = pending.flowId;
+    const hasPendingCycle = Array.from(this.pendingCycleCompletions.values()).some(p => p.flowId === flowId);
+    const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flowId);
+    const hasPendingChoice = this.pendingPlayerChoice?.flowId === flowId;
+    const hasPendingChallenge = this.pendingChallenge?.flowId === flowId;
+    const depthRemaining = this.executionDepths.get(flowId) || 0;
+
+    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && depthRemaining <= 0) {
+      if (this.activeExecutions.has(flowId)) {
+        console.log(`[EventEngine] Flow ${flowId} complete after device_on - removing from activeExecutions`);
         this.activeExecutions.delete(flowId);
         await this.broadcastExecutionsUpdate();
       }
