@@ -636,7 +636,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                 {formData.exampleDialogues.map((dialogue, i) => (
                   <div key={i} className="dialogue-item">
                     <div className="dialogue-content">
-                      <p><strong>User:</strong> {dialogue.user}</p>
+                      <p><strong>Player:</strong> {dialogue.user}</p>
                       <p><strong>{formData.name || 'Character'}:</strong> {dialogue.character}</p>
                     </div>
                     <button
@@ -652,7 +652,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
               <div className="add-dialogue">
                 <input
                   type="text"
-                  placeholder="User says..."
+                  placeholder="Player says..."
                   value={newDialogue.user}
                   onChange={(e) => setNewDialogue({ ...newDialogue, user: e.target.value })}
                 />
