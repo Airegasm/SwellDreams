@@ -186,10 +186,11 @@ function Chat() {
 
   // Auto-scroll to bottom (only when there are messages and not loading)
   useEffect(() => {
-    if (messages.length > 0 && !sessionLoading) {
+    // Don't auto-scroll while panel is blocking (challenge/choice in progress)
+    if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, sessionState.isGenerating, sessionLoading]);
+  }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
 
   // Keyboard shortcuts for capacity control
   useEffect(() => {
@@ -734,7 +735,7 @@ function Chat() {
       />
 
       {/* Left Sidebar - Persona */}
-      <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''}`}>
+      <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
         <div className="entity-portrait-large">
           {activePersona?.avatar ? (

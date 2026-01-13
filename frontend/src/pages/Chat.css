@@ -109,6 +109,11 @@
   }
 }
 
+/* Prevent sidebar scroll when panel is active */
+.chat-sidebar.panel-active {
+  overflow-y: hidden;
+}
+
 /* Sidebar */
 .chat-sidebar {
   width: 240px;
