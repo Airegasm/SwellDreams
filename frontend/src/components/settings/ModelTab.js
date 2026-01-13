@@ -672,7 +672,7 @@ function ModelTab() {
                   <label>Response</label>
                   <input
                     type="number"
-                    value={llmSettings.maxTokens || 300}
+                    value={llmSettings.maxTokens || 150}
                     onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
                     min={1}
                     max={32768}
@@ -723,7 +723,7 @@ function ModelTab() {
                   <label>Response</label>
                   <input
                     type="number"
-                    value={llmSettings.maxTokens || 300}
+                    value={llmSettings.maxTokens || 150}
                     onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
                     min={1}
                     max={4096}

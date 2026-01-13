@@ -13,7 +13,7 @@ export function AppProvider({ children }) {
   const [settings, setSettings] = useState({
     llm: {
       llmUrl: '',
-      maxTokens: 300,
+      maxTokens: 150,
       contextTokens: 8192,
       streaming: false,
       temperature: 0.92,
@@ -290,6 +290,10 @@ export function AppProvider({ children }) {
 
       case 'error':
         console.error('[WS] Server error:', data.message, data.error);
+        // Dispatch event for UI to display the error
+        window.dispatchEvent(new CustomEvent('llm_error', {
+          detail: { message: data.message, error: data.error }
+        }));
         break;
 
       case 'server_error':

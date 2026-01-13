@@ -273,14 +273,37 @@ function ConversationsTab() {
               Sample exchanges that show how the character speaks and responds.
               These help the AI understand the character's voice and behavior.
             </p>
-            <ul className="help-list">
-              <li>Add pairs of user input and character response</li>
-              <li>Show personality through dialogue style</li>
-              <li>Demonstrate how character handles different situations</li>
+
+            <div className="warning-box">
+              <strong>Why Example Dialogues Matter:</strong> AI models can get confused about
+              who "you", "I", "she", etc. refer to. Good example dialogues establish clear
+              subject-object relationships so the AI knows who's who.
+            </div>
+
+            <h4 className="subsection-header">Rules for Good Example Dialogues</h4>
+            <ul className="checklist">
+              <li><strong>Player mentions [Char]:</strong> The player's message should reference the character by name at least once</li>
+              <li><strong>Character mentions [Player]:</strong> The character's response should reference the player at least once</li>
+              <li><strong>Mix dialogue and actions:</strong> Use "quoted speech" for spoken words and *asterisks* for actions/narration</li>
+              <li><strong>Show personality:</strong> The character's response should demonstrate their unique voice and mannerisms</li>
             </ul>
+
             <div className="code-example">
-              User: "How are you today?"<br/>
-              Character: "*adjusts glasses* Oh! I didn't see you there. I'm doing well, thank you for asking."
+              <strong>Good Example:</strong><br/>
+              Player: *Shifts nervously on the chair* "Dr. Vance, I'm a little nervous about this."<br/>
+              Character: *She nods professionally, making a note* "That's perfectly normal, [Player]. Deep breaths. You're in capable hands."
+            </div>
+
+            <div className="code-example" style={{borderColor: '#ff6b6b', backgroundColor: 'rgba(255, 107, 107, 0.1)'}}>
+              <strong>Bad Example (avoid):</strong><br/>
+              Player: "I'm nervous"<br/>
+              Character: "That's normal. Take deep breaths."<br/>
+              <em style={{color: '#ff6b6b'}}>Problem: No names used - AI may confuse who "you" and "I" refer to</em>
+            </div>
+
+            <div className="tip-box">
+              <strong>Pro Tip:</strong> The <code>[Player]</code> token gets replaced with your persona's
+              actual name during conversations. Characters should use it naturally in their responses.
             </div>
           </div>
         )}

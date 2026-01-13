@@ -68,6 +68,9 @@ function Chat() {
   // LLM not configured error popup
   const [showLlmError, setShowLlmError] = useState(false);
 
+  // LLM runtime errors (displayed inline in chat)
+  const [llmErrors, setLlmErrors] = useState([]);
+
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
@@ -150,6 +153,22 @@ function Chat() {
 
     window.addEventListener('emergency_stop_alert', handleEmergencyStopAlert);
     return () => window.removeEventListener('emergency_stop_alert', handleEmergencyStopAlert);
+  }, []);
+
+  // Listen for LLM errors to display in chat
+  useEffect(() => {
+    const handleLlmError = (event) => {
+      const { message, error } = event.detail;
+      const errorId = Date.now();
+      setLlmErrors(prev => [...prev, { id: errorId, message, error, timestamp: new Date() }]);
+      // Auto-dismiss after 15 seconds
+      setTimeout(() => {
+        setLlmErrors(prev => prev.filter(e => e.id !== errorId));
+      }, 15000);
+    };
+
+    window.addEventListener('llm_error', handleLlmError);
+    return () => window.removeEventListener('llm_error', handleLlmError);
   }, []);
 
   // Close quick menu when clicking outside
@@ -904,6 +923,26 @@ function Chat() {
               </div>
             </div>
           )}
+          {/* LLM Error Messages */}
+          {llmErrors.map(err => (
+            <div key={err.id} className="message message-error">
+              <div className="message-header">
+                <span className="message-sender">System Error</span>
+                <button
+                  className="msg-btn"
+                  onClick={() => setLlmErrors(prev => prev.filter(e => e.id !== err.id))}
+                  title="Dismiss"
+                >×</button>
+                <span className="message-time">
+                  {err.timestamp.toLocaleTimeString()}
+                </span>
+              </div>
+              <div className="message-content error-content">
+                <strong>{err.message}</strong>
+                {err.error && <div className="error-detail">{err.error}</div>}
+              </div>
+            </div>
+          ))}
           <div ref={messagesEndRef} />
         </div>
 

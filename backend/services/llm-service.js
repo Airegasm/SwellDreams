@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS = {
   llmUrl: '',
   apiType: 'auto',  // 'auto', 'text_completion', 'chat_completion'
   promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'alpaca', 'vicuna'
-  maxTokens: 300,
+  maxTokens: 150,
   contextTokens: 8192,
   streaming: false,
   trimIncompleteSentences: true,
@@ -789,7 +789,7 @@ function buildOpenRouterRequest(messages, settings) {
   const body = {
     model: settings.openRouterModel || 'openai/gpt-3.5-turbo',
     messages: messages,
-    max_tokens: settings.maxTokens || 300,
+    max_tokens: settings.maxTokens || 150,
     temperature: settings.temperature ?? 0.92,
     top_p: settings.topP ?? 0.92,
     frequency_penalty: settings.frequencyPenalty ?? 0,
