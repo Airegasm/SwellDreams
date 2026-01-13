@@ -572,9 +572,9 @@ body {
   min-height: 0; /* Allow flex child to shrink */
 }
 
-/* Allow chat page to extend into header area */
+/* Chat layout - keep overflow hidden to prevent scroll issues */
 .chat-layout .main-content {
-  overflow: visible;
+  overflow: hidden;
 }
 
 /* Common Components */

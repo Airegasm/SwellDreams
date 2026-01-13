@@ -128,8 +128,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Lock sidebar - no scrolling */
   position: relative;
 }
 
@@ -161,7 +160,7 @@
 .chat-sidebar-right {
   border-right: none;
   border-left: none;
-  overflow: visible;
+  overflow: hidden; /* Lock sidebar - no scrolling */
   background-image: url('../assets/sidebar-bg-right.png');
 }
 

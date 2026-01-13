@@ -6,8 +6,7 @@
   left: -6px;
   right: -6px;
   max-height: calc(100vh - 480px);  /* Leave room below */
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Lock - no scrolling */
 
   /* Initial hidden state */
   clip-path: inset(100% 0 0 0);
