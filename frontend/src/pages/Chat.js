@@ -185,27 +185,17 @@ function Chat() {
     }
   }, [messageHistory, sendWsMessage]);
 
-  // Auto-scroll to bottom (only when there are messages and not loading)
-  // Scroll to bottom helper - uses scrollTop instead of scrollIntoView to avoid scrolling parent containers
-  const scrollToBottom = (smooth = true) => {
-    const container = messagesContainerRef.current;
-    if (container) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: smooth ? 'smooth' : 'auto'
-      });
-    }
-  };
-
-  useEffect(() => {
-    // Don't auto-scroll while panel is blocking (challenge/choice in progress)
-    if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
-      // Small delay to ensure DOM is updated before scrolling
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
-    }
-  }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
+  // Auto-scroll DISABLED - was causing page jumping issues
+  // TODO: Re-enable once root cause is identified
+  // const scrollToBottom = (smooth = true) => {
+  //   const container = messagesContainerRef.current;
+  //   if (container) {
+  //     container.scrollTo({
+  //       top: container.scrollHeight,
+  //       behavior: smooth ? 'smooth' : 'auto'
+  //     });
+  //   }
+  // };
 
   // Keyboard shortcuts for capacity control
   useEffect(() => {
@@ -450,15 +440,15 @@ function Chat() {
     sendWsMessage('edit_message', { id: msgId, content: editText });
     setEditingId(null);
     setEditText('');
-    // Scroll to bottom after a brief delay to let DOM update
-    setTimeout(() => scrollToBottom(), 100);
+    // Auto-scroll disabled - was causing page jumping
+    // setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditText('');
-    // Scroll to bottom after a brief delay to let DOM update
-    setTimeout(() => scrollToBottom(), 100);
+    // Auto-scroll disabled - was causing page jumping
+    // setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleSwipeMessage = (msg) => {
