@@ -11,7 +11,7 @@ html, body {
 
 body {
   font-family: var(--font-family);
-  background-color: var(--bg-primary);
+  background-color: #000; /* Black to prevent old purple showing through */
   color: var(--text-primary);
   line-height: 1.5;
   margin: 0;

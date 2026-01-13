@@ -185,17 +185,24 @@ function Chat() {
     }
   }, [messageHistory, sendWsMessage]);
 
-  // Auto-scroll DISABLED - was causing page jumping issues
-  // TODO: Re-enable once root cause is identified
-  // const scrollToBottom = (smooth = true) => {
-  //   const container = messagesContainerRef.current;
-  //   if (container) {
-  //     container.scrollTo({
-  //       top: container.scrollHeight,
-  //       behavior: smooth ? 'smooth' : 'auto'
-  //     });
-  //   }
-  // };
+  // Scroll to bottom helper
+  const scrollToBottom = (smooth = true) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+  }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
 
   // Keyboard shortcuts for capacity control
   useEffect(() => {
@@ -440,15 +447,13 @@ function Chat() {
     sendWsMessage('edit_message', { id: msgId, content: editText });
     setEditingId(null);
     setEditText('');
-    // Auto-scroll disabled - was causing page jumping
-    // setTimeout(() => scrollToBottom(), 100);
+    setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditText('');
-    // Auto-scroll disabled - was causing page jumping
-    // setTimeout(() => scrollToBottom(), 100);
+    setTimeout(() => scrollToBottom(), 100);
   };
 
   const handleSwipeMessage = (msg) => {
