@@ -564,3 +564,244 @@
   color: white;
   text-align: center;
 }
+
+/* ========================================
+   COMPACT MODE - Sidebar slide panel
+   ======================================== */
+
+.challenge-modal.compact {
+  max-width: 220px;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+}
+
+.challenge-modal.compact .challenge-modal-header {
+  padding: 8px 10px;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.challenge-modal.compact .challenge-modal-header h3 {
+  font-size: 0.95rem;
+}
+
+.challenge-modal.compact .challenge-modal-header .precision-hint {
+  font-size: 0.7rem;
+}
+
+.challenge-modal.compact .challenge-modal-body {
+  padding: 12px 8px;
+  gap: 10px;
+}
+
+.challenge-modal.compact .challenge-modal-footer {
+  padding: 10px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.challenge-modal.compact .btn-large {
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  min-width: 100px;
+}
+
+.challenge-modal.compact .challenge-result {
+  font-size: 1.1rem;
+}
+
+/* Prize Wheel compact */
+.challenge-modal.compact .wheel-container canvas {
+  display: block;
+}
+
+/* Dice Roll compact */
+.challenge-modal.compact .dice-container {
+  gap: 6px;
+}
+
+.challenge-modal.compact .die {
+  width: 42px;
+  height: 42px;
+  font-size: 1.3rem;
+  border-radius: 8px;
+}
+
+.challenge-modal.compact .die.small {
+  width: 30px;
+  height: 30px;
+  font-size: 0.95rem;
+  border-radius: 6px;
+}
+
+.challenge-modal.compact .dice-total {
+  font-size: 1rem;
+}
+
+.challenge-modal.compact .dice-total.small {
+  font-size: 0.8rem;
+}
+
+.challenge-modal.compact .character-roll {
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.challenge-modal.compact .vs-label {
+  font-size: 0.85rem;
+}
+
+/* Coin Flip compact */
+.challenge-modal.compact .coin {
+  width: 85px;
+  height: 85px;
+}
+
+.challenge-modal.compact .coin-side {
+  font-size: 0.65rem;
+}
+
+.challenge-modal.compact .score-display {
+  font-size: 0.8rem;
+  gap: 8px;
+}
+
+.challenge-modal.compact .best-of-label {
+  font-size: 0.7rem;
+}
+
+/* Rock Paper Scissors compact */
+.challenge-modal.compact .rps-arena {
+  gap: 10px;
+}
+
+.challenge-modal.compact .rps-choice {
+  width: 50px;
+  height: 50px;
+  font-size: 1.6rem;
+  border-width: 2px;
+}
+
+.challenge-modal.compact .rps-label {
+  font-size: 0.7rem;
+}
+
+.challenge-modal.compact .rps-vs {
+  font-size: 1rem;
+}
+
+.challenge-modal.compact .rps-choices {
+  gap: 6px;
+}
+
+.challenge-modal.compact .rps-btn {
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.challenge-modal.compact .rps-emoji {
+  font-size: 1.4rem;
+}
+
+.challenge-modal.compact .rps-name {
+  font-size: 0.65rem;
+}
+
+.challenge-modal.compact .round-result {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+}
+
+/* Timer Challenge compact */
+.challenge-modal.compact .timer-display {
+  font-size: 2.2rem;
+}
+
+.challenge-modal.compact .timer-bar-container {
+  height: 14px;
+  border-radius: 7px;
+}
+
+.challenge-modal.compact .timer-bar {
+  border-radius: 7px;
+}
+
+/* Number Guess compact */
+.challenge-modal.compact .guess-info {
+  font-size: 0.85rem;
+}
+
+.challenge-modal.compact .attempts-display {
+  font-size: 0.75rem;
+}
+
+.challenge-modal.compact .guess-input {
+  width: 55px;
+  padding: 8px;
+  font-size: 1.1rem;
+  border-radius: 6px;
+}
+
+.challenge-modal.compact .guess-input-row .btn {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.challenge-modal.compact .guess-feedback {
+  font-size: 1rem;
+}
+
+/* Slot Machine compact */
+.challenge-modal.compact .slot-reels {
+  gap: 5px;
+}
+
+.challenge-modal.compact .slot-reel {
+  width: 58px;
+  height: 72px;
+  font-size: 2rem;
+  border-width: 2px;
+  border-radius: 8px;
+}
+
+/* Card Draw compact */
+.challenge-modal.compact .playing-card,
+.challenge-modal.compact .card-back {
+  width: 85px;
+  height: 119px;
+  border-radius: 6px;
+}
+
+.challenge-modal.compact .card-corner {
+  font-size: 0.7rem;
+}
+
+.challenge-modal.compact .card-corner.top-left {
+  top: 5px;
+  left: 5px;
+}
+
+.challenge-modal.compact .card-corner.bottom-right {
+  bottom: 5px;
+  right: 5px;
+}
+
+.challenge-modal.compact .card-center {
+  font-size: 2rem;
+}
+
+.challenge-modal.compact .card-back {
+  font-size: 3rem;
+}
+
+.challenge-modal.compact .tarot-card {
+  width: 85px;
+  height: 127px;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.challenge-modal.compact .tarot-name {
+  font-size: 0.75rem;
+}

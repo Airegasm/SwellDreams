@@ -82,6 +82,33 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Chat Blocking Overlay - shown when slide panel is active */
+.chat-blocking-overlay {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 240px;  /* After left sidebar */
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.chat-blocking-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile: full-screen blocking overlay */
+@media (max-width: 768px) {
+  .chat-blocking-overlay {
+    left: 0;  /* Full screen on mobile */
+    z-index: 999;  /* High z-index to cover everything except the modal */
+  }
+}
+
 /* Sidebar */
 .chat-sidebar {
   width: 240px;
@@ -2177,6 +2204,59 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* Player Choice Panel - Compact mode for sidebar */
+.player-choice-panel.compact {
+  position: static;
+  width: 100%;
+  max-height: none;
+  background-color: transparent;
+  border-left: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.player-choice-panel.compact .player-choice-panel-header {
+  padding: 8px 10px;
+  background-color: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-choice-panel.compact .player-choice-panel-header h3 {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.player-choice-panel.compact .player-choice-panel-body {
+  padding: 12px 8px;
+}
+
+.player-choice-panel.compact .choice-description {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+.player-choice-panel.compact .choice-buttons {
+  gap: 6px;
+}
+
+.player-choice-panel.compact .btn-choice {
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.player-choice-panel.compact .choice-button-label {
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+}
+
+.player-choice-panel.compact .choice-button-desc {
+  font-size: 0.75rem;
+}
+
+.player-choice-panel.compact .btn-choice:hover {
+  transform: none;
+}
+
 /* Message Highlighted (when player choice is active) */
 .message-highlighted {
   position: relative;
@@ -2437,7 +2517,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   gap: var(--spacing-md);
   color: var(--text-muted);
 }

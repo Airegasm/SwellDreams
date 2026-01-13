@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
 import { API_BASE, CONFIG } from '../config';
-import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
-import { ChallengeModal } from '../components/modals/ChallengeModals';
 import { substituteVariables } from '../utils/variableSubstitution';
 import StatusBadges from '../components/StatusBadges';
+import SlidePanel from '../components/SlidePanel/SlidePanel';
 import './Chat.css';
 
 function Chat() {
@@ -81,6 +80,9 @@ function Chat() {
 
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // Panel blocking - disable interactions when slide panel is open
+  const isPanelBlocking = !!(playerChoiceData || simpleABData || challengeData);
 
   // Variable substitution context
   const subContext = useMemo(() => ({
@@ -182,10 +184,12 @@ function Chat() {
     }
   }, [messageHistory, sendWsMessage]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom (only when there are messages and not loading)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, sessionState.isGenerating]);
+    if (messages.length > 0 && !sessionLoading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, sessionState.isGenerating, sessionLoading]);
 
   // Keyboard shortcuts for capacity control
   useEffect(() => {
@@ -724,6 +728,11 @@ function Chat() {
         onClick={closeDrawers}
       />
 
+      {/* Blocking overlay for slide panel interactions */}
+      <div
+        className={`chat-blocking-overlay ${playerChoiceData || simpleABData || challengeData ? 'visible' : ''}`}
+      />
+
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
@@ -747,6 +756,16 @@ function Chat() {
             }}
             capacity={sessionState.capacity || 0}
             personaName={activePersona?.displayName}
+          />
+          {/* SlidePanel for challenges/choices - emerges from behind portrait */}
+          <SlidePanel
+            playerChoiceData={playerChoiceData}
+            simpleABData={simpleABData}
+            challengeData={challengeData}
+            onPlayerChoice={handlePlayerChoice}
+            onSimpleAB={handleSimpleAB}
+            onChallengeResult={handleChallengeResult}
+            subContext={subContext}
           />
         </div>
 
@@ -978,7 +997,7 @@ function Chat() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder={activeCharacter ? `Message ${activeCharacter.name}...` : 'Select a character to chat...'}
-              disabled={!activeCharacter || isGenerating}
+              disabled={!activeCharacter || isGenerating || isPanelBlocking}
               rows={3}
             />
             {/* Action Buttons Stack */}
@@ -987,14 +1006,14 @@ function Chat() {
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking}
                   onClick={() => handleGuidedGenerate('guided_impersonate')}
                   title="Guided Impersonate (continue as you)"
                 >🤖</button>
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking}
                   onClick={() => handleGuidedGenerate('guided')}
                   title="Guided Response (AI continues)"
                 >🤖</button>
@@ -1003,13 +1022,13 @@ function Chat() {
                 <button
                   type="submit"
                   className="action-btn send-persona-btn"
-                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking}
                   title="Send as Persona"
                 >↖</button>
                 <button
                   type="button"
                   className="action-btn send-character-btn"
-                  disabled={!activeCharacter || !inputValue.trim() || isGenerating}
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking}
                   onClick={handleSendAsCharacter}
                   title="Send as Character"
                 >↖</button>
@@ -1141,61 +1160,6 @@ function Chat() {
         onSave={handleSaveReminder}
         reminder={editingReminder}
       />
-
-      {/* Player Choice Modal */}
-      {playerChoiceData && (
-        <PlayerChoiceModal
-          choiceData={playerChoiceData}
-          onChoice={handlePlayerChoice}
-          subContext={subContext}
-        />
-      )}
-
-      {/* Simple A/B Choice Modal */}
-      {simpleABData && (
-        <div className="modal-overlay">
-          <div className="modal simple-ab-modal">
-            <div className="modal-header">
-              <h3>Choose</h3>
-            </div>
-            <div className="modal-body">
-              {simpleABData.description && (
-                <p className="ab-description">{substituteVariables(simpleABData.description, subContext)}</p>
-              )}
-              <div className="ab-buttons">
-                <button
-                  className="btn-ab btn-ab-a"
-                  onClick={() => handleSimpleAB('a')}
-                >
-                  <span className="ab-label">{simpleABData.labelA}</span>
-                  {simpleABData.descriptionA && (
-                    <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
-                  )}
-                </button>
-                <button
-                  className="btn-ab btn-ab-b"
-                  onClick={() => handleSimpleAB('b')}
-                >
-                  <span className="ab-label">{simpleABData.labelB}</span>
-                  {simpleABData.descriptionB && (
-                    <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Challenge Modal */}
-      {challengeData && (
-        <div className="modal-overlay">
-          <ChallengeModal
-            challengeData={challengeData}
-            onResult={handleChallengeResult}
-          />
-        </div>
-      )}
 
       {/* Quick Text Add Modal */}
       {showQuickAddModal && (

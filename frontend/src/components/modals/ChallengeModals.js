@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './ChallengeModals.css';
 
 // Prize Wheel Modal
-export function PrizeWheelModal({ challengeData, onResult }) {
+export function PrizeWheelModal({ challengeData, onResult, compact = false }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
   const canvasRef = useRef(null);
 
   const { segments = [] } = challengeData || {};
+  const canvasSize = compact ? 180 : 300;
 
   // Draw the wheel
   useEffect(() => {
@@ -143,13 +144,13 @@ export function PrizeWheelModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal prize-wheel-modal">
+    <div className={`challenge-modal prize-wheel-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎡 Spin the Wheel!</h3>
       </div>
       <div className="challenge-modal-body">
         <div className="wheel-container">
-          <canvas ref={canvasRef} width={300} height={300} />
+          <canvas ref={canvasRef} width={canvasSize} height={canvasSize} />
         </div>
         {result && (
           <div className="challenge-result" style={{ color: result.color }}>
@@ -171,7 +172,7 @@ export function PrizeWheelModal({ challengeData, onResult }) {
 }
 
 // Dice Roll Modal
-export function DiceRollModal({ challengeData, onResult }) {
+export function DiceRollModal({ challengeData, onResult, compact = false }) {
   const [isRolling, setIsRolling] = useState(false);
   const [diceValues, setDiceValues] = useState([]);
   const [displayValues, setDisplayValues] = useState([]);
@@ -248,7 +249,7 @@ export function DiceRollModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal dice-roll-modal">
+    <div className={`challenge-modal dice-roll-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎲 Roll the Dice!</h3>
       </div>
@@ -303,7 +304,7 @@ export function DiceRollModal({ challengeData, onResult }) {
 }
 
 // Coin Flip Modal
-export function CoinFlipModal({ challengeData, onResult }) {
+export function CoinFlipModal({ challengeData, onResult, compact = false }) {
   const [isFlipping, setIsFlipping] = useState(false);
   const [result, setResult] = useState(null);
   const [flipCount, setFlipCount] = useState(0);
@@ -356,7 +357,7 @@ export function CoinFlipModal({ challengeData, onResult }) {
   const isGameOver = result !== null;
 
   return (
-    <div className="challenge-modal coin-flip-modal">
+    <div className={`challenge-modal coin-flip-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🪙 Flip the Coin!</h3>
       </div>
@@ -393,7 +394,7 @@ export function CoinFlipModal({ challengeData, onResult }) {
 }
 
 // Rock Paper Scissors Modal
-export function RPSModal({ challengeData, onResult }) {
+export function RPSModal({ challengeData, onResult, compact = false }) {
   const [playerChoice, setPlayerChoice] = useState(null);
   const [characterChoice, setCharacterChoice] = useState(null);
   const [roundResult, setRoundResult] = useState(null);
@@ -476,7 +477,7 @@ export function RPSModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal rps-modal">
+    <div className={`challenge-modal rps-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>✊ Rock Paper Scissors!</h3>
       </div>
@@ -534,7 +535,7 @@ export function RPSModal({ challengeData, onResult }) {
 }
 
 // Timer Challenge Modal
-export function TimerChallengeModal({ challengeData, onResult }) {
+export function TimerChallengeModal({ challengeData, onResult, compact = false }) {
   const [timeLeft, setTimeLeft] = useState(challengeData?.duration || 10);
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -593,7 +594,7 @@ export function TimerChallengeModal({ challengeData, onResult }) {
   const isPrecisionWindow = precisionMode && timeLeft <= precisionWindow;
 
   return (
-    <div className="challenge-modal timer-challenge-modal">
+    <div className={`challenge-modal timer-challenge-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>⏱️ Quick! Press the Button!</h3>
         {precisionMode && (
@@ -638,7 +639,7 @@ export function TimerChallengeModal({ challengeData, onResult }) {
 }
 
 // Number Guess Modal
-export function NumberGuessModal({ challengeData, onResult }) {
+export function NumberGuessModal({ challengeData, onResult, compact = false }) {
   const [targetNumber] = useState(() => {
     const min = challengeData?.min ?? 1;
     const max = challengeData?.max ?? 10;
@@ -679,7 +680,7 @@ export function NumberGuessModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal number-guess-modal">
+    <div className={`challenge-modal number-guess-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🔢 Guess the Number!</h3>
       </div>
@@ -727,7 +728,7 @@ export function NumberGuessModal({ challengeData, onResult }) {
 }
 
 // Slot Machine Modal
-export function SlotMachineModal({ challengeData, onResult }) {
+export function SlotMachineModal({ challengeData, onResult, compact = false }) {
   const [reels, setReels] = useState(['?', '?', '?']);
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
@@ -801,7 +802,7 @@ export function SlotMachineModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal slot-machine-modal">
+    <div className={`challenge-modal slot-machine-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎰 Slot Machine!</h3>
       </div>
@@ -833,7 +834,7 @@ export function SlotMachineModal({ challengeData, onResult }) {
 }
 
 // Card Draw Modal
-export function CardDrawModal({ challengeData, onResult }) {
+export function CardDrawModal({ challengeData, onResult, compact = false }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnCard, setDrawnCard] = useState(null);
 
@@ -898,7 +899,7 @@ export function CardDrawModal({ challengeData, onResult }) {
   if (!challengeData) return null;
 
   return (
-    <div className="challenge-modal card-draw-modal">
+    <div className={`challenge-modal card-draw-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🃏 Draw a Card!</h3>
       </div>
@@ -941,28 +942,28 @@ export function CardDrawModal({ challengeData, onResult }) {
 }
 
 // Main Challenge Modal Dispatcher
-export function ChallengeModal({ challengeData, onResult }) {
+export function ChallengeModal({ challengeData, onResult, compact = false }) {
   if (!challengeData) return null;
 
   const { challengeType } = challengeData;
 
   switch (challengeType) {
     case 'prize_wheel':
-      return <PrizeWheelModal challengeData={challengeData} onResult={onResult} />;
+      return <PrizeWheelModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'dice_roll':
-      return <DiceRollModal challengeData={challengeData} onResult={onResult} />;
+      return <DiceRollModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'coin_flip':
-      return <CoinFlipModal challengeData={challengeData} onResult={onResult} />;
+      return <CoinFlipModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'rps':
-      return <RPSModal challengeData={challengeData} onResult={onResult} />;
+      return <RPSModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'timer_challenge':
-      return <TimerChallengeModal challengeData={challengeData} onResult={onResult} />;
+      return <TimerChallengeModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'number_guess':
-      return <NumberGuessModal challengeData={challengeData} onResult={onResult} />;
+      return <NumberGuessModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'slot_machine':
-      return <SlotMachineModal challengeData={challengeData} onResult={onResult} />;
+      return <SlotMachineModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     case 'card_draw':
-      return <CardDrawModal challengeData={challengeData} onResult={onResult} />;
+      return <CardDrawModal challengeData={challengeData} onResult={onResult} compact={compact} />;
     default:
       return <div>Unknown challenge type: {challengeType}</div>;
   }
