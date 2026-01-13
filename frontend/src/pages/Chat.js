@@ -200,7 +200,10 @@ function Chat() {
   useEffect(() => {
     // Don't auto-scroll while panel is blocking (challenge/choice in progress)
     if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
-      scrollToBottom();
+      // Small delay to ensure DOM is updated before scrolling
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
     }
   }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
 
