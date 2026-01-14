@@ -5,6 +5,7 @@ import '../styles/HamburgerMenu.css';
 function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSessionSubmenuOpen, setIsSessionSubmenuOpen] = useState(false);
+  const [isAutomationSubmenuOpen, setIsAutomationSubmenuOpen] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
 
@@ -14,6 +15,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
         setIsSessionSubmenuOpen(false);
+        setIsAutomationSubmenuOpen(false);
       }
     };
 
@@ -27,12 +29,14 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
   useEffect(() => {
     setIsOpen(false);
     setIsSessionSubmenuOpen(false);
+    setIsAutomationSubmenuOpen(false);
   }, [location]);
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
     if (isOpen) {
       setIsSessionSubmenuOpen(false);
+      setIsAutomationSubmenuOpen(false);
     }
   };
 
@@ -61,6 +65,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         onClick={() => {
           setIsOpen(false);
           setIsSessionSubmenuOpen(false);
+          setIsAutomationSubmenuOpen(false);
         }}
       />
 
@@ -124,12 +129,34 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
           Characters
         </NavLink>
 
-        <NavLink
-          to="/flows"
-          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
-        >
-          Flows
-        </NavLink>
+        {/* Automation with expandable submenu */}
+        <div className="automation-section">
+          <div
+            className={`hamburger-menu-item has-submenu ${isAutomationSubmenuOpen ? 'submenu-active' : ''}`}
+            onClick={() => setIsAutomationSubmenuOpen(!isAutomationSubmenuOpen)}
+          >
+            <span className={`submenu-arrow ${isAutomationSubmenuOpen ? 'expanded' : ''}`}>›</span>
+            <span>Automation</span>
+          </div>
+
+          {/* Automation Submenu - expands below */}
+          {isAutomationSubmenuOpen && (
+            <div className="automation-submenu-inline">
+              <NavLink
+                to="/flows"
+                className={({ isActive }) => `automation-submenu-item ${isActive ? 'active' : ''}`}
+              >
+                Flows
+              </NavLink>
+              <NavLink
+                to="/screenplay"
+                className={({ isActive }) => `automation-submenu-item ${isActive ? 'active' : ''}`}
+              >
+                ScreenPlay
+              </NavLink>
+            </div>
+          )}
+        </div>
 
         <NavLink
           to="/settings"

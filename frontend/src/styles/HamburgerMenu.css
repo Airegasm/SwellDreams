@@ -51,14 +51,14 @@
   transform: rotate(-45deg) translate(6px, -6px);
 }
 
-/* Menu Overlay */
+/* Menu Overlay - semi-transparent to see through */
 .hamburger-overlay {
   position: fixed;
   top: 64px;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--overlay-bg);
+  background-color: rgba(0, 0, 0, 0.3);
   z-index: 2998;
   opacity: 0;
   visibility: hidden;
@@ -70,20 +70,21 @@
   visibility: visible;
 }
 
-/* Menu Panel */
+/* Menu Panel - transparent with blur */
 .hamburger-menu-panel {
   position: fixed;
   top: 64px;
   right: 0;
   bottom: 0;
   width: 240px;
-  background-color: #1a1c1f;
-  border-left: 1px solid var(--border-color);
+  background: rgba(20, 22, 25, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 2999;
   transform: translateX(100%);
   transition: transform 0.3s ease;
   overflow-y: auto;
-  opacity: 1 !important;
 }
 
 .hamburger-menu-panel.open {
@@ -146,11 +147,11 @@
 
 /* Session Submenu - inline, expands below */
 .session-submenu-inline {
-  background-color: var(--bg-primary);
+  background-color: rgba(0, 0, 0, 0.2);
   border-top: 1px solid var(--border-color);
 }
 
-/* Submenu items */
+/* Submenu items - shared style for session and automation */
 .session-submenu-item {
   display: block;
   width: 100%;
@@ -164,6 +165,7 @@
   cursor: pointer;
   font-size: var(--font-size-sm);
   font-family: var(--font-family);
+  text-decoration: none;
   transition: background-color var(--transition-fast);
 }
 
@@ -173,6 +175,57 @@
 
 .session-submenu-item:hover {
   background-color: var(--bg-hover);
+}
+
+.session-submenu-item.active {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+/* Automation section container */
+.automation-section {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.automation-section .hamburger-menu-item {
+  border-bottom: none;
+}
+
+/* Automation Submenu - inline, expands below */
+.automation-submenu-inline {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Automation submenu items */
+.automation-submenu-item {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: var(--spacing-xl);
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  text-decoration: none;
+  transition: background-color var(--transition-fast);
+}
+
+.automation-submenu-item:last-child {
+  border-bottom: none;
+}
+
+.automation-submenu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.automation-submenu-item.active {
+  background-color: var(--accent-primary);
+  color: white;
 }
 
 /* Mobile responsive */
