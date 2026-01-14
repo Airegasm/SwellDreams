@@ -124,6 +124,7 @@
   padding: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
   padding-top: calc(64px + 33px); /* Account for column top bar + gap */
   display: flex;
+  z-index: 160; /* Above filmstrips (150) so they appear from behind */
   flex-direction: column;
   gap: var(--spacing-sm);
   overflow: hidden; /* Lock sidebar - no scrolling */
@@ -538,6 +539,44 @@
   font-size: 4rem;
   color: var(--text-muted);
   background-color: var(--bg-input);
+}
+
+/* Portrait visibility toggle */
+.portrait-visibility-toggle {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+  z-index: 210;
+}
+
+.portrait-visibility-toggle:hover {
+  opacity: 0.7;
+}
+
+.portrait-visibility-toggle.hidden {
+  opacity: 0.2;
+}
+
+.portrait-visibility-toggle.hidden:hover {
+  opacity: 0.5;
+}
+
+/* Hidden portrait state - blackout */
+.entity-portrait-large.portrait-hidden > img,
+.entity-portrait-large.portrait-hidden > .portrait-placeholder {
+  filter: brightness(0);
 }
 
 /* Collapsible Sections */
@@ -1185,7 +1224,7 @@
   display: flex;
   flex-direction: column;
   position: relative; /* For emergency stop alert positioning */
-  z-index: 1;
+  z-index: 160; /* Above filmstrips (150) so they appear from behind */
   background-color: var(--bg-primary);
   background-image: url('../assets/chat-bg.png');
   background-size: cover;

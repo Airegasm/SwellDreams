@@ -2,6 +2,37 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [1.5e] - 2026-01-14
+
+### Added
+- **Page Transition Animations** - Smooth slide animations for modal pages:
+  - Personas, Characters, Settings, Help pages slide down from top
+  - ScreenPlay slides down with filmstrip animations
+  - Exit animations play before navigating to next page
+- **ScreenPlay Filmstrips** - Animated film strip overlays:
+  - Slide out from behind center chat area
+  - Cover column toppers/footers (except logo)
+  - Retract behind chat when closing
+- **Animated Dimming Effects** - All dimming now fades smoothly (0.5s):
+  - Hamburger menu overlay
+  - Modal page sidebar dimming
+  - Flow transition dimming
+
+### Changed
+- **Z-Index Hierarchy** - Proper layering for filmstrips and UI elements:
+  - Logo (left-column-top-bar): stays above filmstrips
+  - Chat area: above filmstrips
+  - Filmstrips: above column toppers/footers
+- **Navigation Flow** - Coordinated page transitions:
+  - Current page exits before new page enters
+  - Dimming persists during transitions
+
+### Fixed
+- **Dimming Persistence** - Sidebar dimming no longer disappears instantly when navigating
+- **Filmstrip Direction** - Filmstrips now correctly emerge from behind chat center
+
+---
+
 ## [1.5d] - 2026-01-13
 
 ### Fixed

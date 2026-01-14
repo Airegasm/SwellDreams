@@ -74,7 +74,7 @@ body {
   );
   border-radius: 8px 8px 0 0;
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.1);
-  z-index: 100;
+  z-index: 200; /* Above filmstrips (150) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -108,8 +108,9 @@ body {
   z-index: 100;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0 var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 /* Hide the old nav-bar */
@@ -231,7 +232,7 @@ body {
   box-shadow:
     inset 0 -2px 0 rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(0, 0, 0, 0.4);
-  z-index: 9998;
+  z-index: 100; /* Below filmstrips (150) */
   pointer-events: none;
 }
 
@@ -277,7 +278,7 @@ body {
   box-shadow:
     inset 0 -2px 0 rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(0, 0, 0, 0.4);
-  z-index: 9998;
+  z-index: 100; /* Below filmstrips (150) */
   pointer-events: none;
 }
 
@@ -1379,44 +1380,15 @@ input[type="range"]::-webkit-slider-thumb {
   left: 240px; /* After left sidebar */
   right: 240px; /* Before right sidebar */
   bottom: 0;
-  background-color: var(--bg-secondary);
-  border-left: 2px solid var(--border-color);
-  border-right: 2px solid var(--border-color);
+  background-color: transparent;
+  border: none;
   z-index: 100;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Sidebar dimming overlays */
-.center-modal-overlay::before {
-  content: '';
-  position: fixed;
-  top: 64px;
-  left: 0;
-  width: 240px;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 99;
-  pointer-events: none;
-}
-
-.center-modal-overlay::after {
-  content: '';
-  position: fixed;
-  top: 64px;
-  right: 0;
-  width: 240px;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 99;
-  pointer-events: none;
-}
-
-/* Hide right dimming when hamburger menu is open */
-.app:has(.hamburger-menu-panel.open) .center-modal-overlay::after {
-  display: none;
-}
+/* Sidebar dimming is now handled by modal-sidebar-dimming in each page */
 
 .center-modal-overlay .page {
   background-color: var(--bg-secondary);
@@ -1464,3 +1436,66 @@ input[type="range"]::-webkit-slider-thumb {
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--bg-secondary);
 }
+
+/* Modal slide-down animation */
+.modal-slide-down {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-slide-down.entering {
+  transform: translateY(-100%);
+}
+
+.modal-slide-down.entered {
+  transform: translateY(0);
+}
+
+.modal-slide-down.exiting {
+  transform: translateY(-100%);
+}
+
+/* Modal sidebar dimming - animates with page */
+.modal-sidebar-dimming {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  pointer-events: none;
+}
+
+.modal-dim-left,
+.modal-dim-right {
+  position: fixed;
+  top: 64px;
+  bottom: 0;
+  width: 240px;
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: opacity 0.5s ease;
+}
+
+.modal-dim-left {
+  left: 0;
+}
+
+.modal-dim-right {
+  right: 0;
+}
+
+/* Dimming states */
+.modal-sidebar-dimming.entering .modal-dim-left,
+.modal-sidebar-dimming.entering .modal-dim-right {
+  opacity: 0;
+}
+
+.modal-sidebar-dimming.entered .modal-dim-left,
+.modal-sidebar-dimming.entered .modal-dim-right {
+  opacity: 1;
+}
+
+.modal-sidebar-dimming.exiting .modal-dim-left,
+.modal-sidebar-dimming.exiting .modal-dim-right {
+  opacity: 0;
+}
+

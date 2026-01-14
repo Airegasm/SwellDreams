@@ -31,6 +31,14 @@ function Chat() {
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileSessionModal, setShowMobileSessionModal] = useState(false);
+
+  // Portrait visibility state (persisted to localStorage)
+  const [personaHidden, setPersonaHidden] = useState(() => {
+    return localStorage.getItem('swelldreams_persona_hidden') === 'true';
+  });
+  const [characterHidden, setCharacterHidden] = useState(() => {
+    return localStorage.getItem('swelldreams_character_hidden') === 'true';
+  });
   const closeDrawers = () => { setLeftDrawerOpen(false); setRightDrawerOpen(false); };
   const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
@@ -85,6 +93,23 @@ function Chat() {
 
   // Flow in progress - disable action buttons and guided buttons while flow is executing
   const flowInProgress = flowExecutions && flowExecutions.length > 0;
+
+  // Portrait visibility toggles (persist to localStorage)
+  const togglePersonaHidden = () => {
+    setPersonaHidden(prev => {
+      const newValue = !prev;
+      localStorage.setItem('swelldreams_persona_hidden', String(newValue));
+      return newValue;
+    });
+  };
+
+  const toggleCharacterHidden = () => {
+    setCharacterHidden(prev => {
+      const newValue = !prev;
+      localStorage.setItem('swelldreams_character_hidden', String(newValue));
+      return newValue;
+    });
+  };
 
   // Variable substitution context
   const subContext = useMemo(() => ({
@@ -760,12 +785,20 @@ function Chat() {
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
-        <div className="entity-portrait-large">
+        <div className={`entity-portrait-large ${personaHidden ? 'portrait-hidden' : ''}`}>
           {activePersona?.avatar ? (
             <img src={activePersona.avatar} alt={activePersona.displayName} />
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
+          {/* Visibility toggle */}
+          <button
+            className={`portrait-visibility-toggle ${personaHidden ? 'hidden' : ''}`}
+            onClick={togglePersonaHidden}
+            title={personaHidden ? 'Show portrait' : 'Hide portrait'}
+          >
+            {personaHidden ? '👁' : '👁'}
+          </button>
           {/* Status Badges overlaid on portrait */}
           <StatusBadges
             selectedEmotion={sessionState.emotion || 'neutral'}
@@ -1066,12 +1099,20 @@ function Chat() {
       {/* Right Sidebar - Character */}
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Character Portrait */}
-        <div className="entity-portrait-large">
+        <div className={`entity-portrait-large ${characterHidden ? 'portrait-hidden' : ''}`}>
           {activeCharacter?.avatar ? (
             <img src={activeCharacter.avatar} alt={activeCharacter.name} />
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
+          {/* Visibility toggle */}
+          <button
+            className={`portrait-visibility-toggle ${characterHidden ? 'hidden' : ''}`}
+            onClick={toggleCharacterHidden}
+            title={characterHidden ? 'Show portrait' : 'Hide portrait'}
+          >
+            {characterHidden ? '👁' : '👁'}
+          </button>
           {/* Frame overlay to match persona portrait */}
           <div className="status-badges-overlay">
             <div className="metallic-frame">

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ReactFlow,
   Controls,
@@ -215,6 +216,40 @@ const getId = () => `node_${nodeId++}`;
 
 function FlowEditor() {
   const { flows, api, devices, settings, characters, sendWsMessage } = useApp();
+  const navigate = useNavigate();
+
+  // Slide animation state
+  const [animationState, setAnimationState] = useState('entering');
+
+  // Trigger enter animation after mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimationState('entered');
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle close with exit animation
+  const handleClose = useCallback(() => {
+    setAnimationState('exiting');
+    setTimeout(() => {
+      navigate('/');
+    }, 400);
+  }, [navigate]);
+
+  // Expose exit animation for external navigation
+  useEffect(() => {
+    const handleExitFlows = (e) => {
+      e.preventDefault();
+      const targetPath = e.detail?.path || '/';
+      setAnimationState('exiting');
+      setTimeout(() => {
+        navigate(targetPath);
+      }, 400);
+    };
+    window.addEventListener('exit-flows', handleExitFlows);
+    return () => window.removeEventListener('exit-flows', handleExitFlows);
+  }, [navigate]);
 
   // Get reminders and buttons for flow nodes
   const globalReminders = settings?.globalReminders || [];
@@ -1004,8 +1039,11 @@ function FlowEditor() {
 
   return (
     <>
-      {/* Flow Editor Header Center - Outside flow-editor-page for independent z-index */}
-      <div className="flow-header-center">
+      {/* Transition dimming - visible during enter, fades out */}
+      <div className={`flow-transition-dimming ${animationState}`} />
+
+      {/* Flow Editor Header - full width, slides with page */}
+      <div className={`flow-header-center slide-horizontal ${animationState}`}>
         <div className="flow-header-toolbar">
           {hasDraft && (
             <span className="draft-indicator" title="Unsaved changes restored from previous session">
@@ -1077,7 +1115,7 @@ function FlowEditor() {
         </div>
       </div>
 
-      <div className="flow-editor-page">
+      <div className={`flow-editor-page slide-horizontal ${animationState}`}>
         {/* Sidebar - Node Palette */}
       <div className="flow-sidebar">
         <div className="sidebar-section">

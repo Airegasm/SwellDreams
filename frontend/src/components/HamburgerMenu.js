@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/HamburgerMenu.css';
 
 function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
@@ -8,6 +8,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
   const [isAutomationSubmenuOpen, setIsAutomationSubmenuOpen] = useState(false);
   const menuRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -44,6 +45,46 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
     action();
     setIsOpen(false);
     setIsSessionSubmenuOpen(false);
+  };
+
+  // Modal pages that need exit animation before navigation
+  const MODAL_PAGES = ['/personas', '/characters', '/settings', '/screenplay', '/help'];
+
+  // Check if current page is a modal page
+  const isOnModalPage = () => {
+    return MODAL_PAGES.some(page => location.pathname.startsWith(page));
+  };
+
+  // Handle navigation with proper exit animations
+  const navigateWithAnimation = (targetPath) => {
+    setIsOpen(false);
+    setIsSessionSubmenuOpen(false);
+    setIsAutomationSubmenuOpen(false);
+
+    if (location.pathname === '/flows') {
+      // Dispatch exit event for FlowEditor to animate out
+      window.dispatchEvent(new CustomEvent('exit-flows', { detail: { path: targetPath } }));
+    } else if (isOnModalPage()) {
+      // Dispatch exit event for modal pages to animate out
+      window.dispatchEvent(new CustomEvent('exit-modal', { detail: { path: targetPath } }));
+    } else {
+      navigate(targetPath);
+    }
+  };
+
+  // Handle ScreenPlay navigation
+  const handleScreenPlayClick = (e) => {
+    e.preventDefault();
+    navigateWithAnimation('/screenplay');
+  };
+
+  // Handle generic nav click that needs exit animation
+  const handleNavClick = (e, targetPath) => {
+    if (location.pathname === '/flows' || isOnModalPage()) {
+      e.preventDefault();
+      navigateWithAnimation(targetPath);
+    }
+    // Otherwise let NavLink handle it normally
   };
 
   return (
@@ -110,6 +151,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         <NavLink
           to="/"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/')}
           end
         >
           Chat
@@ -118,6 +160,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         <NavLink
           to="/personas"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/personas')}
         >
           Personas
         </NavLink>
@@ -125,6 +168,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         <NavLink
           to="/characters"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/characters')}
         >
           Characters
         </NavLink>
@@ -145,15 +189,16 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
               <NavLink
                 to="/flows"
                 className={({ isActive }) => `automation-submenu-item ${isActive ? 'active' : ''}`}
+                onClick={(e) => handleNavClick(e, '/flows')}
               >
                 Flows
               </NavLink>
-              <NavLink
-                to="/screenplay"
-                className={({ isActive }) => `automation-submenu-item ${isActive ? 'active' : ''}`}
+              <button
+                className={`automation-submenu-item ${location.pathname === '/screenplay' ? 'active' : ''}`}
+                onClick={handleScreenPlayClick}
               >
                 ScreenPlay
-              </NavLink>
+              </button>
             </div>
           )}
         </div>
@@ -161,6 +206,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         <NavLink
           to="/settings"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/settings')}
         >
           Settings
         </NavLink>
@@ -168,6 +214,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         <NavLink
           to="/help"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/help')}
         >
           Help
         </NavLink>

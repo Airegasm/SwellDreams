@@ -1,23 +1,95 @@
-.screenplay-page {
+/* Film strip overlay container - above column elements except upper-left logo */
+.filmstrip-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 150;
+  pointer-events: none;
+}
+
+/* Film strip panels - sized to cover column areas */
+.filmstripleft,
+.filmstripright {
+  position: fixed;
+  top: 70px;
+  bottom: 6px;
+  width: 231px;
+  overflow: hidden;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filmstripleft {
+  left: 6px;
+}
+
+.filmstripright {
+  right: 6px;
+}
+
+.filmstripleft img,
+.filmstripright img {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  padding: 0 !important;
+  object-fit: cover;
 }
 
-.screenplay-page .page-header {
-  margin-bottom: 0;
+.filmstripright img {
+  transform: scaleX(-1);
 }
 
+/* Entering state - filmstrips start at center */
+.filmstrip-overlay.entering .filmstripleft {
+  transform: translateX(231px);
+}
+
+.filmstrip-overlay.entering .filmstripright {
+  transform: translateX(-231px);
+}
+
+/* Entered state - filmstrips at edges, covering column areas */
+.filmstrip-overlay.entered .filmstripleft {
+  transform: translateX(0);
+}
+
+.filmstrip-overlay.entered .filmstripright {
+  transform: translateX(0);
+}
+
+/* Exiting state - filmstrips retract to center */
+.filmstrip-overlay.exiting .filmstripleft {
+  transform: translateX(231px);
+}
+
+.filmstrip-overlay.exiting .filmstripright {
+  transform: translateX(-231px);
+}
+
+/* ScreenPlay page - slide down animation */
+.screenplay-page.slide-down {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.screenplay-page.slide-down.entering {
+  transform: translateY(-100%);
+}
+
+.screenplay-page.slide-down.entered {
+  transform: translateY(0);
+}
+
+.screenplay-page.slide-down.exiting {
+  transform: translateY(-100%);
+}
+
+/* ScreenPlay content area */
 .screenplay-content {
-  background-color: var(--bg-secondary);
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-lg);
-  scrollbar-gutter: stable;
+  background-color: var(--bg-secondary);
 }
 
 .screenplay-placeholder {
@@ -29,22 +101,10 @@
   font-size: var(--font-size-lg);
 }
 
-/* Rounded scrollbar */
-.screenplay-content::-webkit-scrollbar {
-  width: 12px;
-}
-
-.screenplay-content::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: var(--border-radius);
-}
-
-.screenplay-content::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: var(--border-radius);
-  border: 2px solid var(--bg-secondary);
-}
-
-.screenplay-content::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .filmstripleft,
+  .filmstripright {
+    display: none;
+  }
 }

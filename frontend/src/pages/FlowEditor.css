@@ -1,28 +1,63 @@
 .flow-editor-page {
   position: fixed;
-  top: 65px; /* 64px nav + 1px border */
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 5; /* Below nav-bar elements so hamburger menu stays accessible */
+  z-index: 500; /* Above column top bars (100), below hamburger (10000) */
   background: var(--bg-primary);
   display: flex;
   overflow: hidden;
+  padding-top: 64px; /* Space for flow header */
 }
 
-/* Flow Header Center - positioned in the middle of the nav bar */
+/* Slide animation for flow editor */
+.flow-editor-page.slide-horizontal {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flow-editor-page.slide-horizontal.entering {
+  transform: translateX(-100%);
+}
+
+.flow-editor-page.slide-horizontal.entered {
+  transform: translateX(0);
+}
+
+.flow-editor-page.slide-horizontal.exiting {
+  transform: translateX(100%);
+}
+
+/* Flow Header - full width, covers column toppers */
 .flow-header-center {
   position: fixed;
   top: 0;
-  left: 240px; /* After left nav section (239px + 1px border) */
-  right: 240px; /* Before right nav section (239px + 1px border) */
-  height: 64.5px;
+  left: 0;
+  right: 0;
+  height: 64px;
   background: linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 25; /* Above nav-bar (20) but constrained to center area */
+  z-index: 501; /* Above flow-editor-page (500), below hamburger (10000) */
   border-bottom: 1px solid var(--border-color);
+}
+
+/* Slide animation for flow header too */
+.flow-header-center.slide-horizontal {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.flow-header-center.slide-horizontal.entering {
+  transform: translateX(-100%);
+}
+
+.flow-header-center.slide-horizontal.entered {
+  transform: translateX(0);
+}
+
+.flow-header-center.slide-horizontal.exiting {
+  transform: translateX(100%);
 }
 
 .flow-header-toolbar {
@@ -410,22 +445,29 @@
   text-align: center;
 }
 
-/* Hide corner elements on Flows page (keep left-column-top-bar for logo) */
-.flows-page .left-column-bottom-bar,
-.flows-page .right-column-bottom-bar {
-  display: none !important;
+/* Transition dimming - covers sidebars during enter transition */
+.flow-transition-dimming {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
 }
 
-/* Hide LLM status badge and E-STOP but keep hamburger menu */
-.flows-page .right-column-top-bar .nav-badges,
-.flows-page .right-column-top-bar .estop-btn {
-  display: none !important;
+.flow-transition-dimming.entering {
+  opacity: 1;
 }
 
-/* Style right column top bar to match flow header blue */
-.flows-page .right-column-top-bar {
-  background: linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%) !important;
-  justify-content: flex-end;
+.flow-transition-dimming.entered {
+  opacity: 0;
+}
+
+.flow-transition-dimming.exiting {
+  opacity: 0;
 }
 
 /* Test Results Modal */

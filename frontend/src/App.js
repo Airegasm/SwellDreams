@@ -303,12 +303,14 @@ function App() {
         >
           {stopping ? '...' : estopState.text}
         </button>
-        <HamburgerMenu
-          onNewSession={handleNewSession}
-          onSaveSession={() => setShowSaveModal(true)}
-          onLoadSession={handleOpenLoadModal}
-        />
       </div>
+
+      {/* Hamburger menu floats independently on top of everything */}
+      <HamburgerMenu
+        onNewSession={handleNewSession}
+        onSaveSession={() => setShowSaveModal(true)}
+        onLoadSession={handleOpenLoadModal}
+      />
 
       {/* Bottom metallic frame border */}
       <div className="bottom-frame-border"></div>
