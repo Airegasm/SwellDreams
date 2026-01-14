@@ -1,20 +1,16 @@
 import React from 'react';
 import './SlidePanel.css';
 import PlayerChoiceModal from '../modals/PlayerChoiceModal';
-import { ChallengeModal } from '../modals/ChallengeModals';
 import { substituteVariables } from '../../utils/variableSubstitution';
 
 function SlidePanel({
   playerChoiceData,
   simpleABData,
-  challengeData,
   onPlayerChoice,
   onSimpleAB,
-  onChallengeResult,
-  onChallengeCancel,
   subContext
 }) {
-  const isOpen = !!(playerChoiceData || simpleABData || challengeData);
+  const isOpen = !!(playerChoiceData || simpleABData);
 
   const renderContent = () => {
     if (playerChoiceData) {
@@ -60,17 +56,6 @@ function SlidePanel({
             </div>
           </div>
         </div>
-      );
-    }
-
-    if (challengeData) {
-      return (
-        <ChallengeModal
-          challengeData={challengeData}
-          onResult={onChallengeResult}
-          onCancel={onChallengeCancel}
-          compact={true}
-        />
       );
     }
 

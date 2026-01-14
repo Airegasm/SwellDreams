@@ -1101,6 +1101,483 @@ function CardDrawNode({ data, selected }) {
   );
 }
 
+// Simon Challenge Node
+function SimonChallengeNode({ data, selected }) {
+  const [startingLength, setStartingLength] = useState(data.startingLength ?? 3);
+  const [maxLength, setMaxLength] = useState(data.maxLength ?? 8);
+  const [maxMisses, setMaxMisses] = useState(data.maxMisses ?? 3);
+  const [penaltyDevice, setPenaltyDevice] = useState(data.penaltyDevice || '');
+  const [penaltyDuration, setPenaltyDuration] = useState(data.penaltyDuration ?? 3);
+  const [grandPenaltyDevice, setGrandPenaltyDevice] = useState(data.grandPenaltyDevice || '');
+  const [grandPenaltyDuration, setGrandPenaltyDuration] = useState(data.grandPenaltyDuration ?? 10);
+  const [rewardDevice, setRewardDevice] = useState(data.rewardDevice || '');
+  const [rewardDuration, setRewardDuration] = useState(data.rewardDuration ?? 5);
+
+  const devices = data.devices || [];
+
+  const handleStartingLengthChange = (value) => {
+    const val = Math.max(2, Math.min(6, parseInt(value) || 3));
+    setStartingLength(val);
+    data.onChange?.('startingLength', val);
+  };
+
+  const handleMaxLengthChange = (value) => {
+    const val = Math.max(4, Math.min(12, parseInt(value) || 8));
+    setMaxLength(val);
+    data.onChange?.('maxLength', val);
+  };
+
+  const handleMaxMissesChange = (value) => {
+    const val = Math.max(1, Math.min(10, parseInt(value) || 3));
+    setMaxMisses(val);
+    data.onChange?.('maxMisses', val);
+  };
+
+  const handlePenaltyDeviceChange = (value) => {
+    setPenaltyDevice(value);
+    data.onChange?.('penaltyDevice', value);
+  };
+
+  const handlePenaltyDurationChange = (value) => {
+    const val = Math.max(1, Math.min(60, parseInt(value) || 3));
+    setPenaltyDuration(val);
+    data.onChange?.('penaltyDuration', val);
+  };
+
+  const handleGrandPenaltyDeviceChange = (value) => {
+    setGrandPenaltyDevice(value);
+    data.onChange?.('grandPenaltyDevice', value);
+  };
+
+  const handleGrandPenaltyDurationChange = (value) => {
+    const val = Math.max(1, Math.min(120, parseInt(value) || 10));
+    setGrandPenaltyDuration(val);
+    data.onChange?.('grandPenaltyDuration', val);
+  };
+
+  const handleRewardDeviceChange = (value) => {
+    setRewardDevice(value);
+    data.onChange?.('rewardDevice', value);
+  };
+
+  const handleRewardDurationChange = (value) => {
+    const val = Math.max(1, Math.min(60, parseInt(value) || 5));
+    setRewardDuration(val);
+    data.onChange?.('rewardDuration', val);
+  };
+
+  return (
+    <div className={`custom-node challenge-node simon-challenge-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} />
+      <div className="node-header">
+        <span className="node-icon">🎵</span>
+        <input
+          type="text"
+          className="node-title-input"
+          value={data.label || ''}
+          onChange={(e) => data.onChange?.('label', e.target.value)}
+          placeholder="Simon Challenge"
+        />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
+      </div>
+      <div className="node-body">
+        <div className="node-config">
+          <div className="config-section-label">Sequence Settings</div>
+          <div className="config-row">
+            <label>Start Length:</label>
+            <input
+              type="number"
+              value={startingLength}
+              onChange={(e) => handleStartingLengthChange(e.target.value)}
+              className="node-input tiny"
+              min="2"
+              max="6"
+            />
+          </div>
+          <div className="config-row">
+            <label>Max Length:</label>
+            <input
+              type="number"
+              value={maxLength}
+              onChange={(e) => handleMaxLengthChange(e.target.value)}
+              className="node-input tiny"
+              min="4"
+              max="12"
+            />
+          </div>
+
+          <div className="config-section-label">Per-Miss Penalty</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={penaltyDevice}
+              onChange={(e) => handlePenaltyDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={penaltyDuration}
+              onChange={(e) => handlePenaltyDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="60"
+            />
+            <span>sec</span>
+          </div>
+          <div className="config-row">
+            <label>Max Misses:</label>
+            <input
+              type="number"
+              value={maxMisses}
+              onChange={(e) => handleMaxMissesChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="10"
+            />
+          </div>
+
+          <div className="config-section-label">Grand Penalty (Lose)</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={grandPenaltyDevice}
+              onChange={(e) => handleGrandPenaltyDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={grandPenaltyDuration}
+              onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="120"
+            />
+            <span>sec</span>
+          </div>
+
+          <div className="config-section-label">Reward (Win)</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={rewardDevice}
+              onChange={(e) => handleRewardDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={rewardDuration}
+              onChange={(e) => handleRewardDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="60"
+            />
+            <span>sec</span>
+          </div>
+        </div>
+        <AIMessageFields data={data} />
+      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="win"
+        style={{ left: '33%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="lose"
+        style={{ left: '67%' }}
+      />
+      <div className="handle-labels simon-labels">
+        <span className="handle-label" style={{ left: '33%', color: '#22c55e' }}>
+          Win
+        </span>
+        <span className="handle-label" style={{ left: '67%', color: '#ef4444' }}>
+          Lose
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Reflex Challenge Node
+function ReflexChallengeNode({ data, selected }) {
+  const [timePerTarget, setTimePerTarget] = useState(data.timePerTarget ?? 3);
+  const [rounds, setRounds] = useState(data.rounds ?? 5);
+  const [targetSize, setTargetSize] = useState(data.targetSize || 'small');
+  const [penaltyDevice, setPenaltyDevice] = useState(data.penaltyDevice || '');
+  const [penaltyDuration, setPenaltyDuration] = useState(data.penaltyDuration ?? 3);
+  const [grandPenaltyDevice, setGrandPenaltyDevice] = useState(data.grandPenaltyDevice || '');
+  const [grandPenaltyDuration, setGrandPenaltyDuration] = useState(data.grandPenaltyDuration ?? 10);
+  const [rewardDevice, setRewardDevice] = useState(data.rewardDevice || '');
+  const [rewardDuration, setRewardDuration] = useState(data.rewardDuration ?? 5);
+
+  const devices = data.devices || [];
+
+  const handleTimePerTargetChange = (value) => {
+    const val = Math.max(1, Math.min(10, parseFloat(value) || 3));
+    setTimePerTarget(val);
+    data.onChange?.('timePerTarget', val);
+  };
+
+  const handleRoundsChange = (value) => {
+    const val = parseInt(value) || 5;
+    setRounds(val);
+    data.onChange?.('rounds', val);
+  };
+
+  const handleTargetSizeChange = (value) => {
+    setTargetSize(value);
+    data.onChange?.('targetSize', value);
+  };
+
+  const handlePenaltyDeviceChange = (value) => {
+    setPenaltyDevice(value);
+    data.onChange?.('penaltyDevice', value);
+  };
+
+  const handlePenaltyDurationChange = (value) => {
+    const val = Math.max(1, Math.min(60, parseInt(value) || 3));
+    setPenaltyDuration(val);
+    data.onChange?.('penaltyDuration', val);
+  };
+
+  const handleGrandPenaltyDeviceChange = (value) => {
+    setGrandPenaltyDevice(value);
+    data.onChange?.('grandPenaltyDevice', value);
+  };
+
+  const handleGrandPenaltyDurationChange = (value) => {
+    const val = Math.max(1, Math.min(120, parseInt(value) || 10));
+    setGrandPenaltyDuration(val);
+    data.onChange?.('grandPenaltyDuration', val);
+  };
+
+  const handleRewardDeviceChange = (value) => {
+    setRewardDevice(value);
+    data.onChange?.('rewardDevice', value);
+  };
+
+  const handleRewardDurationChange = (value) => {
+    const val = Math.max(1, Math.min(60, parseInt(value) || 5));
+    setRewardDuration(val);
+    data.onChange?.('rewardDuration', val);
+  };
+
+  return (
+    <div className={`custom-node challenge-node reflex-challenge-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Top} />
+      <div className="node-header">
+        <span className="node-icon">🎯</span>
+        <input
+          type="text"
+          className="node-title-input"
+          value={data.label || ''}
+          onChange={(e) => data.onChange?.('label', e.target.value)}
+          placeholder="Reflex Challenge"
+        />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
+      </div>
+      <div className="node-body">
+        <div className="node-config">
+          <div className="config-section-label">Game Settings</div>
+          <div className="config-row">
+            <label>Time/Target:</label>
+            <input
+              type="number"
+              value={timePerTarget}
+              onChange={(e) => handleTimePerTargetChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="10"
+              step="0.5"
+            />
+            <span>sec</span>
+          </div>
+          <div className="config-row">
+            <label>Rounds:</label>
+            <select
+              value={rounds}
+              onChange={(e) => handleRoundsChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="3">3 rounds</option>
+              <option value="5">5 rounds</option>
+              <option value="7">7 rounds</option>
+              <option value="10">10 rounds</option>
+              <option value="15">15 rounds</option>
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Target Size:</label>
+            <select
+              value={targetSize}
+              onChange={(e) => handleTargetSizeChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="large">Large (60px)</option>
+              <option value="medium">Medium (45px)</option>
+              <option value="small">Small (32px)</option>
+              <option value="tiny">Tiny (24px)</option>
+              <option value="minuscule">Minuscule (16px)</option>
+            </select>
+          </div>
+
+          <div className="config-section-label">Per-Miss Penalty</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={penaltyDevice}
+              onChange={(e) => handlePenaltyDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={penaltyDuration}
+              onChange={(e) => handlePenaltyDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="60"
+            />
+            <span>sec</span>
+          </div>
+
+          <div className="config-section-label">Grand Penalty (Lose)</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={grandPenaltyDevice}
+              onChange={(e) => handleGrandPenaltyDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={grandPenaltyDuration}
+              onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="120"
+            />
+            <span>sec</span>
+          </div>
+
+          <div className="config-section-label">Reward (Win)</div>
+          <div className="config-row">
+            <label>Device:</label>
+            <select
+              value={rewardDevice}
+              onChange={(e) => handleRewardDeviceChange(e.target.value)}
+              className="node-select"
+            >
+              <option value="">None</option>
+              {devices.map(d => (
+                <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                  {d.name || d.alias || d.ip}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="config-row">
+            <label>Duration:</label>
+            <input
+              type="number"
+              value={rewardDuration}
+              onChange={(e) => handleRewardDurationChange(e.target.value)}
+              className="node-input tiny"
+              min="1"
+              max="60"
+            />
+            <span>sec</span>
+          </div>
+        </div>
+        <AIMessageFields data={data} />
+      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="win"
+        style={{ left: '33%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="lose"
+        style={{ left: '67%' }}
+      />
+      <div className="handle-labels reflex-labels">
+        <span className="handle-label" style={{ left: '33%', color: '#22c55e' }}>
+          Win
+        </span>
+        <span className="handle-label" style={{ left: '67%', color: '#ef4444' }}>
+          Lose
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export const PrizeWheelNodeMemo = memo(PrizeWheelNode);
 export const DiceRollNodeMemo = memo(DiceRollNode);
 export const CoinFlipNodeMemo = memo(CoinFlipNode);
@@ -1109,6 +1586,8 @@ export const TimerChallengeNodeMemo = memo(TimerChallengeNode);
 export const NumberGuessNodeMemo = memo(NumberGuessNode);
 export const SlotMachineNodeMemo = memo(SlotMachineNode);
 export const CardDrawNodeMemo = memo(CardDrawNode);
+export const SimonChallengeNodeMemo = memo(SimonChallengeNode);
+export const ReflexChallengeNodeMemo = memo(ReflexChallengeNode);
 
 export {
   PrizeWheelNode,
@@ -1118,5 +1597,7 @@ export {
   TimerChallengeNode,
   NumberGuessNode,
   SlotMachineNode,
-  CardDrawNode
+  CardDrawNode,
+  SimonChallengeNode,
+  ReflexChallengeNode
 };

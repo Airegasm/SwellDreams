@@ -385,3 +385,64 @@
   color: var(--text-muted);
   font-size: 9px;
 }
+
+/* Simon Challenge Node */
+.simon-challenge-node {
+  border-color: #8b5cf6;
+  min-width: 280px;
+}
+
+.simon-challenge-node .node-header {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.simon-challenge-node .react-flow__handle {
+  border-color: #8b5cf6;
+}
+
+.simon-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Reflex Challenge Node */
+.reflex-challenge-node {
+  border-color: #f97316;
+  min-width: 280px;
+}
+
+.reflex-challenge-node .node-header {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.reflex-challenge-node .react-flow__handle {
+  border-color: #f97316;
+}
+
+.reflex-labels .handle-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-weight: 600;
+}
+
+/* Config section labels for Simon/Reflex nodes */
+.config-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 8px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.config-section-label:first-child {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+}

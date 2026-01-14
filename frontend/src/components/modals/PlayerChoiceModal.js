@@ -5,6 +5,7 @@ function PlayerChoiceModal({ choiceData, onChoice, subContext, compact = false }
   if (!choiceData) return null;
 
   const { description, choices } = choiceData;
+  const limitedChoices = choices.slice(0, 4); // Max 4 choices
 
   return (
     <div className={`player-choice-panel ${compact ? 'compact' : ''}`}>
@@ -16,7 +17,7 @@ function PlayerChoiceModal({ choiceData, onChoice, subContext, compact = false }
           <p className="choice-description">{substituteVariables(description, subContext)}</p>
         )}
         <div className="choice-buttons">
-          {choices.map((choice) => (
+          {limitedChoices.map((choice) => (
             <button
               key={choice.id}
               className="btn btn-choice"

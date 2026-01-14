@@ -1204,7 +1204,7 @@ class EventEngine {
    */
   countFlowSteps(flow, startNodeId) {
     const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
-      'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw'];
+      'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
     const visited = new Set();
     let count = 0;
 
@@ -1447,7 +1447,7 @@ class EventEngine {
       execution.currentNodeLabel = node.data.label;
       // Only broadcast updates for significant nodes (not every tiny step)
       const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
-        'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw'];
+        'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
       if (significantTypes.includes(node.type)) {
         // Track executed nodes to prevent duplicate progress toasts
         if (!execution.executedNodes) execution.executedNodes = new Set();
@@ -1698,7 +1698,9 @@ class EventEngine {
         'timer_challenge': 'Timer Challenge',
         'number_guess': 'Number Guess',
         'slot_machine': 'Slot Machine',
-        'card_draw': 'Card Draw'
+        'card_draw': 'Card Draw',
+        'simon_challenge': 'Simon Says',
+        'reflex_challenge': 'Reflex Challenge'
       };
 
       this.sessionState.lastChallengeResult = {
@@ -1802,6 +1804,53 @@ class EventEngine {
 
     console.log(`[EventEngine] Challenge cancelled for node ${nodeId} - flow will not continue from this branch`);
     this.pendingChallenge = null;
+  }
+
+  /**
+   * Execute a mid-game penalty/reward device action
+   * Does NOT affect flow execution or pending challenge state
+   * @param {string} deviceId - Device alias, name, or IP
+   * @param {number} duration - Duration in seconds (0 = stay on indefinitely)
+   * @param {string} actionType - 'penalty' or 'reward' (for logging)
+   */
+  async executePenaltyAction(deviceId, duration, actionType = 'penalty') {
+    if (!deviceId) {
+      console.log(`[EventEngine] No device specified for ${actionType}`);
+      return false;
+    }
+
+    const deviceObj = resolveDeviceObject(deviceId);
+    const resolvedDevice = deviceObj
+      ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+      : null;
+
+    if (!deviceObj || !resolvedDevice) {
+      console.log(`[EventEngine] ${actionType} device "${deviceId}" not found`);
+      return false;
+    }
+
+    console.log(`[EventEngine] Executing ${actionType}: ${deviceObj.name || deviceId} for ${duration}s`);
+
+    try {
+      await this.deviceService.turnOn(resolvedDevice, deviceObj);
+
+      // Schedule auto-off after duration
+      if (duration > 0) {
+        setTimeout(async () => {
+          try {
+            await this.deviceService.turnOff(resolvedDevice, deviceObj);
+            console.log(`[EventEngine] ${actionType} device ${deviceObj.name || deviceId} turned off after ${duration}s`);
+          } catch (e) {
+            console.error(`[EventEngine] Failed to turn off ${actionType} device:`, e.message);
+          }
+        }, duration * 1000);
+      }
+
+      return true;
+    } catch (e) {
+      console.error(`[EventEngine] Failed to execute ${actionType}:`, e.message);
+      return false;
+    }
   }
 
   /**

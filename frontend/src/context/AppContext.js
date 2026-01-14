@@ -452,6 +452,17 @@ export function AppProvider({ children }) {
     setChallengeData(null);
   }, [challengeData, sendWsMessage]);
 
+  // Handle mid-game penalty/reward trigger - sends device action without ending challenge
+  const handleChallengePenalty = useCallback((deviceId, duration, actionType) => {
+    if (!deviceId) return;
+
+    sendWsMessage('challenge_penalty', {
+      deviceId,
+      duration,
+      actionType
+    });
+  }, [sendWsMessage]);
+
   // API calls - all using apiFetch with proper error handling and timeouts
   // Wrapped in useMemo to maintain stable reference and prevent useEffect loops
   const api = useMemo(() => ({
@@ -887,6 +898,7 @@ export function AppProvider({ children }) {
     challengeData,
     handleChallengeResult,
     handleChallengeCancel,
+    handleChallengePenalty,
 
     // Infinite Cycles
     infiniteCycles,

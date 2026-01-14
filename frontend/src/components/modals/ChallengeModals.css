@@ -74,12 +74,42 @@
 }
 
 /* Prize Wheel Modal */
+.prize-wheel-modal .challenge-modal-body {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 24px;
+}
+
+.prize-wheel-modal .challenge-modal-footer {
+  flex-direction: column;
+  padding: 0;
+  border-top: none;
+  gap: 8px;
+}
+
 .wheel-container {
   position: relative;
+  flex-shrink: 0;
 }
 
 .wheel-container canvas {
   display: block;
+}
+
+/* Wheel side panel (result + button) */
+.wheel-side-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-width: 120px;
+}
+
+.wheel-side-panel .btn-large {
+  min-width: 140px;
 }
 
 /* Dice Roll Modal */
@@ -820,4 +850,219 @@
 
 .challenge-modal.compact .tarot-name {
   font-size: 0.75rem;
+}
+
+/* ========================================
+   SIMON CHALLENGE MODAL
+   ======================================== */
+
+.simon-challenge-modal .challenge-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.simon-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+}
+
+.simon-stats .miss-counter {
+  color: #ef4444;
+}
+
+.simon-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 200px;
+  height: 200px;
+  padding: 8px;
+  border-radius: 50%;
+  background: #1e293b;
+  margin: 0 auto;
+}
+
+.simon-board.wrong {
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.simon-button {
+  border: none;
+  cursor: pointer;
+  transition: all 0.1s;
+  box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.simon-button:first-child { border-radius: 100% 0 0 0; }
+.simon-button:nth-child(2) { border-radius: 0 100% 0 0; }
+.simon-button:nth-child(3) { border-radius: 0 0 0 100%; }
+.simon-button:nth-child(4) { border-radius: 0 0 100% 0; }
+
+.simon-button.active {
+  box-shadow: 0 0 20px currentColor, inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+}
+
+.simon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.simon-status {
+  font-size: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Simon compact */
+.challenge-modal.compact .simon-stats {
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.challenge-modal.compact .simon-board {
+  width: 160px;
+  height: 160px;
+  gap: 6px;
+  padding: 6px;
+}
+
+.challenge-modal.compact .simon-status {
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+/* ========================================
+   REFLEX CHALLENGE MODAL
+   ======================================== */
+
+.reflex-challenge-modal .challenge-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reflex-timer {
+  font-family: monospace;
+  font-size: 1.2rem;
+  font-weight: bold;
+  min-width: 50px;
+  text-align: right;
+}
+
+.reflex-timer .urgent {
+  color: #ef4444;
+  animation: pulse 0.3s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.reflex-stats {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.reflex-stats .hit-counter {
+  color: #22c55e;
+}
+
+.reflex-stats .miss-counter {
+  color: #ef4444;
+}
+
+.reflex-stats .round-counter {
+  color: var(--text-muted);
+}
+
+.reflex-timer-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.reflex-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  transition: width 0.1s linear;
+}
+
+.reflex-timer-fill.urgent {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.reflex-game-area {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  position: relative;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.reflex-target {
+  position: absolute;
+  background: radial-gradient(circle, #ef4444 0%, #dc2626 70%, #b91c1c 100%);
+  border: 2px solid white;
+  border-radius: 50%;
+  cursor: pointer;
+  animation: targetPulse 0.3s ease-out;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  transform: translate(-50%, -50%);
+  padding: 0;
+}
+
+.reflex-target::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  height: 30%;
+  background: white;
+  border-radius: 50%;
+}
+
+@keyframes targetPulse {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  50% { transform: translate(-50%, -50%) scale(1.2); }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+/* Reflex compact */
+.challenge-modal.compact .reflex-stats {
+  font-size: 0.8rem;
+}
+
+.challenge-modal.compact .reflex-timer {
+  font-size: 1rem;
+}
+
+.challenge-modal.compact .reflex-game-area {
+  height: 150px;
+}
+
+.challenge-modal.compact .reflex-timer-bar {
+  height: 6px;
+  margin-bottom: 8px;
 }

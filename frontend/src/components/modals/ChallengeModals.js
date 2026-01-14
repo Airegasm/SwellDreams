@@ -40,22 +40,21 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Draw label
+      // Draw label along the segment (radial, like a spoke)
       const midAngle = startAngle + sliceAngle / 2;
-      const labelRadius = radius * 0.65;
-      const x = centerX + Math.cos(midAngle) * labelRadius;
-      const y = centerY + Math.sin(midAngle) * labelRadius;
+      const label = segment.label.substring(0, 12);
 
       ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.translate(centerX, centerY);
+      ctx.rotate(midAngle);
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 2;
-      ctx.fillText(segment.label.substring(0, 12), 0, 0);
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 3;
+      // Draw text starting from near center, going outward
+      ctx.fillText(label, 30, 0);
       ctx.restore();
 
       startAngle += sliceAngle;
@@ -152,28 +151,28 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
         <div className="wheel-container">
           <canvas ref={canvasRef} width={canvasSize} height={canvasSize} />
         </div>
-        {result && (
-          <div className="challenge-result" style={{ color: result.color }}>
-            🎉 {result.label}!
-          </div>
-        )}
-      </div>
-      <div className="challenge-modal-footer">
-        {onCancel && !isSpinning && !result && (
+        <div className="wheel-side-panel">
+          {result && (
+            <div className="challenge-result" style={{ color: result.color }}>
+              🎉 {result.label}!
+            </div>
+          )}
           <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
+            className="btn btn-primary btn-large"
+            onClick={handleSpin}
+            disabled={isSpinning || result}
           >
-            Skip
+            {isSpinning ? 'Spinning...' : result ? 'Complete!' : 'SPIN'}
           </button>
-        )}
-        <button
-          className="btn btn-primary btn-large"
-          onClick={handleSpin}
-          disabled={isSpinning || result}
-        >
-          {isSpinning ? 'Spinning...' : result ? 'Complete!' : 'SPIN'}
-        </button>
+          {onCancel && !isSpinning && !result && (
+            <button
+              className="btn btn-secondary btn-cancel"
+              onClick={onCancel}
+            >
+              Skip
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1013,8 +1012,506 @@ export function CardDrawModal({ challengeData, onResult, onCancel, compact = fal
   );
 }
 
+// Simon Challenge Modal
+export function SimonChallengeModal({ challengeData, onResult, onCancel, onPenalty, compact = false }) {
+  const COLORS = [
+    { id: 'red', color: '#ef4444', activeColor: '#fca5a5', sound: 330 },
+    { id: 'green', color: '#22c55e', activeColor: '#86efac', sound: 392 },
+    { id: 'blue', color: '#3b82f6', activeColor: '#93c5fd', sound: 440 },
+    { id: 'yellow', color: '#eab308', activeColor: '#fde047', sound: 523 }
+  ];
+
+  const {
+    startingLength = 3,
+    maxLength = 8,
+    maxMisses = 3,
+    penaltyDevice,
+    penaltyDuration = 3,
+    grandPenaltyDevice,
+    grandPenaltyDuration = 10,
+    rewardDevice,
+    rewardDuration = 5
+  } = challengeData || {};
+
+  const [sequence, setSequence] = useState([]);
+  const [playerInput, setPlayerInput] = useState([]);
+  const [isShowingSequence, setIsShowingSequence] = useState(false);
+  const [activeColor, setActiveColor] = useState(null);
+  const [missCount, setMissCount] = useState(0);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [gameState, setGameState] = useState('waiting'); // 'waiting', 'showing', 'input', 'won', 'lost'
+  const [feedback, setFeedback] = useState(null); // 'correct', 'wrong', null
+
+  const audioContextRef = useRef(null);
+
+  // Initialize audio context
+  useEffect(() => {
+    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  // Play a tone for a color
+  const playTone = useCallback((frequency, duration = 300) => {
+    if (!audioContextRef.current) return;
+    try {
+      const oscillator = audioContextRef.current.createOscillator();
+      const gainNode = audioContextRef.current.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContextRef.current.destination);
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContextRef.current.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration / 1000);
+      oscillator.start();
+      oscillator.stop(audioContextRef.current.currentTime + duration / 1000);
+    } catch (e) {
+      // Audio context might be in wrong state
+    }
+  }, []);
+
+  // Generate new sequence for current level
+  const generateSequence = useCallback(() => {
+    const length = Math.min(startingLength + currentLevel - 1, maxLength);
+    const newSeq = [];
+    for (let i = 0; i < length; i++) {
+      newSeq.push(COLORS[Math.floor(Math.random() * COLORS.length)].id);
+    }
+    return newSeq;
+  }, [currentLevel, startingLength, maxLength]);
+
+  // Show the sequence to the player
+  const showSequence = useCallback(async (seq) => {
+    setGameState('showing');
+    setIsShowingSequence(true);
+
+    for (let i = 0; i < seq.length; i++) {
+      const colorId = seq[i];
+      const colorObj = COLORS.find(c => c.id === colorId);
+
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setActiveColor(colorId);
+      playTone(colorObj.sound);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setActiveColor(null);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setIsShowingSequence(false);
+    setGameState('input');
+    setPlayerInput([]);
+  }, [playTone]);
+
+  // Start the game
+  const startGame = useCallback(() => {
+    const newSequence = generateSequence();
+    setSequence(newSequence);
+    setMissCount(0);
+    setCurrentLevel(1);
+    showSequence(newSequence);
+  }, [generateSequence, showSequence]);
+
+  // Handle player button press
+  const handleColorPress = useCallback((colorId) => {
+    if (gameState !== 'input') return;
+
+    const colorObj = COLORS.find(c => c.id === colorId);
+    setActiveColor(colorId);
+    playTone(colorObj.sound);
+
+    setTimeout(() => setActiveColor(null), 200);
+
+    const nextIndex = playerInput.length;
+    const expectedColor = sequence[nextIndex];
+
+    if (colorId === expectedColor) {
+      // Correct!
+      const newInput = [...playerInput, colorId];
+      setPlayerInput(newInput);
+      setFeedback('correct');
+      setTimeout(() => setFeedback(null), 300);
+
+      if (newInput.length === sequence.length) {
+        // Level complete!
+        if (sequence.length >= maxLength) {
+          // Won the game!
+          setGameState('won');
+          if (rewardDevice && onPenalty) {
+            onPenalty(rewardDevice, rewardDuration, 'reward');
+          }
+          setTimeout(() => onResult('win'), 1500);
+        } else {
+          // Next level
+          setCurrentLevel(prev => prev + 1);
+          const newSequence = [...sequence, COLORS[Math.floor(Math.random() * COLORS.length)].id];
+          setSequence(newSequence);
+          setTimeout(() => showSequence(newSequence), 1000);
+        }
+      }
+    } else {
+      // Wrong!
+      setFeedback('wrong');
+      const newMissCount = missCount + 1;
+      setMissCount(newMissCount);
+
+      // Trigger penalty device
+      if (penaltyDevice && onPenalty) {
+        onPenalty(penaltyDevice, penaltyDuration, 'penalty');
+      }
+
+      setTimeout(() => setFeedback(null), 500);
+
+      if (newMissCount >= maxMisses) {
+        // Game over - too many misses
+        setGameState('lost');
+        if (grandPenaltyDevice && onPenalty) {
+          onPenalty(grandPenaltyDevice, grandPenaltyDuration, 'penalty');
+        }
+        setTimeout(() => onResult('lose'), 1500);
+      } else {
+        // Reset input for retry
+        setPlayerInput([]);
+        setTimeout(() => showSequence(sequence), 1000);
+      }
+    }
+  }, [gameState, playerInput, sequence, maxLength, maxMisses, missCount, penaltyDevice, penaltyDuration, grandPenaltyDevice, grandPenaltyDuration, rewardDevice, rewardDuration, onPenalty, onResult, playTone, showSequence]);
+
+  if (!challengeData) return null;
+
+  return (
+    <div className={`challenge-modal simon-challenge-modal ${compact ? 'compact' : ''}`}>
+      <div className="challenge-modal-header">
+        <h3>🎵 Simon Says</h3>
+        <div className="simon-stats">
+          <span>Level: {currentLevel}</span>
+          <span className="miss-counter">Misses: {missCount}/{maxMisses}</span>
+        </div>
+      </div>
+      <div className="challenge-modal-body">
+        <div className={`simon-board ${feedback || ''}`}>
+          {COLORS.map(color => (
+            <button
+              key={color.id}
+              className={`simon-button ${color.id} ${activeColor === color.id ? 'active' : ''}`}
+              style={{
+                backgroundColor: activeColor === color.id ? color.activeColor : color.color
+              }}
+              onClick={() => handleColorPress(color.id)}
+              disabled={gameState !== 'input'}
+            />
+          ))}
+        </div>
+
+        {gameState === 'waiting' && (
+          <button className="btn btn-primary btn-large" onClick={startGame}>
+            START
+          </button>
+        )}
+
+        {gameState === 'showing' && (
+          <div className="simon-status">Watch the sequence...</div>
+        )}
+
+        {gameState === 'input' && (
+          <div className="simon-status">Your turn! ({playerInput.length + 1}/{sequence.length})</div>
+        )}
+
+        {gameState === 'won' && (
+          <div className="challenge-result success">🎉 You Won!</div>
+        )}
+
+        {gameState === 'lost' && (
+          <div className="challenge-result timeout">😢 Game Over!</div>
+        )}
+      </div>
+      {onCancel && gameState === 'waiting' && (
+        <div className="challenge-modal-footer">
+          <button className="btn btn-secondary btn-cancel" onClick={onCancel}>
+            Skip
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Reflex Challenge Modal
+export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPenalty, compact = false }) {
+  const {
+    timePerTarget = 3,
+    rounds = 5,
+    targetSize = 'small',
+    penaltyDevice,
+    penaltyDuration = 3,
+    grandPenaltyDevice,
+    grandPenaltyDuration = 10,
+    rewardDevice,
+    rewardDuration = 5
+  } = challengeData || {};
+
+  const TARGET_SIZES = {
+    large: 60,
+    medium: 45,
+    small: 32,
+    tiny: 24,
+    minuscule: 16
+  };
+
+  const [currentRound, setCurrentRound] = useState(0);
+  const [hits, setHits] = useState(0);
+  const [misses, setMisses] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(timePerTarget);
+  const [targetPosition, setTargetPosition] = useState({ x: 50, y: 50 });
+  const [gameState, setGameState] = useState('waiting'); // 'waiting', 'playing', 'won', 'lost'
+  const [showTarget, setShowTarget] = useState(false);
+
+  const timerRef = useRef(null);
+  const gameAreaRef = useRef(null);
+  const size = TARGET_SIZES[targetSize] || 32;
+
+  // Generate random position for target
+  const generatePosition = useCallback(() => {
+    // Calculate safe bounds based on target size (as percentage)
+    const padding = 15; // percentage padding from edges
+    const minX = padding;
+    const maxX = 100 - padding;
+    const minY = padding;
+    const maxY = 100 - padding;
+
+    return {
+      x: Math.random() * (maxX - minX) + minX,
+      y: Math.random() * (maxY - minY) + minY
+    };
+  }, []);
+
+  // Start a new round
+  const startRound = useCallback(() => {
+    if (currentRound >= rounds) return;
+
+    setTimeLeft(timePerTarget);
+    setTargetPosition(generatePosition());
+    setShowTarget(true);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 0.1) {
+          // Timeout - miss!
+          clearInterval(timerRef.current);
+          setShowTarget(false);
+
+          const newMisses = misses + 1;
+          setMisses(newMisses);
+
+          // Trigger penalty
+          if (penaltyDevice && onPenalty) {
+            onPenalty(penaltyDevice, penaltyDuration, 'penalty');
+          }
+
+          const newRound = currentRound + 1;
+          setCurrentRound(newRound);
+
+          if (newRound >= rounds) {
+            // Game over - check result
+            if (newMisses > hits) {
+              setGameState('lost');
+              if (grandPenaltyDevice && onPenalty) {
+                onPenalty(grandPenaltyDevice, grandPenaltyDuration, 'penalty');
+              }
+              setTimeout(() => onResult('lose'), 1500);
+            } else {
+              setGameState('won');
+              if (rewardDevice && onPenalty) {
+                onPenalty(rewardDevice, rewardDuration, 'reward');
+              }
+              setTimeout(() => onResult('win'), 1500);
+            }
+          }
+
+          return 0;
+        }
+        return prev - 0.1;
+      });
+    }, 100);
+  }, [currentRound, rounds, timePerTarget, generatePosition, hits, misses, penaltyDevice, penaltyDuration, grandPenaltyDevice, grandPenaltyDuration, rewardDevice, rewardDuration, onPenalty, onResult]);
+
+  // Continue to next round after miss
+  useEffect(() => {
+    if (gameState === 'playing' && !showTarget && currentRound < rounds && timeLeft === 0) {
+      const timer = setTimeout(() => {
+        startRound();
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, showTarget, currentRound, rounds, timeLeft, startRound]);
+
+  // Handle click on game area (miss - clicked outside)
+  const handleAreaClick = useCallback((e) => {
+    if (gameState !== 'playing' || !showTarget) return;
+
+    // Check if we clicked the target (in that case, don't count as miss)
+    if (e.target.classList.contains('reflex-target')) return;
+
+    // Missed the target - clicked outside
+    clearInterval(timerRef.current);
+    setShowTarget(false);
+
+    const newMisses = misses + 1;
+    setMisses(newMisses);
+
+    if (penaltyDevice && onPenalty) {
+      onPenalty(penaltyDevice, penaltyDuration, 'penalty');
+    }
+
+    const newRound = currentRound + 1;
+    setCurrentRound(newRound);
+
+    if (newRound >= rounds) {
+      if (newMisses > hits) {
+        setGameState('lost');
+        if (grandPenaltyDevice && onPenalty) {
+          onPenalty(grandPenaltyDevice, grandPenaltyDuration, 'penalty');
+        }
+        setTimeout(() => onResult('lose'), 1500);
+      } else {
+        setGameState('won');
+        if (rewardDevice && onPenalty) {
+          onPenalty(rewardDevice, rewardDuration, 'reward');
+        }
+        setTimeout(() => onResult('win'), 1500);
+      }
+    } else {
+      setTimeout(() => startRound(), 800);
+    }
+  }, [gameState, showTarget, currentRound, rounds, hits, misses, penaltyDevice, penaltyDuration, grandPenaltyDevice, grandPenaltyDuration, rewardDevice, rewardDuration, onPenalty, onResult, startRound]);
+
+  // Handle click on target (hit!)
+  const handleTargetClick = useCallback((e) => {
+    e.stopPropagation();
+    if (gameState !== 'playing' || !showTarget) return;
+
+    clearInterval(timerRef.current);
+    setShowTarget(false);
+
+    const newHits = hits + 1;
+    setHits(newHits);
+
+    const newRound = currentRound + 1;
+    setCurrentRound(newRound);
+
+    if (newRound >= rounds) {
+      if (newHits >= misses) {
+        setGameState('won');
+        if (rewardDevice && onPenalty) {
+          onPenalty(rewardDevice, rewardDuration, 'reward');
+        }
+        setTimeout(() => onResult('win'), 1500);
+      } else {
+        setGameState('lost');
+        if (grandPenaltyDevice && onPenalty) {
+          onPenalty(grandPenaltyDevice, grandPenaltyDuration, 'penalty');
+        }
+        setTimeout(() => onResult('lose'), 1500);
+      }
+    } else {
+      setTimeout(() => startRound(), 500);
+    }
+  }, [gameState, showTarget, currentRound, rounds, hits, misses, rewardDevice, rewardDuration, grandPenaltyDevice, grandPenaltyDuration, onPenalty, onResult, startRound]);
+
+  // Start game
+  const handleStart = useCallback(() => {
+    setGameState('playing');
+    setCurrentRound(0);
+    setHits(0);
+    setMisses(0);
+    setTimeout(() => startRound(), 500);
+  }, [startRound]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  if (!challengeData) return null;
+
+  const percentage = (timeLeft / timePerTarget) * 100;
+
+  return (
+    <div className={`challenge-modal reflex-challenge-modal ${compact ? 'compact' : ''}`}>
+      <div className="challenge-modal-header">
+        <h3>🎯 Reflex Challenge</h3>
+        <div className="reflex-timer">
+          {gameState === 'playing' && showTarget && (
+            <span className={timeLeft < 1 ? 'urgent' : ''}>{timeLeft.toFixed(1)}s</span>
+          )}
+        </div>
+      </div>
+      <div className="challenge-modal-body">
+        <div className="reflex-stats">
+          <span className="hit-counter">Hits: {hits}</span>
+          <span className="round-counter">Round: {Math.min(currentRound + 1, rounds)}/{rounds}</span>
+          <span className="miss-counter">Misses: {misses}</span>
+        </div>
+
+        {gameState === 'playing' && showTarget && (
+          <div className="reflex-timer-bar">
+            <div
+              className={`reflex-timer-fill ${timeLeft < 1 ? 'urgent' : ''}`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+        )}
+
+        <div
+          ref={gameAreaRef}
+          className="reflex-game-area"
+          onClick={handleAreaClick}
+        >
+          {showTarget && (
+            <button
+              className="reflex-target"
+              style={{
+                left: `${targetPosition.x}%`,
+                top: `${targetPosition.y}%`,
+                width: `${size}px`,
+                height: `${size}px`
+              }}
+              onClick={handleTargetClick}
+            />
+          )}
+        </div>
+
+        {gameState === 'waiting' && (
+          <button className="btn btn-primary btn-large" onClick={handleStart}>
+            START
+          </button>
+        )}
+
+        {gameState === 'won' && (
+          <div className="challenge-result success">🎉 You Won! ({hits} hits, {misses} misses)</div>
+        )}
+
+        {gameState === 'lost' && (
+          <div className="challenge-result timeout">😢 You Lost! ({hits} hits, {misses} misses)</div>
+        )}
+      </div>
+      {onCancel && gameState === 'waiting' && (
+        <div className="challenge-modal-footer">
+          <button className="btn btn-secondary btn-cancel" onClick={onCancel}>
+            Skip
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Main Challenge Modal Dispatcher
-export function ChallengeModal({ challengeData, onResult, onCancel, compact = false }) {
+export function ChallengeModal({ challengeData, onResult, onCancel, onPenalty, compact = false }) {
   if (!challengeData) return null;
 
   const { challengeType } = challengeData;
@@ -1036,6 +1533,10 @@ export function ChallengeModal({ challengeData, onResult, onCancel, compact = fa
       return <SlotMachineModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
     case 'card_draw':
       return <CardDrawModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} compact={compact} />;
+    case 'simon_challenge':
+      return <SimonChallengeModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} onPenalty={onPenalty} compact={compact} />;
+    case 'reflex_challenge':
+      return <ReflexChallengeModal challengeData={challengeData} onResult={onResult} onCancel={onCancel} onPenalty={onPenalty} compact={compact} />;
     default:
       return <div>Unknown challenge type: {challengeType}</div>;
   }

@@ -4,13 +4,14 @@ import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
 import { API_BASE, CONFIG } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
+import { ChallengeModal } from '../components/modals/ChallengeModals';
+import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import { substituteVariables } from '../utils/variableSubstitution';
 import StatusBadges from '../components/StatusBadges';
-import SlidePanel from '../components/SlidePanel/SlidePanel';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -25,6 +26,8 @@ function Chat() {
   const [stopping, setStopping] = useState(false);
   const [actionsExpanded, setActionsExpanded] = useState(false);
   const [devicesExpanded, setDevicesExpanded] = useState(false);
+  const [actionPage, setActionPage] = useState(0);
+  const ACTIONS_PER_PAGE = 8;
 
   // Mobile drawer state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
@@ -87,6 +90,11 @@ function Chat() {
 
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // Reset action page when character changes
+  useEffect(() => {
+    setActionPage(0);
+  }, [activeCharacter?.id]);
 
   // Panel blocking - disable interactions when slide panel is open
   const isPanelBlocking = !!(playerChoiceData || simpleABData || challengeData);
@@ -845,17 +853,6 @@ function Chat() {
             capacity={sessionState.capacity || 0}
             personaName={activePersona?.displayName}
           />
-          {/* SlidePanel for challenges/choices - emerges from behind portrait */}
-          <SlidePanel
-            playerChoiceData={playerChoiceData}
-            simpleABData={simpleABData}
-            challengeData={challengeData}
-            onPlayerChoice={handlePlayerChoice}
-            onSimpleAB={handleSimpleAB}
-            onChallengeResult={handleChallengeResult}
-            onChallengeCancel={handleChallengeCancel}
-            subContext={subContext}
-          />
         </div>
 
       </div>
@@ -880,6 +877,59 @@ function Chat() {
             </div>
           </div>
         )}
+
+        {/* Interactive overlay - slides down from top for challenges, choices, etc */}
+        <div className={`challenge-overlay ${(challengeData || playerChoiceData || simpleABData) ? 'open' : ''}`}>
+          {challengeData && (
+            <ChallengeModal
+              challengeData={challengeData}
+              onResult={handleChallengeResult}
+              onCancel={handleChallengeCancel}
+              onPenalty={handleChallengePenalty}
+              compact={false}
+            />
+          )}
+          {playerChoiceData && (
+            <PlayerChoiceModal
+              choiceData={playerChoiceData}
+              onChoice={handlePlayerChoice}
+              subContext={subContext}
+              compact={false}
+            />
+          )}
+          {simpleABData && (
+            <div className="simple-ab-overlay">
+              <div className="simple-ab-header">
+                <h3>Choose</h3>
+              </div>
+              <div className="simple-ab-body">
+                {simpleABData.description && (
+                  <p className="ab-description">{substituteVariables(simpleABData.description, subContext)}</p>
+                )}
+                <div className="ab-buttons">
+                  <button
+                    className="btn-ab btn-ab-a"
+                    onClick={() => handleSimpleAB('a')}
+                  >
+                    <span className="ab-label">{simpleABData.labelA}</span>
+                    {simpleABData.descriptionA && (
+                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
+                    )}
+                  </button>
+                  <button
+                    className="btn-ab btn-ab-b"
+                    onClick={() => handleSimpleAB('b')}
+                  >
+                    <span className="ab-label">{simpleABData.labelB}</span>
+                    {simpleABData.descriptionB && (
+                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="chat-messages" ref={messagesContainerRef}>
           {sessionLoading ? (
@@ -1228,20 +1278,47 @@ function Chat() {
                   });
 
                   const isDisabled = flowInProgress || sessionLoading || isGenerating;
+                  const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
+                  const currentPageButtons = filteredButtons.slice(
+                    actionPage * ACTIONS_PER_PAGE,
+                    (actionPage + 1) * ACTIONS_PER_PAGE
+                  );
+
                   return filteredButtons.length > 0 ? (
-                    <div className="panel-actions-grid">
-                      {filteredButtons.map((button, idx) => (
-                        <button
-                          key={idx}
-                          className={`panel-action-btn ${isDisabled ? 'disabled' : ''}`}
-                          onClick={() => !isDisabled && handleExecuteButton(button)}
-                          disabled={isDisabled}
-                          title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : button.name}
-                        >
-                          {button.name}
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div className="panel-actions-grid">
+                        {currentPageButtons.map((button, idx) => (
+                          <button
+                            key={idx}
+                            className={`panel-action-btn ${isDisabled ? 'disabled' : ''}`}
+                            onClick={() => !isDisabled && handleExecuteButton(button)}
+                            disabled={isDisabled}
+                            title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : button.name}
+                          >
+                            {button.name}
+                          </button>
+                        ))}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="actions-pagination">
+                          <button
+                            className="pagination-arrow pagination-prev"
+                            onClick={() => setActionPage(p => Math.max(0, p - 1))}
+                            disabled={actionPage === 0}
+                          >
+                            ◀
+                          </button>
+                          <span className="pagination-info">{actionPage + 1} / {totalPages}</span>
+                          <button
+                            className="pagination-arrow pagination-next"
+                            onClick={() => setActionPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={actionPage >= totalPages - 1}
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className="panel-empty">No actions configured</p>
                   );

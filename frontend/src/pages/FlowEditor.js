@@ -34,7 +34,9 @@ import {
   TimerChallengeNodeMemo as TimerChallengeNode,
   NumberGuessNodeMemo as NumberGuessNode,
   SlotMachineNodeMemo as SlotMachineNode,
-  CardDrawNodeMemo as CardDrawNode
+  CardDrawNodeMemo as CardDrawNode,
+  SimonChallengeNodeMemo as SimonChallengeNode,
+  ReflexChallengeNodeMemo as ReflexChallengeNode
 } from '../components/flow/nodes/ChallengeNodes';
 
 import './FlowEditor.css';
@@ -56,7 +58,9 @@ const nodeTypes = {
   timer_challenge: TimerChallengeNode,
   number_guess: NumberGuessNode,
   slot_machine: SlotMachineNode,
-  card_draw: CardDrawNode
+  card_draw: CardDrawNode,
+  simon_challenge: SimonChallengeNode,
+  reflex_challenge: ReflexChallengeNode
 };
 
 const NODE_TEMPLATES = {
@@ -206,6 +210,34 @@ const NODE_TEMPLATES = {
       label: 'Card Draw',
       deckType: 'standard',
       outputMode: 'suit'
+    }
+  },
+  simon_challenge: {
+    default: {
+      label: 'Simon Challenge',
+      startingLength: 3,
+      maxLength: 8,
+      maxMisses: 3,
+      penaltyDevice: '',
+      penaltyDuration: 3,
+      grandPenaltyDevice: '',
+      grandPenaltyDuration: 10,
+      rewardDevice: '',
+      rewardDuration: 5
+    }
+  },
+  reflex_challenge: {
+    default: {
+      label: 'Reflex Challenge',
+      timePerTarget: 3,
+      rounds: 5,
+      targetSize: 'small',
+      penaltyDevice: '',
+      penaltyDuration: 3,
+      grandPenaltyDevice: '',
+      grandPenaltyDuration: 10,
+      rewardDevice: '',
+      rewardDuration: 5
     }
   }
 };
@@ -775,10 +807,16 @@ function FlowEditor() {
   const handleSaveFlow = async () => {
     if (!flowName.trim()) return;
 
+    // Strip runtime data from nodes before saving (devices, reminders, etc are added at load time)
+    const cleanNodes = nodes.map(node => {
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+      return { ...node, data: cleanData };
+    });
+
     const flowData = {
       name: flowName,
       category: flowCategory,
-      nodes: nodes,
+      nodes: cleanNodes,
       edges: edges,
       isActive: false
     };
@@ -929,9 +967,9 @@ function FlowEditor() {
 
     const timeoutId = setTimeout(() => {
       const draftKey = getDraftKey();
-      // Strip onChange handlers from nodes before saving
+      // Strip runtime data from nodes before saving
       const cleanNodes = nodes.map(node => {
-        const { onChange, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+        const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
         return { ...node, data: cleanData };
       });
       const draft = {
@@ -1011,9 +1049,9 @@ function FlowEditor() {
       return; // Nothing to export
     }
 
-    // Strip onChange handlers from nodes before exporting
+    // Strip runtime data from nodes before exporting
     const cleanNodes = nodes.map(node => {
-      const { onChange, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
       return { ...node, data: cleanData };
     });
 

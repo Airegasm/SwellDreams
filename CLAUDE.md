@@ -17,8 +17,8 @@ DO NOT SKIP THIS STEP. EVER.
 ### Build Commands
 
 ```bash
-# From project root
-cd frontend && rm -rf build && npm run build && cd ../backend && pkill -f "node server.js"; nohup node server.js > /tmp/server.log 2>&1 &
+# From project root - single line version
+cd frontend && rm -rf build && npm run build && cd ../backend && (pkill -f "node server.js" || true) && sleep 1 && nohup node server.js > /tmp/server.log 2>&1 & sleep 3 && curl -s -o /dev/null -w "%{http_code}" http://localhost:8889
 ```
 
 Or step by step:
@@ -28,15 +28,20 @@ cd /home/saintorphan/Projects/SwellDreams/frontend
 rm -rf build
 npm run build
 
-# 2. Restart backend
+# 2. Stop old server (|| true prevents exit code 144 error)
+pkill -f "node server.js" || true
+sleep 1  # Wait for old process to fully terminate
+
+# 3. Start new server
 cd /home/saintorphan/Projects/SwellDreams/backend
-pkill -f "node server.js"
 nohup node server.js > /tmp/server.log 2>&1 &
 
-# 3. VERIFY (MANDATORY - DO NOT SKIP)
-sleep 2 && curl -s -o /dev/null -w "%{http_code}" http://localhost:8889
+# 4. VERIFY (MANDATORY - DO NOT SKIP)
+sleep 3 && curl -s -o /dev/null -w "%{http_code}" http://localhost:8889
 # Must return 200. If not, check: tail -20 /tmp/server.log
 ```
+
+**Race Condition Fix:** The `sleep 1` after pkill ensures the old process fully terminates before starting the new one. The `|| true` suppresses pkill's exit code 144 (which is normal when terminating a process). The `sleep 3` gives the new server time to fully initialize.
 
 The clean rebuild (`rm -rf build`) is required because incremental builds may not pick up all changes.
 

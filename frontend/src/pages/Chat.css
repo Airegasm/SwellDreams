@@ -303,7 +303,9 @@
 }
 
 .character-panel.expanded {
-  height: 350px;
+  height: calc(100vh - 520px);
+  min-height: 180px;
+  max-height: 400px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -326,7 +328,54 @@
 
 .actions-panel .panel-content {
   padding: 8px;
-  padding-bottom: 120px;
+  padding-bottom: 8px;
+}
+
+/* Actions pagination */
+.actions-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0;
+  margin-top: 8px;
+  border-top: 1px solid #3d4147;
+}
+
+.pagination-arrow {
+  width: 36px;
+  height: 28px;
+  background: linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%);
+  border: 1px solid #5c6169;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.pagination-arrow:hover:not(:disabled) {
+  border-color: #00ff88;
+  color: #00ff88;
+}
+
+.pagination-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 0.75rem;
+  color: #8b9099;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
 }
 
 .panel-content h4 {
@@ -2632,4 +2681,215 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Challenge Overlay - slides down from top of chat area */
+.challenge-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 55vh;
+  min-height: 380px;
+  max-height: 550px;
+  z-index: 200;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 17, 21, 0.98) 0%,
+    rgba(20, 23, 28, 0.95) 100%
+  );
+  border-bottom: 2px solid var(--accent-primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transform: translateY(-100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.challenge-overlay.open {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Ensure challenge modal fills overlay nicely */
+.challenge-overlay .challenge-modal,
+.challenge-overlay .simon-challenge-modal,
+.challenge-overlay .reflex-challenge-modal,
+.challenge-overlay .timer-challenge-modal {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Adjust modal header in overlay mode */
+.challenge-overlay .challenge-header,
+.challenge-overlay .simon-header,
+.challenge-overlay .reflex-header {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Game area should fill available space */
+.challenge-overlay .simon-board {
+  width: 200px;
+  height: 200px;
+}
+
+.challenge-overlay .reflex-game-area {
+  flex: 1;
+  min-height: 150px;
+  margin: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* Player Choice Panel in overlay */
+.challenge-overlay .player-choice-panel {
+  position: static;
+  width: 100%;
+  max-width: 500px;
+  max-height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.challenge-overlay .player-choice-panel-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--accent-primary);
+  border-radius: 8px 8px 0 0;
+}
+
+.challenge-overlay .player-choice-panel-body {
+  padding: var(--spacing-md);
+  background: rgba(30, 35, 45, 0.95);
+  border-radius: 0 0 8px 8px;
+  border: 1px solid var(--border-color);
+  border-top: none;
+}
+
+.challenge-overlay .player-choice-panel .choice-description {
+  font-size: 0.9rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.challenge-overlay .player-choice-panel .choice-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.challenge-overlay .player-choice-panel .btn-choice {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.challenge-overlay .player-choice-panel .btn-choice:hover {
+  transform: translateY(-2px);
+}
+
+.challenge-overlay .player-choice-panel .choice-button-label {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.challenge-overlay .player-choice-panel .choice-button-desc {
+  font-size: 0.8rem;
+}
+
+/* Simple A/B Choice in overlay */
+.simple-ab-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  width: 100%;
+  max-width: 500px;
+}
+
+.simple-ab-overlay .simple-ab-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.simple-ab-overlay .simple-ab-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.simple-ab-overlay .ab-description {
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0;
+}
+
+.simple-ab-overlay .ab-buttons {
+  display: flex;
+  gap: var(--spacing-lg);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.simple-ab-overlay .btn-ab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 150px;
+}
+
+.simple-ab-overlay .btn-ab:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.simple-ab-overlay .btn-ab-a {
+  border-color: #22c55e;
+}
+
+.simple-ab-overlay .btn-ab-a:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+}
+
+.simple-ab-overlay .btn-ab-b {
+  border-color: #3b82f6;
+}
+
+.simple-ab-overlay .btn-ab-b:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+}
+
+.simple-ab-overlay .ab-label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.simple-ab-overlay .ab-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
 }
