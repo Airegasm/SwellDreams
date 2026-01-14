@@ -360,6 +360,11 @@ export function AppProvider({ children }) {
         console.log(`[WS] Flow executions update: ${(data.executions || []).length} active`);
         break;
 
+      case 'flow_toast':
+        // Dispatch event for toast notification
+        window.dispatchEvent(new CustomEvent('flow_toast', { detail: data }));
+        break;
+
       default:
         console.log('[WS] Unknown message:', type, data);
     }

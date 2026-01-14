@@ -66,7 +66,6 @@ const NODE_TEMPLATES = {
     device_off: { label: 'Device Turns Off', triggerType: 'device_off', device: '' },
     player_speaks: { label: 'Player Speaks', triggerType: 'player_speaks', keywords: [''] },
     ai_speaks: { label: 'AI Speaks', triggerType: 'ai_speaks', keywords: [''] },
-    timer: { label: 'Timer', triggerType: 'timer', delay: 60, repeat: false },
     random: { label: 'Random', triggerType: 'random', probability: 50 },
     idle: { label: 'Idle', triggerType: 'idle', threshold: 300 },
     player_state_change: {

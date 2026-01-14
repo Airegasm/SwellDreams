@@ -239,6 +239,9 @@ class EventEngine {
     this.activeExecutions = new Map(); // flowId -> { flowId, flowName, triggerType, triggerLabel, currentNodeLabel, startTime }
     this.executionDepths = new Map(); // flowId -> depth count
     this.maxTrackedExecutions = 10; // Limit to prevent memory issues
+
+    // Priority-based flow interruption
+    this.runningFlowPriority = null; // Current running flow's trigger priority (1-5, null if no priority or no flow running)
   }
 
   /**
@@ -884,8 +887,14 @@ class EventEngine {
         // Continue execution from the next node after the message node
         const flow = activeFlow.flow;
         const edges = flow.edges.filter(e => e.source === nodeId);
+
+        // Inherit flags from activeExecutions
+        const execution = this.activeExecutions.get(flow.id);
+        const inheritedPriority = execution?.triggerPriority || null;
+        const inheritedNotify = execution?.shouldNotify || false;
+
         for (const edge of edges) {
-          await this.executeFromNode(flow, edge.target, null, true);
+          await this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify);
         }
       }
     }
@@ -922,12 +931,8 @@ class EventEngine {
     this.activeFlows.set(flow.id, { flow, priority });
     this.flowStates.set(flow.id, {
       triggeredNodes: new Set(),
-      executedOnceNodes: new Set(),
-      timers: []
+      executedOnceNodes: new Set()
     });
-
-    // Set up timer triggers
-    this.setupTimerTriggers(flow);
 
     console.log(`[EventEngine] Activated flow: ${flow.name} (priority: ${priority})`);
   }
@@ -943,55 +948,10 @@ class EventEngine {
    * Deactivate a flow
    */
   deactivateFlow(flowId) {
-    const state = this.flowStates.get(flowId);
-    if (state) {
-      // Clear all timers (both timeout and interval)
-      state.timers.forEach(timer => {
-        clearTimeout(timer);
-        clearInterval(timer);
-      });
-      // Clear the array to release references
-      state.timers.length = 0;
-    }
-
     this.activeFlows.delete(flowId);
     this.flowStates.delete(flowId);
 
     console.log(`[EventEngine] Deactivated flow: ${flowId}`);
-  }
-
-  /**
-   * Set up timer triggers in a flow
-   */
-  setupTimerTriggers(flow) {
-    const timerNodes = flow.nodes.filter(n =>
-      n.type === 'trigger' && n.data.triggerType === 'timer'
-    );
-
-    timerNodes.forEach(node => {
-      const delay = (node.data.delay || 60) * 1000;
-      const repeat = node.data.repeat || false;
-
-      const executeTimer = () => {
-        if (this.shouldExecuteNode(flow.id, node)) {
-          this.executeFromNode(flow, node.id);
-        }
-
-        if (repeat && this.activeFlows.has(flow.id)) {
-          const timer = setTimeout(executeTimer, delay);
-          const state = this.flowStates.get(flow.id);
-          if (state) {
-            state.timers.push(timer);
-          }
-        }
-      };
-
-      const timer = setTimeout(executeTimer, delay);
-      const state = this.flowStates.get(flow.id);
-      if (state) {
-        state.timers.push(timer);
-      }
-    });
   }
 
   /**
@@ -1012,20 +972,97 @@ class EventEngine {
       console.log(`[EventEngine] Found ${triggers.length} matching triggers`);
 
       // Sort triggers by priority (if they have priority enabled)
-      // Priority 1 = highest, 10 = lowest, no priority = 99 (last)
+      // Priority 1 = highest, 5 = lowest, no priority = 99 (last)
       const sortedTriggers = triggers.sort((a, b) => {
-        const aPriority = a.data.hasPriority ? (a.data.priority || 5) : 99;
-        const bPriority = b.data.hasPriority ? (b.data.priority || 5) : 99;
+        const aPriority = a.data.hasPriority ? (a.data.priority || 3) : 99;
+        const bPriority = b.data.hasPriority ? (b.data.priority || 3) : 99;
         return aPriority - bPriority;
       });
 
       for (const trigger of sortedTriggers) {
         if (this.shouldExecuteNode(flowId, trigger)) {
-          console.log(`[EventEngine] Executing trigger ${trigger.id} (priority: ${trigger.data.hasPriority ? trigger.data.priority : 'none'})`);
-          await this.executeFromNode(flow, trigger.id);
+          const triggerPriority = trigger.data.hasPriority ? (trigger.data.priority || 3) : null;
+          const isUnblockable = trigger.data.unblockable || false;
+          const shouldNotify = trigger.data.notify || false;
+          const triggerLabel = trigger.data.label || trigger.data.triggerType || 'Flow';
+
+          // Priority-based interruption logic (only when trigger has priority AND is not unblockable)
+          if (triggerPriority !== null && !isUnblockable) {
+            // Check if a prioritized flow is currently running
+            if (this.runningFlowPriority !== null) {
+              // Higher priority = lower number (1 is highest)
+              if (triggerPriority < this.runningFlowPriority) {
+                // New trigger has higher priority - abort current flow and run this one
+                console.log(`[EventEngine] Priority interrupt: new trigger (priority ${triggerPriority}) overrides running flow (priority ${this.runningFlowPriority})`);
+                if (shouldNotify) {
+                  await this.broadcast('flow_toast', {
+                    event: 'takeover',
+                    message: `${triggerLabel} (priority ${triggerPriority}) taking over`,
+                    flowName: flow.name,
+                    priority: triggerPriority
+                  });
+                }
+                this.abortCurrentFlow();
+              } else {
+                // Same or lower priority - ignore this trigger
+                console.log(`[EventEngine] Priority skip: trigger (priority ${triggerPriority}) ignored - running flow has priority ${this.runningFlowPriority}`);
+                if (shouldNotify) {
+                  await this.broadcast('flow_toast', {
+                    event: 'blocked',
+                    message: `${triggerLabel} blocked (priority ${triggerPriority} <= ${this.runningFlowPriority})`,
+                    flowName: flow.name,
+                    priority: triggerPriority
+                  });
+                }
+                continue;
+              }
+            }
+            // Set this trigger's priority as the running priority
+            this.runningFlowPriority = triggerPriority;
+          }
+
+          // Unblockable flows run without affecting or being affected by priority
+          if (isUnblockable) {
+            console.log(`[EventEngine] Executing unblockable trigger ${trigger.id}`);
+          } else {
+            console.log(`[EventEngine] Executing trigger ${trigger.id} (priority: ${triggerPriority !== null ? triggerPriority : 'none'})`);
+          }
+
+          await this.executeFromNode(flow, trigger.id, null, false, triggerPriority, shouldNotify);
+
+          // Clear running priority when flow completes (if this trigger had priority and wasn't unblockable)
+          if (triggerPriority !== null && !isUnblockable) {
+            this.runningFlowPriority = null;
+          }
         }
       }
     }
+  }
+
+  /**
+   * Abort the currently running flow for priority interruption
+   */
+  abortCurrentFlow() {
+    console.log('[EventEngine] Aborting current flow for priority interruption');
+    this.aborted = true;
+    this.abortEpoch++;
+
+    // Clear all pending completions and monitors
+    this.pendingCycleCompletions.clear();
+    this.pendingDeviceOnCompletions.clear();
+    this.deviceMonitors.clear();
+
+    // Clear execution tracking
+    this.activeExecutions.clear();
+    this.executionDepths.clear();
+
+    // Broadcast update
+    this.broadcastExecutionsUpdate();
+
+    // Reset abort flag after a tick to allow new flow to start
+    setImmediate(() => {
+      this.aborted = false;
+    });
   }
 
   /**
@@ -1163,9 +1200,40 @@ class EventEngine {
   }
 
   /**
+   * Count significant nodes in a flow path starting from a node
+   */
+  countFlowSteps(flow, startNodeId) {
+    const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+      'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw'];
+    const visited = new Set();
+    let count = 0;
+
+    const traverse = (nodeId) => {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+
+      const node = flow.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      if (significantTypes.includes(node.type)) {
+        count++;
+      }
+
+      // Find outgoing edges and traverse
+      const edges = flow.edges.filter(e => e.source === nodeId);
+      for (const edge of edges) {
+        traverse(edge.target);
+      }
+    };
+
+    traverse(startNodeId);
+    return count;
+  }
+
+  /**
    * Execute flow starting from a node
    */
-  async executeFromNode(flow, nodeId, fromHandle = null, skipTriggers = false) {
+  async executeFromNode(flow, nodeId, fromHandle = null, skipTriggers = false, triggerPriority = null, shouldNotify = false) {
     // Check abort flag at the start of each node execution
     if (this.aborted) {
       console.log(`[EventEngine] Execution aborted - stopping flow "${flow.name}"`);
@@ -1189,16 +1257,35 @@ class EventEngine {
     // Track new flow execution when entering from a trigger node
     if (isEntryPoint && (node.type === 'trigger' || node.type === 'button_press')) {
       const triggerType = node.data.triggerType || node.type;
+      const triggerLabel = node.data.label || triggerType;
+
+      // Count total significant steps in this flow
+      const totalSteps = this.countFlowSteps(flow, nodeId);
 
       // Add to active executions (or update if already exists)
       this.activeExecutions.set(flow.id, {
         flowId: flow.id,
         flowName: flow.name,
         triggerType: triggerType,
-        triggerLabel: node.data.label,
+        triggerLabel: triggerLabel,
         currentNodeLabel: node.data.label,
-        startTime: Date.now()
+        startTime: Date.now(),
+        currentStep: 0,
+        totalSteps: totalSteps,
+        triggerPriority: triggerPriority,
+        shouldNotify: shouldNotify
       });
+
+      // Broadcast flow start toast (only if notify is enabled)
+      if (shouldNotify) {
+        await this.broadcast('flow_toast', {
+          event: 'start',
+          message: `${triggerLabel} started`,
+          flowName: flow.name,
+          currentStep: 1,
+          totalSteps: totalSteps
+        });
+      }
 
       // Trim old executions if we have too many
       if (this.activeExecutions.size > this.maxTrackedExecutions) {
@@ -1290,8 +1377,9 @@ class EventEngine {
     }
 
     // Execute next nodes (skip triggers during traversal to prevent loops)
+    // Pass through the trigger flags for chain continuations
     for (const edge of edges) {
-      await this.executeFromNode(flow, edge.target, null, true);
+      await this.executeFromNode(flow, edge.target, null, true, triggerPriority, shouldNotify);
     }
 
     // Decrement execution depth for this flow
@@ -1313,7 +1401,19 @@ class EventEngine {
       const hasPendingOps = hasPendingCycle || hasPendingDeviceOn || hasPendingChoice || hasPendingChallenge;
 
       if (!hasPendingOps && this.activeExecutions.has(flow.id)) {
-        // Flow complete - remove from active executions
+        // Flow complete - broadcast completion toast and remove from active executions
+        const completedExecution = this.activeExecutions.get(flow.id);
+        if (completedExecution) {
+          // Only broadcast completion toast if notify is enabled
+          if (completedExecution.shouldNotify) {
+            await this.broadcast('flow_toast', {
+              event: 'complete',
+              message: `${completedExecution.triggerLabel} complete`,
+              flowName: flow.name,
+              totalSteps: completedExecution.totalSteps
+            });
+          }
+        }
         this.activeExecutions.delete(flow.id);
         await this.broadcastExecutionsUpdate();
       } else if (hasPendingOps) {
@@ -1349,6 +1449,22 @@ class EventEngine {
       const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
         'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw'];
       if (significantTypes.includes(node.type)) {
+        // Track executed nodes to prevent duplicate progress toasts
+        if (!execution.executedNodes) execution.executedNodes = new Set();
+        if (!execution.executedNodes.has(node.id)) {
+          execution.executedNodes.add(node.id);
+          execution.currentStep = (execution.currentStep || 0) + 1;
+          // Broadcast step progress toast (only if notify is enabled)
+          if (execution.shouldNotify) {
+            await this.broadcast('flow_toast', {
+              event: 'progress',
+              message: `${execution.triggerLabel}: ${node.data.label || node.type}`,
+              flowName: flow.name,
+              currentStep: execution.currentStep,
+              totalSteps: execution.totalSteps
+            });
+          }
+        }
         await this.broadcastExecutionsUpdate();
       }
     }
@@ -1658,11 +1774,16 @@ class EventEngine {
 
     console.log(`[EventEngine] Continuing flow to node ${matchingEdge.target} via output "${outputId}"`);
 
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
     // Clear pending challenge before continuing
     this.pendingChallenge = null;
 
     // Continue execution from the matched edge's target
-    await this.executeFromNode(flow, matchingEdge.target, null, true);
+    await this.executeFromNode(flow, matchingEdge.target, null, true, inheritedPriority, inheritedNotify);
   }
 
   /**
@@ -2494,11 +2615,16 @@ class EventEngine {
 
     console.log(`[EventEngine] Continuing flow from choice "${choiceLabel}" to node ${matchingEdge.target}`);
 
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
     // Clear pending choice
     this.pendingPlayerChoice = null;
 
     // Continue flow execution from the chosen branch
-    await this.executeFromNode(flow, matchingEdge.target, null, true);
+    await this.executeFromNode(flow, matchingEdge.target, null, true, inheritedPriority, inheritedNotify);
   }
 
   /**
@@ -2535,9 +2661,13 @@ class EventEngine {
 
     console.log(`[EventEngine] Found matching FlowAction: "${flowActionLabel}"`);
 
+    // Get trigger options from the button press node
+    const triggerPriority = matchingTrigger.data.hasPriority ? (matchingTrigger.data.priority || 3) : null;
+    const shouldNotify = matchingTrigger.data.notify || false;
+
     // Execute from the matched button press trigger
-    console.log(`[EventEngine] Executing FlowAction from Button Press node: ${matchingTrigger.id}`);
-    await this.executeFromNode(flow, matchingTrigger.id);
+    console.log(`[EventEngine] Executing FlowAction from Button Press node: ${matchingTrigger.id} (notify: ${shouldNotify})`);
+    await this.executeFromNode(flow, matchingTrigger.id, null, false, triggerPriority, shouldNotify);
   }
 
   /**
@@ -2577,9 +2707,13 @@ class EventEngine {
       console.log(`[EventEngine] Found matching Button Press FlowAction for button #${buttonId}`);
     }
 
+    // Get trigger options from the button press node
+    const triggerPriority = matchingTrigger.data.hasPriority ? (matchingTrigger.data.priority || 3) : null;
+    const shouldNotify = matchingTrigger.data.notify || false;
+
     // Execute from the matched button press trigger
-    console.log(`[EventEngine] Executing FlowAction from Button Press node: ${matchingTrigger.id}`);
-    await this.executeFromNode(flow, matchingTrigger.id);
+    console.log(`[EventEngine] Executing FlowAction from Button Press node: ${matchingTrigger.id} (notify: ${shouldNotify})`);
+    await this.executeFromNode(flow.flow, matchingTrigger.id, null, false, triggerPriority, shouldNotify);
   }
 
   /**
@@ -2845,7 +2979,18 @@ class EventEngine {
 
         for (const trigger of idleTriggers) {
           if (this.shouldExecuteNode(flowId, trigger)) {
-            this.executeFromNode(flow, trigger.id);
+            const triggerPriority = trigger.data.hasPriority ? (trigger.data.priority || 3) : null;
+            const shouldNotify = trigger.data.notify || false;
+            const isUnblockable = trigger.data.unblockable || false;
+
+            // Skip if blocked by priority (unless unblockable)
+            if (!isUnblockable && triggerPriority !== null && this.runningFlowPriority !== null) {
+              if (triggerPriority >= this.runningFlowPriority) {
+                continue; // Lower or same priority, skip
+              }
+            }
+
+            this.executeFromNode(flow, trigger.id, null, false, triggerPriority, shouldNotify);
           }
         }
       }
@@ -2986,8 +3131,14 @@ class EventEngine {
               const flow = flowData.flow;
               const completionEdges = flow.edges.filter(e => e.source === pending.nodeId && e.sourceHandle === 'completion');
               console.log(`[EventEngine] Device On completion for ${deviceIp} - executing ${completionEdges.length} completion edges`);
+
+              // Inherit flags from activeExecutions
+              const execution = this.activeExecutions.get(pending.flowId);
+              const inheritedPriority = execution?.triggerPriority || null;
+              const inheritedNotify = execution?.shouldNotify || false;
+
               for (const edge of completionEdges) {
-                await this.executeFromNode(flow, edge.target, null, true);
+                await this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify);
               }
             }
             this.pendingDeviceOnCompletions.delete(deviceIp);
@@ -3059,8 +3210,13 @@ class EventEngine {
 
     console.log(`[EventEngine] Found ${completionEdges.length} completion edges to execute`);
 
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(pending.flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
     for (const edge of completionEdges) {
-      await this.executeFromNode(flowData.flow, edge.target, null, true);
+      await this.executeFromNode(flowData.flow, edge.target, null, true, inheritedPriority, inheritedNotify);
     }
 
     // Check if flow execution is now complete (no more pending ops for this flow)
@@ -3113,8 +3269,13 @@ class EventEngine {
 
     console.log(`[EventEngine] Found ${completionEdges.length} device_on completion edges to execute`);
 
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(pending.flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
     for (const edge of completionEdges) {
-      await this.executeFromNode(flowData.flow, edge.target, null, true);
+      await this.executeFromNode(flowData.flow, edge.target, null, true, inheritedPriority, inheritedNotify);
     }
 
     // Check if flow execution is now complete (no more pending ops for this flow)
@@ -3239,11 +3400,6 @@ class EventEngine {
     // Broadcast empty flow executions to update UI
     if (this.broadcastFn) {
       this.broadcastFn('flow_executions_update', []);
-    }
-
-    // Re-setup timer triggers for all active flows
-    for (const [flowId, flowData] of this.activeFlows) {
-      this.setupTimerTriggers(flowData.flow);
     }
 
     // Collect flow-activated devices to stop, then clear the tracking

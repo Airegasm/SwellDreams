@@ -5,6 +5,50 @@ import './Nodes.css';
 function ButtonPressNode({ data, selected }) {
   const availableButtons = data.characterButtons || [];
 
+  // Common trigger options (Priority, Unblockable, Notify)
+  const renderTriggerOptions = () => (
+    <div className="trigger-options">
+      <div className="trigger-options-row">
+        <label className="node-checkbox" title="Flow can run even when other flows are active">
+          <input
+            type="checkbox"
+            checked={data.unblockable || false}
+            onChange={(e) => data.onChange?.('unblockable', e.target.checked)}
+          />
+          Unblockable
+        </label>
+        <label className="node-checkbox" title="Show toast notifications for this flow">
+          <input
+            type="checkbox"
+            checked={data.notify || false}
+            onChange={(e) => data.onChange?.('notify', e.target.checked)}
+          />
+          Notify
+        </label>
+      </div>
+      <div className="priority-row">
+        <label className="node-checkbox" title="Enable priority-based flow interruption">
+          <input
+            type="checkbox"
+            checked={data.hasPriority || false}
+            onChange={(e) => data.onChange?.('hasPriority', e.target.checked)}
+          />
+          Priority
+        </label>
+        {data.hasPriority && (
+          <input
+            type="number"
+            className="node-input tiny"
+            value={data.priority ?? 3}
+            min="1"
+            max="5"
+            onChange={(e) => data.onChange?.('priority', Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className={`custom-node trigger-node ${selected ? 'selected' : ''}`}>
       <div className="node-header">
@@ -51,6 +95,7 @@ function ButtonPressNode({ data, selected }) {
               ? 'Select a button or type a custom label'
               : 'Add buttons in Character Editor first, or type a custom label'}
           </p>
+          {renderTriggerOptions()}
         </div>
       </div>
       <Handle type="source" position={Position.Bottom} />

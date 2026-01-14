@@ -39,7 +39,6 @@ export const EVENT_TYPES = {
   CAPACITY_THRESHOLD: 'capacity_threshold',
   SENSATION_CHANGE: 'sensation_change',
   EMOTION_CHANGE: 'emotion_change',
-  TIMER: 'timer',
   KEYWORD_DETECTED: 'keyword_detected',
   BUTTON_PRESS: 'button_press',
 };

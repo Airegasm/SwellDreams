@@ -138,7 +138,7 @@ function Toast({ toast, onDismiss }) {
         onClick={() => onDismiss(id)}
         aria-label="Dismiss"
       >
-        \u00D7
+        ×
       </button>
     </div>
   );

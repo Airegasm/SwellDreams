@@ -2,7 +2,19 @@
 
 ## Build & Restart
 
-Always clean rebuild the frontend and restart the server after making changes:
+Always clean rebuild the frontend and restart the server after making changes.
+
+### MANDATORY: ALWAYS VERIFY SERVER IS RUNNING
+
+After ANY restart, you MUST:
+1. Run: `curl -s -o /dev/null -w "%{http_code}" http://localhost:8889`
+2. Confirm it returns `200`
+3. If NOT 200, check logs: `tail -20 /tmp/server.log`
+4. Tell the user: "Server is live at http://localhost:8889"
+
+DO NOT SKIP THIS STEP. EVER.
+
+### Build Commands
 
 ```bash
 # From project root
@@ -20,6 +32,10 @@ npm run build
 cd /home/saintorphan/Projects/SwellDreams/backend
 pkill -f "node server.js"
 nohup node server.js > /tmp/server.log 2>&1 &
+
+# 3. VERIFY (MANDATORY - DO NOT SKIP)
+sleep 2 && curl -s -o /dev/null -w "%{http_code}" http://localhost:8889
+# Must return 200. If not, check: tail -20 /tmp/server.log
 ```
 
 The clean rebuild (`rm -rf build`) is required because incremental builds may not pick up all changes.

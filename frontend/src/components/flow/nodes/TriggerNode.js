@@ -4,6 +4,50 @@ import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import './Nodes.css';
 
 function TriggerNode({ data, selected }) {
+  // Common trigger options (Priority, Unblockable, Notify)
+  const renderTriggerOptions = () => (
+    <div className="trigger-options">
+      <div className="trigger-options-row">
+        <label className="node-checkbox" title="Flow can run even when other flows are active">
+          <input
+            type="checkbox"
+            checked={data.unblockable || false}
+            onChange={(e) => data.onChange?.('unblockable', e.target.checked)}
+          />
+          Unblockable
+        </label>
+        <label className="node-checkbox" title="Show toast notifications for this flow">
+          <input
+            type="checkbox"
+            checked={data.notify || false}
+            onChange={(e) => data.onChange?.('notify', e.target.checked)}
+          />
+          Notify
+        </label>
+      </div>
+      <div className="priority-row">
+        <label className="node-checkbox" title="Enable priority-based flow interruption">
+          <input
+            type="checkbox"
+            checked={data.hasPriority || false}
+            onChange={(e) => data.onChange?.('hasPriority', e.target.checked)}
+          />
+          Priority
+        </label>
+        {data.hasPriority && (
+          <input
+            type="number"
+            className="node-input tiny"
+            value={data.priority ?? 3}
+            min="1"
+            max="5"
+            onChange={(e) => data.onChange?.('priority', Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+          />
+        )}
+      </div>
+    </div>
+  );
+
   const renderConfig = () => {
     switch (data.triggerType) {
       case 'device_on':
@@ -21,6 +65,7 @@ function TriggerNode({ data, selected }) {
                 <option key={d.ip} value={d.ip}>{d.label}</option>
               ))}
             </select>
+            {renderTriggerOptions()}
           </div>
         );
 
@@ -66,31 +111,10 @@ function TriggerNode({ data, selected }) {
                 />
               </div>
             ))}
+            {renderTriggerOptions()}
           </div>
         );
       }
-
-      case 'timer':
-        return (
-          <div className="node-config">
-            <input
-              type="number"
-              value={data.delay || 60}
-              onChange={(e) => data.onChange?.('delay', parseInt(e.target.value))}
-              min={1}
-              className="node-input small"
-            />
-            <span>seconds</span>
-            <label className="node-checkbox">
-              <input
-                type="checkbox"
-                checked={data.repeat || false}
-                onChange={(e) => data.onChange?.('repeat', e.target.checked)}
-              />
-              Repeat
-            </label>
-          </div>
-        );
 
       case 'random':
         return (
@@ -104,6 +128,7 @@ function TriggerNode({ data, selected }) {
               className="node-input small"
             />
             <span>% chance</span>
+            {renderTriggerOptions()}
           </div>
         );
 
@@ -118,6 +143,7 @@ function TriggerNode({ data, selected }) {
               className="node-input small"
             />
             <span>seconds</span>
+            {renderTriggerOptions()}
           </div>
         );
 
@@ -125,6 +151,7 @@ function TriggerNode({ data, selected }) {
         return (
           <div className="node-config">
             <span className="config-hint">Fires once at the start of each new session</span>
+            {renderTriggerOptions()}
           </div>
         );
 
@@ -282,27 +309,7 @@ function TriggerNode({ data, selected }) {
               Fire Only Once
             </label>
 
-            {/* Priority Section */}
-            <div className="priority-row">
-              <label className="node-checkbox">
-                <input
-                  type="checkbox"
-                  checked={data.hasPriority || false}
-                  onChange={(e) => data.onChange?.('hasPriority', e.target.checked)}
-                />
-                Priority
-              </label>
-              {data.hasPriority && (
-                <input
-                  type="number"
-                  className="node-input tiny"
-                  value={data.priority ?? 5}
-                  min="1"
-                  max="10"
-                  onChange={(e) => data.onChange?.('priority', Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
-                />
-              )}
-            </div>
+            {renderTriggerOptions()}
           </div>
         );
       }

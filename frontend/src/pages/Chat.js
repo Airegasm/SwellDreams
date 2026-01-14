@@ -11,7 +11,7 @@ import './Chat.css';
 
 function Chat() {
   const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
-  const { showError } = useError();
+  const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -189,6 +189,37 @@ function Chat() {
     window.addEventListener('llm_error', handleLlmError);
     return () => window.removeEventListener('llm_error', handleLlmError);
   }, [showError]);
+
+  // Listen for flow toast events
+  useEffect(() => {
+    const handleFlowToast = (event) => {
+      const { event: flowEvent, message, currentStep, totalSteps } = event.detail;
+      const stepInfo = totalSteps > 0 ? ` (${currentStep}/${totalSteps})` : '';
+
+      switch (flowEvent) {
+        case 'start':
+          showInfo(`${message}${stepInfo}`, 3000);
+          break;
+        case 'progress':
+          showInfo(`${message}${stepInfo}`, 2500);
+          break;
+        case 'complete':
+          showSuccess(message, 3000);
+          break;
+        case 'blocked':
+          showWarning(message, 4000);
+          break;
+        case 'takeover':
+          showWarning(message, 4000);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('flow_toast', handleFlowToast);
+    return () => window.removeEventListener('flow_toast', handleFlowToast);
+  }, [showInfo, showSuccess, showWarning]);
 
   // Close quick menu when clicking outside
   useEffect(() => {
@@ -1055,7 +1086,7 @@ function Chat() {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder={activeCharacter ? `Message ${activeCharacter.name}...` : 'Select a character to chat...'}
-              disabled={!activeCharacter || isGenerating || isPanelBlocking}
+              disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
               rows={3}
             />
             {/* Action Buttons Stack */}
@@ -1064,29 +1095,29 @@ function Chat() {
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress || sessionLoading}
                   onClick={() => handleGuidedGenerate('guided_impersonate')}
-                  title={flowInProgress ? "Flow in progress..." : "Guided Impersonate (continue as you)"}
+                  title={sessionLoading ? "Session starting..." : flowInProgress ? "Flow in progress..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress || sessionLoading}
                   onClick={() => handleGuidedGenerate('guided')}
-                  title={flowInProgress ? "Flow in progress..." : "Guided Response (AI continues)"}
+                  title={sessionLoading ? "Session starting..." : flowInProgress ? "Flow in progress..." : "Guided Response (AI continues)"}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">
                 <button
                   type="submit"
                   className="action-btn send-persona-btn"
-                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking}
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking || sessionLoading}
                   title="Send as Persona"
                 >↖</button>
                 <button
                   type="button"
                   className="action-btn send-character-btn"
-                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking}
+                  disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking || sessionLoading}
                   onClick={handleSendAsCharacter}
                   title="Send as Character"
                 >↖</button>
@@ -1196,15 +1227,16 @@ function Chat() {
                     return flowActions.some(a => assignedFlows.includes(a.config.flowId));
                   });
 
+                  const isDisabled = flowInProgress || sessionLoading || isGenerating;
                   return filteredButtons.length > 0 ? (
                     <div className="panel-actions-grid">
                       {filteredButtons.map((button, idx) => (
                         <button
                           key={idx}
-                          className={`panel-action-btn ${flowInProgress ? 'disabled' : ''}`}
-                          onClick={() => !flowInProgress && handleExecuteButton(button)}
-                          disabled={flowInProgress}
-                          title={flowInProgress ? 'Flow in progress...' : button.name}
+                          className={`panel-action-btn ${isDisabled ? 'disabled' : ''}`}
+                          onClick={() => !isDisabled && handleExecuteButton(button)}
+                          disabled={isDisabled}
+                          title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : button.name}
                         >
                           {button.name}
                         </button>

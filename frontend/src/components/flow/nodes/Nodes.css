@@ -451,6 +451,23 @@
   min-height: 40px;
 }
 
+/* Trigger Options (Unblockable, Notify, Priority) */
+.trigger-options {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.trigger-options-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.trigger-options-row .node-checkbox {
+  font-size: 11px;
+}
+
 /* Player State Change Trigger */
 .priority-row {
   display: flex;

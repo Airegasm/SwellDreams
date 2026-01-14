@@ -2,6 +2,36 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [1.5f] - 2026-01-14
+
+### Added
+- **Flow Priority System** - Priority-based flow interruption control:
+  - Priority checkbox and value (1-5, where 1 is highest) on all trigger nodes
+  - Higher priority flows can interrupt lower priority running flows
+  - Same or lower priority triggers are blocked while a flow is running
+- **Unblockable Flows** - Checkbox on trigger nodes for flows that should always run:
+  - Unblockable flows execute regardless of other running flows
+  - Useful for harmless state update flows (capacity tracking, etc.)
+- **Selective Flow Notifications** - Notify checkbox on trigger nodes:
+  - Toast notifications only appear when Notify is checked
+  - Flow start, progress, completion, blocked, and takeover events
+  - Step counter shows progress through flow (e.g., "Step 3/8")
+- **Session Loading State** - Chat input and action buttons disabled during:
+  - Session initialization
+  - LLM-enhanced welcome message generation
+
+### Removed
+- **Timer Trigger Node** - Removed as it didn't fit the flow paradigm
+  - Timer triggers couldn't be logically connected to flow chains
+  - Use idle triggers or player_state_change triggers instead
+
+### Fixed
+- **Button Press Notifications** - Notify flag now properly passed from button press triggers
+- **Flow Chain Flag Inheritance** - All chain continuations (choices, challenges, cycles, device completions) now inherit notify/priority flags from original trigger
+- **Emergency Stop Crash** - Removed leftover setupTimerTriggers call that caused crash on emergency stop
+
+---
+
 ## [1.5e] - 2026-01-14
 
 ### Added

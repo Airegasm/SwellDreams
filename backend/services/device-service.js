@@ -388,8 +388,8 @@ class DeviceService {
 
     const runCycle = async () => {
       if (currentCycle >= maxCycles) {
+        // stopCycle will emit cycle_complete
         this.stopCycle(ip, device);
-        this.emitEvent('cycle_complete', { ip, cycles: currentCycle, device });
         return;
       }
 
@@ -412,8 +412,8 @@ class DeviceService {
             cycleInfo.intervalTimer = nextTimer;
           }
         } else {
+          // stopCycle will emit cycle_complete
           this.stopCycle(ip, device);
-          this.emitEvent('cycle_complete', { ip, cycles: currentCycle, device });
         }
       }, duration * 1000);
 

@@ -22,9 +22,6 @@
   transition: background-color var(--transition-fast);
 }
 
-.hamburger-button:hover {
-  background-color: var(--bg-hover);
-}
 
 .hamburger-bar {
   display: block;
