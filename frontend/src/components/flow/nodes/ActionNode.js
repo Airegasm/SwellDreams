@@ -559,6 +559,13 @@ function ActionNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Label..."
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         {renderConfig()}

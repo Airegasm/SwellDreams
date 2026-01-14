@@ -296,6 +296,11 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'test_result':
+        // Dispatch test result event for FlowEditor to display
+        window.dispatchEvent(new CustomEvent('test_result', { detail: data }));
+        break;
+
       case 'server_error':
         console.error('[Express Error]', data.method, data.path, '-', data.message);
         if (data.stack) console.error(data.stack);
@@ -328,6 +333,10 @@ export function AppProvider({ children }) {
 
       case 'emergency_stop':
         console.warn('[WS] Emergency stop triggered:', data);
+        // Clear any active challenges, choices, or modals to unblock the page
+        setChallengeData(null);
+        setPlayerChoiceData(null);
+        setSimpleABData(null);
         // Notify user if this was an automatic failsafe trigger
         if (data.automatic) {
           window.dispatchEvent(new CustomEvent('emergency_stop_alert', {

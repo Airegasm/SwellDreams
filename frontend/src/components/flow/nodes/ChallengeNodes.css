@@ -348,3 +348,40 @@
   transform: translateX(-50%);
   font-weight: 600;
 }
+
+/* AI Message Fields (shared across all challenge nodes) */
+.ai-message-fields {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ai-message-section {
+  margin-bottom: 6px;
+}
+
+.ai-message-section:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message-section .node-checkbox {
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.ai-message-section .node-textarea {
+  width: 100%;
+  min-height: 40px;
+  font-size: 10px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.ai-message-section .node-textarea::placeholder {
+  color: var(--text-muted);
+  font-size: 9px;
+}

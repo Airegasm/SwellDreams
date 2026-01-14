@@ -15,6 +15,13 @@ function SimpleABNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Simple A/B"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">

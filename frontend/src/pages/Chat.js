@@ -65,11 +65,6 @@ function Chat() {
   // Emergency stop alert state
   const [emergencyStopAlert, setEmergencyStopAlert] = useState(null);
 
-  // LLM not configured error popup
-  const [showLlmError, setShowLlmError] = useState(false);
-
-  // LLM runtime errors (displayed inline in chat)
-  const [llmErrors, setLlmErrors] = useState([]);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -155,21 +150,17 @@ function Chat() {
     return () => window.removeEventListener('emergency_stop_alert', handleEmergencyStopAlert);
   }, []);
 
-  // Listen for LLM errors to display in chat
+  // Listen for LLM errors and display as toast
   useEffect(() => {
     const handleLlmError = (event) => {
       const { message, error } = event.detail;
-      const errorId = Date.now();
-      setLlmErrors(prev => [...prev, { id: errorId, message, error, timestamp: new Date() }]);
-      // Auto-dismiss after 15 seconds
-      setTimeout(() => {
-        setLlmErrors(prev => prev.filter(e => e.id !== errorId));
-      }, 15000);
+      const errorMsg = error ? `${message}: ${error}` : message;
+      showError(errorMsg, 8000);
     };
 
     window.addEventListener('llm_error', handleLlmError);
     return () => window.removeEventListener('llm_error', handleLlmError);
-  }, []);
+  }, [showError]);
 
   // Close quick menu when clicking outside
   useEffect(() => {
@@ -360,7 +351,7 @@ function Chat() {
 
     // Check if LLM is configured when auto-reply is on
     if (activeCharacter?.autoReplyEnabled && !isLlmConfigured()) {
-      setShowLlmError(true);
+      showError('LLM not configured. Go to Settings → Model to set up your connection.', 8000);
       return;
     }
 
@@ -430,7 +421,7 @@ function Chat() {
 
     // Check if LLM is configured
     if (!isLlmConfigured()) {
-      setShowLlmError(true);
+      showError('LLM not configured. Go to Settings → Model to set up your connection.', 8000);
       return;
     }
 
@@ -478,7 +469,7 @@ function Chat() {
   const handleSwipeMessage = (msg) => {
     // Check if LLM is configured
     if (!isLlmConfigured()) {
-      setShowLlmError(true);
+      showError('LLM not configured. Go to Settings → Model to set up your connection.', 8000);
       return;
     }
 
@@ -534,7 +525,7 @@ function Chat() {
       setEditingReminder(null);
     } catch (error) {
       console.error('Failed to save reminder:', error);
-      alert('Failed to save reminder. Please try again.');
+      showError('Failed to save reminder. Please try again.');
     }
   };
 
@@ -551,7 +542,7 @@ function Chat() {
       });
     } catch (error) {
       console.error('Failed to delete reminder:', error);
-      alert('Failed to delete reminder. Please try again.');
+      showError('Failed to delete reminder. Please try again.');
     }
   };
 
@@ -705,7 +696,7 @@ function Chat() {
         ...prev,
         [deviceKey]: { state: 'off', relayState: 0, lastUpdate: Date.now() }
       }));
-      alert(`Failed to turn on ${device.name}`);
+      showError(`Failed to turn on ${device.name}`);
     }
   };
 
@@ -740,7 +731,7 @@ function Chat() {
         ...prev,
         [deviceKey]: { state: 'on', relayState: 1, lastUpdate: Date.now() }
       }));
-      alert(`Failed to turn off ${device.name}`);
+      showError(`Failed to turn off ${device.name}`);
     }
   };
 
@@ -923,26 +914,6 @@ function Chat() {
               </div>
             </div>
           )}
-          {/* LLM Error Messages */}
-          {llmErrors.map(err => (
-            <div key={err.id} className="message message-error">
-              <div className="message-header">
-                <span className="message-sender">System Error</span>
-                <button
-                  className="msg-btn"
-                  onClick={() => setLlmErrors(prev => prev.filter(e => e.id !== err.id))}
-                  title="Dismiss"
-                >×</button>
-                <span className="message-time">
-                  {err.timestamp.toLocaleTimeString()}
-                </span>
-              </div>
-              <div className="message-content error-content">
-                <strong>{err.message}</strong>
-                {err.error && <div className="error-detail">{err.error}</div>}
-              </div>
-            </div>
-          ))}
           <div ref={messagesEndRef} />
         </div>
 
@@ -1164,21 +1135,39 @@ function Chat() {
 
             <div className={`character-panel actions-panel ${actionsExpanded ? 'expanded' : ''}`}>
               <div className="panel-content">
-                {activeCharacter?.buttons && activeCharacter.buttons.length > 0 ? (
-                  <div className="panel-actions-grid">
-                    {activeCharacter.buttons.map((button, idx) => (
-                      <button
-                        key={idx}
-                        className="panel-action-btn"
-                        onClick={() => handleExecuteButton(button)}
-                      >
-                        {button.name}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="panel-empty">No actions configured</p>
-                )}
+                {(() => {
+                  // Filter buttons to only show those with actions linked to assigned flows
+                  // Use sessionState.flowAssignments which is updated in real-time via WebSocket
+                  const assignedFlows = sessionState?.flowAssignments?.characters?.[activeCharacter?.id] || activeCharacter?.assignedFlows || [];
+                  const filteredButtons = (activeCharacter?.buttons || []).filter(button => {
+                    // If button has no actions, show it
+                    if (!button.actions || button.actions.length === 0) return true;
+                    // Check if any action references a flow - if so, only show if that flow is assigned
+                    // Action types: 'trigger_flow' or 'link_to_flow'
+                    const flowActions = button.actions.filter(a =>
+                      (a.type === 'trigger_flow' || a.type === 'link_to_flow') && a.config?.flowId
+                    );
+                    if (flowActions.length === 0) return true; // No flow actions, show button
+                    // Only show if at least one flow action references an assigned flow
+                    return flowActions.some(a => assignedFlows.includes(a.config.flowId));
+                  });
+
+                  return filteredButtons.length > 0 ? (
+                    <div className="panel-actions-grid">
+                      {filteredButtons.map((button, idx) => (
+                        <button
+                          key={idx}
+                          className="panel-action-btn"
+                          onClick={() => handleExecuteButton(button)}
+                        >
+                          {button.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="panel-empty">No actions configured</p>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1335,26 +1324,6 @@ function Chat() {
         </div>
       )}
 
-      {/* LLM Not Configured Error Modal */}
-      {showLlmError && (
-        <div className="modal-overlay" onClick={() => setShowLlmError(false)}>
-          <div className="modal error-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header error">
-              <h3>LLM Not Connected</h3>
-              <button className="modal-close" onClick={() => setShowLlmError(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>No LLM server is configured. Please go to <strong>Settings → Model</strong> to configure your LLM connection.</p>
-              <p className="error-hint">You can connect to a local LLM (KoboldCPP, LM Studio) or use OpenRouter for cloud models.</p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={() => setShowLlmError(false)}>
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { memo, useState, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import AIMessageFields from './AIMessageFields';
 import './Nodes.css';
 import './ChallengeNodes.css';
 
@@ -56,6 +57,13 @@ function PrizeWheelNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Prize Wheel"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -105,6 +113,7 @@ function PrizeWheelNode({ data, selected }) {
             )}
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       {segments.map((segment, index) => (
         <Handle
@@ -228,6 +237,13 @@ function DiceRollNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Dice Roll"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -327,6 +343,7 @@ function DiceRollNode({ data, selected }) {
             </div>
           )}
         </div>
+        <AIMessageFields data={data} />
       </div>
       {outputs.map((output, index) => (
         <Handle
@@ -397,6 +414,13 @@ function CoinFlipNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Coin Flip"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -448,6 +472,7 @@ function CoinFlipNode({ data, selected }) {
             </select>
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       <Handle
         type="source"
@@ -501,6 +526,13 @@ function RPSNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Rock Paper Scissors"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -530,6 +562,7 @@ function RPSNode({ data, selected }) {
             </select>
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       <Handle
         type="source"
@@ -599,6 +632,13 @@ function TimerChallengeNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Timer Challenge"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -638,6 +678,7 @@ function TimerChallengeNode({ data, selected }) {
             </div>
           )}
         </div>
+        <AIMessageFields data={data} />
       </div>
       <Handle
         type="source"
@@ -709,6 +750,13 @@ function NumberGuessNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Number Guess"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -752,6 +800,7 @@ function NumberGuessNode({ data, selected }) {
             />
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       <Handle
         type="source"
@@ -849,6 +898,13 @@ function SlotMachineNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Slot Machine"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -902,6 +958,7 @@ function SlotMachineNode({ data, selected }) {
             )}
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       {outputs.map((output, index) => (
         <Handle
@@ -981,6 +1038,13 @@ function CardDrawNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Card Draw"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">
@@ -1008,6 +1072,7 @@ function CardDrawNode({ data, selected }) {
             </select>
           </div>
         </div>
+        <AIMessageFields data={data} />
       </div>
       {outputs.map((output, index) => (
         <Handle

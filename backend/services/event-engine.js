@@ -214,6 +214,7 @@ class EventEngine {
     this.pendingChallenge = null; // Track pending challenge for flow continuation
     this.pendingCycleCompletions = new Map(); // Track pending cycle completions: device -> { flowId, nodeId, isInfinite }
     this.pendingDeviceOnCompletions = new Map(); // Track pending device_on completions: device -> { flowId, nodeId, isInfinite }
+    this.flowActivatedDevices = new Map(); // Track devices activated by flows: device -> { flowId, deviceObj }
     this.previousPlayerState = { // Track player state for change detection
       capacity: 0,
       pain: 0, // 0-10 numeric pain scale
@@ -221,6 +222,13 @@ class EventEngine {
     };
     this.executedOnceConditions = new Set(); // Track conditions that have fired with onlyOnce
     this.simulationMode = false; // When true, device actions are simulated (not executed)
+    this.aborted = false; // Emergency stop flag - when true, all flow execution halts immediately
+    this.abortEpoch = 0; // Incremented on each abort - async ops check if epoch changed to detect abort
+
+    // Test mode state - for flow testing from specific nodes
+    this.testMode = false;
+    this.testResults = [];
+    this.testState = {}; // Mock state values for testing
 
     // Flow pause/resume state
     this.isPaused = false;
@@ -242,6 +250,528 @@ class EventEngine {
   }
 
   /**
+   * Test execution from a specific node
+   * Returns step-by-step results instead of broadcasting to frontend
+   * All LLM is suppressed, devices are simulated, challenges/choices auto-resolve
+   * @param {Object} flow - The flow to test
+   * @param {string} nodeId - The node to start execution from
+   * @returns {Object} - { success: boolean, steps: Array, error?: string }
+   */
+  async testFromNode(flow, nodeId) {
+    console.log(`[EventEngine] TEST MODE - Starting test from node ${nodeId} in flow "${flow.name}"`);
+
+    // Set up test mode
+    this.testMode = true;
+    this.testResults = [];
+    this.testState = {
+      capacity: 0,
+      pain: 0,
+      emotion: 'neutral'
+    };
+
+    // Store original state
+    const originalSimulationMode = this.simulationMode;
+    const originalSessionState = this.sessionState ? { ...this.sessionState } : null;
+
+    // Enable simulation mode for devices
+    this.simulationMode = true;
+
+    // Create a mock session state for testing
+    if (!this.sessionState) {
+      this.sessionState = {
+        capacity: 0,
+        pain: 0,
+        emotion: 'neutral',
+        executionHistory: { deviceActions: {} }
+      };
+    }
+
+    try {
+      // Log test start
+      const startNode = flow.nodes.find(n => n.id === nodeId);
+      this.testResults.push({
+        type: 'test_start',
+        label: `Test started from: ${startNode?.data?.label || nodeId}`,
+        nodeId: nodeId,
+        nodeType: startNode?.type || 'unknown'
+      });
+
+      // Execute the flow from the specified node
+      await this.executeTestFromNode(flow, nodeId);
+
+      // Log test completion
+      this.testResults.push({
+        type: 'test_complete',
+        label: 'Test completed',
+        totalSteps: this.testResults.length
+      });
+
+      return { success: true, steps: this.testResults };
+    } catch (error) {
+      console.error(`[EventEngine] TEST MODE - Error:`, error);
+      this.testResults.push({
+        type: 'error',
+        label: 'Test error',
+        details: error.message
+      });
+      return { success: false, error: error.message, steps: this.testResults };
+    } finally {
+      // Restore original state
+      this.testMode = false;
+      this.simulationMode = originalSimulationMode;
+      if (originalSessionState) {
+        this.sessionState = originalSessionState;
+      }
+      this.testResults = [];
+      this.testState = {};
+      console.log('[EventEngine] TEST MODE - Completed, state restored');
+    }
+  }
+
+  /**
+   * Execute flow from a node in test mode
+   * Similar to executeFromNode but captures results instead of broadcasting
+   */
+  async executeTestFromNode(flow, nodeId) {
+    const node = flow.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Execute current node
+    const result = await this.executeTestNode(node, flow);
+
+    // Find outgoing edges
+    let edges = flow.edges.filter(e => e.source === nodeId);
+
+    // For condition/branch nodes, filter by result
+    if (node.type === 'condition') {
+      if (result && result.result) {
+        const handleId = `true-${result.conditionIndex}`;
+        edges = edges.filter(e => e.sourceHandle === handleId);
+      } else {
+        edges = edges.filter(e => e.sourceHandle === 'false');
+      }
+    } else if (node.type === 'branch') {
+      if (result !== null && result !== undefined) {
+        edges = edges.filter(e => e.sourceHandle === `branch-${result}`);
+      }
+    } else if (result === 'start_cycle' || result === 'device_on') {
+      // For cycle/device_on, execute immediate edges
+      const immediateEdges = edges.filter(e => e.sourceHandle === 'immediate');
+      const completionEdges = edges.filter(e => e.sourceHandle === 'completion');
+      edges = immediateEdges;
+      // Log completion edges as pending
+      if (completionEdges.length > 0) {
+        this.testResults.push({
+          type: 'pending_completion',
+          label: `${completionEdges.length} completion edge(s) would execute when device turns off`,
+          details: completionEdges.map(e => e.target).join(', ')
+        });
+      }
+    } else if (typeof result === 'object' && result?.skipEdges) {
+      // Challenge/choice nodes: execute based on the result
+      if (result.outputId) {
+        edges = edges.filter(e => e.sourceHandle === result.outputId);
+      }
+    }
+
+    // Execute next nodes
+    for (const edge of edges) {
+      await this.executeTestFromNode(flow, edge.target);
+    }
+  }
+
+  /**
+   * Execute a single node in test mode
+   */
+  async executeTestNode(node, flow) {
+    console.log(`[EventEngine] TEST - Executing node: ${node.type} - ${node.data.label}`);
+
+    // Log node execution
+    const nodeStep = {
+      type: 'node',
+      label: node.data.label || node.type,
+      nodeId: node.id,
+      nodeType: node.type,
+      details: ''
+    };
+
+    switch (node.type) {
+      case 'trigger':
+      case 'button_press':
+        nodeStep.details = `Trigger: ${node.data.triggerType || 'button_press'}`;
+        this.testResults.push(nodeStep);
+        return true;
+
+      case 'action':
+        return await this.executeTestAction(node.data, flow, node.id, nodeStep);
+
+      case 'condition':
+        return this.evaluateTestCondition(node.data, flow.id, node.id, nodeStep);
+
+      case 'branch':
+        const branchResult = this.evaluateBranch(node.data);
+        nodeStep.details = `Branch selected: ${branchResult}`;
+        this.testResults.push(nodeStep);
+        return branchResult;
+
+      case 'delay':
+        nodeStep.details = `Delay: ${node.data.delay || 1}s (skipped in test)`;
+        this.testResults.push(nodeStep);
+        return true;
+
+      case 'player_choice':
+        return this.executeTestPlayerChoice(node, flow, nodeStep);
+
+      case 'simple_ab':
+        return this.executeTestSimpleAB(node, flow, nodeStep);
+
+      // Challenge nodes
+      case 'prize_wheel':
+      case 'dice_roll':
+      case 'coin_flip':
+      case 'rps':
+      case 'timer_challenge':
+      case 'number_guess':
+      case 'slot_machine':
+      case 'card_draw':
+        return this.executeTestChallenge(node, flow, nodeStep);
+
+      default:
+        nodeStep.details = 'Unknown node type';
+        this.testResults.push(nodeStep);
+        return true;
+    }
+  }
+
+  /**
+   * Execute action node in test mode
+   */
+  async executeTestAction(data, flow, nodeId, nodeStep) {
+    switch (data.actionType) {
+      case 'send_message':
+        nodeStep.details = `AI Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
+        nodeStep.suppressLlm = true; // Always suppress in test
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'broadcast',
+          label: 'AI Message (suppressed)',
+          details: data.message || '',
+          broadcastType: 'ai_message'
+        });
+        return true;
+
+      case 'send_player_message':
+        nodeStep.details = `Player Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'broadcast',
+          label: 'Player Message (suppressed)',
+          details: data.message || '',
+          broadcastType: 'player_message'
+        });
+        return true;
+
+      case 'system_message':
+        nodeStep.details = `System Message: "${(data.message || '').substring(0, 50)}..."`;
+        this.testResults.push(nodeStep);
+        return true;
+
+      case 'device_on':
+        nodeStep.details = `Device ON: ${data.device} (simulated)`;
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'device',
+          label: `Device "${data.device}" turned ON`,
+          details: data.untilType ? `Until: ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}` : 'Forever',
+          action: 'on'
+        });
+        return 'device_on';
+
+      case 'device_off':
+        nodeStep.details = `Device OFF: ${data.device} (simulated)`;
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'device',
+          label: `Device "${data.device}" turned OFF`,
+          action: 'off'
+        });
+        return true;
+
+      case 'start_cycle':
+        nodeStep.details = `Start Cycle: ${data.device} (duration: ${data.duration || 5}s, interval: ${data.interval || 10}s, cycles: ${data.cycles || 'infinite'})`;
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'device',
+          label: `Device "${data.device}" cycling`,
+          details: `Duration: ${data.duration || 5}s, Interval: ${data.interval || 10}s, Cycles: ${data.cycles || 'infinite'}`,
+          action: 'cycle'
+        });
+        return 'start_cycle';
+
+      case 'stop_cycle':
+        nodeStep.details = `Stop Cycle: ${data.device} (simulated)`;
+        this.testResults.push(nodeStep);
+        return true;
+
+      case 'set_variable':
+        nodeStep.details = `Set Variable: ${data.variableName} = ${data.variableValue}`;
+        this.testResults.push(nodeStep);
+        return true;
+
+      default:
+        nodeStep.details = `Action: ${data.actionType}`;
+        this.testResults.push(nodeStep);
+        return true;
+    }
+  }
+
+  /**
+   * Evaluate condition in test mode - automatically adjust test state to meet conditions
+   */
+  evaluateTestCondition(data, flowId, nodeId, nodeStep) {
+    const conditions = data.conditions || [data];
+
+    for (let i = 0; i < conditions.length; i++) {
+      const condition = conditions[i];
+      const variable = condition.variable;
+      const operator = condition.operator;
+      const targetValue = parseFloat(condition.value) || condition.value;
+
+      // Get current test state value
+      let currentValue = this.testState[variable] ?? 0;
+
+      // For numeric conditions, adjust test state to meet the condition
+      if (['capacity', 'pain'].includes(variable) && typeof targetValue === 'number') {
+        let newValue = currentValue;
+
+        switch (operator) {
+          case '>':
+            newValue = targetValue + 1;
+            break;
+          case '>=':
+            newValue = targetValue;
+            break;
+          case '==':
+          case '=':
+            newValue = targetValue;
+            break;
+          case '<':
+            newValue = targetValue - 1;
+            break;
+          case '<=':
+            newValue = targetValue;
+            break;
+          case 'range':
+            const min = parseFloat(condition.value);
+            const max = parseFloat(condition.value2);
+            newValue = (min + max) / 2;
+            break;
+        }
+
+        // Record state change
+        if (newValue !== currentValue) {
+          this.testResults.push({
+            type: 'state_change',
+            label: `${variable} adjusted for condition`,
+            stateChange: {
+              [variable]: { from: currentValue, to: newValue }
+            },
+            details: `${variable}: ${currentValue} → ${newValue} (to meet ${operator} ${targetValue})`
+          });
+          this.testState[variable] = newValue;
+        }
+
+        nodeStep.details = `Condition: ${variable} ${operator} ${targetValue} → TRUE (adjusted)`;
+        this.testResults.push(nodeStep);
+
+        return { result: true, conditionIndex: i };
+      } else if (variable === 'emotion') {
+        // For emotion, set to target value
+        if (this.testState.emotion !== targetValue) {
+          this.testResults.push({
+            type: 'state_change',
+            label: 'emotion adjusted for condition',
+            stateChange: {
+              emotion: { from: this.testState.emotion || 'neutral', to: targetValue }
+            },
+            details: `emotion: ${this.testState.emotion || 'neutral'} → ${targetValue}`
+          });
+          this.testState.emotion = targetValue;
+        }
+
+        nodeStep.details = `Condition: emotion ${operator} "${targetValue}" → TRUE (adjusted)`;
+        this.testResults.push(nodeStep);
+
+        return { result: true, conditionIndex: i };
+      }
+    }
+
+    // No conditions could be met
+    nodeStep.details = 'No conditions matched → FALSE';
+    this.testResults.push(nodeStep);
+    return { result: false, conditionIndex: -1 };
+  }
+
+  /**
+   * Execute player choice in test mode - auto-select first option
+   */
+  executeTestPlayerChoice(node, flow, nodeStep) {
+    const choices = node.data.choices || [];
+    const firstChoice = choices[0];
+
+    nodeStep.details = `Player Choice: ${choices.length} options`;
+    this.testResults.push(nodeStep);
+
+    this.testResults.push({
+      type: 'choice',
+      label: 'Player Choice presented',
+      details: choices.map(c => c.label || c.id).join(', '),
+      choices: choices
+    });
+
+    if (firstChoice) {
+      this.testResults.push({
+        type: 'choice_selected',
+        label: `Auto-selected: "${firstChoice.label || firstChoice.id}"`,
+        selectedChoice: firstChoice
+      });
+
+      // Return the output to follow
+      return { skipEdges: true, outputId: firstChoice.id };
+    }
+
+    return { skipEdges: true, outputId: null };
+  }
+
+  /**
+   * Execute simple A/B in test mode - auto-select option A
+   */
+  executeTestSimpleAB(node, flow, nodeStep) {
+    const data = node.data;
+
+    nodeStep.details = `Simple A/B: "${data.labelA || 'A'}" vs "${data.labelB || 'B'}"`;
+    this.testResults.push(nodeStep);
+
+    this.testResults.push({
+      type: 'choice',
+      label: 'Simple A/B presented',
+      details: `A: ${data.labelA || 'Option A'}, B: ${data.labelB || 'Option B'}`,
+      choices: [
+        { id: 'a', label: data.labelA || 'Option A' },
+        { id: 'b', label: data.labelB || 'Option B' }
+      ]
+    });
+
+    this.testResults.push({
+      type: 'choice_selected',
+      label: `Auto-selected: "${data.labelA || 'Option A'}"`,
+      selectedChoice: { id: 'a', label: data.labelA || 'Option A' }
+    });
+
+    return { skipEdges: true, outputId: 'a' };
+  }
+
+  /**
+   * Execute challenge in test mode - simulate result
+   */
+  executeTestChallenge(node, flow, nodeStep) {
+    const challengeType = node.type;
+    const data = node.data;
+
+    let resultDetails = '';
+    let outputId = 'player-wins'; // Default to player wins
+
+    switch (challengeType) {
+      case 'prize_wheel':
+        const segments = data.segments || [];
+        const randomSegment = segments[Math.floor(Math.random() * segments.length)];
+        resultDetails = `Wheel landed on: "${randomSegment?.label || 'Unknown'}"`;
+        outputId = randomSegment?.id || 'segment-0';
+        break;
+
+      case 'dice_roll':
+        const diceCount = data.diceCount || 1;
+        const rolls = Array(diceCount).fill(0).map(() => Math.floor(Math.random() * 6) + 1);
+        const total = rolls.reduce((a, b) => a + b, 0);
+        resultDetails = `Rolled: ${rolls.join(', ')} (total: ${total})`;
+        // Check win condition
+        const winCondition = data.winCondition || 'higher';
+        const threshold = data.winThreshold || 4;
+        if (winCondition === 'higher' && total > threshold) outputId = 'player-wins';
+        else if (winCondition === 'lower' && total < threshold) outputId = 'player-wins';
+        else if (winCondition === 'equal' && total === threshold) outputId = 'player-wins';
+        else outputId = 'character-wins';
+        break;
+
+      case 'coin_flip':
+        const flip = Math.random() > 0.5 ? 'heads' : 'tails';
+        resultDetails = `Coin landed: ${flip}`;
+        outputId = flip;
+        break;
+
+      case 'rps':
+        const moves = ['rock', 'paper', 'scissors'];
+        const playerMove = moves[Math.floor(Math.random() * 3)];
+        const aiMove = moves[Math.floor(Math.random() * 3)];
+        resultDetails = `Player: ${playerMove}, AI: ${aiMove}`;
+        if (playerMove === aiMove) outputId = 'draw';
+        else if ((playerMove === 'rock' && aiMove === 'scissors') ||
+                 (playerMove === 'paper' && aiMove === 'rock') ||
+                 (playerMove === 'scissors' && aiMove === 'paper')) outputId = 'player-wins';
+        else outputId = 'character-wins';
+        break;
+
+      case 'timer_challenge':
+        resultDetails = `Timer challenge: auto-completed successfully`;
+        outputId = 'success';
+        break;
+
+      case 'number_guess':
+        const secretNumber = Math.floor(Math.random() * (data.maxNumber || 10)) + 1;
+        resultDetails = `Secret number: ${secretNumber}, auto-guessed correctly`;
+        outputId = 'correct';
+        break;
+
+      case 'slot_machine':
+        const symbols = ['7', 'BAR', 'CHERRY', 'LEMON'];
+        const reels = [0, 1, 2].map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+        resultDetails = `Reels: ${reels.join(' | ')}`;
+        if (reels[0] === reels[1] && reels[1] === reels[2]) {
+          resultDetails += ' - JACKPOT!';
+          outputId = 'jackpot';
+        } else {
+          outputId = 'no-match';
+        }
+        break;
+
+      case 'card_draw':
+        const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+        const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const playerCard = `${values[Math.floor(Math.random() * values.length)]} of ${suits[Math.floor(Math.random() * suits.length)]}`;
+        const aiCard = `${values[Math.floor(Math.random() * values.length)]} of ${suits[Math.floor(Math.random() * suits.length)]}`;
+        resultDetails = `Player: ${playerCard}, AI: ${aiCard}`;
+        outputId = Math.random() > 0.5 ? 'player-wins' : 'character-wins';
+        break;
+
+      default:
+        resultDetails = `Unknown challenge type: ${challengeType}`;
+    }
+
+    nodeStep.details = `Challenge: ${challengeType}`;
+    this.testResults.push(nodeStep);
+
+    this.testResults.push({
+      type: 'challenge',
+      label: `${challengeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Challenge`,
+      details: resultDetails,
+      challengeType: challengeType,
+      result: outputId
+    });
+
+    return { skipEdges: true, outputId };
+  }
+
+  /**
    * Set broadcast function for sending messages
    */
   setBroadcast(fn) {
@@ -260,12 +790,34 @@ class EventEngine {
    * Returns a promise that resolves when the broadcast handler completes
    */
   async broadcast(type, data) {
+    // Block flow-related broadcasts when aborted (except status updates)
+    if (this.aborted) {
+      const blockedTypes = ['ai_message', 'challenge', 'player_choice', 'simple_ab', 'flow_message'];
+      if (blockedTypes.includes(type)) {
+        console.log(`[EventEngine] Broadcast blocked (aborted): ${type}`);
+        return;
+      }
+    }
+
     if (this.broadcastFn) {
       console.log(`[EventEngine] Calling broadcastFn for type: ${type}`);
       await this.broadcastFn(type, data);
     } else {
       console.log('[EventEngine] WARNING: No broadcastFn registered!');
     }
+  }
+
+  /**
+   * Broadcast a flow error to clients for display as toast
+   */
+  async broadcastError(message, error = null, context = {}) {
+    const errorMsg = error ? `${message}: ${error}` : message;
+    console.error(`[EventEngine] Flow Error: ${errorMsg}`, context);
+    await this.broadcast('error', {
+      message: message,
+      error: error?.toString() || null,
+      context: context
+    });
   }
 
   /**
@@ -614,6 +1166,12 @@ class EventEngine {
    * Execute flow starting from a node
    */
   async executeFromNode(flow, nodeId, fromHandle = null, skipTriggers = false) {
+    // Check abort flag at the start of each node execution
+    if (this.aborted) {
+      console.log(`[EventEngine] Execution aborted - stopping flow "${flow.name}"`);
+      return;
+    }
+
     const node = flow.nodes.find(n => n.id === nodeId);
     if (!node) return;
 
@@ -670,6 +1228,20 @@ class EventEngine {
 
     // Execute current node
     const result = await this.executeNode(node, flow);
+
+    // Check abort after node execution (may have been stopped during async operations)
+    if (this.aborted || result === 'aborted') {
+      console.log(`[EventEngine] Execution aborted after node "${node.data.label}" - stopping chain`);
+      // Decrement depth and exit
+      const abortDepth = (this.executionDepths.get(flow.id) || 1) - 1;
+      if (abortDepth <= 0) {
+        this.executionDepths.delete(flow.id);
+        this.activeExecutions.delete(flow.id);
+      } else {
+        this.executionDepths.set(flow.id, abortDepth);
+      }
+      return;
+    }
 
     // If result is 'wait', stop chain execution here (will resume when condition is met)
     if (result === 'wait') {
@@ -762,6 +1334,11 @@ class EventEngine {
    * Execute individual node
    */
   async executeNode(node, flow) {
+    // Check abort flag
+    if (this.aborted) {
+      return false;
+    }
+
     console.log(`[EventEngine] Executing node: ${node.type} - ${node.data.label}`);
 
     // Update current node label in active execution
@@ -776,45 +1353,61 @@ class EventEngine {
       }
     }
 
-    switch (node.type) {
-      case 'trigger':
-      case 'button_press':
-        // Triggers just start execution, no action needed
-        return true;
+    try {
+      switch (node.type) {
+        case 'trigger':
+        case 'button_press':
+          // Triggers just start execution, no action needed
+          return true;
 
-      case 'action':
-        return await this.executeAction(node.data, flow, node.id);
+        case 'action':
+          return await this.executeAction(node.data, flow, node.id);
 
-      case 'condition':
-        // Returns { result: boolean, conditionIndex: number }
-        return this.evaluateConditions(node.data, flow.id, node.id);
+        case 'condition':
+          // Returns { result: boolean, conditionIndex: number }
+          return this.evaluateConditions(node.data, flow.id, node.id);
 
-      case 'branch':
-        return this.evaluateBranch(node.data);
+        case 'branch':
+          return this.evaluateBranch(node.data);
 
-      case 'delay':
-        await this.executeDelay(node.data);
-        return true;
+        case 'delay': {
+          const epochBeforeDelay = this.abortEpoch;
+          await this.executeDelay(node.data);
+          // Check abort after delay completes - use epoch to detect abort even if flag reset
+          if (this.abortEpoch !== epochBeforeDelay) {
+            console.log('[EventEngine] Execution aborted after delay');
+            return 'aborted';
+          }
+          return true;
+        }
 
-      case 'player_choice':
-        return await this.executePlayerChoice(node, flow);
+        case 'player_choice':
+          return await this.executePlayerChoice(node, flow);
 
-      case 'simple_ab':
-        return await this.executeSimpleAB(node, flow);
+        case 'simple_ab':
+          return await this.executeSimpleAB(node, flow);
 
-      // Challenge nodes - interactive game elements
-      case 'prize_wheel':
-      case 'dice_roll':
-      case 'coin_flip':
-      case 'rps':
-      case 'timer_challenge':
-      case 'number_guess':
-      case 'slot_machine':
-      case 'card_draw':
-        return await this.executeChallenge(node, flow);
+        // Challenge nodes - interactive game elements
+        case 'prize_wheel':
+        case 'dice_roll':
+        case 'coin_flip':
+        case 'rps':
+        case 'timer_challenge':
+        case 'number_guess':
+        case 'slot_machine':
+        case 'card_draw':
+          return await this.executeChallenge(node, flow);
 
-      default:
-        return true;
+        default:
+          return true;
+      }
+    } catch (error) {
+      await this.broadcastError(
+        `Flow "${flow.name}" failed at "${node.data.label || node.type}"`,
+        error.message,
+        { flowId: flow.id, nodeId: node.id, nodeType: node.type }
+      );
+      return false; // Continue flow execution but mark this node as failed
     }
   }
 
@@ -822,6 +1415,12 @@ class EventEngine {
    * Execute a player_choice node - show modal and wait for user response
    */
   async executePlayerChoice(node, flow) {
+    // Check abort flag before showing player choice
+    if (this.aborted) {
+      console.log('[EventEngine] Player choice aborted before display');
+      return false;
+    }
+
     const data = node.data;
 
     // If there's a prompt and sendMessageFirst is not disabled, generate an AI message using it as instruction
@@ -859,6 +1458,12 @@ class EventEngine {
    * Execute a simple_ab node - show A/B popup and wait for user response
    */
   async executeSimpleAB(node, flow) {
+    // Check abort flag before showing simple A/B
+    if (this.aborted) {
+      console.log('[EventEngine] Simple A/B aborted before display');
+      return false;
+    }
+
     const data = node.data;
 
     // Store pending choice info so we can resume the correct branch
@@ -891,6 +1496,12 @@ class EventEngine {
    * Execute a challenge node - show interactive challenge modal and wait for result
    */
   async executeChallenge(node, flow) {
+    // Check abort flag before showing challenge
+    if (this.aborted) {
+      console.log('[EventEngine] Challenge aborted before display');
+      return false;
+    }
+
     const data = node.data;
 
     // Store pending challenge info so we can resume with the correct branch
@@ -900,6 +1511,19 @@ class EventEngine {
       challengeType: node.type,
       challengeData: data
     };
+
+    // If AI message on start is enabled, generate an AI message first
+    if (data.aiMessageStartEnabled && data.aiMessageStart) {
+      console.log(`[EventEngine] Challenge has AI message (start), generating AI message`);
+      await this.broadcast('ai_message', {
+        content: this.substituteVariables(data.aiMessageStart),
+        sender: 'flow',
+        challengeContext: {
+          type: node.type,
+          event: 'start'
+        }
+      });
+    }
 
     // Broadcast challenge modal to frontend
     console.log(`[EventEngine] Broadcasting challenge modal: ${node.type}`);
@@ -924,7 +1548,87 @@ class EventEngine {
       return;
     }
 
-    const { nodeId: pendingNodeId, flowId } = this.pendingChallenge;
+    const { nodeId: pendingNodeId, flowId, challengeType, challengeData } = this.pendingChallenge;
+
+    // Store challenge result in session state so AI knows the outcome
+    if (this.sessionState) {
+      // Map output IDs to human-readable results
+      const resultDescriptions = {
+        // Generic outcomes
+        'win': 'won the challenge',
+        'lose': 'lost the challenge',
+        'draw': 'tied',
+        'success': 'succeeded',
+        'timeout': 'ran out of time',
+        'correct': 'guessed correctly',
+        'close': 'was close but not exact',
+        'wrong': 'guessed wrong',
+        // Coin flip
+        'heads': 'got heads',
+        'tails': 'got tails',
+        'player': 'won (player)',
+        'character': 'lost (character won)',
+        // Generic for slots, cards, etc
+        'no_match': 'no match',
+        'jackpot': 'hit the jackpot'
+      };
+
+      const friendlyResult = resultDescriptions[outputId] || outputId;
+      const challengeNames = {
+        'prize_wheel': 'Prize Wheel',
+        'dice_roll': 'Dice Roll',
+        'coin_flip': 'Coin Flip',
+        'rps': 'Rock Paper Scissors',
+        'timer_challenge': 'Timer Challenge',
+        'number_guess': 'Number Guess',
+        'slot_machine': 'Slot Machine',
+        'card_draw': 'Card Draw'
+      };
+
+      this.sessionState.lastChallengeResult = {
+        type: challengeType,
+        typeName: challengeNames[challengeType] || challengeType,
+        outcome: outputId,
+        description: friendlyResult,
+        timestamp: Date.now()
+      };
+
+      console.log(`[EventEngine] Stored challenge result: ${challengeNames[challengeType] || challengeType} - ${friendlyResult}`);
+    }
+
+    // Determine if this is a character win or character lose outcome
+    // Character wins (player loses): character-wins, timeout, wrong, no-match, no_match
+    // Player wins (character loses): player-wins, success, correct, jackpot
+    const characterWinOutcomes = ['character-wins', 'timeout', 'wrong', 'no-match', 'no_match'];
+    const playerWinOutcomes = ['player-wins', 'success', 'correct', 'jackpot'];
+
+    const isCharacterWin = characterWinOutcomes.includes(outputId);
+    const isPlayerWin = playerWinOutcomes.includes(outputId);
+
+    // Generate AI message for win/lose if enabled
+    if (isCharacterWin && challengeData.aiMessageWinEnabled && challengeData.aiMessageWin) {
+      console.log(`[EventEngine] Challenge character wins, generating AI message`);
+      await this.broadcast('ai_message', {
+        content: this.substituteVariables(challengeData.aiMessageWin),
+        sender: 'flow',
+        challengeContext: {
+          type: challengeType,
+          event: 'win',
+          outcome: outputId
+        }
+      });
+    } else if (isPlayerWin && challengeData.aiMessageLoseEnabled && challengeData.aiMessageLose) {
+      console.log(`[EventEngine] Challenge character loses, generating AI message`);
+      await this.broadcast('ai_message', {
+        content: this.substituteVariables(challengeData.aiMessageLose),
+        sender: 'flow',
+        challengeContext: {
+          type: challengeType,
+          event: 'lose',
+          outcome: outputId
+        }
+      });
+    }
 
     // Verify nodeId matches
     if (pendingNodeId !== nodeId) {
@@ -983,10 +1687,18 @@ class EventEngine {
    * Execute an action node
    */
   async executeAction(data, flow, nodeId) {
+    // Check abort flag before executing action
+    if (this.aborted) {
+      console.log('[EventEngine] Action aborted');
+      return false;
+    }
+
     const crypto = require('crypto');
 
     switch (data.actionType) {
       case 'send_message': {
+        // Check abort again before sending message (LLM generation point)
+        if (this.aborted) return false;
         // AI message - optionally suppress LLM enhancement
         const broadcastData = {
           content: this.substituteVariables(data.message),
@@ -997,13 +1709,26 @@ class EventEngine {
         };
 
         console.log(`[EventEngine] Broadcasting ai_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
+        const epochBeforeBroadcast = this.abortEpoch;
         await this.broadcast('ai_message', broadcastData);
+
+        // Check if aborted during broadcast (LLM generation)
+        if (this.abortEpoch !== epochBeforeBroadcast) {
+          console.log('[EventEngine] Execution aborted during AI message broadcast');
+          return 'aborted';
+        }
 
         // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
         const postDelay = data.postDelay ?? 3;
         if (postDelay > 0) {
           console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after AI message`);
+          const epochBeforeDelay = this.abortEpoch;
           await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
+          // Check abort after delay - compare epochs to detect abort even if flag was reset
+          if (this.abortEpoch !== epochBeforeDelay) {
+            console.log('[EventEngine] Execution aborted during AI message post-delay');
+            return 'aborted';
+          }
         }
         return true;
       }
@@ -1019,13 +1744,26 @@ class EventEngine {
         };
 
         console.log(`[EventEngine] Broadcasting player_message:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
+        const epochBeforeBroadcast = this.abortEpoch;
         await this.broadcast('player_message', broadcastData);
+
+        // Check if aborted during broadcast (LLM generation)
+        if (this.abortEpoch !== epochBeforeBroadcast) {
+          console.log('[EventEngine] Execution aborted during player message broadcast');
+          return 'aborted';
+        }
 
         // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
         const postDelay = data.postDelay ?? 3;
         if (postDelay > 0) {
           console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after player message`);
+          const epochBeforeDelay = this.abortEpoch;
           await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
+          // Check abort after delay - compare epochs to detect abort even if flag was reset
+          if (this.abortEpoch !== epochBeforeDelay) {
+            console.log('[EventEngine] Execution aborted during player message post-delay');
+            return 'aborted';
+          }
         }
         return true;
       }
@@ -1104,7 +1842,7 @@ class EventEngine {
         }
 
         if (!deviceObj || !resolvedDevice) {
-          console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
+          await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
           return false;
         }
 
@@ -1118,7 +1856,15 @@ class EventEngine {
           }
         }
 
-        await this.deviceService.turnOn(resolvedDevice, deviceObj);
+        try {
+          await this.deviceService.turnOn(resolvedDevice, deviceObj);
+        } catch (deviceError) {
+          await this.broadcastError(`Failed to turn on "${deviceObj.name || data.device}"`, deviceError.message);
+          return false;
+        }
+
+        // Track this device as flow-activated (for selective emergency stop)
+        this.flowActivatedDevices.set(resolvedDevice, { flowId: flow.id, deviceObj });
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -1190,7 +1936,7 @@ class EventEngine {
         }
 
         if (!deviceObj || !resolvedDevice) {
-          console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
+          await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
           return false;
         }
 
@@ -1204,7 +1950,15 @@ class EventEngine {
           }
         }
 
-        await this.deviceService.turnOff(resolvedDevice, deviceObj);
+        try {
+          await this.deviceService.turnOff(resolvedDevice, deviceObj);
+        } catch (deviceError) {
+          await this.broadcastError(`Failed to turn off "${deviceObj.name || data.device}"`, deviceError.message);
+          return false;
+        }
+
+        // Remove from flow-activated devices tracking
+        this.flowActivatedDevices.delete(resolvedDevice);
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -1285,7 +2039,7 @@ class EventEngine {
         }
 
         if (!deviceObj || !resolvedDevice) {
-          console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
+          await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
           return false;
         }
 
@@ -1300,11 +2054,19 @@ class EventEngine {
         }
 
         console.log(`[EventEngine] Calling deviceService.startCycle for ${resolvedDevice}`);
-        await this.deviceService.startCycle(resolvedDevice, {
-          duration: data.duration || 5,
-          interval: data.interval || 10,
-          cycles: data.cycles || 0
-        }, deviceObj);
+        try {
+          await this.deviceService.startCycle(resolvedDevice, {
+            duration: data.duration || 5,
+            interval: data.interval || 10,
+            cycles: data.cycles || 0
+          }, deviceObj);
+        } catch (deviceError) {
+          await this.broadcastError(`Failed to start cycle on "${deviceObj.name || data.device}"`, deviceError.message);
+          return false;
+        }
+
+        // Track this device as flow-activated (for selective emergency stop)
+        this.flowActivatedDevices.set(resolvedDevice, { flowId: flow.id, deviceObj });
 
         // Update device state tracking
         if (this.sessionState && this.sessionState.executionHistory) {
@@ -1383,7 +2145,7 @@ class EventEngine {
         }
 
         if (!deviceObj || !resolvedDevice) {
-          console.log(`[EventEngine] Device alias "${data.device}" could not be resolved`);
+          await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
           return false;
         }
 
@@ -1397,7 +2159,12 @@ class EventEngine {
           }
         }
 
-        this.deviceService.stopCycle(resolvedDevice, deviceObj);
+        try {
+          this.deviceService.stopCycle(resolvedDevice, deviceObj);
+        } catch (deviceError) {
+          await this.broadcastError(`Failed to stop cycle on "${deviceObj.name || data.device}"`, deviceError.message);
+          return false;
+        }
 
         // Clear monitor for this device
         this.deviceMonitors.delete(resolvedDevice);
@@ -2203,6 +2970,9 @@ class EventEngine {
             await this.deviceService.turnOff(deviceIp, deviceObj);
           }
 
+          // Remove from flow-activated devices tracking
+          this.flowActivatedDevices.delete(deviceIp);
+
           // Update device state tracking
           if (this.sessionState.executionHistory && this.sessionState.executionHistory.deviceActions[deviceIp]) {
             this.sessionState.executionHistory.deviceActions[deviceIp].state = 'off';
@@ -2386,6 +3156,7 @@ class EventEngine {
     this.deviceMonitors.clear();
     this.pendingCycleCompletions.clear();
     this.pendingDeviceOnCompletions.clear();
+    this.flowActivatedDevices.clear();
     this.previousPlayerState = {
       capacity: 0,
       pain: 0,
@@ -2402,6 +3173,10 @@ class EventEngine {
    */
   emergencyStop() {
     console.log('[EventEngine] EMERGENCY STOP - Halting all flow execution');
+
+    // Set abort flag to immediately halt any in-progress flow execution
+    this.aborted = true;
+    this.abortEpoch++; // Increment epoch so async operations know abort happened
 
     // Clear all timers
     for (const [timerId, timerData] of this.timers) {
@@ -2454,13 +3229,39 @@ class EventEngine {
       emotion: 'neutral'
     };
 
+    // Clear pending challenge
+    this.pendingChallenge = null;
+
+    // Clear active execution tracking (UI status)
+    this.activeExecutions.clear();
+    this.executionDepths.clear();
+
+    // Broadcast empty flow executions to update UI
+    if (this.broadcastFn) {
+      this.broadcastFn('flow_executions_update', []);
+    }
+
     // Re-setup timer triggers for all active flows
     for (const [flowId, flowData] of this.activeFlows) {
       this.setupTimerTriggers(flowData.flow);
     }
 
+    // Collect flow-activated devices to stop, then clear the tracking
+    const devicesToStop = Array.from(this.flowActivatedDevices.entries()).map(([deviceId, info]) => ({
+      deviceId,
+      flowId: info.flowId,
+      deviceObj: info.deviceObj
+    }));
+    this.flowActivatedDevices.clear();
+
+    // Reset abort flag after a short delay to allow in-progress executions to exit
+    setTimeout(() => {
+      this.aborted = false;
+      console.log('[EventEngine] Abort flag reset - ready for new flow triggers');
+    }, 100);
+
     console.log('[EventEngine] Emergency stop complete - flow states reset, ready for new triggers');
-    return { flowsReset: this.activeFlows.size };
+    return { flowsReset: this.activeFlows.size, devicesToStop };
   }
 
   /**

@@ -61,6 +61,27 @@
   opacity: 0.5;
 }
 
+/* Test Button */
+.node-test-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: auto;
+  opacity: 0.7;
+  transition: opacity 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.node-test-btn:hover {
+  opacity: 1;
+  background: #059669;
+}
+
 .node-body {
   padding: 10px;
 }

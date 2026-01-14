@@ -71,9 +71,11 @@ echo Checking frontend dependencies...
 cd /d "%SCRIPT_DIR%frontend"
 call npm install
 
-REM Build frontend (always rebuild to ensure latest changes)
-echo Building frontend for production...
+REM Remove old build and rebuild frontend to ensure fresh code
+echo Removing old frontend build...
 cd /d "%SCRIPT_DIR%frontend"
+if exist "build" rmdir /s /q "build"
+echo Building frontend for production...
 call npm run build
 
 REM Start server in new window

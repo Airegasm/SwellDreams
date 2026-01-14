@@ -2269,6 +2269,7 @@
 
 .player-choice-panel.compact .player-choice-panel-body {
   padding: 12px 8px;
+  overflow-y: auto;
 }
 
 .player-choice-panel.compact .choice-description {
@@ -2278,6 +2279,8 @@
 
 .player-choice-panel.compact .choice-buttons {
   gap: 6px;
+  max-height: 200px; /* Allow scrolling for 4+ options */
+  overflow-y: auto;
 }
 
 .player-choice-panel.compact .btn-choice {

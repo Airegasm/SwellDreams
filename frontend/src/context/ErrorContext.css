@@ -1,13 +1,13 @@
-/* Toast Container */
+/* Toast Container - positioned to appear from behind right column */
 .toast-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10000;
+  top: 80px; /* Below the right column top bar */
+  right: 247px; /* Position to left of right column (6px margin + 231px column + 10px gap) */
+  z-index: 9990; /* Below the right column (9998) */
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 400px;
+  max-width: 350px;
   pointer-events: none;
 }
 
@@ -19,15 +19,15 @@
   padding: 12px 16px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+  animation: slideInFromColumn 0.4s ease-out;
   pointer-events: auto;
   font-size: 14px;
   line-height: 1.4;
 }
 
-@keyframes slideIn {
+@keyframes slideInFromColumn {
   from {
-    transform: translateX(100%);
+    transform: translateX(260px); /* Start hidden behind right column */
     opacity: 0;
   }
   to {
@@ -91,16 +91,29 @@
 }
 
 /* Responsive */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .toast-container {
-    top: 10px;
+    top: 80px;
     right: 10px;
-    left: 10px;
-    max-width: none;
+    left: auto;
+    max-width: calc(100% - 80px);
+    z-index: 10000; /* Above everything on mobile */
   }
 
   .toast {
     padding: 10px 12px;
     font-size: 13px;
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
   }
 }

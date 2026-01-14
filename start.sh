@@ -85,11 +85,11 @@ if [ ! -d "$SCRIPT_DIR/frontend/node_modules" ]; then
     cd "$SCRIPT_DIR/frontend" && npm install
 fi
 
-# Build frontend if needed
-if [ ! -d "$SCRIPT_DIR/frontend/build" ] || [ "$1" = "--rebuild" ]; then
-    echo "Building frontend for production..."
-    cd "$SCRIPT_DIR/frontend" && npm run build
-fi
+# Always rebuild frontend to ensure fresh code
+echo "Removing old frontend build..."
+rm -rf "$SCRIPT_DIR/frontend/build"
+echo "Building frontend for production..."
+cd "$SCRIPT_DIR/frontend" && npm run build
 
 # Start server
 echo "Starting SwellDreams server..."

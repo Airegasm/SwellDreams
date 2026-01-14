@@ -483,6 +483,18 @@ function substituteAllVariables(text, context = {}) {
   result = result.replace(/\[Feeling\]/gi, painLabel); // Legacy support
   result = result.replace(/\[Emotion\]/gi, sessionState.emotion ?? 'neutral');
 
+  // Challenge result - provides context about the last challenge outcome
+  if (sessionState.lastChallengeResult) {
+    const cr = sessionState.lastChallengeResult;
+    result = result.replace(/\[ChallengeResult\]/gi, cr.description || cr.outcome);
+    result = result.replace(/\[ChallengeType\]/gi, cr.typeName || cr.type);
+    result = result.replace(/\[ChallengeOutcome\]/gi, cr.outcome);
+  } else {
+    result = result.replace(/\[ChallengeResult\]/gi, '');
+    result = result.replace(/\[ChallengeType\]/gi, '');
+    result = result.replace(/\[ChallengeOutcome\]/gi, '');
+  }
+
   // Flow variables - [Flow:varname] syntax
   result = result.replace(/\[Flow:(\w+)\]/gi, (match, varName) => {
     return sessionState.flowVariables?.[varName] !== undefined
@@ -838,9 +850,33 @@ eventEngine.setBroadcast(async (type, data) => {
         // Build context with the instruction from the flow
         const context = buildChatContext(activeCharacter, settings);
 
+        // Build challenge-specific instruction if this is from a challenge node
+        let challengeInstruction = '';
+        if (data.challengeContext) {
+          const challengeNames = {
+            'prize_wheel': 'Prize Wheel',
+            'dice_roll': 'Dice Roll',
+            'coin_flip': 'Coin Flip',
+            'rps': 'Rock Paper Scissors',
+            'timer_challenge': 'Timer Challenge',
+            'number_guess': 'Number Guess',
+            'slot_machine': 'Slot Machine',
+            'card_draw': 'Card Draw'
+          };
+          const challengeName = challengeNames[data.challengeContext.type] || data.challengeContext.type;
+
+          if (data.challengeContext.event === 'start') {
+            challengeInstruction = `\n\nCHALLENGE CONTEXT: A ${challengeName} game is starting. Your message MUST acknowledge and introduce this game to the player. Do not ignore the game or continue as if nothing is happening.`;
+          } else if (data.challengeContext.event === 'win') {
+            challengeInstruction = `\n\nCHALLENGE CONTEXT: You just WON a ${challengeName} game against the player! Your message MUST celebrate or react to your victory. The outcome was: ${data.challengeContext.outcome}.`;
+          } else if (data.challengeContext.event === 'lose') {
+            challengeInstruction = `\n\nCHALLENGE CONTEXT: You just LOST a ${challengeName} game to the player! Your message MUST acknowledge your defeat and react to losing. The outcome was: ${data.challengeContext.outcome}.`;
+          }
+        }
+
         // Add instruction to BOTH system prompt AND at the end of the prompt for emphasis
         const instruction = `[YOUR NEXT MESSAGE MUST EXPRESS THIS ACTION: ${data.content}]`;
-        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
+        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
 
         // Append instruction to the prompt so it's the last thing before generation
         context.prompt += `\n\n${instruction}\n${activeCharacter.name}:`;
@@ -854,14 +890,14 @@ eventEngine.setBroadcast(async (type, data) => {
           settings: settings.llm
         });
 
-        // Check if generation was aborted (user navigated away during generation)
-        if (eventEngine.shouldAbortGeneration()) {
-          console.log('[EventEngine] Generation aborted - user navigated away');
+        // Check if generation was aborted (user navigated away OR emergency stop)
+        if (eventEngine.shouldAbortGeneration() || eventEngine.aborted) {
+          console.log('[EventEngine] Generation aborted -', eventEngine.aborted ? 'emergency stop' : 'user navigated away');
           llmState.isGenerating = false;
           broadcast('generating_stop', {});
           broadcast('message_deleted', { id: placeholderMessage.id });
-          // Queue for resumption if we have flow info
-          if (data.flowId && data.nodeId) {
+          // Only queue for resumption if NOT emergency stopped (pause only)
+          if (!eventEngine.aborted && data.flowId && data.nodeId) {
             eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'ai_message');
           }
           return;
@@ -878,7 +914,7 @@ eventEngine.setBroadcast(async (type, data) => {
 
           // Add variation instruction
           const variationContext = buildChatContext(activeCharacter, settings);
-          variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
+          variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
           variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${activeCharacter.name}:`;
 
           const retryResult = await llmService.generate({
@@ -923,6 +959,13 @@ eventEngine.setBroadcast(async (type, data) => {
         console.error('[EventEngine] LLM enhancement failed:', error);
         llmState.isGenerating = false;
         broadcast('generating_stop', {});
+
+        // If aborted (emergency stop), don't post any message
+        if (eventEngine.aborted) {
+          console.log('[EventEngine] LLM failed during abort - suppressing fallback message');
+          broadcast('message_deleted', { id: placeholderMessage.id });
+          return;
+        }
 
         // Validate fallback content
         if (isBlankMessage(data.content) || isDuplicateMessage(data.content)) {
@@ -1034,14 +1077,14 @@ STRICT RULES:
           settings: settings.llm
         });
 
-        // Check if generation was aborted (user navigated away during generation)
-        if (eventEngine.shouldAbortGeneration()) {
-          console.log('[EventEngine] Player message generation aborted - user navigated away');
+        // Check if generation was aborted (user navigated away OR emergency stop)
+        if (eventEngine.shouldAbortGeneration() || eventEngine.aborted) {
+          console.log('[EventEngine] Player message generation aborted -', eventEngine.aborted ? 'emergency stop' : 'user navigated away');
           llmState.isGenerating = false;
           broadcast('generating_stop', {});
           broadcast('message_deleted', { id: placeholderMessage.id });
-          // Queue for resumption if we have flow info
-          if (data.flowId && data.nodeId) {
+          // Only queue for resumption if NOT emergency stopped (pause only)
+          if (!eventEngine.aborted && data.flowId && data.nodeId) {
             eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'player_message');
           }
           return;
@@ -1064,6 +1107,14 @@ STRICT RULES:
         console.error('[EventEngine] Player message LLM enhancement failed:', error);
         llmState.isGenerating = false;
         broadcast('generating_stop', {});
+
+        // If aborted (emergency stop), don't post any message
+        if (eventEngine.aborted) {
+          console.log('[EventEngine] Player message LLM failed during abort - suppressing fallback');
+          broadcast('message_deleted', { id: placeholderMessage.id });
+          return;
+        }
+
         placeholderMessage.content = data.content;
         sessionState.chatHistory.push(placeholderMessage);
         broadcast('message_updated', placeholderMessage);
@@ -1503,6 +1554,37 @@ async function handleWsMessage(ws, type, data) {
       // The flow will not continue (no branch taken)
       console.log(`[WS] Challenge cancelled for node ${data.nodeId}`);
       eventEngine.clearPendingChallenge(data.nodeId);
+      break;
+
+    case 'test_node':
+      // Test flow execution from a specific node
+      console.log(`[WS] Test node request: flow=${data.flowId}, node=${data.nodeId}`);
+      try {
+        const flow = flows.find(f => f.id === data.flowId);
+        if (flow) {
+          const result = await eventEngine.testFromNode(flow, data.nodeId);
+          ws.send(JSON.stringify({ type: 'test_result', data: result }));
+        } else {
+          ws.send(JSON.stringify({
+            type: 'test_result',
+            data: {
+              success: false,
+              error: `Flow "${data.flowId}" not found`,
+              steps: []
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('[WS] Test node error:', error);
+        ws.send(JSON.stringify({
+          type: 'test_result',
+          data: {
+            success: false,
+            error: error.message,
+            steps: []
+          }
+        }));
+      }
       break;
 
     case 'execute_button':
@@ -2599,6 +2681,19 @@ function buildChatContext(character, settings) {
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
 
+  // Add recent challenge result if available (helps AI know the outcome)
+  if (sessionState.lastChallengeResult) {
+    const cr = sessionState.lastChallengeResult;
+    // Only include if the challenge happened recently (within 60 seconds)
+    const isRecent = (Date.now() - cr.timestamp) < 60000;
+    if (isRecent) {
+      systemPrompt += `\n=== RECENT CHALLENGE RESULT ===\n`;
+      systemPrompt += `A ${cr.typeName} challenge just occurred. Result: ${playerLabel} ${cr.description}.\n`;
+      systemPrompt += `IMPORTANT: Base your response on this ACTUAL result. Do NOT make up a different outcome.\n`;
+      systemPrompt += `=== END CHALLENGE RESULT ===\n\n`;
+    }
+  }
+
   // Add constant reminders (character + global, filtered by enabled)
   const charRemindersChat = (character.constantReminders || []).filter(r => r.enabled !== false);
   const globalRemindersChat = (settings.globalReminders || []).filter(r => r.enabled !== false);
@@ -3519,32 +3614,40 @@ app.get('/api/tuya/devices/:deviceId/state', async (req, res) => {
   }
 });
 
-// --- Emergency Stop (ALL devices, flows, and LLM) ---
+// --- Emergency Stop (flow-activated devices, flows, and LLM) ---
 app.post('/api/emergency-stop', async (req, res) => {
-  console.log('[EMERGENCY STOP] Stopping all devices, flows, and LLM requests immediately!');
-  const devices = loadData(DATA_FILES.devices) || [];
+  console.log('[EMERGENCY STOP] Stopping flow-activated devices, flows, and LLM requests!');
   const results = {
     devices: [],
     flows: null,
     llm: null
   };
 
-  // 1. Stop all devices
-  for (const device of devices) {
+  // 1. Halt all flow execution and get list of flow-activated devices
+  let devicesToStop = [];
+  if (eventEngine) {
+    results.flows = eventEngine.emergencyStop();
+    devicesToStop = results.flows.devicesToStop || [];
+  }
+
+  // 2. Stop only flow-activated devices (not all devices)
+  for (const deviceInfo of devicesToStop) {
     try {
+      const deviceId = deviceInfo.deviceId;
+      const deviceObj = deviceInfo.deviceObj;
       // Stop any active cycle
-      deviceService.stopCycle(device.ip);
+      deviceService.stopCycle(deviceId);
       // Turn off the device
-      await deviceService.turnOff(device.ip);
-      results.devices.push({ ip: device.ip, name: device.name, success: true });
+      await deviceService.turnOff(deviceId, deviceObj);
+      results.devices.push({ id: deviceId, name: deviceObj?.name || deviceId, success: true });
+      console.log(`[EMERGENCY STOP] Stopped flow-activated device: ${deviceObj?.name || deviceId}`);
     } catch (error) {
-      results.devices.push({ ip: device.ip, name: device.name, success: false, error: error.message });
+      results.devices.push({ id: deviceInfo.deviceId, name: deviceInfo.deviceObj?.name, success: false, error: error.message });
     }
   }
 
-  // 2. Halt all flow execution and reset states
-  if (eventEngine) {
-    results.flows = eventEngine.emergencyStop();
+  if (devicesToStop.length === 0) {
+    console.log('[EMERGENCY STOP] No flow-activated devices to stop');
   }
 
   // 3. Abort all pending LLM requests

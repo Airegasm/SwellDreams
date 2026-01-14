@@ -166,6 +166,13 @@ function ConditionNode({ data, selected }) {
           onChange={(e) => data.onChange?.('label', e.target.value)}
           placeholder="Condition"
         />
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
         <button className="add-else-btn" onClick={addCondition}>Add Else</button>
       </div>
 

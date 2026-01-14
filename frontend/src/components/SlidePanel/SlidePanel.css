@@ -49,6 +49,7 @@
 
 .slide-panel-content {
   padding: 8px;
+  padding-top: 24px; /* Push content below portrait overlap area */
   transform: translateY(-10px);
   opacity: 0;
   transition:

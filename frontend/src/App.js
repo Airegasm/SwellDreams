@@ -77,8 +77,9 @@ These Terms shall be governed by and construed in accordance with applicable law
 function App() {
   const location = useLocation();
   const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
-  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession } = useApp();
-  const { showError } = useError();
+  const isFlowsPage = location.pathname === '/flows';
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions } = useApp();
+  const { showError, showWarning, showSuccess } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
@@ -231,20 +232,54 @@ function App() {
     window.location.href = 'about:blank';
   };
 
+  // E-STOP / ABORT button handler
   const handleEmergencyStop = async () => {
+    if (controlMode === 'simulated' || stopping) return;
+
     setStopping(true);
+    const hasActiveFlows = flowExecutions && flowExecutions.length > 0;
+
     try {
-      await api.emergencyStop();
+      const response = await fetch('/api/emergency-stop', { method: 'POST' });
+      const result = await response.json();
+
+      if (result.success) {
+        if (hasActiveFlows) {
+          // Show flow abort message with flow name
+          const flowInfo = flowExecutions[0];
+          const flowLabel = flowInfo?.triggerLabel || flowInfo?.flowName || 'Flow';
+          showWarning(`Flow Aborted: ${flowLabel}`, 5000);
+        } else {
+          // Show simple shutoff message
+          showWarning('Shutoff Initiated', 3000);
+        }
+      } else {
+        showError('Emergency stop failed');
+      }
     } catch (error) {
-      console.error('Emergency stop failed:', error);
-      showError('Emergency stop failed - check device connections!');
+      console.error('Emergency stop error:', error);
+      showError('Emergency stop failed: ' + error.message);
+    } finally {
+      setStopping(false);
     }
-    // Keep button disabled briefly to prevent double-clicks
-    setTimeout(() => setStopping(false), 1000);
   };
 
+  // Determine E-STOP button state
+  const getEstopState = () => {
+    if (controlMode === 'simulated') {
+      return { text: 'SIM MODE', className: 'estop-simulated', disabled: true };
+    }
+    const hasActiveFlows = flowExecutions && flowExecutions.length > 0;
+    if (hasActiveFlows) {
+      return { text: 'ABORT', className: 'estop-abort', disabled: false };
+    }
+    return { text: 'E-STOP', className: 'estop-active', disabled: false };
+  };
+
+  const estopState = getEstopState();
+
   return (
-    <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
+    <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
       <span className="version-badge">v1.5b</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
@@ -259,6 +294,14 @@ function App() {
             🤖
           </span>
         </div>
+        <button
+          className={`estop-btn ${estopState.className} ${stopping ? 'stopping' : ''}`}
+          onClick={handleEmergencyStop}
+          disabled={estopState.disabled || stopping}
+          title={estopState.disabled ? 'Simulation mode active' : 'Emergency stop - stops all devices, flows, and LLM'}
+        >
+          {stopping ? '...' : estopState.text}
+        </button>
         <HamburgerMenu
           onNewSession={handleNewSession}
           onSaveSession={() => setShowSaveModal(true)}

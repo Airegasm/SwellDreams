@@ -10,6 +10,13 @@ function ButtonPressNode({ data, selected }) {
       <div className="node-header">
         <span className="node-icon">🔘</span>
         <span className="node-title">Button Press</span>
+        <button
+          className="node-test-btn"
+          onClick={(e) => { e.stopPropagation(); data.onTest?.(); }}
+          title="Test from this node"
+        >
+          Test
+        </button>
       </div>
       <div className="node-body">
         <div className="node-config">

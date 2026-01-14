@@ -13,6 +13,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useApp } from '../context/AppContext';
 import { useFlowHistory } from '../hooks/useFlowHistory';
+import TestResultsModal from '../components/TestResultsModal';
 
 // Custom node components
 import TriggerNode from '../components/flow/nodes/TriggerNode';
@@ -213,7 +214,7 @@ let nodeId = 0;
 const getId = () => `node_${nodeId++}`;
 
 function FlowEditor() {
-  const { flows, api, devices, settings, characters } = useApp();
+  const { flows, api, devices, settings, characters, sendWsMessage } = useApp();
 
   // Get reminders and buttons for flow nodes
   const globalReminders = settings?.globalReminders || [];
@@ -261,6 +262,11 @@ function FlowEditor() {
   const [contextMenu, setContextMenu] = useState(null);
   const [clipboard, setClipboard] = useState(null); // Can hold single node or array of nodes
   const [selectedNodeIds, setSelectedNodeIds] = useState([]);
+
+  // Test mode state
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   // Undo handler
   const handleUndo = useCallback(() => {
@@ -362,13 +368,14 @@ function FlowEditor() {
         characterReminders,
         characterButtons,
         flowVariables,
-        onChange: (field, value) => updateNodeData(newNodeId, field, value)
+        onChange: (field, value) => updateNodeData(newNodeId, field, value),
+        onTest: () => handleTestNode(newNodeId)
       }
     };
 
     setNodes((nds) => nds.concat(newNode));
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, closeContextMenu]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
 
   const handleUnlinkAll = useCallback(() => {
     if (!contextMenu) return;
@@ -464,7 +471,8 @@ function FlowEditor() {
             characterReminders,
             characterButtons,
             flowVariables,
-            onChange: (field, value) => updateNodeData(newNodeId, field, value)
+            onChange: (field, value) => updateNodeData(newNodeId, field, value),
+            onTest: () => handleTestNode(newNodeId)
           }
         };
       });
@@ -493,13 +501,14 @@ function FlowEditor() {
           characterReminders,
           characterButtons,
           flowVariables,
-          onChange: (field, value) => updateNodeData(newNodeId, field, value)
+          onChange: (field, value) => updateNodeData(newNodeId, field, value),
+          onTest: () => handleTestNode(newNodeId)
         }
       };
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
@@ -588,6 +597,30 @@ function FlowEditor() {
       }
     }, 50);
   }, [nodes, edges, setNodes, reactFlowInstance, pushSnapshot]);
+
+  // Handle test node - execute flow test from a specific node
+  const handleTestNode = useCallback((nodeId) => {
+    if (!selectedFlow) return;
+    setTestModalOpen(true);
+    setTestLoading(true);
+    setTestResults(null);
+
+    sendWsMessage('test_node', {
+      flowId: selectedFlow.id,
+      nodeId: nodeId
+    });
+  }, [selectedFlow, sendWsMessage]);
+
+  // Listen for test results
+  useEffect(() => {
+    const handleTestResult = (event) => {
+      setTestResults(event.detail);
+      setTestLoading(false);
+    };
+
+    window.addEventListener('test_result', handleTestResult);
+    return () => window.removeEventListener('test_result', handleTestResult);
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -689,13 +722,14 @@ function FlowEditor() {
           characterReminders,
           characterButtons,
           flowVariables,
-          onChange: (field, value) => updateNodeData(nodeId, field, value)
+          onChange: (field, value) => updateNodeData(nodeId, field, value),
+          onTest: () => handleTestNode(nodeId)
         }
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -769,7 +803,8 @@ function FlowEditor() {
         characterReminders,
         characterButtons,
         flowVariables,
-        onChange: (field, value) => updateNodeData(node.id, field, value)
+        onChange: (field, value) => updateNodeData(node.id, field, value),
+        onTest: () => handleTestNode(node.id)
       }
     }));
 
@@ -898,7 +933,8 @@ function FlowEditor() {
               characterReminders,
               characterButtons,
               flowVariables,
-              onChange: (field, value) => updateNodeData(node.id, field, value)
+              onChange: (field, value) => updateNodeData(node.id, field, value),
+              onTest: () => handleTestNode(node.id)
             }
           }));
           setNodes(nodesWithHandlers);
@@ -1383,6 +1419,18 @@ function FlowEditor() {
           </div>
         </div>
       )}
+
+      {/* Test Results Modal */}
+      <TestResultsModal
+        isOpen={testModalOpen}
+        onClose={() => {
+          setTestModalOpen(false);
+          setTestResults(null);
+          setTestLoading(false);
+        }}
+        results={testResults}
+        loading={testLoading}
+      />
       </div>
     </>
   );
