@@ -331,6 +331,19 @@ function FlowEditor() {
     setContextMenu(null);
   }, []);
 
+  // Handle test node - execute flow test from a specific node
+  const handleTestNode = useCallback((nodeId) => {
+    if (!selectedFlow) return;
+    setTestModalOpen(true);
+    setTestLoading(true);
+    setTestResults(null);
+
+    sendWsMessage('test_node', {
+      flowId: selectedFlow.id,
+      nodeId: nodeId
+    });
+  }, [selectedFlow, sendWsMessage]);
+
   const handleCopyNode = useCallback(() => {
     if (!contextMenu) return;
     const node = nodes.find(n => n.id === contextMenu.nodeId);
@@ -597,19 +610,6 @@ function FlowEditor() {
       }
     }, 50);
   }, [nodes, edges, setNodes, reactFlowInstance, pushSnapshot]);
-
-  // Handle test node - execute flow test from a specific node
-  const handleTestNode = useCallback((nodeId) => {
-    if (!selectedFlow) return;
-    setTestModalOpen(true);
-    setTestLoading(true);
-    setTestResults(null);
-
-    sendWsMessage('test_node', {
-      flowId: selectedFlow.id,
-      nodeId: nodeId
-    });
-  }, [selectedFlow, sendWsMessage]);
 
   // Listen for test results
   useEffect(() => {

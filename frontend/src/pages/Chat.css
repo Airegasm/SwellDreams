@@ -468,10 +468,19 @@
     0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.panel-action-btn:hover {
+.panel-action-btn:hover:not(:disabled) {
   background: linear-gradient(180deg, #3d4147 0%, #2d3036 100%);
   border-color: #00ff88;
   color: #00ff88;
+}
+
+.panel-action-btn:disabled,
+.panel-action-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  border-color: #3a3d42;
+  color: #6a6d72;
 }
 
 /* Entity Header with Name - Gunmetal Card */

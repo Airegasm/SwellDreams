@@ -10,7 +10,7 @@ import SlidePanel from '../components/SlidePanel/SlidePanel';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
   const { showError } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -82,6 +82,9 @@ function Chat() {
 
   // Panel blocking - disable interactions when slide panel is open
   const isPanelBlocking = !!(playerChoiceData || simpleABData || challengeData);
+
+  // Flow in progress - disable action buttons and guided buttons while flow is executing
+  const flowInProgress = flowExecutions && flowExecutions.length > 0;
 
   // Variable substitution context
   const subContext = useMemo(() => ({
@@ -1028,16 +1031,16 @@ function Chat() {
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress}
                   onClick={() => handleGuidedGenerate('guided_impersonate')}
-                  title="Guided Impersonate (continue as you)"
+                  title={flowInProgress ? "Flow in progress..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress}
                   onClick={() => handleGuidedGenerate('guided')}
-                  title="Guided Response (AI continues)"
+                  title={flowInProgress ? "Flow in progress..." : "Guided Response (AI continues)"}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">
@@ -1157,8 +1160,10 @@ function Chat() {
                       {filteredButtons.map((button, idx) => (
                         <button
                           key={idx}
-                          className="panel-action-btn"
-                          onClick={() => handleExecuteButton(button)}
+                          className={`panel-action-btn ${flowInProgress ? 'disabled' : ''}`}
+                          onClick={() => !flowInProgress && handleExecuteButton(button)}
+                          disabled={flowInProgress}
+                          title={flowInProgress ? 'Flow in progress...' : button.name}
                         >
                           {button.name}
                         </button>
