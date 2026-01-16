@@ -34,6 +34,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Logs
 *.log
@@ -49,6 +50,7 @@ backend/data/devices.json
 backend/data/personas.json
 backend/data/characters.json
 backend/data/flows.json
+backend/data/calibrations.json
 
 # Settings contains API keys - use settings.template.json instead
 backend/data/settings.json
