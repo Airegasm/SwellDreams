@@ -2,7 +2,7 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
-## [Unreleased] - 2026-01-16
+## [2.0] - 2026-01-16
 
 ### Added
 
