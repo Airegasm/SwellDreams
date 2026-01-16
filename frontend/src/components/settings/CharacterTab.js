@@ -3,17 +3,14 @@ import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
-import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import CharacterEditorModal from '../modals/CharacterEditorModal';
 import './SettingsTabs.css';
 
 function CharacterTab() {
-  const { characters, flows, settings, sessionState, api, sendWsMessage } = useApp();
+  const { characters, settings, api } = useApp();
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
-  const [showFlowModal, setShowFlowModal] = useState(false);
-  const [selectedCharacterId, setSelectedCharacterId] = useState(null);
   const listRef = useRef(null);
 
   // Sort characters with active one first
@@ -70,28 +67,10 @@ function CharacterTab() {
     }
   };
 
-  const getCharacterFlows = (characterId) => {
-    return sessionState.flowAssignments?.characters?.[characterId] || [];
-  };
-
-  const handleOpenFlowModal = (characterId) => {
-    setSelectedCharacterId(characterId);
-    setShowFlowModal(true);
-  };
-
-  const handleSaveFlows = (flowIds) => {
-    sendWsMessage('update_character_flows', {
-      characterId: selectedCharacterId,
-      flows: flowIds
-    });
-  };
-
-  const getFlowNames = (characterId) => {
-    const flowIds = getCharacterFlows(characterId);
-    return flowIds.map(id => {
-      const flow = flows.find(f => f.id === id);
-      return flow ? flow.name : null;
-    }).filter(Boolean);
+  const getActiveStoryName = (character) => {
+    if (!character.stories || character.stories.length === 0) return 'None';
+    const activeStory = character.stories.find(s => s.id === character.activeStoryId);
+    return activeStory?.name || character.stories[0]?.name || 'Story 1';
   };
 
   const handleExport = async (character) => {
@@ -188,16 +167,10 @@ function CharacterTab() {
               </div>
               <div className="card-footer">
                 <div className="flow-line">
-                  <span className="flow-line-label">Flows:</span>
+                  <span className="flow-line-label">Active Story:</span>
                   <span className="flow-line-content">
-                    {getFlowNames(character.id).join(', ') || 'None'}
+                    {getActiveStoryName(character)}
                   </span>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => handleOpenFlowModal(character.id)}
-                  >
-                    Flows
-                  </button>
                 </div>
               </div>
             </div>
@@ -210,16 +183,6 @@ function CharacterTab() {
         onClose={() => setShowEditorModal(false)}
         onSave={handleSaveCharacter}
         character={editingCharacter}
-      />
-
-      <FlowAssignmentModal
-        isOpen={showFlowModal}
-        onClose={() => setShowFlowModal(false)}
-        onSave={handleSaveFlows}
-        flows={flows}
-        assignedFlowIds={selectedCharacterId ? getCharacterFlows(selectedCharacterId) : []}
-        category="character"
-        title="Assign Character Flows"
       />
     </div>
   );

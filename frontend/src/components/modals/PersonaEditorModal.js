@@ -1,8 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
+import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
+import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
+  const { flows, devices } = useApp();
+
   // Calculate initial data from persona prop
   const initialData = useMemo(() => {
     if (persona) {
@@ -12,7 +16,12 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         appearance: persona.appearance || '',
         personality: persona.personality || '',
         relationshipWithInflation: persona.relationshipWithInflation || '',
-        avatar: persona.avatar || ''
+        avatar: persona.avatar || '',
+        stagedPortraits: persona.stagedPortraits || {},
+        // New fields for buttons and flows
+        assignedFlows: persona.assignedFlows || [],
+        buttons: persona.buttons || [],
+        assignedButtons: persona.assignedButtons || []
       };
     }
     // New persona defaults
@@ -22,7 +31,11 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       appearance: '',
       personality: '',
       relationshipWithInflation: '',
-      avatar: ''
+      avatar: '',
+      stagedPortraits: {},
+      assignedFlows: [],
+      buttons: [],
+      assignedButtons: []
     };
   }, [persona]);
 
@@ -30,9 +43,42 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const draftKey = getDraftKey('persona', persona?.id);
   const { formData, setFormData, clearDraft, hasDraft } = useDraft(draftKey, initialData, isOpen);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('basic');
+
+  // Button management state
+  const [showButtonForm, setShowButtonForm] = useState(false);
+  const [editingButtonId, setEditingButtonId] = useState(null);
+  const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [], enabled: true });
+
+  // Dropdown selections
+  const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
+  const [selectedButtonToAdd, setSelectedButtonToAdd] = useState('');
+
   const [showCropModal, setShowCropModal] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const fileInputRef = React.useRef(null);
+
+  // Staged portraits state
+  const [stagedCropModal, setStagedCropModal] = useState(false);
+  const [stagedUploadedImage, setStagedUploadedImage] = useState(null);
+  const [currentStagedRange, setCurrentStagedRange] = useState(null);
+  const stagedFileInputRefs = useRef({});
+
+  // Memoize computed values
+  const buttons = useMemo(() => formData.buttons || [], [formData.buttons]);
+
+  // Memoize dropdown options to prevent closing on re-render
+  const availableFlows = useMemo(() => {
+    if (!flows) return [];
+    const assignedFlows = formData.assignedFlows || [];
+    return flows.filter(f => !assignedFlows.includes(f.id));
+  }, [flows, formData.assignedFlows]);
+
+  const availableButtons = useMemo(() => {
+    const assignedButtons = formData.assignedButtons || [];
+    return buttons.filter(b => !assignedButtons.includes(b.buttonId));
+  }, [buttons, formData.assignedButtons]);
 
   if (!isOpen) return null;
 
@@ -85,6 +131,212 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     setUploadedImage(null);
   };
 
+  // Staged portrait handlers
+  const handleStagedImageClick = (rangeId) => {
+    stagedFileInputRefs.current[rangeId]?.click();
+  };
+
+  const handleStagedImageUpload = (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setStagedUploadedImage(event.target.result);
+      setCurrentStagedRange(rangeId);
+      setStagedCropModal(true);
+    };
+    reader.readAsDataURL(file);
+    // Reset the input so the same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleStagedCropSave = (croppedImageData) => {
+    if (!currentStagedRange) return;
+    setFormData({
+      ...formData,
+      stagedPortraits: {
+        ...formData.stagedPortraits,
+        [currentStagedRange]: croppedImageData
+      }
+    });
+    setStagedCropModal(false);
+    setStagedUploadedImage(null);
+    setCurrentStagedRange(null);
+  };
+
+  const handleStagedCropCancel = () => {
+    setStagedCropModal(false);
+    setStagedUploadedImage(null);
+    setCurrentStagedRange(null);
+  };
+
+  const handleRemoveStagedPortrait = (rangeId) => {
+    const updatedPortraits = { ...formData.stagedPortraits };
+    delete updatedPortraits[rangeId];
+    setFormData({
+      ...formData,
+      stagedPortraits: updatedPortraits
+    });
+  };
+
+  // Flow assignment handlers
+  const handleAddFlow = () => {
+    if (!selectedFlowToAdd) return;
+
+    const currentFlows = formData.assignedFlows || [];
+    if (currentFlows.includes(selectedFlowToAdd)) return;
+
+    // Find buttons created by this flow
+    const flowButtons = buttons.filter(b => b.sourceFlowId === selectedFlowToAdd);
+    const flowButtonIds = flowButtons.map(b => b.buttonId);
+
+    const currentButtons = formData.assignedButtons || [];
+    const newButtons = [...currentButtons, ...flowButtonIds.filter(id => !currentButtons.includes(id))];
+
+    setFormData({
+      ...formData,
+      assignedFlows: [...currentFlows, selectedFlowToAdd],
+      assignedButtons: newButtons
+    });
+    setSelectedFlowToAdd('');
+  };
+
+  const handleRemoveFlow = (flowId) => {
+    const currentFlows = formData.assignedFlows || [];
+
+    // Find buttons created by this flow
+    const flowButtons = buttons.filter(b => b.sourceFlowId === flowId);
+    const flowButtonIds = flowButtons.map(b => b.buttonId);
+
+    const currentButtons = formData.assignedButtons || [];
+    const newButtons = currentButtons.filter(id => !flowButtonIds.includes(id));
+
+    setFormData({
+      ...formData,
+      assignedFlows: currentFlows.filter(id => id !== flowId),
+      assignedButtons: newButtons
+    });
+  };
+
+  // Button assignment handlers
+  const handleAddButtonAssignment = () => {
+    if (!selectedButtonToAdd) return;
+    const currentButtons = formData.assignedButtons || [];
+    const buttonIdNum = parseInt(selectedButtonToAdd, 10);
+    if (!currentButtons.includes(buttonIdNum)) {
+      setFormData({
+        ...formData,
+        assignedButtons: [...currentButtons, buttonIdNum]
+      });
+    }
+    setSelectedButtonToAdd('');
+  };
+
+  const handleRemoveButtonAssignment = (buttonId) => {
+    const currentButtons = formData.assignedButtons || [];
+    setFormData({
+      ...formData,
+      assignedButtons: currentButtons.filter(id => id !== buttonId)
+    });
+  };
+
+  // Button management handlers
+  const getNextButtonId = () => {
+    const existingIds = buttons.map(b => b.buttonId).filter(id => typeof id === 'number');
+    return existingIds.length === 0 ? 1 : Math.max(...existingIds) + 1;
+  };
+
+  const handleAddButton = () => {
+    setEditingButtonId(null);
+    setButtonForm({ name: '', buttonId: getNextButtonId(), actions: [], enabled: true });
+    setShowButtonForm(true);
+  };
+
+  const handleToggleButton = (buttonId, enabled) => {
+    const updatedButtons = buttons.map(b =>
+      b.buttonId === buttonId ? { ...b, enabled } : b
+    );
+    setFormData({ ...formData, buttons: updatedButtons });
+  };
+
+  const handleEditButton = (button) => {
+    setEditingButtonId(button.buttonId);
+    setButtonForm({ ...button });
+    setShowButtonForm(true);
+  };
+
+  const handleDeleteButton = (buttonId) => {
+    if (window.confirm('Delete this button?')) {
+      const updatedButtons = buttons.filter(b => b.buttonId !== buttonId);
+      // Also remove from assigned buttons
+      const updatedAssigned = (formData.assignedButtons || []).filter(id => id !== buttonId);
+      setFormData({ ...formData, buttons: updatedButtons, assignedButtons: updatedAssigned });
+    }
+  };
+
+  const handleSaveButton = () => {
+    if (!buttonForm.name.trim()) {
+      alert('Button name is required');
+      return;
+    }
+
+    if (editingButtonId !== null) {
+      const updatedButtons = buttons.map(b =>
+        b.buttonId === editingButtonId ? buttonForm : b
+      );
+      setFormData({ ...formData, buttons: updatedButtons });
+    } else {
+      setFormData({ ...formData, buttons: [...buttons, buttonForm] });
+    }
+
+    setShowButtonForm(false);
+    setEditingButtonId(null);
+    setButtonForm({ name: '', buttonId: null, actions: [] });
+  };
+
+  const handleCancelButtonEdit = () => {
+    setShowButtonForm(false);
+    setEditingButtonId(null);
+    setButtonForm({ name: '', buttonId: null, actions: [] });
+  };
+
+  const handleAddAction = () => {
+    setButtonForm({
+      ...buttonForm,
+      actions: [...buttonForm.actions, { type: 'message', config: {} }]
+    });
+  };
+
+  const handleUpdateAction = (index, field, value) => {
+    const updatedActions = [...buttonForm.actions];
+    if (field === 'type') {
+      updatedActions[index] = { type: value, config: {} };
+    } else {
+      updatedActions[index].config[field] = value;
+    }
+    setButtonForm({ ...buttonForm, actions: updatedActions });
+  };
+
+  const handleDeleteAction = (index) => {
+    const updatedActions = buttonForm.actions.filter((_, i) => i !== index);
+    setButtonForm({ ...buttonForm, actions: updatedActions });
+  };
+
+  const handleMoveAction = (index, direction) => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === buttonForm.actions.length - 1) return;
+    const updatedActions = [...buttonForm.actions];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    [updatedActions[index], updatedActions[newIndex]] = [updatedActions[newIndex], updatedActions[index]];
+    setButtonForm({ ...buttonForm, actions: updatedActions });
+  };
+
   return (
     <div className="modal-overlay" onClick={handleCancel}>
       <div className="modal persona-editor-modal" onClick={e => e.stopPropagation()}>
@@ -98,8 +350,34 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           <button className="modal-close" onClick={handleCancel}>&times;</button>
         </div>
 
+        {/* Tab Navigation */}
+        <div className="modal-tabs persona-modal-tabs">
+          <button
+            type="button"
+            className={`modal-tab ${activeTab === 'basic' ? 'active' : ''}`}
+            onClick={() => setActiveTab('basic')}
+          >
+            Basic
+          </button>
+          <button
+            type="button"
+            className={`modal-tab ${activeTab === 'portraits' ? 'active' : ''}`}
+            onClick={() => setActiveTab('portraits')}
+          >
+            Staged Portraits
+          </button>
+          <button
+            type="button"
+            className={`modal-tab ${activeTab === 'buttons' ? 'active' : ''}`}
+            onClick={() => setActiveTab('buttons')}
+          >
+            Custom Buttons
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          {/* Basic Tab */}
+          <div className="modal-body" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
             <div className="editor-layout">
               {/* Left Column - Basic Info */}
               <div className="editor-left">
@@ -196,6 +474,257 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 )}
               </div>
             </div>
+
+            {/* Associated Flows Section */}
+            <div className="associations-section">
+              <div className="form-group">
+                <label>Associated Flows</label>
+                <div className="dropdown-add-row">
+                  <select
+                    value={selectedFlowToAdd}
+                    onChange={(e) => setSelectedFlowToAdd(e.target.value)}
+                    className="association-dropdown"
+                  >
+                    <option value="">Select a flow...</option>
+                    {availableFlows.map(flow => (
+                      <option key={flow.id} value={flow.id}>{flow.name}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddFlow} disabled={!selectedFlowToAdd}>+</button>
+                </div>
+                <div className="association-badges">
+                  {(formData.assignedFlows || []).length === 0 ? (
+                    <span className="empty-hint">No flows assigned</span>
+                  ) : (
+                    (formData.assignedFlows || []).map(flowId => {
+                      const flow = flows?.find(f => f.id === flowId);
+                      return flow ? (
+                        <span key={flowId} className="assoc-badge">
+                          {flow.name}
+                          <button type="button" className="badge-remove" onClick={() => handleRemoveFlow(flowId)}>−</button>
+                        </span>
+                      ) : null;
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Associated Custom Buttons Section */}
+              <div className="form-group">
+                <label>Associated Custom Buttons</label>
+                <div className="dropdown-add-row">
+                  <select
+                    value={selectedButtonToAdd}
+                    onChange={(e) => setSelectedButtonToAdd(e.target.value)}
+                    className="association-dropdown"
+                  >
+                    <option value="">Select a button...</option>
+                    {availableButtons.map(btn => (
+                      <option key={btn.buttonId} value={btn.buttonId}>{btn.name} #{btn.buttonId}</option>
+                    ))}
+                  </select>
+                  <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddButtonAssignment} disabled={!selectedButtonToAdd}>+</button>
+                </div>
+                <div className="association-badges">
+                  {(formData.assignedButtons || []).length === 0 ? (
+                    <span className="empty-hint">No buttons assigned - add them in the Custom Buttons tab</span>
+                  ) : (
+                    (formData.assignedButtons || []).map(buttonId => {
+                      const btn = buttons.find(b => b.buttonId === buttonId);
+                      return btn ? (
+                        <span key={buttonId} className="assoc-badge">
+                          {btn.name}
+                          <button type="button" className="badge-remove" onClick={() => handleRemoveButtonAssignment(buttonId)}>−</button>
+                        </span>
+                      ) : null;
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Staged Portraits Tab */}
+          <div className="modal-body" style={{ display: activeTab === 'portraits' ? 'block' : 'none' }}>
+            <div className="staged-portraits-section">
+              <p className="section-hint">
+                Upload different portraits for capacity ranges. The portrait changes automatically as capacity increases.
+                Capacity below 5% uses the default avatar. If a range has no portrait, the nearest lower range is used.
+              </p>
+              <div className="staged-portraits-grid">
+                {STAGED_PORTRAIT_RANGES.map((range) => (
+                  <div key={range.id} className={`staged-portrait-card ${range.isPop ? 'pop-range' : ''}`}>
+                    <div className="staged-portrait-label">{range.label}</div>
+                    <div
+                      className="staged-portrait-upload"
+                      onClick={() => handleStagedImageClick(range.id)}
+                    >
+                      {formData.stagedPortraits?.[range.id] ? (
+                        <img
+                          src={formData.stagedPortraits[range.id]}
+                          alt={`Portrait for ${range.label}`}
+                          className="staged-portrait-preview"
+                        />
+                      ) : (
+                        <div className="staged-portrait-placeholder">
+                          <span className="upload-icon">+</span>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={(el) => stagedFileInputRefs.current[range.id] = el}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleStagedImageUpload(e, range.id)}
+                      style={{ display: 'none' }}
+                    />
+                    {formData.stagedPortraits?.[range.id] && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm staged-portrait-remove"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveStagedPortrait(range.id);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Buttons Tab */}
+          <div className="modal-body" style={{ display: activeTab === 'buttons' ? 'block' : 'none' }}>
+            <div className="events-editor">
+              {!showButtonForm ? (
+                <>
+                  <div className="events-header">
+                    <h4>Custom Buttons</h4>
+                    <div className="events-header-actions">
+                      <button type="button" className="btn btn-primary btn-sm" onClick={handleAddButton} disabled={buttons.length >= 12}>+ Add Button</button>
+                      {buttons.length >= 12 && <span className="limit-warning">Maximum 12 buttons</span>}
+                    </div>
+                  </div>
+                  <p className="section-hint">Create persona buttons here, then assign them in the Basic tab.</p>
+
+                  <div className="events-list-editor">
+                    {buttons.length === 0 ? (
+                      <p className="empty-message">No buttons yet.</p>
+                    ) : (
+                      buttons.map((button) => (
+                        <div key={button.buttonId} className={`event-item ${button.enabled === false ? 'disabled' : ''} ${button.autoGenerated ? 'auto-generated' : ''}`}>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={button.enabled !== false}
+                              onChange={(e) => handleToggleButton(button.buttonId, e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                          <div className="event-info">
+                            <div className={`event-name ${button.enabled === false ? 'strikethrough' : ''}`}>
+                              {button.name} <span style={{color: '#666'}}>#{button.buttonId}</span>
+                              {button.autoGenerated && <span className="auto-badge">Auto</span>}
+                            </div>
+                            <div className="event-meta">{button.autoGenerated ? 'Linked to flow' : `${button.actions?.length || 0} action(s)`}</div>
+                          </div>
+                          <div className="event-actions">
+                            {!button.autoGenerated ? (
+                              <>
+                                <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleEditButton(button)}>Edit</button>
+                                <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteButton(button.buttonId)}>Delete</button>
+                              </>
+                            ) : (
+                              <span className="auto-managed-hint">Managed by flow</span>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="event-form">
+                  <h4>{editingButtonId !== null ? `Edit Button #${editingButtonId}` : `New Button #${buttonForm.buttonId}`}</h4>
+                  <div className="form-group">
+                    <label>Button Name *</label>
+                    <input
+                      type="text"
+                      value={buttonForm.name}
+                      onChange={(e) => setButtonForm({ ...buttonForm, name: e.target.value })}
+                      placeholder="e.g., 'Quick Action'"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <div className="actions-header">
+                      <label>Actions (execute in order)</label>
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddAction}>+ Add Action</button>
+                    </div>
+                    <div className="actions-list">
+                      {buttonForm.actions.length === 0 ? (
+                        <p className="empty-message">No actions yet.</p>
+                      ) : (
+                        buttonForm.actions.map((action, index) => (
+                          <div key={index} className="action-item">
+                            <div className="action-reorder">
+                              <button type="button" className="btn-icon-small" onClick={() => handleMoveAction(index, 'up')} disabled={index === 0}>▲</button>
+                              <button type="button" className="btn-icon-small" onClick={() => handleMoveAction(index, 'down')} disabled={index === buttonForm.actions.length - 1}>▼</button>
+                            </div>
+                            <div className="action-config">
+                              <select value={action.type} onChange={(e) => handleUpdateAction(index, 'type', e.target.value)}>
+                                <option value="message">Send Message</option>
+                                <option value="turn_on">Turn On Device</option>
+                                <option value="cycle">Cycle Device</option>
+                                <option value="link_to_flow">Link to Flow</option>
+                              </select>
+                              {action.type === 'message' && (
+                                <textarea
+                                  value={action.config.text || ''}
+                                  onChange={(e) => handleUpdateAction(index, 'text', e.target.value)}
+                                  placeholder="Instruction for AI..."
+                                  rows={2}
+                                />
+                              )}
+                              {(action.type === 'turn_on' || action.type === 'cycle') && (
+                                <select value={action.config.device || ''} onChange={(e) => handleUpdateAction(index, 'device', e.target.value)}>
+                                  <option value="">Select Device...</option>
+                                  <option value="primary_pump">Primary Pump</option>
+                                  {devices?.map(d => (
+                                    <option key={d.ip || d.deviceId} value={d.brand === 'govee' ? `govee:${d.deviceId}` : d.brand === 'tuya' ? `tuya:${d.deviceId}` : d.childId ? `${d.ip}:${d.childId}` : d.ip}>
+                                      {d.name || d.alias || d.ip || d.deviceId}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                              {action.type === 'cycle' && (
+                                <div className="cycle-inputs">
+                                  <input type="number" value={action.config.duration || 5} onChange={(e) => handleUpdateAction(index, 'duration', parseInt(e.target.value))} placeholder="Duration (s)" min="1" />
+                                  <input type="number" value={action.config.interval || 2} onChange={(e) => handleUpdateAction(index, 'interval', parseInt(e.target.value))} placeholder="Interval (s)" min="1" />
+                                </div>
+                              )}
+                              {action.type === 'link_to_flow' && (
+                                <select value={action.config.flowId || ''} onChange={(e) => handleUpdateAction(index, 'flowId', e.target.value)}>
+                                  <option value="">Select Flow...</option>
+                                  {flows?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                              )}
+                            </div>
+                            <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div className="event-form-buttons">
+                    <button type="button" className="btn btn-secondary" onClick={handleCancelButtonEdit}>Cancel</button>
+                    <button type="button" className="btn btn-primary" onClick={handleSaveButton}>{editingButtonId !== null ? 'Update' : 'Create'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="modal-footer">
@@ -215,6 +744,15 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           image={uploadedImage}
           onSave={handleCropSave}
           onCancel={handleCropCancel}
+        />
+      )}
+
+      {/* Staged Portrait Crop Modal */}
+      {stagedCropModal && (
+        <ImageCropModal
+          image={stagedUploadedImage}
+          onSave={handleStagedCropSave}
+          onCancel={handleStagedCropCancel}
         />
       )}
     </div>

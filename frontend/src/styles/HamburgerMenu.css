@@ -227,6 +227,20 @@
   color: white;
 }
 
+/* Logo at bottom of hamburger menu */
+.hamburger-menu-logo {
+  margin-top: auto;
+  padding: var(--spacing-lg);
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.hamburger-menu-logo img {
+  max-width: 120px;
+  height: auto;
+  opacity: 0.8;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .hamburger-overlay {
@@ -237,5 +251,11 @@
     top: var(--mobile-nav-height);
     width: 80%;
     max-width: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hamburger-menu-logo {
+    margin-top: auto;
   }
 }

@@ -7,6 +7,7 @@ import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import { substituteVariables } from '../utils/variableSubstitution';
+import { getPortraitForCapacity } from '../utils/stagedPortraits';
 import StatusBadges from '../components/StatusBadges';
 import './Chat.css';
 
@@ -28,6 +29,10 @@ function Chat() {
   const [devicesExpanded, setDevicesExpanded] = useState(false);
   const [actionPage, setActionPage] = useState(0);
   const ACTIONS_PER_PAGE = 8;
+
+  // Persona button menu pagination
+  const [personaActionPage, setPersonaActionPage] = useState(0);
+  const PERSONA_ACTIONS_PER_PAGE = 6; // 2 columns x 3 rows
 
   // Mobile drawer state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
@@ -91,10 +96,20 @@ function Chat() {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
+  // Memoized persona portrait based on capacity - changes automatically with staged portraits
+  const personaPortrait = useMemo(() => {
+    return getPortraitForCapacity(activePersona, sessionState.capacity || 0);
+  }, [activePersona, sessionState.capacity]);
+
   // Reset action page when character changes
   useEffect(() => {
     setActionPage(0);
   }, [activeCharacter?.id]);
+
+  // Reset persona action page when persona changes
+  useEffect(() => {
+    setPersonaActionPage(0);
+  }, [activePersona?.id]);
 
   // Panel blocking - disable interactions when slide panel is open
   const isPanelBlocking = !!(playerChoiceData || simpleABData || challengeData);
@@ -229,6 +244,32 @@ function Chat() {
     return () => window.removeEventListener('flow_toast', handleFlowToast);
   }, [showInfo, showSuccess, showWarning]);
 
+  // Check device reachability on startup
+  useEffect(() => {
+    const checkDevices = async () => {
+      try {
+        const result = await api.checkDeviceReachability();
+
+        if (result.unreachableDevices && result.unreachableDevices.length > 0) {
+          // Show warning for unreachable devices (but they're still configured)
+          const deviceNames = result.unreachableDevices.map(d => d.name).join(', ');
+          showWarning(`Device(s) not responding: ${deviceNames}`, 8000);
+
+          // If simulation mode was forced due to no reachable pumps
+          if (result.simulationRequired && result.simulationReason === 'No primary pump set') {
+            showWarning('No pump devices responding - restricted to simulation mode', 8000);
+          }
+        }
+      } catch (error) {
+        console.error('[Chat] Device reachability check failed:', error);
+      }
+    };
+
+    // Run check after a delay to allow devices time to come online
+    const timer = setTimeout(checkDevices, 15000);
+    return () => clearTimeout(timer);
+  }, [api, showWarning, showInfo]);
+
   // Close quick menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -287,6 +328,9 @@ function Chat() {
       // Don't trigger if user is typing in an input/textarea
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
+      // Disable capacity shortcuts when auto-capacity is enabled
+      if (settings?.globalCharacterControls?.useAutoCapacity) return;
+
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         const increment = e.shiftKey ? 5 : 1;
@@ -302,7 +346,7 @@ function Chat() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [sessionState.capacity, sendWsMessage]);
+  }, [sessionState.capacity, sendWsMessage, settings?.globalCharacterControls?.useAutoCapacity]);
 
   // Periodic device state polling
   useEffect(() => {
@@ -505,7 +549,7 @@ function Chat() {
         mode,
         guidedText: inputValue.trim() || null
       });
-      setInputValue('');
+      // Keep the guidance text in the input for reuse
     }
     // Local isGenerating will be reset by useEffect when sessionState.isGenerating becomes false
   };
@@ -544,8 +588,7 @@ function Chat() {
       id: msg.id,
       guidanceText: inputValue.trim() || null
     });
-    // Clear input after using it for guidance
-    setInputValue('');
+    // Keep the guidance text in the input for reuse
   };
 
   const handleDeleteMessage = (msgId) => {
@@ -691,6 +734,16 @@ function Chat() {
     });
   };
 
+  // Persona button execution handler
+  const handleExecutePersonaButton = (button) => {
+    if (!button || !button.actions) return;
+    sendWsMessage('execute_button', {
+      buttonId: button.buttonId || button.id,
+      personaId: activePersona.id,
+      actions: button.actions
+    });
+  };
+
   // Quick text handlers
   const handleAddQuickText = () => {
     if (!newQuickText.trim()) return;
@@ -821,12 +874,41 @@ function Chat() {
         className={`chat-blocking-overlay ${playerChoiceData || simpleABData || challengeData ? 'visible' : ''}`}
       />
 
+      {/* Mobile Header Badges - StatusBadges in header area on mobile */}
+      <div className="mobile-header-badges mobile-only">
+        <StatusBadges
+          selectedEmotion={sessionState.emotion || 'neutral'}
+          onEmotionChange={(emotion) => {
+            setSessionState(prev => ({ ...prev, emotion }));
+            sendWsMessage('update_emotion', { emotion });
+          }}
+          selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
+          onPainLevelChange={(level) => {
+            setSessionState(prev => ({ ...prev, pain: level }));
+            sendWsMessage('update_pain', { pain: level });
+          }}
+          capacity={sessionState.capacity || 0}
+          personaName={activePersona?.displayName}
+          useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+          autoCapacityMultiplier={settings?.globalCharacterControls?.autoCapacityMultiplier || 1.0}
+          onAutoCapacityMultiplierChange={async (value) => {
+            const updated = {
+              ...settings?.globalCharacterControls,
+              autoCapacityMultiplier: value
+            };
+            setSettings(prev => ({ ...prev, globalCharacterControls: updated }));
+            await api.updateSettings({ globalCharacterControls: updated });
+            sendWsMessage('settings_updated', { globalCharacterControls: updated });
+          }}
+        />
+      </div>
+
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
         <div className={`entity-portrait-large ${personaHidden ? 'portrait-hidden' : ''}`}>
-          {activePersona?.avatar ? (
-            <img src={activePersona.avatar} alt={activePersona.displayName} />
+          {personaPortrait ? (
+            <img src={personaPortrait} alt={activePersona?.displayName} />
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
@@ -852,7 +934,82 @@ function Chat() {
             }}
             capacity={sessionState.capacity || 0}
             personaName={activePersona?.displayName}
+            useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+            autoCapacityMultiplier={settings?.globalCharacterControls?.autoCapacityMultiplier || 1.0}
+            onAutoCapacityMultiplierChange={async (value) => {
+              const updated = {
+                ...settings?.globalCharacterControls,
+                autoCapacityMultiplier: value
+              };
+              setSettings(prev => ({ ...prev, globalCharacterControls: updated }));
+              await api.updateSettings({ globalCharacterControls: updated });
+              sendWsMessage('settings_updated', { globalCharacterControls: updated });
+            }}
           />
+        </div>
+
+        {/* Persona Button Menu - Static section below portrait */}
+        <div className="persona-button-menu">
+          {(() => {
+            // Filter buttons to only show those with actions linked to assigned flows
+            const assignedFlows = sessionState?.flowAssignments?.personas?.[activePersona?.id] || activePersona?.assignedFlows || [];
+            const filteredButtons = (activePersona?.buttons || []).filter(button => {
+              // Only show enabled buttons
+              if (button.enabled === false) return false;
+              // If button has no actions, show it
+              if (!button.actions || button.actions.length === 0) return true;
+              // Check if any action references a flow - if so, only show if that flow is assigned
+              const flowActions = button.actions.filter(a =>
+                (a.type === 'trigger_flow' || a.type === 'link_to_flow') && a.config?.flowId
+              );
+              if (flowActions.length === 0) return true;
+              return flowActions.some(a => assignedFlows.includes(a.config.flowId));
+            });
+
+            const isDisabled = sessionLoading || isGenerating;
+            const totalPages = Math.ceil(filteredButtons.length / PERSONA_ACTIONS_PER_PAGE);
+            const currentPageButtons = filteredButtons.slice(
+              personaActionPage * PERSONA_ACTIONS_PER_PAGE,
+              (personaActionPage + 1) * PERSONA_ACTIONS_PER_PAGE
+            );
+
+            return filteredButtons.length > 0 ? (
+              <>
+                <div className="persona-actions-grid">
+                  {currentPageButtons.map((button, idx) => (
+                    <button
+                      key={idx}
+                      className={`persona-action-btn ${isDisabled ? 'disabled' : ''}`}
+                      onClick={() => !isDisabled && handleExecutePersonaButton(button)}
+                      disabled={isDisabled}
+                      title={sessionLoading ? 'Session starting...' : button.name}
+                    >
+                      {button.name}
+                    </button>
+                  ))}
+                </div>
+                {totalPages > 1 && (
+                  <div className="persona-pagination">
+                    <button
+                      className="pagination-arrow"
+                      onClick={() => setPersonaActionPage(p => Math.max(0, p - 1))}
+                      disabled={personaActionPage === 0}
+                    >
+                      ◀
+                    </button>
+                    <span className="pagination-info">{personaActionPage + 1} / {totalPages}</span>
+                    <button
+                      className="pagination-arrow"
+                      onClick={() => setPersonaActionPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={personaActionPage >= totalPages - 1}
+                    >
+                      ▶
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : null;
+          })()}
         </div>
 
       </div>
@@ -1046,41 +1203,6 @@ function Chat() {
                   aria-label="Toggle persona panel"
                   title="Persona"
                 >🎈</button>
-                <div className="mobile-menu-container" ref={mobileMenuRef}>
-                  <button
-                    type="button"
-                    className="mobile-nav-btn hamburger-btn"
-                    onClick={() => setShowMobileMenu(!showMobileMenu)}
-                    aria-label="Menu"
-                    title="Menu"
-                  >☰</button>
-                  {showMobileMenu && (
-                    <div className="mobile-menu-dropdown">
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/'); }}>
-                        💬 Chat
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); setShowMobileSessionModal(true); }}>
-                        📁 Session
-                      </button>
-                      <div className="mobile-menu-divider" />
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/personas'); }}>
-                        👤 Personas
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/characters'); }}>
-                        🎭 Characters
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/flows'); }}>
-                        🔀 Flows
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/settings'); }}>
-                        ⚙️ Settings
-                      </button>
-                      <button className="mobile-menu-item" onClick={() => { setShowMobileMenu(false); navigate('/help'); }}>
-                        ❓ Help
-                      </button>
-                    </div>
-                  )}
-                </div>
                 <button
                   type="button"
                   className="mobile-nav-btn character-toggle"
@@ -1089,6 +1211,17 @@ function Chat() {
                   title="Character"
                 >😈</button>
               </div>
+
+              {/* Mobile E-STOP button - centered */}
+              <button
+                type="button"
+                className={`mobile-estop-btn mobile-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+                onClick={() => api.emergencyStop()}
+                disabled={controlMode === 'simulated'}
+                title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}
+              >
+                {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
+              </button>
 
             </div>
           </div>
@@ -1145,16 +1278,16 @@ function Chat() {
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress || sessionLoading}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
                   onClick={() => handleGuidedGenerate('guided_impersonate')}
-                  title={sessionLoading ? "Session starting..." : flowInProgress ? "Flow in progress..." : "Guided Impersonate (continue as you)"}
+                  title={sessionLoading ? "Session starting..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || flowInProgress || sessionLoading}
+                  disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
                   onClick={() => handleGuidedGenerate('guided')}
-                  title={sessionLoading ? "Session starting..." : flowInProgress ? "Flow in progress..." : "Guided Response (AI continues)"}
+                  title={sessionLoading ? "Session starting..." : "Guided Response (AI continues)"}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">

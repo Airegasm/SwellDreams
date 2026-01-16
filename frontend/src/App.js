@@ -12,6 +12,7 @@ import Characters from './pages/Characters';
 import HamburgerMenu from './components/HamburgerMenu';
 import SaveSessionModal from './components/modals/SaveSessionModal';
 import LoadSessionModal from './components/modals/LoadSessionModal';
+import { EMOTIONS } from './constants/stateValues';
 import './styles/App.css';
 import './styles/mobile.css';
 
@@ -91,6 +92,15 @@ function App() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [savedSessions, setSavedSessions] = useState([]);
 
+  // New session "Real Time Data" popup state
+  const [showNewSessionPopup, setShowNewSessionPopup] = useState(false);
+  const [newSessionData, setNewSessionData] = useState({
+    capacity: 0,
+    pain: 0,
+    emotion: 'neutral',
+    capacityModifier: 1.0
+  });
+
   // Get active character and persona
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -112,10 +122,19 @@ function App() {
   };
 
   // Session handlers
-  const handleNewSession = async () => {
-    if (window.confirm('Start a new session? This will clear chat history.')) {
-      await startNewSession();
-    }
+  const handleNewSession = () => {
+    // Reset form data and show popup
+    setNewSessionData({ capacity: 0, pain: 0, emotion: 'neutral', capacityModifier: 1.0 });
+    setShowNewSessionPopup(true);
+  };
+
+  const handleConfirmNewSession = async () => {
+    setShowNewSessionPopup(false);
+    await startNewSession(newSessionData);
+  };
+
+  const handleCancelNewSession = () => {
+    setShowNewSessionPopup(false);
   };
 
   const handleSaveSession = async (name) => {
@@ -428,6 +447,96 @@ function App() {
         hasUnsavedChanges={hasUnsavedChanges}
         defaultSaveName={getDefaultSessionName()}
       />
+
+      {/* New Session Modal */}
+      {showNewSessionPopup && (
+        <div className="modal-overlay" onClick={handleCancelNewSession}>
+          <div className="modal new-session-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header new-session-header">
+              <h3>New Session</h3>
+              <button className="modal-close" onClick={handleCancelNewSession}>&times;</button>
+            </div>
+
+            <div className="modal-body new-session-body">
+              <p className="new-session-subtitle">Set starting values for the new session</p>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Starting Capacity</label>
+                  <span className="form-value">{newSessionData.capacity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={newSessionData.capacity}
+                  onChange={(e) => setNewSessionData(prev => ({ ...prev, capacity: parseInt(e.target.value) }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Pain Level</label>
+                  <span className="form-value">{newSessionData.pain}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={newSessionData.pain}
+                  onChange={(e) => setNewSessionData(prev => ({ ...prev, pain: parseInt(e.target.value) }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Emotion</label>
+                <div className="emotion-select-row">
+                  <span className="emotion-preview">
+                    {EMOTIONS.find(e => e.key === newSessionData.emotion)?.emoji}
+                  </span>
+                  <select
+                    value={newSessionData.emotion}
+                    onChange={(e) => setNewSessionData(prev => ({ ...prev, emotion: e.target.value }))}
+                  >
+                    {EMOTIONS.map(emotion => (
+                      <option key={emotion.key} value={emotion.key}>
+                        {emotion.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Auto-Capacity Speed</label>
+                  <span className="form-value">{newSessionData.capacityModifier.toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.25"
+                  max="2"
+                  step="0.25"
+                  value={newSessionData.capacityModifier}
+                  onChange={(e) => setNewSessionData(prev => ({ ...prev, capacityModifier: parseFloat(e.target.value) }))}
+                />
+                <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={handleCancelNewSession}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleConfirmNewSession}>
+                Start Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

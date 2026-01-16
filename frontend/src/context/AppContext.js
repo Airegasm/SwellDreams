@@ -126,6 +126,23 @@ export function AppProvider({ children }) {
   const handleWsMessage = useCallback((type, data) => {
     switch (type) {
       case 'init':
+        // Clear stale drafts if server session changed (new boot)
+        if (data.serverSessionId) {
+          const storedSessionId = sessionStorage.getItem('swelldreams-server-session');
+          if (storedSessionId && storedSessionId !== data.serverSessionId) {
+            // Server restarted - clear all drafts
+            const keysToRemove = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+              const key = sessionStorage.key(i);
+              if (key && key.startsWith('swelldreams-draft-')) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => sessionStorage.removeItem(key));
+            console.log('[Session] Server restarted - cleared', keysToRemove.length, 'draft(s)');
+          }
+          sessionStorage.setItem('swelldreams-server-session', data.serverSessionId);
+        }
         if (data.sessionState) setSessionState(data.sessionState);
         if (data.settings) setSettings(data.settings);
         if (data.devices) setDevices(data.devices);
@@ -175,6 +192,15 @@ export function AppProvider({ children }) {
         setDevices(data);
         break;
 
+      case 'device_warning':
+        // Store warning for UI to display (e.g., unreachable devices)
+        console.log('[AppContext] Device warning:', data.message);
+        setSessionState(prev => ({
+          ...prev,
+          deviceWarning: data
+        }));
+        break;
+
       case 'flows_update':
         setFlows(data);
         break;
@@ -199,6 +225,15 @@ export function AppProvider({ children }) {
 
       case 'emotion_update':
         setSessionState(prev => ({ ...prev, emotion: data.emotion }));
+        break;
+
+      case 'auto_capacity_update':
+        setSessionState(prev => ({
+          ...prev,
+          capacity: data.capacity,
+          pain: data.pain,
+          isOverInflating: data.isOverInflating
+        }));
         break;
 
       case 'session_reset':
@@ -383,20 +418,30 @@ export function AppProvider({ children }) {
   }, [sendWsMessage]);
 
   // Start new session - clears UI immediately, shows loading while backend resets
-  const startNewSession = useCallback(async () => {
+  // Accepts optional initialValues: { capacity, pain, emotion, capacityModifier }
+  const startNewSession = useCallback(async (initialValues = {}) => {
+    const { capacity = 0, pain = 0, emotion = 'neutral', capacityModifier = 1.0 } = initialValues;
+
     // Immediately clear messages and show loading
     setMessages([]);
     setSessionLoading(true);
-    // Reset states instantly
+    // Reset states with initial values
     setSessionState(prev => ({
       ...prev,
-      capacity: 0,
-      pain: 0,
+      capacity,
+      pain,
+      emotion,
+      capacityModifier,
       chatHistory: []
     }));
     // Call API - backend will send session_reset when done
+    // Pass initial values to backend so it knows the starting state
     try {
-      await apiFetch(`${API_BASE}/api/session/reset`, { method: 'POST' });
+      await apiFetch(`${API_BASE}/api/session/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initialValues: { capacity, pain, emotion, capacityModifier } })
+      });
     } catch (error) {
       console.error('Session reset failed:', error);
       setSessionLoading(false);
@@ -562,6 +607,11 @@ export function AppProvider({ children }) {
 
     deleteDevice: (id) => apiFetch(`${API_BASE}/api/devices/${id}`, {
       method: 'DELETE'
+    }),
+
+    checkDeviceReachability: () => apiFetch(`${API_BASE}/api/devices/check-reachability`, {
+      method: 'POST',
+      timeout: 60000 // Allow up to 60s for checking all devices
     }),
 
     // deviceOn/deviceOff now accept a device object with: ip/deviceId, childId, brand, sku

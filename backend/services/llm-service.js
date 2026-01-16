@@ -434,33 +434,35 @@ function makeStreamingRequest(url, body, onToken) {
 
 /**
  * Trim incomplete sentences from the end of text
- * A sentence is considered complete if it ends with . ! ? or similar punctuation
+ * Valid endings: . ? ! * "
  */
 function trimIncompleteSentences(text) {
   if (!text || typeof text !== 'string') return text;
 
-  // Sentence-ending punctuation (including ellipsis, quotes, etc.)
-  const sentenceEnders = /[.!?]["']?[\s]*$/;
+  const trimmed = text.trim();
 
-  // If text already ends with sentence-ending punctuation, return as-is
-  if (sentenceEnders.test(text)) {
-    return text;
+  // Valid endings for roleplay text: . ? ! * "
+  // Note: Single quote ' removed - it causes issues with contractions like "don't", "I'm", etc.
+  if (/[.?!*"]\s*$/.test(trimmed)) {
+    return trimmed;
   }
 
-  // Find the last complete sentence
-  // Look for the last occurrence of sentence-ending punctuation
-  const lastSentenceMatch = text.match(/[.!?]["']?(?=[\s\S]*$)/);
+  // Find the last valid ending character
+  const lastValidEnd = Math.max(
+    trimmed.lastIndexOf('.'),
+    trimmed.lastIndexOf('?'),
+    trimmed.lastIndexOf('!'),
+    trimmed.lastIndexOf('*'),
+    trimmed.lastIndexOf('"')
+  );
 
-  if (lastSentenceMatch) {
-    // Find the position after the last sentence-ending punctuation
-    const lastSentenceEnd = text.lastIndexOf(lastSentenceMatch[0]) + lastSentenceMatch[0].length;
-    // Trim everything after that point
-    return text.substring(0, lastSentenceEnd).trim();
+  if (lastValidEnd > 0 && lastValidEnd >= trimmed.length * 0.7) {
+    // Only trim if we keep at least 70% of the text
+    return trimmed.substring(0, lastValidEnd + 1).trim();
   }
 
-  // If no complete sentence found, return the original text
-  // (better to have incomplete text than nothing)
-  return text;
+  // Return original if no good trim point
+  return trimmed;
 }
 
 /**

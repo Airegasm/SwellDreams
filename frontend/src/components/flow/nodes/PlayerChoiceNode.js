@@ -13,7 +13,8 @@ function PlayerChoiceNode({ data, selected }) {
     const newChoices = [...choices, {
       id: newId,
       label: `Option ${String.fromCharCode(65 + choices.length)}`,
-      description: ''
+      description: '',
+      playerResponse: ''
     }];
     setChoices(newChoices);
     data.onChange?.('choices', newChoices);
@@ -58,17 +59,45 @@ function PlayerChoiceNode({ data, selected }) {
           <label className="node-checkbox">
             <input
               type="checkbox"
+              checked={data.aiMessageIntroEnabled === true}
+              onChange={(e) => data.onChange?.('aiMessageIntroEnabled', e.target.checked)}
+            />
+            AI Message Intro
+          </label>
+          <div className={`form-group ${data.aiMessageIntroEnabled !== true ? 'disabled' : ''}`}>
+            <label>Intro Message (use [Choices] for list):</label>
+            <textarea
+              value={data.aiMessageIntro || ''}
+              onChange={(e) => data.onChange?.('aiMessageIntro', e.target.value)}
+              placeholder="AI message before choices appear. Use [Choices] to list options."
+              className="node-textarea"
+              rows={3}
+              disabled={data.aiMessageIntroEnabled !== true}
+            />
+            <label className="node-checkbox small">
+              <input
+                type="checkbox"
+                checked={data.aiMessageIntroSuppressLlm === true}
+                onChange={(e) => data.onChange?.('aiMessageIntroSuppressLlm', e.target.checked)}
+                disabled={data.aiMessageIntroEnabled !== true}
+              />
+              Suppress LLM Enhancement
+            </label>
+          </div>
+          <label className="node-checkbox">
+            <input
+              type="checkbox"
               checked={data.sendMessageFirst !== false}
               onChange={(e) => data.onChange?.('sendMessageFirst', e.target.checked)}
             />
-            Send Character Message First
+            LLM-Generated Character Message
           </label>
           <div className={`form-group ${data.sendMessageFirst === false ? 'disabled' : ''}`}>
-            <label>Character Prompt:</label>
+            <label>Character Prompt (for LLM):</label>
             <textarea
               value={data.prompt || ''}
               onChange={(e) => data.onChange?.('prompt', e.target.value)}
-              placeholder="What the character says/asks..."
+              placeholder="What the character says/asks (LLM will generate)..."
               className="node-textarea"
               rows={3}
               disabled={data.sendMessageFirst === false}
@@ -113,6 +142,31 @@ function PlayerChoiceNode({ data, selected }) {
                     className="node-textarea small"
                     rows={2}
                   />
+                  <label className="node-checkbox small">
+                    <input
+                      type="checkbox"
+                      checked={choice.playerResponseEnabled === true}
+                      onChange={(e) => updateChoice(index, 'playerResponseEnabled', e.target.checked)}
+                    />
+                    Player Response
+                  </label>
+                  <textarea
+                    value={choice.playerResponse || ''}
+                    onChange={(e) => updateChoice(index, 'playerResponse', e.target.value)}
+                    placeholder="Player response. Use [Choice] for the choice label."
+                    className={`node-textarea small ${choice.playerResponseEnabled !== true ? 'disabled' : ''}`}
+                    rows={2}
+                    disabled={choice.playerResponseEnabled !== true}
+                  />
+                  <label className="node-checkbox small">
+                    <input
+                      type="checkbox"
+                      checked={choice.playerResponseSuppressLlm === true}
+                      onChange={(e) => updateChoice(index, 'playerResponseSuppressLlm', e.target.checked)}
+                      disabled={choice.playerResponseEnabled !== true}
+                    />
+                    Suppress LLM Enhancement
+                  </label>
                 </div>
               ))}
             </div>

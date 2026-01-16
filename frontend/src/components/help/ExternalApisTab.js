@@ -42,7 +42,7 @@ function ExternalApisTab() {
             <ul className="help-list">
               <li><strong>TP-Link Kasa</strong> - Local network discovery, no cloud account needed</li>
               <li><strong>Govee</strong> - Cloud API, requires free Govee account and API key</li>
-              <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Globe, Treatlife, Gosund, Teckin, etc.</li>
+              <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Geeni, Globe, Treatlife, Gosund, Teckin, etc.</li>
             </ul>
           </div>
         )}
@@ -279,6 +279,7 @@ function ExternalApisTab() {
             <p>Devices from these brands typically use Tuya's platform:</p>
             <ul className="help-list">
               <li>Smart Life</li>
+              <li><strong>Geeni / iHome</strong></li>
               <li><strong>Globe Electric</strong></li>
               <li>Treatlife</li>
               <li>Gosund</li>
@@ -288,7 +289,7 @@ function ExternalApisTab() {
               <li>Many others (if it uses Smart Life app, it's Tuya-based)</li>
             </ul>
 
-            <h4 className="subsection-header">Step 1: Set Up Your Devices in Smart Life App</h4>
+            <h4 className="subsection-header">Step 1: Set Up Your Devices in a Tuya-Compatible App</h4>
             <ol className="help-list numbered">
               <li>
                 Install the official <strong>Smart Life</strong> app by Volcano Technology Limited
@@ -302,8 +303,13 @@ function ExternalApisTab() {
                 </a>
               </li>
               <li>Create an account and add your devices to the app</li>
-              <li>Make sure your devices work in the Smart Life app before proceeding</li>
+              <li>Make sure your devices work in the app before proceeding</li>
             </ol>
+            <div className="info-box">
+              <strong>Using Geeni or iHome devices?</strong> You can keep using the Geeni app instead
+              of Smart Life. In Step 6, select "Geeni" from the app list when linking your account
+              to the Tuya IoT Platform.
+            </div>
 
             <h4 className="subsection-header">Step 2: Create a Tuya IoT Account</h4>
             <ol className="help-list numbered">

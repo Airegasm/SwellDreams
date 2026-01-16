@@ -14,6 +14,7 @@ const MAX_DEVICES = 5;
 function DeviceTab() {
   const { devices, api } = useApp();
   const [scanning, setScanning] = useState(false);
+  const [scanCompleted, setScanCompleted] = useState(false);
   const [discovered, setDiscovered] = useState([]);
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualIp, setManualIp] = useState('');
@@ -85,6 +86,7 @@ function DeviceTab() {
 
   const handleScan = async () => {
     setScanning(true);
+    setScanCompleted(false);
     setDiscovered([]);
     setStripChildren({});
     setExpandedStrips({});
@@ -92,27 +94,54 @@ function DeviceTab() {
       const result = await api.scanDevices(10);
       const discoveredDevices = result.devices || [];
 
+      // Get configured device IPs and child IDs for filtering
+      const configuredStandalone = new Set(
+        devices.filter(d => !d.childId).map(d => d.ip)
+      );
+
       // Check each device for power strip children
       const childrenMap = {};
       for (const device of discoveredDevices) {
         try {
           const childResult = await api.getDeviceChildren(device.ip);
           if (childResult.is_strip && childResult.children?.length > 0) {
-            childrenMap[device.ip] = childResult.children;
+            // Filter out already-configured outlets
+            const configuredChildIds = new Set(
+              devices
+                .filter(d => d.ip === device.ip && d.childId)
+                .map(d => d.childId)
+            );
+            const unconfiguredChildren = childResult.children.filter(
+              c => !configuredChildIds.has(c.id)
+            );
+            if (unconfiguredChildren.length > 0) {
+              childrenMap[device.ip] = unconfiguredChildren;
+            }
             device.isStrip = true;
             device.stripModel = childResult.model;
             device.stripAlias = childResult.alias;
+            device.hasUnconfiguredOutlets = unconfiguredChildren.length > 0;
           }
         } catch (e) {
           // Not a strip or failed to get children
         }
       }
 
+      // Filter out standalone devices that are already configured
+      // For strips, only show if they have unconfigured outlets
+      const filteredDevices = discoveredDevices.filter(d => {
+        if (d.isStrip) {
+          return d.hasUnconfiguredOutlets;
+        }
+        return !configuredStandalone.has(d.ip);
+      });
+
       setStripChildren(childrenMap);
-      setDiscovered(discoveredDevices);
+      setDiscovered(filteredDevices);
     } catch (error) {
       console.error('Scan failed:', error);
     }
+    setScanCompleted(true);
     setScanning(false);
   };
 
@@ -171,14 +200,27 @@ function DeviceTab() {
 
   // Add all outlets from a power strip
   const handleAddAllOutlets = async (stripIp, outlets) => {
+    // Filter out outlets that are already configured
+    const configuredChildIds = new Set(
+      devices
+        .filter(d => d.ip === stripIp && d.childId)
+        .map(d => d.childId)
+    );
+    const unconfiguredOutlets = outlets.filter(o => !configuredChildIds.has(o.id));
+
+    if (unconfiguredOutlets.length === 0) {
+      alert('All outlets from this strip are already configured.');
+      return;
+    }
+
     const slotsAvailable = MAX_DEVICES - devices.length;
     if (slotsAvailable <= 0) {
       alert(`Maximum ${MAX_DEVICES} devices allowed. Remove devices before adding more.`);
       return;
     }
-    const outletsToAdd = outlets.slice(0, slotsAvailable);
-    if (outletsToAdd.length < outlets.length) {
-      alert(`Only adding ${outletsToAdd.length} of ${outlets.length} outlets (${MAX_DEVICES} device limit).`);
+    const outletsToAdd = unconfiguredOutlets.slice(0, slotsAvailable);
+    if (outletsToAdd.length < unconfiguredOutlets.length) {
+      alert(`Only adding ${outletsToAdd.length} of ${unconfiguredOutlets.length} outlets (${MAX_DEVICES} device limit).`);
     }
     try {
       for (const outlet of outletsToAdd) {
@@ -192,7 +234,8 @@ function DeviceTab() {
         });
       }
       // Update strip children - remove added outlets
-      const remainingOutlets = outlets.slice(slotsAvailable);
+      const addedIds = new Set(outletsToAdd.map(o => o.id));
+      const remainingOutlets = outlets.filter(o => !addedIds.has(o.id) && !configuredChildIds.has(o.id));
       if (remainingOutlets.length === 0) {
         // Remove this strip from discovered
         setDiscovered(discovered.filter(d => d.ip !== stripIp));
@@ -496,9 +539,10 @@ function DeviceTab() {
   };
 
   const getDeviceInfo = (device) => {
-    if (device.brand === 'govee') return { label: 'SKU', value: device.sku };
-    if (device.brand === 'tuya') return { label: 'Device ID', value: device.deviceId };
-    return { label: 'IP', value: device.ip + (device.childId ? ` (Child: ${device.childId})` : '') };
+    const name = device.name || 'Unknown';
+    if (device.brand === 'govee') return { name, label: 'SKU', value: device.sku };
+    if (device.brand === 'tuya') return { name, label: 'Device ID', value: device.deviceId };
+    return { name, label: 'IP', value: device.ip + (device.childId ? ` (Child: ${device.childId})` : '') };
   };
 
   return (
@@ -583,6 +627,8 @@ function DeviceTab() {
                 </div>
                 {infoPopupDevice === device.id && (
                   <div className="device-info-popup">
+                    <strong>Name:</strong> {getDeviceInfo(device).name}
+                    <span className="popup-divider">|</span>
                     <strong>{getDeviceInfo(device).label}:</strong> {getDeviceInfo(device).value}
                     <button className="popup-close" onClick={() => setInfoPopupDevice(null)}>×</button>
                   </div>
@@ -641,6 +687,12 @@ function DeviceTab() {
               )}
 
               {/* Discovered TPLink Devices */}
+              {scanCompleted && discovered.length === 0 && (
+                <div className="discovery-no-results">
+                  <p>No TP-Link Kasa devices found on your network.</p>
+                  <p className="hint">Make sure your devices are powered on and connected to the same network.</p>
+                </div>
+              )}
               {discovered.length > 0 && (
                 <div className="discovered-devices-list">
                   <h4>Discovered Devices</h4>

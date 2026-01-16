@@ -39,13 +39,13 @@
   transform: scaleX(-1);
 }
 
-/* Entering state - filmstrips start at center */
+/* Entering state - filmstrips start off-screen at sides */
 .filmstrip-overlay.entering .filmstripleft {
-  transform: translateX(231px);
+  transform: translateX(-231px);
 }
 
 .filmstrip-overlay.entering .filmstripright {
-  transform: translateX(-231px);
+  transform: translateX(231px);
 }
 
 /* Entered state - filmstrips at edges, covering column areas */
@@ -57,13 +57,13 @@
   transform: translateX(0);
 }
 
-/* Exiting state - filmstrips retract to center */
+/* Exiting state - filmstrips retract off-screen to sides */
 .filmstrip-overlay.exiting .filmstripleft {
-  transform: translateX(231px);
+  transform: translateX(-231px);
 }
 
 .filmstrip-overlay.exiting .filmstripright {
-  transform: translateX(-231px);
+  transform: translateX(231px);
 }
 
 /* ScreenPlay page - slide down animation */

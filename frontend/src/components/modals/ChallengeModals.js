@@ -108,13 +108,17 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
     const segmentMiddle = cumulativeWeight + (segments[selectedIndex].weight || 1) / 2;
     const targetAngle = (segmentMiddle / totalWeight) * 360;
 
-    // Spin animation: multiple rotations + target
-    const spins = 5 + Math.random() * 3;
-    const finalRotation = rotation + spins * 360 + (360 - targetAngle);
+    // Calculate final rotation properly accounting for current rotation
+    // We want: (finalRotation + targetAngle) % 360 ≈ 0 (segment at top)
+    const spins = 4 + Math.random() * 6; // 4-10 full spins
+    const desiredAngle = (360 - targetAngle + 360) % 360; // Where rotation needs to end (mod 360)
+    const currentAngle = rotation % 360;
+    const deltaAngle = (desiredAngle - currentAngle + 360) % 360; // Extra rotation needed
+    const finalRotation = rotation + spins * 360 + deltaAngle;
 
-    // Animate
+    // Animate with randomized duration
     let currentRotation = rotation;
-    const duration = 4000;
+    const duration = 3000 + Math.random() * 3000; // 3-6 seconds
     const startTime = Date.now();
 
     const animate = () => {
@@ -1253,10 +1257,10 @@ export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPena
   } = challengeData || {};
 
   const TARGET_SIZES = {
-    large: 60,
-    medium: 45,
-    small: 32,
-    tiny: 24,
+    large: 44,
+    medium: 36,
+    small: 28,
+    tiny: 22,
     minuscule: 16
   };
 

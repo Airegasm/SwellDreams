@@ -4,6 +4,10 @@
 
 Always clean rebuild the frontend and restart the server after making changes.
 
+### MANDATORY: ALWAYS START AND VERIFY SERVER
+
+After EVERY rebuild cycle, you MUST start the server. Do not leave the server stopped. The rebuild cycle is not complete until the server is running and verified.
+
 ### MANDATORY: ALWAYS VERIFY SERVER IS RUNNING
 
 After ANY restart, you MUST:

@@ -112,6 +112,8 @@ class DeviceService {
     this.devices = new Map(); // ip -> device info
     this.deviceStates = new Map(); // ip -> { state: 'on'|'off', lastUpdate }
     this.activeCycles = new Map(); // ip -> { timer, intervalTimer, settings }
+    this.pumpStartTimes = new Map(); // ip/deviceKey -> startTime for auto-capacity tracking
+    this.pumpRuntimeIntervals = new Map(); // ip/deviceKey -> interval for real-time capacity updates
     this.eventEmitter = null;
   }
 
@@ -128,6 +130,71 @@ class DeviceService {
   emitEvent(eventType, data) {
     if (this.eventEmitter) {
       this.eventEmitter(eventType, data);
+    }
+  }
+
+  /**
+   * Start real-time pump runtime tracking (emits updates every second)
+   */
+  startPumpRuntimeTracking(stateKey, device) {
+    // Only track pumps with calibration data
+    if (device?.deviceType !== 'PUMP' || !device?.calibrationTime) {
+      return;
+    }
+
+    // Clear any existing interval
+    this.stopPumpRuntimeTracking(stateKey);
+
+    // Track start time
+    this.pumpStartTimes.set(stateKey, Date.now());
+
+    // Start interval for real-time updates (every 1 second)
+    const interval = setInterval(() => {
+      const startTime = this.pumpStartTimes.get(stateKey);
+      if (startTime) {
+        const runtimeSeconds = (Date.now() - startTime) / 1000;
+        this.emitEvent('pump_runtime', {
+          ip: stateKey,
+          device,
+          runtimeSeconds,
+          calibrationTime: device.calibrationTime,
+          isRealTime: true
+        });
+      }
+    }, 1000);
+
+    this.pumpRuntimeIntervals.set(stateKey, interval);
+    console.log(`[DeviceService] Started real-time capacity tracking for ${stateKey}`);
+  }
+
+  /**
+   * Stop real-time pump runtime tracking and emit final update
+   */
+  stopPumpRuntimeTracking(stateKey, device = null) {
+    // Clear interval
+    const interval = this.pumpRuntimeIntervals.get(stateKey);
+    if (interval) {
+      clearInterval(interval);
+      this.pumpRuntimeIntervals.delete(stateKey);
+    }
+
+    // Emit final runtime update
+    const startTime = this.pumpStartTimes.get(stateKey);
+    if (startTime) {
+      const runtimeSeconds = (Date.now() - startTime) / 1000;
+      this.pumpStartTimes.delete(stateKey);
+
+      if (device || this.devices.get(stateKey)) {
+        const deviceInfo = device || this.devices.get(stateKey);
+        this.emitEvent('pump_runtime', {
+          ip: stateKey,
+          device: deviceInfo,
+          runtimeSeconds,
+          calibrationTime: deviceInfo?.calibrationTime,
+          isRealTime: false
+        });
+        console.log(`[DeviceService] Stopped tracking for ${stateKey}, final runtime: ${runtimeSeconds.toFixed(1)}s`);
+      }
     }
   }
 
@@ -265,6 +332,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
 
@@ -276,6 +344,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
 
@@ -292,6 +361,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
+        this.startPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
       return result;
     } catch (error) {
@@ -322,6 +392,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
+        this.stopPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'off' };
       }
 
@@ -333,6 +404,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
+        this.stopPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'off' };
       }
 
@@ -349,6 +421,7 @@ class DeviceService {
           lastUpdate: Date.now()
         });
         this.emitEvent('device_off', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
+        this.stopPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
       return result;
     } catch (error) {

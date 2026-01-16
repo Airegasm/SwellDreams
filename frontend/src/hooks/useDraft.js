@@ -14,23 +14,52 @@ export function useDraft(draftKey, initialData, isOpen) {
   const [hasDraft, setHasDraft] = useState(false);
   const initializedRef = useRef(false);
   const keyRef = useRef(draftKey);
+  const prevKeyRef = useRef(draftKey);
 
-  // Update key ref when it changes
+  // Load draft from sessionStorage when modal opens OR when key changes (switching entities)
   useEffect(() => {
+    const keyChanged = prevKeyRef.current !== draftKey;
+    prevKeyRef.current = draftKey;
     keyRef.current = draftKey;
-  }, [draftKey]);
 
-  // Load draft from sessionStorage when modal opens
-  useEffect(() => {
     if (isOpen && draftKey) {
+      // If key changed while modal is open, reset initialized flag to force reload
+      if (keyChanged) {
+        initializedRef.current = false;
+      }
+
       const storageKey = `swelldreams-draft-${draftKey}`;
       const savedDraft = sessionStorage.getItem(storageKey);
 
       if (savedDraft) {
         try {
           const parsed = JSON.parse(savedDraft);
-          setFormData(parsed);
-          setHasDraft(true);
+
+          // Validate draft: if server data has more content than draft, draft is stale
+          // This catches drafts created before character fully loaded
+          const draftStories = parsed.stories || [];
+          const initStories = initialData.stories || [];
+          const draftHasLessData = initStories.some((initStory, idx) => {
+            const draftStory = draftStories[idx];
+            if (!draftStory) return true;
+            // Check if server has flows/buttons/dialogues but draft doesn't
+            const serverFlows = initStory.assignedFlows?.length || 0;
+            const draftFlows = draftStory.assignedFlows?.length || 0;
+            const serverButtons = initStory.assignedButtons?.length || 0;
+            const draftButtons = draftStory.assignedButtons?.length || 0;
+            const serverDialogues = initStory.exampleDialogues?.length || 0;
+            const draftDialogues = draftStory.exampleDialogues?.length || 0;
+            return serverFlows > draftFlows || serverButtons > draftButtons || serverDialogues > draftDialogues;
+          });
+
+          if (draftHasLessData) {
+            sessionStorage.removeItem(storageKey);
+            setFormData(initialData);
+            setHasDraft(false);
+          } else {
+            setFormData(parsed);
+            setHasDraft(true);
+          }
           initializedRef.current = true;
         } catch (e) {
           console.error('Failed to parse draft:', e);
@@ -39,6 +68,7 @@ export function useDraft(draftKey, initialData, isOpen) {
           initializedRef.current = true;
         }
       } else {
+        // No draft - use initialData from the new entity
         setFormData(initialData);
         setHasDraft(false);
         initializedRef.current = true;

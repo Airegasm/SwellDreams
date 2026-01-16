@@ -15,19 +15,29 @@ function AIMessageFields({ data }) {
         <label className="node-checkbox">
           <input
             type="checkbox"
-            checked={data.aiMessageStartEnabled || false}
+            checked={data.aiMessageStartEnabled !== false}
             onChange={(e) => handleChange('aiMessageStartEnabled', e.target.checked)}
           />
-          AI Message (Start)
+          AI Intro Message
         </label>
-        {data.aiMessageStartEnabled && (
-          <textarea
-            value={data.aiMessageStart || ''}
-            onChange={(e) => handleChange('aiMessageStart', e.target.value)}
-            placeholder="Prompt for AI when challenge starts... (e.g., 'Challenge [Player] to a game and explain the rules')"
-            className="node-textarea"
-            rows={2}
-          />
+        {data.aiMessageStartEnabled !== false && (
+          <>
+            <textarea
+              value={data.aiMessageStart || ''}
+              onChange={(e) => handleChange('aiMessageStart', e.target.value)}
+              placeholder="Prompt for AI when challenge starts... (e.g., 'Challenge [Player] to a game and explain the rules')"
+              className="node-textarea"
+              rows={2}
+            />
+            <label className="node-checkbox suppress-llm">
+              <input
+                type="checkbox"
+                checked={data.aiMessageStartSuppressLlm || false}
+                onChange={(e) => handleChange('aiMessageStartSuppressLlm', e.target.checked)}
+              />
+              Suppress LLM Enhancement
+            </label>
+          </>
         )}
       </div>
 
@@ -68,6 +78,36 @@ function AIMessageFields({ data }) {
             className="node-textarea"
             rows={2}
           />
+        )}
+      </div>
+
+      <div className="ai-message-section">
+        <label className="node-checkbox">
+          <input
+            type="checkbox"
+            checked={data.aiMessageResultEnabled || false}
+            onChange={(e) => handleChange('aiMessageResultEnabled', e.target.checked)}
+          />
+          AI Message (Result)
+        </label>
+        {data.aiMessageResultEnabled && (
+          <>
+            <textarea
+              value={data.aiMessageResult || ''}
+              onChange={(e) => handleChange('aiMessageResult', e.target.value)}
+              placeholder="Message announcing the result. Use [Result] for the outcome (e.g., 'The wheel lands on... [Result]!')"
+              className="node-textarea"
+              rows={2}
+            />
+            <label className="node-checkbox suppress-llm">
+              <input
+                type="checkbox"
+                checked={data.aiMessageResultSuppressLlm || false}
+                onChange={(e) => handleChange('aiMessageResultSuppressLlm', e.target.checked)}
+              />
+              Suppress LLM Enhancement
+            </label>
+          </>
         )}
       </div>
     </div>

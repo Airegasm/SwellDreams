@@ -125,6 +125,13 @@ function resolveDeviceObject(deviceRef) {
     return null;
   }
 
+  // Try to match by device UUID/id
+  const byId = devices.find(d => d.id === deviceRef);
+  if (byId) {
+    console.log(`[DeviceAlias] Resolved "${deviceRef}" to ${byId.name || byId.label} by UUID`);
+    return byId;
+  }
+
   // Try to match by device name or label
   const byName = devices.find(d =>
     d.name?.toLowerCase() === deviceRef.toLowerCase() ||
@@ -375,6 +382,12 @@ class EventEngine {
       if (result.outputId) {
         edges = edges.filter(e => e.sourceHandle === result.outputId);
       }
+    } else if (node.type === 'capacity_ai_message' || node.type === 'capacity_player_message') {
+      // For capacity message nodes, route to matched range output or global
+      const outputHandle = result || 'global';
+      const matchingEdges = edges.filter(e => e.sourceHandle === outputHandle);
+      const globalEdges = edges.filter(e => e.sourceHandle === 'global' || !e.sourceHandle);
+      edges = matchingEdges.length > 0 ? matchingEdges : globalEdges;
     }
 
     // Execute next nodes
@@ -428,6 +441,10 @@ class EventEngine {
       case 'simple_ab':
         return this.executeTestSimpleAB(node, flow, nodeStep);
 
+      case 'capacity_ai_message':
+      case 'capacity_player_message':
+        return this.executeTestCapacityMessage(node, flow, nodeStep);
+
       // Challenge nodes
       case 'prize_wheel':
       case 'dice_roll':
@@ -437,6 +454,8 @@ class EventEngine {
       case 'number_guess':
       case 'slot_machine':
       case 'card_draw':
+      case 'simon_challenge':
+      case 'reflex_challenge':
         return this.executeTestChallenge(node, flow, nodeStep);
 
       default:
@@ -736,8 +755,8 @@ class EventEngine {
         break;
 
       case 'slot_machine':
-        const symbols = ['7', 'BAR', 'CHERRY', 'LEMON'];
-        const reels = [0, 1, 2].map(() => symbols[Math.floor(Math.random() * symbols.length)]);
+        const slotSymbols = data.symbols || ['🍒', '🍋', '🔔', '⭐', '7️⃣'];
+        const reels = [0, 1, 2].map(() => slotSymbols[Math.floor(Math.random() * slotSymbols.length)]);
         resultDetails = `Reels: ${reels.join(' | ')}`;
         if (reels[0] === reels[1] && reels[1] === reels[2]) {
           resultDetails += ' - JACKPOT!';
@@ -795,7 +814,7 @@ class EventEngine {
   async broadcast(type, data) {
     // Block flow-related broadcasts when aborted (except status updates)
     if (this.aborted) {
-      const blockedTypes = ['ai_message', 'challenge', 'player_choice', 'simple_ab', 'flow_message'];
+      const blockedTypes = ['ai_message', 'player_message', 'challenge', 'player_choice', 'simple_ab', 'flow_message'];
       if (blockedTypes.includes(type)) {
         console.log(`[EventEngine] Broadcast blocked (aborted): ${type}`);
         return;
@@ -1204,6 +1223,7 @@ class EventEngine {
    */
   countFlowSteps(flow, startNodeId) {
     const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+      'capacity_ai_message', 'capacity_player_message',
       'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
     const visited = new Set();
     let count = 0;
@@ -1374,6 +1394,19 @@ class EventEngine {
       const completionEdges = edges.filter(e => e.sourceHandle === 'completion');
       console.log(`[EventEngine] Device On dual output - immediate: ${immediateEdges.length}, completion: ${completionEdges.length} (deferred)`);
       edges = immediateEdges;
+    } else if (node.type === 'capacity_ai_message' || node.type === 'capacity_player_message') {
+      // For capacity message nodes, route to matched range output or global
+      const outputHandle = result || 'global';
+      const matchingEdges = edges.filter(e => e.sourceHandle === outputHandle);
+      const globalEdges = edges.filter(e => e.sourceHandle === 'global' || !e.sourceHandle);
+      // Use matching range edges if available, otherwise fall back to global
+      if (matchingEdges.length > 0) {
+        console.log(`[EventEngine] Capacity message routing to ${outputHandle} (${matchingEdges.length} edges)`);
+        edges = matchingEdges;
+      } else if (globalEdges.length > 0) {
+        console.log(`[EventEngine] Capacity message routing to global fallback (${globalEdges.length} edges)`);
+        edges = globalEdges;
+      }
     }
 
     // Execute next nodes (skip triggers during traversal to prevent loops)
@@ -1447,6 +1480,7 @@ class EventEngine {
       execution.currentNodeLabel = node.data.label;
       // Only broadcast updates for significant nodes (not every tiny step)
       const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+        'capacity_ai_message', 'capacity_player_message',
         'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
       if (significantTypes.includes(node.type)) {
         // Track executed nodes to prevent duplicate progress toasts
@@ -1503,6 +1537,10 @@ class EventEngine {
         case 'simple_ab':
           return await this.executeSimpleAB(node, flow);
 
+        case 'capacity_ai_message':
+        case 'capacity_player_message':
+          return await this.executeCapacityMessage(node, flow);
+
         // Challenge nodes - interactive game elements
         case 'prize_wheel':
         case 'dice_roll':
@@ -1512,6 +1550,8 @@ class EventEngine {
         case 'number_guess':
         case 'slot_machine':
         case 'card_draw':
+        case 'simon_challenge':
+        case 'reflex_challenge':
           return await this.executeChallenge(node, flow);
 
         default:
@@ -1538,6 +1578,28 @@ class EventEngine {
     }
 
     const data = node.data;
+    const choices = data.choices || [];
+
+    // Build [Choices] substitution - numbered list of choice labels
+    const choicesList = choices.map((c, i) => `${i + 1}. ${c.label}`).join('\n');
+
+    // If aiMessageIntroEnabled, send the AI message first (optionally LLM enhanced)
+    if (data.aiMessageIntroEnabled && data.aiMessageIntro) {
+      let introMessage = this.substituteVariables(data.aiMessageIntro);
+      // Replace [Choices] with the actual list
+      introMessage = introMessage.replace(/\[Choices\]/gi, choicesList);
+
+      console.log(`[EventEngine] Player choice sending AI Message Intro (suppressLlm: ${data.aiMessageIntroSuppressLlm || false})`);
+      await this.broadcast('ai_message', {
+        content: introMessage,
+        sender: 'flow',
+        suppressLlm: data.aiMessageIntroSuppressLlm || false,
+        choiceContext: {
+          type: 'player_choice',
+          event: 'intro'
+        }
+      });
+    }
 
     // If there's a prompt and sendMessageFirst is not disabled, generate an AI message using it as instruction
     const sendMessageFirst = data.sendMessageFirst !== false; // Default to true
@@ -1548,22 +1610,22 @@ class EventEngine {
         sender: 'flow'
       });
     } else if (!sendMessageFirst) {
-      console.log(`[EventEngine] Player choice skipping AI message (sendMessageFirst disabled)`);
+      console.log(`[EventEngine] Player choice skipping LLM message (sendMessageFirst disabled)`);
     }
 
     // Store pending choice info so we can resume the correct branch
     this.pendingPlayerChoice = {
       nodeId: node.id,
       flowId: flow.id,
-      choices: data.choices || []
+      choices: choices
     };
 
     // Broadcast player choice modal to frontend
-    console.log(`[EventEngine] Broadcasting player_choice modal with ${(data.choices || []).length} choices`);
+    console.log(`[EventEngine] Broadcasting player_choice modal with ${choices.length} choices`);
     await this.broadcast('player_choice', {
       nodeId: node.id,
       description: this.substituteVariables(data.description || ''),
-      choices: data.choices || []
+      choices: choices
     });
 
     console.log('[EventEngine] Player choice presented, chain paused waiting for user response');
@@ -1609,6 +1671,138 @@ class EventEngine {
   }
 
   /**
+   * Execute a capacity message node in test mode
+   */
+  executeTestCapacityMessage(node, flow, nodeStep) {
+    const data = node.data;
+    const isPlayerMessage = data.messageType === 'player';
+    const currentCapacity = this.sessionState?.capacity ?? 0;
+
+    // Find matching range based on current capacity
+    const matchedRange = this.findCapacityRange(currentCapacity, data.ranges);
+    const rangeLabel = matchedRange ? matchedRange.label : 'none';
+    const message = matchedRange?.message || '(no message)';
+
+    nodeStep.details = `${isPlayerMessage ? 'Player' : 'AI'} Capacity Message (${currentCapacity}% → ${rangeLabel}): "${message.substring(0, 40)}${message.length > 40 ? '...' : ''}"`;
+    this.testResults.push(nodeStep);
+
+    // Add broadcast result
+    this.testResults.push({
+      type: 'broadcast',
+      label: `${isPlayerMessage ? 'Player' : 'AI'} Message (suppressed)`,
+      details: message,
+      broadcastType: isPlayerMessage ? 'player_message' : 'ai_message'
+    });
+
+    // Return the matched range ID for output routing
+    return matchedRange?.id || 'global';
+  }
+
+  /**
+   * Execute a capacity message node - selects message based on current capacity
+   */
+  async executeCapacityMessage(node, flow) {
+    if (this.aborted) {
+      console.log('[EventEngine] Capacity message aborted');
+      return 'aborted';
+    }
+
+    const data = node.data;
+    const isPlayerMessage = data.messageType === 'player';
+    const currentCapacity = this.sessionState?.capacity ?? 0;
+
+    // Find matching range based on current capacity
+    const matchedRange = this.findCapacityRange(currentCapacity, data.ranges);
+
+    if (!matchedRange || !matchedRange.message) {
+      console.log(`[EventEngine] Capacity message: no message for ${currentCapacity}% capacity (range: ${matchedRange?.label || 'none'})`);
+      return 'global'; // Use global output if no specific message
+    }
+
+    console.log(`[EventEngine] Capacity message: ${currentCapacity}% → ${matchedRange.label}`);
+
+    // Build broadcast data with forced perspective
+    const broadcastData = {
+      content: this.substituteVariables(matchedRange.message),
+      sender: 'flow',
+      suppressLlm: data.suppressLlm || false,
+      flowId: flow.id,
+      nodeId: node.id,
+      // Force perspective: player messages MUST be from persona, AI messages MUST be from character
+      forcePersonaPerspective: isPlayerMessage,
+      forceCharacterPerspective: !isPlayerMessage,
+      isCapacityMessage: true
+    };
+
+    const broadcastType = isPlayerMessage ? 'player_message' : 'ai_message';
+    console.log(`[EventEngine] Broadcasting ${broadcastType}:`, broadcastData.content?.substring(0, 50), data.suppressLlm ? '(verbatim)' : '(LLM enhanced)');
+
+    const epochBeforeBroadcast = this.abortEpoch;
+    await this.broadcast(broadcastType, broadcastData);
+
+    // Check if aborted during broadcast (LLM generation)
+    if (this.abortEpoch !== epochBeforeBroadcast) {
+      console.log('[EventEngine] Execution aborted during capacity message broadcast');
+      return 'aborted';
+    }
+
+    // Post-delay after LLM generation completes
+    const postDelay = data.postDelay ?? 3;
+    if (postDelay > 0) {
+      console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after capacity message`);
+      const epochBeforeDelay = this.abortEpoch;
+      await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
+      if (this.abortEpoch !== epochBeforeDelay) {
+        console.log('[EventEngine] Execution aborted during capacity message post-delay');
+        return 'aborted';
+      }
+    }
+
+    // Return the range ID for output routing - if the range has enableOutput, use that; otherwise 'global'
+    return matchedRange.enableOutput ? matchedRange.id : 'global';
+  }
+
+  /**
+   * Find the capacity range that matches the current capacity value
+   */
+  findCapacityRange(capacity, ranges) {
+    if (!ranges) return null;
+
+    // Capacity ranges - order matters for proper matching
+    const rangeDefinitions = [
+      { id: 'range_0_10', label: '0-10%', min: 0, max: 10 },
+      { id: 'range_11_20', label: '11-20%', min: 11, max: 20 },
+      { id: 'range_21_30', label: '21-30%', min: 21, max: 30 },
+      { id: 'range_31_40', label: '31-40%', min: 31, max: 40 },
+      { id: 'range_41_50', label: '41-50%', min: 41, max: 50 },
+      { id: 'range_51_60', label: '51-60%', min: 51, max: 60 },
+      { id: 'range_61_70', label: '61-70%', min: 61, max: 70 },
+      { id: 'range_71_80', label: '71-80%', min: 71, max: 80 },
+      { id: 'range_81_90', label: '81-90%', min: 81, max: 90 },
+      { id: 'range_91_100', label: '91-100%', min: 91, max: 100 },
+      { id: 'range_over_100', label: '>100%', min: 101, max: Infinity }
+    ];
+
+    // Find the range that contains the current capacity
+    for (const rangeDef of rangeDefinitions) {
+      if (capacity >= rangeDef.min && capacity <= rangeDef.max) {
+        const rangeData = ranges[rangeDef.id];
+        if (rangeData) {
+          return {
+            id: rangeDef.id,
+            label: rangeDef.label,
+            message: rangeData.message,
+            enableOutput: rangeData.enableOutput
+          };
+        }
+        break;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Execute a challenge node - show interactive challenge modal and wait for result
    */
   async executeChallenge(node, flow) {
@@ -1628,12 +1822,13 @@ class EventEngine {
       challengeData: data
     };
 
-    // If AI message on start is enabled, generate an AI message first
-    if (data.aiMessageStartEnabled && data.aiMessageStart) {
-      console.log(`[EventEngine] Challenge has AI message (start), generating AI message`);
+    // If AI intro message is enabled (defaults to true), generate an AI message first
+    if (data.aiMessageStartEnabled !== false && data.aiMessageStart) {
+      console.log(`[EventEngine] Challenge has AI intro message, generating AI message`);
       await this.broadcast('ai_message', {
         content: this.substituteVariables(data.aiMessageStart),
         sender: 'flow',
+        suppressLlm: data.aiMessageStartSuppressLlm || false,
         challengeContext: {
           type: node.type,
           event: 'start'
@@ -1744,6 +1939,36 @@ class EventEngine {
           type: challengeType,
           event: 'lose',
           outcome: outputId
+        }
+      });
+    }
+
+    // Generate AI message for result if enabled (e.g., announcing wheel prize)
+    if (challengeData.aiMessageResultEnabled && challengeData.aiMessageResult) {
+      // Get the result label based on challenge type
+      let resultLabel = outputId;
+      if (challengeType === 'prize_wheel' && challengeData.segments) {
+        const segment = challengeData.segments.find(s => s.id === outputId);
+        resultLabel = segment?.label || outputId;
+      } else if (challengeType === 'dice_roll' && challengeData.ranges) {
+        const range = challengeData.ranges.find(r => r.id === outputId);
+        resultLabel = range?.label || outputId;
+      }
+
+      // Substitute [Result] with the actual result
+      let resultMessage = this.substituteVariables(challengeData.aiMessageResult);
+      resultMessage = resultMessage.replace(/\[Result\]/gi, resultLabel);
+
+      console.log(`[EventEngine] Challenge result message: "${resultLabel}"`);
+      await this.broadcast('ai_message', {
+        content: resultMessage,
+        sender: 'flow',
+        suppressLlm: challengeData.aiMessageResultSuppressLlm || false,
+        challengeContext: {
+          type: challengeType,
+          event: 'result',
+          outcome: outputId,
+          resultLabel: resultLabel
         }
       });
     }
@@ -2319,18 +2544,25 @@ class EventEngine {
           return false;
         }
 
-        // Check if device is actually cycling
+        // Check if device is marked as cycling (for logging only)
+        let wasCycling = false;
         if (this.sessionState && this.sessionState.executionHistory) {
           const deviceState = this.sessionState.executionHistory.deviceActions[resolvedDevice];
-
-          if (!deviceState || !deviceState.cycling) {
-            console.log(`[EventEngine] Device ${resolvedDevice} is not cycling, skipping stop`);
-            return false;
+          wasCycling = deviceState?.cycling === true;
+          if (!wasCycling) {
+            console.log(`[EventEngine] Device ${resolvedDevice} is not marked as cycling - will still attempt stop for safety`);
           }
         }
 
         try {
-          this.deviceService.stopCycle(resolvedDevice, deviceObj);
+          // First try stopCycle (stops cycle timers and turns off)
+          const cycleResult = this.deviceService.stopCycle(resolvedDevice, deviceObj);
+
+          // If no active cycle, ensure device is off by calling turnOff directly
+          if (!cycleResult || !cycleResult.success) {
+            console.log(`[EventEngine] No active cycle for ${resolvedDevice}, calling turnOff directly as safety measure`);
+            await this.deviceService.turnOff(resolvedDevice, deviceObj);
+          }
         } catch (deviceError) {
           await this.broadcastError(`Failed to stop cycle on "${deviceObj.name || data.device}"`, deviceError.message);
           return false;
@@ -2551,17 +2783,95 @@ class EventEngine {
       console.log(`[EventEngine] Simple A/B choice - skipping message generation`);
     }
 
+    // Find the choice info first (we need it for playerResponse check and description)
+    const choiceInfo = this.pendingPlayerChoice?.choices?.find(c => c.id === choiceId);
+    const choiceDesc = choiceInfo?.description || '';
+    const playerResponse = choiceInfo?.playerResponse || '';
+    const playerResponseEnabled = choiceInfo?.playerResponseEnabled === true;
+    const playerResponseSuppressLlm = choiceInfo?.playerResponseSuppressLlm === true;
+
     // Generate persona message for the choice (only for Player Choice, not Simple A/B)
-    if (!isSimpleAB) try {
+    // Skip if playerResponseEnabled is false
+    if (!isSimpleAB && playerResponseEnabled) try {
       const settings = loadData(DATA_FILES.settings);
       const personas = loadData(DATA_FILES.personas) || [];
       const characters = loadData(DATA_FILES.characters) || [];
       const activePersona = personas.find(p => p.id === settings?.activePersonaId);
       const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+      const playerName = activePersona?.displayName || 'The player';
 
-      if (activeCharacter && settings?.llm?.llmUrl) {
-        const playerName = activePersona?.displayName || 'The player';
+      // Check if there's a predefined player response with LLM suppression
+      if (playerResponse && playerResponseSuppressLlm) {
+        // Use predefined response directly with [Choice] variable substitution
+        const finalResponse = this.substituteVariables(playerResponse.replace(/\[Choice\]/gi, choiceLabel));
+        console.log(`[EventEngine] Using predefined player response (no LLM): "${finalResponse.substring(0, 50)}..."`);
 
+        const playerMessage = {
+          id: require('uuid').v4(),
+          content: finalResponse,
+          sender: 'player',
+          timestamp: Date.now(),
+          generated: true,
+          fromChoice: true
+        };
+
+        // Add to session history
+        if (this.sessionState?.chatHistory) {
+          this.sessionState.chatHistory.push(playerMessage);
+        }
+
+        // Broadcast to clients
+        await this.broadcast('chat_message', playerMessage);
+      } else if (playerResponse && activeCharacter && settings?.llm?.llmUrl) {
+        // Have a predefined response, but enhance it with LLM
+        const baseResponse = this.substituteVariables(playerResponse.replace(/\[Choice\]/gi, choiceLabel));
+        console.log(`[EventEngine] Enhancing player response with LLM: "${baseResponse.substring(0, 50)}..."`);
+
+        await this.broadcast('generating_start', { characterName: playerName });
+
+        let systemPrompt = `You are writing as ${playerName}, a player character in a roleplay scenario.\n`;
+        if (activePersona) {
+          if (activePersona.personality) systemPrompt += `Personality: ${activePersona.personality}\n`;
+          if (activePersona.appearance) systemPrompt += `Appearance: ${activePersona.appearance}\n`;
+        }
+        systemPrompt += `\nYou are interacting with ${activeCharacter.name}: ${activeCharacter.description}\n`;
+        systemPrompt += `\nExpand and enhance the following player response while keeping its core meaning:\n"${baseResponse}"\n`;
+        systemPrompt += `Keep the same intent but make it more natural and in-character.`;
+
+        const recentMessages = this.sessionState?.chatHistory?.slice(-3) || [];
+        let prompt = '';
+        recentMessages.forEach(msg => {
+          if (msg.sender === 'player') {
+            prompt += `${playerName}: ${msg.content}\n`;
+          } else {
+            prompt += `${activeCharacter.name}: ${msg.content}\n`;
+          }
+        });
+        prompt += `\n${playerName}:`;
+
+        const playerResult = await this.llmService.generate({
+          prompt,
+          systemPrompt,
+          settings: settings.llm
+        });
+
+        const playerMessage = {
+          id: require('uuid').v4(),
+          content: playerResult.text,
+          sender: 'player',
+          timestamp: Date.now(),
+          generated: true,
+          fromChoice: true
+        };
+
+        if (this.sessionState?.chatHistory) {
+          this.sessionState.chatHistory.push(playerMessage);
+        }
+
+        await this.broadcast('chat_message', playerMessage);
+        await this.broadcast('generating_stop', {});
+      } else if (activeCharacter && settings?.llm?.llmUrl) {
+        // No predefined response - generate via LLM
         // Broadcast generating start
         await this.broadcast('generating_start', { characterName: playerName });
 
@@ -2571,10 +2881,6 @@ class EventEngine {
           if (activePersona.appearance) systemPrompt += `Appearance: ${activePersona.appearance}\n`;
         }
         systemPrompt += `\nYou are interacting with ${activeCharacter.name}: ${activeCharacter.description}\n`;
-
-        // Find the choice description for more context
-        const choiceInfo = this.pendingPlayerChoice?.choices?.find(c => c.id === choiceId);
-        const choiceDesc = choiceInfo?.description || '';
 
         systemPrompt += `\n=== CRITICAL: YOUR RESPONSE MUST DO THIS ===\n`;
         systemPrompt += `You chose: "${choiceLabel}"${choiceDesc ? ` - ${choiceDesc}` : ''}\n`;
@@ -3432,12 +3738,16 @@ class EventEngine {
     // Clear execution history
     this.executionHistory = [];
 
-    // Reset player state tracking
-    this.previousPlayerState = {
-      capacity: 0,
-      pain: 0,
-      emotion: 'neutral'
-    };
+    // Sync player state tracking to current session values (don't reset to 0)
+    // This prevents false "state change" events after emergency stop
+    if (this.sessionState) {
+      this.previousPlayerState = {
+        capacity: this.sessionState.capacity || 0,
+        pain: this.sessionState.pain || 0,
+        emotion: this.sessionState.emotion || 'neutral'
+      };
+    }
+    // If no session state, keep existing previousPlayerState values
 
     // Clear pending challenge
     this.pendingChallenge = null;

@@ -396,6 +396,95 @@
   margin: 20px 0;
 }
 
+/* ===================== */
+/* PERSONA BUTTON MENU */
+/* ===================== */
+
+/* Static black section below persona portrait */
+.persona-button-menu {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    #1a1d21 0%,
+    #0d0f12 30%,
+    #0a0c0e 50%,
+    #0d0f12 70%,
+    #1a1d21 100%
+  );
+  border: 1px solid #3d4147;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 50px 10px 12px 10px;
+  margin-top: -1px;
+  margin-left: -12px;
+  margin-right: -12px;
+  width: calc(100% + 24px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* 2-column grid for persona action buttons */
+.persona-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8px;
+  row-gap: 6px;
+  touch-action: pan-y;
+}
+
+/* Persona action button styling - matches .panel-action-btn */
+.persona-action-btn {
+  padding: 6px 6px;
+  min-height: 36px;
+  background: linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%);
+  border: 1px solid #5c6169;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  touch-action: pan-y;
+}
+
+.persona-action-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4d5157 0%, #3d4046 100%);
+  border-color: #00ff88;
+  color: #00ff88;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+.persona-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(180deg, #2d3036 0%, #1a1d21 100%);
+  border-color: #3a3d42;
+  color: #6a6d72;
+}
+
+/* Persona pagination at bottom */
+.persona-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid #3d4147;
+}
+
 /* Devices panel styles */
 .panel-device-list {
   display: flex;

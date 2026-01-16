@@ -38,6 +38,9 @@ const {
 
 const log = createLogger('Server');
 
+// Generate a unique session ID on each server boot - used to clear stale drafts
+const SERVER_SESSION_ID = uuidv4();
+
 // Initialize Express
 const app = express();
 const server = http.createServer(app);
@@ -214,8 +217,23 @@ const DATA_FILES = {
   sessions: path.join(DATA_DIR, 'sessions.json'),
   autosave: path.join(DATA_DIR, 'autosave.json'),
   connectionProfiles: path.join(DATA_DIR, 'connection-profiles.json'),
-  remoteSettings: path.join(DATA_DIR, 'remote-settings.json')
+  remoteSettings: path.join(DATA_DIR, 'remote-settings.json'),
+  calibrations: path.join(DATA_DIR, 'calibrations.json'),
+  deviceLabels: path.join(DATA_DIR, 'device-labels.json')
 };
+
+// Helper to get calibration/label key for a device (ip or ip:childId)
+function getDeviceKey(device) {
+  if (device.childId) {
+    return `${device.ip}:${device.childId}`;
+  }
+  return device.ip;
+}
+
+// Alias for backwards compatibility
+function getCalibrationKey(device) {
+  return getDeviceKey(device);
+}
 
 // Initialize device service
 const deviceService = new DeviceService();
@@ -377,6 +395,118 @@ function migrateDeviceBrands() {
 migrateDeviceBrands();
 
 // ============================================
+// Character Story Migration
+// ============================================
+// Migrate legacy welcomeMessages, scenarios, exampleDialogues to new Story format (v2 - multi-version)
+function migrateCharacterStories() {
+  const characters = loadData(DATA_FILES.characters) || [];
+  let migrated = false;
+
+  for (const character of characters) {
+    // Check if needs v2 migration - either:
+    // 1. Stories exist but welcomeMessages is not an array
+    // 2. Stories exist with empty welcomeMessages but top-level welcomeMessages exist
+    const hasEmptyStoryWMs = character.stories && character.stories.length > 0 &&
+      character.stories[0] && Array.isArray(character.stories[0].welcomeMessages) &&
+      character.stories[0].welcomeMessages.length === 0;
+    const hasTopLevelWMs = character.welcomeMessages && character.welcomeMessages.length > 0;
+
+    const needsV2Migration = character.stories && character.stories.length > 0 &&
+      character.stories[0] && (
+        !Array.isArray(character.stories[0].welcomeMessages) ||
+        (hasEmptyStoryWMs && hasTopLevelWMs)
+      );
+
+    // Skip if already v2 format (has stories with non-empty welcomeMessages array)
+    if (character.stories && character.stories.length > 0 &&
+        Array.isArray(character.stories[0].welcomeMessages) &&
+        character.stories[0].welcomeMessages.length > 0) {
+      continue;
+    }
+
+    // Get all welcome messages (preserve all versions)
+    let welcomeMessages = [];
+    let activeWelcomeMessageId = null;
+    if (character.welcomeMessages && character.welcomeMessages.length > 0) {
+      welcomeMessages = character.welcomeMessages.map(wm => ({
+        id: wm.id || `wm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text: wm.text || '',
+        llmEnhanced: wm.llmEnhanced || false
+      }));
+      activeWelcomeMessageId = character.activeWelcomeMessageId || welcomeMessages[0]?.id;
+    } else if (character.firstMessage) {
+      welcomeMessages = [{ id: 'wm-1', text: character.firstMessage, llmEnhanced: false }];
+      activeWelcomeMessageId = 'wm-1';
+    } else if (needsV2Migration && character.stories[0].welcomeMessage) {
+      // Migrating from v1 story format
+      welcomeMessages = [{
+        id: 'wm-1',
+        text: character.stories[0].welcomeMessage,
+        llmEnhanced: character.stories[0].llmEnhanced || false
+      }];
+      activeWelcomeMessageId = 'wm-1';
+    }
+
+    // Get all scenarios (preserve all versions)
+    let scenarios = [];
+    let activeScenarioId = null;
+    if (character.scenarios && character.scenarios.length > 0) {
+      scenarios = character.scenarios.map(sc => ({
+        id: sc.id || `sc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        text: sc.text || ''
+      }));
+      activeScenarioId = character.activeScenarioId || scenarios[0]?.id;
+    } else if (character.scenario) {
+      scenarios = [{ id: 'sc-1', text: character.scenario }];
+      activeScenarioId = 'sc-1';
+    } else if (needsV2Migration && character.stories[0].scenario) {
+      // Migrating from v1 story format
+      scenarios = [{ id: 'sc-1', text: character.stories[0].scenario }];
+      activeScenarioId = 'sc-1';
+    }
+
+    // Get example dialogues
+    let exampleDialogues = [];
+    if (character.exampleDialogues && character.exampleDialogues.length > 0) {
+      exampleDialogues = character.exampleDialogues;
+    } else if (needsV2Migration && character.stories[0].exampleDialogues) {
+      exampleDialogues = character.stories[0].exampleDialogues;
+    }
+
+    // Preserve existing story settings if migrating
+    const existingStory = needsV2Migration ? character.stories[0] : {};
+
+    // Create/update the stories array with Story 1 (v2 format with arrays)
+    character.stories = [{
+      id: existingStory.id || 'story-1',
+      name: existingStory.name || 'Story 1',
+      welcomeMessages,
+      activeWelcomeMessageId,
+      scenarios,
+      activeScenarioId,
+      exampleDialogues: exampleDialogues.length > 0 ? exampleDialogues : (existingStory.exampleDialogues || []),
+      autoReplyEnabled: existingStory.autoReplyEnabled ?? character.autoReplyEnabled ?? false,
+      assignedFlows: existingStory.assignedFlows || character.assignedFlows || [],
+      assignedButtons: existingStory.assignedButtons || [],
+      constantReminderIds: existingStory.constantReminderIds || [],
+      globalReminderIds: existingStory.globalReminderIds || [],
+      startingEmotion: existingStory.startingEmotion || character.startingEmotion || 'neutral'
+    }];
+    character.activeStoryId = character.stories[0].id;
+
+    migrated = true;
+    console.log(`[Migration] Migrated character "${character.name}" to Story v2 format (multi-version)`);
+  }
+
+  if (migrated) {
+    saveData(DATA_FILES.characters, characters);
+    console.log('[Server] Character story migration complete');
+  }
+}
+
+migrateCharacterStories();
+
+// ============================================
 // Simulation Mode Detection
 // ============================================
 
@@ -411,6 +541,7 @@ const sessionState = {
   capacity: 0,
   pain: 0, // 0-10 numeric pain scale
   emotion: 'neutral',
+  capacityModifier: 1.0, // Multiplier for auto-capacity speed (0.25 to 2.0)
   chatHistory: [],
   messageInputHistory: [], // Track input history for up/down arrow navigation
   flowVariables: {},
@@ -428,7 +559,8 @@ const sessionState = {
   },
   autoReply: false, // When false, AI only responds via Guided Response/Events/Flows
   playerName: null, // Active persona's display name
-  characterName: null // Active character's name
+  characterName: null, // Active character's name
+  pumpRuntimeTracker: {} // deviceKey -> { totalSeconds } for auto-capacity tracking
 };
 
 // LLM State - tracks busy state and queues flow messages when LLM is busy
@@ -518,6 +650,7 @@ function autosaveSession() {
       chatHistory: sessionState.chatHistory,
       messageInputHistory: sessionState.messageInputHistory,
       flowVariables: sessionState.flowVariables,
+      pumpRuntimeTracker: sessionState.pumpRuntimeTracker,
       updatedAt: Date.now()
     };
     saveData(DATA_FILES.autosave, autosaveData);
@@ -549,7 +682,8 @@ function loadAutosave() {
       sessionState.chatHistory = autosaveData.chatHistory || [];
       sessionState.messageInputHistory = autosaveData.messageInputHistory || [];
       sessionState.flowVariables = autosaveData.flowVariables || {};
-      console.log('[Autosave] Loaded previous session with', sessionState.chatHistory.length, 'messages');
+      sessionState.pumpRuntimeTracker = autosaveData.pumpRuntimeTracker || {};
+      console.log('[Autosave] Loaded previous session with', sessionState.chatHistory.length, 'messages, capacity:', sessionState.capacity);
       return true;
     }
   } catch (error) {
@@ -619,6 +753,79 @@ console.warn = (...args) => {
   }
 };
 
+/**
+ * Handle pump runtime events for auto-capacity tracking
+ */
+function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isRealTime }) {
+  const settings = loadData(DATA_FILES.settings) || {};
+  const useAutoCapacity = settings.globalCharacterControls?.useAutoCapacity;
+
+  if (!useAutoCapacity || !calibrationTime) return;
+
+  // Update tracker
+  if (!sessionState.pumpRuntimeTracker[ip]) {
+    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0 };
+  }
+
+  if (isRealTime) {
+    // Real-time updates send total runtime since pump started - add to base
+    sessionState.pumpRuntimeTracker[ip].totalSeconds =
+      sessionState.pumpRuntimeTracker[ip].baseSeconds + runtimeSeconds;
+  } else {
+    // Final update when pump stops - add to base for next cycle
+    sessionState.pumpRuntimeTracker[ip].baseSeconds += runtimeSeconds;
+    sessionState.pumpRuntimeTracker[ip].totalSeconds =
+      sessionState.pumpRuntimeTracker[ip].baseSeconds;
+  }
+
+  // Calculate total capacity from all pumps, applying the capacity modifier from settings
+  const capacityModifier = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+  let totalCapacity = 0;
+  const devices = loadData(DATA_FILES.devices) || [];
+
+  for (const [deviceKey, tracker] of Object.entries(sessionState.pumpRuntimeTracker)) {
+    const deviceData = devices.find(d =>
+      d.ip === deviceKey || `${d.ip}:${d.childId}` === deviceKey
+    );
+    if (deviceData?.calibrationTime) {
+      // Apply capacityModifier to speed up or slow down capacity increase
+      totalCapacity += (tracker.totalSeconds / deviceData.calibrationTime) * 100 * capacityModifier;
+    }
+  }
+
+  // Round to nearest integer
+  totalCapacity = Math.round(totalCapacity);
+
+  // Calculate pain (scale linearly based on capacity, using max calibrated pain)
+  const calibratedPains = devices
+    .filter(d => typeof d.calibrationPainAtMax === 'number')
+    .map(d => d.calibrationPainAtMax);
+  const maxPain = calibratedPains.length > 0 ? Math.max(...calibratedPains) : 10;
+  const pain = Math.min(10, Math.round((Math.min(totalCapacity, 100) / 100) * maxPain));
+
+  sessionState.capacity = totalCapacity;
+  sessionState.pain = pain;
+
+  console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
+
+  // Broadcast update
+  broadcast('auto_capacity_update', {
+    capacity: totalCapacity,
+    pain: pain,
+    isOverInflating: totalCapacity > 100
+  });
+
+  // Check device monitors for capacity-based stop conditions
+  eventEngine.checkDeviceMonitors();
+
+  // Trigger player state change flows
+  eventEngine.checkPlayerStateChanges({
+    capacity: totalCapacity,
+    pain: pain,
+    emotion: sessionState.emotion
+  });
+}
+
 // Device service event handler
 deviceService.setEventEmitter((eventType, data) => {
   broadcast(eventType, data);
@@ -627,6 +834,11 @@ deviceService.setEventEmitter((eventType, data) => {
   if (eventType === 'cycle_complete') {
     console.log(`[DeviceEvent] Cycle complete for ${data.ip}, triggering completion chain`);
     eventEngine.handleCycleComplete(data.ip);
+  }
+
+  // Route pump_runtime to auto-capacity handler
+  if (eventType === 'pump_runtime') {
+    handlePumpRuntime(data);
   }
 });
 
@@ -638,7 +850,19 @@ deviceService.setEventEmitter((eventType, data) => {
 function getActiveWelcomeMessage(character) {
   if (!character) return null;
 
-  // New format with welcomeMessages array
+  // Check active story first (v2 format - stories contain welcomeMessages)
+  if (character.stories && character.stories.length > 0) {
+    const activeStoryId = character.activeStoryId || character.stories[0].id;
+    const activeStory = character.stories.find(s => s.id === activeStoryId) || character.stories[0];
+
+    if (activeStory?.welcomeMessages?.length > 0) {
+      const activeId = activeStory.activeWelcomeMessageId || activeStory.welcomeMessages[0].id;
+      const activeWelcome = activeStory.welcomeMessages.find(w => w.id === activeId);
+      return activeWelcome || activeStory.welcomeMessages[0];
+    }
+  }
+
+  // Fallback to root level welcomeMessages (legacy format)
   if (character.welcomeMessages && character.welcomeMessages.length > 0) {
     const activeId = character.activeWelcomeMessageId || character.welcomeMessages[0].id;
     const activeWelcome = character.welcomeMessages.find(w => w.id === activeId);
@@ -657,7 +881,19 @@ function getActiveWelcomeMessage(character) {
 function getActiveScenario(character) {
   if (!character) return '';
 
-  // New format with scenarios array
+  // Check active story first (v2 format - stories contain scenarios)
+  if (character.stories && character.stories.length > 0) {
+    const activeStoryId = character.activeStoryId || character.stories[0].id;
+    const activeStory = character.stories.find(s => s.id === activeStoryId) || character.stories[0];
+
+    if (activeStory?.scenarios?.length > 0) {
+      const activeId = activeStory.activeScenarioId || activeStory.scenarios[0].id;
+      const activeScenario = activeStory.scenarios.find(s => s.id === activeId);
+      return activeScenario ? activeScenario.text : '';
+    }
+  }
+
+  // Fallback to root level scenarios (legacy format)
   if (character.scenarios && character.scenarios.length > 0) {
     const activeId = character.activeScenarioId || character.scenarios[0].id;
     const activeScenario = character.scenarios.find(s => s.id === activeId);
@@ -796,11 +1032,19 @@ eventEngine.setBroadcast(async (type, data) => {
       return;
     }
 
-    // If LLM is already busy (e.g., user triggered guided impersonate), queue this flow message
+    // If LLM is already busy (e.g., user triggered guided impersonate), wait for it to finish
     if (llmState.isGenerating && !data.suppressLlm) {
-      console.log('[EventEngine] LLM busy - queueing ai_message for later');
-      llmState.queuedFlowMessage = { type: 'ai_message', data };
-      return;
+      console.log('[EventEngine] LLM busy - waiting for current generation to complete...');
+      // Wait for LLM to finish (check every 100ms, timeout after 60s)
+      const startWait = Date.now();
+      while (llmState.isGenerating && (Date.now() - startWait) < 60000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (llmState.isGenerating) {
+        console.log('[EventEngine] LLM wait timeout - proceeding anyway');
+      } else {
+        console.log('[EventEngine] LLM now available - proceeding with message');
+      }
     }
 
     const settings = loadData(DATA_FILES.settings);
@@ -874,9 +1118,19 @@ eventEngine.setBroadcast(async (type, data) => {
           }
         }
 
+        // Build capacity message instruction if this is from a capacity node
+        let capacityInstruction = '';
+        if (data.isCapacityMessage) {
+          capacityInstruction = `\n\nCAPACITY STATUS OBSERVATION: This is a clinical observation of the player's current inflation state.
+- You are ${activeCharacter.name} observing and documenting the player's physical condition
+- Maintain your character's personality while being observational
+- Note visible physical changes, breathing patterns, and body language
+- Use clinical or detached language appropriate to your character`;
+        }
+
         // Add instruction to BOTH system prompt AND at the end of the prompt for emphasis
         const instruction = `[YOUR NEXT MESSAGE MUST EXPRESS THIS ACTION: ${data.content}]`;
-        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
+        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
 
         // Append instruction to the prompt so it's the last thing before generation
         context.prompt += `\n\n${instruction}\n${activeCharacter.name}:`;
@@ -1042,11 +1296,18 @@ eventEngine.setBroadcast(async (type, data) => {
       return;
     }
 
-    // If LLM is already busy, queue this flow message
+    // If LLM is already busy, wait for it to finish
     if (llmState.isGenerating && !data.suppressLlm) {
-      console.log('[EventEngine] LLM busy - queueing player_message for later');
-      llmState.queuedFlowMessage = { type: 'player_message', data };
-      return;
+      console.log('[EventEngine] LLM busy - waiting for current generation to complete...');
+      const startWait = Date.now();
+      while (llmState.isGenerating && (Date.now() - startWait) < 60000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (llmState.isGenerating) {
+        console.log('[EventEngine] LLM wait timeout - proceeding anyway');
+      } else {
+        console.log('[EventEngine] LLM now available - proceeding with player message');
+      }
     }
 
     // If LLM is available, enhance the message
@@ -1058,6 +1319,14 @@ eventEngine.setBroadcast(async (type, data) => {
 
       try {
         const context = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
+
+        // Extra enforcement for capacity messages
+        const capacityEmphasis = data.isCapacityMessage ? `
+IMPORTANT: This is a CAPACITY STATUS message. You are reporting ${playerName}'s physical state.
+- Focus on ${playerName}'s internal sensations, breathing, and physical feelings
+- Express the intensity appropriate to their current fullness level
+- Use desperate, pleading, or overwhelmed tones as appropriate` : '';
+
         context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===
 Your next response MUST be ${playerName} performing this action: "${data.content}"
 
@@ -1067,7 +1336,7 @@ STRICT RULES:
 - Do NOT write ANY dialogue or actions for ${activeCharacter.name}
 - Do NOT narrate what ${activeCharacter.name} does or says
 - Keep it SHORT - 1-3 sentences max
-- Example format: "*I gasp as the pressure builds...* Please, stop!"
+- Example format: "*I gasp as the pressure builds...* Please, stop!"${capacityEmphasis}
 === END CRITICAL INSTRUCTION ===`;
         context.prompt += `\n\n[${playerName} (FIRST PERSON ONLY): ${data.content}]\n${playerName}:`;
 
@@ -1321,6 +1590,150 @@ function syncButtonsForFlowChange(flowId) {
   return anyUpdated;
 }
 
+/**
+ * Synchronize auto-generated buttons for a persona based on assigned flows
+ * @param {string} personaId - The persona ID
+ * @param {Array<string>} assignedFlowIds - Array of flow IDs assigned to this persona
+ * @returns {boolean} - Whether buttons were modified
+ */
+function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
+  const personas = loadData(DATA_FILES.personas) || [];
+  const flows = loadData(DATA_FILES.flows) || [];
+  const personaIndex = personas.findIndex(p => p.id === personaId);
+
+  if (personaIndex === -1) {
+    console.log(`[PersonaButtonSync] Persona ${personaId} not found`);
+    return false;
+  }
+
+  const persona = personas[personaIndex];
+  let buttons = persona.buttons || [];
+  const originalCount = buttons.length;
+  const originalAutoCount = buttons.filter(b => b.autoGenerated).length;
+
+  // 1. Collect all expected auto-generated buttons from assigned flows
+  const expectedAutoButtons = [];
+  for (const flowId of assignedFlowIds) {
+    const flow = flows.find(f => f.id === flowId);
+    if (!flow) continue;
+
+    const buttonPressLabels = extractButtonPressLabels(flow);
+    for (const { label, nodeId } of buttonPressLabels) {
+      expectedAutoButtons.push({
+        name: label,
+        flowId: flowId,
+        flowActionLabel: label,
+        sourceNodeId: nodeId
+      });
+    }
+  }
+
+  // 2. Remove auto-generated buttons that no longer have corresponding flow actions
+  buttons = buttons.filter(button => {
+    if (!button.autoGenerated) return true; // Keep manual buttons
+
+    // Check if this auto button still has a matching expected button
+    return expectedAutoButtons.some(eb =>
+      eb.flowId === button.sourceFlowId &&
+      eb.flowActionLabel === button.name
+    );
+  });
+
+  // 3. Process expected auto buttons
+  for (const expected of expectedAutoButtons) {
+    // Check if a manual button with this name exists
+    const existingManualIndex = buttons.findIndex(b =>
+      !b.autoGenerated && b.name === expected.name
+    );
+
+    if (existingManualIndex !== -1) {
+      // Convert manual button to auto-generated, preserve buttonId
+      const manualButton = buttons[existingManualIndex];
+      buttons[existingManualIndex] = {
+        ...manualButton,
+        autoGenerated: true,
+        sourceFlowId: expected.flowId,
+        sourceNodeId: expected.sourceNodeId,
+        actions: [{
+          type: 'link_to_flow',
+          config: {
+            flowId: expected.flowId,
+            flowActionLabel: expected.flowActionLabel
+          }
+        }]
+      };
+      console.log(`[PersonaButtonSync] Converted manual button "${expected.name}" to auto-generated`);
+      continue;
+    }
+
+    // Check if auto button already exists
+    const existingAutoIndex = buttons.findIndex(b =>
+      b.autoGenerated &&
+      b.sourceFlowId === expected.flowId &&
+      b.name === expected.name
+    );
+
+    if (existingAutoIndex !== -1) {
+      // Update existing auto button (in case node ID changed)
+      buttons[existingAutoIndex].sourceNodeId = expected.sourceNodeId;
+      continue;
+    }
+
+    // Create new auto-generated button
+    const newButtonId = getNextButtonId(buttons);
+    const newButton = {
+      buttonId: newButtonId,
+      name: expected.name,
+      enabled: true,
+      autoGenerated: true,
+      sourceFlowId: expected.flowId,
+      sourceNodeId: expected.sourceNodeId,
+      actions: [{
+        type: 'link_to_flow',
+        config: {
+          flowId: expected.flowId,
+          flowActionLabel: expected.flowActionLabel
+        }
+      }]
+    };
+
+    buttons.push(newButton);
+    console.log(`[PersonaButtonSync] Created auto-generated button "${expected.name}" (ID: ${newButtonId})`);
+  }
+
+  // 4. Check if anything changed
+  const newAutoCount = buttons.filter(b => b.autoGenerated).length;
+  const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount;
+
+  if (changed) {
+    // Save updated persona
+    personas[personaIndex].buttons = buttons;
+    saveData(DATA_FILES.personas, personas);
+    console.log(`[PersonaButtonSync] Synced buttons for ${persona.displayName}: ${buttons.length} total (${newAutoCount} auto)`);
+  }
+
+  return changed;
+}
+
+/**
+ * Sync buttons for all personas that have a specific flow assigned
+ * Called when a flow is saved/updated
+ */
+function syncPersonaButtonsForFlowChange(flowId) {
+  const personas = loadData(DATA_FILES.personas) || [];
+  let anyUpdated = false;
+
+  for (const persona of personas) {
+    const assignedFlows = persona.assignedFlows || [];
+    if (assignedFlows.includes(flowId)) {
+      const updated = syncPersonaAutoGeneratedButtons(persona.id, assignedFlows);
+      if (updated) anyUpdated = true;
+    }
+  }
+
+  return anyUpdated;
+}
+
 // Load flow assignments from persisted character/persona data
 function loadFlowAssignments() {
   const characters = loadData(DATA_FILES.characters) || [];
@@ -1426,7 +1839,8 @@ wss.on('connection', async (ws) => {
     data: {
       sessionState,
       settings,
-      devices: loadData(DATA_FILES.devices)
+      devices: loadData(DATA_FILES.devices),
+      serverSessionId: SERVER_SESSION_ID
     }
   }));
 
@@ -1615,6 +2029,14 @@ async function handleWsMessage(ws, type, data) {
       });
       break;
 
+    case 'settings_updated':
+      // Sync settings changes to sessionState
+      if (data.globalCharacterControls?.autoCapacityMultiplier !== undefined) {
+        sessionState.capacityModifier = data.globalCharacterControls.autoCapacityMultiplier;
+        console.log(`[Settings] Auto-capacity multiplier set to: ${sessionState.capacityModifier}x`);
+      }
+      break;
+
     case 'set_auto_reply':
       sessionState.autoReply = data.enabled;
       console.log(`[Settings] Auto Reply set to: ${data.enabled}`);
@@ -1656,7 +2078,7 @@ async function handleWsMessage(ws, type, data) {
       handleDeleteMessage(data);
       break;
 
-    case 'update_persona_flows':
+    case 'update_persona_flows': {
       if (!sessionState.flowAssignments.personas) {
         sessionState.flowAssignments.personas = {};
       }
@@ -1670,9 +2092,16 @@ async function handleWsMessage(ws, type, data) {
         saveData(DATA_FILES.personas, personas);
       }
 
+      // Sync auto-generated buttons for this persona
+      const personaButtonsUpdated = syncPersonaAutoGeneratedButtons(data.personaId, data.flows);
+      if (personaButtonsUpdated) {
+        broadcast('personas_update', loadData(DATA_FILES.personas));
+      }
+
       broadcast('flow_assignments_update', sessionState.flowAssignments);
       activateAssignedFlows();
       break;
+    }
 
     case 'update_character_flows':
       if (!sessionState.flowAssignments.characters) {
@@ -1856,7 +2285,12 @@ async function handleSwipeMessage(data) {
       systemPrompt = impersonateContext.systemPrompt;
       prompt = impersonateContext.prompt;
       if (guidanceText) {
-        systemPrompt += `\n\nGUIDANCE: Incorporate this direction into your response (do NOT repeat it verbatim): "${guidanceText}"`;
+        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
+Your response MUST be about: "${guidanceText}"
+- This is the central focus of your message - not just a suggestion
+- Your entire response should directly address or embody this direction
+- Do NOT repeat the guidance text verbatim, but make it the core subject matter
+- Everything you write should relate back to this guidance`;
         prompt += `\n${playerName}:`;
       }
     } else {
@@ -1866,7 +2300,12 @@ async function handleSwipeMessage(data) {
       systemPrompt = context.systemPrompt;
       prompt = context.prompt;
       if (guidanceText) {
-        systemPrompt += `\n\nGUIDANCE: Incorporate this direction into your response (do NOT repeat it verbatim): "${guidanceText}"`;
+        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
+Your response MUST be about: "${guidanceText}"
+- This is the central focus of your message - not just a suggestion
+- Your entire response should directly address or embody this direction
+- Do NOT repeat the guidance text verbatim, but make it the core subject matter
+- Everything you write should relate back to this guidance`;
         prompt += `\n${activeCharacter.name}:`;
       }
     }
@@ -1979,14 +2418,16 @@ function resolveDeviceKey(deviceKey) {
 }
 
 async function handleExecuteButton(data) {
-  const { buttonId, eventId, characterId, actions } = data;
+  const { buttonId, eventId, characterId, personaId, actions } = data;
 
   if (!actions || !Array.isArray(actions) || actions.length === 0) {
     console.log('[Button] No actions to execute');
     return;
   }
 
-  console.log(`[Button] Executing button #${buttonId || eventId} with ${actions.length} actions`);
+  const sourceType = personaId ? 'persona' : 'character';
+  const sourceId = personaId || characterId;
+  console.log(`[Button] Executing button #${buttonId || eventId} from ${sourceType} ${sourceId} with ${actions.length} actions`);
 
   // Process each action sequentially
   for (const action of actions) {
@@ -1994,7 +2435,8 @@ async function handleExecuteButton(data) {
       switch (action.type) {
         case 'message':
         case 'send_message':  // Backwards compatibility
-          await handleButtonSendMessage(action, characterId);
+          // Pass both characterId and personaId so message handler can use appropriate context
+          await handleButtonSendMessage(action, characterId, personaId);
           break;
 
         case 'turn_on':
@@ -2030,18 +2472,23 @@ async function handleExecuteButton(data) {
   console.log('[Button] Button execution completed');
 }
 
-async function handleButtonSendMessage(action, characterId) {
+async function handleButtonSendMessage(action, characterId, personaId) {
   const characters = loadData(DATA_FILES.characters) || [];
-  const character = characters.find(c => c.id === characterId);
+  const settings = loadData(DATA_FILES.settings);
+
+  // Use passed characterId, or fall back to active character from settings
+  const effectiveCharacterId = characterId || settings?.activeCharacterId;
+  const character = characters.find(c => c.id === effectiveCharacterId);
 
   if (!character) {
     console.log('[Button] Character not found');
     return;
   }
 
-  const settings = loadData(DATA_FILES.settings);
   const personas = loadData(DATA_FILES.personas) || [];
-  const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+  // Use passed personaId, or fall back to active persona from settings
+  const effectivePersonaId = personaId || settings?.activePersonaId;
+  const activePersona = personas.find(p => p.id === effectivePersonaId);
   const playerName = activePersona?.displayName || 'the player';
 
   // Substitute [Player] variable in instruction text
@@ -3460,6 +3907,23 @@ app.post('/api/devices', (req, res) => {
     ...req.body,
     currentState: 'off'
   };
+
+  // Check for existing calibration data for this device
+  const calibrations = loadData(DATA_FILES.calibrations) || {};
+  const deviceKey = getDeviceKey(newDevice);
+  if (calibrations[deviceKey]) {
+    // Restore calibration data from saved calibrations
+    Object.assign(newDevice, calibrations[deviceKey]);
+    console.log(`[Devices] Restored calibration data for ${deviceKey}`);
+  }
+
+  // Check for existing custom label for this device
+  const deviceLabels = loadData(DATA_FILES.deviceLabels) || {};
+  if (deviceLabels[deviceKey]) {
+    newDevice.customLabel = deviceLabels[deviceKey];
+    console.log(`[Devices] Restored custom label for ${deviceKey}: ${deviceLabels[deviceKey]}`);
+  }
+
   devices.push(newDevice);
   saveData(DATA_FILES.devices, devices);
   deviceService.registerDevice(newDevice);
@@ -3475,6 +3939,35 @@ app.put('/api/devices/:id', (req, res) => {
   }
   devices[index] = { ...devices[index], ...req.body };
   saveData(DATA_FILES.devices, devices);
+
+  const deviceKey = getDeviceKey(devices[index]);
+
+  // If calibration data is being saved, also save to calibrations store
+  const calibrationFields = ['calibrationTime', 'calibrationCapacity', 'calibrationPainAtMax', 'calibratedAt'];
+  const hasCalibrationData = calibrationFields.some(field => req.body[field] !== undefined);
+  if (hasCalibrationData) {
+    const calibrations = loadData(DATA_FILES.calibrations) || {};
+    calibrations[deviceKey] = {
+      calibrationTime: devices[index].calibrationTime,
+      calibrationCapacity: devices[index].calibrationCapacity,
+      calibrationPainAtMax: devices[index].calibrationPainAtMax,
+      calibratedAt: devices[index].calibratedAt
+    };
+    saveData(DATA_FILES.calibrations, calibrations);
+  }
+
+  // If custom label is being saved, also save to device labels store
+  if (req.body.customLabel !== undefined) {
+    const deviceLabels = loadData(DATA_FILES.deviceLabels) || {};
+    if (req.body.customLabel) {
+      deviceLabels[deviceKey] = req.body.customLabel;
+    } else {
+      // Remove label if set to empty
+      delete deviceLabels[deviceKey];
+    }
+    saveData(DATA_FILES.deviceLabels, deviceLabels);
+  }
+
   broadcast('devices_update', devices);
   res.json(devices[index]);
 });
@@ -3489,6 +3982,102 @@ app.delete('/api/devices/:id', (req, res) => {
   saveData(DATA_FILES.devices, devices);
   broadcast('devices_update', devices);
   res.json({ success: true });
+});
+
+// Check reachability of all configured devices on startup
+app.post('/api/devices/check-reachability', async (req, res) => {
+  try {
+    let devices = loadData(DATA_FILES.devices) || [];
+    const settings = loadData(DATA_FILES.settings) || {};
+    const unreachableDevices = [];
+    const reachableDevices = [];
+    let devicesUpdated = false;
+
+    // Check each device's reachability
+    for (const device of devices) {
+      let isReachable = false;
+
+      try {
+        if (device.brand === 'govee') {
+          // Govee devices - try to get power state
+          const state = await goveeService.getPowerState(device.deviceId, device.sku);
+          isReachable = state !== null && state !== undefined;
+        } else if (device.brand === 'tuya') {
+          // Tuya devices - try to get power state
+          const state = await tuyaService.getPowerState(device.deviceId);
+          isReachable = state !== null && state !== undefined;
+        } else {
+          // TPLink devices - try to get device info
+          const result = await deviceService.getDeviceInfo(device.ip);
+          isReachable = !result.error;
+        }
+      } catch (err) {
+        console.log(`[Reachability] Device ${device.label || device.name || device.ip} check failed:`, err.message);
+        isReachable = false;
+      }
+
+      // Update reachable status on device (don't remove, just mark)
+      const wasReachable = device.isReachable !== false;
+      device.isReachable = isReachable;
+      device.lastReachabilityCheck = Date.now();
+
+      if (isReachable) {
+        reachableDevices.push(device);
+      } else {
+        unreachableDevices.push(device);
+        console.log(`[Reachability] WARNING: Device ${device.label || device.name || device.ip} is not responding`);
+      }
+
+      // Track if status changed
+      if (wasReachable !== isReachable) {
+        devicesUpdated = true;
+      }
+    }
+
+    // Save updated device statuses (but keep all devices)
+    if (devicesUpdated || unreachableDevices.length > 0) {
+      saveData(DATA_FILES.devices, devices);
+      broadcast('devices_update', devices);
+
+      // Send warning notification for unreachable devices
+      if (unreachableDevices.length > 0) {
+        const warningNames = unreachableDevices.map(d => d.label || d.name || d.ip || d.deviceId).join(', ');
+        broadcast('device_warning', {
+          type: 'unreachable',
+          message: `Device(s) not responding: ${warningNames}`,
+          devices: unreachableDevices.map(d => ({
+            id: d.id,
+            name: d.label || d.name || d.ip || d.deviceId,
+            deviceType: d.deviceType
+          }))
+        });
+      }
+    }
+
+    // Get updated simulation status
+    const simulationStatus = getSimulationStatus();
+    eventEngine.setSimulationMode(simulationStatus.required);
+
+    res.json({
+      success: true,
+      unreachableDevices: unreachableDevices.map(d => ({
+        id: d.id,
+        name: d.label || d.name || d.ip || d.deviceId,
+        deviceType: d.deviceType
+      })),
+      reachableDevices: reachableDevices.map(d => ({
+        id: d.id,
+        name: d.label || d.name || d.ip || d.deviceId,
+        deviceType: d.deviceType
+      })),
+      simulationRequired: simulationStatus.required,
+      simulationReason: simulationStatus.reason,
+      totalDevices: devices.length
+    });
+  } catch (error) {
+    console.error('[Reachability] Check failed:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.post('/api/devices/:ip/on', async (req, res) => {
@@ -3871,11 +4460,15 @@ app.put('/api/flows/:id', (req, res) => {
   flows[index] = { ...flows[index], ...req.body, updatedAt: Date.now() };
   saveData(DATA_FILES.flows, flows);
 
-  // Sync auto-generated buttons for all characters with this flow assigned
+  // Sync auto-generated buttons for all characters and personas with this flow assigned
   const flowId = req.params.id;
-  const flowButtonsUpdated = syncButtonsForFlowChange(flowId);
-  if (flowButtonsUpdated) {
+  const charButtonsUpdated = syncButtonsForFlowChange(flowId);
+  const personaButtonsUpdated = syncPersonaButtonsForFlowChange(flowId);
+  if (charButtonsUpdated) {
     broadcast('characters_update', loadData(DATA_FILES.characters));
+  }
+  if (personaButtonsUpdated) {
+    broadcast('personas_update', loadData(DATA_FILES.personas));
   }
 
   broadcast('flows_update', flows);
@@ -4159,6 +4752,9 @@ app.get('/api/session', (req, res) => {
 });
 
 app.post('/api/session/reset', async (req, res) => {
+  // Get initial values from request body (if provided)
+  const initialValues = req.body?.initialValues || {};
+
   // Load settings and character to get starting emotion
   const settings = loadData(DATA_FILES.settings);
   let startingEmotion = 'neutral';
@@ -4187,9 +4783,11 @@ app.post('/api/session/reset', async (req, res) => {
   // Abort any pending LLM requests
   llmService.abortAllRequests();
 
-  sessionState.capacity = 0;
-  sessionState.pain = 0;
-  sessionState.emotion = startingEmotion;
+  // Use initial values if provided, otherwise use defaults
+  sessionState.capacity = initialValues.capacity ?? 0;
+  sessionState.pain = initialValues.pain ?? 0;
+  sessionState.emotion = initialValues.emotion ?? startingEmotion;
+  sessionState.capacityModifier = initialValues.capacityModifier ?? 1.0;
   sessionState.chatHistory = [];
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
@@ -4197,6 +4795,9 @@ app.post('/api/session/reset', async (req, res) => {
     deliveredMessages: new Set(),
     deviceActions: {}
   };
+  sessionState.pumpRuntimeTracker = {}; // Reset auto-capacity tracking
+
+  console.log(`[Session Reset] Initial values - capacity: ${sessionState.capacity}, pain: ${sessionState.pain}, emotion: ${sessionState.emotion}, capacityModifier: ${sessionState.capacityModifier}`);
 
   // Reset welcome message lock and first message flag
   sendingWelcomeMessage = false;
@@ -4307,6 +4908,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.chatHistory = session.chatHistory || [];
   sessionState.flowVariables = session.flowVariables || {};
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
+  sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
 
   // Broadcast the loaded state
   broadcast('session_loaded', sessionState);

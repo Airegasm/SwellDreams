@@ -25,6 +25,7 @@ import BranchNode from '../components/flow/nodes/BranchNode';
 import DelayNode from '../components/flow/nodes/DelayNode';
 import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
+import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
 // Challenge nodes
 import {
   PrizeWheelNodeMemo as PrizeWheelNode,
@@ -50,6 +51,8 @@ const nodeTypes = {
   delay: DelayNode,
   player_choice: PlayerChoiceNode,
   simple_ab: SimpleABNode,
+  capacity_ai_message: CapacityMessageNode,
+  capacity_player_message: CapacityMessageNode,
   // Challenge nodes
   prize_wheel: PrizeWheelNode,
   dice_roll: DiceRollNode,
@@ -124,8 +127,8 @@ const NODE_TEMPLATES = {
       prompt: '',
       description: '',
       choices: [
-        { id: 'choice-1', label: 'Option A', description: '' },
-        { id: 'choice-2', label: 'Option B', description: '' }
+        { id: 'choice-1', label: 'Option A', description: '', playerResponse: '' },
+        { id: 'choice-2', label: 'Option B', description: '', playerResponse: '' }
       ]
     }
   },
@@ -139,14 +142,35 @@ const NODE_TEMPLATES = {
       descriptionB: ''
     }
   },
-  // Challenge nodes
+  // Capacity message nodes
+  capacity_ai_message: {
+    default: {
+      label: 'Capacity AI Message',
+      messageType: 'ai',
+      suppressLlm: false,
+      postDelay: 3,
+      ranges: {}
+    }
+  },
+  capacity_player_message: {
+    default: {
+      label: 'Capacity Player Message',
+      messageType: 'player',
+      suppressLlm: false,
+      postDelay: 3,
+      ranges: {}
+    }
+  },
+  // Challenge nodes - all have aiMessageStartEnabled: true by default
   prize_wheel: {
     default: {
       label: 'Prize Wheel',
       segments: [
         { id: 'seg-1', label: 'Prize 1', color: '#fb923c', weight: 1 },
         { id: 'seg-2', label: 'Prize 2', color: '#3b82f6', weight: 1 }
-      ]
+      ],
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   dice_roll: {
@@ -159,7 +183,9 @@ const NODE_TEMPLATES = {
         { id: 'range-2', label: 'Medium', min: 6, max: 9 },
         { id: 'range-3', label: 'High', min: 10, max: 12 }
       ],
-      characterAdvantage: 0
+      characterAdvantage: 0,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   coin_flip: {
@@ -168,14 +194,18 @@ const NODE_TEMPLATES = {
       headsLabel: 'Heads',
       tailsLabel: 'Tails',
       headsWeight: 50,
-      bestOf: 1
+      bestOf: 1,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   rps: {
     default: {
       label: 'Rock Paper Scissors',
       bestOf: 1,
-      characterBias: null
+      characterBias: null,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   timer_challenge: {
@@ -183,7 +213,9 @@ const NODE_TEMPLATES = {
       label: 'Timer Challenge',
       duration: 10,
       precisionMode: false,
-      precisionWindow: 1
+      precisionWindow: 1,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   number_guess: {
@@ -192,7 +224,9 @@ const NODE_TEMPLATES = {
       min: 1,
       max: 10,
       maxAttempts: 3,
-      closeThreshold: 0
+      closeThreshold: 0,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   slot_machine: {
@@ -202,14 +236,18 @@ const NODE_TEMPLATES = {
       matches: [
         { id: 'match-1', pattern: 'three-of-a-kind', label: 'Jackpot' },
         { id: 'match-2', pattern: 'two-of-a-kind', label: 'Small Win' }
-      ]
+      ],
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   card_draw: {
     default: {
       label: 'Card Draw',
       deckType: 'standard',
-      outputMode: 'suit'
+      outputMode: 'suit',
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   simon_challenge: {
@@ -223,7 +261,9 @@ const NODE_TEMPLATES = {
       grandPenaltyDevice: '',
       grandPenaltyDuration: 10,
       rewardDevice: '',
-      rewardDuration: 5
+      rewardDuration: 5,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   },
   reflex_challenge: {
@@ -237,7 +277,9 @@ const NODE_TEMPLATES = {
       grandPenaltyDevice: '',
       grandPenaltyDuration: 10,
       rewardDevice: '',
-      rewardDuration: 5
+      rewardDuration: 5,
+      aiMessageStartEnabled: true,
+      aiMessageStart: ''
     }
   }
 };
@@ -694,6 +736,36 @@ function FlowEditor() {
       // Only handle if focus is on the flow canvas area
       const target = event.target;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+      }
+
+      // Arrow keys - Pan canvas
+      const PAN_AMOUNT = 50; // pixels to pan per keypress
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        if (reactFlowInstance) {
+          event.preventDefault();
+          const viewport = reactFlowInstance.getViewport();
+          let { x, y, zoom } = viewport;
+
+          switch (event.key) {
+            case 'ArrowUp':
+              y += PAN_AMOUNT;
+              break;
+            case 'ArrowDown':
+              y -= PAN_AMOUNT;
+              break;
+            case 'ArrowLeft':
+              x += PAN_AMOUNT;
+              break;
+            case 'ArrowRight':
+              x -= PAN_AMOUNT;
+              break;
+            default:
+              break;
+          }
+
+          reactFlowInstance.setViewport({ x, y, zoom });
+        }
         return;
       }
 
@@ -1211,6 +1283,26 @@ function FlowEditor() {
                 {template.label}
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="sidebar-section">
+          <h3>Capacity Messages</h3>
+          <div className="node-palette">
+            <div
+              className="palette-node capacity-ai-message"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'capacity_ai_message', 'default')}
+            >
+              Capacity AI Message
+            </div>
+            <div
+              className="palette-node capacity-player-message"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'capacity_player_message', 'default')}
+            >
+              Capacity Player Message
+            </div>
           </div>
         </div>
 

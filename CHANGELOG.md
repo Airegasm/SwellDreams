@@ -2,171 +2,48 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
-## [1.5f] - 2026-01-14
+## [Unreleased] - 2026-01-16
 
 ### Added
-- **Flow Priority System** - Priority-based flow interruption control:
-  - Priority checkbox and value (1-5, where 1 is highest) on all trigger nodes
-  - Higher priority flows can interrupt lower priority running flows
-  - Same or lower priority triggers are blocked while a flow is running
-- **Unblockable Flows** - Checkbox on trigger nodes for flows that should always run:
-  - Unblockable flows execute regardless of other running flows
-  - Useful for harmless state update flows (capacity tracking, etc.)
-- **Selective Flow Notifications** - Notify checkbox on trigger nodes:
-  - Toast notifications only appear when Notify is checked
-  - Flow start, progress, completion, blocked, and takeover events
-  - Step counter shows progress through flow (e.g., "Step 3/8")
-- **Session Loading State** - Chat input and action buttons disabled during:
-  - Session initialization
-  - LLM-enhanced welcome message generation
 
-### Removed
-- **Timer Trigger Node** - Removed as it didn't fit the flow paradigm
-  - Timer triggers couldn't be logically connected to flow chains
-  - Use idle triggers or player_state_change triggers instead
+#### Mobile Experience
+- Redesigned mobile layout with floating capacity gauge above chat input
+- Moved StatusBadges (capacity gauge + emotion/pain emojis) to overlay position
+- Added mobile E-STOP button centered in input area
+- Moved logo from header to hamburger menu panel
+- Persona (🎈) and character (😈) drawer toggle buttons in mobile nav
 
-### Fixed
-- **Button Press Notifications** - Notify flag now properly passed from button press triggers
-- **Flow Chain Flag Inheritance** - All chain continuations (choices, challenges, cycles, device completions) now inherit notify/priority flags from original trigger
-- **Emergency Stop Crash** - Removed leftover setupTimerTriggers call that caused crash on emergency stop
+#### Auto-Capacity System
+- Pump calibration feature - calibrate pump runtime to capacity percentage
+- Auto-incrementing capacity gauge based on real pump runtime
+- Calibration data persisted in `backend/data/calibrations.json`
+- Auto-capacity multiplier setting for fine-tuning
 
----
+#### Multi-Stage Persona Portraits
+- Support for staged portraits that change based on capacity level
+- Configurable capacity thresholds for portrait transitions
+- Smooth transitions between portrait stages
 
-## [1.5e] - 2026-01-14
+#### Flow System Enhancements
+- Flow priority system (1-5) for execution ordering
+- Unblockable flows that cannot be interrupted
+- Selective notification system per flow
+- ScreenPlay page for viewing flow-generated content
 
-### Added
-- **Page Transition Animations** - Smooth slide animations for modal pages:
-  - Personas, Characters, Settings, Help pages slide down from top
-  - ScreenPlay slides down with filmstrip animations
-  - Exit animations play before navigating to next page
-- **ScreenPlay Filmstrips** - Animated film strip overlays:
-  - Slide out from behind center chat area
-  - Cover column toppers/footers (except logo)
-  - Retract behind chat when closing
-- **Animated Dimming Effects** - All dimming now fades smoothly (0.5s):
-  - Hamburger menu overlay
-  - Modal page sidebar dimming
-  - Flow transition dimming
+#### UI/UX Improvements
+- Page transition animations with dimming effects
+- Transparent hamburger menu with backdrop blur
+- Automation submenu in navigation (Flows, ScreenPlay)
+- Capacity-based AI/Player message nodes for flow editor
 
 ### Changed
-- **Z-Index Hierarchy** - Proper layering for filmstrips and UI elements:
-  - Logo (left-column-top-bar): stays above filmstrips
-  - Chat area: above filmstrips
-  - Filmstrips: above column toppers/footers
-- **Navigation Flow** - Coordinated page transitions:
-  - Current page exits before new page enters
-  - Dimming persists during transitions
+- Simplified mobile header - removed top bars, just hamburger menu
+- Flow editor saves now strip runtime data to prevent freezing on load
+- Improved node styling in flow editor
+- Stop cycle action now attempts turnOff as safety fallback
 
 ### Fixed
-- **Dimming Persistence** - Sidebar dimming no longer disappears instantly when navigating
-- **Filmstrip Direction** - Filmstrips now correctly emerge from behind chat center
-
----
-
-## [1.5d] - 2026-01-13
-
-### Fixed
-- **Emergency Stop Flow Abort** - Completely halts flow execution chain:
-  - Uses epoch-based tracking to detect abort across async operations
-  - Properly cancels flow after post-delays and delay nodes
-  - LLM generation aborted during emergency stop no longer posts fallback messages
-- **Selective Device Stop** - Emergency stop only turns off devices activated by flows:
-  - Tracks which devices were started by flow actions (device_on, start_cycle)
-  - Other devices remain unaffected by flow emergency stop
-  - Failsafe shutdown still stops all devices for safety
-
----
-
-## [1.5c] - 2026-01-13
-
-### Added
-- **Flow Node Test Mode** - Test flow execution directly from the canvas:
-  - "Test" button on all 16 node types (triggers, actions, conditions, branches, delays, choices, challenges)
-  - Step-by-step execution results in a blocking popup modal
-  - Mock state gauges (capacity, pain, emotion) with animated value changes
-  - Auto-adjusts state values to meet condition thresholds during test
-  - Simulates device actions (no actual device calls)
-  - Auto-resolves challenges and player choices
-  - Suppresses all LLM enhancement during tests
-- **AI Message Fields for Challenge Nodes** - Configure AI-generated messages for:
-  - Challenge start announcements
-  - Character wins outcomes
-  - Character loses outcomes
-- **Flow Error Handling** - Display errors for failed flow actions/nodes via toast notifications
-
-### Changed
-- **Error Display Standardization** - All errors now use toast notifications:
-  - Removed inline chat error displays
-  - Removed LLM Not Configured modal
-  - Unified error handling through ErrorContext
-- **Flows Page UI** - Cleaner interface:
-  - Hidden corner column decorations on Flows page
-  - LLM status badge hidden on Flows page
-  - Right column top bar matches flow header blue gradient
-  - Logo and hamburger menu remain visible
-- **Start Scripts** - Now remove and rebuild frontend fresh on each start:
-  - Ensures latest code changes are always deployed
-  - Updated both `start.sh` (Linux/Mac) and `start.bat` (Windows)
-- **Navigation Layout** - Fixed robot head (LLM status) position to upper right corner
-
----
-
-## [1.5b] "Midnight Oil" - 2026-01-12
-
-### Added
-- **Challenge Nodes** - Interactive game elements for flows:
-  - Prize Wheel, Dice Roll, Coin Flip, Rock-Paper-Scissors
-  - Timer Challenge, Number Guess, Slot Machine, Card Draw
-  - Configurable outcomes that branch flow execution
-- **Global Character Controls** - Automatic linking between capacity, pain, and emotion states
-  - Auto-link capacity to Wong-Baker pain scale
-  - Emotional decline at high capacity (locks to "Frightened" at 75%+)
-- **API Key Encryption** - AES-256-GCM encryption for stored API keys
-- **Portrait avatars** on persona and character cards in Settings
-- **Error boundary** - Graceful error handling with recovery options
-- **Version badge** - Version display in navigation bar
-- **Report Issue link** - Direct link to GitHub issues for bug reporting
-
-### Changed
-- **Single server architecture** - Backend now serves frontend directly from port 8889 (simplified deployment)
-- **Character writing style** - Hybrid first/third person (dialogue uses "I", actions use character name)
-- **Help documentation** - Updated with Challenge Nodes, Global Character Controls, and API encryption sections
-- Added airegasm.com community link to Getting Started
-
-### Fixed
-- Factory flow template edge connections (branch/condition source handles)
-- Julie's "Pushing Buttons" flow branch connections
-- Settings reference error in capacity settings
-
-### Known Issues
-- Flow status badge feature is planned but not yet implemented
-- Some edge cases in challenge node outcome routing
-
----
-
-## [1.4] - Previous Release
-
-### Added
-- Flow system with visual node editor
-- Device control integration (TP-Link, Govee, Tuya)
-- Session save/load functionality
-- Character buttons with custom instructions
-- Welcome messages and scenarios per character
-
-### Changed
-- Improved mobile responsiveness
-- Enhanced toast notification system
-
----
-
-## [1.3] - Earlier Release
-
-### Added
-- Initial release with core chat functionality
-- Persona and character management
-- Basic device simulation mode
-- OpenRouter integration for LLM
-
----
-
-For community resources and hardware guides, visit [airegasm.com](https://airegasm.com)
+- Flow editor freezing when loading flows with stale runtime data
+- Device stop_cycle action skipping when device state out of sync
+- Mobile sidebars z-index conflicts with chat area
+- Drawer toggle buttons not opening sidebars on mobile

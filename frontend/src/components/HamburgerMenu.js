@@ -227,6 +227,11 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
         >
           Report Issue
         </a>
+
+        {/* Logo at bottom of menu */}
+        <div className="hamburger-menu-logo">
+          <img src="/logo.png" alt="SwellDreams" />
+        </div>
       </div>
     </div>
   );

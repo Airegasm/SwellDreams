@@ -386,6 +386,16 @@
   font-size: 9px;
 }
 
+.ai-message-section .suppress-llm {
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.ai-message-section .suppress-llm input {
+  margin-right: 4px;
+}
+
 /* Simon Challenge Node */
 .simon-challenge-node {
   border-color: #8b5cf6;
