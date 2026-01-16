@@ -10,6 +10,8 @@ function FlowTab() {
     challenges: false,
     patterns: false,
     priority: false,
+    flowSettings: false,
+    screenplay: false,
     tips: false
   });
 
@@ -166,8 +168,24 @@ function FlowTab() {
                   <td>Display a system notification in chat</td>
                   <td>Message text</td>
                 </tr>
+                <tr>
+                  <td><strong>Capacity AI Message</strong></td>
+                  <td>AI message with content varying by capacity level</td>
+                  <td>Multiple prompts for different capacity ranges</td>
+                </tr>
+                <tr>
+                  <td><strong>Capacity Player Message</strong></td>
+                  <td>Player message with content varying by capacity level</td>
+                  <td>Multiple prompts for different capacity ranges</td>
+                </tr>
               </tbody>
             </table>
+
+            <div className="info-box">
+              <strong>Capacity-Based Messages:</strong> These special nodes let you define different
+              message content for different capacity ranges (e.g., 0-25%, 26-50%, etc.). The node
+              automatically selects the appropriate prompt based on current capacity when triggered.
+            </div>
 
             <h4 className="subsection-header">Device Actions</h4>
             <table className="help-table">
@@ -443,35 +461,138 @@ function FlowTab() {
         {expanded.priority && (
           <div className="section-content">
             <p>
-              When multiple flows could trigger on the same event, priority determines
-              which executes first:
+              Each flow has a configurable priority level (1-5) that determines execution order
+              when multiple flows trigger on the same event. Lower numbers execute first.
             </p>
             <table className="help-table">
               <thead>
                 <tr>
                   <th>Priority</th>
-                  <th>Type</th>
+                  <th>Suggested Use</th>
                   <th>Description</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>0</strong> (Highest)</td>
-                  <td>Global Flows</td>
-                  <td>Always active, execute first</td>
+                  <td><strong>1</strong> (Highest)</td>
+                  <td>Critical / Safety</td>
+                  <td>Emergency responses, safety checks - always run first</td>
                 </tr>
                 <tr>
-                  <td><strong>1</strong></td>
-                  <td>Character Flows</td>
-                  <td>Only active for assigned character</td>
+                  <td><strong>2</strong></td>
+                  <td>High Priority</td>
+                  <td>Important game mechanics, core interactions</td>
                 </tr>
                 <tr>
-                  <td><strong>2</strong> (Lowest)</td>
-                  <td>Persona Flows</td>
-                  <td>Player-specific flows</td>
+                  <td><strong>3</strong></td>
+                  <td>Normal (Default)</td>
+                  <td>Standard flows, typical automation</td>
+                </tr>
+                <tr>
+                  <td><strong>4</strong></td>
+                  <td>Low Priority</td>
+                  <td>Background effects, ambient responses</td>
+                </tr>
+                <tr>
+                  <td><strong>5</strong> (Lowest)</td>
+                  <td>Fallback</td>
+                  <td>Catch-all behaviors, defaults when nothing else fires</td>
                 </tr>
               </tbody>
             </table>
+
+            <h4 className="subsection-header">Flow Scope</h4>
+            <p>In addition to priority, flows have a scope that determines when they're active:</p>
+            <ul className="help-list">
+              <li><strong>Global Flows</strong> - Always active regardless of which character is selected</li>
+              <li><strong>Character Flows</strong> - Only active when chatting with the assigned character</li>
+              <li><strong>Persona Flows</strong> - Only active when using the assigned persona</li>
+            </ul>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Set priority in the flow editor's settings panel. Flows with the
+              same priority execute in the order they were created.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Flow Settings */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('flowSettings')}>
+          Flow Settings (Unblockable & Notifications)
+          <span className="expand-icon">{expanded.flowSettings ? '−' : '+'}</span>
+        </h3>
+        {expanded.flowSettings && (
+          <div className="section-content">
+            <p>
+              Each flow has additional settings that control its behavior during execution.
+            </p>
+
+            <h4 className="subsection-header">Unblockable Flows</h4>
+            <p>
+              When a flow is marked as <strong>Unblockable</strong>, it cannot be interrupted by
+              other flows or user actions (except E-STOP). Use this for critical sequences that
+              must complete.
+            </p>
+            <ul className="help-list">
+              <li>Other flows wait until the unblockable flow completes</li>
+              <li>User input during execution is queued, not ignored</li>
+              <li>E-STOP always works, even during unblockable flows</li>
+            </ul>
+
+            <div className="warning-box">
+              <strong>Use Sparingly:</strong> Unblockable flows can lock up the interface if they
+              contain long delays or complex sequences. Reserve them for genuinely critical automation.
+            </div>
+
+            <h4 className="subsection-header">Selective Notifications</h4>
+            <p>
+              By default, flows display system notifications when they trigger. You can disable
+              notifications per-flow to create silent automation:
+            </p>
+            <ul className="help-list">
+              <li><strong>Notifications On</strong> - Shows "Flow triggered: [name]" in chat</li>
+              <li><strong>Notifications Off</strong> - Flow runs silently, no system message</li>
+            </ul>
+            <p>
+              Silent flows are useful for background automation that shouldn't interrupt the
+              roleplay narrative, such as ambient device control or hidden state tracking.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ScreenPlay */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('screenplay')}>
+          ScreenPlay Page
+          <span className="expand-icon">{expanded.screenplay ? '−' : '+'}</span>
+        </h3>
+        {expanded.screenplay && (
+          <div className="section-content">
+            <p>
+              The <strong>ScreenPlay</strong> page (found under Automation in the menu) displays
+              content generated by flows in a dedicated view, separate from the main chat.
+            </p>
+
+            <h4 className="subsection-header">Use Cases</h4>
+            <ul className="help-list">
+              <li><strong>Story Scripts</strong> - View narrative content generated by AI message nodes</li>
+              <li><strong>Game Logs</strong> - Track flow-generated events and outcomes</li>
+              <li><strong>Debug View</strong> - Monitor what your flows are producing</li>
+            </ul>
+
+            <h4 className="subsection-header">How to Send Content to ScreenPlay</h4>
+            <p>
+              Use the <strong>Send to ScreenPlay</strong> action node in your flows. Any text
+              sent to ScreenPlay appears in the dedicated viewer without affecting the main chat.
+            </p>
+
+            <div className="info-box">
+              <strong>Note:</strong> ScreenPlay content persists until cleared. You can review
+              the full history of flow-generated content during a session.
+            </div>
           </div>
         )}
       </div>

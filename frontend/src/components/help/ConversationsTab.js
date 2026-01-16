@@ -5,10 +5,12 @@ function ConversationsTab() {
   const [expanded, setExpanded] = useState({
     overview: false,
     chatInterface: false,
+    mobileInterface: false,
     characters: false,
     characterFields: false,
     personas: false,
     personaFields: false,
+    stagedPortraits: false,
     buttons: false,
     constantReminders: false,
     globalReminders: false
@@ -160,6 +162,46 @@ function ConversationsTab() {
               <li><strong>Actions</strong> - Expandable panel with character-specific action buttons</li>
               <li><strong>Devices</strong> - Quick access to connected device controls and status indicators</li>
             </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Interface */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('mobileInterface')}>
+          Mobile Interface
+          <span className="expand-icon">{expanded.mobileInterface ? '−' : '+'}</span>
+        </h3>
+        {expanded.mobileInterface && (
+          <div className="section-content">
+            <p>
+              On mobile devices, SwellDreams uses a streamlined single-column layout optimized for
+              touch interaction.
+            </p>
+
+            <h4 className="subsection-header">Navigation</h4>
+            <ul className="help-list">
+              <li><strong>Hamburger Menu (☰)</strong> - Access all pages, settings, and the app logo</li>
+              <li><strong>Persona Drawer (🎈)</strong> - Slide-out panel showing your persona portrait and status badges</li>
+              <li><strong>Character Drawer (😈)</strong> - Slide-out panel showing the character portrait, actions, and devices</li>
+            </ul>
+
+            <h4 className="subsection-header">Floating Status Badges</h4>
+            <p>
+              On mobile, the status badges (capacity gauge, emotion, and pain level) float above the
+              chat input area for constant visibility. Tap them to adjust values just like on desktop.
+            </p>
+
+            <h4 className="subsection-header">Emergency Stop</h4>
+            <p>
+              The E-STOP button is prominently centered in the chat input area on mobile, ensuring
+              quick access during sessions.
+            </p>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Swipe from the left edge to open the persona drawer, or from the
+              right edge to open the character drawer. You can also tap the 🎈 and 😈 buttons in the header.
+            </div>
           </div>
         )}
       </div>
@@ -388,6 +430,74 @@ function ConversationsTab() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Staged Portraits */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('stagedPortraits')}>
+          Staged Portraits
+          <span className="expand-icon">{expanded.stagedPortraits ? '−' : '+'}</span>
+        </h3>
+        {expanded.stagedPortraits && (
+          <div className="section-content">
+            <p>
+              Staged portraits allow your persona's avatar to change dynamically based on capacity level,
+              creating visual progression as sessions intensify.
+            </p>
+
+            <h4 className="subsection-header">How It Works</h4>
+            <p>
+              Instead of a single avatar, you can upload multiple images that represent different
+              stages of capacity. The portrait automatically transitions as the capacity gauge changes.
+            </p>
+
+            <h4 className="subsection-header">Setting Up Staged Portraits</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Persona</strong></li>
+              <li>Enable <strong>Staged Portraits</strong></li>
+              <li>Upload images for each stage you want</li>
+              <li>Configure the capacity thresholds for each transition</li>
+            </ol>
+
+            <h4 className="subsection-header">Example Configuration</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>Threshold</th>
+                  <th>Portrait Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>0%</td>
+                  <td>Normal/relaxed appearance</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>25%</td>
+                  <td>Slight change, mild expression</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td>50%</td>
+                  <td>More visible progression</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td>75%</td>
+                  <td>Intense/maximum stage</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Portrait transitions are smooth and automatic. The system
+              interpolates between stages based on the current capacity value.
+            </div>
           </div>
         )}
       </div>

@@ -8,7 +8,8 @@ function SystemTab() {
     whereused: false,
     feelings: false,
     emotions: false,
-    charcontrols: false
+    charcontrols: false,
+    autocapacity: false
   });
 
   const toggle = (section) => {
@@ -281,6 +282,106 @@ function SystemTab() {
                 <strong>Tip:</strong> Both features can be toggled independently in Settings → Global
                 under "Global Character Controls". Disable them for full manual control over pain and emotion.
               </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Auto-Capacity System */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('autocapacity')}>
+          Auto-Capacity System
+          <span className="expand-icon">{expanded.autocapacity ? '−' : '+'}</span>
+        </h3>
+        {expanded.autocapacity && (
+          <div className="section-content">
+            <p>
+              The Auto-Capacity System automatically updates the capacity gauge based on actual pump
+              runtime, creating realistic progression without manual adjustment.
+            </p>
+
+            <h4 className="subsection-header">How It Works</h4>
+            <p>
+              When a pump device is running, the system tracks elapsed time and increments the
+              capacity gauge proportionally. This creates a direct link between device activity
+              and the <code>[Capacity]</code> variable used in flows and AI prompts.
+            </p>
+
+            <h4 className="subsection-header">Pump Calibration</h4>
+            <p>
+              Before using auto-capacity, calibrate your pump to establish how long it takes to
+              reach certain capacity levels:
+            </p>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Devices</strong></li>
+              <li>Select your pump device</li>
+              <li>Click <strong>Calibrate</strong></li>
+              <li>Run the pump and mark capacity checkpoints (e.g., 25%, 50%, 75%, 100%)</li>
+              <li>The system records the time at each checkpoint</li>
+              <li>Save the calibration</li>
+            </ol>
+
+            <h4 className="subsection-header">Calibration Data</h4>
+            <p>
+              Calibration data is stored per-device in <code>backend/data/calibrations.json</code>.
+              Each device can have its own calibration profile, useful if you have pumps with
+              different flow rates.
+            </p>
+
+            <h4 className="subsection-header">Auto-Capacity Multiplier</h4>
+            <p>
+              Fine-tune the auto-increment rate with the multiplier setting:
+            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Multiplier</th>
+                  <th>Effect</th>
+                  <th>Use Case</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>0.5x</strong></td>
+                  <td>Half speed</td>
+                  <td>Longer sessions, slower buildup</td>
+                </tr>
+                <tr>
+                  <td><strong>1.0x</strong></td>
+                  <td>Calibrated rate</td>
+                  <td>Matches your calibration exactly</td>
+                </tr>
+                <tr>
+                  <td><strong>1.5x</strong></td>
+                  <td>50% faster</td>
+                  <td>Quicker progression</td>
+                </tr>
+                <tr>
+                  <td><strong>2.0x</strong></td>
+                  <td>Double speed</td>
+                  <td>Rapid sessions, testing</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> The multiplier can be adjusted in Settings → Global under
+              "Auto-Capacity Settings". You can also modify it mid-session to speed up or slow down progression.
+            </div>
+
+            <h4 className="subsection-header">Enabling Auto-Capacity</h4>
+            <ol className="help-list numbered">
+              <li>Calibrate your pump device (see above)</li>
+              <li>Go to <strong>Settings → Global</strong></li>
+              <li>Enable <strong>Auto-Capacity</strong></li>
+              <li>Optionally adjust the multiplier</li>
+              <li>The capacity gauge will now auto-increment when the pump runs</li>
+            </ol>
+
+            <div className="warning-box">
+              <strong>Important:</strong> Auto-capacity only tracks forward progression. It does not
+              automatically decrease capacity when pumps are off. You can manually decrease capacity
+              using keyboard shortcuts or set it via flows.
             </div>
           </div>
         )}

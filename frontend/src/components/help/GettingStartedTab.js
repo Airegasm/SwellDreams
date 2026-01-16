@@ -138,8 +138,9 @@ function GettingStartedTab() {
 
             <h4 className="subsection-header">Emergency Stop Button</h4>
             <p>
-              The red Emergency Stop button in the navigation bar will attempt to immediately halt
-              all pumps and cycles. Use it as a backup, but never as your only safety measure.
+              The red Emergency Stop button will attempt to immediately halt all pumps and cycles.
+              On desktop, it appears in the navigation bar. On mobile, it's prominently centered
+              in the chat input area for quick access. Use it as a backup, but never as your only safety measure.
             </p>
 
             <h4 className="subsection-header">Safe Practices</h4>
