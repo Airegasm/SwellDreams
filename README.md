@@ -1,6 +1,6 @@
 # SwellDreams
 
-**v1.5b "Midnight Oil"**
+**v2.0 "Midnight Oil"**
 
 An AI-powered interactive roleplay platform with smart device integration.
 
@@ -12,6 +12,7 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Multiple LLM Backends**: Connect to KoboldCpp (local), OpenRouter (cloud), or any OpenAI-compatible API
 - **Character System**: Create detailed characters with personalities, scenarios, and custom welcome messages
 - **Persona System**: Define player personas for immersive roleplay
+- **Multi-Stage Portraits**: Persona portraits that change based on capacity level
 - **Streaming Responses**: Real-time token streaming for natural conversation flow
 - **Auto Reply**: Toggle automatic AI responses or use guided response mode
 
@@ -21,6 +22,7 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Tuya/Smart Life**: Support for Tuya-based devices (Globe, Treatlife, Gosund, Teckin, etc.)
 - **Device Actions**: Turn on, turn off, and cycle devices with customizable timing
 - **Primary Pump**: Designate a primary device for quick access
+- **Pump Calibration**: Calibrate pump runtime to capacity percentage for auto-incrementing gauge
 
 ### Flow Engine
 - **Visual Flow Editor**: Create automation flows with a node-based interface
@@ -28,6 +30,9 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Conditional Logic**: Branch flows based on variables and state
 - **Device Integration**: Control smart devices directly from flows
 - **Challenge Nodes**: Interactive games (dice roll, prize wheel, coin flip, RPS, etc.)
+- **Capacity Message Nodes**: AI/Player message nodes with capacity-range routing
+- **Flow Priority**: Set execution priority (1-5) and mark flows as unblockable
+- **ScreenPlay**: View flow-generated narrative content in a dedicated page
 
 ### Custom Buttons
 - **Quick Actions**: Add custom buttons to characters for one-click actions
@@ -38,6 +43,12 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Save/Load Sessions**: Preserve conversation history and state
 - **Auto-save**: Automatic session backup
 - **Connection Profiles**: Save and switch between LLM configurations
+
+### Mobile Experience
+- **Responsive Design**: Optimized layout for mobile devices
+- **Floating Capacity Gauge**: Capacity gauge and status badges overlay the chat
+- **Mobile E-STOP**: Quick access emergency stop button
+- **Drawer Navigation**: Swipe-friendly persona and character panels
 
 ## Requirements
 
