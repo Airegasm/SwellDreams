@@ -11,6 +11,7 @@ const { createLogger } = require('../utils/logger');
 
 const log = createLogger('Tapo');
 const SCRIPT_PATH = path.join(__dirname, '..', 'scripts', 'tapo-control.py');
+const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
 
 class TapoService {
   constructor() {
@@ -57,7 +58,7 @@ class TapoService {
 
     try {
       const result = execSync(
-        `python3 "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
+        `${PYTHON_CMD} "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
         { encoding: 'utf8', timeout: 30000 }
       );
       return JSON.parse(result.trim());
