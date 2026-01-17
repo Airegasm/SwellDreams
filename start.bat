@@ -9,7 +9,7 @@ set SCRIPT_DIR=%~dp0
 REM Read version (simplified for batch)
 echo.
 echo ========================================
-echo   SwellDreams v1.5b Production Server
+echo   SwellDreams v2.5b Production Server
 echo ========================================
 echo.
 
@@ -97,7 +97,7 @@ timeout /t 2 /nobreak >nul
 
 echo.
 echo ========================================
-echo   SwellDreams v1.5b is running!
+echo   SwellDreams v2.5b is running!
 echo   http://localhost:8889
 echo ========================================
 echo.
