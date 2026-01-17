@@ -1,20 +1,17 @@
 @echo off
 title SwellDreams
 
-REM SwellDreams Production Startup Script
+echo SwellDreams Production Startup Script
+echo.
 
 REM Get script directory
 set SCRIPT_DIR=%~dp0
+echo Script directory: %SCRIPT_DIR%
 
 REM Stop any existing instance first
 echo Stopping any existing SwellDreams instance...
 taskkill /FI "WINDOWTITLE eq SwellDreams*" /F >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":8889 "') do (
-    if not "%%a"=="" taskkill /F /PID %%a >nul 2>&1
-)
-timeout /t 1 /nobreak >nul
 
-REM Read version
 echo.
 echo ========================================
 echo   SwellDreams v2.5b Production Server
@@ -22,47 +19,57 @@ echo ========================================
 echo.
 
 REM Check if Node.js is installed
-where node >nul 2>nul || goto :no_node
+echo Checking for Node.js...
+where node >nul 2>nul
+if errorlevel 1 (
+    echo ERROR: Node.js not found. Please install from https://nodejs.org/
+    pause
+    exit /b 1
+)
 echo Node.js found:
 node --version
-goto :node_ok
-
-:no_node
-echo Node.js not found. Please install from https://nodejs.org/
-pause
-exit /b 1
-
-:node_ok
 
 REM Check Python (optional)
-where python >nul 2>nul || goto :skip_python
-echo Installing Python dependencies...
-py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
-goto :after_python
-
-:skip_python
-echo Warning: Python not found. Some features may be limited.
-
-:after_python
+echo Checking for Python...
+where python >nul 2>nul
+if errorlevel 1 (
+    echo Warning: Python not found. Some features may be limited.
+) else (
+    echo Installing Python dependencies...
+    py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+)
 
 REM Install/update backend dependencies
+echo.
 echo Checking backend dependencies...
 cd /d "%SCRIPT_DIR%backend"
+if not exist "package.json" (
+    echo ERROR: backend/package.json not found!
+    pause
+    exit /b 1
+)
 call npm install
 
 REM Install/update frontend dependencies
+echo.
 echo Checking frontend dependencies...
 cd /d "%SCRIPT_DIR%frontend"
+if not exist "package.json" (
+    echo ERROR: frontend/package.json not found!
+    pause
+    exit /b 1
+)
 call npm install
 
 REM Remove old build and rebuild frontend
+echo.
 echo Removing old frontend build...
-cd /d "%SCRIPT_DIR%frontend"
 if exist "build" rmdir /s /q "build"
 echo Building frontend for production...
 call npm run build
 
 REM Start server in new window
+echo.
 echo Starting SwellDreams server...
 start "SwellDreams Server" cmd /k "cd /d %SCRIPT_DIR%backend && node server.js"
 
