@@ -1,0 +1,105 @@
+{
+  "id": "flow-global-003",
+  "name": "Progress Milestones",
+  "description": "Celebrates reaching capacity milestones",
+  "nodes": [
+    {
+      "id": "global3-trigger-25",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "25% Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 25
+      }
+    },
+    {
+      "id": "global3-action-25",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "data": {
+        "label": "Quarter Mark",
+        "actionType": "system_message",
+        "message": "[Milestone reached: 25% capacity. You're getting nicely rounded now...]"
+      }
+    },
+    {
+      "id": "global3-trigger-50",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "50% Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 50
+      }
+    },
+    {
+      "id": "global3-action-50",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Half Way",
+        "actionType": "system_message",
+        "message": "[Milestone reached: 50% capacity. Halfway there. Your belly is visibly swollen and firm.]"
+      }
+    },
+    {
+      "id": "global3-trigger-75",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "data": {
+        "label": "75% Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 75
+      }
+    },
+    {
+      "id": "global3-action-75",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 300
+      },
+      "data": {
+        "label": "Three Quarters",
+        "actionType": "system_message",
+        "message": "[Milestone reached: 75% capacity. You're getting quite full now, stretched tight and round.]"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "global3-trigger-25",
+      "target": "global3-action-25"
+    },
+    {
+      "id": "e2",
+      "source": "global3-trigger-50",
+      "target": "global3-action-50"
+    },
+    {
+      "id": "e3",
+      "source": "global3-trigger-75",
+      "target": "global3-action-75"
+    }
+  ],
+  "createdAt": 1767479576006,
+  "updatedAt": 1767479576006,
+  "isActive": false
+}

@@ -219,6 +219,7 @@ class EventEngine {
     this.deviceMonitors = new Map(); // Track device "until" conditions
     this.pendingPlayerChoice = null; // Track pending player choice for flow continuation
     this.pendingChallenge = null; // Track pending challenge for flow continuation
+    this.pendingInput = null; // Track pending input for flow continuation
     this.pendingCycleCompletions = new Map(); // Track pending cycle completions: device -> { flowId, nodeId, isInfinite }
     this.pendingDeviceOnCompletions = new Map(); // Track pending device_on completions: device -> { flowId, nodeId, isInfinite }
     this.flowActivatedDevices = new Map(); // Track devices activated by flows: device -> { flowId, deviceObj }
@@ -441,6 +442,9 @@ class EventEngine {
       case 'simple_ab':
         return this.executeTestSimpleAB(node, flow, nodeStep);
 
+      case 'input':
+        return this.executeTestInput(node, flow, nodeStep);
+
       case 'capacity_ai_message':
       case 'capacity_player_message':
         return this.executeTestCapacityMessage(node, flow, nodeStep);
@@ -533,6 +537,17 @@ class EventEngine {
       case 'stop_cycle':
         nodeStep.details = `Stop Cycle: ${data.device} (simulated)`;
         this.testResults.push(nodeStep);
+        return true;
+
+      case 'pulse_pump':
+        nodeStep.details = `Pulse Pump: ${data.device} (${data.pulses || 3} pulses, 1s on/1s off)`;
+        this.testResults.push(nodeStep);
+        this.testResults.push({
+          type: 'device',
+          label: `Device "${data.device}" pulsing`,
+          details: `${data.pulses || 3} pulses (1s on/1s off each)`,
+          action: 'pulse'
+        });
         return true;
 
       case 'set_variable':
@@ -691,6 +706,41 @@ class EventEngine {
     });
 
     return { skipEdges: true, outputId: 'a' };
+  }
+
+  /**
+   * Execute input in test mode - auto-fill with test value
+   */
+  executeTestInput(node, flow, nodeStep) {
+    const data = node.data;
+    const variableName = data.variableName || 'Input';
+    const testValue = data.inputType === 'number' ? 5 : 'test_value';
+
+    nodeStep.details = `Input: "${data.prompt?.substring(0, 40) || 'Enter value'}..." → [Flow:${variableName}]`;
+    this.testResults.push(nodeStep);
+
+    this.testResults.push({
+      type: 'input',
+      label: 'Input requested',
+      details: `Type: ${data.inputType || 'text'}, Variable: [Flow:${variableName}]`,
+      inputType: data.inputType || 'text',
+      variableName
+    });
+
+    // Auto-fill with test value
+    this.variables[variableName] = testValue;
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables[variableName] = testValue;
+    }
+
+    this.testResults.push({
+      type: 'input_filled',
+      label: `Auto-filled: [Flow:${variableName}] = ${testValue}`,
+      value: testValue
+    });
+
+    return true; // Continue to next node
   }
 
   /**
@@ -971,6 +1021,18 @@ class EventEngine {
     this.flowStates.delete(flowId);
 
     console.log(`[EventEngine] Deactivated flow: ${flowId}`);
+  }
+
+  /**
+   * Deactivate all currently active flows
+   */
+  deactivateAllFlows() {
+    const flowIds = Array.from(this.activeFlows.keys());
+    for (const flowId of flowIds) {
+      this.activeFlows.delete(flowId);
+      this.flowStates.delete(flowId);
+    }
+    console.log(`[EventEngine] Deactivated all flows (${flowIds.length} total)`);
   }
 
   /**
@@ -1430,8 +1492,9 @@ class EventEngine {
       const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flow.id);
       const hasPendingChoice = this.pendingPlayerChoice?.flowId === flow.id;
       const hasPendingChallenge = this.pendingChallenge?.flowId === flow.id;
+      const hasPendingInput = this.pendingInput?.flowId === flow.id;
 
-      const hasPendingOps = hasPendingCycle || hasPendingDeviceOn || hasPendingChoice || hasPendingChallenge;
+      const hasPendingOps = hasPendingCycle || hasPendingDeviceOn || hasPendingChoice || hasPendingChallenge || hasPendingInput;
 
       if (!hasPendingOps && this.activeExecutions.has(flow.id)) {
         // Flow complete - broadcast completion toast and remove from active executions
@@ -1536,6 +1599,9 @@ class EventEngine {
 
         case 'simple_ab':
           return await this.executeSimpleAB(node, flow);
+
+        case 'input':
+          return await this.executeInput(node, flow);
 
         case 'capacity_ai_message':
         case 'capacity_player_message':
@@ -1668,6 +1734,109 @@ class EventEngine {
 
     console.log('[EventEngine] Simple A/B presented, chain paused waiting for user response');
     return 'wait';  // Pause chain execution until user responds
+  }
+
+  /**
+   * Execute an input node - show input modal and wait for user response
+   */
+  async executeInput(node, flow) {
+    // Check abort flag before showing input
+    if (this.aborted) {
+      console.log('[EventEngine] Input aborted before display');
+      return false;
+    }
+
+    const data = node.data;
+
+    // Store pending input info so we can resume after user responds
+    this.pendingInput = {
+      nodeId: node.id,
+      flowId: flow.id,
+      variableName: data.variableName || 'Input',
+      inputType: data.inputType || 'text'
+    };
+
+    // Broadcast input modal to frontend
+    console.log(`[EventEngine] Broadcasting input modal (type: ${data.inputType || 'text'}, variable: ${data.variableName || 'Input'})`);
+    await this.broadcast('input_request', {
+      nodeId: node.id,
+      prompt: this.substituteVariables(data.prompt || ''),
+      placeholder: data.placeholder || '',
+      inputType: data.inputType || 'text',
+      minValue: data.minValue,
+      maxValue: data.maxValue,
+      required: data.required !== false,
+      variableName: data.variableName || 'Input'
+    });
+
+    console.log('[EventEngine] Input request presented, chain paused waiting for user response');
+    return 'wait';  // Pause chain execution until user responds
+  }
+
+  /**
+   * Handle input response - store value and continue flow
+   */
+  async handleInputResponse(nodeId, value) {
+    console.log(`[EventEngine] Input response: value "${value}" for node ${nodeId}`);
+
+    if (!this.pendingInput) {
+      console.log('[EventEngine] No pending input to continue');
+      return;
+    }
+
+    const { nodeId: pendingNodeId, flowId, variableName, inputType } = this.pendingInput;
+
+    // Verify nodeId matches
+    if (pendingNodeId !== nodeId) {
+      console.log(`[EventEngine] Node ID mismatch: expected ${pendingNodeId}, got ${nodeId}`);
+      return;
+    }
+
+    // Store the input value as a flow variable
+    const finalValue = inputType === 'number' ? parseFloat(value) : String(value);
+    this.variables[variableName] = finalValue;
+
+    // Sync to sessionState for frontend access
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables[variableName] = finalValue;
+    }
+
+    console.log(`[EventEngine] Set input variable [Flow:${variableName}] = ${finalValue}`);
+
+    // Find the flow
+    const flowData = this.activeFlows.get(flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${flowId} not found for input continuation`);
+      this.pendingInput = null;
+      return;
+    }
+
+    const flow = flowData.flow;
+
+    // Find outgoing edges from this node
+    const edges = flow.edges.filter(e => e.source === nodeId);
+
+    if (edges.length === 0) {
+      console.log(`[EventEngine] No outgoing edges from input node ${nodeId}`);
+      this.pendingInput = null;
+      return;
+    }
+
+    console.log(`[EventEngine] Continuing flow from input node to ${edges[0].target}`);
+
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
+    // Clear pending input
+    this.pendingInput = null;
+
+    // Continue flow execution from the next node
+    for (const edge of edges) {
+      await this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify);
+    }
   }
 
   /**
@@ -2581,6 +2750,74 @@ class EventEngine {
         return true;
       }
 
+      case 'pulse_pump': {
+        console.log(`[EventEngine] Pulse Pump action - device: ${data.device}, pulses: ${data.pulses}`);
+        if (!data.device) {
+          console.log(`[EventEngine] Pulse Pump - no device specified!`);
+          return false;
+        }
+
+        // Support variable substitution for pulse count (e.g., [Flow:PulseCount])
+        const pulseCount = this.evaluateExpression(data.pulses) || 3;
+
+        // Resolve device alias to full device object (includes childId, brand, sku)
+        const deviceObj = resolveDeviceObject(data.device);
+        const resolvedDevice = deviceObj
+          ? (deviceObj.brand === 'govee' || deviceObj.brand === 'tuya' ? deviceObj.deviceId : deviceObj.ip)
+          : null;
+
+        // In simulation mode, skip actual device calls but continue flow
+        if (this.simulationMode) {
+          const deviceKey = resolvedDevice || data.device;
+          console.log(`[SIMULATION] Device ${deviceKey} would PULSE ${pulseCount} times (1s on/1s off each)`);
+
+          // Simulate the time it would take
+          const totalTime = pulseCount * 2000; // 1s on + 1s off per pulse
+          await new Promise(resolve => setTimeout(resolve, totalTime));
+
+          console.log(`[SIMULATION] Pulse pump complete for ${deviceKey}`);
+          return true;
+        }
+
+        if (!deviceObj || !resolvedDevice) {
+          await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
+          return false;
+        }
+
+        console.log(`[EventEngine] Starting ${pulseCount} pulses for ${resolvedDevice}`);
+
+        try {
+          for (let i = 0; i < pulseCount; i++) {
+            console.log(`[EventEngine] Pulse ${i + 1}/${pulseCount} - turning ON`);
+            await this.deviceService.turnOn(resolvedDevice, deviceObj);
+
+            // 1 second on
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            console.log(`[EventEngine] Pulse ${i + 1}/${pulseCount} - turning OFF`);
+            await this.deviceService.turnOff(resolvedDevice, deviceObj);
+
+            // 1 second off (except after last pulse)
+            if (i < pulseCount - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+
+          console.log(`[EventEngine] Pulse pump complete for ${resolvedDevice}`);
+        } catch (deviceError) {
+          await this.broadcastError(`Failed to pulse pump "${deviceObj.name || data.device}"`, deviceError.message);
+          // Try to ensure device is off on error
+          try {
+            await this.deviceService.turnOff(resolvedDevice, deviceObj);
+          } catch (e) {
+            console.error(`[EventEngine] Failed to turn off device after pulse error:`, e);
+          }
+          return false;
+        }
+
+        return true;
+      }
+
       case 'declare_variable':
         // Declare/initialize a flow variable
         if (data.name) {
@@ -3242,8 +3479,10 @@ class EventEngine {
    * Execute delay node
    */
   async executeDelay(data) {
-    const duration = data.duration || 5;
+    // Support variable substitution for duration (e.g., [Flow:PumpDuration])
+    const duration = this.evaluateExpression(data.duration) || 5;
     const multiplier = data.unit === 'minutes' ? 60000 : 1000;
+    console.log(`[EventEngine] Executing delay: ${duration} ${data.unit || 'seconds'}`);
     await new Promise(resolve => setTimeout(resolve, duration * multiplier));
   }
 
@@ -3580,9 +3819,10 @@ class EventEngine {
     const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flowId);
     const hasPendingChoice = this.pendingPlayerChoice?.flowId === flowId;
     const hasPendingChallenge = this.pendingChallenge?.flowId === flowId;
+    const hasPendingInput = this.pendingInput?.flowId === flowId;
     const depthRemaining = this.executionDepths.get(flowId) || 0;
 
-    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && depthRemaining <= 0) {
+    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && !hasPendingInput && depthRemaining <= 0) {
       if (this.activeExecutions.has(flowId)) {
         console.log(`[EventEngine] Flow ${flowId} complete after cycle - removing from activeExecutions`);
         this.activeExecutions.delete(flowId);
@@ -3639,9 +3879,10 @@ class EventEngine {
     const hasPendingDeviceOn = Array.from(this.pendingDeviceOnCompletions.values()).some(p => p.flowId === flowId);
     const hasPendingChoice = this.pendingPlayerChoice?.flowId === flowId;
     const hasPendingChallenge = this.pendingChallenge?.flowId === flowId;
+    const hasPendingInput = this.pendingInput?.flowId === flowId;
     const depthRemaining = this.executionDepths.get(flowId) || 0;
 
-    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && depthRemaining <= 0) {
+    if (!hasPendingCycle && !hasPendingDeviceOn && !hasPendingChoice && !hasPendingChallenge && !hasPendingInput && depthRemaining <= 0) {
       if (this.activeExecutions.has(flowId)) {
         console.log(`[EventEngine] Flow ${flowId} complete after device_on - removing from activeExecutions`);
         this.activeExecutions.delete(flowId);
@@ -3711,6 +3952,8 @@ class EventEngine {
     this.pendingCycleCompletions.clear();
     this.pendingDeviceOnCompletions.clear();
     this.pendingPlayerChoice = null;
+    this.pendingChallenge = null;
+    this.pendingInput = null;
 
     // Clear device monitors
     this.deviceMonitors.clear();

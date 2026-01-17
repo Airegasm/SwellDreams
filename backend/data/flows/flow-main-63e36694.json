@@ -1,0 +1,598 @@
+{
+  "id": "flow-main-63e36694",
+  "name": "Main Flow",
+  "category": "global",
+  "nodes": [
+    {
+      "id": "node_trigger_0",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 0
+      },
+      "data": {
+        "label": "Capacity 1-10%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 1,
+        "targetValue2": 10,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_0",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 0
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is flat and empty.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_1",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 180
+      },
+      "data": {
+        "label": "Capacity 11-20%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 11,
+        "targetValue2": 20,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_1",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 180
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is slightly bulging.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_2",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 360
+      },
+      "data": {
+        "label": "Capacity 21-30%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 21,
+        "targetValue2": 30,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_2",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 360
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is noticably bloated.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_3",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 540
+      },
+      "data": {
+        "label": "Capacity 31-40%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 31,
+        "targetValue2": 40,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_3",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 540
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is rounding out and protruding.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_4",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 720
+      },
+      "data": {
+        "label": "Capacity 41-50%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 41,
+        "targetValue2": 50,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_4",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 720
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is full and round.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_5",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 900
+      },
+      "data": {
+        "label": "Capacity 51-60%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 51,
+        "targetValue2": 60,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_5",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 900
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is quite swollen.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_6",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 1080
+      },
+      "data": {
+        "label": "Capacity 61-70%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 61,
+        "targetValue2": 70,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_6",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1080
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is tight and largely distended.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_7",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 1260
+      },
+      "data": {
+        "label": "Capacity 71-80%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 71,
+        "targetValue2": 80,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_7",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1260
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is gravid and bulging.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_8",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 1440
+      },
+      "data": {
+        "label": "Capacity 81-90%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 81,
+        "targetValue2": 90,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_8",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1440
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is grotesquely huge and straining.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_trigger_9",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 1620
+      },
+      "data": {
+        "label": "Capacity 91-100%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "range",
+        "targetValue": 91,
+        "targetValue2": 100,
+        "fireOnlyOnce": true,
+        "hasPriority": true,
+        "priority": 5
+      },
+      "measured": {
+        "width": 257,
+        "height": 236
+      },
+      "selected": false
+    },
+    {
+      "id": "node_action_9",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1620
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is inflated to the limit and ready to burst.]"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false
+    },
+    {
+      "id": "node_0",
+      "type": "trigger",
+      "position": {
+        "x": -226.49067300721998,
+        "y": 0.010028986327196066
+      },
+      "data": {
+        "label": "New Session",
+        "triggerType": "new_session",
+        "unblockable": true,
+        "hasPriority": false
+      },
+      "measured": {
+        "width": 257,
+        "height": 138
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "node_1",
+      "type": "action",
+      "position": {
+        "x": -210.54402142913716,
+        "y": 131.93232840501244
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderId": "global-reminder-1768018959553",
+        "action": "update_text",
+        "newText": "[IMPORTANT: [Player]'s belly is flat and empty.]",
+        "reminderType": "global"
+      },
+      "measured": {
+        "width": 251,
+        "height": 195
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_2",
+      "type": "action",
+      "position": {
+        "x": -214.2453365036099,
+        "y": 390.5
+      },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderId": "global-reminder-1768019260034",
+        "action": "enable",
+        "newText": "",
+        "reminderType": "global"
+      },
+      "measured": {
+        "width": 251,
+        "height": 147
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_0",
+      "source": "node_trigger_0",
+      "target": "node_action_0",
+      "animated": true
+    },
+    {
+      "id": "edge_1",
+      "source": "node_trigger_1",
+      "target": "node_action_1",
+      "animated": true
+    },
+    {
+      "id": "edge_2",
+      "source": "node_trigger_2",
+      "target": "node_action_2",
+      "animated": true
+    },
+    {
+      "id": "edge_3",
+      "source": "node_trigger_3",
+      "target": "node_action_3",
+      "animated": true
+    },
+    {
+      "id": "edge_4",
+      "source": "node_trigger_4",
+      "target": "node_action_4",
+      "animated": true
+    },
+    {
+      "id": "edge_5",
+      "source": "node_trigger_5",
+      "target": "node_action_5",
+      "animated": true
+    },
+    {
+      "id": "edge_6",
+      "source": "node_trigger_6",
+      "target": "node_action_6",
+      "animated": true
+    },
+    {
+      "id": "edge_7",
+      "source": "node_trigger_7",
+      "target": "node_action_7",
+      "animated": true
+    },
+    {
+      "id": "edge_8",
+      "source": "node_trigger_8",
+      "target": "node_action_8",
+      "animated": true
+    },
+    {
+      "id": "edge_9",
+      "source": "node_trigger_9",
+      "target": "node_action_9",
+      "animated": true
+    },
+    {
+      "source": "node_0",
+      "target": "node_1",
+      "animated": true,
+      "id": "xy-edge__node_0-node_1"
+    },
+    {
+      "source": "node_1",
+      "target": "node_2",
+      "animated": true,
+      "id": "xy-edge__node_1-node_2"
+    }
+  ],
+  "isActive": true,
+  "createdAt": 1768048182863,
+  "updatedAt": 1768370158237
+}

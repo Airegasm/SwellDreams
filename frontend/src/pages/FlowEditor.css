@@ -236,6 +236,12 @@
   color: #14b8a6;
 }
 
+.palette-node.input {
+  background-color: rgba(139, 92, 246, 0.2);
+  border-color: #8b5cf6;
+  color: #a78bfa;
+}
+
 /* Challenge Node Palette Colors */
 .palette-node.prize-wheel {
   background-color: rgba(251, 146, 60, 0.2);

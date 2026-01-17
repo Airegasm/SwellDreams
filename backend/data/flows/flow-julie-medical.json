@@ -1,0 +1,649 @@
+{
+  "id": "flow-julie-medical",
+  "name": "Julie - Medical Professional",
+  "description": "Professional medical examination flow with patient interview, abdominal compression exam, and controlled inflation procedures",
+  "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
+  "nodes": [
+    {
+      "id": "julie-med-session-start",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "New Session",
+        "triggerType": "first_message"
+      }
+    },
+    {
+      "id": "julie-med-welcome",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Welcome Message",
+        "actionType": "send_message",
+        "message": "[Char] adjusts her clipboard and looks at [Player] with professional interest. Before we begin the procedure, I need to conduct a brief patient interview to understand your history and preferences.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-choice1",
+      "type": "player_choice",
+      "position": {
+        "x": 450,
+        "y": 50
+      },
+      "data": {
+        "label": "Inflation Experience",
+        "prompt": "Ask about the patient's experience with belly inflation",
+        "description": "Do you have prior experience with belly inflation procedures?",
+        "choices": [
+          {
+            "id": "exp-yes",
+            "label": "Yes, experienced",
+            "description": "I've done this before"
+          },
+          {
+            "id": "exp-no",
+            "label": "No, this is new",
+            "description": "This is my first time"
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-med-exp-yes-response",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 0
+      },
+      "data": {
+        "label": "Experienced Response",
+        "actionType": "send_message",
+        "message": "[Char] nods approvingly and makes a note. Excellent. Your prior experience will help you understand what to expect. We can proceed with standard protocols.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-exp-no-response",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 100
+      },
+      "data": {
+        "label": "New Patient Response",
+        "actionType": "send_message",
+        "message": "[Char] offers a reassuring smile. Don't worry, I'll guide you through everything. The sensation can be intense, but many patients find it quite... pleasurable once they relax.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-choice2",
+      "type": "player_choice",
+      "position": {
+        "x": 850,
+        "y": 50
+      },
+      "data": {
+        "label": "Enema Experience",
+        "prompt": "Ask about experience with high volume enemas",
+        "description": "Have you had experience with high volume enemas?",
+        "choices": [
+          {
+            "id": "enema-yes",
+            "label": "Yes",
+            "description": "I have experience"
+          },
+          {
+            "id": "enema-no",
+            "label": "No",
+            "description": "Never had one"
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-med-enema-yes",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 0
+      },
+      "data": {
+        "label": "Enema Experienced",
+        "actionType": "send_message",
+        "message": "[Char] marks her clipboard with approval. Good. You'll have some idea of the fullness sensation, though air inflation has its own unique characteristics.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-enema-no",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 100
+      },
+      "data": {
+        "label": "Enema New",
+        "actionType": "send_message",
+        "message": "[Char] notes this carefully. I see. Air inflation differs from liquid - the expansion is more pronounced and visible. I'll start gradually so you can acclimate.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-choice3",
+      "type": "player_choice",
+      "position": {
+        "x": 1250,
+        "y": 50
+      },
+      "data": {
+        "label": "Restraint Understanding",
+        "prompt": "Confirm understanding of restraints",
+        "description": "Do you understand that you will be restrained for the entire procedure?",
+        "choices": [
+          {
+            "id": "restrain-yes",
+            "label": "Yes, I understand",
+            "description": "I consent to restraints"
+          },
+          {
+            "id": "restrain-explain",
+            "label": "Please explain",
+            "description": "Tell me more about this"
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-med-restrain-yes",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 0
+      },
+      "data": {
+        "label": "Restraint Confirmed",
+        "actionType": "send_message",
+        "message": "[Char] nods professionally. Excellent. The restraints ensure your safety and allow me to perform the procedure without interruption. You'll remain secured throughout.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-restrain-explain",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 100
+      },
+      "data": {
+        "label": "Restraint Explanation",
+        "actionType": "send_message",
+        "message": "[Char] explains matter-of-factly. The restraints prevent involuntary movement that could disrupt the procedure or cause injury. Your wrists, ankles, and torso will be secured to the examination table. This is standard protocol for high-volume inflation procedures.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-choice4",
+      "type": "player_choice",
+      "position": {
+        "x": 1650,
+        "y": 50
+      },
+      "data": {
+        "label": "Orgasm Preference",
+        "prompt": "Ask about induced orgasm preference",
+        "description": "Would you prefer induced orgasms during the procedure?",
+        "choices": [
+          {
+            "id": "orgasm-yes",
+            "label": "Yes please",
+            "description": "I'd like that"
+          },
+          {
+            "id": "orgasm-no",
+            "label": "No thank you",
+            "description": "I prefer not to"
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-med-orgasm-yes",
+      "type": "action",
+      "position": {
+        "x": 1850,
+        "y": 0
+      },
+      "data": {
+        "label": "Orgasm Yes Response",
+        "actionType": "send_message",
+        "message": "[Char]'s eyes light up with professional interest. Excellent choice. The combination of intense abdominal pressure and stimulation produces remarkable results. I'll incorporate appropriate stimulation throughout the procedure.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-orgasm-no",
+      "type": "action",
+      "position": {
+        "x": 1850,
+        "y": 100
+      },
+      "data": {
+        "label": "Orgasm No Response",
+        "actionType": "send_message",
+        "message": "[Char] notes your preference without judgment. Understood. We'll focus purely on the inflation procedure. Though I should mention - many patients find the sensations naturally arousing regardless.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-interview-complete",
+      "type": "action",
+      "position": {
+        "x": 2050,
+        "y": 50
+      },
+      "data": {
+        "label": "Interview Complete",
+        "actionType": "send_message",
+        "message": "[Char] sets down her clipboard with satisfaction. Thank you for your candid responses. Your patient profile is now complete. I'm ready to begin whenever you are. You may use the control buttons to initiate examination or inflation procedures.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-compress-btn",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "data": {
+        "label": "Abdominal Compression",
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-med-compress-msg",
+      "type": "capacity_ai_message",
+      "position": {
+        "x": 250,
+        "y": 300
+      },
+      "data": {
+        "label": "Compression Exam",
+        "messageType": "ai",
+        "suppressLlm": false,
+        "postDelay": 2,
+        "ranges": {
+          "range_0_10": {
+            "message": "[Char] places her hands firmly on [Player]'s abdomen and presses deeply, finding the belly completely soft and pliable. Baseline state - no distension detected. The intestines feel empty and compliant.",
+            "enableOutput": false
+          },
+          "range_11_20": {
+            "message": "[Char] presses firmly into [Player]'s midsection, feeling slight resistance. Minimal distension present. I can feel the beginning of gas accumulation in the colon. Early stage inflation confirmed.",
+            "enableOutput": false
+          },
+          "range_21_30": {
+            "message": "[Char] compresses deeply, noting the increased firmness. Moderate filling detected. The ascending colon is beginning to expand nicely. Your body is accepting the volume well.",
+            "enableOutput": false
+          },
+          "range_31_50": {
+            "message": "[Char] applies firm pressure, feeling substantial resistance. Significant distension present. The entire colon is well-inflated now. I can trace the outline of your expanded intestines quite clearly.",
+            "enableOutput": false
+          },
+          "range_51_70": {
+            "message": "[Char] presses carefully into the taut belly, finding it quite firm. Substantial inflation achieved. Your abdomen is beautifully distended. The pressure must be quite intense now.",
+            "enableOutput": false
+          },
+          "range_71_90": {
+            "message": "[Char] examines the dramatically swollen belly with professional admiration. Impressive capacity. Your intestines are approaching maximum safe expansion. The skin is stretched taut.",
+            "enableOutput": false
+          },
+          "range_91_100": {
+            "message": "[Char] carefully palpates the enormous, drum-tight belly with evident satisfaction. Extraordinary distension. You're at the upper limits of safe expansion. Your belly is magnificent - absolutely stuffed with air.",
+            "enableOutput": false
+          },
+          "range_over_100": {
+            "message": "[Char]'s eyes widen as she examines the impossibly bloated belly, stretched beyond normal limits. Exceptional! You've exceeded standard capacity parameters. This level of inflation is remarkable - your intestines are stretched to their absolute maximum.",
+            "enableOutput": false
+          }
+        }
+      }
+    },
+    {
+      "id": "julie-med-pulse-btn",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "Pulse Inflation",
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-med-pulse-input",
+      "type": "input",
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "data": {
+        "label": "Pulse Count",
+        "inputType": "number",
+        "prompt": "Enter the number of pressure pulses (1 second on, 1 second off each):",
+        "placeholder": "Number of pulses",
+        "variableName": "PulseCount",
+        "minValue": 1,
+        "maxValue": 20,
+        "required": true
+      }
+    },
+    {
+      "id": "julie-med-pulse-msg",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 500
+      },
+      "data": {
+        "label": "Pulse Announcement",
+        "actionType": "send_message",
+        "message": "[Char] adjusts the pump settings with practiced precision. I'm going to use the pulse pump to further pressurize your intestines - [Flow:PulseCount] rapid pulses. Each burst will force more air deep into your colon. Brace yourself.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-pulse-action",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 500
+      },
+      "data": {
+        "label": "Execute Pulse Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": "[Flow:PulseCount]"
+      }
+    },
+    {
+      "id": "julie-med-pulse-done",
+      "type": "action",
+      "position": {
+        "x": 850,
+        "y": 500
+      },
+      "data": {
+        "label": "Pulse Complete",
+        "actionType": "send_message",
+        "message": "[Char] observes [Player]'s swelling belly with satisfaction. Pulsing complete. Each burst pushed the air deeper, expanding you from the inside. How does that added pressure feel?",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-cont-btn",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 700
+      },
+      "data": {
+        "label": "Continuous Pump",
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-med-cont-input",
+      "type": "input",
+      "position": {
+        "x": 250,
+        "y": 700
+      },
+      "data": {
+        "label": "Pump Duration",
+        "inputType": "number",
+        "prompt": "Enter continuous pump duration in seconds:",
+        "placeholder": "Duration in seconds",
+        "variableName": "PumpDuration",
+        "minValue": 1,
+        "maxValue": 120,
+        "required": true
+      }
+    },
+    {
+      "id": "julie-med-cont-msg",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 700
+      },
+      "data": {
+        "label": "Continuous Announcement",
+        "actionType": "send_message",
+        "message": "[Char] reaches for the pump controls with a gleam in her eye. Initiating continuous inflation for [Flow:PumpDuration] seconds. This will steadily expand your intestines without pause. Try to relax and accept the growing pressure.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "julie-med-cont-on",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 700
+      },
+      "data": {
+        "label": "Pump On",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "forever"
+      }
+    },
+    {
+      "id": "julie-med-cont-delay",
+      "type": "delay",
+      "position": {
+        "x": 850,
+        "y": 700
+      },
+      "data": {
+        "label": "Pump Duration",
+        "duration": "[Flow:PumpDuration]",
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "julie-med-cont-off",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 700
+      },
+      "data": {
+        "label": "Pump Off",
+        "actionType": "device_off",
+        "device": "primary_pump"
+      }
+    },
+    {
+      "id": "julie-med-cont-done",
+      "type": "action",
+      "position": {
+        "x": 1250,
+        "y": 700
+      },
+      "data": {
+        "label": "Continuous Complete",
+        "actionType": "send_message",
+        "message": "[Char] releases the pump control and examines [Player]'s expanded belly. Inflation cycle complete. Your abdomen has grown considerably. Let me examine the results of our work.",
+        "suppressLlm": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-julie-start-welcome",
+      "source": "julie-med-session-start",
+      "target": "julie-med-welcome"
+    },
+    {
+      "id": "e-julie-welcome-choice1",
+      "source": "julie-med-welcome",
+      "target": "julie-med-choice1"
+    },
+    {
+      "id": "e-julie-choice1-yes",
+      "source": "julie-med-choice1",
+      "sourceHandle": "exp-yes",
+      "target": "julie-med-exp-yes-response"
+    },
+    {
+      "id": "e-julie-choice1-no",
+      "source": "julie-med-choice1",
+      "sourceHandle": "exp-no",
+      "target": "julie-med-exp-no-response"
+    },
+    {
+      "id": "e-julie-exp-yes-choice2",
+      "source": "julie-med-exp-yes-response",
+      "target": "julie-med-choice2"
+    },
+    {
+      "id": "e-julie-exp-no-choice2",
+      "source": "julie-med-exp-no-response",
+      "target": "julie-med-choice2"
+    },
+    {
+      "id": "e-julie-choice2-yes",
+      "source": "julie-med-choice2",
+      "sourceHandle": "enema-yes",
+      "target": "julie-med-enema-yes"
+    },
+    {
+      "id": "e-julie-choice2-no",
+      "source": "julie-med-choice2",
+      "sourceHandle": "enema-no",
+      "target": "julie-med-enema-no"
+    },
+    {
+      "id": "e-julie-enema-yes-choice3",
+      "source": "julie-med-enema-yes",
+      "target": "julie-med-choice3"
+    },
+    {
+      "id": "e-julie-enema-no-choice3",
+      "source": "julie-med-enema-no",
+      "target": "julie-med-choice3"
+    },
+    {
+      "id": "e-julie-choice3-yes",
+      "source": "julie-med-choice3",
+      "sourceHandle": "restrain-yes",
+      "target": "julie-med-restrain-yes"
+    },
+    {
+      "id": "e-julie-choice3-explain",
+      "source": "julie-med-choice3",
+      "sourceHandle": "restrain-explain",
+      "target": "julie-med-restrain-explain"
+    },
+    {
+      "id": "e-julie-restrain-yes-choice4",
+      "source": "julie-med-restrain-yes",
+      "target": "julie-med-choice4"
+    },
+    {
+      "id": "e-julie-restrain-explain-choice4",
+      "source": "julie-med-restrain-explain",
+      "target": "julie-med-choice4"
+    },
+    {
+      "id": "e-julie-choice4-yes",
+      "source": "julie-med-choice4",
+      "sourceHandle": "orgasm-yes",
+      "target": "julie-med-orgasm-yes"
+    },
+    {
+      "id": "e-julie-choice4-no",
+      "source": "julie-med-choice4",
+      "sourceHandle": "orgasm-no",
+      "target": "julie-med-orgasm-no"
+    },
+    {
+      "id": "e-julie-orgasm-yes-complete",
+      "source": "julie-med-orgasm-yes",
+      "target": "julie-med-interview-complete"
+    },
+    {
+      "id": "e-julie-orgasm-no-complete",
+      "source": "julie-med-orgasm-no",
+      "target": "julie-med-interview-complete"
+    },
+    {
+      "id": "e-julie-compress-btn-msg",
+      "source": "julie-med-compress-btn",
+      "target": "julie-med-compress-msg"
+    },
+    {
+      "id": "e-julie-pulse-btn-input",
+      "source": "julie-med-pulse-btn",
+      "target": "julie-med-pulse-input"
+    },
+    {
+      "id": "e-julie-pulse-input-msg",
+      "source": "julie-med-pulse-input",
+      "target": "julie-med-pulse-msg"
+    },
+    {
+      "id": "e-julie-pulse-msg-action",
+      "source": "julie-med-pulse-msg",
+      "target": "julie-med-pulse-action"
+    },
+    {
+      "id": "e-julie-pulse-action-done",
+      "source": "julie-med-pulse-action",
+      "target": "julie-med-pulse-done"
+    },
+    {
+      "id": "e-julie-cont-btn-input",
+      "source": "julie-med-cont-btn",
+      "target": "julie-med-cont-input"
+    },
+    {
+      "id": "e-julie-cont-input-msg",
+      "source": "julie-med-cont-input",
+      "target": "julie-med-cont-msg"
+    },
+    {
+      "id": "e-julie-cont-msg-on",
+      "source": "julie-med-cont-msg",
+      "target": "julie-med-cont-on"
+    },
+    {
+      "id": "e-julie-cont-on-delay",
+      "source": "julie-med-cont-on",
+      "sourceHandle": "immediate",
+      "target": "julie-med-cont-delay"
+    },
+    {
+      "id": "e-julie-cont-delay-off",
+      "source": "julie-med-cont-delay",
+      "target": "julie-med-cont-off"
+    },
+    {
+      "id": "e-julie-cont-off-done",
+      "source": "julie-med-cont-off",
+      "target": "julie-med-cont-done"
+    }
+  ]
+}

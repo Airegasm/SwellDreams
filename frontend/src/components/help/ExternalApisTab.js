@@ -9,7 +9,8 @@ function ExternalApisTab() {
     openrouter: false,
     freemodels: false,
     tuya: false,
-    govee: false
+    govee: false,
+    wyze: false
   });
 
   const toggle = (section) => {
@@ -43,6 +44,7 @@ function ExternalApisTab() {
               <li><strong>TP-Link Kasa</strong> - Local network discovery, no cloud account needed</li>
               <li><strong>Govee</strong> - Cloud API, requires free Govee account and API key</li>
               <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Geeni, Globe, Treatlife, Gosund, Teckin, etc.</li>
+              <li><strong>Wyze</strong> - Cloud API, requires Wyze account and developer API credentials</li>
             </ul>
           </div>
         )}
@@ -64,7 +66,7 @@ function ExternalApisTab() {
             <h4 className="subsection-header">How It Works</h4>
             <ul className="help-list">
               <li>A unique encryption key is generated for your machine on first run</li>
-              <li>All API keys (OpenRouter, Tuya, Govee) are encrypted before saving</li>
+              <li>All API keys (OpenRouter, Tuya, Govee, Wyze) are encrypted before saving</li>
               <li>Keys are decrypted only when needed for API requests</li>
               <li>Encrypted keys appear as <code>enc:v1:...</code> in configuration files</li>
             </ul>
@@ -459,6 +461,88 @@ function ExternalApisTab() {
               <strong>Tip:</strong> Govee's API has rate limits. If you get errors when scanning or
               controlling devices rapidly, wait a few seconds and try again.
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Wyze */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('wyze')}>
+          Wyze API
+          <span className="expand-icon">{expanded.wyze ? '−' : '+'}</span>
+        </h3>
+        {expanded.wyze && (
+          <div className="section-content">
+            <p>
+              Wyze makes affordable smart home devices including plugs, cameras, and sensors.
+              Their API requires developer credentials from the Wyze Developer Portal.
+            </p>
+
+            <h4 className="subsection-header">Prerequisites</h4>
+            <ul className="help-list">
+              <li>Wyze account with devices set up in the Wyze app</li>
+              <li>Wyze developer account (separate from regular account)</li>
+              <li>API Key and Key ID from the Wyze Developer Portal</li>
+            </ul>
+
+            <h4 className="subsection-header">Step 1: Create a Wyze Developer Account</h4>
+            <ol className="help-list numbered">
+              <li>
+                Go to{' '}
+                <a href="https://developer-api-console.wyze.com" target="_blank" rel="noopener noreferrer">
+                  developer-api-console.wyze.com
+                </a>
+              </li>
+              <li>Sign up for a developer account (this is separate from your regular Wyze account)</li>
+              <li>Verify your email</li>
+            </ol>
+
+            <h4 className="subsection-header">Step 2: Create an API Key</h4>
+            <ol className="help-list numbered">
+              <li>Log in to the Wyze Developer Console</li>
+              <li>Navigate to <strong>API Keys</strong></li>
+              <li>Click <strong>Create New Key</strong></li>
+              <li>Give it a name (e.g., "SwellDreams")</li>
+              <li>Copy both the <strong>API Key</strong> and <strong>Key ID</strong></li>
+            </ol>
+
+            <div className="warning-box">
+              <strong>Important:</strong> Save your API Key immediately - you won't be able to see it again
+              after closing the creation dialog. If you lose it, you'll need to create a new one.
+            </div>
+
+            <h4 className="subsection-header">Step 3: Configure SwellDreams</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Devices</strong></li>
+              <li>Expand the <strong>Wyze</strong> section</li>
+              <li>Enter your Wyze account email and password</li>
+              <li>Enter your API Key ID and API Key</li>
+              <li>If you have 2FA enabled, enter your TOTP key (optional)</li>
+              <li>Click <strong>Connect</strong></li>
+              <li>Click <strong>Scan Devices</strong> to discover your Wyze plugs</li>
+            </ol>
+
+            <h4 className="subsection-header">Two-Factor Authentication (2FA)</h4>
+            <p>
+              If you have 2FA enabled on your Wyze account, you have two options:
+            </p>
+            <ul className="help-list">
+              <li><strong>TOTP Key:</strong> Enter your TOTP secret key (the code you used to set up your authenticator app) to automate 2FA</li>
+              <li><strong>Disable 2FA:</strong> Temporarily disable 2FA on your Wyze account for SwellDreams</li>
+            </ul>
+
+            <div className="info-box">
+              <strong>Supported Devices:</strong> Currently only Wyze Plugs are supported. Cameras, sensors,
+              and other device types may be added in future updates.
+            </div>
+
+            <h4 className="subsection-header">Troubleshooting</h4>
+            <ul className="help-list">
+              <li><strong>Login fails:</strong> Double-check your Wyze account email and password. These are your regular Wyze app credentials, not your developer account.</li>
+              <li><strong>API errors:</strong> Make sure your API Key and Key ID are correct and haven't been revoked.</li>
+              <li><strong>No devices found:</strong> Ensure your plugs are set up and online in the Wyze app.</li>
+              <li><strong>2FA issues:</strong> If using TOTP, make sure you're entering the secret key, not the 6-digit code.</li>
+            </ul>
           </div>
         )}
       </div>

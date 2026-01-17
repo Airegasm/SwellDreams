@@ -2982,3 +2982,64 @@
   color: var(--text-muted);
   text-align: center;
 }
+
+/* Input Modal Styles */
+.input-modal .input-prompt {
+  font-size: 1.1rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.input-modal .input-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.input-modal .input-field {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+
+.input-modal .input-field:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.input-modal .input-field.number {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.input-modal .input-error {
+  color: var(--error-color, #ef4444);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.input-modal .input-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.input-modal .input-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-md);
+}
+
+.input-modal .btn-large {
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: 1.1rem;
+  min-width: 120px;
+}

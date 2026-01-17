@@ -73,6 +73,9 @@ export function AppProvider({ children }) {
   // Challenge modal state
   const [challengeData, setChallengeData] = useState(null);
 
+  // Input modal state
+  const [inputData, setInputData] = useState(null);
+
   // Infinite cycle tracking
   const [infiniteCycles, setInfiniteCycles] = useState({}); // { deviceIp: true }
 
@@ -261,6 +264,10 @@ export function AppProvider({ children }) {
 
       case 'challenge':
         setChallengeData(data);
+        break;
+
+      case 'input_request':
+        setInputData(data);
         break;
 
       case 'message_updated':
@@ -508,6 +515,18 @@ export function AppProvider({ children }) {
     });
   }, [sendWsMessage]);
 
+  // Handle input response - sends the value back to continue flow
+  const handleInputResponse = useCallback((value) => {
+    if (!inputData) return;
+
+    sendWsMessage('input_response', {
+      nodeId: inputData.nodeId,
+      value: value
+    });
+
+    setInputData(null);
+  }, [inputData, sendWsMessage]);
+
   // API calls - all using apiFetch with proper error handling and timeouts
   // Wrapped in useMemo to maintain stable reference and prevent useEffect loops
   const api = useMemo(() => ({
@@ -709,11 +728,41 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/tuya/devices/${encodeURIComponent(deviceId)}/state`
     ),
 
+    // Wyze devices
+    connectWyze: (email, password, keyId, apiKey, totpKey = null) => apiFetch(`${API_BASE}/api/wyze/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ email, password, keyId, apiKey, totpKey })
+    }),
+
+    getWyzeStatus: () => apiFetch(`${API_BASE}/api/wyze/status`),
+
+    disconnectWyze: () => apiFetch(`${API_BASE}/api/wyze/disconnect`, {
+      method: 'POST'
+    }),
+
+    scanWyzeDevices: () => apiFetch(`${API_BASE}/api/wyze/devices`),
+
+    wyzeDeviceOn: (deviceId, model) => apiFetch(`${API_BASE}/api/wyze/devices/${encodeURIComponent(deviceId)}/on`, {
+      method: 'POST',
+      body: JSON.stringify({ model })
+    }),
+
+    wyzeDeviceOff: (deviceId, model) => apiFetch(`${API_BASE}/api/wyze/devices/${encodeURIComponent(deviceId)}/off`, {
+      method: 'POST',
+      body: JSON.stringify({ model })
+    }),
+
+    getWyzeDeviceState: (deviceId) => apiFetch(
+      `${API_BASE}/api/wyze/devices/${encodeURIComponent(deviceId)}/state`
+    ),
+
     // Simulation status
     getSimulationStatus: () => apiFetch(`${API_BASE}/api/simulation-status`),
 
     // Flows
     getFlows: () => apiFetch(`${API_BASE}/api/flows`),
+
+    getFlow: (id) => apiFetch(`${API_BASE}/api/flows/${id}`),
 
     createFlow: (data) => apiFetch(`${API_BASE}/api/flows`, {
       method: 'POST',
@@ -949,6 +998,10 @@ export function AppProvider({ children }) {
     handleChallengeResult,
     handleChallengeCancel,
     handleChallengePenalty,
+
+    // Input Modal
+    inputData,
+    handleInputResponse,
 
     // Infinite Cycles
     infiniteCycles,

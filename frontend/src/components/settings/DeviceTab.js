@@ -48,6 +48,20 @@ function DeviceTab() {
   const [tuyaConnecting, setTuyaConnecting] = useState(false);
   const [tuyaError, setTuyaError] = useState(null);
 
+  // Wyze state
+  const [wyzeConnected, setWyzeConnected] = useState(false);
+  const [wyzeEmail, setWyzeEmail] = useState('');
+  const [wyzePassword, setWyzePassword] = useState('');
+  const [wyzeKeyId, setWyzeKeyId] = useState('');
+  const [wyzeApiKey, setWyzeApiKey] = useState('');
+  const [wyzeTotpKey, setWyzeTotpKey] = useState('');
+  const [hasWyzeCredentials, setHasWyzeCredentials] = useState(false);
+  const [showWyzeConnect, setShowWyzeConnect] = useState(false);
+  const [discoveredWyze, setDiscoveredWyze] = useState([]);
+  const [scanningWyze, setScanningWyze] = useState(false);
+  const [wyzeConnecting, setWyzeConnecting] = useState(false);
+  const [wyzeError, setWyzeError] = useState(null);
+
   // Check connection status and stored key status on mount
   useEffect(() => {
     const checkGoveeStatus = async () => {
@@ -66,6 +80,14 @@ function DeviceTab() {
         console.error('Failed to check Tuya status:', error);
       }
     };
+    const checkWyzeStatus = async () => {
+      try {
+        const status = await api.getWyzeStatus();
+        setWyzeConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Wyze status:', error);
+      }
+    };
     const checkStoredKeys = async () => {
       try {
         const settings = await api.getSettings();
@@ -75,12 +97,16 @@ function DeviceTab() {
         if (settings.hasTuyaCredentials !== undefined) {
           setHasTuyaCredentials(settings.hasTuyaCredentials);
         }
+        if (settings.hasWyzeCredentials !== undefined) {
+          setHasWyzeCredentials(settings.hasWyzeCredentials);
+        }
       } catch (error) {
         console.error('Failed to check stored keys:', error);
       }
     };
     checkGoveeStatus();
     checkTuyaStatus();
+    checkWyzeStatus();
     checkStoredKeys();
   }, [api]);
 
@@ -472,6 +498,102 @@ function DeviceTab() {
     }
   };
 
+  // Wyze handlers
+  const handleWyzeDisconnect = async () => {
+    try {
+      await api.disconnectWyze();
+      setWyzeConnected(false);
+      setDiscoveredWyze([]);
+      setWyzeError(null);
+    } catch (error) {
+      console.error('Wyze disconnect failed:', error);
+    }
+  };
+
+  const handleWyzeConnect = async () => {
+    if (!wyzeEmail.trim() || !wyzePassword.trim() || !wyzeKeyId.trim() || !wyzeApiKey.trim()) return;
+    setWyzeConnecting(true);
+    setWyzeError(null);
+    try {
+      const result = await api.connectWyze(
+        wyzeEmail.trim(),
+        wyzePassword.trim(),
+        wyzeKeyId.trim(),
+        wyzeApiKey.trim(),
+        wyzeTotpKey.trim() || null
+      );
+      if (result.success) {
+        setWyzeConnected(true);
+        setShowWyzeConnect(false);
+        setWyzeEmail('');
+        setWyzePassword('');
+        setWyzeKeyId('');
+        setWyzeApiKey('');
+        setWyzeTotpKey('');
+      } else {
+        setWyzeError(result.error || 'Failed to connect');
+      }
+    } catch (error) {
+      console.error('Wyze connect failed:', error);
+      setWyzeError(error.message || 'Failed to connect to Wyze');
+    }
+    setWyzeConnecting(false);
+  };
+
+  const handleWyzeScan = async () => {
+    setScanningWyze(true);
+    setWyzeError(null);
+    try {
+      const result = await api.scanWyzeDevices();
+      const wyzeDevices = result.devices || [];
+      // Filter out already configured devices
+      const configuredIds = new Set(
+        devices.filter(d => d.brand === 'wyze').map(d => d.deviceId)
+      );
+      const newDevices = wyzeDevices.filter(d => !configuredIds.has(d.mac));
+      setDiscoveredWyze(newDevices);
+      if (newDevices.length === 0 && wyzeDevices.length > 0) {
+        setWyzeError('All discovered devices are already configured.');
+      }
+    } catch (error) {
+      console.error('Wyze scan failed:', error);
+      setWyzeError(error.message || 'Failed to scan devices');
+    }
+    setScanningWyze(false);
+  };
+
+  const handleAddWyzeDevice = async (wyzeDevice) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    try {
+      await api.addDevice({
+        deviceId: wyzeDevice.mac,
+        name: wyzeDevice.nickname,
+        label: wyzeDevice.nickname,
+        model: wyzeDevice.model,
+        deviceType: 'PUMP',
+        brand: 'wyze'
+      });
+      // Remove from discovered list
+      setDiscoveredWyze(discoveredWyze.filter(d => d.mac !== wyzeDevice.mac));
+    } catch (error) {
+      console.error('Failed to add Wyze device:', error);
+    }
+  };
+
+  const handleTestWyzeDevice = async (device) => {
+    try {
+      await api.wyzeDeviceOn(device.deviceId, device.model);
+      setTimeout(async () => {
+        await api.wyzeDeviceOff(device.deviceId, device.model);
+      }, 2000);
+    } catch (error) {
+      console.error('Wyze test failed:', error);
+    }
+  };
+
   const handleUpdateDevice = async (id, updates) => {
     try {
       await api.updateDevice(id, updates);
@@ -528,7 +650,8 @@ function DeviceTab() {
     discovery: false,
     tplink: false,
     govee: false,
-    tuya: false
+    tuya: false,
+    wyze: false
   });
 
   // Info popup state
@@ -614,7 +737,7 @@ function DeviceTab() {
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
-                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : handleTestDevice(device.ip, device.childId)}
+                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : handleTestDevice(device.ip, device.childId)}
                   >
                     Test
                   </button>
@@ -931,6 +1054,115 @@ function DeviceTab() {
                           <button
                             className="btn btn-sm btn-success"
                             onClick={() => handleAddTuyaDevice(device)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Wyze Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('wyze')}>
+              <span>Wyze</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {wyzeConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.wyze ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.wyze && (
+            <div className="settings-subsection-content">
+              {!wyzeConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">Connect your Wyze account to control Wyze smart plugs. Requires API credentials from the Wyze Developer Portal.</p>
+                  <div className="connect-row">
+                    <input
+                      type="email"
+                      value={wyzeEmail}
+                      onChange={(e) => setWyzeEmail(e.target.value)}
+                      placeholder="Wyze Account Email"
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={wyzePassword}
+                      onChange={(e) => setWyzePassword(e.target.value)}
+                      placeholder="Wyze Password"
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="text"
+                      value={wyzeKeyId}
+                      onChange={(e) => setWyzeKeyId(e.target.value)}
+                      placeholder="API Key ID"
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={wyzeApiKey}
+                      onChange={(e) => setWyzeApiKey(e.target.value)}
+                      placeholder="API Key"
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="text"
+                      value={wyzeTotpKey}
+                      onChange={(e) => setWyzeTotpKey(e.target.value)}
+                      placeholder="TOTP Key (optional, for 2FA)"
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleWyzeConnect}
+                      disabled={wyzeConnecting || !wyzeEmail.trim() || !wyzePassword.trim() || !wyzeKeyId.trim() || !wyzeApiKey.trim()}
+                    >
+                      {wyzeConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {wyzeError && <div className="discovery-error">{wyzeError}</div>}
+                </div>
+              ) : (
+                <>
+                  <div className="integration-connected">
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleWyzeScan}
+                      disabled={scanningWyze}
+                    >
+                      {scanningWyze ? 'Scanning...' : 'Scan Devices'}
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={handleWyzeDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {wyzeError && <div className="discovery-error">{wyzeError}</div>}
+                  {discoveredWyze.length > 0 && (
+                    <div className="discovered-devices-list">
+                      <h4>Discovered Devices</h4>
+                      {discoveredWyze.map((device) => (
+                        <div key={device.mac} className="discovered-device-item wyze">
+                          <div className="discovered-device-info">
+                            <span className="discovered-device-name">{device.nickname}</span>
+                            <span className="discovered-device-meta">{device.model} {device.is_online ? '(Online)' : '(Offline)'}</span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddWyzeDevice(device)}
+                            disabled={!device.is_online}
                           >
                             Add
                           </button>

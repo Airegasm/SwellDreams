@@ -18,6 +18,7 @@ const { DeviceService, killAllPythonProcesses, activeProcesses } = require('./se
 const EventEngine = require('./services/event-engine');
 const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
+const wyzeService = require('./services/wyze-service');
 
 // Utilities
 const { createLogger } = require('./utils/logger');
@@ -264,6 +265,233 @@ function saveData(file, data) {
     console.error(`Error saving ${file}:`, e);
     return false;
   }
+}
+
+// ============================================
+// Per-Flow File Storage Helpers
+// ============================================
+
+const FLOWS_DIR = path.join(DATA_DIR, 'flows');
+
+// Load flows index (lightweight metadata only)
+function loadFlowsIndex() {
+  const indexPath = path.join(FLOWS_DIR, 'flows-index.json');
+  if (fs.existsSync(indexPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch (e) {
+      console.error('Error loading flows index:', e);
+    }
+  }
+  return [];
+}
+
+// Save flows index
+function saveFlowsIndex(index) {
+  if (!fs.existsSync(FLOWS_DIR)) {
+    fs.mkdirSync(FLOWS_DIR, { recursive: true });
+  }
+  const indexPath = path.join(FLOWS_DIR, 'flows-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+
+// Load single flow by ID
+function loadFlow(flowId) {
+  const flowPath = path.join(FLOWS_DIR, `${flowId}.json`);
+  if (fs.existsSync(flowPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(flowPath, 'utf8'));
+    } catch (e) {
+      console.error(`Error loading flow ${flowId}:`, e);
+    }
+  }
+  return null;
+}
+
+// Save single flow to its own file + update index
+function saveFlow(flow) {
+  if (!fs.existsSync(FLOWS_DIR)) {
+    fs.mkdirSync(FLOWS_DIR, { recursive: true });
+  }
+  const flowPath = path.join(FLOWS_DIR, `${flow.id}.json`);
+  fs.writeFileSync(flowPath, JSON.stringify(flow, null, 2));
+  updateFlowIndex(flow);
+}
+
+// Delete flow file + remove from index
+function deleteFlowFile(flowId) {
+  const flowPath = path.join(FLOWS_DIR, `${flowId}.json`);
+  if (fs.existsSync(flowPath)) {
+    fs.unlinkSync(flowPath);
+  }
+  removeFromFlowIndex(flowId);
+}
+
+// Update/add entry in index
+function updateFlowIndex(flow) {
+  const index = loadFlowsIndex();
+  const existing = index.findIndex(f => f.id === flow.id);
+  const entry = {
+    id: flow.id,
+    name: flow.name || 'Untitled Flow',
+    characterId: flow.characterId || null,
+    description: flow.description || ''
+  };
+  if (existing >= 0) {
+    index[existing] = entry;
+  } else {
+    index.push(entry);
+  }
+  saveFlowsIndex(index);
+}
+
+// Remove entry from index
+function removeFromFlowIndex(flowId) {
+  const index = loadFlowsIndex();
+  const filtered = index.filter(f => f.id !== flowId);
+  saveFlowsIndex(filtered);
+}
+
+// Load multiple flows by ID array
+function loadFlows(flowIds) {
+  return flowIds.map(id => loadFlow(id)).filter(f => f !== null);
+}
+
+// Check if per-flow storage is active (migration completed)
+function isPerFlowStorageActive() {
+  return fs.existsSync(path.join(FLOWS_DIR, 'flows-index.json'));
+}
+
+// ============================================
+// Per-Character File Storage Helpers
+// ============================================
+
+const CHARS_DIR = path.join(DATA_DIR, 'chars');
+const CHARS_DEFAULT_DIR = path.join(CHARS_DIR, 'default');
+const CHARS_CUSTOM_DIR = path.join(CHARS_DIR, 'custom');
+
+// Load characters index (lightweight metadata only)
+function loadCharsIndex() {
+  const indexPath = path.join(CHARS_DIR, 'chars-index.json');
+  if (fs.existsSync(indexPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch (e) {
+      console.error('Error loading chars index:', e);
+    }
+  }
+  return [];
+}
+
+// Save characters index
+function saveCharsIndex(index) {
+  if (!fs.existsSync(CHARS_DIR)) {
+    fs.mkdirSync(CHARS_DIR, { recursive: true });
+  }
+  const indexPath = path.join(CHARS_DIR, 'chars-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+
+// Load single character by ID (checks both default and custom dirs)
+function loadCharacter(charId) {
+  // Check custom first, then default
+  const customPath = path.join(CHARS_CUSTOM_DIR, `${charId}.json`);
+  const defaultPath = path.join(CHARS_DEFAULT_DIR, `${charId}.json`);
+
+  for (const charPath of [customPath, defaultPath]) {
+    if (fs.existsSync(charPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(charPath, 'utf8'));
+      } catch (e) {
+        console.error(`Error loading character ${charId}:`, e);
+      }
+    }
+  }
+  return null;
+}
+
+// Save single character to its own file + update index
+// New characters go to custom/, existing stay in their location
+function saveCharacter(char, forceCustom = false) {
+  // Ensure directories exist
+  if (!fs.existsSync(CHARS_CUSTOM_DIR)) {
+    fs.mkdirSync(CHARS_CUSTOM_DIR, { recursive: true });
+  }
+
+  // Determine save location
+  let targetPath;
+  const customPath = path.join(CHARS_CUSTOM_DIR, `${char.id}.json`);
+  const defaultPath = path.join(CHARS_DEFAULT_DIR, `${char.id}.json`);
+
+  if (forceCustom || !fs.existsSync(defaultPath)) {
+    // New character or forced custom -> save to custom
+    targetPath = customPath;
+  } else if (fs.existsSync(customPath)) {
+    // Already in custom -> save to custom
+    targetPath = customPath;
+  } else {
+    // Exists in default -> save to default
+    targetPath = defaultPath;
+  }
+
+  fs.writeFileSync(targetPath, JSON.stringify(char, null, 2));
+  updateCharIndex(char, targetPath.includes('/custom/') ? 'custom' : 'default');
+}
+
+// Delete character file + remove from index
+function deleteCharacterFile(charId) {
+  const customPath = path.join(CHARS_CUSTOM_DIR, `${charId}.json`);
+  const defaultPath = path.join(CHARS_DEFAULT_DIR, `${charId}.json`);
+
+  // Delete from wherever it exists
+  if (fs.existsSync(customPath)) {
+    fs.unlinkSync(customPath);
+  }
+  if (fs.existsSync(defaultPath)) {
+    fs.unlinkSync(defaultPath);
+  }
+  removeFromCharIndex(charId);
+}
+
+// Update/add entry in index
+function updateCharIndex(char, category = 'custom') {
+  const index = loadCharsIndex();
+  const existing = index.findIndex(c => c.id === char.id);
+  const entry = {
+    id: char.id,
+    name: char.name || 'Unnamed Character',
+    category: category,
+    description: char.description ? char.description.substring(0, 100) + '...' : ''
+  };
+  if (existing >= 0) {
+    index[existing] = entry;
+  } else {
+    index.push(entry);
+  }
+  saveCharsIndex(index);
+}
+
+// Remove entry from index
+function removeFromCharIndex(charId) {
+  const index = loadCharsIndex();
+  const filtered = index.filter(c => c.id !== charId);
+  saveCharsIndex(filtered);
+}
+
+// Load multiple characters by ID array
+function loadCharacters(charIds) {
+  return charIds.map(id => loadCharacter(id)).filter(c => c !== null);
+}
+
+// Load all characters (from both default and custom)
+function loadAllCharacters() {
+  const index = loadCharsIndex();
+  return loadCharacters(index.map(c => c.id));
+}
+
+// Check if per-character storage is active (migration completed)
+function isPerCharStorageActive() {
+  return fs.existsSync(path.join(CHARS_DIR, 'chars-index.json'));
 }
 
 // Default data structures
@@ -1799,6 +2027,24 @@ if (startupSettings.tuyaAccessId && startupSettings.tuyaAccessSecret) {
   console.log('[Startup] Tuya credentials loaded');
 }
 
+// Load Wyze credentials from settings if saved
+if (startupSettings.wyzeEmail && startupSettings.wyzePassword && startupSettings.wyzeKeyId && startupSettings.wyzeApiKey) {
+  wyzeService.setCredentials(
+    startupSettings.wyzeEmail,
+    startupSettings.wyzePassword,
+    startupSettings.wyzeKeyId,
+    startupSettings.wyzeApiKey,
+    startupSettings.wyzeTotpKey || null
+  );
+  console.log('[Startup] Wyze credentials loaded');
+  // Auto-connect to Wyze
+  wyzeService.connect().then(() => {
+    console.log('[Startup] Wyze connected');
+  }).catch(err => {
+    console.error('[Startup] Wyze auto-connect failed:', err.message);
+  });
+}
+
 wss.on('connection', async (ws) => {
   wsClients.add(ws);
   console.log('[WS] Client connected');
@@ -2166,6 +2412,15 @@ async function handleWsMessage(ws, type, data) {
         data.deviceId,
         data.duration,
         data.actionType
+      );
+      break;
+
+    case 'input_response':
+      // User submitted input value - store and continue flow
+      console.log(`[WS] Input response: node=${data.nodeId}, value=${data.value}`);
+      await eventEngine.handleInputResponse(
+        data.nodeId,
+        data.value
       );
       break;
 
@@ -3451,7 +3706,6 @@ app.post('/api/settings', async (req, res) => {
 });
 
 function activateAssignedFlows() {
-  const flows = loadData(DATA_FILES.flows) || [];
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
   const assignments = sessionState.flowAssignments || { characters: {}, personas: {}, global: [] };
 
@@ -3486,29 +3740,46 @@ function activateAssignedFlows() {
     });
   }
 
-  // Deactivate all flows first
-  flows.forEach(flow => {
-    if (flow.isActive) {
-      eventEngine.deactivateFlow(flow.id);
-    }
-  });
+  // Deactivate all currently active flows
+  eventEngine.deactivateAllFlows();
 
-  // Activate assigned flows with their priorities
-  flows.forEach(flow => {
-    if (activeFlowsWithPriority.has(flow.id)) {
-      flow.isActive = true;
+  if (isPerFlowStorageActive()) {
+    // Per-flow storage: load only assigned flows
+    const flowIdsToLoad = Array.from(activeFlowsWithPriority.keys());
+    const flows = loadFlows(flowIdsToLoad);
+
+    // Activate loaded flows with their priorities
+    flows.forEach(flow => {
       const priority = activeFlowsWithPriority.get(flow.id);
+      flow.isActive = true;
       eventEngine.activateFlow(flow, priority);
-    } else {
-      flow.isActive = false;
-    }
-  });
+      // Save updated isActive state back to file
+      saveFlow(flow);
+    });
 
-  // Save updated flow states
-  saveData(DATA_FILES.flows, flows);
-  broadcast('flows_update', flows);
+    // Broadcast index (lightweight)
+    broadcast('flows_update', loadFlowsIndex());
+    console.log('[Flows] Auto-activated flows (per-flow):', flowIdsToLoad.map(id => `${id}(p${activeFlowsWithPriority.get(id)})`).join(', '));
+  } else {
+    // Legacy: load all flows from single file
+    const flows = loadData(DATA_FILES.flows) || [];
 
-  console.log('[Flows] Auto-activated flows:', Array.from(activeFlowsWithPriority.entries()).map(([id, pri]) => `${id}(p${pri})`).join(', '));
+    // Activate assigned flows with their priorities
+    flows.forEach(flow => {
+      if (activeFlowsWithPriority.has(flow.id)) {
+        flow.isActive = true;
+        const priority = activeFlowsWithPriority.get(flow.id);
+        eventEngine.activateFlow(flow, priority);
+      } else {
+        flow.isActive = false;
+      }
+    });
+
+    // Save updated flow states
+    saveData(DATA_FILES.flows, flows);
+    broadcast('flows_update', flows);
+    console.log('[Flows] Auto-activated flows:', Array.from(activeFlowsWithPriority.entries()).map(([id, pri]) => `${id}(p${pri})`).join(', '));
+  }
 }
 
 app.post('/api/settings/llm', (req, res) => {
@@ -3826,33 +4097,80 @@ app.delete('/api/remote-settings/whitelist/:ip', (req, res) => {
 // --- Characters ---
 
 app.get('/api/characters', (req, res) => {
-  const characters = loadData(DATA_FILES.characters) || [];
-  res.json(characters);
+  if (isPerCharStorageActive()) {
+    const characters = loadAllCharacters();
+    res.json(characters);
+  } else {
+    const characters = loadData(DATA_FILES.characters) || [];
+    res.json(characters);
+  }
+});
+
+// Get single character by ID
+app.get('/api/characters/:id', (req, res) => {
+  if (isPerCharStorageActive()) {
+    const character = loadCharacter(req.params.id);
+    if (character) {
+      res.json(character);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  } else {
+    const characters = loadData(DATA_FILES.characters) || [];
+    const character = characters.find(c => c.id === req.params.id);
+    if (character) {
+      res.json(character);
+    } else {
+      res.status(404).json({ error: 'Character not found' });
+    }
+  }
 });
 
 app.post('/api/characters', (req, res) => {
-  const characters = loadData(DATA_FILES.characters) || [];
   const newCharacter = {
     id: uuidv4(),
     ...req.body,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  characters.push(newCharacter);
-  saveData(DATA_FILES.characters, characters);
-  broadcast('characters_update', characters);
+
+  if (isPerCharStorageActive()) {
+    saveCharacter(newCharacter, true); // Force to custom for new characters
+    const characters = loadAllCharacters();
+    broadcast('characters_update', characters);
+  } else {
+    const characters = loadData(DATA_FILES.characters) || [];
+    characters.push(newCharacter);
+    saveData(DATA_FILES.characters, characters);
+    broadcast('characters_update', characters);
+  }
+
   res.json(newCharacter);
 });
 
 app.put('/api/characters/:id', (req, res) => {
-  const characters = loadData(DATA_FILES.characters) || [];
-  const index = characters.findIndex(c => c.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Character not found' });
+  let updatedCharacter;
+
+  if (isPerCharStorageActive()) {
+    const existingCharacter = loadCharacter(req.params.id);
+    if (!existingCharacter) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    updatedCharacter = { ...existingCharacter, ...req.body, updatedAt: Date.now() };
+    saveCharacter(updatedCharacter);
+    const characters = loadAllCharacters();
+    broadcast('characters_update', characters);
+  } else {
+    const characters = loadData(DATA_FILES.characters) || [];
+    const index = characters.findIndex(c => c.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+    characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
+    updatedCharacter = characters[index];
+    saveData(DATA_FILES.characters, characters);
+    broadcast('characters_update', characters);
   }
-  characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
-  saveData(DATA_FILES.characters, characters);
-  broadcast('characters_update', characters);
 
   // If this is the active character, sync autoReplyEnabled to session state
   const settings = loadData(DATA_FILES.settings);
@@ -3861,14 +4179,20 @@ app.put('/api/characters/:id', (req, res) => {
     broadcast('auto_reply_update', { enabled: sessionState.autoReply });
   }
 
-  res.json(characters[index]);
+  res.json(updatedCharacter);
 });
 
 app.delete('/api/characters/:id', (req, res) => {
-  let characters = loadData(DATA_FILES.characters) || [];
-  characters = characters.filter(c => c.id !== req.params.id);
-  saveData(DATA_FILES.characters, characters);
-  broadcast('characters_update', characters);
+  if (isPerCharStorageActive()) {
+    deleteCharacterFile(req.params.id);
+    const characters = loadAllCharacters();
+    broadcast('characters_update', characters);
+  } else {
+    let characters = loadData(DATA_FILES.characters) || [];
+    characters = characters.filter(c => c.id !== req.params.id);
+    saveData(DATA_FILES.characters, characters);
+    broadcast('characters_update', characters);
+  }
   res.json({ success: true });
 });
 
@@ -4387,6 +4711,119 @@ app.get('/api/tuya/devices/:deviceId/state', async (req, res) => {
   }
 });
 
+// --- Wyze ---
+
+// Connect to Wyze (login and get token)
+app.post('/api/wyze/connect', async (req, res) => {
+  const { email, password, keyId, apiKey, totpKey } = req.body;
+
+  if (!email || !password || !keyId || !apiKey) {
+    return res.status(400).json({ error: 'Missing required credentials: email, password, keyId, apiKey' });
+  }
+
+  try {
+    wyzeService.setCredentials(email, password, keyId, apiKey, totpKey);
+    const result = await wyzeService.connect();
+
+    // Save credentials to settings (encrypt sensitive data)
+    const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
+    settings.wyzeEmail = email;
+    settings.wyzeKeyId = keyId;
+    settings.wyzeApiKey = encrypt(apiKey);
+    settings.wyzePassword = encrypt(password);
+    if (totpKey) {
+      settings.wyzeTotpKey = encrypt(totpKey);
+    }
+    saveData(DATA_FILES.settings, settings);
+
+    res.json({ success: true, userId: result.userId });
+  } catch (error) {
+    console.error('[Wyze] Connection failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Wyze connection status
+app.get('/api/wyze/status', (req, res) => {
+  res.json(wyzeService.getStatus());
+});
+
+// Disconnect from Wyze
+app.post('/api/wyze/disconnect', (req, res) => {
+  wyzeService.disconnect();
+
+  // Clear saved credentials
+  const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
+  delete settings.wyzeEmail;
+  delete settings.wyzeKeyId;
+  delete settings.wyzeApiKey;
+  delete settings.wyzePassword;
+  delete settings.wyzeTotpKey;
+  saveData(DATA_FILES.settings, settings);
+
+  res.json({ success: true });
+});
+
+// List Wyze plugs
+app.get('/api/wyze/devices', async (req, res) => {
+  try {
+    const devices = await wyzeService.listPlugs();
+    res.json({ devices });
+  } catch (error) {
+    console.error('[Wyze] Failed to list devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Wyze device on
+app.post('/api/wyze/devices/:deviceId/on', async (req, res) => {
+  const { deviceId } = req.params;
+  const { model } = req.body;
+
+  if (!model) {
+    return res.status(400).json({ error: 'Device model required in body' });
+  }
+
+  try {
+    await wyzeService.turnOn(deviceId, model);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Wyze] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Wyze device off
+app.post('/api/wyze/devices/:deviceId/off', async (req, res) => {
+  const { deviceId } = req.params;
+  const { model } = req.body;
+
+  if (!model) {
+    return res.status(400).json({ error: 'Device model required in body' });
+  }
+
+  try {
+    await wyzeService.turnOff(deviceId, model);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Wyze] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Wyze device state
+app.get('/api/wyze/devices/:deviceId/state', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    const state = await wyzeService.getPowerState(deviceId);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Wyze] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Emergency Stop (flow-activated devices, flows, and LLM) ---
 app.post('/api/emergency-stop', async (req, res) => {
   console.log('[EMERGENCY STOP] Stopping flow-activated devices, flows, and LLM requests!');
@@ -4433,35 +4870,83 @@ app.post('/api/emergency-stop', async (req, res) => {
 // --- Flows (Event Scripts) ---
 
 app.get('/api/flows', (req, res) => {
-  const flows = loadData(DATA_FILES.flows) || [];
-  res.json(flows);
+  if (isPerFlowStorageActive()) {
+    // Return lightweight index only
+    const index = loadFlowsIndex();
+    res.json(index);
+  } else {
+    // Legacy: return all flows from single file
+    const flows = loadData(DATA_FILES.flows) || [];
+    res.json(flows);
+  }
+});
+
+// Get single flow by ID
+app.get('/api/flows/:id', (req, res) => {
+  if (isPerFlowStorageActive()) {
+    const flow = loadFlow(req.params.id);
+    if (flow) {
+      res.json(flow);
+    } else {
+      res.status(404).json({ error: 'Flow not found' });
+    }
+  } else {
+    // Legacy: find in single file
+    const flows = loadData(DATA_FILES.flows) || [];
+    const flow = flows.find(f => f.id === req.params.id);
+    if (flow) {
+      res.json(flow);
+    } else {
+      res.status(404).json({ error: 'Flow not found' });
+    }
+  }
 });
 
 app.post('/api/flows', (req, res) => {
-  const flows = loadData(DATA_FILES.flows) || [];
   const newFlow = {
     id: uuidv4(),
     ...req.body,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
-  flows.push(newFlow);
-  saveData(DATA_FILES.flows, flows);
-  broadcast('flows_update', flows);
+
+  if (isPerFlowStorageActive()) {
+    saveFlow(newFlow);
+    const index = loadFlowsIndex();
+    broadcast('flows_update', index);
+  } else {
+    const flows = loadData(DATA_FILES.flows) || [];
+    flows.push(newFlow);
+    saveData(DATA_FILES.flows, flows);
+    broadcast('flows_update', flows);
+  }
+
   res.json(newFlow);
 });
 
 app.put('/api/flows/:id', (req, res) => {
-  const flows = loadData(DATA_FILES.flows) || [];
-  const index = flows.findIndex(f => f.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Flow not found' });
+  const flowId = req.params.id;
+  let updatedFlow;
+
+  if (isPerFlowStorageActive()) {
+    const existingFlow = loadFlow(flowId);
+    if (!existingFlow) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    updatedFlow = { ...existingFlow, ...req.body, updatedAt: Date.now() };
+    saveFlow(updatedFlow);
+  } else {
+    const flows = loadData(DATA_FILES.flows) || [];
+    const index = flows.findIndex(f => f.id === flowId);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Flow not found' });
+    }
+    flows[index] = { ...flows[index], ...req.body, updatedAt: Date.now() };
+    updatedFlow = flows[index];
+    saveData(DATA_FILES.flows, flows);
   }
-  flows[index] = { ...flows[index], ...req.body, updatedAt: Date.now() };
-  saveData(DATA_FILES.flows, flows);
 
   // Sync auto-generated buttons for all characters and personas with this flow assigned
-  const flowId = req.params.id;
   const charButtonsUpdated = syncButtonsForFlowChange(flowId);
   const personaButtonsUpdated = syncPersonaButtonsForFlowChange(flowId);
   if (charButtonsUpdated) {
@@ -4471,15 +4956,25 @@ app.put('/api/flows/:id', (req, res) => {
     broadcast('personas_update', loadData(DATA_FILES.personas));
   }
 
-  broadcast('flows_update', flows);
-  res.json(flows[index]);
+  if (isPerFlowStorageActive()) {
+    broadcast('flows_update', loadFlowsIndex());
+  } else {
+    broadcast('flows_update', loadData(DATA_FILES.flows));
+  }
+
+  res.json(updatedFlow);
 });
 
 app.delete('/api/flows/:id', (req, res) => {
-  let flows = loadData(DATA_FILES.flows) || [];
-  flows = flows.filter(f => f.id !== req.params.id);
-  saveData(DATA_FILES.flows, flows);
-  broadcast('flows_update', flows);
+  if (isPerFlowStorageActive()) {
+    deleteFlowFile(req.params.id);
+    broadcast('flows_update', loadFlowsIndex());
+  } else {
+    let flows = loadData(DATA_FILES.flows) || [];
+    flows = flows.filter(f => f.id !== req.params.id);
+    saveData(DATA_FILES.flows, flows);
+    broadcast('flows_update', flows);
+  }
   res.json({ success: true });
 });
 
@@ -4491,8 +4986,14 @@ const EXPORT_VERSION = '1.5';
 
 // Export single character
 app.get('/api/export/character/:id', (req, res) => {
-  const characters = loadData(DATA_FILES.characters) || [];
-  const character = characters.find(c => c.id === req.params.id);
+  let character;
+  if (isPerCharStorageActive()) {
+    character = loadCharacter(req.params.id);
+  } else {
+    const characters = loadData(DATA_FILES.characters) || [];
+    character = characters.find(c => c.id === req.params.id);
+  }
+
   if (!character) {
     return res.status(404).json({ error: 'Character not found' });
   }
@@ -4531,8 +5032,14 @@ app.get('/api/export/persona/:id', (req, res) => {
 
 // Export single flow
 app.get('/api/export/flow/:id', (req, res) => {
-  const flows = loadData(DATA_FILES.flows) || [];
-  const flow = flows.find(f => f.id === req.params.id);
+  let flow;
+  if (isPerFlowStorageActive()) {
+    flow = loadFlow(req.params.id);
+  } else {
+    const flows = loadData(DATA_FILES.flows) || [];
+    flow = flows.find(f => f.id === req.params.id);
+  }
+
   if (!flow) {
     return res.status(404).json({ error: 'Flow not found' });
   }
@@ -4551,10 +5058,25 @@ app.get('/api/export/flow/:id', (req, res) => {
 
 // Export full backup (all data, excluding sensitive API keys)
 app.get('/api/export/backup', (req, res) => {
-  const characters = loadData(DATA_FILES.characters) || [];
   const personas = loadData(DATA_FILES.personas) || [];
-  const flows = loadData(DATA_FILES.flows) || [];
   const settings = loadData(DATA_FILES.settings) || {};
+
+  // Load all characters (from per-char storage or legacy file)
+  let characters;
+  if (isPerCharStorageActive()) {
+    characters = loadAllCharacters();
+  } else {
+    characters = loadData(DATA_FILES.characters) || [];
+  }
+
+  // Load all flows (from per-flow storage or legacy file)
+  let flows;
+  if (isPerFlowStorageActive()) {
+    const index = loadFlowsIndex();
+    flows = loadFlows(index.map(f => f.id));
+  } else {
+    flows = loadData(DATA_FILES.flows) || [];
+  }
 
   // Remove sensitive data from settings export
   const safeSettings = { ...settings };
@@ -4590,7 +5112,6 @@ app.post('/api/import/character', (req, res) => {
       return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-character.' });
     }
 
-    const characters = loadData(DATA_FILES.characters) || [];
     const newCharacter = {
       ...importData.data,
       id: uuidv4(), // Generate new ID to avoid conflicts
@@ -4598,9 +5119,16 @@ app.post('/api/import/character', (req, res) => {
       updatedAt: Date.now()
     };
 
-    characters.push(newCharacter);
-    saveData(DATA_FILES.characters, characters);
-    broadcast('characters_update', characters);
+    if (isPerCharStorageActive()) {
+      saveCharacter(newCharacter, true); // Import to custom
+      const characters = loadAllCharacters();
+      broadcast('characters_update', characters);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      characters.push(newCharacter);
+      saveData(DATA_FILES.characters, characters);
+      broadcast('characters_update', characters);
+    }
 
     res.json({ success: true, character: newCharacter });
   } catch (error) {
@@ -4646,7 +5174,6 @@ app.post('/api/import/flow', (req, res) => {
       return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-flow.' });
     }
 
-    const flows = loadData(DATA_FILES.flows) || [];
     const newFlow = {
       ...importData.data,
       id: uuidv4(),
@@ -4655,9 +5182,15 @@ app.post('/api/import/flow', (req, res) => {
       isActive: false // Imported flows start inactive
     };
 
-    flows.push(newFlow);
-    saveData(DATA_FILES.flows, flows);
-    broadcast('flows_update', flows);
+    if (isPerFlowStorageActive()) {
+      saveFlow(newFlow);
+      broadcast('flows_update', loadFlowsIndex());
+    } else {
+      const flows = loadData(DATA_FILES.flows) || [];
+      flows.push(newFlow);
+      saveData(DATA_FILES.flows, flows);
+      broadcast('flows_update', flows);
+    }
 
     res.json({ success: true, flow: newFlow });
   } catch (error) {
@@ -4684,19 +5217,33 @@ app.post('/api/import/backup', (req, res) => {
 
     // Import characters
     if (importData.data.characters && Array.isArray(importData.data.characters)) {
-      const characters = loadData(DATA_FILES.characters) || [];
-      for (const char of importData.data.characters) {
-        const newChar = {
-          ...char,
-          id: uuidv4(),
-          importedAt: Date.now(),
-          updatedAt: Date.now()
-        };
-        characters.push(newChar);
-        results.characters++;
+      if (isPerCharStorageActive()) {
+        for (const char of importData.data.characters) {
+          const newChar = {
+            ...char,
+            id: uuidv4(),
+            importedAt: Date.now(),
+            updatedAt: Date.now()
+          };
+          saveCharacter(newChar, true); // Import to custom
+          results.characters++;
+        }
+        broadcast('characters_update', loadAllCharacters());
+      } else {
+        const characters = loadData(DATA_FILES.characters) || [];
+        for (const char of importData.data.characters) {
+          const newChar = {
+            ...char,
+            id: uuidv4(),
+            importedAt: Date.now(),
+            updatedAt: Date.now()
+          };
+          characters.push(newChar);
+          results.characters++;
+        }
+        saveData(DATA_FILES.characters, characters);
+        broadcast('characters_update', characters);
       }
-      saveData(DATA_FILES.characters, characters);
-      broadcast('characters_update', characters);
     }
 
     // Import personas
@@ -4718,20 +5265,35 @@ app.post('/api/import/backup', (req, res) => {
 
     // Import flows
     if (importData.data.flows && Array.isArray(importData.data.flows)) {
-      const flows = loadData(DATA_FILES.flows) || [];
-      for (const flow of importData.data.flows) {
-        const newFlow = {
-          ...flow,
-          id: uuidv4(),
-          importedAt: Date.now(),
-          updatedAt: Date.now(),
-          isActive: false
-        };
-        flows.push(newFlow);
-        results.flows++;
+      if (isPerFlowStorageActive()) {
+        for (const flow of importData.data.flows) {
+          const newFlow = {
+            ...flow,
+            id: uuidv4(),
+            importedAt: Date.now(),
+            updatedAt: Date.now(),
+            isActive: false
+          };
+          saveFlow(newFlow);
+          results.flows++;
+        }
+        broadcast('flows_update', loadFlowsIndex());
+      } else {
+        const flows = loadData(DATA_FILES.flows) || [];
+        for (const flow of importData.data.flows) {
+          const newFlow = {
+            ...flow,
+            id: uuidv4(),
+            importedAt: Date.now(),
+            updatedAt: Date.now(),
+            isActive: false
+          };
+          flows.push(newFlow);
+          results.flows++;
+        }
+        saveData(DATA_FILES.flows, flows);
+        broadcast('flows_update', flows);
       }
-      saveData(DATA_FILES.flows, flows);
-      broadcast('flows_update', flows);
     }
 
     res.json({

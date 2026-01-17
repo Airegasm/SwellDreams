@@ -94,7 +94,7 @@ cd "$SCRIPT_DIR/frontend" && npm run build
 # Start server
 echo "Starting SwellDreams server..."
 cd "$SCRIPT_DIR/backend"
-node server.js > /dev/null 2>&1 &
+node server.js &
 SERVER_PID=$!
 echo $SERVER_PID > "$PID_DIR/server.pid"
 

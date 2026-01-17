@@ -202,6 +202,17 @@ function encryptSettings(settings) {
     encrypted.tuyaAccessSecret = encrypt(encrypted.tuyaAccessSecret);
   }
 
+  // Encrypt Wyze credentials
+  if (encrypted.wyzePassword) {
+    encrypted.wyzePassword = encrypt(encrypted.wyzePassword);
+  }
+  if (encrypted.wyzeApiKey) {
+    encrypted.wyzeApiKey = encrypt(encrypted.wyzeApiKey);
+  }
+  if (encrypted.wyzeTotpKey) {
+    encrypted.wyzeTotpKey = encrypt(encrypted.wyzeTotpKey);
+  }
+
   return encrypted;
 }
 
@@ -229,6 +240,17 @@ function decryptSettings(settings) {
   }
   if (decrypted.tuyaAccessSecret) {
     decrypted.tuyaAccessSecret = decrypt(decrypted.tuyaAccessSecret);
+  }
+
+  // Decrypt Wyze credentials
+  if (decrypted.wyzePassword) {
+    decrypted.wyzePassword = decrypt(decrypted.wyzePassword);
+  }
+  if (decrypted.wyzeApiKey) {
+    decrypted.wyzeApiKey = decrypt(decrypted.wyzeApiKey);
+  }
+  if (decrypted.wyzeTotpKey) {
+    decrypted.wyzeTotpKey = decrypt(decrypted.wyzeTotpKey);
   }
 
   return decrypted;
@@ -260,6 +282,15 @@ function maskSettingsForResponse(settings) {
     masked.hasTuyaCredentials = hasApiKey(masked.tuyaAccessId);
     masked.tuyaAccessId = '';
     masked.tuyaAccessSecret = '';
+  }
+  if (masked.wyzeApiKey) {
+    masked.wyzeApiKeyMasked = maskApiKey(masked.wyzeApiKey);
+    masked.hasWyzeCredentials = hasApiKey(masked.wyzeApiKey);
+    masked.wyzeEmail = '';
+    masked.wyzePassword = '';
+    masked.wyzeKeyId = '';
+    masked.wyzeApiKey = '';
+    masked.wyzeTotpKey = '';
   }
 
   return masked;

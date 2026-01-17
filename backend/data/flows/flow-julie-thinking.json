@@ -1,0 +1,1232 @@
+{
+  "id": "flow-julie-thinking",
+  "name": "Julie - Thinking it Through",
+  "category": "character",
+  "nodes": [
+    {
+      "id": "flow-julie-thinking-trigger-1",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "data": {
+        "label": "Session Start",
+        "triggerType": "new_session"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-delay-2",
+      "type": "delay",
+      "position": {
+        "x": 200,
+        "y": 120
+      },
+      "data": {
+        "label": "Settle In",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-3",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 240
+      },
+      "data": {
+        "label": "Enable Methodology Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "character",
+        "reminderId": "julie-reminder-methodology",
+        "action": "enable"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-4",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 360
+      },
+      "data": {
+        "label": "Enable Capacity Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "character",
+        "reminderId": "julie-reminder-capacity-focus",
+        "action": "enable"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-5",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 480
+      },
+      "data": {
+        "label": "Julie Introduces Protocol",
+        "actionType": "send_message",
+        "message": "*Julie taps her tablet and the monitors around [Player] flicker to life*\n\nAlright, we're officially beginning the \"Thinking it Through\" protocol. I'll be documenting everything - your responses, your limits, your capacity for growth.\n\n*She smiles warmly but with unmistakable scientific curiosity*\n\nI've divided the session into phases, each with specific goals. At various points, you'll have choices - though I should warn you, all paths lead to the same destination: maximum inflation.",
+        "suppressLlm": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-6",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 600
+      },
+      "data": {
+        "label": "Declare Stage Variable",
+        "actionType": "declare_variable",
+        "name": "stage",
+        "value": "intro"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-delay-7",
+      "type": "delay",
+      "position": {
+        "x": 200,
+        "y": 720
+      },
+      "data": {
+        "label": "Pause for Effect",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-player_choice-8",
+      "type": "player_choice",
+      "position": {
+        "x": 200,
+        "y": 840
+      },
+      "data": {
+        "label": "Starting Approach",
+        "aiMessageIntroEnabled": true,
+        "aiMessageIntro": "*pulls up a selection menu on her tablet* Now then, I have several starting protocols prepared. Which appeals to you?\n\n[Choices]",
+        "sendMessageFirst": false,
+        "prompt": "",
+        "description": "Choose your starting intensity",
+        "choices": [
+          {
+            "id": "gentle",
+            "label": "Gentle Introduction",
+            "description": "Start slow, build gradually",
+            "playerResponse": "*shifts on the table* I think [Choice] sounds right... let's start slow."
+          },
+          {
+            "id": "standard",
+            "label": "Standard Protocol",
+            "description": "Julie's recommended approach",
+            "playerResponse": "*nods* [Choice] sounds good. I trust your judgment."
+          },
+          {
+            "id": "ambitious",
+            "label": "Ambitious Start",
+            "description": "Begin with intensity",
+            "playerResponse": "*grins nervously* [Choice]. Let's not waste any time."
+          },
+          {
+            "id": "surprise",
+            "label": "Surprise Me",
+            "description": "Let fate decide",
+            "playerResponse": "*closes eyes* [Choice]... I'm putting myself in your hands completely."
+          }
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-9",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 1020
+      },
+      "data": {
+        "label": "Gentle Start",
+        "actionType": "send_message",
+        "message": "*Julie nods approvingly*\n\nA cautious approach - I respect that. We'll start with minimal pressure and increase incrementally.\n\n*She presses a button and you feel the gentlest whisper of air*\n\nPhase One: Baseline establishment. Beginning now.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-10",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1020
+      },
+      "data": {
+        "label": "Standard Start",
+        "actionType": "send_message",
+        "message": "*Julie beams with satisfaction*\n\nExcellent choice! The standard protocol is my personal favorite - balanced and thorough.\n\n*She initiates the sequence with practiced precision*\n\nPhase One: Establishing working pressure. Let's begin.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-11",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1020
+      },
+      "data": {
+        "label": "Ambitious Start",
+        "actionType": "send_message",
+        "message": "*Julie's eyes light up with excitement*\n\nOh, I like you! We'll skip the warm-up entirely and jump straight to working pressure.\n\n*She cranks the dial noticeably higher*\n\nPhase One: Aggressive baseline. Let's see what you're made of!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-branch-12",
+      "type": "branch",
+      "position": {
+        "x": 500,
+        "y": 1020
+      },
+      "data": {
+        "label": "Random Protocol",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "rand-gentle",
+            "label": "Gentle",
+            "weight": 30
+          },
+          {
+            "id": "rand-standard",
+            "label": "Standard",
+            "weight": 40
+          },
+          {
+            "id": "rand-ambitious",
+            "label": "Ambitious",
+            "weight": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-13",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1260
+      },
+      "data": {
+        "label": "Start Primary Pump",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "untilType": "forever"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-14",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 1000
+      },
+      "data": {
+        "label": "Capacity 20%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 20,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-15",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1120
+      },
+      "data": {
+        "label": "20% Milestone",
+        "actionType": "send_message",
+        "message": "*Julie checks her monitors with interest*\n\nTwenty percent capacity - our first milestone! Your body is accepting the inflation well. Let's continue building.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-16",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 1360
+      },
+      "data": {
+        "label": "Capacity 40%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 40,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-17",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1480
+      },
+      "data": {
+        "label": "40% Milestone",
+        "actionType": "send_message",
+        "message": "*Julie studies your midsection with fascination*\n\nForty percent! Your belly is really starting to show now. This is a decision point in my protocol.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-simple_ab-18",
+      "type": "simple_ab",
+      "position": {
+        "x": 200,
+        "y": 1600
+      },
+      "data": {
+        "label": "Rest or Push?",
+        "description": "Your choice at 40% capacity",
+        "labelA": "Brief Rest",
+        "descriptionA": "Take a 30-second break",
+        "labelB": "Push Through",
+        "descriptionB": "Keep the momentum going"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-19",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1720
+      },
+      "data": {
+        "label": "Rest Choice",
+        "actionType": "send_message",
+        "message": "*Julie nods and reduces the flow*\n\nSensible. A brief rest now will let you handle more later.",
+        "suppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-20",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1720
+      },
+      "data": {
+        "label": "Push Choice",
+        "actionType": "send_message",
+        "message": "*Julie's smile widens with approval*\n\nThat's the spirit! Let's capitalize on this momentum.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-21",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 2080
+      },
+      "data": {
+        "label": "Capacity 60%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 60,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-22",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 2200
+      },
+      "data": {
+        "label": "60% Milestone",
+        "actionType": "send_message",
+        "message": "*Julie practically bounces with excitement*\n\nSixty percent capacity! We're past the halfway point! Your belly is beautifully distended.\n\n*She wheels over a colorful wheel*\n\nTo celebrate, spin the Wheel of Fate!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-prize_wheel-23",
+      "type": "prize_wheel",
+      "position": {
+        "x": 200,
+        "y": 2380
+      },
+      "data": {
+        "label": "Wheel of Fate",
+        "segments": [
+          {
+            "id": "steady",
+            "label": "Steady Pace",
+            "color": "#3B82F6",
+            "weight": 3
+          },
+          {
+            "id": "pulse",
+            "label": "Pulse Mode",
+            "color": "#8B5CF6",
+            "weight": 2
+          },
+          {
+            "id": "intense",
+            "label": "Intensity Boost",
+            "color": "#EF4444",
+            "weight": 2
+          },
+          {
+            "id": "mercy",
+            "label": "Brief Mercy",
+            "color": "#10B981",
+            "weight": 2
+          },
+          {
+            "id": "julie",
+            "label": "Julie's Choice",
+            "color": "#EC4899",
+            "weight": 1
+          }
+        ],
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Present the Wheel of Fate! The segments are: Steady Pace (consistent rhythm), Pulse Mode (rhythmic surges), Intensity Boost (increased pressure), Brief Mercy (a short break), and Julie's Choice (whatever I decide)! Spin and see what fate has in store!"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-24",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 2560
+      },
+      "data": {
+        "label": "Steady Result",
+        "actionType": "send_message",
+        "message": "Steady Pace! We'll maintain our current rhythm - consistent pressure, consistent progress.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-25",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 2560
+      },
+      "data": {
+        "label": "Pulse Result",
+        "actionType": "send_message",
+        "message": "Pulse Mode! Instead of constant pressure, you'll experience rhythmic surges. In... out... in... out...",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-26",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 2560
+      },
+      "data": {
+        "label": "Intense Result",
+        "actionType": "send_message",
+        "message": "Intensity Boost! The wheel has spoken - we're cranking things up! Hold on tight!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-27",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 2560
+      },
+      "data": {
+        "label": "Mercy Result",
+        "actionType": "send_message",
+        "message": "Brief Mercy! Lucky you - a short reprieve. But don't get too comfortable!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-28",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 2560
+      },
+      "data": {
+        "label": "Julie's Choice Result",
+        "actionType": "send_message",
+        "message": "Julie's Choice! This means I get to decide without restrictions. I've been wanting to try something experimental...",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-29",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 2920
+      },
+      "data": {
+        "label": "Capacity 80%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 80,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-30",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 3040
+      },
+      "data": {
+        "label": "80% Milestone",
+        "actionType": "send_message",
+        "message": "*Julie marvels at your distended form*\n\nEighty percent! We're in the home stretch. Your belly is magnificent - so round, so full, so perfect...\n\nOnly twenty percent to go!",
+        "suppressLlm": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-31",
+      "type": "trigger",
+      "position": {
+        "x": 200,
+        "y": 3400
+      },
+      "data": {
+        "label": "Capacity 95%",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 95,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-32",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 3520
+      },
+      "data": {
+        "label": "95% Milestone",
+        "actionType": "send_message",
+        "message": "*Julie can barely contain her excitement*\n\nNinety-five percent! We're SO close! For this final stretch, hold perfectly still for 10 seconds!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-timer_challenge-33",
+      "type": "timer_challenge",
+      "position": {
+        "x": 200,
+        "y": 3700
+      },
+      "data": {
+        "label": "Final Stillness Test",
+        "duration": 10,
+        "precisionMode": false,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "The Final Stillness Test - [Player] must hold perfectly still for 10 seconds at maximum inflation! One twitch, one flinch, and we start over. Begin the countdown!"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-34",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 3880
+      },
+      "data": {
+        "label": "Timer Success",
+        "actionType": "send_message",
+        "message": "*Julie cheers triumphantly*\n\nPerfect! Maximum capacity achieved! Look at you - absolutely stuffed to the brim. My protocol is a complete success!",
+        "suppressLlm": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-35",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 3880
+      },
+      "data": {
+        "label": "Timer Timeout",
+        "actionType": "send_message",
+        "message": "*Julie tsks*\n\nSo close! You moved before the timer completed. Let's try again - focus!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-36",
+      "type": "trigger",
+      "position": {
+        "x": -400,
+        "y": 3600
+      },
+      "data": {
+        "label": "Player Says More",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "*more*",
+          "*harder*",
+          "*faster*",
+          "*increase*"
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-37",
+      "type": "action",
+      "position": {
+        "x": -400,
+        "y": 3720
+      },
+      "data": {
+        "label": "More Response",
+        "actionType": "send_message",
+        "message": "*Julie raises an eyebrow with amusement*\n\nEager, are we? I appreciate the enthusiasm!\n\n*She increases the flow*\n\nYour wish is my command - for now.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-38",
+      "type": "trigger",
+      "position": {
+        "x": -400,
+        "y": 3960
+      },
+      "data": {
+        "label": "Player Says Stop",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "*stop*",
+          "*wait*",
+          "*pause*",
+          "*hold*"
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-simple_ab-39",
+      "type": "simple_ab",
+      "position": {
+        "x": -400,
+        "y": 4080
+      },
+      "data": {
+        "label": "Stop Options",
+        "description": "How should we proceed?",
+        "labelA": "Full Pause",
+        "descriptionA": "Stop for 20 seconds",
+        "labelB": "Slow Down",
+        "descriptionB": "Reduce but continue"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-40",
+      "type": "action",
+      "position": {
+        "x": -500,
+        "y": 4200
+      },
+      "data": {
+        "label": "Full Pause",
+        "actionType": "send_message",
+        "message": "*Julie stops the flow completely*\n\nAlright, full pause. Take a breath... I'll give you twenty seconds.",
+        "suppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "flow-julie-thinking-delay-41",
+      "type": "delay",
+      "position": {
+        "x": -500,
+        "y": 4320
+      },
+      "data": {
+        "label": "Pause Duration",
+        "duration": 20,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-42",
+      "type": "action",
+      "position": {
+        "x": -500,
+        "y": 4440
+      },
+      "data": {
+        "label": "Resume",
+        "actionType": "send_message",
+        "message": "Time's up! Ready or not, here we go again.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-43",
+      "type": "action",
+      "position": {
+        "x": -300,
+        "y": 4200
+      },
+      "data": {
+        "label": "Slow Down",
+        "actionType": "send_message",
+        "message": "*Julie adjusts the controls*\n\nA slower pace it is. We'll still reach our goal - just more gradually.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-44",
+      "type": "trigger",
+      "position": {
+        "x": -400,
+        "y": 4680
+      },
+      "data": {
+        "label": "Player Asks Status",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "*how much*",
+          "*capacity*",
+          "*full*am*i*",
+          "*percentage*"
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-45",
+      "type": "action",
+      "position": {
+        "x": -400,
+        "y": 4800
+      },
+      "data": {
+        "label": "Status Report",
+        "actionType": "send_message",
+        "message": "*Julie checks her instruments*\n\nCurrent readings: Capacity [Capacity]%, Discomfort [Pain]/10, State: [Emotion].\n\nAll within experimental parameters!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-46",
+      "type": "trigger",
+      "position": {
+        "x": 1200,
+        "y": 4800
+      },
+      "data": {
+        "label": "Moderate Pain",
+        "triggerType": "player_state_change",
+        "stateType": "pain",
+        "comparison": ">=",
+        "targetValue": 5,
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-simple_ab-47",
+      "type": "simple_ab",
+      "position": {
+        "x": 1200,
+        "y": 4920
+      },
+      "data": {
+        "label": "Pain Management",
+        "description": "Julie notices your discomfort at [Pain]/10",
+        "labelA": "Reduce Intensity",
+        "descriptionA": "Back off a bit",
+        "labelB": "I Can Handle It",
+        "descriptionB": "Continue with support"
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-48",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5040
+      },
+      "data": {
+        "label": "Reduce for Pain",
+        "actionType": "send_message",
+        "message": "*Julie nods with understanding*\n\nSafety and sustainability are important. Let me dial things back.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-49",
+      "type": "action",
+      "position": {
+        "x": 1300,
+        "y": 5040
+      },
+      "data": {
+        "label": "Continue Despite Pain",
+        "actionType": "send_message",
+        "message": "*Julie smiles warmly*\n\nThat's my brave test subject! The discomfort is temporary, but the data is forever.",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-50",
+      "type": "trigger",
+      "position": {
+        "x": 1200,
+        "y": 5200
+      },
+      "data": {
+        "label": "Submissive State",
+        "triggerType": "player_state_change",
+        "stateType": "emotion",
+        "comparison": "=",
+        "targetValue": "submissive",
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-51",
+      "type": "action",
+      "position": {
+        "x": 1200,
+        "y": 5320
+      },
+      "data": {
+        "label": "Submissive Response",
+        "actionType": "send_message",
+        "message": "*Julie notices the shift in your demeanor*\n\nAh... I see you've entered a more compliant state. When you're in this headspace, I can push further without resistance. Don't worry - I'll take very good care of you.",
+        "suppressLlm": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-52",
+      "type": "trigger",
+      "position": {
+        "x": 1200,
+        "y": 5560
+      },
+      "data": {
+        "label": "Aroused State",
+        "triggerType": "player_state_change",
+        "stateType": "emotion",
+        "comparison": "=",
+        "targetValue": "aroused",
+        "fireOnlyOnce": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-53",
+      "type": "action",
+      "position": {
+        "x": 1200,
+        "y": 5680
+      },
+      "data": {
+        "label": "Aroused Response",
+        "actionType": "send_message",
+        "message": "*Julie raises an eyebrow at your readings*\n\nWell, well... it seems the inflation is having more than just physical effects. Interesting data point!",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-trigger-54",
+      "type": "trigger",
+      "position": {
+        "x": 800,
+        "y": 5800
+      },
+      "data": {
+        "label": "Periodic Check",
+        "triggerType": "timer",
+        "delay": 90,
+        "repeat": true
+      }
+    },
+    {
+      "id": "flow-julie-thinking-branch-55",
+      "type": "branch",
+      "position": {
+        "x": 800,
+        "y": 5920
+      },
+      "data": {
+        "label": "Random Event",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "checkin",
+            "label": "Check-in",
+            "weight": 30
+          },
+          {
+            "id": "observation",
+            "label": "Observation",
+            "weight": 30
+          },
+          {
+            "id": "nothing",
+            "label": "Nothing",
+            "weight": 40
+          }
+        ]
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-56",
+      "type": "action",
+      "position": {
+        "x": 700,
+        "y": 6040
+      },
+      "data": {
+        "label": "Random Check-in",
+        "actionType": "send_message",
+        "message": "*Julie glances up from her notes*\n\nJust checking in - how are you holding up?",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "flow-julie-thinking-action-57",
+      "type": "action",
+      "position": {
+        "x": 900,
+        "y": 6040
+      },
+      "data": {
+        "label": "Random Observation",
+        "actionType": "send_message",
+        "message": "*Julie pauses to examine you*\n\nI'm noticing some interesting patterns in your expansion... Science is beautiful, isn't it?",
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-0",
+      "source": "flow-julie-thinking-trigger-1",
+      "target": "flow-julie-thinking-delay-2"
+    },
+    {
+      "id": "e-1",
+      "source": "flow-julie-thinking-delay-2",
+      "target": "flow-julie-thinking-action-3"
+    },
+    {
+      "id": "e-2",
+      "source": "flow-julie-thinking-action-3",
+      "target": "flow-julie-thinking-action-4"
+    },
+    {
+      "id": "e-3",
+      "source": "flow-julie-thinking-action-4",
+      "target": "flow-julie-thinking-action-5"
+    },
+    {
+      "id": "e-4",
+      "source": "flow-julie-thinking-action-5",
+      "target": "flow-julie-thinking-action-6"
+    },
+    {
+      "id": "e-5",
+      "source": "flow-julie-thinking-action-6",
+      "target": "flow-julie-thinking-delay-7"
+    },
+    {
+      "id": "e-6",
+      "source": "flow-julie-thinking-delay-7",
+      "target": "flow-julie-thinking-player_choice-8"
+    },
+    {
+      "id": "e-7",
+      "source": "flow-julie-thinking-player_choice-8",
+      "sourceHandle": "gentle",
+      "target": "flow-julie-thinking-action-9"
+    },
+    {
+      "id": "e-8",
+      "source": "flow-julie-thinking-player_choice-8",
+      "sourceHandle": "standard",
+      "target": "flow-julie-thinking-action-10"
+    },
+    {
+      "id": "e-9",
+      "source": "flow-julie-thinking-player_choice-8",
+      "sourceHandle": "ambitious",
+      "target": "flow-julie-thinking-action-11"
+    },
+    {
+      "id": "e-10",
+      "source": "flow-julie-thinking-player_choice-8",
+      "sourceHandle": "surprise",
+      "target": "flow-julie-thinking-branch-12"
+    },
+    {
+      "id": "e-11",
+      "source": "flow-julie-thinking-branch-12",
+      "sourceHandle": "rand-gentle",
+      "target": "flow-julie-thinking-action-9"
+    },
+    {
+      "id": "e-12",
+      "source": "flow-julie-thinking-branch-12",
+      "sourceHandle": "rand-standard",
+      "target": "flow-julie-thinking-action-10"
+    },
+    {
+      "id": "e-13",
+      "source": "flow-julie-thinking-branch-12",
+      "sourceHandle": "rand-ambitious",
+      "target": "flow-julie-thinking-action-11"
+    },
+    {
+      "id": "e-14",
+      "source": "flow-julie-thinking-action-9",
+      "target": "flow-julie-thinking-action-13"
+    },
+    {
+      "id": "e-15",
+      "source": "flow-julie-thinking-action-10",
+      "target": "flow-julie-thinking-action-13"
+    },
+    {
+      "id": "e-16",
+      "source": "flow-julie-thinking-action-11",
+      "target": "flow-julie-thinking-action-13"
+    },
+    {
+      "id": "e-17",
+      "source": "flow-julie-thinking-trigger-14",
+      "target": "flow-julie-thinking-action-15"
+    },
+    {
+      "id": "e-18",
+      "source": "flow-julie-thinking-trigger-16",
+      "target": "flow-julie-thinking-action-17"
+    },
+    {
+      "id": "e-19",
+      "source": "flow-julie-thinking-action-17",
+      "target": "flow-julie-thinking-simple_ab-18"
+    },
+    {
+      "id": "e-20",
+      "source": "flow-julie-thinking-simple_ab-18",
+      "sourceHandle": "a",
+      "target": "flow-julie-thinking-action-19"
+    },
+    {
+      "id": "e-21",
+      "source": "flow-julie-thinking-simple_ab-18",
+      "sourceHandle": "b",
+      "target": "flow-julie-thinking-action-20"
+    },
+    {
+      "id": "e-22",
+      "source": "flow-julie-thinking-trigger-21",
+      "target": "flow-julie-thinking-action-22"
+    },
+    {
+      "id": "e-23",
+      "source": "flow-julie-thinking-action-22",
+      "target": "flow-julie-thinking-prize_wheel-23"
+    },
+    {
+      "id": "e-24",
+      "source": "flow-julie-thinking-prize_wheel-23",
+      "sourceHandle": "steady",
+      "target": "flow-julie-thinking-action-24"
+    },
+    {
+      "id": "e-25",
+      "source": "flow-julie-thinking-prize_wheel-23",
+      "sourceHandle": "pulse",
+      "target": "flow-julie-thinking-action-25"
+    },
+    {
+      "id": "e-26",
+      "source": "flow-julie-thinking-prize_wheel-23",
+      "sourceHandle": "intense",
+      "target": "flow-julie-thinking-action-26"
+    },
+    {
+      "id": "e-27",
+      "source": "flow-julie-thinking-prize_wheel-23",
+      "sourceHandle": "mercy",
+      "target": "flow-julie-thinking-action-27"
+    },
+    {
+      "id": "e-28",
+      "source": "flow-julie-thinking-prize_wheel-23",
+      "sourceHandle": "julie",
+      "target": "flow-julie-thinking-action-28"
+    },
+    {
+      "id": "e-29",
+      "source": "flow-julie-thinking-trigger-29",
+      "target": "flow-julie-thinking-action-30"
+    },
+    {
+      "id": "e-30",
+      "source": "flow-julie-thinking-trigger-31",
+      "target": "flow-julie-thinking-action-32"
+    },
+    {
+      "id": "e-31",
+      "source": "flow-julie-thinking-action-32",
+      "target": "flow-julie-thinking-timer_challenge-33"
+    },
+    {
+      "id": "e-32",
+      "source": "flow-julie-thinking-timer_challenge-33",
+      "sourceHandle": "success",
+      "target": "flow-julie-thinking-action-34"
+    },
+    {
+      "id": "e-33",
+      "source": "flow-julie-thinking-timer_challenge-33",
+      "sourceHandle": "timeout",
+      "target": "flow-julie-thinking-action-35"
+    },
+    {
+      "id": "e-34",
+      "source": "flow-julie-thinking-action-35",
+      "target": "flow-julie-thinking-timer_challenge-33"
+    },
+    {
+      "id": "e-35",
+      "source": "flow-julie-thinking-trigger-36",
+      "target": "flow-julie-thinking-action-37"
+    },
+    {
+      "id": "e-36",
+      "source": "flow-julie-thinking-trigger-38",
+      "target": "flow-julie-thinking-simple_ab-39"
+    },
+    {
+      "id": "e-37",
+      "source": "flow-julie-thinking-simple_ab-39",
+      "sourceHandle": "a",
+      "target": "flow-julie-thinking-action-40"
+    },
+    {
+      "id": "e-38",
+      "source": "flow-julie-thinking-action-40",
+      "target": "flow-julie-thinking-delay-41"
+    },
+    {
+      "id": "e-39",
+      "source": "flow-julie-thinking-delay-41",
+      "target": "flow-julie-thinking-action-42"
+    },
+    {
+      "id": "e-40",
+      "source": "flow-julie-thinking-simple_ab-39",
+      "sourceHandle": "b",
+      "target": "flow-julie-thinking-action-43"
+    },
+    {
+      "id": "e-41",
+      "source": "flow-julie-thinking-trigger-44",
+      "target": "flow-julie-thinking-action-45"
+    },
+    {
+      "id": "e-42",
+      "source": "flow-julie-thinking-trigger-46",
+      "target": "flow-julie-thinking-simple_ab-47"
+    },
+    {
+      "id": "e-43",
+      "source": "flow-julie-thinking-simple_ab-47",
+      "sourceHandle": "a",
+      "target": "flow-julie-thinking-action-48"
+    },
+    {
+      "id": "e-44",
+      "source": "flow-julie-thinking-simple_ab-47",
+      "sourceHandle": "b",
+      "target": "flow-julie-thinking-action-49"
+    },
+    {
+      "id": "e-45",
+      "source": "flow-julie-thinking-trigger-50",
+      "target": "flow-julie-thinking-action-51"
+    },
+    {
+      "id": "e-46",
+      "source": "flow-julie-thinking-trigger-52",
+      "target": "flow-julie-thinking-action-53"
+    },
+    {
+      "id": "e-47",
+      "source": "flow-julie-thinking-trigger-54",
+      "target": "flow-julie-thinking-branch-55"
+    },
+    {
+      "id": "e-48",
+      "source": "flow-julie-thinking-branch-55",
+      "sourceHandle": "checkin",
+      "target": "flow-julie-thinking-action-56"
+    },
+    {
+      "id": "e-49",
+      "source": "flow-julie-thinking-branch-55",
+      "sourceHandle": "observation",
+      "target": "flow-julie-thinking-action-57"
+    }
+  ],
+  "createdAt": 1768285520682,
+  "updatedAt": 1768285520682,
+  "isActive": false
+}

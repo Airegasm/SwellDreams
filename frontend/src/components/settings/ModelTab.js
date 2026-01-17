@@ -615,6 +615,7 @@ function ModelTab() {
                     <option value="none">No Template</option>
                     <option value="chatml">ChatML</option>
                     <option value="llama">Llama 2</option>
+                    <option value="llama3">Llama 3</option>
                     <option value="mistral">Mistral</option>
                     <option value="alpaca">Alpaca</option>
                     <option value="vicuna">Vicuna</option>

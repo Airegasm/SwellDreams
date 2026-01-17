@@ -1,0 +1,430 @@
+{
+  "id": "flow-melody-001",
+  "name": "Nurse Melody - Gentle Care",
+  "description": "Nurturing, encouraging inflation with gentle pacing and constant reassurance",
+  "characterId": "char-002",
+  "nodes": [
+    {
+      "id": "melody-trigger-start",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Session Start",
+        "triggerType": "first_message"
+      }
+    },
+    {
+      "id": "melody-action-welcome",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Warm Welcome",
+        "actionType": "system_message",
+        "message": "Nurse Melody has gently prepared everything. The rectal tube is carefully positioned with plenty of lubrication. Soft music plays in the background."
+      }
+    },
+    {
+      "id": "melody-delay-comfort",
+      "type": "delay",
+      "position": {
+        "x": 450,
+        "y": 100
+      },
+      "data": {
+        "label": "Comfort Period",
+        "duration": 20,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "melody-action-gentle-start",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 100
+      },
+      "data": {
+        "label": "Gentle Start",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 5,
+        "interval": 20,
+        "cycles": 0
+      }
+    },
+    {
+      "id": "melody-action-first-air",
+      "type": "action",
+      "position": {
+        "x": 850,
+        "y": 100
+      },
+      "data": {
+        "label": "First Air Message",
+        "actionType": "send_message",
+        "message": "*Melody squeezes your hand gently* Here we go, sweetheart. Nice and easy... Feel that? The tube is starting to work its magic. Just breathe for me, honey. In through your nose... out through your mouth. You're doing so wonderfully already."
+      }
+    },
+    {
+      "id": "melody-branch-encourage",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 250
+      },
+      "data": {
+        "label": "Encouragement Type",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "e1",
+            "label": "Praise",
+            "weight": 35
+          },
+          {
+            "id": "e2",
+            "label": "Comfort",
+            "weight": 30
+          },
+          {
+            "id": "e3",
+            "label": "Progress",
+            "weight": 20
+          },
+          {
+            "id": "e4",
+            "label": "Touch",
+            "weight": 15
+          }
+        ]
+      }
+    },
+    {
+      "id": "melody-action-praise",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "Praising Words",
+        "actionType": "send_message",
+        "message": "*Melody beams with genuine pride* Oh honey, you're doing SO beautifully! Look at you, taking all that air like a champion. I'm so proud of how brave you're being. The pump is being so gentle, and you're handling it perfectly. Such a good job, sweetie!"
+      }
+    },
+    {
+      "id": "melody-action-comfort",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 230
+      },
+      "data": {
+        "label": "Comfort Words",
+        "actionType": "send_message",
+        "message": "*She strokes your hair soothingly* I know, I know... it's a lot of sensation, isn't it? But you're safe, honey. The air is flowing so gently through the tube. *She hums softly* Just relax into it. Let your tummy grow nice and round. I've got you."
+      }
+    },
+    {
+      "id": "melody-action-progress",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 310
+      },
+      "data": {
+        "label": "Progress Update",
+        "actionType": "send_message",
+        "message": "*Melody gently rests her hand on your expanding belly* Oooh, feel how nice and round you're getting! At {capacity}% now, sweetpea. Your tummy is filling up so nicely. The air is doing exactly what it should. Would you like me to rub your belly while we continue?"
+      }
+    },
+    {
+      "id": "melody-action-touch",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 390
+      },
+      "data": {
+        "label": "Caring Touch",
+        "actionType": "send_message",
+        "message": "*Her warm hands circle your swelling abdomen* Mmm, you're getting so big and beautiful, honey. *She applies gentle pressure* Can you feel how tight your skin is getting? The pump is filling you up so nicely. Just let it happen, sweetie. Let yourself grow for me."
+      }
+    },
+    {
+      "id": "melody-trigger-discomfort",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "Discomfort Words",
+        "triggerType": "player_speaks",
+        "keyword": "hurts"
+      }
+    },
+    {
+      "id": "melody-action-soothe",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "data": {
+        "label": "Soothing Response",
+        "actionType": "send_message",
+        "message": "*Melody's face fills with concern* Oh sweetheart, shh shh shh... *She gently massages around the tube* Let me help ease that. Remember to breathe, honey. The pressure will pass. Your body is so amazing - it's learning to hold all this air. I can slow the pump if you need, but I believe in you. You're stronger than you know."
+      }
+    },
+    {
+      "id": "melody-condition-milestone",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 600
+      },
+      "data": {
+        "label": "Over 50%?",
+        "variable": "capacity",
+        "operator": ">",
+        "value": "50"
+      }
+    },
+    {
+      "id": "melody-action-celebrate",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 570
+      },
+      "data": {
+        "label": "Celebrate Milestone",
+        "actionType": "send_message",
+        "message": "*Melody claps her hands softly* Oh my goodness, look at you! You've passed the halfway mark! This calls for a celebration! *She plants a gentle kiss on your forehead* Your belly is absolutely gorgeous, sweetheart. So full and round. The air is finding every little space inside you. I'm so, so proud!"
+      }
+    },
+    {
+      "id": "melody-action-encourage-continue",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 650
+      },
+      "data": {
+        "label": "Encourage Continue",
+        "actionType": "send_message",
+        "message": "*She traces circles on your belly* We're making such good progress, honey. The tube is working perfectly. Your tummy is getting rounder by the minute. Just a little more and we'll hit that first big milestone. You can do it, I know you can!"
+      }
+    },
+    {
+      "id": "melody-trigger-want-more",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 750
+      },
+      "data": {
+        "label": "Wants More",
+        "triggerType": "player_speaks",
+        "keyword": "more"
+      }
+    },
+    {
+      "id": "melody-action-more",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 750
+      },
+      "data": {
+        "label": "Give More",
+        "actionType": "send_message",
+        "message": "*Her eyes light up with delight* Ooh, someone wants to get even bigger! I love that, sweetheart! *She adjusts something* There we go, the air will flow a little faster now. Your belly is going to swell up so nice and round. Just relax and let me fill you up, honey. You're going to look absolutely wonderful."
+      }
+    },
+    {
+      "id": "melody-trigger-45",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "45% Capacity Check",
+        "triggerType": "capacity_change",
+        "threshold": 45
+      }
+    },
+    {
+      "id": "melody-choice-comfort",
+      "type": "player_choice",
+      "position": {
+        "x": 300,
+        "y": 500
+      },
+      "data": {
+        "label": "Comfort Check",
+        "prompt": "*Melody strokes your hair gently* You're doing so wonderfully, sweetie. How are you feeling? Do you want me to keep going, or should we take a little break?",
+        "description": "Nurse Melody is checking in on your comfort level.",
+        "choices": [
+          {
+            "id": "melody-choice-more",
+            "label": "Keep going, I can take more",
+            "description": "Continue the inflation session"
+          },
+          {
+            "id": "melody-choice-break",
+            "label": "A break would be nice",
+            "description": "Pause for a moment to adjust"
+          },
+          {
+            "id": "melody-choice-praise",
+            "label": "Just need some encouragement",
+            "description": "Ask for reassurance to continue"
+          }
+        ]
+      }
+    },
+    {
+      "id": "melody-action-more-response",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 430
+      },
+      "data": {
+        "label": "More Response",
+        "actionType": "send_message",
+        "message": "*Her eyes light up with pride* Oh, you're so brave! I'm so proud of you! Let's keep going then, nice and steady. You're doing amazing!"
+      }
+    },
+    {
+      "id": "melody-action-break-response",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 500
+      },
+      "data": {
+        "label": "Break Response",
+        "actionType": "send_message",
+        "message": "*She immediately pauses the pump* Of course, honey! There's no rush at all. *She adjusts your pillow* Just breathe and relax. We'll start again when you're ready."
+      }
+    },
+    {
+      "id": "melody-action-praise-response",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 570
+      },
+      "data": {
+        "label": "Praise Response",
+        "actionType": "send_message",
+        "message": "*She takes your hand warmly* Oh sweetheart, you're doing SO well! Look how beautifully round you're getting! I'm right here with you. You're so strong and wonderful!"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "melody-trigger-start",
+      "target": "melody-action-welcome"
+    },
+    {
+      "id": "e2",
+      "source": "melody-action-welcome",
+      "target": "melody-delay-comfort"
+    },
+    {
+      "id": "e3",
+      "source": "melody-delay-comfort",
+      "target": "melody-action-gentle-start"
+    },
+    {
+      "id": "e4",
+      "source": "melody-action-gentle-start",
+      "target": "melody-action-first-air"
+    },
+    {
+      "id": "e6",
+      "source": "melody-branch-encourage",
+      "target": "melody-action-praise",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e7",
+      "source": "melody-branch-encourage",
+      "target": "melody-action-comfort",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e8",
+      "source": "melody-branch-encourage",
+      "target": "melody-action-progress",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e9",
+      "source": "melody-branch-encourage",
+      "target": "melody-action-touch",
+      "sourceHandle": "branch-3"
+    },
+    {
+      "id": "e10",
+      "source": "melody-trigger-discomfort",
+      "target": "melody-action-soothe"
+    },
+    {
+      "id": "e12",
+      "source": "melody-condition-milestone",
+      "target": "melody-action-celebrate",
+      "sourceHandle": "true"
+    },
+    {
+      "id": "e13",
+      "source": "melody-condition-milestone",
+      "target": "melody-action-encourage-continue",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e14",
+      "source": "melody-trigger-want-more",
+      "target": "melody-action-more"
+    },
+    {
+      "id": "e-melody-choice-1",
+      "source": "melody-trigger-45",
+      "target": "melody-choice-comfort"
+    },
+    {
+      "id": "e-melody-choice-2",
+      "source": "melody-choice-comfort",
+      "sourceHandle": "melody-choice-more",
+      "target": "melody-action-more-response"
+    },
+    {
+      "id": "e-melody-choice-3",
+      "source": "melody-choice-comfort",
+      "sourceHandle": "melody-choice-break",
+      "target": "melody-action-break-response"
+    },
+    {
+      "id": "e-melody-choice-4",
+      "source": "melody-choice-comfort",
+      "sourceHandle": "melody-choice-praise",
+      "target": "melody-action-praise-response"
+    }
+  ],
+  "isActive": false,
+  "createdAt": 1704067200000,
+  "updatedAt": 1704067200000,
+  "category": "character"
+}

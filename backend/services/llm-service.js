@@ -16,7 +16,7 @@ const activeRequests = new Set();
 const DEFAULT_SETTINGS = {
   llmUrl: '',
   apiType: 'auto',  // 'auto', 'text_completion', 'chat_completion'
-  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'alpaca', 'vicuna'
+  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'llama3', 'mistral', 'alpaca', 'vicuna'
   maxTokens: 150,
   contextTokens: 8192,
   streaming: false,
@@ -144,6 +144,16 @@ function wrapWithTemplate(systemPrompt, prompt, template) {
       }
       vicuna += `USER: ${prompt}\nASSISTANT:`;
       return vicuna;
+
+    case 'llama3':
+      // Llama 3 Instruct format
+      let llama3 = '<|begin_of_text|>';
+      if (systemPrompt) {
+        llama3 += `<|start_header_id|>system<|end_header_id|>\n\n${systemPrompt}<|eot_id|>`;
+      }
+      llama3 += `<|start_header_id|>user<|end_header_id|>\n\n${prompt}<|eot_id|>`;
+      llama3 += `<|start_header_id|>assistant<|end_header_id|>\n\n`;
+      return llama3;
 
     default:
       return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;

@@ -48,9 +48,25 @@ backend/data/autosave.json
 backend/data/connection-profiles.json
 backend/data/devices.json
 backend/data/personas.json
+backend/data/calibrations.json
+
+# Legacy single-file storage (ignore if exists)
 backend/data/characters.json
 backend/data/flows.json
-backend/data/calibrations.json
+
+# Backup files from migrations
+backend/data/*.backup
+
+# Per-character storage
+backend/data/chars/custom/          # Personal characters (gitignored)
+backend/data/chars/chars-index.json # Index is auto-generated
+
+# Per-flow storage
+backend/data/flows/flows-index.json # Index is auto-generated
+
+# NOTE: Default characters and flows are committed:
+# - backend/data/chars/default/*.json
+# - backend/data/flows/*.json (except index)
 
 # Settings contains API keys - use settings.template.json instead
 backend/data/settings.json

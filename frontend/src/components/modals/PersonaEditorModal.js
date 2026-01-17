@@ -340,7 +340,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   return (
     <div className="modal-overlay" onClick={handleCancel}>
       <div className="modal persona-editor-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
+        <div className="modal-header persona-modal-header">
           <h3>{persona ? 'Edit Persona' : 'New Persona'}</h3>
           {hasDraft && (
             <span className="draft-indicator" title="Unsaved changes restored from previous session">
@@ -377,7 +377,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
 
         <form onSubmit={handleSubmit}>
           {/* Basic Tab */}
-          <div className="modal-body" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
+          <div className="modal-body persona-modal-body" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
             <div className="editor-layout">
               {/* Left Column - Basic Info */}
               <div className="editor-left">
@@ -545,7 +545,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           </div>
 
           {/* Staged Portraits Tab */}
-          <div className="modal-body" style={{ display: activeTab === 'portraits' ? 'block' : 'none' }}>
+          <div className="modal-body persona-modal-body" style={{ display: activeTab === 'portraits' ? 'block' : 'none' }}>
             <div className="staged-portraits-section">
               <p className="section-hint">
                 Upload different portraits for capacity ranges. The portrait changes automatically as capacity increases.
@@ -597,7 +597,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           </div>
 
           {/* Custom Buttons Tab */}
-          <div className="modal-body" style={{ display: activeTab === 'buttons' ? 'block' : 'none' }}>
+          <div className="modal-body persona-modal-body" style={{ display: activeTab === 'buttons' ? 'block' : 'none' }}>
             <div className="events-editor">
               {!showButtonForm ? (
                 <>
@@ -727,7 +727,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
             </div>
           </div>
 
-          <div className="modal-footer">
+          <div className="modal-footer persona-modal-footer">
             <button type="button" className="btn btn-secondary" onClick={handleCancel}>
               Cancel
             </button>

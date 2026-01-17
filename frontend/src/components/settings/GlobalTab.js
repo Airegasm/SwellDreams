@@ -74,6 +74,15 @@ function GlobalTab() {
   const pumpDevices = devices.filter(d => d.deviceType === 'PUMP');
   const primaryPump = pumpDevices.find(d => d.isPrimary);
 
+  // Helper to get device identifier - Tuya/Govee use deviceId, TPLink uses ip
+  const getDeviceIdentifier = (device) => {
+    if (!device) return null;
+    if (device.brand === 'tuya' || device.brand === 'govee') {
+      return device.deviceId;
+    }
+    return device.ip;
+  };
+
   // Keep refs in sync for use in interval callbacks (avoids stale closures)
   useEffect(() => {
     selectedPumpIdRef.current = calibrationState.selectedPumpId;
@@ -161,7 +170,7 @@ function GlobalTab() {
     if (pump) {
       try {
         console.log('[Calibration] Stopping pump:', pump.label || pump.name);
-        await api.deviceOff(pump.ip, {
+        await api.deviceOff(getDeviceIdentifier(pump), {
           childId: pump.childId,
           brand: pump.brand
         });
@@ -206,9 +215,13 @@ function GlobalTab() {
 
       if (pumpToStop && currentApi) {
         console.log('[Calibration] Sending OFF to:', pumpToStop.label || pumpToStop.name);
+        // Get correct identifier - Tuya/Govee use deviceId, TPLink uses ip
+        const deviceIdentifier = (pumpToStop.brand === 'tuya' || pumpToStop.brand === 'govee')
+          ? pumpToStop.deviceId
+          : pumpToStop.ip;
         try {
           // Send OFF command twice for reliability (some smart plugs need this)
-          await currentApi.deviceOff(pumpToStop.ip, {
+          await currentApi.deviceOff(deviceIdentifier, {
             childId: pumpToStop.childId,
             brand: pumpToStop.brand
           });
@@ -217,7 +230,7 @@ function GlobalTab() {
           // Small delay then send again
           await new Promise(resolve => setTimeout(resolve, 300));
 
-          await currentApi.deviceOff(pumpToStop.ip, {
+          await currentApi.deviceOff(deviceIdentifier, {
             childId: pumpToStop.childId,
             brand: pumpToStop.brand
           });
@@ -265,7 +278,11 @@ function GlobalTab() {
 
     try {
       console.log('[Calibration] Starting pump:', pump.label || pump.name, 'cycle:', thisCycleId);
-      await apiRef.current.deviceOn(pump.ip, {
+      // Get correct identifier - Tuya/Govee use deviceId, TPLink uses ip
+      const deviceIdentifier = (pump.brand === 'tuya' || pump.brand === 'govee')
+        ? pump.deviceId
+        : pump.ip;
+      await apiRef.current.deviceOn(deviceIdentifier, {
         childId: pump.childId,
         brand: pump.brand
       });
@@ -400,7 +417,7 @@ function GlobalTab() {
     if (pump) {
       try {
         console.log('[Calibration] Force stopping pump:', pump.label || pump.name);
-        await api.deviceOff(pump.ip, {
+        await api.deviceOff(getDeviceIdentifier(pump), {
           childId: pump.childId,
           brand: pump.brand
         });
@@ -414,7 +431,7 @@ function GlobalTab() {
       console.log('[Calibration] No pump selected, stopping all pumps');
       for (const p of pumpDevices) {
         try {
-          await api.deviceOff(p.ip, {
+          await api.deviceOff(getDeviceIdentifier(p), {
             childId: p.childId,
             brand: p.brand
           });

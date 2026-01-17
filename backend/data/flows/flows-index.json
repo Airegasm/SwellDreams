@@ -1,0 +1,122 @@
+[
+  {
+    "id": "flow-elena-001",
+    "name": "Dr. Elena Vance - Clinical Protocol",
+    "characterId": "char-001",
+    "description": "Methodical, scheduled inflation with precise monitoring and safety checks"
+  },
+  {
+    "id": "flow-melody-001",
+    "name": "Nurse Melody - Gentle Care",
+    "characterId": "char-002",
+    "description": "Nurturing, encouraging inflation with gentle pacing and constant reassurance"
+  },
+  {
+    "id": "flow-sasha-001",
+    "name": "Sasha - Intimate Session",
+    "characterId": "char-003",
+    "description": "Sensual, teasing inflation focused on physical sensation and intimacy"
+  },
+  {
+    "id": "flow-jinx-001",
+    "name": "Jinx - Chaotic Inflation",
+    "characterId": "char-004",
+    "description": "Bratty, unpredictable inflation that pushes limits with mischievous energy"
+  },
+  {
+    "id": "flow-vera-001",
+    "name": "Mistress Vera - Dominant Control",
+    "characterId": "char-005",
+    "description": "Commanding, demanding inflation focused on obedience and submission"
+  },
+  {
+    "id": "flow-collector-001",
+    "name": "Doctor Claudia",
+    "characterId": "char-006",
+    "description": "Detached, unsettling experimentation treating subjects as specimens"
+  },
+  {
+    "id": "flow-bubble-001",
+    "name": "Bubble - Pure Joy",
+    "characterId": "char-007",
+    "description": "Excitable, enthusiastic inflation with boundless energy and balloon puns"
+  },
+  {
+    "id": "flow-helium-001",
+    "name": "Professor Helium - Mad Science",
+    "characterId": "char-008",
+    "description": "Manic, experimental inflation with questionable ethics and obsessive data collection"
+  },
+  {
+    "id": "flow-global-001",
+    "name": "Ambient Pressure Sensations",
+    "characterId": null,
+    "description": "Random environmental and physical sensations during inflation"
+  },
+  {
+    "id": "flow-global-002",
+    "name": "Safety Monitor",
+    "characterId": null,
+    "description": "Periodic safety checks and reassurance messages"
+  },
+  {
+    "id": "flow-global-003",
+    "name": "Progress Milestones",
+    "characterId": null,
+    "description": "Celebrates reaching capacity milestones"
+  },
+  {
+    "id": "flow-persona-001",
+    "name": "Body Awareness Journey",
+    "characterId": null,
+    "description": "Persona's internal reactions to physical changes"
+  },
+  {
+    "id": "flow-persona-002",
+    "name": "Emotional Journey",
+    "characterId": null,
+    "description": "Tracks emotional state changes during inflation"
+  },
+  {
+    "id": "flow-persona-003",
+    "name": "Personal Limits Explorer",
+    "characterId": null,
+    "description": "Reactions when approaching boundaries"
+  },
+  {
+    "id": "flow-main-63e36694",
+    "name": "Main Flow",
+    "characterId": null,
+    "description": ""
+  },
+  {
+    "id": "flow-julie-buttons",
+    "name": "Julie - Pressing Buttons",
+    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
+    "description": "Comprehensive button-triggered flow testing all node types for belly inflation scenarios"
+  },
+  {
+    "id": "flow-julie-thinking",
+    "name": "Julie - Thinking it Through",
+    "characterId": null,
+    "description": ""
+  },
+  {
+    "id": "flow-julie-buttons-2",
+    "name": "Julie - Pressing More Buttons",
+    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
+    "description": "Advanced button-triggered flow with Simon, Reflex, and complex branching challenges"
+  },
+  {
+    "id": "efce727e-3309-4d48-a23d-d197d2c7a390",
+    "name": "Status Report",
+    "characterId": null,
+    "description": "Report player capacity status via persona button"
+  },
+  {
+    "id": "flow-julie-medical",
+    "name": "Julie - Medical Professional",
+    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
+    "description": "Professional medical examination flow with patient interview, abdominal compression exam, and controlled inflation procedures"
+  }
+]

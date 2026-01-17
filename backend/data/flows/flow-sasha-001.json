@@ -1,0 +1,374 @@
+{
+  "id": "flow-sasha-001",
+  "name": "Sasha - Intimate Session",
+  "description": "Sensual, teasing inflation focused on physical sensation and intimacy",
+  "characterId": "char-003",
+  "nodes": [
+    {
+      "id": "sasha-trigger-start",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Session Start",
+        "triggerType": "first_message"
+      }
+    },
+    {
+      "id": "sasha-action-scene",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Set Scene",
+        "actionType": "system_message",
+        "message": "Candlelight flickers across the room. Sasha has prepared everything with care - soft sheets, the pump nearby, the tube waiting. The atmosphere is thick with anticipation."
+      }
+    },
+    {
+      "id": "sasha-delay-buildup",
+      "type": "delay",
+      "position": {
+        "x": 450,
+        "y": 100
+      },
+      "data": {
+        "label": "Anticipation",
+        "duration": 15,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sasha-action-tease",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 100
+      },
+      "data": {
+        "label": "Initial Tease",
+        "actionType": "send_message",
+        "message": "*Sasha trails her fingers down your body, her breath warm against your ear* Mmm, are you ready for me, baby? *She reaches for the tube* I'm going to fill you up so slowly... watch you grow... feel every inch of you expanding under my hands. *She positions the tube carefully* Let's begin..."
+      }
+    },
+    {
+      "id": "sasha-action-start",
+      "type": "action",
+      "position": {
+        "x": 850,
+        "y": 100
+      },
+      "data": {
+        "label": "Start Pump",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 6,
+        "interval": 18,
+        "cycles": 0
+      }
+    },
+    {
+      "id": "sasha-branch-sensual",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 250
+      },
+      "data": {
+        "label": "Sensation Focus",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "s1",
+            "label": "Touch",
+            "weight": 30
+          },
+          {
+            "id": "s2",
+            "label": "Watch",
+            "weight": 25
+          },
+          {
+            "id": "s3",
+            "label": "Tease",
+            "weight": 25
+          },
+          {
+            "id": "s4",
+            "label": "Desire",
+            "weight": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "sasha-action-touch",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "Sensual Touch",
+        "actionType": "send_message",
+        "message": "*Sasha's hands glide across your swelling belly, feeling every curve* God, you feel incredible... *She presses closer, lips grazing your neck* So tight already. The air is pushing you out so beautifully. *Her fingers trace the taut skin* I can feel you growing under my hands. It's intoxicating."
+      }
+    },
+    {
+      "id": "sasha-action-watch",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 230
+      },
+      "data": {
+        "label": "Watching",
+        "actionType": "send_message",
+        "message": "*She pulls back slightly, drinking in the sight of you* Look at you... *Her voice drops to a whisper* Getting bigger with every breath of air. The tube doing its work, filling you up for me. *She bites her lip* I could watch you swell like this forever. You're absolutely gorgeous."
+      }
+    },
+    {
+      "id": "sasha-action-tease-mid",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 310
+      },
+      "data": {
+        "label": "Teasing",
+        "actionType": "send_message",
+        "message": "*A playful smirk crosses her face* Feeling full yet, baby? *She gives your belly a gentle pat* No? Good. Because I'm not nearly done with you. *She adjusts the tube slightly* The pump is going to keep going... and going... until you're absolutely bursting for me. Doesn't that sound delicious?"
+      }
+    },
+    {
+      "id": "sasha-action-desire",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 390
+      },
+      "data": {
+        "label": "Express Desire",
+        "actionType": "send_message",
+        "message": "*Sasha presses her body against your expanded form* Mmm, you have no idea what this does to me... *Her breathing quickens* Feeling you so round and full against me. The air still hissing through the tube. *She pulls you closer* I want you bigger. I want to feel you completely stuffed. Tell me you want it too."
+      }
+    },
+    {
+      "id": "sasha-trigger-feeling",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "Feeling Words",
+        "triggerType": "player_speaks",
+        "keyword": "feels"
+      }
+    },
+    {
+      "id": "sasha-action-feeling-response",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "data": {
+        "label": "Feeling Response",
+        "actionType": "send_message",
+        "message": "*Sasha's eyes darken with desire* Tell me more... *She traces the outline of your belly* I want to know every sensation. The pressure building inside you. The tightness of your skin. How the air feels filling you up. *She whispers* Let me feel what you're feeling..."
+      }
+    },
+    {
+      "id": "sasha-trigger-more",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 600
+      },
+      "data": {
+        "label": "Want More",
+        "triggerType": "player_speaks",
+        "keyword": "more"
+      }
+    },
+    {
+      "id": "sasha-branch-more",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 600
+      },
+      "data": {
+        "label": "More Response",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "m1",
+            "label": "Eager",
+            "weight": 50
+          },
+          {
+            "id": "m2",
+            "label": "Teasing",
+            "weight": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "sasha-action-eager",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 570
+      },
+      "data": {
+        "label": "Eager Response",
+        "actionType": "send_message",
+        "message": "*A delighted gasp escapes her* God yes... *She reaches for the controls with trembling hands* More for you, baby. As much as you can take. *The pump intensifies slightly* I love how greedy you are for this. Your belly is going to swell even bigger... rounder... tighter... *She moans softly* Perfect."
+      }
+    },
+    {
+      "id": "sasha-action-tease-more",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 650
+      },
+      "data": {
+        "label": "Teasing More",
+        "actionType": "send_message",
+        "message": "*She grins wickedly* More? *Her finger hovers over the control* Beg me for it first. I want to hear how badly you need to be filled. *She traces your stretched skin* Tell me you need my air inside you. That you want to grow even bigger for me. Then maybe... just maybe... I'll give you what you're craving."
+      }
+    },
+    {
+      "id": "sasha-condition-high",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 750
+      },
+      "data": {
+        "label": "Over 75%?",
+        "variable": "capacity",
+        "operator": ">",
+        "value": "75"
+      }
+    },
+    {
+      "id": "sasha-action-peak",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 720
+      },
+      "data": {
+        "label": "Peak Arousal",
+        "actionType": "send_message",
+        "message": "*Sasha's breath comes heavy, her hands mapping every inch of your taut belly* Baby... you're incredible... *She can barely contain herself* So full. So round. So perfect. The air is still pushing into you and I never want it to stop. *She presses close* You're everything I imagined and more. Let me worship this beautiful, swollen body."
+      }
+    },
+    {
+      "id": "sasha-action-continue",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 800
+      },
+      "data": {
+        "label": "Continue Building",
+        "actionType": "send_message",
+        "message": "*She nuzzles against your growing form* Not quite there yet, but we have all night... *Her hands explore your expanding belly* The pump will keep working. Keep filling you. I'm going to make you so wonderfully, deliciously full. Just relax and let me take you higher."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sasha-trigger-start",
+      "target": "sasha-action-scene"
+    },
+    {
+      "id": "e2",
+      "source": "sasha-action-scene",
+      "target": "sasha-delay-buildup"
+    },
+    {
+      "id": "e3",
+      "source": "sasha-delay-buildup",
+      "target": "sasha-action-tease"
+    },
+    {
+      "id": "e4",
+      "source": "sasha-action-tease",
+      "target": "sasha-action-start"
+    },
+    {
+      "id": "e6",
+      "source": "sasha-branch-sensual",
+      "target": "sasha-action-touch",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e7",
+      "source": "sasha-branch-sensual",
+      "target": "sasha-action-watch",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e8",
+      "source": "sasha-branch-sensual",
+      "target": "sasha-action-tease-mid",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e9",
+      "source": "sasha-branch-sensual",
+      "target": "sasha-action-desire",
+      "sourceHandle": "branch-3"
+    },
+    {
+      "id": "e10",
+      "source": "sasha-trigger-feeling",
+      "target": "sasha-action-feeling-response"
+    },
+    {
+      "id": "e11",
+      "source": "sasha-trigger-more",
+      "target": "sasha-branch-more"
+    },
+    {
+      "id": "e12",
+      "source": "sasha-branch-more",
+      "target": "sasha-action-eager",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e13",
+      "source": "sasha-branch-more",
+      "target": "sasha-action-tease-more",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e15",
+      "source": "sasha-condition-high",
+      "target": "sasha-action-peak",
+      "sourceHandle": "true"
+    },
+    {
+      "id": "e16",
+      "source": "sasha-condition-high",
+      "target": "sasha-action-continue",
+      "sourceHandle": "false"
+    }
+  ],
+  "isActive": false,
+  "createdAt": 1704067200000,
+  "updatedAt": 1704067200000,
+  "category": "character"
+}

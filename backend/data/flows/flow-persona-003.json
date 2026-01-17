@@ -1,0 +1,114 @@
+{
+  "id": "flow-persona-003",
+  "name": "Personal Limits Explorer",
+  "description": "Reactions when approaching boundaries",
+  "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+  "nodes": [
+    {
+      "id": "persona3-trigger-player-stop",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Player Says Stop",
+        "triggerType": "player_speaks",
+        "keyword": "stop"
+      }
+    },
+    {
+      "id": "persona3-condition-check-cap",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Check if High Capacity",
+        "variable": "capacity",
+        "operator": ">",
+        "value": "60"
+      }
+    },
+    {
+      "id": "persona3-action-high-stop",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "data": {
+        "label": "Reached Limit",
+        "actionType": "system_message",
+        "message": "[You've found your edge. That took courage to push this far. You feel proud of what you've accomplished]"
+      }
+    },
+    {
+      "id": "persona3-action-low-stop",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "Early Stop",
+        "actionType": "system_message",
+        "message": "[You recognize your boundary. There's wisdom in knowing when enough is enough, even if it's early]"
+      }
+    },
+    {
+      "id": "persona3-trigger-player-more",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "data": {
+        "label": "Player Wants More",
+        "triggerType": "player_speaks",
+        "keyword": "more"
+      }
+    },
+    {
+      "id": "persona3-action-adventurous",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 300
+      },
+      "data": {
+        "label": "Pushing Forward",
+        "actionType": "system_message",
+        "message": "[Your adventurous spirit pushes you forward. You're curious just how much you can take...]"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "persona3-trigger-player-stop",
+      "target": "persona3-condition-check-cap"
+    },
+    {
+      "id": "e2",
+      "source": "persona3-condition-check-cap",
+      "target": "persona3-action-high-stop",
+      "label": "true"
+    },
+    {
+      "id": "e3",
+      "source": "persona3-condition-check-cap",
+      "target": "persona3-action-low-stop",
+      "label": "false"
+    },
+    {
+      "id": "e4",
+      "source": "persona3-trigger-player-more",
+      "target": "persona3-action-adventurous"
+    }
+  ],
+  "createdAt": 1767479584871,
+  "updatedAt": 1767479584871,
+  "isActive": false
+}

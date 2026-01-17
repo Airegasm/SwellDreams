@@ -1,0 +1,106 @@
+{
+  "id": "flow-persona-001",
+  "name": "Body Awareness Journey",
+  "description": "Persona's internal reactions to physical changes",
+  "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+  "nodes": [
+    {
+      "id": "persona1-trigger-low",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Low Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 20
+      }
+    },
+    {
+      "id": "persona1-action-low",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "data": {
+        "label": "Early Sensation",
+        "actionType": "system_message",
+        "message": "[You become acutely aware of the air building inside you, a strange but not unpleasant fullness beginning to form]"
+      }
+    },
+    {
+      "id": "persona1-trigger-mid",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Medium Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 50
+      }
+    },
+    {
+      "id": "persona1-action-mid",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Growing Pressure",
+        "actionType": "system_message",
+        "message": "[Your belly has grown noticeably, the pressure becoming a constant companion. You can feel your skin stretching, adapting]"
+      }
+    },
+    {
+      "id": "persona1-trigger-high",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "data": {
+        "label": "High Capacity",
+        "triggerType": "capacity_change",
+        "threshold": 80
+      }
+    },
+    {
+      "id": "persona1-action-high",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 300
+      },
+      "data": {
+        "label": "Intense Fullness",
+        "actionType": "system_message",
+        "message": "[You're incredibly full now, every movement reminding you of how round and tight you've become. The sensation borders on overwhelming]"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "persona1-trigger-low",
+      "target": "persona1-action-low"
+    },
+    {
+      "id": "e2",
+      "source": "persona1-trigger-mid",
+      "target": "persona1-action-mid"
+    },
+    {
+      "id": "e3",
+      "source": "persona1-trigger-high",
+      "target": "persona1-action-high"
+    }
+  ],
+  "createdAt": 1767479584822,
+  "updatedAt": 1767479584822,
+  "isActive": false
+}

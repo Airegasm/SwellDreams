@@ -7,13 +7,15 @@ const { spawn } = require('child_process');
 const path = require('path');
 const goveeService = require('./govee-service');
 const tuyaService = require('./tuya-service');
+const kasaService = require('./kasa-service');
+const wyzeService = require('./wyze-service');
 const { safeJsonParse } = require('../utils/errors');
 const { createLogger } = require('../utils/logger');
 
 const log = createLogger('DeviceService');
 const PYTHON_DIR = path.join(__dirname, '..', 'python');
 
-// Track active Python processes for cleanup
+// Track active Python processes for cleanup (still needed for network_scan.py)
 const activeProcesses = new Set();
 
 /**
@@ -199,24 +201,48 @@ class DeviceService {
   }
 
   /**
-   * Scan network for Kasa devices
+   * Scan network for Kasa devices (native Node.js implementation)
    */
   async scanNetwork(timeout = 10) {
     try {
-      const result = await executePython('network_scan.py', [timeout.toString()]);
-      return result.devices || [];
+      const ips = await kasaService.discover(timeout);
+      // Get device info for each discovered IP
+      const devices = await Promise.all(
+        ips.map(async (ip) => {
+          try {
+            const device = new kasaService.KasaDevice(ip);
+            const info = await device.getInfo();
+            if (info.system?.get_sysinfo) {
+              const sysinfo = info.system.get_sysinfo;
+              return {
+                ip,
+                alias: sysinfo.alias || ip,
+                model: sysinfo.model || 'Unknown',
+                type: sysinfo.type || sysinfo.mic_type || 'Unknown',
+                is_strip: !!sysinfo.children,
+                child_num: sysinfo.child_num || 0
+              };
+            }
+            return { ip, alias: ip, model: 'Unknown' };
+          } catch (e) {
+            return { ip, alias: ip, model: 'Unknown', error: e.message };
+          }
+        })
+      );
+      return devices;
     } catch (error) {
-      console.error('[DeviceService] Scan error:', error);
+      log.error('Scan error:', error.message);
       return [];
     }
   }
 
   /**
-   * Get device info
+   * Get device info (native Node.js implementation)
    */
   async getDeviceInfo(ip) {
     try {
-      return await executePython('kasa_api.py', ['info', ip]);
+      const device = new kasaService.KasaDevice(ip);
+      return await device.getInfo();
     } catch (error) {
       return { error: error.message };
     }
@@ -229,7 +255,8 @@ class DeviceService {
    */
   async getChildren(ip) {
     try {
-      return await executePython('kasa_api.py', ['children', ip]);
+      const device = new kasaService.KasaDevice(ip);
+      return await device.getChildren();
     } catch (error) {
       return { error: error.message, is_strip: false, children: [] };
     }
@@ -290,12 +317,25 @@ class DeviceService {
         return result;
       }
 
-      // Default: TPLink (with optional childId for power strips)
-      const args = ['state', device?.ip || ipOrDeviceId];
-      if (device?.childId) {
-        args.push(device.childId);
+      if (device?.brand === 'wyze') {
+        const state = await wyzeService.getPowerState(device.deviceId);
+        const result = {
+          state,
+          relay_state: state === 'on' ? 1 : 0
+        };
+        this.deviceStates.set(device.deviceId, {
+          state: result.state,
+          relayState: result.relay_state,
+          lastUpdate: Date.now()
+        });
+        return result;
       }
-      const result = await executePython('kasa_api.py', args);
+
+      // Default: TPLink (native Node.js implementation)
+      const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
+        childId: device?.childId
+      });
+      const result = await kasaDevice.getState();
       if (!result.error) {
         this.deviceStates.set(stateKey, {
           state: result.state,
@@ -321,6 +361,9 @@ class DeviceService {
     }
 
     const stateKey = this._getDeviceKey(ipOrDeviceId, device);
+
+    // Debug logging
+    console.log(`[DeviceService] turnOn called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}`);
 
     try {
       // Route by brand
@@ -348,12 +391,24 @@ class DeviceService {
         return { success: true, state: 'on' };
       }
 
-      // Default: TPLink (with optional childId for power strips)
-      const args = ['on', device?.ip || ipOrDeviceId];
-      if (device?.childId) {
-        args.push(device.childId);
+      if (device?.brand === 'wyze') {
+        await wyzeService.turnOn(device.deviceId, device.model);
+        this.deviceStates.set(device.deviceId, {
+          state: 'on',
+          relayState: 1,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.startPumpRuntimeTracking(device.deviceId, device);
+        return { success: true, state: 'on' };
       }
-      const result = await executePython('kasa_api.py', args);
+
+      // Default: TPLink (native Node.js implementation)
+      console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
+      const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
+        childId: device?.childId
+      });
+      const result = await kasaDevice.turnOn();
       if (!result.error) {
         this.deviceStates.set(stateKey, {
           state: 'on',
@@ -363,7 +418,7 @@ class DeviceService {
         this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
         this.startPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
-      return result;
+      return { success: !result.error, state: 'on', result };
     } catch (error) {
       return { error: error.message };
     }
@@ -381,6 +436,9 @@ class DeviceService {
     }
 
     const stateKey = this._getDeviceKey(ipOrDeviceId, device);
+
+    // Debug logging
+    console.log(`[DeviceService] turnOff called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}`);
 
     try {
       // Route by brand
@@ -408,12 +466,24 @@ class DeviceService {
         return { success: true, state: 'off' };
       }
 
-      // Default: TPLink (with optional childId for power strips)
-      const args = ['off', device?.ip || ipOrDeviceId];
-      if (device?.childId) {
-        args.push(device.childId);
+      if (device?.brand === 'wyze') {
+        await wyzeService.turnOff(device.deviceId, device.model);
+        this.deviceStates.set(device.deviceId, {
+          state: 'off',
+          relayState: 0,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_off', { ip: device.deviceId, device });
+        this.stopPumpRuntimeTracking(device.deviceId, device);
+        return { success: true, state: 'off' };
       }
-      const result = await executePython('kasa_api.py', args);
+
+      // Default: TPLink (native Node.js implementation)
+      console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
+      const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
+        childId: device?.childId
+      });
+      const result = await kasaDevice.turnOff();
       if (!result.error) {
         this.deviceStates.set(stateKey, {
           state: 'off',
@@ -423,18 +493,31 @@ class DeviceService {
         this.emitEvent('device_off', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
         this.stopPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
-      return result;
+      return { success: !result.error, state: 'off', result };
     } catch (error) {
       return { error: error.message };
     }
   }
 
   /**
-   * Toggle device state
+   * Toggle device state (native Node.js implementation)
    */
-  async toggle(ip) {
+  async toggle(ip, device = null) {
     try {
-      return await executePython('kasa_api.py', ['toggle', ip]);
+      const kasaDevice = new kasaService.KasaDevice(device?.ip || ip, {
+        childId: device?.childId
+      });
+      const current = await kasaDevice.getState();
+      if (current.error) {
+        return current;
+      }
+      if (current.relay_state === 1) {
+        await kasaDevice.turnOff();
+        return { success: true, state: 'off' };
+      } else {
+        await kasaDevice.turnOn();
+        return { success: true, state: 'on' };
+      }
     } catch (error) {
       return { error: error.message };
     }

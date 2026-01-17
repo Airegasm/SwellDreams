@@ -26,6 +26,7 @@ import DelayNode from '../components/flow/nodes/DelayNode';
 import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
 import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
+import InputNode from '../components/flow/nodes/InputNode';
 // Challenge nodes
 import {
   PrizeWheelNodeMemo as PrizeWheelNode,
@@ -53,6 +54,7 @@ const nodeTypes = {
   simple_ab: SimpleABNode,
   capacity_ai_message: CapacityMessageNode,
   capacity_player_message: CapacityMessageNode,
+  input: InputNode,
   // Challenge nodes
   prize_wheel: PrizeWheelNode,
   dice_roll: DiceRollNode,
@@ -101,6 +103,7 @@ const NODE_TEMPLATES = {
     device_off: { label: 'Turn Device Off', actionType: 'device_off', device: '' },
     start_cycle: { label: 'Start Cycle', actionType: 'start_cycle', device: '', duration: 5, interval: 10, cycles: 0, untilType: 'forever', untilValue: null },
     stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '' },
+    pulse_pump: { label: 'Pulse Pump', actionType: 'pulse_pump', device: '', pulses: 3 },
     declare_variable: { label: 'Declare Variable', actionType: 'declare_variable', name: '', value: '' },
     set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '' },
     toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '' },
@@ -140,6 +143,18 @@ const NODE_TEMPLATES = {
       descriptionA: '',
       labelB: 'Option B',
       descriptionB: ''
+    }
+  },
+  input: {
+    default: {
+      label: 'User Input',
+      inputType: 'text',
+      prompt: '',
+      placeholder: '',
+      variableName: 'Input',
+      minValue: null,
+      maxValue: null,
+      required: true
     }
   },
   // Capacity message nodes
@@ -330,13 +345,14 @@ function FlowEditor() {
   const characterReminders = activeCharacter?.constantReminders || [];
   const characterButtons = activeCharacter?.buttons || [];
 
-  // Extract all declared flow variable names from Declare Variable actions across all flows
+  // Extract all declared flow variable names from Declare Variable actions
+  // In per-flow mode, flows array only contains index data, so we also check current nodes
   const flowVariables = useMemo(() => {
     const variableNames = new Set();
+    // Check flows array (works in legacy mode, may be empty in per-flow mode)
     (flows || []).forEach(flow => {
       (flow.nodes || []).forEach(node => {
         if (node.type === 'action' && node.data?.actionType === 'declare_variable' && node.data?.name) {
-          // Variable names are stored without the [Flow:] wrapper
           variableNames.add(node.data.name);
         }
       });
@@ -907,13 +923,24 @@ function FlowEditor() {
     }
   };
 
-  const handleLoadFlow = useCallback((flow) => {
+  const handleLoadFlow = useCallback(async (flowOrIndex) => {
     // Reset draft state when loading a new flow
     draftInitialized.current = false;
     setHasDraft(false);
 
     // Clear undo/redo history when loading a new flow
     clearHistory();
+
+    // Fetch full flow data if we only have index metadata (no nodes/edges)
+    let flow = flowOrIndex;
+    if (!flow.nodes && !flow.edges) {
+      try {
+        flow = await api.getFlow(flowOrIndex.id);
+      } catch (err) {
+        console.error('[FlowEditor] Failed to load flow:', err);
+        return;
+      }
+    }
 
     setSelectedFlow(flow);
     setFlowName(flow.name);
@@ -955,7 +982,7 @@ function FlowEditor() {
     setNodes(nodesWithHandlers);
     setEdges(flow.edges || []);
     setShowLoadModal(false);
-  }, [devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
+  }, [api, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
 
   const handleNewFlow = () => {
     // Reset draft state
@@ -1343,6 +1370,13 @@ function FlowEditor() {
               onDragStart={(e) => onDragStart(e, 'simple_ab', 'default')}
             >
               Simple A/B
+            </div>
+            <div
+              className="palette-node input"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'input', 'default')}
+            >
+              User Input
             </div>
             <div
               className="palette-node delay"

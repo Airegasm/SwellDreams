@@ -1,0 +1,106 @@
+{
+  "id": "flow-persona-002",
+  "name": "Emotional Journey",
+  "description": "Tracks emotional state changes during inflation",
+  "personaId": "e5372926-5b37-49e9-8bdb-a0e6d29b2b56",
+  "nodes": [
+    {
+      "id": "persona2-trigger-nervous",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Feeling Nervous",
+        "triggerType": "emotion_change",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "persona2-action-nervous",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "data": {
+        "label": "Acknowledge Anxiety",
+        "actionType": "system_message",
+        "message": "[Your heart races slightly. This is intense, maybe more than you expected. But you're curious to see where this goes...]"
+      }
+    },
+    {
+      "id": "persona2-trigger-excited",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "Feeling Excited",
+        "triggerType": "emotion_change",
+        "emotion": "aroused"
+      }
+    },
+    {
+      "id": "persona2-action-excited",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Embrace Excitement",
+        "actionType": "system_message",
+        "message": "[A thrill runs through you. This is what you came for - the unique sensation, the surrender to the experience]"
+      }
+    },
+    {
+      "id": "persona2-trigger-overwhelmed",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 300
+      },
+      "data": {
+        "label": "Feeling Overwhelmed",
+        "triggerType": "emotion_change",
+        "emotion": "exhausted"
+      }
+    },
+    {
+      "id": "persona2-action-overwhelmed",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 300
+      },
+      "data": {
+        "label": "Process Intensity",
+        "actionType": "system_message",
+        "message": "[It's a lot. So much sensation, so much fullness. You take a deep breath, grounding yourself in the moment]"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "persona2-trigger-nervous",
+      "target": "persona2-action-nervous"
+    },
+    {
+      "id": "e2",
+      "source": "persona2-trigger-excited",
+      "target": "persona2-action-excited"
+    },
+    {
+      "id": "e3",
+      "source": "persona2-trigger-overwhelmed",
+      "target": "persona2-action-overwhelmed"
+    }
+  ],
+  "createdAt": 1767479584845,
+  "updatedAt": 1767479584845,
+  "isActive": false
+}

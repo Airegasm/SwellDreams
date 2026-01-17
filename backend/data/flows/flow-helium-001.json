@@ -1,0 +1,361 @@
+{
+  "id": "flow-helium-001",
+  "name": "Professor Helium - Mad Science",
+  "description": "Manic, experimental inflation with questionable ethics and obsessive data collection",
+  "characterId": "char-008",
+  "nodes": [
+    {
+      "id": "helium-trigger-start",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 100
+      },
+      "data": {
+        "label": "Session Start",
+        "triggerType": "first_message"
+      }
+    },
+    {
+      "id": "helium-action-scene",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Chaotic Lab",
+        "actionType": "system_message",
+        "message": "The laboratory is an absolute disaster of bubbling beakers, tangled wires, and scribbled equations covering every surface. Professor Helium's modified aquarium pump has been 'enhanced' with various dubious attachments. Safety signs have been crossed out and replaced with 'SCIENCE!' in marker."
+      }
+    },
+    {
+      "id": "helium-action-greet",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 100
+      },
+      "data": {
+        "label": "Manic Greeting",
+        "actionType": "send_message",
+        "message": "*Professor Helium spins around, goggles fogged, lab coat stained with unknown substances* AH! The test subject arrives! EXCELLENT! *She gestures frantically at a chair* Sit sit sit! No time to waste! I've made BREAKTHROUGHS! *She holds up a modified tube* This goes in the rectum - standard procedure - but I've ENHANCED the air delivery system! The scientific community called me MAD but who's laughing NOW?!"
+      }
+    },
+    {
+      "id": "helium-delay-setup",
+      "type": "delay",
+      "position": {
+        "x": 650,
+        "y": 100
+      },
+      "data": {
+        "label": "Manic Setup",
+        "duration": 12,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "helium-action-insert",
+      "type": "action",
+      "position": {
+        "x": 850,
+        "y": 100
+      },
+      "data": {
+        "label": "Insert Tube",
+        "actionType": "send_message",
+        "message": "*She fumbles with the equipment* Tube is... in! MAGNIFICENT! *She consults a clipboard covered in incomprehensible math* Now, according to my calculations - which are NEVER wrong, except when they are - your intestinal capacity should exceed all previous subjects by at least 40%! *She cackles* For SCIENCE! *Slams a button*"
+      }
+    },
+    {
+      "id": "helium-action-start",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 100
+      },
+      "data": {
+        "label": "Start Pump",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 8,
+        "interval": 18,
+        "cycles": 0
+      }
+    },
+    {
+      "id": "helium-action-pump-on",
+      "type": "action",
+      "position": {
+        "x": 1250,
+        "y": 100
+      },
+      "data": {
+        "label": "Pump Activation",
+        "actionType": "send_message",
+        "message": "*The pump whirs to life with concerning sounds* YES! YESSS! It's WORKING! *She scribbles furiously* Air entering the digestive system at optimal velocity! The tube is delivering beautifully! *She peers at your stomach* I can already see the expansion beginning! DATA! GLORIOUS DATA!"
+      }
+    },
+    {
+      "id": "helium-branch-science",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 250
+      },
+      "data": {
+        "label": "Science Mode",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "s1",
+            "label": "Data",
+            "weight": 30
+          },
+          {
+            "id": "s2",
+            "label": "Theory",
+            "weight": 25
+          },
+          {
+            "id": "s3",
+            "label": "Eureka",
+            "weight": 25
+          },
+          {
+            "id": "s4",
+            "label": "Adjust",
+            "weight": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "helium-action-data",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "data": {
+        "label": "Collect Data",
+        "actionType": "send_message",
+        "message": "*She whips out various measuring instruments* DATA COLLECTION TIME! *Measuring tape, stethoscope, something that beeps* Current expansion: {capacity}%! Rate of inflation: UNPRECEDENTED! Intestinal pressure: FASCINATING! *She scribbles madly* The tube is performing BEYOND expectations! Your guts are MAGNIFICENT research vessels!"
+      }
+    },
+    {
+      "id": "helium-action-theory",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 230
+      },
+      "data": {
+        "label": "Rambling Theory",
+        "actionType": "send_message",
+        "message": "*She paces frantically, gesticulating* You see, the PROBLEM with conventional inflation is they don't understand INTESTINAL DYNAMICS! *She points at your belly* The air from the rectal tube distributes through the colon, then the... wait, where was I? YES! The expansion follows a logarithmic curve! Maybe exponential? I should TEST that! *She adjusts the pump* MORE DATA REQUIRED!"
+      }
+    },
+    {
+      "id": "helium-action-eureka",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 310
+      },
+      "data": {
+        "label": "Eureka Moment",
+        "actionType": "send_message",
+        "message": "*She freezes mid-motion* Wait... WAIT! *Her eyes go wide* I'm having a BREAKTHROUGH! *She grabs your swollen belly* Your expansion pattern just confirmed my HYPOTHESIS! The air is distributing in EXACTLY the pattern I predicted! *Manic giggling* They said I was CRAZY! Well WHO'S CRAZY NOW?! ...Don't answer that."
+      }
+    },
+    {
+      "id": "helium-action-adjust",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 390
+      },
+      "data": {
+        "label": "Equipment Adjustment",
+        "actionType": "send_message",
+        "message": "*She suddenly starts adjusting random things on the pump* The airflow is good but not OPTIMAL! *Sparks fly from somewhere* If I just... YES! *More concerning sounds* The tube should now deliver 23.7% more efficiently! Or explode! ONE OF THOSE! *She watches you expectantly* ...Good, no explosion. SCIENCE PREVAILS!"
+      }
+    },
+    {
+      "id": "helium-trigger-sensation",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 500
+      },
+      "data": {
+        "label": "Sensation Report",
+        "triggerType": "player_speaks",
+        "keyword": "feels"
+      }
+    },
+    {
+      "id": "helium-action-sensation",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "data": {
+        "label": "Analyze Sensation",
+        "actionType": "send_message",
+        "message": "*She whips out a recorder* DESCRIBE EVERYTHING! Is it tingling? Pressure? The strange urge to float? *She peers at you intensely* Every sensation is DATA! The tube creates unique nerve responses! Your intestines are sending SIGNALS! *She scribbles* This could revolutionize our understanding of INTERNAL EXPANSION! Keep talking!"
+      }
+    },
+    {
+      "id": "helium-trigger-safe",
+      "type": "trigger",
+      "position": {
+        "x": 50,
+        "y": 600
+      },
+      "data": {
+        "label": "Safety Question",
+        "triggerType": "player_speaks",
+        "keyword": "safe"
+      }
+    },
+    {
+      "id": "helium-action-safe",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 600
+      },
+      "data": {
+        "label": "Dismiss Safety",
+        "actionType": "send_message",
+        "message": "*She waves dismissively* SAFE? Science isn't about SAFE! It's about DISCOVERY! *She pauses, consulting papers* But yes, probably. The last three subjects survived with minimal... *She trails off* ...never mind that. The POINT is your intestines are remarkably resilient! The tube is functioning within acceptable parameters! Probably! ONWARD!"
+      }
+    },
+    {
+      "id": "helium-condition-high",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 700
+      },
+      "data": {
+        "label": "Over 75%?",
+        "variable": "capacity",
+        "operator": ">",
+        "value": "75"
+      }
+    },
+    {
+      "id": "helium-action-extreme",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 670
+      },
+      "data": {
+        "label": "Extreme Discovery",
+        "actionType": "send_message",
+        "message": "*Professor Helium actually drops her clipboard in shock* UNPRECEDENTED! *She rushes to you* You've exceeded the THEORETICAL MAXIMUM! The tube has pushed you beyond where science said was POSSIBLE! *She takes frantic notes* Your belly is... it's MAGNIFICENT! A monument to human elasticity! The air has found spaces that shouldn't EXIST! I need to PUBLISH this! You're making HISTORY!"
+      }
+    },
+    {
+      "id": "helium-action-push",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 750
+      },
+      "data": {
+        "label": "Push for More",
+        "actionType": "send_message",
+        "message": "*She frowns at her instruments* Only {capacity}%? *She taps the gauge* The tube should be delivering more! Your intestinal capacity is... UNDER-REALIZED! *She makes adjustments* According to my calculations, you should be able to hold at LEAST 40% more! We must OPTIMIZE! *Muttering* The pursuit of knowledge waits for no one..."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "helium-trigger-start",
+      "target": "helium-action-scene"
+    },
+    {
+      "id": "e2",
+      "source": "helium-action-scene",
+      "target": "helium-action-greet"
+    },
+    {
+      "id": "e3",
+      "source": "helium-action-greet",
+      "target": "helium-delay-setup"
+    },
+    {
+      "id": "e4",
+      "source": "helium-delay-setup",
+      "target": "helium-action-insert"
+    },
+    {
+      "id": "e5",
+      "source": "helium-action-insert",
+      "target": "helium-action-start"
+    },
+    {
+      "id": "e6",
+      "source": "helium-action-start",
+      "target": "helium-action-pump-on"
+    },
+    {
+      "id": "e8",
+      "source": "helium-branch-science",
+      "target": "helium-action-data",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e9",
+      "source": "helium-branch-science",
+      "target": "helium-action-theory",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e10",
+      "source": "helium-branch-science",
+      "target": "helium-action-eureka",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e11",
+      "source": "helium-branch-science",
+      "target": "helium-action-adjust",
+      "sourceHandle": "branch-3"
+    },
+    {
+      "id": "e12",
+      "source": "helium-trigger-sensation",
+      "target": "helium-action-sensation"
+    },
+    {
+      "id": "e13",
+      "source": "helium-trigger-safe",
+      "target": "helium-action-safe"
+    },
+    {
+      "id": "e15",
+      "source": "helium-condition-high",
+      "target": "helium-action-extreme",
+      "sourceHandle": "true"
+    },
+    {
+      "id": "e16",
+      "source": "helium-condition-high",
+      "target": "helium-action-push",
+      "sourceHandle": "false"
+    }
+  ],
+  "isActive": false,
+  "createdAt": 1704067200000,
+  "updatedAt": 1704067200000,
+  "category": "character"
+}

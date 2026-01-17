@@ -366,6 +366,28 @@
   border-color: #6b7280;
 }
 
+/* Input Node */
+.input-node {
+  border-color: #8b5cf6;
+}
+
+.input-node .node-header {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.input-node .react-flow__handle {
+  border-color: #8b5cf6;
+}
+
+.input-node .config-hint {
+  font-size: 0.7rem;
+  color: #a78bfa;
+  margin-top: -4px;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
 /* Player Choice Node */
 .player-choice-node {
   border-color: #10b981;

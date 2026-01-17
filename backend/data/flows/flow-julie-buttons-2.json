@@ -1,0 +1,1932 @@
+{
+  "id": "flow-julie-buttons-2",
+  "name": "Julie - Pressing More Buttons",
+  "description": "Advanced button-triggered flow with Simon, Reflex, and complex branching challenges",
+  "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
+  "category": "character",
+  "nodes": [
+    {
+      "id": "julie-btn13-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 800
+      },
+      "data": {
+        "label": "Memory Master",
+        "buttonId": "13",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn13-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 800
+      },
+      "data": {
+        "label": "Challenge Intro",
+        "actionType": "send_message",
+        "message": "*systematically presses across [Player]'s abdomen* Let me check... *digs both thumbs in below the navel* Perfect! Let's play Simon Says!"
+      }
+    },
+    {
+      "id": "julie-btn13-simon",
+      "type": "simon_challenge",
+      "position": {
+        "x": 750,
+        "y": 800
+      },
+      "data": {
+        "label": "Simon Says",
+        "startingLength": 3,
+        "maxLength": 8,
+        "maxMisses": 3,
+        "perMissPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "perMissPenaltyDuration": 5,
+        "grandPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "grandPenaltyDuration": 30,
+        "rewardDevice": "700ce5ae-a19b-48ca-9b99-d6d61bf041bb",
+        "rewardDuration": 10,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Introduce Simon Says with scientific enthusiasm, explaining that memory challenges become harder when the body is distracted. Each mistake has consequences."
+      }
+    },
+    {
+      "id": "julie-btn13-win",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 700
+      },
+      "data": {
+        "label": "Win Message",
+        "actionType": "send_message",
+        "message": "Impressive! Your memory is sharp today. You've earned a little reward..."
+      }
+    },
+    {
+      "id": "julie-btn13-lose",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 900
+      },
+      "data": {
+        "label": "Lose Message",
+        "actionType": "send_message",
+        "message": "Oh dear, your memory failed you! Time to face the consequences..."
+      }
+    },
+    {
+      "id": "julie-btn14-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 1600
+      },
+      "data": {
+        "label": "Quick Reflexes",
+        "buttonId": "14",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn14-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 1600
+      },
+      "data": {
+        "label": "Reflex Intro",
+        "actionType": "send_message",
+        "message": "*examines [Player]'s belly with clinical precision* Testing... *compresses hard* Excellent! Let's play a Reflex Challenge!"
+      }
+    },
+    {
+      "id": "julie-btn14-reflex",
+      "type": "reflex_challenge",
+      "position": {
+        "x": 750,
+        "y": 1600
+      },
+      "data": {
+        "label": "Target Practice",
+        "timePerTarget": 3,
+        "rounds": 5,
+        "targetSize": "medium",
+        "perMissPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "perMissPenaltyDuration": 3,
+        "grandPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "grandPenaltyDuration": 20,
+        "rewardDevice": "700ce5ae-a19b-48ca-9b99-d6d61bf041bb",
+        "rewardDuration": 10,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Set up the reflex challenge, explaining that [Player] must click targets as they appear. Missed targets mean penalties - and you've calibrated it to be quite demanding."
+      }
+    },
+    {
+      "id": "julie-btn14-win",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 1500
+      },
+      "data": {
+        "label": "Win Message",
+        "actionType": "send_message",
+        "message": "Lightning fast! Your reflexes are on point today!"
+      }
+    },
+    {
+      "id": "julie-btn14-lose",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 1700
+      },
+      "data": {
+        "label": "Lose Message",
+        "actionType": "send_message",
+        "message": "Too slow! Maybe some inflation will speed up those reflexes..."
+      }
+    },
+    {
+      "id": "julie-btn15-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 2400
+      },
+      "data": {
+        "label": "Fate's Choice",
+        "buttonId": "15",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn15-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 2400
+      },
+      "data": {
+        "label": "Choice Intro",
+        "actionType": "send_message",
+        "message": "I'm feeling generous. You get to choose your fate today... choose wisely!"
+      }
+    },
+    {
+      "id": "julie-btn15-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 750,
+        "y": 2400
+      },
+      "data": {
+        "label": "Pick Your Fate",
+        "aiMessageIntroEnabled": true,
+        "aiMessageIntro": "*grins mischievously* Which path will you take, [Player]? Your options are:\n\n[Choices]\n\nChoose wisely... or don't. I win either way~",
+        "sendMessageFirst": false,
+        "prompt": "",
+        "description": "Choose your intensity level:",
+        "choices": [
+          {
+            "id": "gentle",
+            "label": "Gentle Breeze",
+            "description": "A soft, comfortable experience",
+            "playerResponse": "*exhales* [Choice] sounds nice... I'll take it easy today."
+          },
+          {
+            "id": "moderate",
+            "label": "Rising Tide",
+            "description": "Steady and building pressure",
+            "playerResponse": "*steels myself* [Choice]. Build me up nice and slow."
+          },
+          {
+            "id": "intense",
+            "label": "Storm Surge",
+            "description": "Maximum intensity, no mercy",
+            "playerResponse": "*takes a deep breath* Give me [Choice]. I want to feel it."
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-btn15-gentle",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 2250
+      },
+      "data": {
+        "label": "Gentle Path",
+        "actionType": "send_message",
+        "message": "A gentle choice... enjoy this light inflation!"
+      }
+    },
+    {
+      "id": "julie-btn15-moderate",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 2400
+      },
+      "data": {
+        "label": "Moderate Path",
+        "actionType": "send_message",
+        "message": "Moderate intensity it is! Feel the pressure build..."
+      }
+    },
+    {
+      "id": "julie-btn15-intense",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 2550
+      },
+      "data": {
+        "label": "Intense Path",
+        "actionType": "send_message",
+        "message": "You chose the storm! Brace yourself for maximum inflation!"
+      }
+    },
+    {
+      "id": "julie-btn15-intense-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 2550
+      },
+      "data": {
+        "label": "Storm Cycle",
+        "actionType": "start_cycle",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 6,
+        "interval": 3,
+        "cycles": 3
+      }
+    },
+    {
+      "id": "julie-btn16-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 3200
+      },
+      "data": {
+        "label": "Random Rush",
+        "buttonId": "16",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn16-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 3200
+      },
+      "data": {
+        "label": "Random Intro",
+        "actionType": "send_message",
+        "message": "Let fate decide! Five possibilities, random selection..."
+      }
+    },
+    {
+      "id": "julie-btn16-branch",
+      "type": "branch",
+      "position": {
+        "x": 750,
+        "y": 3200
+      },
+      "data": {
+        "label": "Five Fates",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "branch-0",
+            "label": "Feather Touch",
+            "weight": 30
+          },
+          {
+            "id": "branch-1",
+            "label": "Soft Swell",
+            "weight": 25
+          },
+          {
+            "id": "branch-2",
+            "label": "Steady Build",
+            "weight": 20
+          },
+          {
+            "id": "branch-3",
+            "label": "Rapid Fill",
+            "weight": 15
+          },
+          {
+            "id": "branch-4",
+            "label": "Burst Mode",
+            "weight": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-btn16-path0",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 3000
+      },
+      "data": {
+        "label": "Feather Touch",
+        "actionType": "send_message",
+        "message": "The gentlest option! Just a whisper of air..."
+      }
+    },
+    {
+      "id": "julie-btn16-path1",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 3100
+      },
+      "data": {
+        "label": "Soft Swell",
+        "actionType": "send_message",
+        "message": "A soft, comfortable swell begins..."
+      }
+    },
+    {
+      "id": "julie-btn16-path2",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 3200
+      },
+      "data": {
+        "label": "Steady Build",
+        "actionType": "send_message",
+        "message": "Steady pressure building gradually..."
+      }
+    },
+    {
+      "id": "julie-btn16-path3",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 3300
+      },
+      "data": {
+        "label": "Rapid Fill",
+        "actionType": "send_message",
+        "message": "Rapid inflation incoming! Hold on!"
+      }
+    },
+    {
+      "id": "julie-btn16-path3-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 3300
+      },
+      "data": {
+        "label": "Rapid Device",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 12
+      }
+    },
+    {
+      "id": "julie-btn16-path4",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 3400
+      },
+      "data": {
+        "label": "Burst Mode",
+        "actionType": "send_message",
+        "message": "BURST MODE ACTIVATED! Maximum intensity!"
+      }
+    },
+    {
+      "id": "julie-btn16-path4-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 3400
+      },
+      "data": {
+        "label": "Burst Cycle",
+        "actionType": "start_cycle",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 8,
+        "interval": 2,
+        "cycles": 2
+      }
+    },
+    {
+      "id": "julie-btn17-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 4000
+      },
+      "data": {
+        "label": "Either/Or",
+        "buttonId": "17",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn17-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 4000
+      },
+      "data": {
+        "label": "AB Intro",
+        "actionType": "send_message",
+        "message": "A simple choice between two options... but which is which?"
+      }
+    },
+    {
+      "id": "julie-btn17-ab",
+      "type": "simple_ab",
+      "position": {
+        "x": 750,
+        "y": 4000
+      },
+      "data": {
+        "label": "The Decision",
+        "description": "One leads to mercy, one to punishment. Choose wisely...",
+        "buttonA": {
+          "label": "Left Door",
+          "description": "What lies behind door number one?"
+        },
+        "buttonB": {
+          "label": "Right Door",
+          "description": "Or will you take door number two?"
+        }
+      }
+    },
+    {
+      "id": "julie-btn17-pathA",
+      "type": "branch",
+      "position": {
+        "x": 1100,
+        "y": 3900
+      },
+      "data": {
+        "label": "Left Door Odds",
+        "branchType": "random",
+        "branches": [
+          {
+            "label": "Safe!",
+            "weight": 75
+          },
+          {
+            "label": "Gotcha!",
+            "weight": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-btn17-pathB",
+      "type": "branch",
+      "position": {
+        "x": 1100,
+        "y": 4100
+      },
+      "data": {
+        "label": "Right Door Odds",
+        "branchType": "random",
+        "branches": [
+          {
+            "label": "Safe!",
+            "weight": 25
+          },
+          {
+            "label": "Gotcha!",
+            "weight": 75
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-btn17-winA",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 3800
+      },
+      "data": {
+        "label": "Path A Win",
+        "actionType": "send_message",
+        "message": "Lucky you! The left door was the safe choice today!"
+      }
+    },
+    {
+      "id": "julie-btn17-loseA",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 3950
+      },
+      "data": {
+        "label": "Path A Lose",
+        "actionType": "send_message",
+        "message": "Oh no! Even the 'safe' door had a trap... time for inflation!"
+      }
+    },
+    {
+      "id": "julie-btn17-deviceA",
+      "type": "action",
+      "position": {
+        "x": 1800,
+        "y": 3950
+      },
+      "data": {
+        "label": "Punishment A",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 10
+      }
+    },
+    {
+      "id": "julie-btn17-winB",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 4050
+      },
+      "data": {
+        "label": "Path B Win",
+        "actionType": "send_message",
+        "message": "Against all odds, the right door spared you! Lucky escape!"
+      }
+    },
+    {
+      "id": "julie-btn17-loseB",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 4200
+      },
+      "data": {
+        "label": "Path B Lose",
+        "actionType": "send_message",
+        "message": "The right door was risky and you lost! Time for serious inflation!"
+      }
+    },
+    {
+      "id": "julie-btn17-deviceB",
+      "type": "action",
+      "position": {
+        "x": 1800,
+        "y": 4200
+      },
+      "data": {
+        "label": "Punishment B",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 15
+      }
+    },
+    {
+      "id": "julie-btn18-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 4800
+      },
+      "data": {
+        "label": "Condition Check",
+        "buttonId": "18",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn18-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 4800
+      },
+      "data": {
+        "label": "Condition Intro",
+        "actionType": "send_message",
+        "message": "Let's check your current state and decide your fate..."
+      }
+    },
+    {
+      "id": "julie-btn18-condition",
+      "type": "condition",
+      "position": {
+        "x": 750,
+        "y": 4800
+      },
+      "data": {
+        "label": "Capacity Check",
+        "conditions": [
+          {
+            "id": "cond-1",
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-btn18-true",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 4700
+      },
+      "data": {
+        "label": "High Capacity",
+        "actionType": "send_message",
+        "message": "Already quite full! Time for the advanced challenge..."
+      }
+    },
+    {
+      "id": "julie-btn18-false",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 4900
+      },
+      "data": {
+        "label": "Low Capacity",
+        "actionType": "send_message",
+        "message": "Plenty of room left! Starting with a gentle build..."
+      }
+    },
+    {
+      "id": "julie-btn19-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 5600
+      },
+      "data": {
+        "label": "Prize Patrol",
+        "buttonId": "19",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn19-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 5600
+      },
+      "data": {
+        "label": "Wheel Intro",
+        "actionType": "send_message",
+        "message": "*performs comprehensive abdominal palpation* My examination reveals... *pushes palm deep into center* I'm feeling lucky! Let's spin the Fortune Wheel!"
+      }
+    },
+    {
+      "id": "julie-btn19-wheel",
+      "type": "prize_wheel",
+      "position": {
+        "x": 750,
+        "y": 5600
+      },
+      "data": {
+        "label": "Fortune Wheel",
+        "segments": [
+          {
+            "id": "seg-0",
+            "label": "JACKPOT",
+            "color": "#FFD700",
+            "weight": 5
+          },
+          {
+            "id": "seg-1",
+            "label": "Big Win",
+            "color": "#4CAF50",
+            "weight": 10
+          },
+          {
+            "id": "seg-2",
+            "label": "Small Win",
+            "color": "#2196F3",
+            "weight": 20
+          },
+          {
+            "id": "seg-3",
+            "label": "Try Again",
+            "color": "#9E9E9E",
+            "weight": 30
+          },
+          {
+            "id": "seg-4",
+            "label": "Oops",
+            "color": "#FF9800",
+            "weight": 20
+          },
+          {
+            "id": "seg-5",
+            "label": "DISASTER",
+            "color": "#F44336",
+            "weight": 15
+          }
+        ],
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Spin up the Fortune Wheel! The segments are: JACKPOT (break from inflation), Big Win (moderate reward), Small Win (minor benefit), Try Again (no change), Oops (light penalty), and DISASTER (maximum consequences)! Note with a smile that you've adjusted the probabilities in your favor."
+      }
+    },
+    {
+      "id": "julie-btn19-seg0",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5350
+      },
+      "data": {
+        "label": "JACKPOT",
+        "actionType": "send_message",
+        "message": "JACKPOT! You win a break from inflation!"
+      }
+    },
+    {
+      "id": "julie-btn19-seg1",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5450
+      },
+      "data": {
+        "label": "Big Win",
+        "actionType": "send_message",
+        "message": "Big Win! A very gentle session for you!"
+      }
+    },
+    {
+      "id": "julie-btn19-seg2",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5550
+      },
+      "data": {
+        "label": "Small Win",
+        "actionType": "send_message",
+        "message": "Small Win! Moderate intensity today."
+      }
+    },
+    {
+      "id": "julie-btn19-seg3",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5650
+      },
+      "data": {
+        "label": "Try Again",
+        "actionType": "send_message",
+        "message": "Try Again! No change this time."
+      }
+    },
+    {
+      "id": "julie-btn19-seg4",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5750
+      },
+      "data": {
+        "label": "Oops",
+        "actionType": "send_message",
+        "message": "Oops! A burst of inflation for you!"
+      }
+    },
+    {
+      "id": "julie-btn19-seg4-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 5750
+      },
+      "data": {
+        "label": "Oops Device",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 10
+      }
+    },
+    {
+      "id": "julie-btn19-seg5",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 5850
+      },
+      "data": {
+        "label": "DISASTER",
+        "actionType": "send_message",
+        "message": "DISASTER! Maximum intensity punishment!"
+      }
+    },
+    {
+      "id": "julie-btn19-seg5-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 5850
+      },
+      "data": {
+        "label": "Disaster Cycle",
+        "actionType": "start_cycle",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 4
+      }
+    },
+    {
+      "id": "julie-btn20-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 6400
+      },
+      "data": {
+        "label": "High Stakes Roll",
+        "buttonId": "20",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn20-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 6400
+      },
+      "data": {
+        "label": "Dice Intro",
+        "actionType": "send_message",
+        "message": "*kneads [Player]'s belly thoroughly* Interesting findings... *presses fingers into the sides* How about a Dice Roll?"
+      }
+    },
+    {
+      "id": "julie-btn20-dice",
+      "type": "dice_roll",
+      "position": {
+        "x": 750,
+        "y": 6400
+      },
+      "data": {
+        "label": "Roll 2d6",
+        "diceCount": 2,
+        "mode": "range",
+        "ranges": [
+          {
+            "id": "low",
+            "label": "Low (2-5)",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "mid",
+            "label": "Medium (6-9)",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "high",
+            "label": "High (10-12)",
+            "min": 10,
+            "max": 12
+          }
+        ],
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Hand over the dice, explaining that [Player]'s fate rests on two six-sided dice. Describe what different totals mean for their immediate future."
+      }
+    },
+    {
+      "id": "julie-btn20-range0",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 6300
+      },
+      "data": {
+        "label": "Low Roll",
+        "actionType": "send_message",
+        "message": "Low roll! You got lucky with minimal inflation."
+      }
+    },
+    {
+      "id": "julie-btn20-range1",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 6400
+      },
+      "data": {
+        "label": "Medium Roll",
+        "actionType": "send_message",
+        "message": "Medium roll! A moderate session awaits."
+      }
+    },
+    {
+      "id": "julie-btn20-range2",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 6500
+      },
+      "data": {
+        "label": "High Roll",
+        "actionType": "send_message",
+        "message": "High roll! Maximum intensity incoming!"
+      }
+    },
+    {
+      "id": "julie-btn20-range2-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 6500
+      },
+      "data": {
+        "label": "High Roll Device",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 18
+      }
+    },
+    {
+      "id": "julie-btn21-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 7200
+      },
+      "data": {
+        "label": "Lucky Draw",
+        "buttonId": "21",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn21-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 7200
+      },
+      "data": {
+        "label": "Card Intro",
+        "actionType": "send_message",
+        "message": "*traces the curve of [Player]'s belly while pressing inward* According to my exam... *pushes hard near navel* Let's do a Card Draw!"
+      }
+    },
+    {
+      "id": "julie-btn21-card",
+      "type": "card_draw",
+      "position": {
+        "x": 750,
+        "y": 7200
+      },
+      "data": {
+        "label": "Draw a Card",
+        "deckType": "standard",
+        "outputMode": "suit",
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Present the deck with a flourish, explaining that each suit means something different. Most of them, of course, mean more inflation."
+      }
+    },
+    {
+      "id": "julie-btn21-suit0",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7050
+      },
+      "data": {
+        "label": "Hearts",
+        "actionType": "send_message",
+        "message": "Hearts! Love and gentleness for you!"
+      }
+    },
+    {
+      "id": "julie-btn21-suit1",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7150
+      },
+      "data": {
+        "label": "Diamonds",
+        "actionType": "send_message",
+        "message": "Diamonds! A valuable but moderate experience."
+      }
+    },
+    {
+      "id": "julie-btn21-suit2",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7250
+      },
+      "data": {
+        "label": "Clubs",
+        "actionType": "send_message",
+        "message": "Clubs! Getting a bit rougher now..."
+      }
+    },
+    {
+      "id": "julie-btn21-suit3",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7350
+      },
+      "data": {
+        "label": "Spades",
+        "actionType": "send_message",
+        "message": "Spades! Maximum intensity digging in!"
+      }
+    },
+    {
+      "id": "julie-btn21-suit3-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 7350
+      },
+      "data": {
+        "label": "Spades Device",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 18
+      }
+    },
+    {
+      "id": "julie-btn22-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 8000
+      },
+      "data": {
+        "label": "Slot Surprise",
+        "buttonId": "22",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn22-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 8000
+      },
+      "data": {
+        "label": "Slot Intro",
+        "actionType": "send_message",
+        "message": "*squeezes [Player]'s midsection at multiple points* Clinical findings noted... *compresses with both hands* Let's spin the Slot Machine!"
+      }
+    },
+    {
+      "id": "julie-btn22-slots",
+      "type": "slot_machine",
+      "position": {
+        "x": 750,
+        "y": 8000
+      },
+      "data": {
+        "label": "Slot Machine",
+        "symbols": [
+          "cherry",
+          "lemon",
+          "bell",
+          "star",
+          "seven"
+        ],
+        "matchPatterns": [
+          {
+            "id": "jackpot",
+            "label": "Three 7s",
+            "pattern": "three-of-a-kind",
+            "symbol": "seven"
+          },
+          {
+            "id": "big-win",
+            "label": "Three of a Kind",
+            "pattern": "three-of-a-kind"
+          },
+          {
+            "id": "small-win",
+            "label": "Two of a Kind",
+            "pattern": "two-of-a-kind"
+          },
+          {
+            "id": "any-seven",
+            "label": "Any 7",
+            "pattern": "any-symbol",
+            "symbol": "seven"
+          }
+        ],
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Fire up the slot machine, pointing out the symbols and what various combinations will earn [Player]. Spoiler: most of them benefit your research."
+      }
+    },
+    {
+      "id": "julie-btn22-result0",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7800
+      },
+      "data": {
+        "label": "Jackpot!",
+        "actionType": "send_message",
+        "message": "JACKPOT! Three 7s! You win complete relief!"
+      }
+    },
+    {
+      "id": "julie-btn22-result1",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 7900
+      },
+      "data": {
+        "label": "Big Win",
+        "actionType": "send_message",
+        "message": "Big Win! Three of a kind! Gentle treatment for you!"
+      }
+    },
+    {
+      "id": "julie-btn22-result2",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 8000
+      },
+      "data": {
+        "label": "Small Win",
+        "actionType": "send_message",
+        "message": "Small Win! Two matching! Moderate session."
+      }
+    },
+    {
+      "id": "julie-btn22-result3",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 8100
+      },
+      "data": {
+        "label": "Any 7",
+        "actionType": "send_message",
+        "message": "A lucky 7 appeared! Slightly reduced intensity."
+      }
+    },
+    {
+      "id": "julie-btn22-result4",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 8200
+      },
+      "data": {
+        "label": "No Match",
+        "actionType": "send_message",
+        "message": "No match! Full punishment protocol activated!"
+      }
+    },
+    {
+      "id": "julie-btn22-result4-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 8200
+      },
+      "data": {
+        "label": "No Match Cycle",
+        "actionType": "start_cycle",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 5,
+        "interval": 3,
+        "cycles": 3
+      }
+    },
+    {
+      "id": "julie-btn23-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 8800
+      },
+      "data": {
+        "label": "The Decider",
+        "buttonId": "23",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn23-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 8800
+      },
+      "data": {
+        "label": "Coin Intro",
+        "actionType": "send_message",
+        "message": "*performs rapid belly assessment* Quick check done! *pushes deep* Let's do a Coin Flip - best of three!"
+      }
+    },
+    {
+      "id": "julie-btn23-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": 750,
+        "y": 8800
+      },
+      "data": {
+        "label": "Best of 3",
+        "headsLabel": "Mercy",
+        "tailsLabel": "Punishment",
+        "headsWeight": 50,
+        "bestOf": 3,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "This is best of three - explain the stakes clearly. Two out of three flips will decide [Player]'s fate, and you're feeling lucky."
+      }
+    },
+    {
+      "id": "julie-btn23-heads",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 8700
+      },
+      "data": {
+        "label": "Mercy Wins",
+        "actionType": "send_message",
+        "message": "You won the best of three! Mercy is granted!"
+      }
+    },
+    {
+      "id": "julie-btn23-tails",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 8900
+      },
+      "data": {
+        "label": "Punishment Wins",
+        "actionType": "send_message",
+        "message": "Punishment wins! No mercy for you today!"
+      }
+    },
+    {
+      "id": "julie-btn23-device",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 8900
+      },
+      "data": {
+        "label": "Punishment Device",
+        "actionType": "device_on",
+        "device": "6dcf863e-48ed-4ed1-bffb-d6357d247357",
+        "duration": 15
+      }
+    },
+    {
+      "id": "julie-btn24-trigger",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 9600
+      },
+      "data": {
+        "label": "Ultimate Gauntlet",
+        "buttonId": "24",
+        "unblockable": false,
+        "notify": true,
+        "priority": 2
+      }
+    },
+    {
+      "id": "julie-btn24-intro",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 9600
+      },
+      "data": {
+        "label": "Gauntlet Intro",
+        "actionType": "send_message",
+        "message": "*conducts thorough pre-challenge examination, pressing and probing [Player]'s entire belly* Comprehensive assessment complete! *compresses hard with both palms* I have something special planned - Simon Says, then Timer Challenge, then Reflex Challenge!"
+      }
+    },
+    {
+      "id": "julie-btn24-simon",
+      "type": "simon_challenge",
+      "position": {
+        "x": 750,
+        "y": 9600
+      },
+      "data": {
+        "label": "Stage 1: Memory",
+        "startingLength": 2,
+        "maxLength": 5,
+        "maxMisses": 2,
+        "perMissPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "perMissPenaltyDuration": 3,
+        "grandPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "grandPenaltyDuration": 15,
+        "rewardDevice": "",
+        "rewardDuration": 0,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Begin the memory gauntlet. Stage one tests [Player]'s ability to remember sequences while their body provides... distractions."
+      }
+    },
+    {
+      "id": "julie-btn24-stage1fail",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 9750
+      },
+      "data": {
+        "label": "Stage 1 Fail",
+        "actionType": "send_message",
+        "message": "Failed at stage 1! The gauntlet defeats you early..."
+      }
+    },
+    {
+      "id": "julie-btn24-timer",
+      "type": "timer_challenge",
+      "position": {
+        "x": 1100,
+        "y": 9550
+      },
+      "data": {
+        "label": "Stage 2: Timer",
+        "duration": 20,
+        "precisionMode": false,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Stage two of the gauntlet: precision timing. [Player]'s nerves and physical state make this particularly challenging."
+      }
+    },
+    {
+      "id": "julie-btn24-stage2fail",
+      "type": "action",
+      "position": {
+        "x": 1450,
+        "y": 9700
+      },
+      "data": {
+        "label": "Stage 2 Fail",
+        "actionType": "send_message",
+        "message": "Timed out on stage 2! So close yet so far..."
+      }
+    },
+    {
+      "id": "julie-btn24-reflex",
+      "type": "reflex_challenge",
+      "position": {
+        "x": 1450,
+        "y": 9500
+      },
+      "data": {
+        "label": "Stage 3: Reflexes",
+        "timePerTarget": 2,
+        "rounds": 3,
+        "targetSize": "small",
+        "perMissPenaltyDevice": "",
+        "perMissPenaltyDuration": 0,
+        "grandPenaltyDevice": "51fe847c-4a81-4c00-82d2-7f6c57499925",
+        "grandPenaltyDuration": 20,
+        "rewardDevice": "700ce5ae-a19b-48ca-9b99-d6d61bf041bb",
+        "rewardDuration": 30,
+        "aiMessageStartEnabled": true,
+        "aiMessageStart": "Final stage - reflexes. After memory and timing, [Player] must now prove their speed. The ultimate test awaits."
+      }
+    },
+    {
+      "id": "julie-btn24-ultimate",
+      "type": "action",
+      "position": {
+        "x": 1800,
+        "y": 9450
+      },
+      "data": {
+        "label": "Ultimate Victory",
+        "actionType": "send_message",
+        "message": "INCREDIBLE! You conquered the ULTIMATE GAUNTLET! You've earned the ultimate reward!"
+      }
+    },
+    {
+      "id": "julie-btn24-stage3fail",
+      "type": "action",
+      "position": {
+        "x": 1800,
+        "y": 9650
+      },
+      "data": {
+        "label": "Stage 3 Fail",
+        "actionType": "send_message",
+        "message": "Failed at the final stage! So close to glory..."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-btn13-1",
+      "source": "julie-btn13-trigger",
+      "target": "julie-btn13-msg"
+    },
+    {
+      "id": "e-btn13-2",
+      "source": "julie-btn13-msg",
+      "target": "julie-btn13-simon"
+    },
+    {
+      "id": "e-btn13-3",
+      "source": "julie-btn13-simon",
+      "target": "julie-btn13-win",
+      "sourceHandle": "win"
+    },
+    {
+      "id": "e-btn13-4",
+      "source": "julie-btn13-simon",
+      "target": "julie-btn13-lose",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-btn14-1",
+      "source": "julie-btn14-trigger",
+      "target": "julie-btn14-msg"
+    },
+    {
+      "id": "e-btn14-2",
+      "source": "julie-btn14-msg",
+      "target": "julie-btn14-reflex"
+    },
+    {
+      "id": "e-btn14-3",
+      "source": "julie-btn14-reflex",
+      "target": "julie-btn14-win",
+      "sourceHandle": "win"
+    },
+    {
+      "id": "e-btn14-4",
+      "source": "julie-btn14-reflex",
+      "target": "julie-btn14-lose",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-btn15-1",
+      "source": "julie-btn15-trigger",
+      "target": "julie-btn15-msg"
+    },
+    {
+      "id": "e-btn15-2",
+      "source": "julie-btn15-msg",
+      "target": "julie-btn15-choice"
+    },
+    {
+      "id": "e-btn15-3",
+      "source": "julie-btn15-choice",
+      "target": "julie-btn15-gentle",
+      "sourceHandle": "gentle"
+    },
+    {
+      "id": "e-btn15-4",
+      "source": "julie-btn15-choice",
+      "target": "julie-btn15-moderate",
+      "sourceHandle": "moderate"
+    },
+    {
+      "id": "e-btn15-5",
+      "source": "julie-btn15-choice",
+      "target": "julie-btn15-intense",
+      "sourceHandle": "intense"
+    },
+    {
+      "id": "e-btn15-6",
+      "source": "julie-btn15-intense",
+      "target": "julie-btn15-intense-device"
+    },
+    {
+      "id": "e-btn16-1",
+      "source": "julie-btn16-trigger",
+      "target": "julie-btn16-msg"
+    },
+    {
+      "id": "e-btn16-2",
+      "source": "julie-btn16-msg",
+      "target": "julie-btn16-branch"
+    },
+    {
+      "id": "e-btn16-3",
+      "source": "julie-btn16-branch",
+      "target": "julie-btn16-path0",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-btn16-4",
+      "source": "julie-btn16-branch",
+      "target": "julie-btn16-path1",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e-btn16-5",
+      "source": "julie-btn16-branch",
+      "target": "julie-btn16-path2",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e-btn16-6",
+      "source": "julie-btn16-branch",
+      "target": "julie-btn16-path3",
+      "sourceHandle": "branch-3"
+    },
+    {
+      "id": "e-btn16-6b",
+      "source": "julie-btn16-path3",
+      "target": "julie-btn16-path3-device"
+    },
+    {
+      "id": "e-btn16-7",
+      "source": "julie-btn16-branch",
+      "target": "julie-btn16-path4",
+      "sourceHandle": "branch-4"
+    },
+    {
+      "id": "e-btn16-7b",
+      "source": "julie-btn16-path4",
+      "target": "julie-btn16-path4-device"
+    },
+    {
+      "id": "e-btn17-1",
+      "source": "julie-btn17-trigger",
+      "target": "julie-btn17-msg"
+    },
+    {
+      "id": "e-btn17-2",
+      "source": "julie-btn17-msg",
+      "target": "julie-btn17-ab"
+    },
+    {
+      "id": "e-btn17-3",
+      "source": "julie-btn17-ab",
+      "target": "julie-btn17-pathA",
+      "sourceHandle": "a"
+    },
+    {
+      "id": "e-btn17-4",
+      "source": "julie-btn17-ab",
+      "target": "julie-btn17-pathB",
+      "sourceHandle": "b"
+    },
+    {
+      "id": "e-btn17-5",
+      "source": "julie-btn17-pathA",
+      "target": "julie-btn17-winA",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-btn17-6",
+      "source": "julie-btn17-pathA",
+      "target": "julie-btn17-loseA",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e-btn17-7",
+      "source": "julie-btn17-loseA",
+      "target": "julie-btn17-deviceA"
+    },
+    {
+      "id": "e-btn17-8",
+      "source": "julie-btn17-pathB",
+      "target": "julie-btn17-winB",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-btn17-9",
+      "source": "julie-btn17-pathB",
+      "target": "julie-btn17-loseB",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e-btn17-10",
+      "source": "julie-btn17-loseB",
+      "target": "julie-btn17-deviceB"
+    },
+    {
+      "id": "e-btn18-1",
+      "source": "julie-btn18-trigger",
+      "target": "julie-btn18-msg"
+    },
+    {
+      "id": "e-btn18-2",
+      "source": "julie-btn18-msg",
+      "target": "julie-btn18-condition"
+    },
+    {
+      "id": "e-btn18-3",
+      "source": "julie-btn18-condition",
+      "target": "julie-btn18-true",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-btn18-4",
+      "source": "julie-btn18-condition",
+      "target": "julie-btn18-false",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-btn19-1",
+      "source": "julie-btn19-trigger",
+      "target": "julie-btn19-msg"
+    },
+    {
+      "id": "e-btn19-2",
+      "source": "julie-btn19-msg",
+      "target": "julie-btn19-wheel"
+    },
+    {
+      "id": "e-btn19-3",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg0",
+      "sourceHandle": "seg-0"
+    },
+    {
+      "id": "e-btn19-4",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg1",
+      "sourceHandle": "seg-1"
+    },
+    {
+      "id": "e-btn19-5",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg2",
+      "sourceHandle": "seg-2"
+    },
+    {
+      "id": "e-btn19-6",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg3",
+      "sourceHandle": "seg-3"
+    },
+    {
+      "id": "e-btn19-7",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg4",
+      "sourceHandle": "seg-4"
+    },
+    {
+      "id": "e-btn19-7b",
+      "source": "julie-btn19-seg4",
+      "target": "julie-btn19-seg4-device"
+    },
+    {
+      "id": "e-btn19-8",
+      "source": "julie-btn19-wheel",
+      "target": "julie-btn19-seg5",
+      "sourceHandle": "seg-5"
+    },
+    {
+      "id": "e-btn19-8b",
+      "source": "julie-btn19-seg5",
+      "target": "julie-btn19-seg5-device"
+    },
+    {
+      "id": "e-btn20-1",
+      "source": "julie-btn20-trigger",
+      "target": "julie-btn20-msg"
+    },
+    {
+      "id": "e-btn20-2",
+      "source": "julie-btn20-msg",
+      "target": "julie-btn20-dice"
+    },
+    {
+      "id": "e-btn20-3",
+      "source": "julie-btn20-dice",
+      "target": "julie-btn20-range0",
+      "sourceHandle": "low"
+    },
+    {
+      "id": "e-btn20-4",
+      "source": "julie-btn20-dice",
+      "target": "julie-btn20-range1",
+      "sourceHandle": "mid"
+    },
+    {
+      "id": "e-btn20-5",
+      "source": "julie-btn20-dice",
+      "target": "julie-btn20-range2",
+      "sourceHandle": "high"
+    },
+    {
+      "id": "e-btn20-5b",
+      "source": "julie-btn20-range2",
+      "target": "julie-btn20-range2-device"
+    },
+    {
+      "id": "e-btn21-1",
+      "source": "julie-btn21-trigger",
+      "target": "julie-btn21-msg"
+    },
+    {
+      "id": "e-btn21-2",
+      "source": "julie-btn21-msg",
+      "target": "julie-btn21-card"
+    },
+    {
+      "id": "e-btn21-3",
+      "source": "julie-btn21-card",
+      "target": "julie-btn21-suit0",
+      "sourceHandle": "hearts"
+    },
+    {
+      "id": "e-btn21-4",
+      "source": "julie-btn21-card",
+      "target": "julie-btn21-suit1",
+      "sourceHandle": "diamonds"
+    },
+    {
+      "id": "e-btn21-5",
+      "source": "julie-btn21-card",
+      "target": "julie-btn21-suit2",
+      "sourceHandle": "clubs"
+    },
+    {
+      "id": "e-btn21-6",
+      "source": "julie-btn21-card",
+      "target": "julie-btn21-suit3",
+      "sourceHandle": "spades"
+    },
+    {
+      "id": "e-btn21-6b",
+      "source": "julie-btn21-suit3",
+      "target": "julie-btn21-suit3-device"
+    },
+    {
+      "id": "e-btn22-1",
+      "source": "julie-btn22-trigger",
+      "target": "julie-btn22-msg"
+    },
+    {
+      "id": "e-btn22-2",
+      "source": "julie-btn22-msg",
+      "target": "julie-btn22-slots"
+    },
+    {
+      "id": "e-btn22-3",
+      "source": "julie-btn22-slots",
+      "target": "julie-btn22-result0",
+      "sourceHandle": "jackpot"
+    },
+    {
+      "id": "e-btn22-4",
+      "source": "julie-btn22-slots",
+      "target": "julie-btn22-result1",
+      "sourceHandle": "big-win"
+    },
+    {
+      "id": "e-btn22-5",
+      "source": "julie-btn22-slots",
+      "target": "julie-btn22-result2",
+      "sourceHandle": "small-win"
+    },
+    {
+      "id": "e-btn22-6",
+      "source": "julie-btn22-slots",
+      "target": "julie-btn22-result3",
+      "sourceHandle": "any-seven"
+    },
+    {
+      "id": "e-btn22-7",
+      "source": "julie-btn22-slots",
+      "target": "julie-btn22-result4",
+      "sourceHandle": "no-match"
+    },
+    {
+      "id": "e-btn22-7b",
+      "source": "julie-btn22-result4",
+      "target": "julie-btn22-result4-device"
+    },
+    {
+      "id": "e-btn23-1",
+      "source": "julie-btn23-trigger",
+      "target": "julie-btn23-msg"
+    },
+    {
+      "id": "e-btn23-2",
+      "source": "julie-btn23-msg",
+      "target": "julie-btn23-coin"
+    },
+    {
+      "id": "e-btn23-3",
+      "source": "julie-btn23-coin",
+      "target": "julie-btn23-heads",
+      "sourceHandle": "heads"
+    },
+    {
+      "id": "e-btn23-4",
+      "source": "julie-btn23-coin",
+      "target": "julie-btn23-tails",
+      "sourceHandle": "tails"
+    },
+    {
+      "id": "e-btn23-5",
+      "source": "julie-btn23-tails",
+      "target": "julie-btn23-device"
+    },
+    {
+      "id": "e-btn24-1",
+      "source": "julie-btn24-trigger",
+      "target": "julie-btn24-intro"
+    },
+    {
+      "id": "e-btn24-2",
+      "source": "julie-btn24-intro",
+      "target": "julie-btn24-simon"
+    },
+    {
+      "id": "e-btn24-3",
+      "source": "julie-btn24-simon",
+      "target": "julie-btn24-timer",
+      "sourceHandle": "win"
+    },
+    {
+      "id": "e-btn24-4",
+      "source": "julie-btn24-simon",
+      "target": "julie-btn24-stage1fail",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-btn24-5",
+      "source": "julie-btn24-timer",
+      "target": "julie-btn24-reflex",
+      "sourceHandle": "success"
+    },
+    {
+      "id": "e-btn24-6",
+      "source": "julie-btn24-timer",
+      "target": "julie-btn24-stage2fail",
+      "sourceHandle": "timeout"
+    },
+    {
+      "id": "e-btn24-7",
+      "source": "julie-btn24-reflex",
+      "target": "julie-btn24-ultimate",
+      "sourceHandle": "win"
+    },
+    {
+      "id": "e-btn24-8",
+      "source": "julie-btn24-reflex",
+      "target": "julie-btn24-stage3fail",
+      "sourceHandle": "lose"
+    }
+  ],
+  "createdAt": 1768414675142,
+  "updatedAt": 1768414675142,
+  "isActive": true
+}

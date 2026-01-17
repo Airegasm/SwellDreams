@@ -1,0 +1,122 @@
+{
+  "id": "flow-global-001",
+  "name": "Ambient Pressure Sensations",
+  "description": "Random environmental and physical sensations during inflation",
+  "nodes": [
+    {
+      "id": "global1-branch-sensation",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 100
+      },
+      "data": {
+        "label": "Random Sensation",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "b1",
+            "label": "Temperature Shift",
+            "weight": 25
+          },
+          {
+            "id": "b2",
+            "label": "Pressure Wave",
+            "weight": 25
+          },
+          {
+            "id": "b3",
+            "label": "Tightness",
+            "weight": 25
+          },
+          {
+            "id": "b4",
+            "label": "Fullness",
+            "weight": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "global1-action-temp",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "data": {
+        "label": "Temperature Sensation",
+        "actionType": "system_message",
+        "message": "A warm, spreading sensation pulses through your belly as the air continues to fill you."
+      }
+    },
+    {
+      "id": "global1-action-pressure",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 120
+      },
+      "data": {
+        "label": "Pressure Wave",
+        "actionType": "system_message",
+        "message": "You feel a distinct wave of pressure shifting inside you, the inflation redistributing itself."
+      }
+    },
+    {
+      "id": "global1-action-tight",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 190
+      },
+      "data": {
+        "label": "Tightness",
+        "actionType": "system_message",
+        "message": "Your skin stretches taut, every breath reminding you of just how full and round you've become."
+      }
+    },
+    {
+      "id": "global1-action-full",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 260
+      },
+      "data": {
+        "label": "Fullness Awareness",
+        "actionType": "system_message",
+        "message": "The constant pressure of fullness dominates your awareness, your belly feeling heavy and inflated."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e2",
+      "source": "global1-branch-sensation",
+      "sourceHandle": "b1",
+      "target": "global1-action-temp"
+    },
+    {
+      "id": "e3",
+      "source": "global1-branch-sensation",
+      "sourceHandle": "b2",
+      "target": "global1-action-pressure"
+    },
+    {
+      "id": "e4",
+      "source": "global1-branch-sensation",
+      "sourceHandle": "b3",
+      "target": "global1-action-tight"
+    },
+    {
+      "id": "e5",
+      "source": "global1-branch-sensation",
+      "sourceHandle": "b4",
+      "target": "global1-action-full"
+    }
+  ],
+  "createdAt": 1767479508927,
+  "updatedAt": 1767479508927,
+  "isActive": false
+}

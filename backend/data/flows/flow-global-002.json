@@ -1,0 +1,24 @@
+{
+  "id": "flow-global-002",
+  "name": "Safety Monitor",
+  "description": "Periodic safety checks and reassurance messages",
+  "nodes": [
+    {
+      "id": "global2-action-safety",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 100
+      },
+      "data": {
+        "label": "Safety Check",
+        "actionType": "system_message",
+        "message": "[Safety check: All systems functioning normally. Current capacity at {capacity}%. You're doing great.]"
+      }
+    }
+  ],
+  "edges": [],
+  "createdAt": 1767479575984,
+  "updatedAt": 1767479575984,
+  "isActive": false
+}

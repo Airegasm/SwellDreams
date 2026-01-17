@@ -78,9 +78,9 @@ if exist "build" rmdir /s /q "build"
 echo Building frontend for production...
 call npm run build
 
-REM Start server in new window
+REM Start server in new window (visible for debug output)
 echo Starting SwellDreams server...
-start "SwellDreams" /MIN cmd /c "cd /d %SCRIPT_DIR%backend && node server.js"
+start "SwellDreams Server" cmd /k "cd /d %SCRIPT_DIR%backend && node server.js"
 
 REM Wait for server
 timeout /t 2 /nobreak >nul

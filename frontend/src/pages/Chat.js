@@ -6,13 +6,14 @@ import { API_BASE, CONFIG } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
+import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
 import { getPortraitForCapacity } from '../utils/stagedPortraits';
 import StatusBadges from '../components/StatusBadges';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -871,7 +872,7 @@ function Chat() {
 
       {/* Blocking overlay for slide panel interactions */}
       <div
-        className={`chat-blocking-overlay ${playerChoiceData || simpleABData || challengeData ? 'visible' : ''}`}
+        className={`chat-blocking-overlay ${playerChoiceData || simpleABData || challengeData || inputData ? 'visible' : ''}`}
       />
 
       {/* Mobile Header Badges - StatusBadges in header area on mobile */}
@@ -1085,6 +1086,14 @@ function Chat() {
                 </div>
               </div>
             </div>
+          )}
+          {inputData && (
+            <InputModal
+              inputData={inputData}
+              onSubmit={handleInputResponse}
+              subContext={subContext}
+              compact={false}
+            />
           )}
         </div>
 

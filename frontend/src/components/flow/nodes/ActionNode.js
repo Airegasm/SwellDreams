@@ -339,6 +339,35 @@ function ActionNode({ data, selected }) {
           </div>
         );
 
+      case 'pulse_pump':
+        return (
+          <div className="node-config">
+            <select
+              value={data.device || ''}
+              onChange={(e) => data.onChange?.('device', e.target.value)}
+              className="node-select"
+            >
+              <option value="">Select Pump</option>
+              <option value="primary_pump">Primary Pump</option>
+              {data.devices?.filter(d => d.deviceType === 'PUMP').map(d => (
+                <option key={getDeviceKey(d)} value={getDeviceValue(d)}>{d.label}</option>
+              ))}
+            </select>
+            <div className="config-row">
+              <label>Pulses:</label>
+              <input
+                type="number"
+                value={data.pulses || 3}
+                onChange={(e) => data.onChange?.('pulses', parseInt(e.target.value))}
+                min={1}
+                max={100}
+                className="node-input small"
+              />
+              <span>(1s on/1s off)</span>
+            </div>
+          </div>
+        );
+
       case 'declare_variable':
         return (
           <div className="node-config">
