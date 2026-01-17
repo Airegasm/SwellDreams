@@ -1,5 +1,5 @@
 @echo off
-title SwellDreams
+title SwellDreams Startup
 
 echo SwellDreams Production Startup Script
 echo.
@@ -8,9 +8,9 @@ REM Get script directory
 set SCRIPT_DIR=%~dp0
 echo Script directory: %SCRIPT_DIR%
 
-REM Stop any existing instance first
-echo Stopping any existing SwellDreams instance...
-taskkill /FI "WINDOWTITLE eq SwellDreams*" /F >nul 2>&1
+REM Stop any existing SERVER instance (not this startup window)
+echo Stopping any existing SwellDreams server...
+taskkill /FI "WINDOWTITLE eq SwellDreams Server*" /F >nul 2>&1
 
 echo.
 echo ========================================
