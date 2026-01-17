@@ -99,10 +99,18 @@ class TapoService {
    * @returns {object} Result from Python script
    */
   _execPython(command, ip) {
-    // Validate IP address
-    if (!ip || typeof ip !== 'string' || !ip.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-      throw new Error(`Invalid IP address: ${ip}. Please enter a valid IP like 192.168.1.100`);
+    // Clean and validate IP address
+    let cleanIp = ip;
+    if (typeof ip === 'string') {
+      // Strip common prefixes like "IP " or "ip:"
+      cleanIp = ip.replace(/^(IP\s*:?\s*)/i, '').trim();
     }
+
+    if (!cleanIp || typeof cleanIp !== 'string' || !cleanIp.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+      throw new Error(`Invalid IP address: "${ip}". Please enter a valid IP like 192.168.1.100`);
+    }
+
+    ip = cleanIp;
 
     // Check Python/plugp100 ready (auto-installs if needed)
     const ready = this._ensurePythonReady();

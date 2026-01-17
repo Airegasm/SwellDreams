@@ -16,36 +16,72 @@ Commands:
 import sys
 import json
 import asyncio
-from plugp100.new.device_factory import connect, DeviceConnectConfiguration
-from plugp100.common.credentials import AuthCredential
+
+# Try to import plugp100 with helpful error message
+try:
+    from plugp100.new.device_factory import connect, DeviceConnectConfiguration
+    from plugp100.common.credentials import AuthCredential
+except ImportError as e:
+    print(json.dumps({
+        "success": False,
+        "error": f"plugp100 library not installed properly: {e}. Try: pip install plugp100"
+    }))
+    sys.exit(1)
+except Exception as e:
+    print(json.dumps({
+        "success": False,
+        "error": f"Failed to import plugp100: {type(e).__name__}: {e}"
+    }))
+    sys.exit(1)
 
 async def get_device(ip: str, email: str, password: str):
     """Create authenticated Tapo device connection"""
-    credentials = AuthCredential(email, password)
-    config = DeviceConnectConfiguration(host=ip, credentials=credentials)
-    device = await connect(config)
-    return device
+    try:
+        credentials = AuthCredential(email, password)
+        config = DeviceConnectConfiguration(host=ip, credentials=credentials)
+        device = await connect(config)
+        return device
+    except TypeError as e:
+        # Handle "super() argument" errors which may indicate Python version issues
+        if "super()" in str(e):
+            raise Exception(f"Python compatibility error. Try upgrading Python to 3.10+ or reinstalling plugp100: {e}")
+        raise
 
 async def turn_on(ip: str, email: str, password: str):
     """Turn device on"""
+    device = None
     try:
         device = await get_device(ip, email, password)
         await device.on()
         return {"success": True, "state": "on"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        if device and hasattr(device, 'close'):
+            try:
+                await device.close()
+            except:
+                pass
 
 async def turn_off(ip: str, email: str, password: str):
     """Turn device off"""
+    device = None
     try:
         device = await get_device(ip, email, password)
         await device.off()
         return {"success": True, "state": "off"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        if device and hasattr(device, 'close'):
+            try:
+                await device.close()
+            except:
+                pass
 
 async def get_state(ip: str, email: str, password: str):
     """Get device power state"""
+    device = None
     try:
         device = await get_device(ip, email, password)
         info = await device.get_device_info()
@@ -59,9 +95,16 @@ async def get_state(ip: str, email: str, password: str):
         return {"success": True, "state": "on" if device_on else "off"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        if device and hasattr(device, 'close'):
+            try:
+                await device.close()
+            except:
+                pass
 
 async def get_info(ip: str, email: str, password: str):
     """Get device info"""
+    device = None
     try:
         device = await get_device(ip, email, password)
         info = await device.get_device_info()
@@ -75,6 +118,12 @@ async def get_info(ip: str, email: str, password: str):
         return {"success": True, "info": info_dict}
     except Exception as e:
         return {"success": False, "error": str(e)}
+    finally:
+        if device and hasattr(device, 'close'):
+            try:
+                await device.close()
+            except:
+                pass
 
 async def main():
     if len(sys.argv) < 5:
@@ -100,4 +149,8 @@ async def main():
     print(json.dumps(result))
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(json.dumps({"success": False, "error": f"Script error: {type(e).__name__}: {e}"}))
+        sys.exit(1)
