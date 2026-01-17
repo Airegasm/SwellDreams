@@ -212,14 +212,11 @@
         "y": 400
       },
       "data": {
-        "label": "Stop Request",
+        "label": "Safeword",
         "triggerType": "player_speaks",
         "keywords": [
-          "stop",
-          "enough",
           "red",
-          "safeword",
-          "too much"
+          "safeword"
         ],
         "unblockable": true,
         "notify": false,
