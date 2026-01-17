@@ -457,20 +457,34 @@ function trimIncompleteSentences(text) {
 
   const trimmed = text.trim();
 
-  // Valid endings for roleplay text: . ? ! * "
-  // Note: Single quote ' removed - it causes issues with contractions like "don't", "I'm", etc.
-  if (/[.?!*"]\s*$/.test(trimmed)) {
+  // Valid endings for roleplay text: . ? ! *
+  // Quote " is only valid if preceded by text (closing quote), not if it's an opening quote
+  if (/[.?!*]\s*$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Check for closing quote: " preceded by sentence-ending punctuation or word char
+  if (/[.?!*\w]"\s*$/.test(trimmed)) {
     return trimmed;
   }
 
   // Find the last valid ending character
-  const lastValidEnd = Math.max(
+  // For quotes, only count them if they appear to be closing quotes (preceded by punctuation or text)
+  let lastValidEnd = Math.max(
     trimmed.lastIndexOf('.'),
     trimmed.lastIndexOf('?'),
     trimmed.lastIndexOf('!'),
-    trimmed.lastIndexOf('*'),
-    trimmed.lastIndexOf('"')
+    trimmed.lastIndexOf('*')
   );
+
+  // Check for closing quotes - find last " that's preceded by punctuation or word
+  const quoteMatches = [...trimmed.matchAll(/[.?!*\w]"/g)];
+  if (quoteMatches.length > 0) {
+    const lastClosingQuote = quoteMatches[quoteMatches.length - 1];
+    const quotePos = lastClosingQuote.index + 1; // Position of the " itself
+    if (quotePos > lastValidEnd) {
+      lastValidEnd = quotePos;
+    }
+  }
 
   if (lastValidEnd > 0 && lastValidEnd >= trimmed.length * 0.7) {
     // Only trim if we keep at least 70% of the text

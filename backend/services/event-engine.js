@@ -2282,14 +2282,23 @@ class EventEngine {
     };
 
     // Pre-message wrapper (replaces old aiMessageStart)
+    // IMPORTANT: This is BEFORE the challenge - do NOT reveal results
     if (data.preMessageEnabled && data.preMessage) {
-      console.log(`[EventEngine] Challenge has pre-message, sending`);
+      console.log(`[EventEngine] Challenge has pre-message, sending (NO RESULTS YET)`);
       const result = await this.sendWrapperMessage(
         data.preMessage,
         data.preMessageSuppressLlm,
         data.preMessageTarget,
         flow,
-        node.id
+        node.id,
+        {
+          isChallengePreMessage: true,
+          challengeType: node.type,
+          // List possible outcomes so LLM knows what NOT to reveal
+          possibleOutcomes: data.segments?.map(s => s.label) || data.outcomes?.map(o => o.label) || [],
+          // Limit tokens on pre-messages to keep them short and prevent off-rails
+          maxTokensOverride: 80
+        }
       );
       if (result === 'aborted') return 'aborted';
     }
@@ -2475,17 +2484,41 @@ class EventEngine {
     }
 
     // Post-message wrapper (after challenge completes and win/lose messages)
+    // IMPORTANT: This is AFTER the challenge - result IS known and should be used
     if (challengeData.postMessageEnabled && challengeData.postMessage) {
-      console.log(`[EventEngine] Challenge has post-message, sending`);
+      console.log(`[EventEngine] Challenge has post-message, sending WITH RESULT`);
       // We need flow object - get it now
       const flowDataForPost = this.activeFlows.get(flowId);
       if (flowDataForPost) {
+        // Build the actual result label based on challenge type
+        let resultLabel = outputId;
+        if (challengeType === 'prize_wheel' && challengeData.segments) {
+          resultLabel = challengeData.segments.find(s => s.id === outputId)?.label || outputId;
+        } else if (challengeType === 'dice_roll') {
+          resultLabel = `rolled ${resultDetails.rollTotal || 'unknown'}`;
+        } else if (challengeType === 'coin_flip') {
+          resultLabel = outputId === 'heads' ? 'Heads' : 'Tails';
+        }
+
         await this.sendWrapperMessage(
           challengeData.postMessage,
           challengeData.postMessageSuppressLlm,
           challengeData.postMessageTarget,
           flowDataForPost.flow,
-          pendingNodeId
+          pendingNodeId,
+          {
+            isChallengePostMessage: true,
+            challengeType: challengeType,
+            challengeResult: resultLabel,
+            challengeOutcome: outputId,
+            // Include all set variables so LLM can use them
+            challengeVariables: {
+              Segment: this.variables['Segment'] || '',
+              Segments: this.variables['Segments'] || '',
+              Roll: this.variables['Roll'] || '',
+              Slots: this.variables['Slots'] || ''
+            }
+          }
         );
       }
     }
@@ -2677,8 +2710,9 @@ class EventEngine {
    * @param {string} target - 'character' or 'persona'
    * @param {Object} flow - The flow object
    * @param {string} nodeId - The node ID
+   * @param {Object} context - Optional context (e.g., { isChallengePreMessage: true, challengeType: 'prize_wheel' })
    */
-  async sendWrapperMessage(message, suppressLlm, target, flow, nodeId) {
+  async sendWrapperMessage(message, suppressLlm, target, flow, nodeId, context = {}) {
     if (!message) return;
 
     const broadcastData = {
@@ -2687,7 +2721,8 @@ class EventEngine {
       suppressLlm: suppressLlm || false,
       flowId: flow.id,
       nodeId: nodeId,
-      messageTarget: target || 'character'  // Used by frontend to route appropriately
+      messageTarget: target || 'character',  // Used by frontend to route appropriately
+      ...context  // Pass through challenge context for LLM instructions
     };
 
     // Route based on target

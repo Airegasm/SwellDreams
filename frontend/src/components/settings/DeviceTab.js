@@ -1359,19 +1359,21 @@ function DeviceTab() {
               ) : (
                 <>
                   <div className="integration-connected">
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleTapoScan}
-                      disabled={scanningTapo}
-                    >
-                      {scanningTapo ? 'Scanning...' : 'Scan Devices'}
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setShowTapoManualAdd(!showTapoManualAdd)}
-                    >
-                      + Manual IP
-                    </button>
+                    <p className="form-hint" style={{ marginBottom: '8px' }}>
+                      Tapo devices require local IP addresses. Find the IP in your router or Tapo app.
+                    </p>
+                    <div className="manual-add-form" style={{ marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        value={tapoManualIp}
+                        onChange={(e) => setTapoManualIp(e.target.value)}
+                        placeholder="Device IP (e.g., 192.168.1.100)"
+                        onKeyDown={(e) => e.key === 'Enter' && handleTapoManualAdd()}
+                      />
+                      <button className="btn btn-primary btn-sm" onClick={handleTapoManualAdd}>
+                        Add Device
+                      </button>
+                    </div>
                     <button
                       className="btn btn-danger btn-sm"
                       onClick={handleTapoDisconnect}
@@ -1379,40 +1381,7 @@ function DeviceTab() {
                       Disconnect
                     </button>
                   </div>
-                  {showTapoManualAdd && (
-                    <div className="manual-add-form">
-                      <input
-                        type="text"
-                        value={tapoManualIp}
-                        onChange={(e) => setTapoManualIp(e.target.value)}
-                        placeholder="Enter device IP address (e.g., 192.168.1.100)"
-                        onKeyDown={(e) => e.key === 'Enter' && handleTapoManualAdd()}
-                      />
-                      <button className="btn btn-primary btn-sm" onClick={handleTapoManualAdd}>
-                        Add Device
-                      </button>
-                    </div>
-                  )}
                   {tapoError && <div className="discovery-error">{tapoError}</div>}
-                  {discoveredTapo.length > 0 && (
-                    <div className="discovered-devices-list">
-                      <h4>Discovered Devices</h4>
-                      {discoveredTapo.map((device) => (
-                        <div key={device.deviceId} className="discovered-device-item tapo">
-                          <div className="discovered-device-info">
-                            <span className="discovered-device-name">{device.alias || device.deviceName || device.deviceId}</span>
-                            <span className="discovered-device-meta">{device.deviceModel}</span>
-                          </div>
-                          <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => handleAddTapoDevice(device)}
-                          >
-                            Add
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </>
               )}
             </div>

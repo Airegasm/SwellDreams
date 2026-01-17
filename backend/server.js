@@ -1493,8 +1493,12 @@ async function sendWelcomeMessage(character, settings) {
       broadcast('generating_start', { characterName: character.name });
 
       // Build system prompt with constant reminders
+      const playerName = settings?.activePersonaId ?
+        (loadAllPersonas() || []).find(p => p.id === settings.activePersonaId)?.displayName || 'the player' :
+        'the player';
       let systemPrompt = `You are ${character.name}. ${character.description}\n`;
       systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+      systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
       if (character.personality) {
         systemPrompt += `Personality: ${character.personality}\n\n`;
       }
@@ -1546,6 +1550,35 @@ async function sendWelcomeMessage(character, settings) {
   // Update placeholder with final content (apply variable substitution)
   placeholderMessage.content = substituteAllVariables(messageContent);
 
+  // Process AI device commands (e.g., [pump on], [vibe off]) in welcome messages
+  const devices = loadData(DATA_FILES.devices) || [];
+  console.log(`[WELCOME] Processing AI device commands in: "${placeholderMessage.content.substring(0, 200)}..."`);
+  console.log(`[WELCOME] Devices available: ${devices.length}, looking for [pump on], [vibe on], etc.`);
+  const aiControlResult = await aiDeviceControl.processLlmOutput(placeholderMessage.content, devices, deviceService, {
+    settings,
+    sessionState,
+    broadcast,
+    injectContext: (text) => {
+      // Append to welcome message so LLM thinks they said it
+      placeholderMessage.content += ` ${text}`;
+    }
+  });
+  console.log(`[WELCOME] AI device control result: ${aiControlResult.commands.length} commands found`);
+  if (aiControlResult.commands.length > 0) {
+    console.log(`[WELCOME] AI device control executed ${aiControlResult.commands.length} command(s):`, aiControlResult.commands);
+    placeholderMessage.content = aiControlResult.text;
+    // Broadcast AI device control event for toast notification
+    aiControlResult.results.forEach(r => {
+      if (r.success) {
+        broadcast('ai_device_control', {
+          device: r.command.device,
+          action: r.command.action,
+          deviceName: r.device?.label || r.device?.name || r.command.device
+        });
+      }
+    });
+  }
+
   broadcast('chat_message', placeholderMessage);
   autosaveSession();
 
@@ -1590,22 +1623,28 @@ eventEngine.setBroadcast(async (type, data) => {
     const settings = loadData(DATA_FILES.settings);
     // Use per-char storage if active, otherwise fall back to legacy
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const personas = loadAllPersonas() || [];
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+    const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
-    console.log(`[EventEngine] ai_message: activeCharId=${settings?.activeCharacterId}, found=${activeCharacter?.name || 'none'}, content=${data.content?.substring(0, 50)}...`);
+    // Determine if this should be player voice (messageTarget: 'persona') or character voice
+    const isPlayerVoice = data.messageTarget === 'persona';
+    const speakerName = isPlayerVoice ? (activePersona?.displayName || 'Player') : activeCharacter?.name;
+
+    console.log(`[EventEngine] ai_message: target=${data.messageTarget || 'character'}, speaker=${speakerName}, content=${data.content?.substring(0, 50)}...`);
 
     if (!activeCharacter) {
       console.log('[EventEngine] No active character found for ai_message - skipping');
       return;
     }
 
-    // Create placeholder message with "..."
+    // Create placeholder message with "..." - sender depends on target
     const placeholderMessage = {
       id: uuidv4(),
       content: '...',
-      sender: 'character',
-      characterId: activeCharacter.id,
-      characterName: activeCharacter.name,
+      sender: isPlayerVoice ? 'player' : 'character',
+      characterId: isPlayerVoice ? null : activeCharacter.id,
+      characterName: isPlayerVoice ? null : activeCharacter.name,
       timestamp: Date.now()
     };
 
@@ -1627,25 +1666,60 @@ eventEngine.setBroadcast(async (type, data) => {
       (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
     if (hasLlmConfig && data.content) {
       llmState.isGenerating = true;
-      broadcast('generating_start', { characterName: activeCharacter.name });
+      broadcast('generating_start', { characterName: speakerName, isPlayerVoice });
 
       try {
-        // Build context with the instruction from the flow
-        const context = buildChatContext(activeCharacter, settings);
+        // Build context based on whether this is player voice or character voice
+        let context;
+        if (isPlayerVoice) {
+          // Use guided impersonation context for player voice
+          context = buildSpecialContext('guided_impersonate', data.content, activeCharacter, activePersona, settings);
+        } else {
+          // Use character context for character voice
+          context = buildChatContext(activeCharacter, settings);
+        }
 
         // Build challenge-specific instruction if this is from a challenge node
         let challengeInstruction = '';
+        const challengeNames = {
+          'prize_wheel': 'Prize Wheel',
+          'dice_roll': 'Dice Roll',
+          'coin_flip': 'Coin Flip',
+          'rps': 'Rock Paper Scissors',
+          'timer_challenge': 'Timer Challenge',
+          'number_guess': 'Number Guess',
+          'slot_machine': 'Slot Machine',
+          'card_draw': 'Card Draw'
+        };
+
+        // Challenge PRE-message: DO NOT reveal results - the challenge hasn't happened yet!
+        if (data.isChallengePreMessage) {
+          const challengeName = challengeNames[data.challengeType] || data.challengeType;
+          const possibleOutcomes = data.possibleOutcomes?.join(', ') || 'various outcomes';
+          challengeInstruction = `\n\n=== CHALLENGE PRE-MESSAGE WARNING ===
+A ${challengeName} is ABOUT TO HAPPEN but HAS NOT HAPPENED YET.
+DO NOT reveal, predict, or hint at any result. The possible outcomes are: ${possibleOutcomes}
+You MUST NOT mention any specific outcome. Just build anticipation or announce the challenge is starting.
+NEVER say things like "it landed on X" or "you got X" - the challenge hasn't happened yet!
+=== END WARNING ===`;
+        }
+
+        // Challenge POST-message: The result IS known - use it correctly!
+        if (data.isChallengePostMessage) {
+          const challengeName = challengeNames[data.challengeType] || data.challengeType;
+          const result = data.challengeResult || 'unknown';
+          const vars = data.challengeVariables || {};
+          challengeInstruction = `\n\n=== CHALLENGE RESULT - USE THIS ===
+The ${challengeName} just completed. The ACTUAL result was: "${result}"
+If this was a wheel spin, [Segment] = "${vars.Segment}"
+If this was a dice roll, [Roll] = "${vars.Roll}"
+You MUST use this exact result in your response. Do NOT make up a different result.
+If announcing the result, say "${result}" - not something else.
+=== END RESULT ===`;
+        }
+
+        // Legacy challenge context handling
         if (data.challengeContext) {
-          const challengeNames = {
-            'prize_wheel': 'Prize Wheel',
-            'dice_roll': 'Dice Roll',
-            'coin_flip': 'Coin Flip',
-            'rps': 'Rock Paper Scissors',
-            'timer_challenge': 'Timer Challenge',
-            'number_guess': 'Number Guess',
-            'slot_machine': 'Slot Machine',
-            'card_draw': 'Card Draw'
-          };
           const challengeName = challengeNames[data.challengeContext.type] || data.challengeContext.type;
 
           if (data.challengeContext.event === 'start') {
@@ -1667,20 +1741,50 @@ eventEngine.setBroadcast(async (type, data) => {
 - Use clinical or detached language appropriate to your character`;
         }
 
-        // Add instruction to BOTH system prompt AND at the end of the prompt for emphasis
+        // ALWAYS inject current capacity into flow messages for accuracy
+        let capacityStateInstruction = '';
+        if (sessionState.capacity !== undefined && sessionState.capacity !== null) {
+          const capacity = Math.round(sessionState.capacity);
+          const playerName = activePersona?.displayName || 'the player';
+          const subject = isPlayerVoice ? 'Your' : `${playerName}'s`;
+          capacityStateInstruction = `\n\n=== MANDATORY CAPACITY STATE ===\n${subject} belly is currently at EXACTLY ${capacity}% capacity. If you mention ANY number related to fullness, inflation level, or capacity percentage, it MUST be ${capacity}%. Do not invent, estimate, or use any other number.\n=== END CAPACITY STATE ===`;
+        }
+
+        // Build instruction based on voice type
+        const speakerTag = isPlayerVoice ? '[Player]' : '[Char]';
         const instruction = `[YOUR NEXT MESSAGE MUST EXPRESS THIS ACTION: ${data.content}]`;
-        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
+
+        if (isPlayerVoice) {
+          // For player voice, buildSpecialContext already set up the context
+          // Just add the action instruction and capacity
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nIgnore previous conversation flow. Simply perform the action described above as ${activePersona?.displayName || 'the player'}.\n=== END CRITICAL INSTRUCTION ===`;
+        } else {
+          // For character voice, add full instruction
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}${capacityStateInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
+        }
+
+        // Strip any trailing speaker tag from the context (buildChatContext/buildSpecialContext add one)
+        // Then add our instruction followed by the correct speaker tag for this action
+        const speakerPattern = new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${activeCharacter.name}:)\\s*$`);
+        context.prompt = context.prompt.replace(speakerPattern, '');
 
         // Append instruction to the prompt so it's the last thing before generation
-        context.prompt += `\n\n${instruction}\n${activeCharacter.name}:`;
+        context.prompt += `\n\n${instruction}\n${isPlayerVoice ? '[Player]:' : activeCharacter.name + ':'}`;
 
         console.log('[EventEngine] Generating LLM message based on:', data.content);
+
+        // Build LLM settings, applying maxTokensOverride if provided (for short pre-messages)
+        const llmSettings = { ...settings.llm };
+        if (data.maxTokensOverride) {
+          llmSettings.maxTokens = data.maxTokensOverride;
+          console.log(`[EventEngine] Using maxTokens override: ${data.maxTokensOverride}`);
+        }
 
         // Generate enhanced response
         const result = await llmService.generate({
           prompt: context.prompt,
           systemPrompt: context.systemPrompt,
-          settings: settings.llm
+          settings: llmSettings
         });
 
         // Check if generation was aborted (user navigated away OR emergency stop)
@@ -1705,10 +1809,22 @@ eventEngine.setBroadcast(async (type, data) => {
           retryCount++;
           console.log(`[EventEngine] Regenerating (attempt ${retryCount}): blank=${isBlankMessage(finalText)}, duplicate=${isDuplicateMessage(finalText)}`);
 
-          // Add variation instruction
-          const variationContext = buildChatContext(activeCharacter, settings);
-          variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
-          variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${activeCharacter.name}:`;
+          // Add variation instruction - use correct context based on voice type
+          let variationContext;
+          if (isPlayerVoice) {
+            variationContext = buildSpecialContext('guided_impersonate', data.content, activeCharacter, activePersona, settings);
+            variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
+            // Strip trailing speaker tag before adding our own
+            variationContext.prompt = variationContext.prompt.replace(/(\n?\[Player\]:|\n?\[Char\]:)\s*$/, '');
+            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n[Player]:`;
+          } else {
+            variationContext = buildChatContext(activeCharacter, settings);
+            variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityStateInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
+            // Strip trailing speaker tag before adding our own
+            const charTagPattern = new RegExp(`(\\n?${activeCharacter.name}:)\\s*$`);
+            variationContext.prompt = variationContext.prompt.replace(charTagPattern, '');
+            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${activeCharacter.name}:`;
+          }
 
           const retryResult = await llmService.generate({
             prompt: variationContext.prompt,
@@ -2060,6 +2176,7 @@ function syncAutoGeneratedButtons(characterId, assignedFlowIds) {
   let buttons = character.buttons || [];
   const originalCount = buttons.length;
   const originalAutoCount = buttons.filter(b => b.autoGenerated).length;
+  let actionsFixed = false; // Track if we fixed empty actions on existing buttons
 
   // 1. Collect all expected auto-generated buttons from assigned flows (only character-targeted buttons)
   const expectedAutoButtons = [];
@@ -2125,15 +2242,23 @@ function syncAutoGeneratedButtons(characterId, assignedFlowIds) {
 
     if (existingAutoIndex !== -1) {
       // Update existing auto button (in case node ID changed or actions missing)
-      buttons[existingAutoIndex].sourceNodeId = expected.sourceNodeId;
+      const existingButton = buttons[existingAutoIndex];
+      const hadEmptyActions = !existingButton.actions || existingButton.actions.length === 0;
+
+      existingButton.sourceNodeId = expected.sourceNodeId;
       // Ensure actions are properly set (fix for buttons with empty actions)
-      buttons[existingAutoIndex].actions = [{
+      existingButton.actions = [{
         type: 'link_to_flow',
         config: {
           flowId: expected.flowId,
           flowActionLabel: expected.flowActionLabel
         }
       }];
+
+      if (hadEmptyActions) {
+        console.log(`[ButtonSync] Fixed empty actions for button "${expected.name}"`);
+        actionsFixed = true;
+      }
       continue;
     }
 
@@ -2161,7 +2286,7 @@ function syncAutoGeneratedButtons(characterId, assignedFlowIds) {
 
   // 4. Check if anything changed
   const newAutoCount = buttons.filter(b => b.autoGenerated).length;
-  const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount;
+  const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount || actionsFixed;
 
   if (changed) {
     // Save updated character
@@ -2285,6 +2410,7 @@ function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
   let buttons = persona.buttons || [];
   const originalCount = buttons.length;
   const originalAutoCount = buttons.filter(b => b.autoGenerated).length;
+  let actionsFixed = false; // Track if we fixed empty actions on existing buttons
 
   // 1. Collect all expected auto-generated buttons from assigned flows (only persona-targeted buttons)
   const expectedAutoButtons = [];
@@ -2355,15 +2481,23 @@ function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
 
     if (existingAutoIndex !== -1) {
       // Update existing auto button (in case node ID changed or actions missing)
-      buttons[existingAutoIndex].sourceNodeId = expected.sourceNodeId;
+      const existingButton = buttons[existingAutoIndex];
+      const hadEmptyActions = !existingButton.actions || existingButton.actions.length === 0;
+
+      existingButton.sourceNodeId = expected.sourceNodeId;
       // Ensure actions are properly set (fix for buttons with empty actions)
-      buttons[existingAutoIndex].actions = [{
+      existingButton.actions = [{
         type: 'link_to_flow',
         config: {
           flowId: expected.flowId,
           flowActionLabel: expected.flowActionLabel
         }
       }];
+
+      if (hadEmptyActions) {
+        console.log(`[PersonaButtonSync] Fixed empty actions for button "${expected.name}"`);
+        actionsFixed = true;
+      }
       continue;
     }
 
@@ -2391,7 +2525,7 @@ function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
 
   // 4. Check if anything changed
   const newAutoCount = buttons.filter(b => b.autoGenerated).length;
-  const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount;
+  const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount || actionsFixed;
 
   if (changed) {
     // Save updated persona using folder storage
@@ -4313,14 +4447,15 @@ Tags are hidden from player. Auto-timeout: ${maxSeconds}s.
       prompt += `\n(Guidance: ${guidedText})\n`;
       prompt += `${speakerTag}:`;
     } else {
-      prompt += `${speakerTag}:`;
+      // No guidance - just signal the speaker's turn with a clear newline
+      prompt += `\n${speakerTag}:`;
     }
   } else if (mode === 'impersonate') {
     // For pure impersonate - generate as player
-    prompt += `[Player]:`;
+    prompt += `\n[Player]:`;
   } else {
     // Default - generate as character
-    prompt += `[Char]:`;
+    prompt += `\n[Char]:`;
   }
 
   // Build stop sequences to prevent cross-role generation
@@ -5374,7 +5509,8 @@ app.post('/api/devices/:ip/on', async (req, res) => {
       return res.json({ success: false, blocked: true, reason: 'Capacity at maximum - pump blocked for safety' });
     }
 
-    const result = await deviceService.turnOn(deviceIdOrIp, device);
+    // Use fullDevice (with deviceType, calibrationTime) for capacity tracking, fall back to minimal device
+    const result = await deviceService.turnOn(deviceIdOrIp, fullDevice || device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -5396,7 +5532,16 @@ app.post('/api/devices/:ip/off', async (req, res) => {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
 
-    const result = await deviceService.turnOff(deviceIdOrIp, device);
+    // Find full device info for proper runtime tracking
+    const devices = loadData(DATA_FILES.devices) || [];
+    const fullDevice = devices.find(d =>
+      d.ip === deviceIdOrIp ||
+      d.deviceId === deviceIdOrIp ||
+      (d.ip === deviceIdOrIp && d.childId === childId)
+    );
+
+    // Use fullDevice (with deviceType, calibrationTime) for capacity tracking, fall back to minimal device
+    const result = await deviceService.turnOff(deviceIdOrIp, fullDevice || device);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });

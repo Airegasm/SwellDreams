@@ -216,7 +216,9 @@ function clearAllLlmTimers() {
  * @returns {Promise<{text: string, commands: Array, results: Array}>}
  */
 async function processLlmOutput(text, devices, deviceService, options = {}) {
+  log.info(`Processing text for device commands (${text?.length || 0} chars): "${text?.substring(0, 100)}..."`);
   const commands = parseDeviceCommands(text);
+  log.info(`Parsed ${commands.length} command(s):`, commands);
 
   if (commands.length === 0) {
     return { text, commands: [], results: [] };
