@@ -199,8 +199,19 @@ function matchPattern(text, pattern) {
 
   // For simple keywords, add word boundaries to prevent matching inside other words
   // e.g., "no" should NOT match "knowing" or "nervous"
-  if (isSimpleKeyword) {
-    regexStr = '\\b' + regexStr + '\\b';
+  // Only add \b where the pattern has word characters (letters/digits/underscore)
+  // so "no!" still matches (boundary before 'n', but not after '!')
+  if (isSimpleKeyword && pattern.length > 0) {
+    const firstChar = pattern[0];
+    const lastChar = pattern[pattern.length - 1];
+    const isWordChar = (c) => /\w/.test(c);
+
+    if (isWordChar(firstChar)) {
+      regexStr = '\\b' + regexStr;
+    }
+    if (isWordChar(lastChar)) {
+      regexStr = regexStr + '\\b';
+    }
   }
 
   try {
