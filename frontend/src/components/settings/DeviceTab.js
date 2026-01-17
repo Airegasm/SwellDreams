@@ -1326,6 +1326,9 @@ function DeviceTab() {
               {!tapoConnected ? (
                 <div className="integration-connect-form">
                   <p className="form-hint">Connect your TP-Link account to discover and control Tapo smart plugs (P100, P105, P110, P115).</p>
+                  <p className="form-hint" style={{ color: 'var(--warning-color)', fontSize: '0.85em' }}>
+                    First enable <strong>Third-Party Compatibility</strong> in Tapo app: Me → Third-Party Services
+                  </p>
                   <div className="connect-row">
                     <input
                       type="email"

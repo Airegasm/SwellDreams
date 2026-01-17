@@ -318,8 +318,22 @@ function ExternalApisTab() {
             <ul className="help-list">
               <li>TP-Link Tapo devices set up in the Tapo app</li>
               <li>Tapo cloud account (email and password)</li>
+              <li><strong>Third-Party Compatibility enabled</strong> (see below)</li>
               <li>Device local IP address (see "Finding Your Device IP" below)</li>
             </ul>
+
+            <h4 className="subsection-header">Enable Third-Party Compatibility</h4>
+            <div className="warning-box">
+              <strong>Required:</strong> Tapo devices must have Third-Party Compatibility enabled
+              to work with SwellDreams. Without this, you'll get a "FORBIDDEN" error.
+            </div>
+            <ol className="help-list numbered">
+              <li>Open the <strong>Tapo app</strong> on your phone</li>
+              <li>Tap <strong>Me</strong> (bottom right corner)</li>
+              <li>Tap <strong>Third-Party Services</strong></li>
+              <li>Enable the <strong>Third-Party Compatibility</strong> toggle</li>
+              <li>If already enabled, toggle it <strong>off then on again</strong></li>
+            </ol>
 
             <h4 className="subsection-header">Finding Your Device IP</h4>
             <p>You can find your Tapo device's IP address in several ways:</p>
@@ -356,6 +370,10 @@ function ExternalApisTab() {
 
             <h4 className="subsection-header">Troubleshooting</h4>
             <ul className="help-list">
+              <li>
+                <strong>"FORBIDDEN" error:</strong> Enable Third-Party Compatibility in the Tapo app
+                (Me → Third-Party Services). If already enabled, toggle it off then on again.
+              </li>
               <li>
                 <strong>Authentication fails:</strong> Double-check your Tapo email and password.
                 These are the same credentials you use to log into the Tapo app.
