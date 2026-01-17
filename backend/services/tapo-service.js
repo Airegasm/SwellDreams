@@ -1,22 +1,21 @@
 /**
  * TP-Link Tapo Smart Device Service
- * Uses tp-link-tapo-connect npm package for KLAP protocol communication
+ * Uses Python plugp100 library for proper KLAP protocol support
  *
  * Supports: P100, P105, P110, P115 smart plugs
  */
 
-const { cloudLogin, loginDeviceByIp } = require('tp-link-tapo-connect');
+const { execSync } = require('child_process');
+const path = require('path');
 const { createLogger } = require('../utils/logger');
 
 const log = createLogger('Tapo');
+const SCRIPT_PATH = path.join(__dirname, '..', 'scripts', 'tapo-control.py');
 
 class TapoService {
   constructor() {
     this.email = null;
     this.password = null;
-    this.cloudApi = null;
-    this.deviceSessions = new Map(); // ip -> { device, lastUsed }
-    this.SESSION_TTL = 5 * 60 * 1000; // 5 minute session cache
   }
 
   /**
@@ -27,8 +26,6 @@ class TapoService {
     log.info(`Setting credentials for ${masked}`);
     this.email = email;
     this.password = password;
-    this.cloudApi = null;
-    this.deviceSessions.clear();
   }
 
   /**
@@ -39,91 +36,71 @@ class TapoService {
   }
 
   /**
-   * Clear all credentials and sessions
+   * Clear all credentials
    */
   clearCredentials() {
     log.info('Clearing credentials');
     this.email = null;
     this.password = null;
-    this.cloudApi = null;
-    this.deviceSessions.clear();
   }
 
   /**
-   * Test connection by attempting cloud login
+   * Execute Python Tapo control script
+   * @param {string} command - on, off, state, info
+   * @param {string} ip - Device IP address
+   * @returns {object} Result from Python script
+   */
+  _execPython(command, ip) {
+    if (!this.email || !this.password) {
+      throw new Error('Tapo credentials not configured');
+    }
+
+    try {
+      const result = execSync(
+        `python3 "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
+        { encoding: 'utf8', timeout: 30000 }
+      );
+      return JSON.parse(result.trim());
+    } catch (error) {
+      log.error(`Python script error for ${command} on ${ip}:`, error.message);
+      // Try to parse any JSON in stdout
+      if (error.stdout) {
+        try {
+          return JSON.parse(error.stdout.trim());
+        } catch (e) {
+          // Ignore parse error
+        }
+      }
+      throw new Error(`Tapo command failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Test connection by attempting to get device info
+   * @param {string} ip - Test device IP
    * @returns {Promise<boolean>}
    */
-  async testConnection() {
+  async testConnection(ip = '192.168.1.1') {
     if (!this.email || !this.password) {
       log.warn('Cannot test connection - no credentials set');
       return false;
     }
     try {
-      this.cloudApi = await cloudLogin(this.email, this.password);
-      log.info('Cloud login successful');
-      return true;
+      const result = this._execPython('info', ip);
+      return result.success === true;
     } catch (error) {
-      log.error('Cloud login failed:', error.message);
-      this.cloudApi = null;
+      log.error('Connection test failed:', error.message);
       return false;
     }
   }
 
   /**
-   * List all Tapo plug devices from cloud account
-   * @returns {Promise<Array>}
+   * List devices - not available via local API, return empty
+   * Use the TP-Link/Tapo app to find device IPs
    */
   async listDevices() {
-    if (!this.email || !this.password) {
-      throw new Error('Tapo credentials not configured');
-    }
-
-    try {
-      if (!this.cloudApi) {
-        this.cloudApi = await cloudLogin(this.email, this.password);
-      }
-      const devices = await this.cloudApi.listDevicesByType('SMART.TAPOPLUG');
-      log.info(`Found ${devices.length} Tapo plug(s)`);
-      return devices;
-    } catch (error) {
-      log.error('Failed to list devices:', error.message);
-      // Reset cloud API on failure
-      this.cloudApi = null;
-      throw error;
-    }
-  }
-
-  /**
-   * Get or create a device session for local control
-   * Sessions are cached for SESSION_TTL milliseconds
-   * @param {string} ip - Device IP address
-   * @returns {Promise<object>} Device session
-   */
-  async getDeviceSession(ip) {
-    if (!this.email || !this.password) {
-      throw new Error('Tapo credentials not configured');
-    }
-
-    const cached = this.deviceSessions.get(ip);
-    const now = Date.now();
-
-    // Return cached session if still valid
-    if (cached && (now - cached.lastUsed) < this.SESSION_TTL) {
-      cached.lastUsed = now;
-      return cached.device;
-    }
-
-    // Create new session
-    log.info(`Creating new session for ${ip}`);
-    try {
-      const device = await loginDeviceByIp(this.email, this.password, ip);
-      this.deviceSessions.set(ip, { device, lastUsed: now });
-      return device;
-    } catch (error) {
-      log.error(`Failed to create session for ${ip}:`, error.message);
-      this.deviceSessions.delete(ip);
-      throw error;
-    }
+    log.info('Cloud device listing not supported - use manual IP entry');
+    return [];
   }
 
   /**
@@ -132,23 +109,11 @@ class TapoService {
    */
   async turnOn(ip) {
     log.info(`Turning ON device at ${ip}`);
-    try {
-      const device = await this.getDeviceSession(ip);
-      await device.turnOn();
-      return { success: true };
-    } catch (error) {
-      // Session may have expired, retry once with fresh session
-      log.warn(`First attempt failed for ${ip}, retrying with fresh session`);
-      this.deviceSessions.delete(ip);
-      try {
-        const device = await this.getDeviceSession(ip);
-        await device.turnOn();
-        return { success: true };
-      } catch (retryError) {
-        log.error(`Failed to turn on ${ip}:`, retryError.message);
-        throw retryError;
-      }
+    const result = this._execPython('on', ip);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to turn on device');
     }
+    return result;
   }
 
   /**
@@ -157,23 +122,11 @@ class TapoService {
    */
   async turnOff(ip) {
     log.info(`Turning OFF device at ${ip}`);
-    try {
-      const device = await this.getDeviceSession(ip);
-      await device.turnOff();
-      return { success: true };
-    } catch (error) {
-      // Session may have expired, retry once with fresh session
-      log.warn(`First attempt failed for ${ip}, retrying with fresh session`);
-      this.deviceSessions.delete(ip);
-      try {
-        const device = await this.getDeviceSession(ip);
-        await device.turnOff();
-        return { success: true };
-      } catch (retryError) {
-        log.error(`Failed to turn off ${ip}:`, retryError.message);
-        throw retryError;
-      }
+    const result = this._execPython('off', ip);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to turn off device');
     }
+    return result;
   }
 
   /**
@@ -182,16 +135,11 @@ class TapoService {
    * @returns {Promise<object>} Device info object
    */
   async getDeviceInfo(ip) {
-    try {
-      const device = await this.getDeviceSession(ip);
-      const info = await device.getDeviceInfo();
-      return info;
-    } catch (error) {
-      // Retry with fresh session
-      this.deviceSessions.delete(ip);
-      const device = await this.getDeviceSession(ip);
-      return await device.getDeviceInfo();
+    const result = this._execPython('info', ip);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get device info');
     }
+    return result.info;
   }
 
   /**
@@ -200,9 +148,11 @@ class TapoService {
    * @returns {Promise<string>} 'on' or 'off'
    */
   async getPowerState(ip) {
-    const info = await this.getDeviceInfo(ip);
-    // device_on is the standard Tapo field for power state
-    return info.device_on ? 'on' : 'off';
+    const result = this._execPython('state', ip);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to get power state');
+    }
+    return result.state;
   }
 }
 

@@ -91,12 +91,32 @@ function GettingStartedTab() {
               AI personalities you interact with. Each character has their own personality,
               backstory, and behavior defined through system prompts and reminders.
             </p>
+            <p>
+              SwellDreams includes four default characters to get you started:
+            </p>
+            <ul className="help-list">
+              <li><strong>Luna</strong> - A sweet and supportive partner for gentle, nurturing sessions</li>
+              <li><strong>Mistress Scarlett</strong> - A commanding dominatrix for intense power exchange</li>
+              <li><strong>Vex</strong> - A playful trickster who loves games and mischief</li>
+              <li><strong>Dr. Iris Chen</strong> - A professional medical researcher for clinical scenarios</li>
+            </ul>
+            <p>
+              Each default character comes with pre-built reaction flows that can be enabled for
+              automatic responses to capacity changes and other events.
+            </p>
 
             <h4 className="subsection-header">Personas</h4>
             <p>
               Your player identity in conversations. The persona defines your name, description,
               and how the AI should perceive and interact with you.
             </p>
+            <p>
+              Two default personas are included:
+            </p>
+            <ul className="help-list">
+              <li><strong>Marcus</strong> - A confident professional in his 30s</li>
+              <li><strong>Zara</strong> - An adventurous graduate student in her mid-20s</li>
+            </ul>
 
             <h4 className="subsection-header">Flows</h4>
             <p>

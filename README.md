@@ -1,8 +1,8 @@
 # SwellDreams
 
-**v2.0 "Midnight Oil"**
+**v2.5b**
 
-An AI-powered interactive roleplay platform with smart device integration.
+An AI-powered interactive roleplay platform with smart device integration and visual flow automation.
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -11,15 +11,19 @@ An AI-powered interactive roleplay platform with smart device integration.
 ### AI Chat
 - **Multiple LLM Backends**: Connect to KoboldCpp (local), OpenRouter (cloud), or any OpenAI-compatible API
 - **Character System**: Create detailed characters with personalities, scenarios, and custom welcome messages
+- **Default Characters**: Luna (nurturing), Mistress Scarlett (dominant), Vex (playful), Dr. Iris Chen (clinical)
 - **Persona System**: Define player personas for immersive roleplay
+- **Default Personas**: Marcus and Zara ready to use out of the box
 - **Multi-Stage Portraits**: Persona portraits that change based on capacity level
 - **Streaming Responses**: Real-time token streaming for natural conversation flow
 - **Auto Reply**: Toggle automatic AI responses or use guided response mode
 
 ### Smart Device Control
 - **TP-Link Kasa**: Local network control of smart plugs, switches, and power strips
+- **TP-Link Tapo**: Local network control with cloud authentication (requires device IP)
 - **Govee**: Cloud API integration for Govee smart devices
 - **Tuya/Smart Life**: Support for Tuya-based devices (Globe, Treatlife, Gosund, Teckin, etc.)
+- **Wyze**: Cloud API for Wyze smart plugs
 - **Device Actions**: Turn on, turn off, and cycle devices with customizable timing
 - **Primary Pump**: Designate a primary device for quick access
 - **Pump Calibration**: Calibrate pump runtime to capacity percentage for auto-incrementing gauge
@@ -29,8 +33,10 @@ An AI-powered interactive roleplay platform with smart device integration.
 - **Event Triggers**: Respond to player messages, capacity changes, emotions, and more
 - **Conditional Logic**: Branch flows based on variables and state
 - **Device Integration**: Control smart devices directly from flows
-- **Challenge Nodes**: Interactive games (dice roll, prize wheel, coin flip, RPS, etc.)
+- **Challenge Nodes**: Interactive games (dice roll, prize wheel, coin flip, RPS, Simon, etc.)
 - **Capacity Message Nodes**: AI/Player message nodes with capacity-range routing
+- **Pause/Resume**: Pause flow execution, let natural conversation happen, auto-resume after N messages
+- **Input & Random Nodes**: Collect player input and generate random values for dynamic flows
 - **Flow Priority**: Set execution priority (1-5) and mark flows as unblockable
 - **ScreenPlay**: View flow-generated narrative content in a dedicated page
 
@@ -107,6 +113,13 @@ stop.bat       # Windows
 1. Set up devices in the Kasa app
 2. In SwellDreams: Settings > Devices > Scan Kasa
 3. Add discovered devices
+
+#### TP-Link Tapo
+1. Set up devices in the Tapo app
+2. Find your device's local IP address (Tapo app > Device > Settings > Device Info)
+3. In SwellDreams: Settings > Devices > Tapo section
+4. Enter your Tapo email and password, click Connect
+5. Enter the device IP address and click Add Device
 
 #### Govee
 1. Request API key from Govee Home app (Profile > Settings > About Us > Apply for API Key)

@@ -325,6 +325,11 @@ function FlowTab() {
                   <td>Generates a random integer within a range and stores it in a flow variable. Useful for randomized behavior.</td>
                   <td>Min/max values, variable name to store result</td>
                 </tr>
+                <tr>
+                  <td><span className="node-type delay">Pause/Resume</span></td>
+                  <td>Pauses flow execution and resumes automatically after a specified number of messages. Allows natural conversation to occur during the pause.</td>
+                  <td>PAUSE / RESUME (dual outputs)</td>
+                </tr>
               </tbody>
             </table>
 
@@ -334,6 +339,22 @@ function FlowTab() {
                 <code>[Feeling]</code> (pain level 0-10), <code>[Emotion]</code> (emoji state),
                 or any <code>[Flow:varName]</code> custom variable.
               </p>
+            </div>
+
+            <h4 className="subsection-header">Pause/Resume Node</h4>
+            <p>
+              The <strong>Pause/Resume</strong> node is a powerful flow control mechanism that lets you
+              temporarily suspend flow execution while allowing natural conversation to continue.
+            </p>
+            <ul className="help-list">
+              <li><strong>PAUSE output:</strong> Executes immediately when the node is reached (use for pre-pause actions)</li>
+              <li><strong>RESUME output:</strong> Executes automatically after the specified number of messages</li>
+              <li>Other flows can run during the pause window</li>
+              <li>Messages from both player and AI count toward the resume threshold</li>
+            </ul>
+            <div className="tip-box">
+              <strong>Example:</strong> Set "Resume after 4 messages" → PAUSE side turns device off →
+              player and AI have a 4-message conversation naturally → RESUME side turns device back on.
             </div>
           </div>
         )}

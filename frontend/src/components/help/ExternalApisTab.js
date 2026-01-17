@@ -8,6 +8,8 @@ function ExternalApisTab() {
     koboldcpp: false,
     openrouter: false,
     freemodels: false,
+    kasa: false,
+    tapo: false,
     tuya: false,
     govee: false,
     wyze: false
@@ -42,6 +44,7 @@ function ExternalApisTab() {
             <h4 className="subsection-header">Smart Device Options</h4>
             <ul className="help-list">
               <li><strong>TP-Link Kasa</strong> - Local network discovery, no cloud account needed</li>
+              <li><strong>TP-Link Tapo</strong> - Local network control, requires device IP and Tapo cloud credentials</li>
               <li><strong>Govee</strong> - Cloud API, requires free Govee account and API key</li>
               <li><strong>Tuya/Smart Life</strong> - Cloud API for Tuya, Smart Life, Geeni, Globe, Treatlife, Gosund, Teckin, etc.</li>
               <li><strong>Wyze</strong> - Cloud API, requires Wyze account and developer API credentials</li>
@@ -251,6 +254,124 @@ function ExternalApisTab() {
               <li><strong>Claude 3.5 Sonnet</strong> - Excellent roleplay, very creative</li>
               <li><strong>GPT-4o</strong> - OpenAI's flagship, great at following complex instructions</li>
               <li><strong>Llama 3.1 70B</strong> - Larger Llama model, much better than 8B</li>
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* TP-Link Kasa */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('kasa')}>
+          TP-Link Kasa (Local)
+          <span className="expand-icon">{expanded.kasa ? '−' : '+'}</span>
+        </h3>
+        {expanded.kasa && (
+          <div className="section-content">
+            <p>
+              TP-Link Kasa devices (smart plugs, switches, power strips) can be controlled locally
+              over your network without any cloud account. This is the simplest device integration.
+            </p>
+
+            <h4 className="subsection-header">Prerequisites</h4>
+            <ul className="help-list">
+              <li>TP-Link Kasa devices set up in the Kasa app</li>
+              <li>Devices connected to the same network as SwellDreams</li>
+              <li>Python 3.8+ installed (used for device discovery)</li>
+            </ul>
+
+            <h4 className="subsection-header">SwellDreams Configuration</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Devices</strong></li>
+              <li>In the Kasa section, click <strong>Scan Kasa</strong></li>
+              <li>Wait for device discovery to complete</li>
+              <li>Click <strong>Add</strong> next to each device you want to control</li>
+            </ol>
+
+            <div className="info-box">
+              <strong>Tip:</strong> Kasa devices are discovered by IP address. If your router
+              assigns new IPs, you may need to re-scan. Consider setting static IPs for your
+              Kasa devices in your router settings.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* TP-Link Tapo */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('tapo')}>
+          TP-Link Tapo
+          <span className="expand-icon">{expanded.tapo ? '−' : '+'}</span>
+        </h3>
+        {expanded.tapo && (
+          <div className="section-content">
+            <p>
+              TP-Link Tapo devices (smart plugs, power strips, etc.) require your Tapo cloud
+              credentials for authentication, but are controlled locally over your network.
+            </p>
+
+            <div className="warning-box">
+              <strong>Important:</strong> Tapo devices require you to manually enter the device's
+              local IP address. The cloud API cannot discover IPs automatically.
+            </div>
+
+            <h4 className="subsection-header">Prerequisites</h4>
+            <ul className="help-list">
+              <li>TP-Link Tapo devices set up in the Tapo app</li>
+              <li>Tapo cloud account (email and password)</li>
+              <li>Device local IP address (see "Finding Your Device IP" below)</li>
+            </ul>
+
+            <h4 className="subsection-header">Finding Your Device IP</h4>
+            <p>You can find your Tapo device's IP address in several ways:</p>
+            <ol className="help-list numbered">
+              <li>
+                <strong>Tapo App:</strong> Open the Tapo app → tap on your device →
+                tap the gear icon (settings) → scroll down to "Device Info" → find "IP Address"
+              </li>
+              <li>
+                <strong>Router Admin:</strong> Log into your router's admin page and look
+                for connected devices. The Tapo device will appear with its name and IP.
+              </li>
+              <li>
+                <strong>Network Scanner:</strong> Use an app like "Fing" on your phone to
+                scan your network and find TP-Link devices.
+              </li>
+            </ol>
+
+            <h4 className="subsection-header">SwellDreams Configuration</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Devices</strong></li>
+              <li>In the Tapo section, enter your <strong>Tapo email</strong> and <strong>password</strong></li>
+              <li>Click <strong>Connect</strong> to verify your credentials</li>
+              <li>Enter your device's <strong>IP address</strong> (e.g., <code>192.168.1.135</code>)</li>
+              <li>Click <strong>Add Device</strong></li>
+              <li>The device should appear in your device list</li>
+            </ol>
+
+            <div className="tip-box">
+              <strong>Static IP Recommended:</strong> To prevent your Tapo device IP from changing,
+              set up a DHCP reservation (static IP) in your router. This ensures the IP stays
+              the same after reboots.
+            </div>
+
+            <h4 className="subsection-header">Troubleshooting</h4>
+            <ul className="help-list">
+              <li>
+                <strong>Authentication fails:</strong> Double-check your Tapo email and password.
+                These are the same credentials you use to log into the Tapo app.
+              </li>
+              <li>
+                <strong>Device not responding:</strong> Verify the IP address is correct and the
+                device is online. Try controlling it with the Tapo app first.
+              </li>
+              <li>
+                <strong>Connection timeout:</strong> Ensure SwellDreams is running on the same
+                network as your Tapo device (not a VPN or different subnet).
+              </li>
+              <li>
+                <strong>IP changed:</strong> If your device stopped working, the IP may have
+                changed. Check your router or Tapo app for the new address.
+              </li>
             </ul>
           </div>
         )}
