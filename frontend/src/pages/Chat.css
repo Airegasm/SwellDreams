@@ -103,7 +103,24 @@
 @media (max-width: 768px) {
   .chat-blocking-overlay {
     left: 0;  /* Full screen on mobile */
-    z-index: 999;  /* High z-index to cover everything except the modal */
+    z-index: 199;  /* Below challenge-overlay (200) so buttons are clickable */
+  }
+
+  /* Only apply fixed positioning when overlay is open */
+  .challenge-overlay.open {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 60vh !important;
+    min-height: 300px !important;
+    z-index: 10001 !important;  /* Above everything on mobile including badges */
+    pointer-events: auto !important;
+  }
+
+  .challenge-overlay.open .player-choice-panel,
+  .challenge-overlay.open .btn-choice {
+    pointer-events: auto !important;
   }
 }
 
