@@ -1276,7 +1276,8 @@ eventEngine.setBroadcast(async (type, data) => {
     }
 
     const settings = loadData(DATA_FILES.settings);
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
     console.log(`[EventEngine] ai_message: activeCharId=${settings?.activeCharacterId}, found=${activeCharacter?.name || 'none'}, content=${data.content?.substring(0, 50)}...`);
@@ -1499,7 +1500,8 @@ eventEngine.setBroadcast(async (type, data) => {
 
     const settings = loadData(DATA_FILES.settings);
     const personas = loadData(DATA_FILES.personas) || [];
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activePersona = personas.find(p => p.id === settings?.activePersonaId);
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
     const playerName = activePersona?.displayName || 'Player';
@@ -1628,7 +1630,8 @@ STRICT RULES:
   } else if (type === 'system_message') {
     // System messages don't get LLM enhancement
     const settings = loadData(DATA_FILES.settings);
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
     const message = {
@@ -2730,7 +2733,8 @@ async function handleExecuteButton(data) {
 }
 
 async function handleButtonSendMessage(action, characterId, personaId) {
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const settings = loadData(DATA_FILES.settings);
 
   // Use passed characterId, or fall back to active character from settings
@@ -2996,7 +3000,8 @@ async function handleChatMessage(data) {
 
   // Check if we should generate AI response
   const settings = loadData(DATA_FILES.settings);
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
@@ -3125,7 +3130,8 @@ async function handleSpecialGenerate(data) {
   const { mode, guidedText } = data;
 
   const settings = loadData(DATA_FILES.settings);
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const personas = loadData(DATA_FILES.personas) || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -3266,7 +3272,8 @@ async function handleImpersonateRequest(data) {
   const { guidedText } = data;
 
   const settings = loadData(DATA_FILES.settings);
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const personas = loadData(DATA_FILES.personas) || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);

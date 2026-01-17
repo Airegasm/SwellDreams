@@ -64,6 +64,8 @@ function Chat() {
   // Control panel state
   const [polledDeviceStates, setPolledDeviceStates] = useState({}); // { deviceKey: { state, relayState, lastUpdate } }
   const recentActionsRef = useRef({}); // { deviceKey: timestamp } - skip polling for recently actioned devices
+  const pollingInProgressRef = useRef(false); // Guard against concurrent polling
+  const devicesRef = useRef([]); // Stable reference to devices for polling
 
   // Helper to get unique device key (ip for TPLink singles, ip:childId for outlets, deviceId for Govee/Tuya)
   const getDeviceKey = (device) => {
@@ -113,7 +115,7 @@ function Chat() {
   }, [activePersona?.id]);
 
   // Panel blocking - disable interactions when slide panel is open
-  const isPanelBlocking = !!(playerChoiceData || simpleABData || challengeData);
+  const isPanelBlocking = !!(playerChoiceData || challengeData);
 
   // Flow in progress - disable action buttons and guided buttons while flow is executing
   const flowInProgress = flowExecutions && flowExecutions.length > 0;
@@ -349,88 +351,107 @@ function Chat() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [sessionState.capacity, sendWsMessage, settings?.globalCharacterControls?.useAutoCapacity]);
 
-  // Periodic device state polling
+  // Keep devices ref updated (separate from polling interval)
   useEffect(() => {
-    if (!devices || devices.length === 0) return;
+    devicesRef.current = devices || [];
+  }, [devices]);
 
+  // Periodic device state polling - uses ref to avoid re-triggering on devices changes
+  useEffect(() => {
     const pollDeviceStates = async () => {
-      const now = Date.now();
-      const RECENT_ACTION_COOLDOWN = 10000; // 10 seconds
+      const currentDevices = devicesRef.current;
+      if (!currentDevices || currentDevices.length === 0) return;
 
-      const statePromises = devices.map(async (device) => {
-        const deviceKey = device.childId
-          ? `${device.ip}:${device.childId}`
-          : (device.deviceId || device.ip);
+      // Prevent concurrent polling
+      if (pollingInProgressRef.current) {
+        return;
+      }
+      pollingInProgressRef.current = true;
 
-        // Skip polling for devices with recent manual actions
-        const lastAction = recentActionsRef.current[deviceKey];
-        if (lastAction && (now - lastAction) < RECENT_ACTION_COOLDOWN) {
-          // Return existing state instead of polling
-          return null;
-        }
+      try {
+        const now = Date.now();
+        const RECENT_ACTION_COOLDOWN = 10000; // 10 seconds
 
-        try {
-          // Use deviceId for Govee/Tuya, ip for TPLink
-          const deviceIdentifier = device.deviceId || device.ip;
-          // Build URL with optional childId for power strip outlets and brand for Govee/Tuya
-          let url = `${API_BASE}/api/devices/${encodeURIComponent(deviceIdentifier)}/state`;
-          const params = new URLSearchParams();
-          if (device.childId) {
-            params.append('childId', device.childId);
+        const statePromises = currentDevices.map(async (device) => {
+          const deviceKey = device.childId
+            ? `${device.ip}:${device.childId}`
+            : (device.deviceId || device.ip);
+
+          // Skip polling for devices with recent manual actions
+          const lastAction = recentActionsRef.current[deviceKey];
+          if (lastAction && (now - lastAction) < RECENT_ACTION_COOLDOWN) {
+            // Return existing state instead of polling
+            return null;
           }
-          if (device.brand && device.brand !== 'tplink') {
-            params.append('brand', device.brand);
-            if (device.sku) params.append('sku', device.sku);
-          }
-          if (params.toString()) {
-            url += `?${params.toString()}`;
-          }
-          const response = await fetch(url);
-          const result = await response.json();
-          return {
-            key: deviceKey,
-            state: result.error ? 'unknown' : result.state,
-            relayState: result.relay_state,
-            lastUpdate: Date.now()
-          };
-        } catch (error) {
-          console.error(`[Polling] Failed to get state for ${device.deviceId || device.ip}:`, error);
-          return {
-            key: deviceKey,
-            state: 'unknown',
-            lastUpdate: Date.now()
-          };
-        }
-      });
 
-      const states = await Promise.all(statePromises);
-      const resultsTime = Date.now();
-      setPolledDeviceStates(prev => {
-        const newStates = { ...prev };
-        states.forEach(s => {
-          // Skip null entries (devices with recent actions keep their current state)
-          if (s) {
-            // Double-check: also skip if a manual action happened WHILE this poll was in flight
-            const lastAction = recentActionsRef.current[s.key];
-            if (lastAction && (resultsTime - lastAction) < RECENT_ACTION_COOLDOWN) {
-              // A manual action happened after this poll started - keep optimistic state
-              return;
+          try {
+            // Use deviceId for Govee/Tuya, ip for TPLink
+            const deviceIdentifier = device.deviceId || device.ip;
+            // Build URL with optional childId for power strip outlets and brand for Govee/Tuya
+            let url = `${API_BASE}/api/devices/${encodeURIComponent(deviceIdentifier)}/state`;
+            const params = new URLSearchParams();
+            if (device.childId) {
+              params.append('childId', device.childId);
             }
-            newStates[s.key] = s;
+            if (device.brand && device.brand !== 'tplink') {
+              params.append('brand', device.brand);
+              if (device.sku) params.append('sku', device.sku);
+            }
+            if (params.toString()) {
+              url += `?${params.toString()}`;
+            }
+            const response = await fetch(url);
+            const result = await response.json();
+            return {
+              key: deviceKey,
+              state: result.error ? 'unknown' : result.state,
+              relayState: result.relay_state,
+              lastUpdate: Date.now()
+            };
+          } catch (error) {
+            console.error(`[Polling] Failed to get state for ${device.deviceId || device.ip}:`, error);
+            return {
+              key: deviceKey,
+              state: 'unknown',
+              lastUpdate: Date.now()
+            };
           }
         });
-        return newStates;
-      });
+
+        const states = await Promise.all(statePromises);
+        const resultsTime = Date.now();
+        setPolledDeviceStates(prev => {
+          const newStates = { ...prev };
+          states.forEach(s => {
+            // Skip null entries (devices with recent actions keep their current state)
+            if (s) {
+              // Double-check: also skip if a manual action happened WHILE this poll was in flight
+              const lastAction = recentActionsRef.current[s.key];
+              if (lastAction && (resultsTime - lastAction) < RECENT_ACTION_COOLDOWN) {
+                // A manual action happened after this poll started - keep optimistic state
+                return;
+              }
+              newStates[s.key] = s;
+            }
+          });
+          return newStates;
+        });
+      } finally {
+        pollingInProgressRef.current = false;
+      }
     };
 
-    // Initial poll
-    pollDeviceStates();
+    // Initial poll after a short delay to let devices load
+    const initialTimeout = setTimeout(pollDeviceStates, 500);
 
     // Set up interval using config constant
     const pollInterval = setInterval(pollDeviceStates, CONFIG.POLL_INTERVAL_MS);
 
-    return () => clearInterval(pollInterval);
-  }, [devices]);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(pollInterval);
+    };
+  }, []); // Empty dependency - polling runs once and uses refs
 
   // Sync local isGenerating with sessionState.isGenerating
   useEffect(() => {
@@ -872,7 +893,7 @@ function Chat() {
 
       {/* Blocking overlay for slide panel interactions */}
       <div
-        className={`chat-blocking-overlay ${playerChoiceData || simpleABData || challengeData || inputData ? 'visible' : ''}`}
+        className={`chat-blocking-overlay ${playerChoiceData || challengeData || inputData ? 'visible' : ''}`}
       />
 
       {/* Mobile Header Badges - StatusBadges in header area on mobile */}
@@ -1013,6 +1034,38 @@ function Chat() {
           })()}
         </div>
 
+        {/* Simple A/B Choice Popup - compact version near portrait */}
+        {simpleABData && (
+          <div className="simple-ab-popup">
+            <div className="simple-ab-popup-header">
+              <span>Choose</span>
+            </div>
+            {simpleABData.description && (
+              <p className="ab-popup-description">{substituteVariables(simpleABData.description, subContext)}</p>
+            )}
+            <div className="ab-popup-buttons">
+              <button
+                className="btn-ab-compact btn-ab-a"
+                onClick={() => handleSimpleAB('a')}
+              >
+                <span className="ab-label">{simpleABData.labelA}</span>
+                {simpleABData.descriptionA && (
+                  <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
+                )}
+              </button>
+              <button
+                className="btn-ab-compact btn-ab-b"
+                onClick={() => handleSimpleAB('b')}
+              >
+                <span className="ab-label">{simpleABData.labelB}</span>
+                {simpleABData.descriptionB && (
+                  <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Main Chat Area */}
@@ -1037,7 +1090,7 @@ function Chat() {
         )}
 
         {/* Interactive overlay - slides down from top for challenges, choices, etc */}
-        <div className={`challenge-overlay ${(challengeData || playerChoiceData || simpleABData) ? 'open' : ''}`}>
+        <div className={`challenge-overlay ${(challengeData || playerChoiceData) ? 'open' : ''}`}>
           {challengeData && (
             <ChallengeModal
               challengeData={challengeData}
@@ -1054,38 +1107,6 @@ function Chat() {
               subContext={subContext}
               compact={false}
             />
-          )}
-          {simpleABData && (
-            <div className="simple-ab-overlay">
-              <div className="simple-ab-header">
-                <h3>Choose</h3>
-              </div>
-              <div className="simple-ab-body">
-                {simpleABData.description && (
-                  <p className="ab-description">{substituteVariables(simpleABData.description, subContext)}</p>
-                )}
-                <div className="ab-buttons">
-                  <button
-                    className="btn-ab btn-ab-a"
-                    onClick={() => handleSimpleAB('a')}
-                  >
-                    <span className="ab-label">{simpleABData.labelA}</span>
-                    {simpleABData.descriptionA && (
-                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
-                    )}
-                  </button>
-                  <button
-                    className="btn-ab btn-ab-b"
-                    onClick={() => handleSimpleAB('b')}
-                  >
-                    <span className="ab-label">{simpleABData.labelB}</span>
-                    {simpleABData.descriptionB && (
-                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
           )}
           {inputData && (
             <InputModal
