@@ -79,9 +79,6 @@ git fetch origin
 :: Get current and remote commit hashes
 for /f "tokens=*" %%i in ('git rev-parse HEAD 2^>nul') do set LOCAL=%%i
 for /f "tokens=*" %%i in ('git rev-parse origin/master 2^>nul') do set REMOTE=%%i
-if "!REMOTE!"=="" (
-    for /f "tokens=*" %%i in ('git rev-parse origin/main 2^>nul') do set REMOTE=%%i
-)
 
 if "!LOCAL!"=="!REMOTE!" (
     echo [OK] You are already on the latest version!
@@ -96,7 +93,7 @@ echo.
 
 :: Show what's new
 echo Changes:
-git log --oneline HEAD..origin/master 2>nul || git log --oneline HEAD..origin/main 2>nul
+git log --oneline HEAD..origin/master 2>nul
 echo.
 
 set /p CONFIRM="Do you want to update? (y/n): "
@@ -116,8 +113,8 @@ if %errorlevel% neq 0 (
     set STASHED=1
 )
 
-:: Pull updates
-git pull origin master 2>nul || git pull origin main
+:: Pull updates (master branch)
+git pull origin master
 
 :: Restore stashed changes if any
 if "!STASHED!"=="1" (
