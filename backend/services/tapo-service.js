@@ -12,11 +12,58 @@ const { createLogger } = require('../utils/logger');
 const log = createLogger('Tapo');
 const SCRIPT_PATH = path.join(__dirname, '..', 'scripts', 'tapo-control.py');
 const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
+const PIP_CMD = process.platform === 'win32' ? 'pip' : 'pip3';
 
 class TapoService {
   constructor() {
     this.email = null;
     this.password = null;
+    this.pythonReady = null; // null = unchecked, true = ready, string = error message
+  }
+
+  /**
+   * Check if Python and plugp100 are available, auto-install if needed
+   * @returns {boolean|string} true if ready, error message string if not
+   */
+  _ensurePythonReady() {
+    if (this.pythonReady !== null) {
+      return this.pythonReady;
+    }
+
+    // Check if Python is available
+    try {
+      execSync(`${PYTHON_CMD} --version`, { encoding: 'utf8', stdio: 'pipe' });
+    } catch (error) {
+      this.pythonReady = 'Python is not installed. Please install Python 3.8+ from python.org';
+      log.error(this.pythonReady);
+      return this.pythonReady;
+    }
+
+    // Check if plugp100 is installed
+    try {
+      execSync(`${PYTHON_CMD} -c "import plugp100"`, { encoding: 'utf8', stdio: 'pipe' });
+      log.info('Python plugp100 library is ready');
+      this.pythonReady = true;
+      return true;
+    } catch (error) {
+      // Not installed, try to auto-install
+      log.info('plugp100 not found, attempting auto-install...');
+      try {
+        const pipFlags = process.platform === 'linux' ? '--break-system-packages' : '';
+        execSync(`${PIP_CMD} install ${pipFlags} plugp100>=5.1.0`, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+          timeout: 120000
+        });
+        log.info('Successfully installed plugp100');
+        this.pythonReady = true;
+        return true;
+      } catch (installError) {
+        this.pythonReady = `Failed to install plugp100: ${installError.message}. Try manually: ${PIP_CMD} install plugp100`;
+        log.error(this.pythonReady);
+        return this.pythonReady;
+      }
+    }
   }
 
   /**
@@ -52,6 +99,12 @@ class TapoService {
    * @returns {object} Result from Python script
    */
   _execPython(command, ip) {
+    // Check Python/plugp100 ready (auto-installs if needed)
+    const ready = this._ensurePythonReady();
+    if (ready !== true) {
+      throw new Error(ready);
+    }
+
     if (!this.email || !this.password) {
       throw new Error('Tapo credentials not configured');
     }
