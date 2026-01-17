@@ -4698,11 +4698,26 @@ app.get('/api/updates/check', async (req, res) => {
 app.post('/api/updates/install', async (req, res) => {
   const { spawn, execSync } = require('child_process');
   const projectRoot = path.join(__dirname, '..');
+  const isWindows = process.platform === 'win32';
 
   try {
     // Pull latest changes
     console.log('[Updates] Pulling latest changes...');
     execSync('git pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+
+    // Clear Python bytecode cache to ensure fresh script execution
+    const pycacheDir = path.join(__dirname, 'scripts', '__pycache__');
+    if (fs.existsSync(pycacheDir)) {
+      console.log('[Updates] Clearing Python cache...');
+      fs.rmSync(pycacheDir, { recursive: true, force: true });
+    }
+
+    // Reset Tapo service Python ready state
+    try {
+      const tapoService = require('./services/tapo-service');
+      tapoService.pythonReady = null;
+      console.log('[Updates] Reset Tapo Python ready state');
+    } catch (e) { /* Tapo service may not be loaded */ }
 
     // Check if package.json changed (need to reinstall deps)
     const changedFiles = execSync('git diff --name-only HEAD~1 HEAD', { cwd: projectRoot, encoding: 'utf8' });
@@ -4723,27 +4738,48 @@ app.post('/api/updates/install', async (req, res) => {
     setTimeout(() => {
       console.log('[Updates] Starting update process...');
 
-      // Create a detached update script that will:
-      // 1. Install dependencies if needed
-      // 2. Rebuild frontend if needed
-      // 3. Restart the server
-      const updateScript = `
-        cd "${projectRoot}"
-        ${needsBackendInstall ? 'echo "[Updates] Installing backend dependencies..." && cd backend && npm install && cd ..' : ''}
-        ${needsFrontendInstall ? 'echo "[Updates] Installing frontend dependencies..." && cd frontend && npm install && cd ..' : ''}
-        ${needsFrontendBuild ? 'echo "[Updates] Rebuilding frontend..." && cd frontend && npm run build && cd ..' : ''}
-        echo "[Updates] Restarting server..."
-        pkill -f "node server.js" || true
-        sleep 1
-        cd backend && node server.js > /tmp/swelldreams.log 2>&1 &
-        echo "[Updates] Server restarted"
-      `;
-
-      const child = spawn('bash', ['-c', updateScript], {
-        detached: true,
-        stdio: 'ignore'
-      });
-      child.unref();
+      if (isWindows) {
+        // Windows: Create a batch script for the update
+        const batchScript = `
+@echo off
+cd /d "${projectRoot}"
+${needsBackendInstall ? 'echo [Updates] Installing backend dependencies... && cd backend && npm install && cd ..' : ''}
+${needsFrontendInstall ? 'echo [Updates] Installing frontend dependencies... && cd frontend && npm install && cd ..' : ''}
+${needsFrontendBuild ? 'echo [Updates] Rebuilding frontend... && cd frontend && npm run build && cd ..' : ''}
+echo [Updates] Restarting server...
+taskkill /F /IM node.exe 2>nul
+timeout /t 2 /nobreak >nul
+cd backend
+start /B node server.js
+echo [Updates] Server restarted
+`;
+        const batchPath = path.join(projectRoot, 'update-temp.bat');
+        fs.writeFileSync(batchPath, batchScript);
+        const child = spawn('cmd.exe', ['/c', batchPath], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: true
+        });
+        child.unref();
+      } else {
+        // Linux/Mac: Use bash script
+        const updateScript = `
+          cd "${projectRoot}"
+          ${needsBackendInstall ? 'echo "[Updates] Installing backend dependencies..." && cd backend && npm install && cd ..' : ''}
+          ${needsFrontendInstall ? 'echo "[Updates] Installing frontend dependencies..." && cd frontend && npm install && cd ..' : ''}
+          ${needsFrontendBuild ? 'echo "[Updates] Rebuilding frontend..." && cd frontend && npm run build && cd ..' : ''}
+          echo "[Updates] Restarting server..."
+          pkill -f "node server.js" || true
+          sleep 1
+          cd backend && node server.js > /tmp/swelldreams.log 2>&1 &
+          echo "[Updates] Server restarted"
+        `;
+        const child = spawn('bash', ['-c', updateScript], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        child.unref();
+      }
     }, 500);
 
   } catch (error) {

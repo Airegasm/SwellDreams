@@ -110,8 +110,9 @@ class TapoService {
     }
 
     try {
+      // -B flag disables bytecode caching to ensure fresh script execution after updates
       const result = execSync(
-        `${PYTHON_CMD} "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
+        `${PYTHON_CMD} -B "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
         { encoding: 'utf8', timeout: 30000 }
       );
       return JSON.parse(result.trim());
