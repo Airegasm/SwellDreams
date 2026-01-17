@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-actions",
   "name": "🧪 Audit - Actions",
-  "category": "global",
   "description": "Tests all 12 action node types",
   "nodes": [
     {
@@ -91,8 +90,8 @@
       "data": {
         "label": "Declare Variable",
         "actionType": "declare_variable",
-        "variableName": "auditTestVar",
-        "variableValue": "initial_value"
+        "name": "auditTestVar",
+        "value": "initial_value"
       }
     },
     {

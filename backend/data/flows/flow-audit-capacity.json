@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-capacity",
   "name": "🧪 Audit - Capacity Messages",
-  "category": "global",
   "description": "Tests capacity_ai_message and capacity_player_message nodes",
   "nodes": [
     {
@@ -33,17 +32,17 @@
         "suppressLlm": true,
         "postDelay": 1,
         "ranges": {
-          "0-10": { "enableOutput": true, "message": "Barely started at [Capacity]%" },
-          "11-20": { "enableOutput": false, "message": "Getting warmed up at [Capacity]%" },
-          "21-30": { "enableOutput": false, "message": "Building nicely at [Capacity]%" },
-          "31-40": { "enableOutput": false, "message": "Making progress at [Capacity]%" },
-          "41-50": { "enableOutput": true, "message": "Halfway there at [Capacity]%" },
-          "51-60": { "enableOutput": false, "message": "Past the halfway mark at [Capacity]%" },
-          "61-70": { "enableOutput": false, "message": "Getting full at [Capacity]%" },
-          "71-80": { "enableOutput": false, "message": "Very full at [Capacity]%" },
-          "81-90": { "enableOutput": false, "message": "Almost there at [Capacity]%" },
-          "91-100": { "enableOutput": true, "message": "At the edge at [Capacity]%" },
-          ">100": { "enableOutput": false, "message": "Beyond limits at [Capacity]%" }
+          "range_0_10": { "enableOutput": true, "message": "Barely started at [Capacity]%" },
+          "range_11_20": { "enableOutput": false, "message": "Getting warmed up at [Capacity]%" },
+          "range_21_30": { "enableOutput": false, "message": "Building nicely at [Capacity]%" },
+          "range_31_40": { "enableOutput": false, "message": "Making progress at [Capacity]%" },
+          "range_41_50": { "enableOutput": true, "message": "Halfway there at [Capacity]%" },
+          "range_51_60": { "enableOutput": false, "message": "Past the halfway mark at [Capacity]%" },
+          "range_61_70": { "enableOutput": false, "message": "Getting full at [Capacity]%" },
+          "range_71_80": { "enableOutput": false, "message": "Very full at [Capacity]%" },
+          "range_81_90": { "enableOutput": false, "message": "Almost there at [Capacity]%" },
+          "range_91_100": { "enableOutput": true, "message": "At the edge at [Capacity]%" },
+          "range_over_100": { "enableOutput": false, "message": "Beyond limits at [Capacity]%" }
         }
       }
     },
@@ -113,20 +112,21 @@
       "position": { "x": 700, "y": 300 },
       "data": {
         "label": "Capacity Player Message",
+        "messageType": "player",
         "suppressLlm": true,
         "postDelay": 1,
         "ranges": {
-          "0-10": { "enableOutput": false, "message": "I'm barely inflated at [Capacity]%" },
-          "11-20": { "enableOutput": false, "message": "I'm starting to feel it at [Capacity]%" },
-          "21-30": { "enableOutput": false, "message": "I can feel myself filling at [Capacity]%" },
-          "31-40": { "enableOutput": false, "message": "I'm getting fuller at [Capacity]%" },
-          "41-50": { "enableOutput": true, "message": "I'm halfway full at [Capacity]%" },
-          "51-60": { "enableOutput": false, "message": "I'm getting quite full at [Capacity]%" },
-          "61-70": { "enableOutput": false, "message": "I'm feeling very full at [Capacity]%" },
-          "71-80": { "enableOutput": false, "message": "I'm almost at capacity at [Capacity]%" },
-          "81-90": { "enableOutput": false, "message": "I'm nearly at my limit at [Capacity]%" },
-          "91-100": { "enableOutput": true, "message": "I'm at my absolute limit at [Capacity]%" },
-          ">100": { "enableOutput": false, "message": "I've exceeded my capacity at [Capacity]%" }
+          "range_0_10": { "enableOutput": false, "message": "I'm barely inflated at [Capacity]%" },
+          "range_11_20": { "enableOutput": false, "message": "I'm starting to feel it at [Capacity]%" },
+          "range_21_30": { "enableOutput": false, "message": "I can feel myself filling at [Capacity]%" },
+          "range_31_40": { "enableOutput": false, "message": "I'm getting fuller at [Capacity]%" },
+          "range_41_50": { "enableOutput": true, "message": "I'm halfway full at [Capacity]%" },
+          "range_51_60": { "enableOutput": false, "message": "I'm getting quite full at [Capacity]%" },
+          "range_61_70": { "enableOutput": false, "message": "I'm feeling very full at [Capacity]%" },
+          "range_71_80": { "enableOutput": false, "message": "I'm almost at capacity at [Capacity]%" },
+          "range_81_90": { "enableOutput": false, "message": "I'm nearly at my limit at [Capacity]%" },
+          "range_91_100": { "enableOutput": true, "message": "I'm at my absolute limit at [Capacity]%" },
+          "range_over_100": { "enableOutput": false, "message": "I've exceeded my capacity at [Capacity]%" }
         }
       }
     },
@@ -175,19 +175,19 @@
     {
       "id": "e-cap-3",
       "source": "cap-ai-message",
-      "sourceHandle": "0-10",
+      "sourceHandle": "range_0_10",
       "target": "cap-ai-result-low"
     },
     {
       "id": "e-cap-4",
       "source": "cap-ai-message",
-      "sourceHandle": "41-50",
+      "sourceHandle": "range_41_50",
       "target": "cap-ai-result-mid"
     },
     {
       "id": "e-cap-5",
       "source": "cap-ai-message",
-      "sourceHandle": "91-100",
+      "sourceHandle": "range_91_100",
       "target": "cap-ai-result-high"
     },
     {
@@ -209,13 +209,13 @@
     {
       "id": "e-cap-9",
       "source": "cap-player-message",
-      "sourceHandle": "41-50",
+      "sourceHandle": "range_41_50",
       "target": "cap-player-result-mid"
     },
     {
       "id": "e-cap-10",
       "source": "cap-player-message",
-      "sourceHandle": "91-100",
+      "sourceHandle": "range_91_100",
       "target": "cap-player-result-high"
     },
     {

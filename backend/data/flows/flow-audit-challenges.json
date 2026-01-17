@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-challenges",
   "name": "🧪 Audit - Challenges",
-  "category": "global",
   "description": "Tests all 10 challenge node types",
   "nodes": [
     {

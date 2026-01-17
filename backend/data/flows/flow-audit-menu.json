@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-menu",
   "name": "🧪 Node Audit Suite - Menu",
-  "category": "global",
   "description": "Master menu for comprehensive node testing suite",
   "nodes": [
     {

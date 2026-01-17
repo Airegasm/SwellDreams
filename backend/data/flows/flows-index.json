@@ -3,36 +3,42 @@
     "id": "flow-global-001",
     "name": "Ambient Pressure Sensations",
     "characterId": null,
+    "category": "global",
     "description": "Random environmental and physical sensations during inflation"
   },
   {
     "id": "flow-global-002",
     "name": "Safety Monitor",
     "characterId": null,
+    "category": "global",
     "description": "Periodic safety checks and reassurance messages"
   },
   {
     "id": "flow-global-003",
     "name": "Progress Milestones",
     "characterId": null,
+    "category": "global",
     "description": "Celebrates reaching capacity milestones"
   },
   {
     "id": "flow-persona-001",
     "name": "Body Awareness Journey",
     "characterId": null,
+    "category": "persona",
     "description": "Persona's internal reactions to physical changes"
   },
   {
     "id": "flow-persona-002",
     "name": "Emotional Journey",
     "characterId": null,
+    "category": "persona",
     "description": "Tracks emotional state changes during inflation"
   },
   {
     "id": "flow-persona-003",
     "name": "Personal Limits Explorer",
     "characterId": null,
+    "category": "persona",
     "description": "Reactions when approaching boundaries"
   },
   {
@@ -51,36 +57,42 @@
     "id": "flow-audit-menu",
     "name": "🧪 Node Audit Suite - Menu",
     "characterId": null,
+    "category": "global",
     "description": "Master menu for comprehensive node testing suite"
   },
   {
     "id": "flow-audit-triggers",
     "name": "🧪 Audit - Triggers",
     "characterId": null,
+    "category": "global",
     "description": "Tests all 9 trigger node types"
   },
   {
     "id": "flow-audit-actions",
     "name": "🧪 Audit - Actions",
     "characterId": null,
+    "category": "global",
     "description": "Tests all 12 action node types"
   },
   {
     "id": "flow-audit-logic",
     "name": "🧪 Audit - Logic",
     "characterId": null,
+    "category": "global",
     "description": "Tests all 6 logic/flow control node types"
   },
   {
     "id": "flow-audit-capacity",
     "name": "🧪 Audit - Capacity Messages",
     "characterId": null,
+    "category": "global",
     "description": "Tests capacity_ai_message and capacity_player_message nodes"
   },
   {
     "id": "flow-audit-challenges",
     "name": "🧪 Audit - Challenges",
     "characterId": null,
+    "category": "global",
     "description": "Tests all 10 challenge node types"
   }
 ]

@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-triggers",
   "name": "🧪 Audit - Triggers",
-  "category": "global",
   "description": "Tests all 9 trigger node types",
   "nodes": [
     {
@@ -196,7 +195,7 @@
         "label": "Capacity >= 60",
         "triggerType": "player_state_change",
         "stateType": "capacity",
-        "comparison": ">=",
+        "comparison": "meet_or_exceed",
         "targetValue": 60,
         "fireOnlyOnce": false,
         "unblockable": true

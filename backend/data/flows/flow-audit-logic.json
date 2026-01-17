@@ -1,7 +1,6 @@
 {
   "id": "flow-audit-logic",
   "name": "🧪 Audit - Logic",
-  "category": "global",
   "description": "Tests all 6 logic/flow control node types",
   "nodes": [
     {
