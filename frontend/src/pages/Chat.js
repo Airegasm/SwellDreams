@@ -87,6 +87,7 @@ function Chat() {
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const randomPopThresholdRef = useRef(null); // Stores random pop threshold for session
 
   // Check if LLM is configured
   const isLlmConfigured = () => {
@@ -99,10 +100,42 @@ function Chat() {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
+  // Calculate effective pop threshold based on auto-pop settings
+  const effectivePopThreshold = useMemo(() => {
+    const globalControls = settings?.globalCharacterControls || {};
+
+    // If over-inflation is disabled, POP at 100%
+    if (!globalControls.allowOverInflation) {
+      return 100;
+    }
+
+    // If auto-pop roleplay is disabled, use default (101 = never pop unless > 100)
+    if (!globalControls.enableAutoPopRoleplay) {
+      return 101;
+    }
+
+    // Fixed mode - use configured percentage
+    if (globalControls.autoPopMode === 'fixed') {
+      return globalControls.autoPopFixedPercent || 110;
+    }
+
+    // Random mode - generate once per session
+    if (globalControls.autoPopMode === 'random') {
+      if (randomPopThresholdRef.current === null) {
+        const min = globalControls.autoPopRandomMin || 100;
+        const max = globalControls.autoPopRandomMax || 150;
+        randomPopThresholdRef.current = Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      return randomPopThresholdRef.current;
+    }
+
+    return 101; // Default fallback
+  }, [settings?.globalCharacterControls]);
+
   // Memoized persona portrait based on capacity - changes automatically with staged portraits
   const personaPortrait = useMemo(() => {
-    return getPortraitForCapacity(activePersona, sessionState.capacity || 0);
-  }, [activePersona, sessionState.capacity]);
+    return getPortraitForCapacity(activePersona, sessionState.capacity || 0, effectivePopThreshold);
+  }, [activePersona, sessionState.capacity, effectivePopThreshold]);
 
   // Reset action page when character changes
   useEffect(() => {
@@ -924,16 +957,6 @@ function Chat() {
           capacity={sessionState.capacity || 0}
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
-          autoCapacityMultiplier={settings?.globalCharacterControls?.autoCapacityMultiplier || 1.0}
-          onAutoCapacityMultiplierChange={async (value) => {
-            const updated = {
-              ...settings?.globalCharacterControls,
-              autoCapacityMultiplier: value
-            };
-            setSettings(prev => ({ ...prev, globalCharacterControls: updated }));
-            await api.updateSettings({ globalCharacterControls: updated });
-            sendWsMessage('settings_updated', { globalCharacterControls: updated });
-          }}
         />
       </div>
 
@@ -969,16 +992,6 @@ function Chat() {
             capacity={sessionState.capacity || 0}
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
-            autoCapacityMultiplier={settings?.globalCharacterControls?.autoCapacityMultiplier || 1.0}
-            onAutoCapacityMultiplierChange={async (value) => {
-              const updated = {
-                ...settings?.globalCharacterControls,
-                autoCapacityMultiplier: value
-              };
-              setSettings(prev => ({ ...prev, globalCharacterControls: updated }));
-              await api.updateSettings({ globalCharacterControls: updated });
-              sendWsMessage('settings_updated', { globalCharacterControls: updated });
-            }}
           />
         </div>
 
@@ -1400,6 +1413,9 @@ function Chat() {
                 })()}
                 <li>Auto-Capacity {settings?.globalCharacterControls?.useAutoCapacity ? 'ON' : 'OFF'}</li>
                 {settings?.globalCharacterControls?.allowOverInflation && <li>Over-Inflate Allowed</li>}
+                {(!settings?.globalCharacterControls?.allowOverInflation || settings?.globalCharacterControls?.enableAutoPopRoleplay) && (
+                  <li>Auto-Pop @ {effectivePopThreshold}%</li>
+                )}
                 <li>LLM Device Control {settings?.globalCharacterControls?.allowLlmDeviceControl ? 'ON' : 'OFF'}</li>
               </ul>
             </div>

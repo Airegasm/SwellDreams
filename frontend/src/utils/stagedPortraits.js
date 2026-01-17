@@ -25,16 +25,18 @@ export const STAGED_PORTRAIT_RANGES = [
  *
  * Selection logic:
  * 1. If capacity < 5%: return default avatar
- * 2. Find matching range for current capacity
- * 3. If staged portrait exists for that range: return it
- * 4. Else: search backward through lower ranges for the nearest uploaded portrait
- * 5. Final fallback: return default avatar
+ * 2. Check if capacity >= popThreshold: return POP portrait if available
+ * 3. Find matching range for current capacity
+ * 4. If staged portrait exists for that range: return it
+ * 5. Else: search backward through lower ranges for the nearest uploaded portrait
+ * 6. Final fallback: return default avatar
  *
  * @param {Object} persona - The persona object with avatar and stagedPortraits
  * @param {number} capacity - Current capacity percentage (0-100+)
+ * @param {number} popThreshold - Capacity threshold for POP portrait (default 101)
  * @returns {string|null} The portrait URL to display, or null if no portrait
  */
-export function getPortraitForCapacity(persona, capacity) {
+export function getPortraitForCapacity(persona, capacity, popThreshold = 101) {
   // No persona or no default avatar
   if (!persona) return null;
 
@@ -49,6 +51,11 @@ export function getPortraitForCapacity(persona, capacity) {
   // Capacity below 5% uses default avatar
   if (capacity < 5) {
     return defaultAvatar;
+  }
+
+  // Check if capacity has reached the POP threshold
+  if (capacity >= popThreshold && stagedPortraits.range_pop) {
+    return stagedPortraits.range_pop;
   }
 
   // Find the matching range for current capacity

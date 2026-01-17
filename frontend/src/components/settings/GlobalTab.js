@@ -44,7 +44,12 @@ function GlobalTab() {
     autoCapacityMultiplier: 1.0,
     allowLlmDeviceControl: false,
     llmDeviceControlMaxSeconds: 30,
-    allowOverInflation: false
+    allowOverInflation: false,
+    enableAutoPopRoleplay: false,
+    autoPopMode: 'fixed',
+    autoPopFixedPercent: 110,
+    autoPopRandomMin: 100,
+    autoPopRandomMax: 150
   });
 
   // Calibration modal state
@@ -871,6 +876,76 @@ function GlobalTab() {
             <div className="control-label-group">
               <span className="toggle-label">Allow Over-Inflation</span>
               <span className="control-hint">When OFF, pumps auto-stop at 100% capacity and cannot be reactivated until capacity drops</span>
+            </div>
+          </div>
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.enableAutoPopRoleplay}
+                onChange={(e) => handleCharacterControlChange('enableAutoPopRoleplay', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Enable Auto-Pop Roleplay</span>
+              {!characterControls.allowOverInflation ? (
+                <span className="control-hint">Display POP portrait at 100% capacity</span>
+              ) : (
+                <div className="control-hint auto-pop-options">
+                  <label className="radio-option">
+                    <input
+                      type="radio"
+                      name="autoPopMode"
+                      checked={characterControls.autoPopMode === 'fixed'}
+                      onChange={() => handleCharacterControlChange('autoPopMode', 'fixed')}
+                      disabled={!characterControls.enableAutoPopRoleplay}
+                    />
+                    <span>Display POP portrait at</span>
+                    <input
+                      type="number"
+                      min="100"
+                      max="999"
+                      value={characterControls.autoPopFixedPercent}
+                      onChange={(e) => handleCharacterControlChange('autoPopFixedPercent', parseInt(e.target.value) || 100)}
+                      disabled={!characterControls.enableAutoPopRoleplay || characterControls.autoPopMode !== 'fixed'}
+                      className="auto-pop-input"
+                    />
+                    <span>%</span>
+                  </label>
+                  <label className="radio-option">
+                    <input
+                      type="radio"
+                      name="autoPopMode"
+                      checked={characterControls.autoPopMode === 'random'}
+                      onChange={() => handleCharacterControlChange('autoPopMode', 'random')}
+                      disabled={!characterControls.enableAutoPopRoleplay}
+                    />
+                    <span>Random between</span>
+                    <input
+                      type="number"
+                      min="100"
+                      max="999"
+                      value={characterControls.autoPopRandomMin}
+                      onChange={(e) => handleCharacterControlChange('autoPopRandomMin', parseInt(e.target.value) || 100)}
+                      disabled={!characterControls.enableAutoPopRoleplay || characterControls.autoPopMode !== 'random'}
+                      className="auto-pop-input"
+                    />
+                    <span>% and</span>
+                    <input
+                      type="number"
+                      min="100"
+                      max="999"
+                      value={characterControls.autoPopRandomMax}
+                      onChange={(e) => handleCharacterControlChange('autoPopRandomMax', parseInt(e.target.value) || 150)}
+                      disabled={!characterControls.enableAutoPopRoleplay || characterControls.autoPopMode !== 'random'}
+                      className="auto-pop-input"
+                    />
+                    <span>%</span>
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         </div>

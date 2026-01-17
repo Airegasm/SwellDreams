@@ -10,15 +10,11 @@ function StatusBadges({
   capacity,
   personaName,
   useAutoCapacity,
-  autoCapacityMultiplier = 1.0,
-  onAutoCapacityMultiplierChange,
 }) {
   const emotionRef = useRef(null);
   const painRef = useRef(null);
-  const multiplierRef = useRef(null);
   const [showEmotionPopup, setShowEmotionPopup] = React.useState(false);
   const [showPainPopup, setShowPainPopup] = React.useState(false);
-  const [showMultiplierPopup, setShowMultiplierPopup] = React.useState(false);
 
   // Click-outside handlers
   useEffect(() => {
@@ -29,16 +25,10 @@ function StatusBadges({
       if (showPainPopup && painRef.current && !painRef.current.contains(e.target)) {
         setShowPainPopup(false);
       }
-      if (showMultiplierPopup && multiplierRef.current && !multiplierRef.current.contains(e.target)) {
-        setShowMultiplierPopup(false);
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmotionPopup, showPainPopup, showMultiplierPopup]);
-
-  // Multiplier values: 0.25 to 2.0 in 0.25 increments
-  const multiplierValues = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  }, [showEmotionPopup, showPainPopup]);
 
   const currentEmotion = EMOTIONS.find(e => e.key === selectedEmotion) || EMOTIONS[0];
   const currentPain = PAIN_SCALE[selectedPainLevel] || PAIN_SCALE[0];
@@ -133,39 +123,6 @@ function StatusBadges({
           </div>
         </div>
 
-        {/* Over-inflation warning */}
-        {capacity > 100 && useAutoCapacity && (
-          <span className="overinflating-warning">OVERINFLATING</span>
-        )}
-
-        {/* Capacity Mode Indicator */}
-        <div
-          className={`capacity-mode-indicator ${useAutoCapacity ? 'auto clickable' : 'manual'}`}
-          ref={multiplierRef}
-          onClick={useAutoCapacity ? () => setShowMultiplierPopup(!showMultiplierPopup) : undefined}
-        >
-          {useAutoCapacity ? 'Automatic' : 'Manual'}
-          {showMultiplierPopup && useAutoCapacity && (
-            <div className="multiplier-popup">
-              <div className="multiplier-value">{autoCapacityMultiplier.toFixed(2)}x</div>
-              <div className="multiplier-slider-container">
-                {multiplierValues.slice().reverse().map(value => (
-                  <button
-                    key={value}
-                    className={`multiplier-tick ${autoCapacityMultiplier === value ? 'selected' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAutoCapacityMultiplierChange?.(value);
-                    }}
-                  >
-                    <span className="tick-mark"></span>
-                    <span className="tick-label">{value.toFixed(2)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

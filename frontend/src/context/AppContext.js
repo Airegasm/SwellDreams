@@ -766,6 +766,36 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/wyze/devices/${encodeURIComponent(deviceId)}/state`
     ),
 
+    // Tapo devices (TP-Link Tapo smart plugs)
+    connectTapo: (email, password) => apiFetch(`${API_BASE}/api/tapo/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    }),
+
+    getTapoStatus: () => apiFetch(`${API_BASE}/api/tapo/status`),
+
+    disconnectTapo: () => apiFetch(`${API_BASE}/api/tapo/disconnect`, {
+      method: 'POST'
+    }),
+
+    scanTapoDevices: () => apiFetch(`${API_BASE}/api/tapo/devices`),
+
+    tapoDeviceOn: (ip) => apiFetch(`${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/on`, {
+      method: 'POST'
+    }),
+
+    tapoDeviceOff: (ip) => apiFetch(`${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/off`, {
+      method: 'POST'
+    }),
+
+    getTapoDeviceState: (ip) => apiFetch(
+      `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/state`
+    ),
+
+    getTapoDeviceInfo: (ip) => apiFetch(
+      `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/info`
+    ),
+
     // Simulation status
     getSimulationStatus: () => apiFetch(`${API_BASE}/api/simulation-status`),
 

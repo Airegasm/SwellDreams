@@ -213,6 +213,14 @@ function encryptSettings(settings) {
     encrypted.wyzeTotpKey = encrypt(encrypted.wyzeTotpKey);
   }
 
+  // Encrypt Tapo credentials
+  if (encrypted.tapoEmail) {
+    encrypted.tapoEmail = encrypt(encrypted.tapoEmail);
+  }
+  if (encrypted.tapoPassword) {
+    encrypted.tapoPassword = encrypt(encrypted.tapoPassword);
+  }
+
   return encrypted;
 }
 
@@ -253,6 +261,14 @@ function decryptSettings(settings) {
     decrypted.wyzeTotpKey = decrypt(decrypted.wyzeTotpKey);
   }
 
+  // Decrypt Tapo credentials
+  if (decrypted.tapoEmail) {
+    decrypted.tapoEmail = decrypt(decrypted.tapoEmail);
+  }
+  if (decrypted.tapoPassword) {
+    decrypted.tapoPassword = decrypt(decrypted.tapoPassword);
+  }
+
   return decrypted;
 }
 
@@ -291,6 +307,12 @@ function maskSettingsForResponse(settings) {
     masked.wyzeKeyId = '';
     masked.wyzeApiKey = '';
     masked.wyzeTotpKey = '';
+  }
+  if (masked.tapoEmail || masked.tapoPassword) {
+    masked.tapoEmailMasked = maskApiKey(masked.tapoEmail);
+    masked.hasTapoCredentials = hasApiKey(masked.tapoEmail) && hasApiKey(masked.tapoPassword);
+    masked.tapoEmail = '';
+    masked.tapoPassword = '';
   }
 
   return masked;

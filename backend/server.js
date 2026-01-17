@@ -19,6 +19,7 @@ const EventEngine = require('./services/event-engine');
 const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
+const tapoService = require('./services/tapo-service');
 const aiDeviceControl = require('./services/ai-device-control');
 const imageStorage = require('./services/image-storage');
 
@@ -254,6 +255,43 @@ function getDeviceKey(device) {
 // Alias for backwards compatibility
 function getCalibrationKey(device) {
   return getDeviceKey(device);
+}
+
+/**
+ * Get the effective pop threshold for pump shutoff based on auto-pop settings.
+ * @param {Object} settings - The settings object
+ * @returns {number} The capacity threshold at which to trigger pump shutoff
+ */
+function getEffectivePopThreshold(settings) {
+  const globalControls = settings?.globalCharacterControls || {};
+
+  // If over-inflation is disabled, pop at 100%
+  if (!globalControls.allowOverInflation) {
+    return 100;
+  }
+
+  // If auto-pop roleplay is disabled, no auto-pop (return Infinity - never trigger)
+  if (!globalControls.enableAutoPopRoleplay) {
+    return Infinity;
+  }
+
+  // Fixed mode - use configured percentage
+  if (globalControls.autoPopMode === 'fixed') {
+    return globalControls.autoPopFixedPercent || 110;
+  }
+
+  // Random mode - generate and store threshold in sessionState
+  if (globalControls.autoPopMode === 'random') {
+    if (sessionState.randomPopThreshold === undefined) {
+      const min = globalControls.autoPopRandomMin || 100;
+      const max = globalControls.autoPopRandomMax || 150;
+      sessionState.randomPopThreshold = Math.floor(Math.random() * (max - min + 1)) + min;
+      console.log(`[AutoPop] Generated random pop threshold: ${sessionState.randomPopThreshold}%`);
+    }
+    return sessionState.randomPopThreshold;
+  }
+
+  return Infinity; // Default - no auto-pop
 }
 
 // Initialize device service
@@ -1235,13 +1273,27 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
   const devices = loadData(DATA_FILES.devices) || [];
 
   for (const [deviceKey, tracker] of Object.entries(sessionState.pumpRuntimeTracker)) {
+    // Try multiple key formats to find the device
     const deviceData = devices.find(d =>
-      d.ip === deviceKey || `${d.ip}:${d.childId}` === deviceKey
+      d.ip === deviceKey ||
+      `${d.ip}:${d.childId}` === deviceKey ||
+      d.deviceId === deviceKey  // For Govee/Tuya devices
     );
-    if (deviceData?.calibrationTime) {
-      // Apply capacityModifier to speed up or slow down capacity increase
-      totalCapacity += (tracker.totalSeconds / deviceData.calibrationTime) * 100 * capacityModifier;
+
+    if (!deviceData) {
+      console.warn(`[AutoCapacity] Device not found for tracker key: ${deviceKey}, tracked seconds: ${tracker.totalSeconds}`);
+      continue;
     }
+
+    if (!deviceData.calibrationTime) {
+      console.warn(`[AutoCapacity] Device ${deviceKey} has no calibrationTime, skipping capacity calculation`);
+      continue;
+    }
+
+    // Apply capacityModifier to speed up or slow down capacity increase
+    const deviceCapacity = (tracker.totalSeconds / deviceData.calibrationTime) * 100 * capacityModifier;
+    totalCapacity += deviceCapacity;
+    console.log(`[AutoCapacity] Device ${deviceKey}: ${tracker.totalSeconds.toFixed(1)}s / ${deviceData.calibrationTime}s = ${deviceCapacity.toFixed(1)}%`);
   }
 
   // Round to nearest integer
@@ -1259,8 +1311,9 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
 
   console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
 
-  // Safety auto-shutoff: Turn off all pumps at 100% capacity (unless allowOverInflation is enabled)
-  if (totalCapacity >= 100 && !settings.globalCharacterControls?.allowOverInflation) {
+  // Auto-pop shutoff: Turn off all pumps when capacity reaches the effective pop threshold
+  const popThreshold = getEffectivePopThreshold(settings);
+  if (totalCapacity >= popThreshold) {
     const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
 
     for (const pump of pumpDevices) {
@@ -1269,17 +1322,18 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
 
       if (deviceState?.state === 'on') {
-        console.log(`[Safety] Auto-shutoff: Turning off pump "${pump.label || pump.name}" at ${totalCapacity}% capacity`);
+        console.log(`[AutoPop] Shutoff: Turning off pump "${pump.label || pump.name}" at ${totalCapacity}% (threshold: ${popThreshold}%)`);
         deviceService.turnOff(pumpDeviceId, pump).then(() => {
           if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
             sessionState.executionHistory.deviceActions[stateKey].state = 'off';
           }
           broadcast('pump_safety_shutoff', {
             device: pump.label || pump.name || pumpDeviceId,
-            capacity: totalCapacity
+            capacity: totalCapacity,
+            reason: 'auto_pop'
           });
         }).catch(err => {
-          console.error(`[Safety] Failed to auto-shutoff pump:`, err);
+          console.error(`[AutoPop] Failed to shutoff pump:`, err);
         });
       }
     }
@@ -1673,7 +1727,12 @@ eventEngine.setBroadcast(async (type, data) => {
         const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
-          broadcast
+          broadcast,
+          injectContext: (text) => {
+            // Append to last AI message so LLM thinks they said it
+            const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+            if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+          }
         });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
@@ -2450,6 +2509,15 @@ if (startupSettings.wyzeEmail && startupSettings.wyzePassword && startupSettings
   });
 }
 
+// Load Tapo credentials from settings if saved
+if (startupSettings.tapoEmail && startupSettings.tapoPassword) {
+  tapoService.setCredentials(
+    startupSettings.tapoEmail,
+    startupSettings.tapoPassword
+  );
+  console.log('[Startup] Tapo credentials loaded');
+}
+
 wss.on('connection', async (ws) => {
   wsClients.add(ws);
   console.log('[WS] Client connected');
@@ -2593,9 +2661,10 @@ async function handleWsMessage(ws, type, data) {
     case 'update_capacity':
       sessionState.capacity = data.capacity;
 
-      // Safety auto-shutoff: Turn off all pumps at 100% capacity (unless allowOverInflation is enabled)
+      // Auto-pop shutoff: Turn off all pumps when capacity reaches the effective pop threshold
       const capacitySettings = loadData(DATA_FILES.settings) || {};
-      if (sessionState.capacity >= 100 && !capacitySettings.globalCharacterControls?.allowOverInflation) {
+      const manualPopThreshold = getEffectivePopThreshold(capacitySettings);
+      if (sessionState.capacity >= manualPopThreshold) {
         const devices = loadData(DATA_FILES.devices) || [];
         const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
 
@@ -2605,7 +2674,7 @@ async function handleWsMessage(ws, type, data) {
           const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
 
           if (deviceState?.state === 'on') {
-            console.log(`[Safety] Auto-shutoff: Turning off pump "${pump.label || pump.name}" at 100% capacity`);
+            console.log(`[AutoPop] Shutoff: Turning off pump "${pump.label || pump.name}" at ${sessionState.capacity}% (threshold: ${manualPopThreshold}%)`);
             try {
               await deviceService.turnOff(deviceId, pump);
               if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
@@ -2613,10 +2682,11 @@ async function handleWsMessage(ws, type, data) {
               }
               broadcast('pump_safety_shutoff', {
                 device: pump.label || pump.name || deviceId,
-                capacity: sessionState.capacity
+                capacity: sessionState.capacity,
+                reason: 'auto_pop'
               });
             } catch (err) {
-              console.error(`[Safety] Failed to auto-shutoff pump:`, err);
+              console.error(`[AutoPop] Failed to shutoff pump:`, err);
             }
           }
         }
@@ -3682,7 +3752,11 @@ async function handleChatMessage(data) {
         const aiControlResult = await aiDeviceControl.processLlmOutput(aiMessage.content, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
-          broadcast
+          broadcast,
+          injectContext: (text) => {
+            const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+            if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+          }
         });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
@@ -3741,11 +3815,15 @@ async function handleChatMessage(data) {
 
       console.log('[Chat] Got AI response:', finalText?.substring(0, 50) + '...');
 
-      // Skip if still invalid after retries
-      if (isBlankMessage(finalText) || isDuplicateMessage(finalText)) {
-        console.log('[Chat] Skipping invalid AI response after retries');
-        broadcast('generating_stop', {});
-        return;
+      // Skip if still invalid after retries (non-streaming only - streaming messages are already in history)
+      if (!useStreaming) {
+        const isBlank = isBlankMessage(finalText);
+        const isDupe = isDuplicateMessage(finalText);
+        if (isBlank || isDupe) {
+          console.log('[Chat] Skipping invalid AI response after retries -', isBlank ? 'blank' : 'duplicate');
+          broadcast('generating_stop', {});
+          return;
+        }
       }
 
       // For non-streaming, add message now
@@ -3759,7 +3837,11 @@ async function handleChatMessage(data) {
         const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
-          broadcast
+          broadcast,
+          injectContext: (text) => {
+            const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+            if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+          }
         });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
@@ -3870,7 +3952,11 @@ async function handleSpecialGenerate(data) {
       const aiControlResult = await aiDeviceControl.processLlmOutput(message.content, devices, deviceService, {
         settings: aiControlSettings,
         sessionState,
-        broadcast
+        broadcast,
+        injectContext: (text) => {
+          const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+          if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+        }
       });
       if (aiControlResult.commands.length > 0) {
         console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
@@ -3943,7 +4029,11 @@ async function handleSpecialGenerate(data) {
     const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
       settings: aiControlSettings,
       sessionState,
-      broadcast
+      broadcast,
+      injectContext: (text) => {
+        const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+        if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+      }
     });
     if (aiControlResult.commands.length > 0) {
       console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
@@ -4108,6 +4198,8 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     instructions += `STRICT RULES:\n`;
     instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
     instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
+    instructions += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
+    instructions += `- NEVER invent, estimate, or guess capacity numbers - ONLY use ${capacity}%\n`;
     instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
     instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
@@ -4277,6 +4369,8 @@ function buildChatContext(character, settings) {
     instructions += `STRICT RULES:\n`;
     instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
     instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
+    instructions += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
+    instructions += `- NEVER invent, estimate, or guess capacity numbers - ONLY use ${capacity}%\n`;
     instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
     instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
@@ -5685,6 +5779,139 @@ app.get('/api/wyze/devices/:deviceId/state', async (req, res) => {
   }
 });
 
+// --- Tapo (TP-Link Tapo smart plugs) ---
+
+// Connect to Tapo (save credentials)
+app.post('/api/tapo/connect', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  tapoService.setCredentials(email, password);
+
+  try {
+    const success = await tapoService.testConnection();
+
+    if (success) {
+      // Save encrypted credentials to settings
+      const settings = loadData(DATA_FILES.settings) || {};
+      settings.tapoEmail = encrypt(email);
+      settings.tapoPassword = encrypt(password);
+      saveData(DATA_FILES.settings, settings);
+      console.log('[Tapo] Credentials saved and connection verified');
+      res.json({ success: true, message: 'Connected to Tapo' });
+    } else {
+      tapoService.clearCredentials();
+      res.status(401).json({ error: 'Invalid credentials or connection failed' });
+    }
+  } catch (error) {
+    console.error('[Tapo] Connect error:', error);
+    tapoService.clearCredentials();
+    res.status(401).json({ error: error.message || 'Connection failed' });
+  }
+});
+
+// Check Tapo connection status
+app.get('/api/tapo/status', (req, res) => {
+  res.json({ connected: tapoService.isConnected() });
+});
+
+// Disconnect from Tapo (clear credentials)
+app.post('/api/tapo/disconnect', (req, res) => {
+  tapoService.clearCredentials();
+  // Remove from settings
+  const settings = loadData(DATA_FILES.settings) || {};
+  delete settings.tapoEmail;
+  delete settings.tapoPassword;
+  saveData(DATA_FILES.settings, settings);
+  console.log('[Tapo] Credentials cleared');
+  res.json({ success: true, message: 'Disconnected from Tapo' });
+});
+
+// List Tapo devices (cloud discovery)
+app.get('/api/tapo/devices', async (req, res) => {
+  if (!tapoService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tapo' });
+  }
+
+  try {
+    const devices = await tapoService.listDevices();
+    res.json({ devices });
+  } catch (error) {
+    console.error('[Tapo] Failed to list devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Tapo device info by IP
+app.get('/api/tapo/devices/:ip/info', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!tapoService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tapo' });
+  }
+
+  try {
+    const info = await tapoService.getDeviceInfo(ip);
+    res.json(info);
+  } catch (error) {
+    console.error('[Tapo] Failed to get device info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Tapo device on
+app.post('/api/tapo/devices/:ip/on', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!tapoService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tapo' });
+  }
+
+  try {
+    await tapoService.turnOn(ip);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Tapo] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Tapo device off
+app.post('/api/tapo/devices/:ip/off', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!tapoService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tapo' });
+  }
+
+  try {
+    await tapoService.turnOff(ip);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Tapo] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Tapo device state
+app.get('/api/tapo/devices/:ip/state', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!tapoService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Tapo' });
+  }
+
+  try {
+    const state = await tapoService.getPowerState(ip);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Tapo] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Emergency Stop (flow-activated devices, flows, and LLM) ---
 app.post('/api/emergency-stop', async (req, res) => {
   console.log('[EMERGENCY STOP] Stopping flow-activated devices, flows, and LLM requests!');
@@ -5723,6 +5950,9 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 3. Abort all pending LLM requests
   results.llm = { aborted: llmService.abortAllRequests() };
+
+  // 4. Clear any LLM device control auto-off timers
+  aiDeviceControl.clearAllLlmTimers();
 
   broadcast('emergency_stop', { timestamp: Date.now(), results });
   res.json({ success: true, message: 'Emergency stop executed', results });

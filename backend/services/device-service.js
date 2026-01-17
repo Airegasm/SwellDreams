@@ -9,6 +9,7 @@ const goveeService = require('./govee-service');
 const tuyaService = require('./tuya-service');
 const kasaService = require('./kasa-service');
 const wyzeService = require('./wyze-service');
+const tapoService = require('./tapo-service');
 const { safeJsonParse } = require('../utils/errors');
 const { createLogger } = require('../utils/logger');
 
@@ -147,26 +148,30 @@ class DeviceService {
     // Clear any existing interval
     this.stopPumpRuntimeTracking(stateKey);
 
-    // Track start time
-    this.pumpStartTimes.set(stateKey, Date.now());
+    // Track start time AND store device info for later use
+    this.pumpStartTimes.set(stateKey, {
+      startTime: Date.now(),
+      device: device,
+      calibrationTime: device.calibrationTime
+    });
 
     // Start interval for real-time updates (every 1 second)
     const interval = setInterval(() => {
-      const startTime = this.pumpStartTimes.get(stateKey);
-      if (startTime) {
-        const runtimeSeconds = (Date.now() - startTime) / 1000;
+      const trackingData = this.pumpStartTimes.get(stateKey);
+      if (trackingData) {
+        const runtimeSeconds = (Date.now() - trackingData.startTime) / 1000;
         this.emitEvent('pump_runtime', {
           ip: stateKey,
-          device,
+          device: trackingData.device,
           runtimeSeconds,
-          calibrationTime: device.calibrationTime,
+          calibrationTime: trackingData.calibrationTime,
           isRealTime: true
         });
       }
     }, 1000);
 
     this.pumpRuntimeIntervals.set(stateKey, interval);
-    console.log(`[DeviceService] Started real-time capacity tracking for ${stateKey}`);
+    console.log(`[DeviceService] Started real-time capacity tracking for ${stateKey}, calibrationTime: ${device.calibrationTime}s`);
   }
 
   /**
@@ -180,22 +185,27 @@ class DeviceService {
       this.pumpRuntimeIntervals.delete(stateKey);
     }
 
-    // Emit final runtime update
-    const startTime = this.pumpStartTimes.get(stateKey);
-    if (startTime) {
-      const runtimeSeconds = (Date.now() - startTime) / 1000;
+    // Emit final runtime update - use stored device info if not provided
+    const trackingData = this.pumpStartTimes.get(stateKey);
+    if (trackingData) {
+      const runtimeSeconds = (Date.now() - trackingData.startTime) / 1000;
       this.pumpStartTimes.delete(stateKey);
 
-      if (device || this.devices.get(stateKey)) {
-        const deviceInfo = device || this.devices.get(stateKey);
+      // Use stored device/calibrationTime from when tracking started
+      const deviceInfo = device || trackingData.device || this.devices.get(stateKey);
+      const calibrationTime = trackingData.calibrationTime || deviceInfo?.calibrationTime;
+
+      if (deviceInfo && calibrationTime) {
         this.emitEvent('pump_runtime', {
           ip: stateKey,
           device: deviceInfo,
           runtimeSeconds,
-          calibrationTime: deviceInfo?.calibrationTime,
+          calibrationTime: calibrationTime,
           isRealTime: false
         });
-        console.log(`[DeviceService] Stopped tracking for ${stateKey}, final runtime: ${runtimeSeconds.toFixed(1)}s`);
+        console.log(`[DeviceService] Stopped tracking for ${stateKey}, final runtime: ${runtimeSeconds.toFixed(1)}s, calibrationTime: ${calibrationTime}s`);
+      } else {
+        console.warn(`[DeviceService] Could not emit final runtime for ${stateKey}: missing device or calibrationTime`);
       }
     }
   }
@@ -331,7 +341,21 @@ class DeviceService {
         return result;
       }
 
-      // Default: TPLink (native Node.js implementation)
+      if (device?.brand === 'tapo') {
+        const state = await tapoService.getPowerState(device.ip);
+        const result = {
+          state,
+          relay_state: state === 'on' ? 1 : 0
+        };
+        this.deviceStates.set(device.ip, {
+          state: result.state,
+          relayState: result.relay_state,
+          lastUpdate: Date.now()
+        });
+        return result;
+      }
+
+      // Default: TPLink Kasa (native Node.js implementation)
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
       });
@@ -407,7 +431,19 @@ class DeviceService {
         return { success: true, state: 'on' };
       }
 
-      // Default: TPLink (native Node.js implementation)
+      if (device?.brand === 'tapo') {
+        await tapoService.turnOn(device.ip);
+        this.deviceStates.set(device.ip, {
+          state: 'on',
+          relayState: 1,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_on', { ip: device.ip, device });
+        this.startPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'on' };
+      }
+
+      // Default: TPLink Kasa (native Node.js implementation)
       console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
@@ -486,7 +522,19 @@ class DeviceService {
         return { success: true, state: 'off' };
       }
 
-      // Default: TPLink (native Node.js implementation)
+      if (device?.brand === 'tapo') {
+        await tapoService.turnOff(device.ip);
+        this.deviceStates.set(device.ip, {
+          state: 'off',
+          relayState: 0,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_off', { ip: device.ip, device });
+        this.stopPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'off' };
+      }
+
+      // Default: TPLink Kasa (native Node.js implementation)
       console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId

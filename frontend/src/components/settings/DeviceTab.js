@@ -62,6 +62,18 @@ function DeviceTab() {
   const [wyzeConnecting, setWyzeConnecting] = useState(false);
   const [wyzeError, setWyzeError] = useState(null);
 
+  // Tapo state
+  const [tapoConnected, setTapoConnected] = useState(false);
+  const [tapoEmail, setTapoEmail] = useState('');
+  const [tapoPassword, setTapoPassword] = useState('');
+  const [hasTapoCredentials, setHasTapoCredentials] = useState(false);
+  const [showTapoManualAdd, setShowTapoManualAdd] = useState(false);
+  const [tapoManualIp, setTapoManualIp] = useState('');
+  const [discoveredTapo, setDiscoveredTapo] = useState([]);
+  const [scanningTapo, setScanningTapo] = useState(false);
+  const [tapoConnecting, setTapoConnecting] = useState(false);
+  const [tapoError, setTapoError] = useState(null);
+
   // Check connection status and stored key status on mount
   useEffect(() => {
     const checkGoveeStatus = async () => {
@@ -88,6 +100,14 @@ function DeviceTab() {
         console.error('Failed to check Wyze status:', error);
       }
     };
+    const checkTapoStatus = async () => {
+      try {
+        const status = await api.getTapoStatus();
+        setTapoConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Tapo status:', error);
+      }
+    };
     const checkStoredKeys = async () => {
       try {
         const settings = await api.getSettings();
@@ -100,6 +120,9 @@ function DeviceTab() {
         if (settings.hasWyzeCredentials !== undefined) {
           setHasWyzeCredentials(settings.hasWyzeCredentials);
         }
+        if (settings.hasTapoCredentials !== undefined) {
+          setHasTapoCredentials(settings.hasTapoCredentials);
+        }
       } catch (error) {
         console.error('Failed to check stored keys:', error);
       }
@@ -107,6 +130,7 @@ function DeviceTab() {
     checkGoveeStatus();
     checkTuyaStatus();
     checkWyzeStatus();
+    checkTapoStatus();
     checkStoredKeys();
   }, [api]);
 
@@ -594,6 +618,116 @@ function DeviceTab() {
     }
   };
 
+  // Tapo handlers
+  const handleTapoDisconnect = async () => {
+    try {
+      await api.disconnectTapo();
+      setTapoConnected(false);
+      setDiscoveredTapo([]);
+      setTapoError(null);
+    } catch (error) {
+      console.error('Tapo disconnect failed:', error);
+    }
+  };
+
+  const handleTapoConnect = async () => {
+    if (!tapoEmail.trim() || !tapoPassword.trim()) return;
+    setTapoConnecting(true);
+    setTapoError(null);
+    try {
+      const result = await api.connectTapo(tapoEmail.trim(), tapoPassword.trim());
+      if (result.success) {
+        setTapoConnected(true);
+        setTapoEmail('');
+        setTapoPassword('');
+        setHasTapoCredentials(true);
+      } else {
+        setTapoError(result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Tapo connect failed:', error);
+      setTapoError(error.message || 'Failed to connect to Tapo');
+    }
+    setTapoConnecting(false);
+  };
+
+  const handleTapoScan = async () => {
+    setScanningTapo(true);
+    setTapoError(null);
+    try {
+      const result = await api.scanTapoDevices();
+      const tapoDevices = result.devices || [];
+      // Filter out already configured devices
+      const configuredIps = new Set(
+        devices.filter(d => d.brand === 'tapo').map(d => d.ip)
+      );
+      const newDevices = tapoDevices.filter(d => !configuredIps.has(d.ip));
+      setDiscoveredTapo(newDevices);
+      if (newDevices.length === 0 && tapoDevices.length > 0) {
+        setTapoError('All discovered devices are already configured.');
+      }
+    } catch (error) {
+      console.error('Tapo scan failed:', error);
+      setTapoError(error.message || 'Failed to scan devices');
+    }
+    setScanningTapo(false);
+  };
+
+  const handleTapoManualAdd = async () => {
+    if (!tapoManualIp.trim()) return;
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    setTapoError(null);
+    try {
+      // Verify device is reachable by getting info
+      const info = await api.getTapoDeviceInfo(tapoManualIp.trim());
+      await api.addDevice({
+        ip: tapoManualIp.trim(),
+        name: info.nickname || `Tapo ${tapoManualIp}`,
+        label: info.nickname || `Tapo ${tapoManualIp}`,
+        deviceType: 'PUMP',
+        brand: 'tapo'
+      });
+      setTapoManualIp('');
+      setShowTapoManualAdd(false);
+    } catch (error) {
+      console.error('Failed to add Tapo device:', error);
+      setTapoError(error.message || 'Device not reachable or not a Tapo device');
+    }
+  };
+
+  const handleAddTapoDevice = async (tapoDevice) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    try {
+      await api.addDevice({
+        ip: tapoDevice.ip || tapoDevice.deviceId,
+        name: tapoDevice.alias || tapoDevice.deviceName || `Tapo ${tapoDevice.deviceId}`,
+        label: tapoDevice.alias || tapoDevice.deviceName || `Tapo ${tapoDevice.deviceId}`,
+        deviceType: 'PUMP',
+        brand: 'tapo'
+      });
+      setDiscoveredTapo(discoveredTapo.filter(d => d.deviceId !== tapoDevice.deviceId));
+    } catch (error) {
+      console.error('Failed to add Tapo device:', error);
+    }
+  };
+
+  const handleTestTapoDevice = async (device) => {
+    try {
+      await api.tapoDeviceOn(device.ip);
+      setTimeout(async () => {
+        await api.tapoDeviceOff(device.ip);
+      }, 2000);
+    } catch (error) {
+      console.error('Tapo test failed:', error);
+    }
+  };
+
   const handleUpdateDevice = async (id, updates) => {
     try {
       await api.updateDevice(id, updates);
@@ -651,7 +785,8 @@ function DeviceTab() {
     tplink: false,
     govee: false,
     tuya: false,
-    wyze: false
+    wyze: false,
+    tapo: false
   });
 
   // Info popup state
@@ -665,6 +800,7 @@ function DeviceTab() {
     const name = device.name || 'Unknown';
     if (device.brand === 'govee') return { name, label: 'SKU', value: device.sku };
     if (device.brand === 'tuya') return { name, label: 'Device ID', value: device.deviceId };
+    if (device.brand === 'tapo') return { name, label: 'IP', value: device.ip };
     return { name, label: 'IP', value: device.ip + (device.childId ? ` (Child: ${device.childId})` : '') };
   };
 
@@ -693,7 +829,7 @@ function DeviceTab() {
               <div key={device.id} className="configured-device-item">
                 <div className="device-badges">
                   <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : 'TPLink'}
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : 'TPLink'}
                   </span>
                   {device.childId && (
                     <span className="device-brand-badge brand-strip">Strip</span>
@@ -737,7 +873,7 @@ function DeviceTab() {
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
-                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : handleTestDevice(device.ip, device.childId)}
+                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : device.brand === 'tapo' ? handleTestTapoDevice(device) : handleTestDevice(device.ip, device.childId)}
                   >
                     Test
                   </button>
@@ -1163,6 +1299,113 @@ function DeviceTab() {
                             className="btn btn-sm btn-success"
                             onClick={() => handleAddWyzeDevice(device)}
                             disabled={!device.is_online}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Tapo Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('tapo')}>
+              <span>TP-Link Tapo</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {tapoConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.tapo ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.tapo && (
+            <div className="settings-subsection-content">
+              {!tapoConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">Connect your TP-Link account to discover and control Tapo smart plugs (P100, P105, P110, P115).</p>
+                  <div className="connect-row">
+                    <input
+                      type="email"
+                      value={tapoEmail}
+                      onChange={(e) => setTapoEmail(e.target.value)}
+                      placeholder={hasTapoCredentials ? 'Credentials saved - enter new to replace' : 'TP-Link Email'}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={tapoPassword}
+                      onChange={(e) => setTapoPassword(e.target.value)}
+                      placeholder={hasTapoCredentials ? 'Enter new password' : 'TP-Link Password'}
+                      onKeyDown={(e) => e.key === 'Enter' && handleTapoConnect()}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleTapoConnect}
+                      disabled={tapoConnecting || !tapoEmail.trim() || !tapoPassword.trim()}
+                    >
+                      {tapoConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {hasTapoCredentials && <p className="api-key-status">Credentials are securely stored (encrypted)</p>}
+                  {tapoError && <div className="discovery-error">{tapoError}</div>}
+                  <p className="form-hint">Use your TP-Link account credentials (same as Tapo app).</p>
+                </div>
+              ) : (
+                <>
+                  <div className="integration-connected">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleTapoScan}
+                      disabled={scanningTapo}
+                    >
+                      {scanningTapo ? 'Scanning...' : 'Scan Devices'}
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setShowTapoManualAdd(!showTapoManualAdd)}
+                    >
+                      + Manual IP
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={handleTapoDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {showTapoManualAdd && (
+                    <div className="manual-add-form">
+                      <input
+                        type="text"
+                        value={tapoManualIp}
+                        onChange={(e) => setTapoManualIp(e.target.value)}
+                        placeholder="Enter device IP address (e.g., 192.168.1.100)"
+                        onKeyDown={(e) => e.key === 'Enter' && handleTapoManualAdd()}
+                      />
+                      <button className="btn btn-primary btn-sm" onClick={handleTapoManualAdd}>
+                        Add Device
+                      </button>
+                    </div>
+                  )}
+                  {tapoError && <div className="discovery-error">{tapoError}</div>}
+                  {discoveredTapo.length > 0 && (
+                    <div className="discovered-devices-list">
+                      <h4>Discovered Devices</h4>
+                      {discoveredTapo.map((device) => (
+                        <div key={device.deviceId} className="discovered-device-item tapo">
+                          <div className="discovered-device-info">
+                            <span className="discovered-device-name">{device.alias || device.deviceName || device.deviceId}</span>
+                            <span className="discovered-device-meta">{device.deviceModel}</span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddTapoDevice(device)}
                           >
                             Add
                           </button>
