@@ -2,18 +2,15 @@
   "id": "flow-iris-threshold-testing",
   "name": "Threshold Testing",
   "category": "character",
-  "description": "Systematic device progression with condition-based phases",
+  "description": "Systematic threshold testing with conversational pauses",
   "isActive": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1705000000000,
+  "updatedAt": 1737158400000,
   "nodes": [
     {
       "id": "iris-tt-btn",
       "type": "button_press",
-      "position": {
-        "x": 200,
-        "y": 50
-      },
+      "position": { "x": 200, "y": 50 },
       "data": {
         "label": "Begin Protocol",
         "buttonTarget": "character",
@@ -25,44 +22,28 @@
     {
       "id": "iris-tt-intro",
       "type": "action",
-      "position": {
-        "x": 200,
-        "y": 150
-      },
+      "position": { "x": 200, "y": 150 },
       "data": {
         "label": "Protocol Brief",
         "actionType": "send_message",
-        "message": "*reviews clipboard* Today's experiment: Systematic Threshold Testing Protocol. We will progressively increase capacity to predetermined checkpoints, pausing at each to record your responses. Any questions are irrelevant. Beginning now.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "message": "*reviews clipboard* Today's experiment: Systematic Threshold Testing. We will progressively increase capacity to predetermined checkpoints. *adjusts glasses* Any questions before we begin?",
+        "suppressLlm": false
       }
     },
     {
-      "id": "iris-tt-phase1-check",
-      "type": "condition",
-      "position": {
-        "x": 200,
-        "y": 280
-      },
+      "id": "iris-tt-pause1",
+      "type": "pause_resume",
+      "position": { "x": 200, "y": 280 },
       "data": {
-        "label": "Phase 1 Check",
-        "conditions": [
-          {
-            "variable": "capacity",
-            "operator": ">=",
-            "value": 25
-          }
-        ]
+        "label": "Await Response",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
       }
     },
     {
       "id": "iris-tt-phase1-start",
       "type": "action",
-      "position": {
-        "x": 350,
-        "y": 380
-      },
+      "position": { "x": 200, "y": 410 },
       "data": {
         "label": "Phase 1 Start",
         "actionType": "device_on",
@@ -71,85 +52,50 @@
         "untilComparison": ">=",
         "untilValue": 25,
         "preMessageEnabled": true,
-        "preMessage": "*activates equipment* Phase 1: Achieving 25% capacity threshold. Remain still.",
-        "preMessageSuppressLlm": true,
+        "preMessage": "*nods* Irrelevant. Beginning Phase 1. *activates equipment* Targeting 25% capacity threshold.",
+        "preMessageSuppressLlm": false,
         "preDelay": 0,
         "postMessageEnabled": true,
-        "postMessage": "*examines readings* 25% threshold achieved. Recording baseline responses...",
+        "postMessage": "*examines readings* 25% threshold achieved. *makes note* How would you describe the sensation, Subject #47?",
         "postMessageSuppressLlm": false,
         "postDelay": 1
       }
     },
     {
-      "id": "iris-tt-phase1-complete",
-      "type": "action",
-      "position": {
-        "x": 100,
-        "y": 380
-      },
+      "id": "iris-tt-pause2",
+      "type": "pause_resume",
+      "position": { "x": 200, "y": 540 },
       "data": {
-        "label": "Phase 1 Already Met",
-        "actionType": "send_message",
-        "message": "*checks readings* Subject already at or above 25% threshold. Skipping Phase 1. Proceeding to next checkpoint.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      }
-    },
-    {
-      "id": "iris-tt-delay1",
-      "type": "delay",
-      "position": {
-        "x": 200,
-        "y": 500
-      },
-      "data": {
-        "label": "Observation Period",
-        "duration": 10,
-        "unit": "seconds"
+        "label": "Record Response",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
       }
     },
     {
       "id": "iris-tt-observation1",
       "type": "action",
-      "position": {
-        "x": 200,
-        "y": 600
-      },
+      "position": { "x": 200, "y": 670 },
       "data": {
         "label": "Phase 1 Observation",
         "actionType": "send_message",
-        "message": "*takes notes* Phase 1 observations complete. Subject adapting to initial threshold. Vital signs stable. Proceeding to Phase 2.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "message": "*writes rapidly* Noted. Your subjective experience aligns with baseline data. *looks up* Phase 2 will target 50%. This is where subjects report... increased awareness.",
+        "suppressLlm": false
       }
     },
     {
-      "id": "iris-tt-phase2-check",
-      "type": "condition",
-      "position": {
-        "x": 200,
-        "y": 720
-      },
+      "id": "iris-tt-pause3",
+      "type": "pause_resume",
+      "position": { "x": 200, "y": 800 },
       "data": {
-        "label": "Phase 2 Check",
-        "conditions": [
-          {
-            "variable": "capacity",
-            "operator": ">=",
-            "value": 50
-          }
-        ]
+        "label": "Await Response",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
       }
     },
     {
       "id": "iris-tt-phase2-start",
       "type": "action",
-      "position": {
-        "x": 350,
-        "y": 820
-      },
+      "position": { "x": 200, "y": 930 },
       "data": {
         "label": "Phase 2 Start",
         "actionType": "device_on",
@@ -158,67 +104,40 @@
         "untilComparison": ">=",
         "untilValue": 50,
         "preMessageEnabled": true,
-        "preMessage": "*adjusts equipment* Phase 2: Targeting 50% capacity. This is where subjects often report increased sensation.",
+        "preMessage": "*adjusts equipment* Proceeding. *activates pump* Observe your body's response carefully.",
         "preMessageSuppressLlm": false,
         "preDelay": 1,
         "postMessageEnabled": true,
-        "postMessage": "*records data* Midpoint threshold achieved. Subject's responses are... as expected.",
+        "postMessage": "*studies monitors intently* Midpoint achieved. *slight interest* Your adaptation rate is... notable. Describe any changes in pressure distribution.",
         "postMessageSuppressLlm": false,
         "postDelay": 1
       }
     },
     {
-      "id": "iris-tt-phase2-complete",
-      "type": "action",
-      "position": {
-        "x": 100,
-        "y": 820
-      },
+      "id": "iris-tt-pause4",
+      "type": "pause_resume",
+      "position": { "x": 200, "y": 1060 },
       "data": {
-        "label": "Phase 2 Already Met",
-        "actionType": "send_message",
-        "message": "*checks monitors* Already at or above 50% threshold. Interesting - subject appears acclimated. Moving to final phase.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      }
-    },
-    {
-      "id": "iris-tt-delay2",
-      "type": "delay",
-      "position": {
-        "x": 200,
-        "y": 940
-      },
-      "data": {
-        "label": "Extended Observation",
-        "duration": 15,
-        "unit": "seconds"
+        "label": "Record Response",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
       }
     },
     {
       "id": "iris-tt-observation2",
       "type": "action",
-      "position": {
-        "x": 200,
-        "y": 1040
-      },
+      "position": { "x": 200, "y": 1190 },
       "data": {
         "label": "Phase 2 Observation",
         "actionType": "send_message",
-        "message": "*reviews data* Phase 2 observations indicate significant adaptation. Subject's body is responding within predicted parameters. One final phase remains.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "message": "*reviews data* Fascinating. Your psychological threshold appears to lag behind your physical capacity by approximately 12%. *adjusts glasses* One final phase remains. 75% - the maximum safe threshold.",
+        "suppressLlm": false
       }
     },
     {
       "id": "iris-tt-phase3-choice",
       "type": "simple_ab",
-      "position": {
-        "x": 200,
-        "y": 1160
-      },
+      "position": { "x": 200, "y": 1320 },
       "data": {
         "label": "Final Phase Decision",
         "description": "Dr. Chen awaits your response regarding the final phase.",
@@ -231,10 +150,7 @@
     {
       "id": "iris-tt-phase3-start",
       "type": "action",
-      "position": {
-        "x": 100,
-        "y": 1300
-      },
+      "position": { "x": 50, "y": 1480 },
       "data": {
         "label": "Phase 3 Start",
         "actionType": "device_on",
@@ -243,11 +159,11 @@
         "untilComparison": ">=",
         "untilValue": 75,
         "preMessageEnabled": true,
-        "preMessage": "*slight smile* Excellent choice. Phase 3: Maximum safe threshold testing. This data is invaluable.",
+        "preMessage": "*slight smile* Excellent. Your willingness to continue provides valuable data. *activates equipment* Final phase commencing.",
         "preMessageSuppressLlm": false,
         "preDelay": 1,
         "postMessageEnabled": true,
-        "postMessage": "*intense focus* 75% threshold achieved. *examines subject closely* Remarkable. Your contribution to science is... noted.",
+        "postMessage": "*intense focus* 75% threshold achieved. *examines subject closely* Remarkable resilience. How does it feel to exceed the median threshold?",
         "postMessageSuppressLlm": false,
         "postDelay": 2
       }
@@ -255,130 +171,50 @@
     {
       "id": "iris-tt-end-early",
       "type": "action",
-      "position": {
-        "x": 350,
-        "y": 1300
-      },
+      "position": { "x": 350, "y": 1480 },
       "data": {
         "label": "Protocol End",
         "actionType": "send_message",
-        "message": "*makes notation* Subject has elected to terminate protocol early. Current capacity: [Capacity]%. Data collection incomplete but... acceptable. We can resume at another time.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "message": "*makes notation* Subject has elected to terminate. Current capacity: [Capacity]%. *adjusts glasses* Your threshold data is recorded. We can explore further... another time.",
+        "suppressLlm": false
+      }
+    },
+    {
+      "id": "iris-tt-pause5",
+      "type": "pause_resume",
+      "position": { "x": 50, "y": 1610 },
+      "data": {
+        "label": "Final Response",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
       }
     },
     {
       "id": "iris-tt-complete",
       "type": "action",
-      "position": {
-        "x": 100,
-        "y": 1450
-      },
+      "position": { "x": 50, "y": 1740 },
       "data": {
         "label": "Protocol Complete",
         "actionType": "send_message",
-        "message": "*closes tablet* Threshold Testing Protocol complete. All target checkpoints achieved. Subject #47, your data today has been... exceptional. You may recover. I will analyze the results.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "message": "*closes tablet* Protocol complete. All target thresholds achieved. *rare hint of approval* Your contribution today has been... exceptional, Subject #47. You may recover while I analyze the results.",
+        "suppressLlm": false
       }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "iris-tt-btn",
-      "target": "iris-tt-intro"
-    },
-    {
-      "id": "e2",
-      "source": "iris-tt-intro",
-      "target": "iris-tt-phase1-check"
-    },
-    {
-      "id": "e3",
-      "source": "iris-tt-phase1-check",
-      "sourceHandle": "true-0",
-      "target": "iris-tt-phase1-complete"
-    },
-    {
-      "id": "e4",
-      "source": "iris-tt-phase1-check",
-      "sourceHandle": "false",
-      "target": "iris-tt-phase1-start"
-    },
-    {
-      "id": "e5",
-      "source": "iris-tt-phase1-complete",
-      "target": "iris-tt-delay1"
-    },
-    {
-      "id": "e6",
-      "source": "iris-tt-phase1-start",
-      "sourceHandle": "completion",
-      "target": "iris-tt-delay1"
-    },
-    {
-      "id": "e7",
-      "source": "iris-tt-delay1",
-      "target": "iris-tt-observation1"
-    },
-    {
-      "id": "e8",
-      "source": "iris-tt-observation1",
-      "target": "iris-tt-phase2-check"
-    },
-    {
-      "id": "e9",
-      "source": "iris-tt-phase2-check",
-      "sourceHandle": "true-0",
-      "target": "iris-tt-phase2-complete"
-    },
-    {
-      "id": "e10",
-      "source": "iris-tt-phase2-check",
-      "sourceHandle": "false",
-      "target": "iris-tt-phase2-start"
-    },
-    {
-      "id": "e11",
-      "source": "iris-tt-phase2-complete",
-      "target": "iris-tt-delay2"
-    },
-    {
-      "id": "e12",
-      "source": "iris-tt-phase2-start",
-      "sourceHandle": "completion",
-      "target": "iris-tt-delay2"
-    },
-    {
-      "id": "e13",
-      "source": "iris-tt-delay2",
-      "target": "iris-tt-observation2"
-    },
-    {
-      "id": "e14",
-      "source": "iris-tt-observation2",
-      "target": "iris-tt-phase3-choice"
-    },
-    {
-      "id": "e15",
-      "source": "iris-tt-phase3-choice",
-      "sourceHandle": "a",
-      "target": "iris-tt-phase3-start"
-    },
-    {
-      "id": "e16",
-      "source": "iris-tt-phase3-choice",
-      "sourceHandle": "b",
-      "target": "iris-tt-end-early"
-    },
-    {
-      "id": "e17",
-      "source": "iris-tt-phase3-start",
-      "sourceHandle": "completion",
-      "target": "iris-tt-complete"
-    }
+    { "id": "e1", "source": "iris-tt-btn", "target": "iris-tt-intro" },
+    { "id": "e2", "source": "iris-tt-intro", "target": "iris-tt-pause1" },
+    { "id": "e3", "source": "iris-tt-pause1", "sourceHandle": "source-resume", "target": "iris-tt-phase1-start" },
+    { "id": "e4", "source": "iris-tt-phase1-start", "sourceHandle": "completion", "target": "iris-tt-pause2" },
+    { "id": "e5", "source": "iris-tt-pause2", "sourceHandle": "source-resume", "target": "iris-tt-observation1" },
+    { "id": "e6", "source": "iris-tt-observation1", "target": "iris-tt-pause3" },
+    { "id": "e7", "source": "iris-tt-pause3", "sourceHandle": "source-resume", "target": "iris-tt-phase2-start" },
+    { "id": "e8", "source": "iris-tt-phase2-start", "sourceHandle": "completion", "target": "iris-tt-pause4" },
+    { "id": "e9", "source": "iris-tt-pause4", "sourceHandle": "source-resume", "target": "iris-tt-observation2" },
+    { "id": "e10", "source": "iris-tt-observation2", "target": "iris-tt-phase3-choice" },
+    { "id": "e11", "source": "iris-tt-phase3-choice", "sourceHandle": "a", "target": "iris-tt-phase3-start" },
+    { "id": "e12", "source": "iris-tt-phase3-choice", "sourceHandle": "b", "target": "iris-tt-end-early" },
+    { "id": "e13", "source": "iris-tt-phase3-start", "sourceHandle": "completion", "target": "iris-tt-pause5" },
+    { "id": "e14", "source": "iris-tt-pause5", "sourceHandle": "source-resume", "target": "iris-tt-complete" }
   ]
 }

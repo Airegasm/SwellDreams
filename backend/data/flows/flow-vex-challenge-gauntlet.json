@@ -10,7 +10,10 @@
     {
       "id": "vex-cg-btn",
       "type": "button_press",
-      "position": { "x": 200, "y": 50 },
+      "position": {
+        "x": 200,
+        "y": 50
+      },
       "data": {
         "label": "Run the Gauntlet",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "vex-cg-intro",
       "type": "action",
-      "position": { "x": 200, "y": 150 },
+      "position": {
+        "x": 200,
+        "y": 150
+      },
       "data": {
         "label": "Gauntlet Intro",
         "actionType": "send_message",
@@ -35,7 +41,10 @@
     {
       "id": "vex-cg-coin-intro",
       "type": "action",
-      "position": { "x": 200, "y": 280 },
+      "position": {
+        "x": 200,
+        "y": 280
+      },
       "data": {
         "label": "Challenge 1 Intro",
         "actionType": "send_message",
@@ -48,7 +57,10 @@
     {
       "id": "vex-cg-coin",
       "type": "coin_flip",
-      "position": { "x": 200, "y": 400 },
+      "position": {
+        "x": 200,
+        "y": 400
+      },
       "data": {
         "label": "Coin Flip",
         "headsLabel": "Heads",
@@ -63,7 +75,10 @@
     {
       "id": "vex-cg-coin-win",
       "type": "action",
-      "position": { "x": 100, "y": 550 },
+      "position": {
+        "x": 100,
+        "y": 550
+      },
       "data": {
         "label": "Coin Win",
         "actionType": "send_message",
@@ -76,7 +91,10 @@
     {
       "id": "vex-cg-coin-lose",
       "type": "action",
-      "position": { "x": 400, "y": 550 },
+      "position": {
+        "x": 400,
+        "y": 550
+      },
       "data": {
         "label": "Coin Lose",
         "actionType": "send_message",
@@ -89,7 +107,10 @@
     {
       "id": "vex-cg-rps-intro",
       "type": "action",
-      "position": { "x": 100, "y": 670 },
+      "position": {
+        "x": 100,
+        "y": 670
+      },
       "data": {
         "label": "Challenge 2 Intro",
         "actionType": "send_message",
@@ -102,7 +123,10 @@
     {
       "id": "vex-cg-rps",
       "type": "rps",
-      "position": { "x": 100, "y": 790 },
+      "position": {
+        "x": 100,
+        "y": 790
+      },
       "data": {
         "label": "RPS Challenge",
         "bestOf": 1,
@@ -115,7 +139,10 @@
     {
       "id": "vex-cg-rps-win",
       "type": "action",
-      "position": { "x": 0, "y": 940 },
+      "position": {
+        "x": 0,
+        "y": 940
+      },
       "data": {
         "label": "RPS Player Wins",
         "actionType": "send_message",
@@ -128,7 +155,10 @@
     {
       "id": "vex-cg-rps-tie",
       "type": "action",
-      "position": { "x": 150, "y": 940 },
+      "position": {
+        "x": 150,
+        "y": 940
+      },
       "data": {
         "label": "RPS Tie",
         "actionType": "send_message",
@@ -141,7 +171,10 @@
     {
       "id": "vex-cg-rps-lose",
       "type": "action",
-      "position": { "x": 300, "y": 940 },
+      "position": {
+        "x": 300,
+        "y": 940
+      },
       "data": {
         "label": "RPS Vex Wins",
         "actionType": "send_message",
@@ -154,7 +187,10 @@
     {
       "id": "vex-cg-timer-intro",
       "type": "action",
-      "position": { "x": 0, "y": 1060 },
+      "position": {
+        "x": 0,
+        "y": 1060
+      },
       "data": {
         "label": "Challenge 3 Intro",
         "actionType": "send_message",
@@ -167,7 +203,10 @@
     {
       "id": "vex-cg-timer-start",
       "type": "action",
-      "position": { "x": 0, "y": 1180 },
+      "position": {
+        "x": 0,
+        "y": 1180
+      },
       "data": {
         "label": "Start Pressure",
         "actionType": "device_on",
@@ -183,7 +222,10 @@
     {
       "id": "vex-cg-timer",
       "type": "timer_challenge",
-      "position": { "x": 0, "y": 1300 },
+      "position": {
+        "x": 0,
+        "y": 1300
+      },
       "data": {
         "label": "Endurance Timer",
         "mode": "escape",
@@ -196,7 +238,10 @@
     {
       "id": "vex-cg-timer-win-stop",
       "type": "action",
-      "position": { "x": -100, "y": 1450 },
+      "position": {
+        "x": -100,
+        "y": 1450
+      },
       "data": {
         "label": "Stop Device",
         "actionType": "device_off",
@@ -208,7 +253,10 @@
     {
       "id": "vex-cg-victory",
       "type": "action",
-      "position": { "x": -100, "y": 1550 },
+      "position": {
+        "x": -100,
+        "y": 1550
+      },
       "data": {
         "label": "Ultimate Victory",
         "actionType": "send_message",
@@ -221,7 +269,10 @@
     {
       "id": "vex-cg-timer-fail",
       "type": "action",
-      "position": { "x": 150, "y": 1450 },
+      "position": {
+        "x": 150,
+        "y": 1450
+      },
       "data": {
         "label": "Timer Fail",
         "actionType": "send_message",
@@ -234,7 +285,10 @@
     {
       "id": "vex-cg-punish",
       "type": "action",
-      "position": { "x": 350, "y": 700 },
+      "position": {
+        "x": 350,
+        "y": 700
+      },
       "data": {
         "label": "Gauntlet Punishment",
         "actionType": "start_cycle",
@@ -254,25 +308,113 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "vex-cg-btn", "target": "vex-cg-intro" },
-    { "id": "e2", "source": "vex-cg-intro", "target": "vex-cg-coin-intro" },
-    { "id": "e3", "source": "vex-cg-coin-intro", "target": "vex-cg-coin" },
-    { "id": "e4", "source": "vex-cg-coin", "sourceHandle": "heads", "target": "vex-cg-coin-win" },
-    { "id": "e5", "source": "vex-cg-coin", "sourceHandle": "tails", "target": "vex-cg-coin-lose" },
-    { "id": "e6", "source": "vex-cg-coin-win", "target": "vex-cg-rps-intro" },
-    { "id": "e7", "source": "vex-cg-coin-lose", "target": "vex-cg-punish" },
-    { "id": "e8", "source": "vex-cg-rps-intro", "target": "vex-cg-rps" },
-    { "id": "e9", "source": "vex-cg-rps", "sourceHandle": "player-wins", "target": "vex-cg-rps-win" },
-    { "id": "e10", "source": "vex-cg-rps", "sourceHandle": "tie", "target": "vex-cg-rps-tie" },
-    { "id": "e11", "source": "vex-cg-rps", "sourceHandle": "character-wins", "target": "vex-cg-rps-lose" },
-    { "id": "e12", "source": "vex-cg-rps-tie", "target": "vex-cg-rps" },
-    { "id": "e13", "source": "vex-cg-rps-lose", "target": "vex-cg-punish" },
-    { "id": "e14", "source": "vex-cg-rps-win", "target": "vex-cg-timer-intro" },
-    { "id": "e15", "source": "vex-cg-timer-intro", "target": "vex-cg-timer-start" },
-    { "id": "e16", "source": "vex-cg-timer-start", "sourceHandle": "immediate", "target": "vex-cg-timer" },
-    { "id": "e17", "source": "vex-cg-timer", "sourceHandle": "success", "target": "vex-cg-timer-win-stop" },
-    { "id": "e18", "source": "vex-cg-timer", "sourceHandle": "timeout", "target": "vex-cg-timer-fail" },
-    { "id": "e19", "source": "vex-cg-timer-win-stop", "target": "vex-cg-victory" },
-    { "id": "e20", "source": "vex-cg-timer-fail", "target": "vex-cg-punish" }
+    {
+      "id": "e1",
+      "source": "vex-cg-btn",
+      "target": "vex-cg-intro"
+    },
+    {
+      "id": "e2",
+      "source": "vex-cg-intro",
+      "target": "vex-cg-coin-intro"
+    },
+    {
+      "id": "e3",
+      "source": "vex-cg-coin-intro",
+      "target": "vex-cg-coin"
+    },
+    {
+      "id": "e4",
+      "source": "vex-cg-coin",
+      "sourceHandle": "heads",
+      "target": "vex-cg-coin-win"
+    },
+    {
+      "id": "e5",
+      "source": "vex-cg-coin",
+      "sourceHandle": "tails",
+      "target": "vex-cg-coin-lose"
+    },
+    {
+      "id": "e6",
+      "source": "vex-cg-coin-win",
+      "target": "vex-cg-rps-intro"
+    },
+    {
+      "id": "e7",
+      "source": "vex-cg-coin-lose",
+      "target": "vex-cg-punish"
+    },
+    {
+      "id": "e8",
+      "source": "vex-cg-rps-intro",
+      "target": "vex-cg-rps"
+    },
+    {
+      "id": "e9",
+      "source": "vex-cg-rps",
+      "sourceHandle": "player-wins",
+      "target": "vex-cg-rps-win"
+    },
+    {
+      "id": "e10",
+      "source": "vex-cg-rps",
+      "sourceHandle": "tie",
+      "target": "vex-cg-rps-tie"
+    },
+    {
+      "id": "e11",
+      "source": "vex-cg-rps",
+      "sourceHandle": "character-wins",
+      "target": "vex-cg-rps-lose"
+    },
+    {
+      "id": "e12",
+      "source": "vex-cg-rps-tie",
+      "target": "vex-cg-rps"
+    },
+    {
+      "id": "e13",
+      "source": "vex-cg-rps-lose",
+      "target": "vex-cg-punish"
+    },
+    {
+      "id": "e14",
+      "source": "vex-cg-rps-win",
+      "target": "vex-cg-timer-intro"
+    },
+    {
+      "id": "e15",
+      "source": "vex-cg-timer-intro",
+      "target": "vex-cg-timer-start"
+    },
+    {
+      "id": "e16",
+      "source": "vex-cg-timer-start",
+      "sourceHandle": "immediate",
+      "target": "vex-cg-timer"
+    },
+    {
+      "id": "e17",
+      "source": "vex-cg-timer",
+      "sourceHandle": "success",
+      "target": "vex-cg-timer-win-stop"
+    },
+    {
+      "id": "e18",
+      "source": "vex-cg-timer",
+      "sourceHandle": "timeout",
+      "target": "vex-cg-timer-fail"
+    },
+    {
+      "id": "e19",
+      "source": "vex-cg-timer-win-stop",
+      "target": "vex-cg-victory"
+    },
+    {
+      "id": "e20",
+      "source": "vex-cg-timer-fail",
+      "target": "vex-cg-punish"
+    }
   ]
 }

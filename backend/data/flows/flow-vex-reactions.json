@@ -10,11 +10,20 @@
     {
       "id": "vex-rx-bet",
       "type": "trigger",
-      "position": { "x": 0, "y": 50 },
+      "position": {
+        "x": 0,
+        "y": 50
+      },
       "data": {
         "label": "Betting Words",
         "triggerType": "player_speaks",
-        "keywords": ["bet", "I bet", "wager", "gamble", "all in"],
+        "keywords": [
+          "bet",
+          "I bet",
+          "wager",
+          "gamble",
+          "all in"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -23,20 +32,34 @@
     {
       "id": "vex-rx-bet-branch",
       "type": "branch",
-      "position": { "x": 0, "y": 180 },
+      "position": {
+        "x": 0,
+        "y": 180
+      },
       "data": {
         "label": "Bet Outcome",
         "branchType": "random",
         "branches": [
-          { "id": "win", "label": "Lucky!", "weight": 35 },
-          { "id": "lose", "label": "Unlucky!", "weight": 65 }
+          {
+            "id": "win",
+            "label": "Lucky!",
+            "weight": 35
+          },
+          {
+            "id": "lose",
+            "label": "Unlucky!",
+            "weight": 65
+          }
         ]
       }
     },
     {
       "id": "vex-rx-bet-win",
       "type": "action",
-      "position": { "x": -100, "y": 340 },
+      "position": {
+        "x": -100,
+        "y": 340
+      },
       "data": {
         "label": "Bet Wins",
         "actionType": "send_message",
@@ -49,7 +72,10 @@
     {
       "id": "vex-rx-bet-lose",
       "type": "action",
-      "position": { "x": 100, "y": 340 },
+      "position": {
+        "x": 100,
+        "y": 340
+      },
       "data": {
         "label": "Bet Loses",
         "actionType": "pulse_pump",
@@ -68,11 +94,19 @@
     {
       "id": "vex-rx-double",
       "type": "trigger",
-      "position": { "x": 300, "y": 50 },
+      "position": {
+        "x": 300,
+        "y": 50
+      },
       "data": {
         "label": "Double Down",
         "triggerType": "player_speaks",
-        "keywords": ["double", "double or nothing", "double down", "raise"],
+        "keywords": [
+          "double",
+          "double or nothing",
+          "double down",
+          "raise"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -81,7 +115,10 @@
     {
       "id": "vex-rx-double-action",
       "type": "action",
-      "position": { "x": 300, "y": 180 },
+      "position": {
+        "x": 300,
+        "y": 180
+      },
       "data": {
         "label": "Double Stakes",
         "actionType": "start_cycle",
@@ -102,11 +139,21 @@
     {
       "id": "vex-rx-brag",
       "type": "trigger",
-      "position": { "x": 550, "y": 50 },
+      "position": {
+        "x": 550,
+        "y": 50
+      },
       "data": {
         "label": "Player Brags",
         "triggerType": "player_speaks",
-        "keywords": ["easy", "too easy", "I can handle", "bring it", "is that all", "piece of cake"],
+        "keywords": [
+          "easy",
+          "too easy",
+          "I can handle",
+          "bring it",
+          "is that all",
+          "piece of cake"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -115,7 +162,10 @@
     {
       "id": "vex-rx-brag-action",
       "type": "action",
-      "position": { "x": 550, "y": 180 },
+      "position": {
+        "x": 550,
+        "y": 180
+      },
       "data": {
         "label": "Punish Hubris",
         "actionType": "device_on",
@@ -135,11 +185,20 @@
     {
       "id": "vex-rx-mercy",
       "type": "trigger",
-      "position": { "x": 800, "y": 50 },
+      "position": {
+        "x": 800,
+        "y": 50
+      },
       "data": {
         "label": "Begs for Mercy",
         "triggerType": "player_speaks",
-        "keywords": ["mercy", "please stop", "I give up", "uncle", "I surrender"],
+        "keywords": [
+          "mercy",
+          "please stop",
+          "I give up",
+          "uncle",
+          "I surrender"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -148,21 +207,39 @@
     {
       "id": "vex-rx-mercy-branch",
       "type": "branch",
-      "position": { "x": 800, "y": 180 },
+      "position": {
+        "x": 800,
+        "y": 180
+      },
       "data": {
         "label": "Mercy Wheel",
         "branchType": "random",
         "branches": [
-          { "id": "granted", "label": "Mercy Granted", "weight": 25 },
-          { "id": "denied", "label": "Mercy Denied", "weight": 50 },
-          { "id": "worse", "label": "Made It Worse", "weight": 25 }
+          {
+            "id": "granted",
+            "label": "Mercy Granted",
+            "weight": 25
+          },
+          {
+            "id": "denied",
+            "label": "Mercy Denied",
+            "weight": 50
+          },
+          {
+            "id": "worse",
+            "label": "Made It Worse",
+            "weight": 25
+          }
         ]
       }
     },
     {
       "id": "vex-rx-mercy-granted",
       "type": "action",
-      "position": { "x": 650, "y": 350 },
+      "position": {
+        "x": 650,
+        "y": 350
+      },
       "data": {
         "label": "Mercy Granted",
         "actionType": "device_off",
@@ -177,7 +254,10 @@
     {
       "id": "vex-rx-mercy-denied",
       "type": "action",
-      "position": { "x": 850, "y": 350 },
+      "position": {
+        "x": 850,
+        "y": 350
+      },
       "data": {
         "label": "Mercy Denied",
         "actionType": "send_message",
@@ -190,7 +270,10 @@
     {
       "id": "vex-rx-mercy-worse",
       "type": "action",
-      "position": { "x": 1050, "y": 350 },
+      "position": {
+        "x": 1050,
+        "y": 350
+      },
       "data": {
         "label": "Made Worse",
         "actionType": "pulse_pump",
@@ -209,11 +292,19 @@
     {
       "id": "vex-rx-ai-punishment",
       "type": "trigger",
-      "position": { "x": 0, "y": 500 },
+      "position": {
+        "x": 0,
+        "y": 500
+      },
       "data": {
         "label": "Vex Says Punishment",
         "triggerType": "ai_speaks",
-        "keywords": ["punishment", "consequence", "penalty", "suffer"],
+        "keywords": [
+          "punishment",
+          "consequence",
+          "penalty",
+          "suffer"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -222,7 +313,10 @@
     {
       "id": "vex-rx-ai-punishment-action",
       "type": "action",
-      "position": { "x": 0, "y": 630 },
+      "position": {
+        "x": 0,
+        "y": 630
+      },
       "data": {
         "label": "Punishment Pulse",
         "actionType": "pulse_pump",
@@ -238,11 +332,19 @@
     {
       "id": "vex-rx-ai-jackpot",
       "type": "trigger",
-      "position": { "x": 300, "y": 500 },
+      "position": {
+        "x": 300,
+        "y": 500
+      },
       "data": {
         "label": "Vex Says Jackpot",
         "triggerType": "ai_speaks",
-        "keywords": ["jackpot", "winner", "victory", "champion"],
+        "keywords": [
+          "jackpot",
+          "winner",
+          "victory",
+          "champion"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -251,7 +353,10 @@
     {
       "id": "vex-rx-ai-jackpot-action",
       "type": "action",
-      "position": { "x": 300, "y": 630 },
+      "position": {
+        "x": 300,
+        "y": 630
+      },
       "data": {
         "label": "Victory Fanfare",
         "actionType": "send_message",
@@ -264,11 +369,20 @@
     {
       "id": "vex-rx-random-word",
       "type": "trigger",
-      "position": { "x": 550, "y": 500 },
+      "position": {
+        "x": 550,
+        "y": 500
+      },
       "data": {
         "label": "Random Chaos Trigger",
         "triggerType": "player_speaks",
-        "keywords": ["the", "I", "and", "it", "a"],
+        "keywords": [
+          "the",
+          "I",
+          "and",
+          "it",
+          "a"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -277,20 +391,34 @@
     {
       "id": "vex-rx-random-check",
       "type": "branch",
-      "position": { "x": 550, "y": 630 },
+      "position": {
+        "x": 550,
+        "y": 630
+      },
       "data": {
         "label": "Chaos Check",
         "branchType": "random",
         "branches": [
-          { "id": "nothing", "label": "Nothing Happens", "weight": 85 },
-          { "id": "chaos", "label": "CHAOS!", "weight": 15 }
+          {
+            "id": "nothing",
+            "label": "Nothing Happens",
+            "weight": 85
+          },
+          {
+            "id": "chaos",
+            "label": "CHAOS!",
+            "weight": 15
+          }
         ]
       }
     },
     {
       "id": "vex-rx-random-nothing",
       "type": "action",
-      "position": { "x": 450, "y": 780 },
+      "position": {
+        "x": 450,
+        "y": 780
+      },
       "data": {
         "label": "Nothing",
         "actionType": "send_message",
@@ -303,21 +431,39 @@
     {
       "id": "vex-rx-random-chaos",
       "type": "branch",
-      "position": { "x": 650, "y": 780 },
+      "position": {
+        "x": 650,
+        "y": 780
+      },
       "data": {
         "label": "Chaos Type",
         "branchType": "random",
         "branches": [
-          { "id": "bonus", "label": "Surprise Bonus", "weight": 30 },
-          { "id": "penalty", "label": "Random Penalty", "weight": 40 },
-          { "id": "dramatic", "label": "Drama Only", "weight": 30 }
+          {
+            "id": "bonus",
+            "label": "Surprise Bonus",
+            "weight": 30
+          },
+          {
+            "id": "penalty",
+            "label": "Random Penalty",
+            "weight": 40
+          },
+          {
+            "id": "dramatic",
+            "label": "Drama Only",
+            "weight": 30
+          }
         ]
       }
     },
     {
       "id": "vex-rx-chaos-bonus",
       "type": "action",
-      "position": { "x": 500, "y": 930 },
+      "position": {
+        "x": 500,
+        "y": 930
+      },
       "data": {
         "label": "Surprise Bonus",
         "actionType": "device_off",
@@ -332,7 +478,10 @@
     {
       "id": "vex-rx-chaos-penalty",
       "type": "action",
-      "position": { "x": 700, "y": 930 },
+      "position": {
+        "x": 700,
+        "y": 930
+      },
       "data": {
         "label": "Random Penalty",
         "actionType": "pulse_pump",
@@ -351,7 +500,10 @@
     {
       "id": "vex-rx-chaos-drama",
       "type": "action",
-      "position": { "x": 900, "y": 930 },
+      "position": {
+        "x": 900,
+        "y": 930
+      },
       "data": {
         "label": "Drama Only",
         "actionType": "send_message",
@@ -363,22 +515,100 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "vex-rx-bet", "target": "vex-rx-bet-branch" },
-    { "id": "e2", "source": "vex-rx-bet-branch", "sourceHandle": "branch-0", "target": "vex-rx-bet-win" },
-    { "id": "e3", "source": "vex-rx-bet-branch", "sourceHandle": "branch-1", "target": "vex-rx-bet-lose" },
-    { "id": "e4", "source": "vex-rx-double", "target": "vex-rx-double-action" },
-    { "id": "e5", "source": "vex-rx-brag", "target": "vex-rx-brag-action" },
-    { "id": "e6", "source": "vex-rx-mercy", "target": "vex-rx-mercy-branch" },
-    { "id": "e7", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-0", "target": "vex-rx-mercy-granted" },
-    { "id": "e8", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-1", "target": "vex-rx-mercy-denied" },
-    { "id": "e9", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-2", "target": "vex-rx-mercy-worse" },
-    { "id": "e10", "source": "vex-rx-ai-punishment", "target": "vex-rx-ai-punishment-action" },
-    { "id": "e11", "source": "vex-rx-ai-jackpot", "target": "vex-rx-ai-jackpot-action" },
-    { "id": "e12", "source": "vex-rx-random-word", "target": "vex-rx-random-check" },
-    { "id": "e13", "source": "vex-rx-random-check", "sourceHandle": "branch-0", "target": "vex-rx-random-nothing" },
-    { "id": "e14", "source": "vex-rx-random-check", "sourceHandle": "branch-1", "target": "vex-rx-random-chaos" },
-    { "id": "e15", "source": "vex-rx-random-chaos", "sourceHandle": "branch-0", "target": "vex-rx-chaos-bonus" },
-    { "id": "e16", "source": "vex-rx-random-chaos", "sourceHandle": "branch-1", "target": "vex-rx-chaos-penalty" },
-    { "id": "e17", "source": "vex-rx-random-chaos", "sourceHandle": "branch-2", "target": "vex-rx-chaos-drama" }
+    {
+      "id": "e1",
+      "source": "vex-rx-bet",
+      "target": "vex-rx-bet-branch"
+    },
+    {
+      "id": "e2",
+      "source": "vex-rx-bet-branch",
+      "sourceHandle": "branch-0",
+      "target": "vex-rx-bet-win"
+    },
+    {
+      "id": "e3",
+      "source": "vex-rx-bet-branch",
+      "sourceHandle": "branch-1",
+      "target": "vex-rx-bet-lose"
+    },
+    {
+      "id": "e4",
+      "source": "vex-rx-double",
+      "target": "vex-rx-double-action"
+    },
+    {
+      "id": "e5",
+      "source": "vex-rx-brag",
+      "target": "vex-rx-brag-action"
+    },
+    {
+      "id": "e6",
+      "source": "vex-rx-mercy",
+      "target": "vex-rx-mercy-branch"
+    },
+    {
+      "id": "e7",
+      "source": "vex-rx-mercy-branch",
+      "sourceHandle": "branch-0",
+      "target": "vex-rx-mercy-granted"
+    },
+    {
+      "id": "e8",
+      "source": "vex-rx-mercy-branch",
+      "sourceHandle": "branch-1",
+      "target": "vex-rx-mercy-denied"
+    },
+    {
+      "id": "e9",
+      "source": "vex-rx-mercy-branch",
+      "sourceHandle": "branch-2",
+      "target": "vex-rx-mercy-worse"
+    },
+    {
+      "id": "e10",
+      "source": "vex-rx-ai-punishment",
+      "target": "vex-rx-ai-punishment-action"
+    },
+    {
+      "id": "e11",
+      "source": "vex-rx-ai-jackpot",
+      "target": "vex-rx-ai-jackpot-action"
+    },
+    {
+      "id": "e12",
+      "source": "vex-rx-random-word",
+      "target": "vex-rx-random-check"
+    },
+    {
+      "id": "e13",
+      "source": "vex-rx-random-check",
+      "sourceHandle": "branch-0",
+      "target": "vex-rx-random-nothing"
+    },
+    {
+      "id": "e14",
+      "source": "vex-rx-random-check",
+      "sourceHandle": "branch-1",
+      "target": "vex-rx-random-chaos"
+    },
+    {
+      "id": "e15",
+      "source": "vex-rx-random-chaos",
+      "sourceHandle": "branch-0",
+      "target": "vex-rx-chaos-bonus"
+    },
+    {
+      "id": "e16",
+      "source": "vex-rx-random-chaos",
+      "sourceHandle": "branch-1",
+      "target": "vex-rx-chaos-penalty"
+    },
+    {
+      "id": "e17",
+      "source": "vex-rx-random-chaos",
+      "sourceHandle": "branch-2",
+      "target": "vex-rx-chaos-drama"
+    }
   ]
 }

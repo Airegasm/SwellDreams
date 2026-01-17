@@ -7,7 +7,10 @@
     {
       "id": "pump-on-btn",
       "type": "button_press",
-      "position": { "x": 0, "y": 50 },
+      "position": {
+        "x": 0,
+        "y": 50
+      },
       "data": {
         "label": "Timed Inflate",
         "buttonTarget": "global",
@@ -20,7 +23,10 @@
     {
       "id": "pump-on-input",
       "type": "input",
-      "position": { "x": 0, "y": 180 },
+      "position": {
+        "x": 0,
+        "y": 180
+      },
       "data": {
         "label": "Duration",
         "inputType": "number",
@@ -35,7 +41,10 @@
     {
       "id": "pump-on-action",
       "type": "action",
-      "position": { "x": 0, "y": 350 },
+      "position": {
+        "x": 0,
+        "y": 350
+      },
       "data": {
         "label": "Start Pump",
         "actionType": "device_on",
@@ -55,7 +64,10 @@
     {
       "id": "pump-cycle-btn",
       "type": "button_press",
-      "position": { "x": 350, "y": 50 },
+      "position": {
+        "x": 350,
+        "y": 50
+      },
       "data": {
         "label": "Pump Cycle",
         "buttonTarget": "global",
@@ -68,7 +80,10 @@
     {
       "id": "pump-cycle-duration-input",
       "type": "input",
-      "position": { "x": 350, "y": 180 },
+      "position": {
+        "x": 350,
+        "y": 180
+      },
       "data": {
         "label": "On Duration",
         "inputType": "number",
@@ -83,7 +98,10 @@
     {
       "id": "pump-cycle-interval-input",
       "type": "input",
-      "position": { "x": 350, "y": 350 },
+      "position": {
+        "x": 350,
+        "y": 350
+      },
       "data": {
         "label": "Off Interval",
         "inputType": "number",
@@ -98,7 +116,10 @@
     {
       "id": "pump-cycle-count-input",
       "type": "input",
-      "position": { "x": 350, "y": 520 },
+      "position": {
+        "x": 350,
+        "y": 520
+      },
       "data": {
         "label": "Cycle Count",
         "inputType": "number",
@@ -113,7 +134,10 @@
     {
       "id": "pump-cycle-action",
       "type": "action",
-      "position": { "x": 350, "y": 690 },
+      "position": {
+        "x": 350,
+        "y": 690
+      },
       "data": {
         "label": "Start Cycle",
         "actionType": "start_cycle",
@@ -134,7 +158,10 @@
     {
       "id": "pump-pulse-btn",
       "type": "button_press",
-      "position": { "x": 700, "y": 50 },
+      "position": {
+        "x": 700,
+        "y": 50
+      },
       "data": {
         "label": "Pulse Pump",
         "buttonTarget": "global",
@@ -147,7 +174,10 @@
     {
       "id": "pump-pulse-input",
       "type": "input",
-      "position": { "x": 700, "y": 180 },
+      "position": {
+        "x": 700,
+        "y": 180
+      },
       "data": {
         "label": "Pulse Count",
         "inputType": "number",
@@ -162,7 +192,10 @@
     {
       "id": "pump-pulse-action",
       "type": "action",
-      "position": { "x": 700, "y": 350 },
+      "position": {
+        "x": 700,
+        "y": 350
+      },
       "data": {
         "label": "Pulse Pump",
         "actionType": "pulse_pump",
@@ -180,14 +213,46 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "pump-on-btn", "target": "pump-on-input" },
-    { "id": "e2", "source": "pump-on-input", "target": "pump-on-action" },
-    { "id": "e3", "source": "pump-cycle-btn", "target": "pump-cycle-duration-input" },
-    { "id": "e4", "source": "pump-cycle-duration-input", "target": "pump-cycle-interval-input" },
-    { "id": "e5", "source": "pump-cycle-interval-input", "target": "pump-cycle-count-input" },
-    { "id": "e6", "source": "pump-cycle-count-input", "target": "pump-cycle-action" },
-    { "id": "e7", "source": "pump-pulse-btn", "target": "pump-pulse-input" },
-    { "id": "e8", "source": "pump-pulse-input", "target": "pump-pulse-action" }
+    {
+      "id": "e1",
+      "source": "pump-on-btn",
+      "target": "pump-on-input"
+    },
+    {
+      "id": "e2",
+      "source": "pump-on-input",
+      "target": "pump-on-action"
+    },
+    {
+      "id": "e3",
+      "source": "pump-cycle-btn",
+      "target": "pump-cycle-duration-input"
+    },
+    {
+      "id": "e4",
+      "source": "pump-cycle-duration-input",
+      "target": "pump-cycle-interval-input"
+    },
+    {
+      "id": "e5",
+      "source": "pump-cycle-interval-input",
+      "target": "pump-cycle-count-input"
+    },
+    {
+      "id": "e6",
+      "source": "pump-cycle-count-input",
+      "target": "pump-cycle-action"
+    },
+    {
+      "id": "e7",
+      "source": "pump-pulse-btn",
+      "target": "pump-pulse-input"
+    },
+    {
+      "id": "e8",
+      "source": "pump-pulse-input",
+      "target": "pump-pulse-action"
+    }
   ],
   "isActive": true,
   "createdAt": 1768639977520,

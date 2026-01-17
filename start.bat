@@ -6,6 +6,16 @@ REM SwellDreams Production Startup Script
 REM Get script directory
 set SCRIPT_DIR=%~dp0
 
+REM Stop any existing instance first
+echo Stopping any existing SwellDreams instance...
+taskkill /FI "WINDOWTITLE eq SwellDreams*" /F >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":8889 "') do (
+    if not "%%a"=="" (
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
+timeout /t 1 /nobreak >nul
+
 REM Read version (simplified for batch)
 echo.
 echo ========================================

@@ -243,6 +243,7 @@ class EventEngine {
     this.pendingInput = null; // Track pending input for flow continuation
     this.pendingCycleCompletions = new Map(); // Track pending cycle completions: device -> { flowId, nodeId, isInfinite }
     this.pendingDeviceOnCompletions = new Map(); // Track pending device_on completions: device -> { flowId, nodeId, isInfinite }
+    this.pendingPauseResume = new Map(); // Track pending pause/resume nodes: pauseId -> { flowId, nodeId, context, messagesRemaining, ... }
     this.flowActivatedDevices = new Map(); // Track devices activated by flows: device -> { flowId, deviceObj }
     this.previousPlayerState = { // Track player state for change detection
       capacity: 0,
@@ -499,6 +500,11 @@ class EventEngine {
       case 'simon_challenge':
       case 'reflex_challenge':
         return this.executeTestChallenge(node, flow, nodeStep);
+
+      case 'pause_resume':
+        nodeStep.details = `Pause/Resume: ${node.data.resumeAfterValue || 4} ${node.data.resumeAfterType || 'messages'}`;
+        this.testResults.push(nodeStep);
+        return true;  // In test mode, execute both PAUSE and RESUME branches
 
       default:
         nodeStep.details = 'Unknown node type';
@@ -1123,10 +1129,20 @@ class EventEngine {
       this.messageCount = 0;
     }
 
+    // Reset message count and cooldowns on new session
+    if (eventType === 'new_session') {
+      this.messageCount = 0;
+      this.triggerCooldowns = {};
+      console.log(`[EventEngine] New session - reset messageCount and cooldowns`);
+    }
+
     // Increment message count for player/ai speech events
     if (eventType === 'player_speaks' || eventType === 'ai_speaks') {
       this.messageCount++;
       console.log(`[EventEngine] Message count incremented to ${this.messageCount}`);
+
+      // Check pending pause/resume nodes - resume flows that have waited enough messages
+      this.checkPendingPauses();
     }
 
     // Collect ALL matching triggers across ALL flows
@@ -1284,6 +1300,14 @@ class EventEngine {
           return !node.data.device || node.data.device === eventData.ip;
 
         case 'player_speaks':
+          // Handle first_message trigger type - fires only on first player message
+          if (node.data.triggerType === 'first_message') {
+            // messageCount is incremented before trigger matching, so first message = 1
+            const isFirst = this.messageCount === 1;
+            console.log(`[EventEngine] first_message trigger check: messageCount=${this.messageCount}, isFirst=${isFirst}`);
+            return isFirst;
+          }
+
           if (node.data.triggerType !== 'player_speaks') return false;
           // Check cooldown (default 5 messages)
           const playerCooldown = node.data.cooldown ?? 5;
@@ -1856,6 +1880,9 @@ class EventEngine {
         case 'simon_challenge':
         case 'reflex_challenge':
           return await this.executeChallenge(node, flow);
+
+        case 'pause_resume':
+          return await this.executePauseResume(node, flow);
 
         default:
           return true;
@@ -2528,6 +2555,115 @@ class EventEngine {
   }
 
   /**
+   * Execute a pause_resume node - pause flow and resume after N messages
+   */
+  async executePauseResume(node, flow) {
+    const data = node.data;
+    const resumeAfterType = data.resumeAfterType || 'messages';
+    const resumeAfterValue = parseInt(data.resumeAfterValue) || 4;
+
+    console.log(`[EventEngine] Pause/Resume node: will resume after ${resumeAfterValue} ${resumeAfterType}`);
+
+    // Execute PAUSE output immediately (for pre-pause actions like turning off devices)
+    const pauseEdges = flow.edges.filter(e => e.source === node.id && e.sourceHandle === 'source-pause');
+    console.log(`[EventEngine] Found ${pauseEdges.length} PAUSE edge(s) to execute`);
+
+    for (const edge of pauseEdges) {
+      const nextNode = flow.nodes.find(n => n.id === edge.target);
+      if (nextNode) {
+        console.log(`[EventEngine] Executing PAUSE branch to node ${nextNode.id} (${nextNode.type})`);
+        await this.executeNode(nextNode, flow);
+      }
+    }
+
+    // Set up pending pause/resume state for message counting
+    const pauseId = `${flow.id}-${node.id}-${Date.now()}`;
+    this.pendingPauseResume.set(pauseId, {
+      flowId: flow.id,
+      nodeId: node.id,
+      resumeAfterType,
+      messagesRemaining: resumeAfterValue
+    });
+
+    console.log(`[EventEngine] Pause registered: ${pauseId}, waiting for ${resumeAfterValue} messages`);
+
+    // Return 'wait' to stop chain execution - RESUME will fire after message count
+    return 'wait';
+  }
+
+  /**
+   * Check pending pause/resume nodes and resume flows that have waited enough messages
+   */
+  async checkPendingPauses() {
+    if (this.pendingPauseResume.size === 0) return;
+
+    const toResume = [];
+
+    for (const [pauseId, pauseState] of this.pendingPauseResume.entries()) {
+      if (pauseState.resumeAfterType === 'messages') {
+        pauseState.messagesRemaining--;
+        console.log(`[EventEngine] Pause ${pauseId}: ${pauseState.messagesRemaining} messages remaining`);
+
+        if (pauseState.messagesRemaining <= 0) {
+          toResume.push({ pauseId, pauseState });
+        }
+      }
+    }
+
+    // Resume flows outside the iteration to avoid modifying map while iterating
+    for (const { pauseId, pauseState } of toResume) {
+      this.pendingPauseResume.delete(pauseId);
+      await this.resumePausedFlow(pauseId, pauseState);
+    }
+  }
+
+  /**
+   * Resume a paused flow from the RESUME output
+   */
+  async resumePausedFlow(pauseId, pauseState) {
+    const { flowId, nodeId } = pauseState;
+
+    console.log(`[EventEngine] Resuming flow from pause: ${pauseId}`);
+
+    const flowData = this.activeFlows.get(flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${flowId} not found for pause/resume continuation`);
+      return;
+    }
+
+    const flow = flowData.flow;
+
+    // Find RESUME edges (sourceHandle === 'source-resume')
+    const resumeEdges = flow.edges.filter(e => e.source === nodeId && e.sourceHandle === 'source-resume');
+    console.log(`[EventEngine] Found ${resumeEdges.length} RESUME edge(s) to execute`);
+
+    // Inherit flags from activeExecutions
+    const execution = this.activeExecutions.get(flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
+    for (const edge of resumeEdges) {
+      const nextNode = flow.nodes.find(n => n.id === edge.target);
+      if (nextNode) {
+        console.log(`[EventEngine] Executing RESUME branch to node ${nextNode.id} (${nextNode.type})`);
+        await this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify);
+      }
+    }
+  }
+
+  /**
+   * Clear all pending pause/resume states (e.g., on emergency stop or session reset)
+   */
+  clearPendingPauses() {
+    if (this.pendingPauseResume.size === 0) return;
+
+    for (const [pauseId] of this.pendingPauseResume.entries()) {
+      console.log(`[EventEngine] Cleared pending pause: ${pauseId}`);
+    }
+    this.pendingPauseResume.clear();
+  }
+
+  /**
    * Execute a mid-game penalty/reward device action
    * Does NOT affect flow execution or pending challenge state
    * @param {string} deviceId - Device alias, name, or IP
@@ -2862,6 +2998,32 @@ class EventEngine {
             monitorType: 'device_on'
           });
           console.log(`[EventEngine] Monitoring device ${resolvedDevice} until ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}`);
+
+          // For timer-based until, schedule automatic turn off
+          if (data.untilType === 'timer' && data.untilValue > 0) {
+            const timerMs = data.untilValue * 1000;
+            console.log(`[EventEngine] Scheduling device auto-off in ${timerMs}ms (timer until)`);
+            setTimeout(async () => {
+              // Check if monitor still exists (might have been manually stopped)
+              if (this.deviceMonitors.has(resolvedDevice)) {
+                console.log(`[EventEngine] Timer complete for device ${resolvedDevice}, turning off`);
+                try {
+                  await this.deviceService.turnOff(resolvedDevice, deviceObj);
+                } catch (err) {
+                  console.error(`[EventEngine] Failed to turn off device ${resolvedDevice}:`, err.message);
+                }
+                this.deviceMonitors.delete(resolvedDevice);
+
+                // Update device state tracking
+                if (this.sessionState?.executionHistory?.deviceActions?.[resolvedDevice]) {
+                  this.sessionState.executionHistory.deviceActions[resolvedDevice].state = 'off';
+                }
+
+                // Trigger completion chain
+                this.handleDeviceOnComplete(resolvedDevice);
+              }
+            }, timerMs);
+          }
         }
 
         actionResult = 'device_on'; // Special return to handle dual outputs (immediate/completion)
@@ -4471,6 +4633,7 @@ class EventEngine {
     this.pendingPlayerChoice = null;
     this.pendingChallenge = null;
     this.pendingInput = null;
+    this.clearPendingPauses(); // Clear pending pause/resume nodes
 
     // Clear device monitors
     this.deviceMonitors.clear();

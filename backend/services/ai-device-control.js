@@ -15,6 +15,9 @@ const log = createLogger('AIDeviceControl');
 // Command pattern: [device action] where device is pump/vibe/tens and action is on/off
 const DEVICE_COMMAND_PATTERN = /\[(pump|vibe|tens)\s+(on|off)\]/gi;
 
+// Track active LLM device timers for auto-off
+const llmDeviceTimers = new Map();
+
 /**
  * Parse device commands from text
  * @param {string} text - LLM output text
@@ -91,6 +94,9 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
   const results = [];
   const { settings, sessionState, broadcast } = options;
 
+  // Get max seconds for LLM device control (default 30)
+  const maxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+
   for (const cmd of commands) {
     const device = findDeviceByType(devices, cmd.device);
 
@@ -104,6 +110,9 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
     const deviceId = device.brand === 'govee' || device.brand === 'tuya' || device.brand === 'wyze'
       ? device.deviceId
       : device.ip;
+
+    // Create a unique key for this device's timer
+    const timerKey = `${cmd.device}-${deviceId}`;
 
     // Safety check: Block pump activation at 100% capacity (unless allowOverInflation is enabled)
     if (cmd.action === 'on' && cmd.device === 'pump') {
@@ -129,8 +138,50 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
       let result;
       if (cmd.action === 'on') {
         result = await deviceService.turnOn(deviceId, device);
-        log.info(`AI turned ON ${device.label || device.name || cmd.device}`);
+        log.info(`AI turned ON ${device.label || device.name || cmd.device} (auto-off in ${maxSeconds}s)`);
+
+        // Clear any existing timer for this device
+        if (llmDeviceTimers.has(timerKey)) {
+          clearTimeout(llmDeviceTimers.get(timerKey));
+          log.info(`Cleared existing auto-off timer for ${cmd.device}`);
+        }
+
+        // Set auto-off timer
+        const timer = setTimeout(async () => {
+          try {
+            await deviceService.turnOff(deviceId, device);
+            log.info(`AI auto-off: turned OFF ${device.label || device.name || cmd.device} after ${maxSeconds}s`);
+            llmDeviceTimers.delete(timerKey);
+
+            // Inject context into chat history so LLM believes they turned it off
+            if (options.injectContext) {
+              options.injectContext(`[pump off]`);
+            }
+
+            if (broadcast) {
+              broadcast('ai_device_control', {
+                device: cmd.device,
+                action: 'off',
+                deviceName: device.label || device.name || cmd.device,
+                autoOff: true,
+                reason: `Auto-off after ${maxSeconds}s`
+              });
+            }
+          } catch (err) {
+            log.error(`AI auto-off failed for ${cmd.device}:`, err.message);
+          }
+        }, maxSeconds * 1000);
+
+        llmDeviceTimers.set(timerKey, timer);
+
       } else {
+        // Manual off command - clear any pending auto-off timer
+        if (llmDeviceTimers.has(timerKey)) {
+          clearTimeout(llmDeviceTimers.get(timerKey));
+          llmDeviceTimers.delete(timerKey);
+          log.info(`Cleared auto-off timer for ${cmd.device} due to manual off`);
+        }
+
         result = await deviceService.turnOff(deviceId, device);
         log.info(`AI turned OFF ${device.label || device.name || cmd.device}`);
       }
@@ -143,6 +194,17 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
   }
 
   return results;
+}
+
+/**
+ * Clear all LLM device timers (e.g., on emergency stop)
+ */
+function clearAllLlmTimers() {
+  for (const [key, timer] of llmDeviceTimers.entries()) {
+    clearTimeout(timer);
+    log.info(`Cleared LLM device timer: ${key}`);
+  }
+  llmDeviceTimers.clear();
 }
 
 /**
@@ -176,5 +238,6 @@ module.exports = {
   stripDeviceCommands,
   findDeviceByType,
   executeDeviceCommands,
-  processLlmOutput
+  processLlmOutput,
+  clearAllLlmTimers
 };

@@ -1,0 +1,160 @@
+{
+  "id": "flow-julie-experiment-protocols",
+  "name": "Julie's Experiment Protocols",
+  "category": "character",
+  "description": "Scientific inflation procedures - standard, intensity testing, or endurance study",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "julie-ep-btn",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Begin Experiment",
+        "buttonTarget": "character",
+        "buttonId": "julie-experiment",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-ep-choice",
+      "type": "player_choice",
+      "position": { "x": 100, "y": 180 },
+      "data": {
+        "label": "Select Protocol",
+        "description": "Julie adjusts her clipboard and looks at you with scientific curiosity...",
+        "introMessageEnabled": true,
+        "introMessage": "*adjusts her safety goggles excitedly* Alright, subject! I've prepared three different experimental protocols for today's session. Each one will help me gather unique data on intestinal gas dynamics. Which shall we proceed with?",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "standard",
+            "label": "Standard Protocol",
+            "description": "Baseline measurement procedure"
+          },
+          {
+            "id": "intensity",
+            "label": "Intensity Testing",
+            "description": "Push the boundaries of pressure tolerance"
+          },
+          {
+            "id": "endurance",
+            "label": "Endurance Study",
+            "description": "Sustained low-pressure over extended duration"
+          }
+        ]
+      }
+    },
+    {
+      "id": "julie-ep-standard-msg",
+      "type": "action",
+      "position": { "x": -50, "y": 380 },
+      "data": {
+        "label": "Standard Response",
+        "actionType": "send_message",
+        "message": "*nods approvingly and makes a note* Excellent choice for establishing baseline metrics! Standard protocol involves controlled incremental inflation with regular measurements. Very scientific. *checks the equipment* Let's begin with a calibration pulse...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-ep-standard-pulse",
+      "type": "action",
+      "position": { "x": -50, "y": 520 },
+      "data": {
+        "label": "Calibration Pulse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the pump* Initiating calibration sequence...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*studies the readings intently* Fascinating! Initial pressure response is within expected parameters. Your intestinal compliance is quite remarkable, subject!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "julie-ep-intensity-msg",
+      "type": "action",
+      "position": { "x": 150, "y": 380 },
+      "data": {
+        "label": "Intensity Response",
+        "actionType": "send_message",
+        "message": "*eyes light up with scientific fervor* Oh, feeling brave today! Intensity testing is where the REAL discoveries happen! *rapidly adjusts dials* We'll be pushing the envelope of pressure tolerance. For SCIENCE!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-ep-intensity-device",
+      "type": "action",
+      "position": { "x": 150, "y": 520 },
+      "data": {
+        "label": "Intensity Burst",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*practically vibrating with excitement* Commencing intensity protocol! Hold onto something!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*scribbles notes furiously* MAGNIFICENT! The pressure curves are exceeding my projections! Your distension response is exemplary! How does it feel to be pushing the boundaries of inflation science?!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "julie-ep-endurance-msg",
+      "type": "action",
+      "position": { "x": 350, "y": 380 },
+      "data": {
+        "label": "Endurance Response",
+        "actionType": "send_message",
+        "message": "*smiles knowingly* Ah, the endurance study! A more... prolonged approach to data collection. *sets up monitoring equipment* This will give us valuable insights into sustained pressure adaptation. Get comfortable, subject - we'll be here a while.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-ep-endurance-device",
+      "type": "action",
+      "position": { "x": 350, "y": 520 },
+      "data": {
+        "label": "Sustained Flow",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the pump at a gentle setting* Beginning sustained low-pressure inflation. Focus on your breathing, subject...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*reviews the data with satisfaction* Beautiful sustained curve! Your body's adaptation to prolonged inflation is providing excellent research material. I'll need to update my thesis after this!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "julie-ep-btn", "target": "julie-ep-choice" },
+    { "id": "e2", "source": "julie-ep-choice", "sourceHandle": "standard", "target": "julie-ep-standard-msg" },
+    { "id": "e3", "source": "julie-ep-choice", "sourceHandle": "intensity", "target": "julie-ep-intensity-msg" },
+    { "id": "e4", "source": "julie-ep-choice", "sourceHandle": "endurance", "target": "julie-ep-endurance-msg" },
+    { "id": "e5", "source": "julie-ep-standard-msg", "target": "julie-ep-standard-pulse" },
+    { "id": "e6", "source": "julie-ep-intensity-msg", "target": "julie-ep-intensity-device" },
+    { "id": "e7", "source": "julie-ep-endurance-msg", "target": "julie-ep-endurance-device" }
+  ]
+}

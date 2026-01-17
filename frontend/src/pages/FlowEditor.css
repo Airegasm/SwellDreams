@@ -236,6 +236,12 @@
   color: #14b8a6;
 }
 
+.palette-node.pause-resume {
+  background-color: rgba(99, 102, 241, 0.2);
+  border-color: #6366f1;
+  color: #818cf8;
+}
+
 .palette-node.input {
   background-color: rgba(139, 92, 246, 0.2);
   border-color: #8b5cf6;

@@ -222,7 +222,7 @@
     "id": "flow-iris-protocol-start",
     "name": "Dr. Chen's Protocol Auto-Start",
     "characterId": null,
-    "description": "Automatically selects and begins a research protocol after session starts"
+    "description": "First player message triggers protocol selection"
   },
   {
     "id": "flow-scarlett-reactions",

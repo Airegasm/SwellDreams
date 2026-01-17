@@ -10,7 +10,10 @@
     {
       "id": "vex-br-btn",
       "type": "button_press",
-      "position": { "x": 200, "y": 50 },
+      "position": {
+        "x": 200,
+        "y": 50
+      },
       "data": {
         "label": "Bonus Round",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "vex-br-intro",
       "type": "action",
-      "position": { "x": 200, "y": 150 },
+      "position": {
+        "x": 200,
+        "y": 150
+      },
       "data": {
         "label": "Bonus Intro",
         "actionType": "send_message",
@@ -35,13 +41,43 @@
     {
       "id": "vex-br-slots",
       "type": "slot_machine",
-      "position": { "x": 200, "y": 280 },
+      "position": {
+        "x": 200,
+        "y": 280
+      },
       "data": {
         "label": "Multiplier Slots",
         "reels": [
-          { "id": "reel1", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] },
-          { "id": "reel2", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] },
-          { "id": "reel3", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] }
+          {
+            "id": "reel1",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          },
+          {
+            "id": "reel2",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          },
+          {
+            "id": "reel3",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          }
         ],
         "matchRequirement": "any2",
         "preMessageEnabled": true,
@@ -52,7 +88,10 @@
     {
       "id": "vex-br-jackpot",
       "type": "action",
-      "position": { "x": 0, "y": 480 },
+      "position": {
+        "x": 0,
+        "y": 480
+      },
       "data": {
         "label": "Slot Jackpot",
         "actionType": "send_message",
@@ -68,7 +107,10 @@
     {
       "id": "vex-br-partial",
       "type": "action",
-      "position": { "x": 200, "y": 480 },
+      "position": {
+        "x": 200,
+        "y": 480
+      },
       "data": {
         "label": "Partial Win",
         "actionType": "send_message",
@@ -81,7 +123,10 @@
     {
       "id": "vex-br-lose",
       "type": "action",
-      "position": { "x": 400, "y": 480 },
+      "position": {
+        "x": 400,
+        "y": 480
+      },
       "data": {
         "label": "No Match",
         "actionType": "send_message",
@@ -94,7 +139,10 @@
     {
       "id": "vex-br-guess-intro",
       "type": "action",
-      "position": { "x": 200, "y": 600 },
+      "position": {
+        "x": 200,
+        "y": 600
+      },
       "data": {
         "label": "Number Game Intro",
         "actionType": "send_message",
@@ -107,7 +155,10 @@
     {
       "id": "vex-br-guess",
       "type": "number_guess",
-      "position": { "x": 200, "y": 730 },
+      "position": {
+        "x": 200,
+        "y": 730
+      },
       "data": {
         "label": "Guess the Number",
         "min": 1,
@@ -121,7 +172,10 @@
     {
       "id": "vex-br-guess-win",
       "type": "action",
-      "position": { "x": 100, "y": 880 },
+      "position": {
+        "x": 100,
+        "y": 880
+      },
       "data": {
         "label": "Guess Correct",
         "actionType": "send_message",
@@ -134,7 +188,10 @@
     {
       "id": "vex-br-reward",
       "type": "action",
-      "position": { "x": 100, "y": 1000 },
+      "position": {
+        "x": 100,
+        "y": 1000
+      },
       "data": {
         "label": "Victory Reward",
         "actionType": "pulse_pump",
@@ -153,7 +210,10 @@
     {
       "id": "vex-br-guess-lose",
       "type": "action",
-      "position": { "x": 350, "y": 880 },
+      "position": {
+        "x": 350,
+        "y": 880
+      },
       "data": {
         "label": "Guess Wrong",
         "actionType": "send_message",
@@ -166,7 +226,10 @@
     {
       "id": "vex-br-punish",
       "type": "action",
-      "position": { "x": 350, "y": 1000 },
+      "position": {
+        "x": 350,
+        "y": 1000
+      },
       "data": {
         "label": "Bonus Punishment",
         "actionType": "start_cycle",
@@ -186,18 +249,75 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "vex-br-btn", "target": "vex-br-intro" },
-    { "id": "e2", "source": "vex-br-intro", "target": "vex-br-slots" },
-    { "id": "e3", "source": "vex-br-slots", "sourceHandle": "jackpot", "target": "vex-br-jackpot" },
-    { "id": "e4", "source": "vex-br-slots", "sourceHandle": "partial-win", "target": "vex-br-partial" },
-    { "id": "e5", "source": "vex-br-slots", "sourceHandle": "lose", "target": "vex-br-lose" },
-    { "id": "e6", "source": "vex-br-jackpot", "target": "vex-br-guess-intro" },
-    { "id": "e7", "source": "vex-br-partial", "target": "vex-br-guess-intro" },
-    { "id": "e8", "source": "vex-br-lose", "target": "vex-br-guess-intro" },
-    { "id": "e9", "source": "vex-br-guess-intro", "target": "vex-br-guess" },
-    { "id": "e10", "source": "vex-br-guess", "sourceHandle": "win", "target": "vex-br-guess-win" },
-    { "id": "e11", "source": "vex-br-guess", "sourceHandle": "lose", "target": "vex-br-guess-lose" },
-    { "id": "e12", "source": "vex-br-guess-win", "target": "vex-br-reward" },
-    { "id": "e13", "source": "vex-br-guess-lose", "target": "vex-br-punish" }
+    {
+      "id": "e1",
+      "source": "vex-br-btn",
+      "target": "vex-br-intro"
+    },
+    {
+      "id": "e2",
+      "source": "vex-br-intro",
+      "target": "vex-br-slots"
+    },
+    {
+      "id": "e3",
+      "source": "vex-br-slots",
+      "sourceHandle": "jackpot",
+      "target": "vex-br-jackpot"
+    },
+    {
+      "id": "e4",
+      "source": "vex-br-slots",
+      "sourceHandle": "partial-win",
+      "target": "vex-br-partial"
+    },
+    {
+      "id": "e5",
+      "source": "vex-br-slots",
+      "sourceHandle": "lose",
+      "target": "vex-br-lose"
+    },
+    {
+      "id": "e6",
+      "source": "vex-br-jackpot",
+      "target": "vex-br-guess-intro"
+    },
+    {
+      "id": "e7",
+      "source": "vex-br-partial",
+      "target": "vex-br-guess-intro"
+    },
+    {
+      "id": "e8",
+      "source": "vex-br-lose",
+      "target": "vex-br-guess-intro"
+    },
+    {
+      "id": "e9",
+      "source": "vex-br-guess-intro",
+      "target": "vex-br-guess"
+    },
+    {
+      "id": "e10",
+      "source": "vex-br-guess",
+      "sourceHandle": "win",
+      "target": "vex-br-guess-win"
+    },
+    {
+      "id": "e11",
+      "source": "vex-br-guess",
+      "sourceHandle": "lose",
+      "target": "vex-br-guess-lose"
+    },
+    {
+      "id": "e12",
+      "source": "vex-br-guess-win",
+      "target": "vex-br-reward"
+    },
+    {
+      "id": "e13",
+      "source": "vex-br-guess-lose",
+      "target": "vex-br-punish"
+    }
   ]
 }

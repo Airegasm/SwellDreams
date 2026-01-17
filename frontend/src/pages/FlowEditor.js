@@ -25,6 +25,7 @@ import BranchNode from '../components/flow/nodes/BranchNode';
 import DelayNode from '../components/flow/nodes/DelayNode';
 import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
+import PauseResumeNode from '../components/flow/nodes/PauseResumeNode';
 import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
 import InputNode from '../components/flow/nodes/InputNode';
 import RandomNumberNode from '../components/flow/nodes/RandomNumberNode';
@@ -53,6 +54,7 @@ const nodeTypes = {
   delay: DelayNode,
   player_choice: PlayerChoiceNode,
   simple_ab: SimpleABNode,
+  pause_resume: PauseResumeNode,
   capacity_ai_message: CapacityMessageNode,
   capacity_player_message: CapacityMessageNode,
   input: InputNode,
@@ -144,6 +146,13 @@ const NODE_TEMPLATES = {
       descriptionA: '',
       labelB: 'Option B',
       descriptionB: ''
+    }
+  },
+  pause_resume: {
+    default: {
+      label: 'Pause/Resume',
+      resumeAfterType: 'messages',
+      resumeAfterValue: 4
     }
   },
   input: {
@@ -1423,6 +1432,13 @@ function FlowEditor() {
               onDragStart={(e) => onDragStart(e, 'simple_ab', 'default')}
             >
               Simple A/B
+            </div>
+            <div
+              className="palette-node pause-resume"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'pause_resume', 'default')}
+            >
+              Pause/Resume
             </div>
             <div
               className="palette-node input"

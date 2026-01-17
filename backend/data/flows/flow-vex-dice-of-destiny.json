@@ -10,7 +10,10 @@
     {
       "id": "vex-dd-btn",
       "type": "button_press",
-      "position": { "x": 200, "y": 50 },
+      "position": {
+        "x": 200,
+        "y": 50
+      },
       "data": {
         "label": "Roll the Dice",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "vex-dd-intro",
       "type": "action",
-      "position": { "x": 200, "y": 150 },
+      "position": {
+        "x": 200,
+        "y": 150
+      },
       "data": {
         "label": "Dice Intro",
         "actionType": "send_message",
@@ -35,16 +41,39 @@
     {
       "id": "vex-dd-dice",
       "type": "dice_roll",
-      "position": { "x": 200, "y": 280 },
+      "position": {
+        "x": 200,
+        "y": 280
+      },
       "data": {
         "label": "Destiny Dice",
         "diceCount": 2,
         "mode": "ranges",
         "ranges": [
-          { "id": "low", "label": "Low (2-5)", "min": 2, "max": 5 },
-          { "id": "mid", "label": "Medium (6-8)", "min": 6, "max": 8 },
-          { "id": "high", "label": "High (9-11)", "min": 9, "max": 11 },
-          { "id": "max", "label": "SNAKE EYES/BOXCARS", "min": 12, "max": 12 }
+          {
+            "id": "low",
+            "label": "Low (2-5)",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "mid",
+            "label": "Medium (6-8)",
+            "min": 6,
+            "max": 8
+          },
+          {
+            "id": "high",
+            "label": "High (9-11)",
+            "min": 9,
+            "max": 11
+          },
+          {
+            "id": "max",
+            "label": "SNAKE EYES/BOXCARS",
+            "min": 12,
+            "max": 12
+          }
         ],
         "preMessageEnabled": true,
         "preMessage": "*rattles dice dramatically* Come onnnn, lucky seven! ...wait, that's bad for YOU! *throws dice*",
@@ -54,7 +83,10 @@
     {
       "id": "vex-dd-low",
       "type": "action",
-      "position": { "x": 0, "y": 480 },
+      "position": {
+        "x": 0,
+        "y": 480
+      },
       "data": {
         "label": "Low Roll",
         "actionType": "pulse_pump",
@@ -73,7 +105,10 @@
     {
       "id": "vex-dd-mid",
       "type": "action",
-      "position": { "x": 175, "y": 480 },
+      "position": {
+        "x": 175,
+        "y": 480
+      },
       "data": {
         "label": "Medium Roll",
         "actionType": "start_cycle",
@@ -94,7 +129,10 @@
     {
       "id": "vex-dd-high",
       "type": "action",
-      "position": { "x": 350, "y": 480 },
+      "position": {
+        "x": 350,
+        "y": 480
+      },
       "data": {
         "label": "High Roll",
         "actionType": "device_on",
@@ -114,7 +152,10 @@
     {
       "id": "vex-dd-max",
       "type": "action",
-      "position": { "x": 525, "y": 480 },
+      "position": {
+        "x": 525,
+        "y": 480
+      },
       "data": {
         "label": "Perfect Roll",
         "actionType": "send_message",
@@ -127,7 +168,10 @@
     {
       "id": "vex-dd-max-action",
       "type": "action",
-      "position": { "x": 525, "y": 600 },
+      "position": {
+        "x": 525,
+        "y": 600
+      },
       "data": {
         "label": "Maximum Experience",
         "actionType": "start_cycle",
@@ -148,7 +192,10 @@
     {
       "id": "vex-dd-other",
       "type": "action",
-      "position": { "x": 700, "y": 480 },
+      "position": {
+        "x": 700,
+        "y": 480
+      },
       "data": {
         "label": "Mystery Roll",
         "actionType": "send_message",
@@ -160,13 +207,50 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "vex-dd-btn", "target": "vex-dd-intro" },
-    { "id": "e2", "source": "vex-dd-intro", "target": "vex-dd-dice" },
-    { "id": "e3", "source": "vex-dd-dice", "sourceHandle": "low", "target": "vex-dd-low" },
-    { "id": "e4", "source": "vex-dd-dice", "sourceHandle": "mid", "target": "vex-dd-mid" },
-    { "id": "e5", "source": "vex-dd-dice", "sourceHandle": "high", "target": "vex-dd-high" },
-    { "id": "e6", "source": "vex-dd-dice", "sourceHandle": "max", "target": "vex-dd-max" },
-    { "id": "e7", "source": "vex-dd-max", "target": "vex-dd-max-action" },
-    { "id": "e8", "source": "vex-dd-dice", "sourceHandle": "other", "target": "vex-dd-other" }
+    {
+      "id": "e1",
+      "source": "vex-dd-btn",
+      "target": "vex-dd-intro"
+    },
+    {
+      "id": "e2",
+      "source": "vex-dd-intro",
+      "target": "vex-dd-dice"
+    },
+    {
+      "id": "e3",
+      "source": "vex-dd-dice",
+      "sourceHandle": "low",
+      "target": "vex-dd-low"
+    },
+    {
+      "id": "e4",
+      "source": "vex-dd-dice",
+      "sourceHandle": "mid",
+      "target": "vex-dd-mid"
+    },
+    {
+      "id": "e5",
+      "source": "vex-dd-dice",
+      "sourceHandle": "high",
+      "target": "vex-dd-high"
+    },
+    {
+      "id": "e6",
+      "source": "vex-dd-dice",
+      "sourceHandle": "max",
+      "target": "vex-dd-max"
+    },
+    {
+      "id": "e7",
+      "source": "vex-dd-max",
+      "target": "vex-dd-max-action"
+    },
+    {
+      "id": "e8",
+      "source": "vex-dd-dice",
+      "sourceHandle": "other",
+      "target": "vex-dd-other"
+    }
   ]
 }
