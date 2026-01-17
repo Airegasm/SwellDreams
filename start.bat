@@ -10,9 +10,7 @@ REM Stop any existing instance first
 echo Stopping any existing SwellDreams instance...
 taskkill /FI "WINDOWTITLE eq SwellDreams*" /F >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr "LISTENING" ^| findstr ":8889 "') do (
-    if not "%%a"=="" (
-        taskkill /F /PID %%a >nul 2>&1
-    )
+    if not "%%a"=="" taskkill /F /PID %%a >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
 
@@ -24,23 +22,28 @@ echo ========================================
 echo.
 
 REM Check if Node.js is installed
-where node >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo Node.js not found. Please install from https://nodejs.org/
-    pause
-    exit /b 1
-)
+where node >nul 2>nul || goto :no_node
 echo Node.js found:
 node --version
+goto :node_ok
 
-REM Check if Python is installed (optional)
-where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo Warning: Python not found. Some features may be limited.
-) else (
-    echo Installing Python dependencies...
-    py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
-)
+:no_node
+echo Node.js not found. Please install from https://nodejs.org/
+pause
+exit /b 1
+
+:node_ok
+
+REM Check Python (optional)
+where python >nul 2>nul || goto :skip_python
+echo Installing Python dependencies...
+py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+goto :after_python
+
+:skip_python
+echo Warning: Python not found. Some features may be limited.
+
+:after_python
 
 REM Install/update backend dependencies
 echo Checking backend dependencies...
