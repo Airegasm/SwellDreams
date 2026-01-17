@@ -13,7 +13,7 @@ import StatusBadges from '../components/StatusBadges';
 import './Chat.css';
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1385,13 +1385,22 @@ function Chat() {
               </div>
               <ul className="session-info-list">
                 <li>{controlMode === 'interactive' ? 'Interactive Mode' : 'Simulated Mode'}</li>
-                {isLlmConfigured() && (
-                  <li>LLM: {settings?.llm?.endpointStandard === 'openrouter' ? 'OpenRouter' : 'Connected'}</li>
-                )}
-                {settings?.globalCharacterControls?.useAutoCapacity && <li>Auto-Capacity</li>}
-                {settings?.globalCharacterControls?.allowOverInflate && <li>Over-Inflate Allowed</li>}
-                {settings?.globalCharacterControls?.llmDeviceControl && <li>LLM Device Control</li>}
-                {settings?.remoteAccess?.enabled && <li>Mobile Enabled</li>}
+                {isLlmConfigured() && (() => {
+                  const activeProfile = connectionProfiles?.find(p => p.id === settings?.llm?.activeProfileId);
+                  const profileName = activeProfile?.name || (settings?.llm?.endpointStandard === 'openrouter' ? 'OpenRouter' : 'Connected');
+                  return <li>LLM: {profileName}</li>;
+                })()}
+                {!activeCharacter?.autoReplyEnabled && <li>Auto-Reply Off</li>}
+                {(() => {
+                  const charFlows = sessionState?.flowAssignments?.characters?.[activeCharacter?.id]?.length || 0;
+                  const personaFlows = sessionState?.flowAssignments?.personas?.[activePersona?.id]?.length || 0;
+                  const globalFlows = sessionState?.flowAssignments?.global?.length || 0;
+                  const totalFlows = charFlows + personaFlows + globalFlows;
+                  return totalFlows > 0 ? <li>{totalFlows} Flows Active</li> : null;
+                })()}
+                <li>Auto-Capacity {settings?.globalCharacterControls?.useAutoCapacity ? 'ON' : 'OFF'}</li>
+                {settings?.globalCharacterControls?.allowOverInflation && <li>Over-Inflate Allowed</li>}
+                <li>LLM Device Control {settings?.globalCharacterControls?.allowLlmDeviceControl ? 'ON' : 'OFF'}</li>
               </ul>
             </div>
             <div className="character-bottom-bar">

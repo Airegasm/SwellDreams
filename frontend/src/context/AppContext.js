@@ -42,6 +42,7 @@ export function AppProvider({ children }) {
   const [characters, setCharacters] = useState([]);
   const [devices, setDevices] = useState([]);
   const [flows, setFlows] = useState([]);
+  const [connectionProfiles, setConnectionProfiles] = useState([]);
 
   // Session state
   const [sessionState, setSessionState] = useState({
@@ -852,6 +853,7 @@ export function AppProvider({ children }) {
     api.getCharacters().then(setCharacters).catch(console.error);
     api.getDevices().then(setDevices).catch(console.error);
     api.getFlows().then(setFlows).catch(console.error);
+    api.getConnectionProfiles().then(setConnectionProfiles).catch(console.error);
     fetchSimulationStatus();
 
     return () => {
@@ -985,6 +987,7 @@ export function AppProvider({ children }) {
     setDevices,
     flows,
     setFlows,
+    connectionProfiles,
 
     // Session
     sessionState,
