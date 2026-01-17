@@ -151,7 +151,7 @@ function CharacterTab() {
                   </div>
                   <div className="list-item-meta">{character.description}</div>
                 </div>
-                <div className="list-item-actions">
+                <div className="use-button-column">
                   {settings.activeCharacterId !== character.id && (
                     <button
                       className="btn btn-sm btn-success"
@@ -160,6 +160,8 @@ function CharacterTab() {
                       Use
                     </button>
                   )}
+                </div>
+                <div className="list-item-actions">
                   <button
                     className="btn btn-sm btn-secondary"
                     onClick={() => handleEdit(character)}

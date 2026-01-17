@@ -156,6 +156,50 @@ function ConversationsTab() {
               <strong>Note:</strong> Keyboard shortcuts only work when you're not typing in a text field.
             </div>
 
+            <h4 className="subsection-header">Action Buttons (Send & Generate)</h4>
+            <p>
+              To the right of the text input area is a 2x2 button cluster for sending messages and generating AI content:
+            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Button</th>
+                  <th>Icon</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Guided Impersonate</strong></td>
+                  <td>🤖 (green background)</td>
+                  <td>AI generates text as YOUR persona. The result appears in your text input for editing before sending. Optionally type guidance text first to steer the generation.</td>
+                </tr>
+                <tr>
+                  <td><strong>Guided Response</strong></td>
+                  <td>🤖 (red background)</td>
+                  <td>AI generates a character response immediately. Optionally type guidance text first (e.g., "have them check on the player") to influence the generation.</td>
+                </tr>
+                <tr>
+                  <td><strong>Send as Persona</strong></td>
+                  <td>↖ (green background)</td>
+                  <td>Sends your typed text as a player message. This is the standard way to chat - your message goes to the character who then responds.</td>
+                </tr>
+                <tr>
+                  <td><strong>Send as Character</strong></td>
+                  <td>↖ (red background)</td>
+                  <td>Sends your typed text as the character's message (not the player). Useful for manually writing character dialogue or continuing a scene.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="info-box">
+              <strong>Color Coding:</strong> Green buttons are for player/persona actions. Red buttons are for character/AI actions.
+            </div>
+
+            <div className="tip-box">
+              <strong>Pro Tip:</strong> Use "Guided Impersonate" during intense scenes to auto-generate realistic player reactions. Type a hint like "reluctant but aroused" before clicking to guide the generation, then edit the result before sending.
+            </div>
+
             <h4 className="subsection-header">Character Column</h4>
             <p>
               The right column shows the active character's portrait along with:

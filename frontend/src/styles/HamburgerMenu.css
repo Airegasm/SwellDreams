@@ -102,6 +102,14 @@
   transition: background-color var(--transition-fast), color var(--transition-fast);
   cursor: pointer;
   font-size: var(--font-size-base);
+  /* Button reset for consistency with NavLink items */
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  font-family: var(--font-family);
+  box-sizing: border-box;
 }
 
 .hamburger-menu-item:hover {
@@ -229,6 +237,7 @@
 
 /* Logo at bottom of hamburger menu */
 .hamburger-menu-logo {
+  display: block;
   margin-top: auto;
   padding: var(--spacing-lg);
   text-align: center;

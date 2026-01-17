@@ -231,9 +231,14 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
         </a>
 
         {/* Logo at bottom of menu */}
-        <div className="hamburger-menu-logo">
+        <a
+          href="https://www.airegasm.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hamburger-menu-logo"
+        >
           <img src="/logo.png" alt="SwellDreams" />
-        </div>
+        </a>
       </div>
     </div>
   );

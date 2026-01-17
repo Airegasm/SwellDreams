@@ -3554,6 +3554,44 @@ async function handleButtonAdjustCapacity(action) {
 // Chat Handling
 // ============================================
 
+/**
+ * Strip cross-role content from LLM output (like SillyTavern's cleanUpMessage)
+ * Removes any text after a role marker that indicates the AI started generating for the wrong role
+ * @param {string} text - The generated text
+ * @param {string[]} stopSequences - Role markers to stop at
+ * @param {boolean} isCharacterResponse - True if this should be character text, false for player
+ * @returns {string} - Cleaned text
+ */
+function stripCrossRoleContent(text, stopSequences = [], isCharacterResponse = true) {
+  if (!text) return text;
+
+  let result = text;
+
+  // Check for each stop sequence and truncate if found
+  for (const stopStr of stopSequences) {
+    const idx = result.indexOf(stopStr);
+    if (idx > 0) {
+      console.log(`[Chat] Stripping cross-role content at "${stopStr}"`);
+      result = result.substring(0, idx);
+    }
+  }
+
+  // Also strip partial stop sequences at the end (like SillyTavern does)
+  for (const stopStr of stopSequences) {
+    if (stopStr.length > 0) {
+      for (let j = stopStr.length - 1; j > 0; j--) {
+        const partial = stopStr.slice(0, j);
+        if (result.endsWith(partial)) {
+          result = result.slice(0, -j);
+          break;
+        }
+      }
+    }
+  }
+
+  return result.trim();
+}
+
 async function handleChatMessage(data) {
   const { content, sender = 'player' } = data;
   console.log(`[Chat] Message received. autoReply=${sessionState.autoReply}`);
@@ -3617,10 +3655,16 @@ async function handleChatMessage(data) {
         sessionState.chatHistory.push(aiMessage);
         broadcast('chat_message', aiMessage);
 
+        // Merge stop sequences into LLM settings
+        const llmSettings = {
+          ...settings.llm,
+          stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+        };
+
         const result = await llmService.generateStream({
           prompt: context.prompt,
           systemPrompt: context.systemPrompt,
-          settings: settings.llm,
+          settings: llmSettings,
           onToken: (token, fullText) => {
             // Update message content and broadcast
             aiMessage.content = fullText;
@@ -3628,7 +3672,8 @@ async function handleChatMessage(data) {
           }
         });
 
-        finalText = result.text;
+        // Strip any cross-role content that slipped through
+        finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
         aiMessage.content = substituteAllVariables(finalText);
 
         // Process AI device commands (e.g., [pump on], [vibe off])
@@ -3660,13 +3705,19 @@ async function handleChatMessage(data) {
         broadcast('stream_complete', { messageId: aiMessage.id, content: aiMessage.content });
 
       } else {
-        // Non-streaming mode
+        // Non-streaming mode - merge stop sequences into settings
+        const llmSettings = {
+          ...settings.llm,
+          stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+        };
+
         const result = await llmService.generate({
           prompt: context.prompt,
           systemPrompt: context.systemPrompt,
-          settings: settings.llm
+          settings: llmSettings
         });
-        finalText = result.text;
+        // Strip any cross-role content
+        finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
       }
 
       let retryCount = 0;
@@ -4069,6 +4120,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
   if (mode === 'impersonate' || mode === 'guided_impersonate') {
     // Generate as the player
     systemPrompt = `You are ${playerName}, the player character.\n\n`;
+    systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${playerName}. NEVER write dialogue or actions for ${character.name}. NEVER include "${character.name}:" or "[Char]:" in your response. Stop immediately if you're about to write as ${character.name}.\n\n`;
     if (persona) {
       if (persona.personality) systemPrompt += `Personality: ${persona.personality}\n`;
       if (persona.appearance) systemPrompt += `Appearance: ${persona.appearance}\n`;
@@ -4179,7 +4231,13 @@ Tags are hidden from player. Auto-timeout: ${maxSeconds}s.
     prompt += `[Char]:`;
   }
 
-  return { systemPrompt, prompt };
+  // Build stop sequences to prevent cross-role generation
+  const isPlayerVoice = mode === 'impersonate' || mode === 'guided_impersonate';
+  const stopSequences = isPlayerVoice
+    ? [`\n[Char]:`, `\n${character.name}:`, `[Char]:`, `${character.name}:`]
+    : [`\n[Player]:`, `\n${playerName}:`, `[Player]:`, `${playerName}:`];
+
+  return { systemPrompt, prompt, stopSequences, playerName, characterName: character.name };
 }
 
 function buildChatContext(character, settings) {
@@ -4231,6 +4289,7 @@ function buildChatContext(character, settings) {
   // Build system prompt from character
   let systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
   systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+  systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
   systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
   const scenario = getActiveScenario(character);
   if (scenario) {
@@ -4345,7 +4404,16 @@ Devices auto-timeout after ${maxSeconds}s but you should turn them off narrative
 
   prompt += `${character.name}:`;
 
-  return { systemPrompt, prompt };
+  // Build stop sequences to prevent role confusion (like SillyTavern's names_as_stop_strings)
+  const stopSequences = [
+    `\n${playerLabel}:`,
+    `\n${character.name}:`,
+    `${playerLabel}:`,
+    `[Player]:`,
+    `[Char]:`,
+  ];
+
+  return { systemPrompt, prompt, stopSequences, playerName: playerLabel, characterName: character.name };
 }
 
 // ============================================

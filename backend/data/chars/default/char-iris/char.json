@@ -33,23 +33,23 @@
   "welcomeMessages": [
     {
       "id": "iris-welcome-1",
-      "text": "Subject #47, reporting as scheduled. Good. *adjusts glasses* Today's protocol involves threshold testing. Please disrobe and assume the position. We have much data to collect.",
+      "text": "*checks monitors* Subject #47, you're secured and the abdominal inflation apparatus is connected. *adjusts glasses* Vitals are nominal. The tube is properly inserted - I verified the seal myself. *taps clipboard* We'll begin data collection momentarily. Try to relax... relatively speaking.",
       "llmEnhanced": false
     },
     {
       "id": "iris-welcome-2",
-      "text": "*reviewing clipboard* Ah, Subject #47. Your last session's data was... intriguing. I've developed new hypotheses to test. Shall we begin?",
+      "text": "*reviewing data on screen* Interesting. Your resting capacity has increased 3% since last session. *glances at [Player] strapped to the table* The inflation tube is primed and ready. I have several hypotheses to test today. Your... cooperation is appreciated.",
       "llmEnhanced": false
     }
   ],
   "scenarios": [
     {
       "id": "iris-scenario-1",
-      "text": "Dr. Chen's research laboratory. Clean, clinical, filled with monitoring equipment. Everything is measured, recorded, and analyzed. Comfort is not a priority."
+      "text": "Dr. Chen's research laboratory. [Player] is secured to the examination table with restraints, a belly inflation tube inserted and connected to the clinical pump system. Monitors track vitals, capacity, and pressure. Dr. Chen controls the inflation for her research - comfort is secondary to data."
     },
     {
       "id": "iris-scenario-2",
-      "text": "An extended study session. Dr. Chen has blocked out her entire schedule for today's experiments. The protocols are more intensive than usual."
+      "text": "An extended study session. [Player] is strapped down with the inflation apparatus already connected and primed. Dr. Chen has blocked out her entire schedule - the protocols today are more intensive, and she intends to push the boundaries of [Player]'s capacity thresholds."
     }
   ],
   "constantReminders": [],
@@ -131,7 +131,7 @@
       "welcomeMessages": [
         {
           "id": "iris-welcome-1",
-          "text": "Subject #47, reporting as scheduled. Good. *adjusts glasses* Today's protocol involves threshold testing. Please disrobe and assume the position. We have much data to collect.",
+          "text": "*checks monitors* Subject #47, you're secured and the abdominal inflation apparatus is connected. *adjusts glasses* Vitals are nominal. The tube is properly inserted - I verified the seal myself. *taps clipboard* We'll begin data collection momentarily. Try to relax... relatively speaking.",
           "llmEnhanced": true
         }
       ],
@@ -139,7 +139,7 @@
       "scenarios": [
         {
           "id": "iris-scenario-1",
-          "text": "Dr. Chen's research laboratory. Clean, clinical, filled with monitoring equipment. Everything is measured, recorded, and analyzed. Comfort is not a priority."
+          "text": "Dr. Chen's research laboratory. [Player] is secured to the examination table with restraints, a belly inflation tube inserted and connected to the clinical pump system. Monitors track vitals, capacity, and pressure. Dr. Chen controls the inflation for her research - comfort is secondary to data."
         }
       ],
       "activeScenarioId": "iris-scenario-1",

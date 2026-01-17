@@ -1378,6 +1378,22 @@ function Chat() {
                 {activeCharacter?.name && <span className="frame-name character-name">{activeCharacter.name}</span>}
               </div>
             </div>
+            {/* Session Info Panel */}
+            <div className="session-info-panel">
+              <div className="session-info-item story-name">
+                Story: {activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId)?.name || 'Default'}
+              </div>
+              <ul className="session-info-list">
+                <li>{controlMode === 'interactive' ? 'Interactive Mode' : 'Simulated Mode'}</li>
+                {isLlmConfigured() && (
+                  <li>LLM: {settings?.llm?.endpointStandard === 'openrouter' ? 'OpenRouter' : 'Connected'}</li>
+                )}
+                {settings?.globalCharacterControls?.useAutoCapacity && <li>Auto-Capacity</li>}
+                {settings?.globalCharacterControls?.allowOverInflate && <li>Over-Inflate Allowed</li>}
+                {settings?.globalCharacterControls?.llmDeviceControl && <li>LLM Device Control</li>}
+                {settings?.remoteAccess?.enabled && <li>Mobile Enabled</li>}
+              </ul>
+            </div>
             <div className="character-bottom-bar">
               <button
                 className={`frame-btn ${devicesExpanded ? 'active' : ''}`}

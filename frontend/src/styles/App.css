@@ -1120,7 +1120,7 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--text-muted);
 }
 
-/* Terms of Service Modal */
+/* Terms of Service Modal - Silver & Black Style */
 .tos-overlay {
   position: fixed;
   top: 0;
@@ -1135,7 +1135,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .tos-modal {
-  background-color: var(--bg-primary);
+  background-color: #1a1c1f;
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--border-color);
   width: 90%;
@@ -1144,35 +1144,41 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
 .tos-header {
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--border-color);
   text-align: center;
+  background: linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%);
 }
 
 .tos-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: var(--text-primary);
+  color: white;
+  font-weight: 600;
 }
 
 .tos-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
   max-height: 50vh;
-  background-color: var(--bg-secondary);
+  background-image: url('../assets/card-bg.png');
+  background-size: cover;
+  background-position: center;
 }
 
 .tos-text {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: inherit;
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #1a1a1a;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -1182,12 +1188,13 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  background: linear-gradient(180deg, #1a1c1f 0%, #0d1526 100%);
 }
 
 .tos-agreement {
   text-align: center;
   font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.8);
   margin: 0;
   line-height: 1.5;
 }

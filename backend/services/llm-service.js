@@ -53,8 +53,8 @@ const DEFAULT_SETTINGS = {
   mirostat: 0,             // Mirostat mode (0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0)
   mirostatTau: 5,          // Mirostat target entropy
   mirostatEta: 0.1,        // Mirostat learning rate
-  // Stop sequences and token control
-  stopSequences: [],       // Custom stop sequences e.g. ["\nUser:", "\n###"]
+  // Stop sequences and token control (defaults help prevent role confusion)
+  stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
   bannedTokens: [],        // Banned token strings
   grammar: ''              // GBNF grammar string (empty = disabled)
 };
@@ -272,6 +272,12 @@ function buildChatCompletionRequest(messages, settings) {
   // Some OpenAI-compatible APIs support additional params
   if (settings.topK > 0) {
     body.top_k = settings.topK;
+  }
+
+  // Stop sequences (OpenAI uses 'stop' parameter)
+  if (settings.stopSequences && settings.stopSequences.length > 0) {
+    // OpenAI allows up to 4 stop sequences
+    body.stop = settings.stopSequences.slice(0, 4);
   }
 
   // Neutralize samplers if requested
@@ -811,6 +817,11 @@ function buildOpenRouterRequest(messages, settings) {
   // Add optional parameters if set
   if (settings.topK > 0) {
     body.top_k = settings.topK;
+  }
+
+  // Stop sequences (OpenRouter uses OpenAI format)
+  if (settings.stopSequences && settings.stopSequences.length > 0) {
+    body.stop = settings.stopSequences.slice(0, 4);
   }
 
   // OpenRouter streaming requires SSE parsing - disable for now

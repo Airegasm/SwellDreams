@@ -159,7 +159,7 @@
 }
 
 .character-modal-body .empty-message {
-  color: #666;
+  color: #444;
   font-weight: 500;
   font-style: italic;
   text-align: center;
@@ -167,7 +167,7 @@
 }
 
 .character-modal-body .empty-hint {
-  color: #666;
+  color: #444;
   font-size: var(--font-size-sm);
   font-style: italic;
 }
@@ -198,7 +198,7 @@
 
 .character-modal-body input::placeholder,
 .character-modal-body textarea::placeholder {
-  color: #666;
+  color: #444;
 }
 
 .character-modal-body input:focus,
@@ -352,7 +352,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  color: #666;
+  color: #444;
 }
 
 .upload-icon {
@@ -477,7 +477,7 @@
 
 .auto-reply-hint {
   font-size: var(--font-size-xs);
-  color: #666;
+  color: #444;
 }
 
 /* Story Subsection */
@@ -631,7 +631,7 @@
 }
 
 .drag-handle {
-  color: #666;
+  color: #444;
   font-size: 0.8rem;
   margin-right: 2px;
 }
@@ -723,7 +723,7 @@
 
 .event-meta {
   font-size: 0.875rem;
-  color: #666;
+  color: #444;
 }
 
 .event-actions {
@@ -772,7 +772,7 @@
 
 .auto-managed-hint {
   font-size: 0.75rem;
-  color: #666;
+  color: #444;
   font-style: italic;
 }
 
@@ -891,7 +891,7 @@
 
 .radio-hint {
   font-size: var(--font-size-xs);
-  color: #666;
+  color: #444;
   margin-left: 20px;
 }
 
@@ -933,7 +933,7 @@
   width: 14px;
   left: 2px;
   bottom: 2px;
-  background-color: #666;
+  background-color: #444;
   border-radius: 50%;
   transition: 0.2s;
 }
@@ -984,7 +984,7 @@
 }
 
 .text-muted {
-  color: #666;
+  color: #444;
   font-size: 0.85rem;
   text-align: center;
   margin: 0;
