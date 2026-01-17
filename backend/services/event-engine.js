@@ -858,6 +858,14 @@ class EventEngine {
   }
 
   /**
+   * Set storage helpers for per-char/per-flow storage access
+   * Injected from server.js to avoid circular dependency
+   */
+  setStorageHelpers(helpers) {
+    this.storageHelpers = helpers;
+  }
+
+  /**
    * Broadcast message to clients
    * Returns a promise that resolves when the broadcast handler completes
    */
@@ -2919,7 +2927,8 @@ class EventEngine {
           saveData(DATA_FILES.settings, settings);
         } else {
           // Update character reminder
-          const characters = loadData(DATA_FILES.characters);
+          // Use storage helpers if available for per-char storage support
+          const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters);
           const activeCharId = this.sessionState?.activeCharacterId;
 
           if (!characters || !activeCharId) {
@@ -2947,7 +2956,12 @@ class EventEngine {
             reminder.text = this.substituteVariables(data.newText);
           }
 
-          saveData(DATA_FILES.characters, characters);
+          // Save using per-char storage if available
+          if (this.storageHelpers?.saveCharacter) {
+            this.storageHelpers.saveCharacter(character);
+          } else {
+            saveData(DATA_FILES.characters, characters);
+          }
         }
 
         // Broadcast update so frontend can refresh
@@ -2966,7 +2980,8 @@ class EventEngine {
           return false;
         }
 
-        const characters = loadData(DATA_FILES.characters);
+        // Use storage helpers if available for per-char storage support
+        const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters);
         const settings = loadData(DATA_FILES.settings);
         const activeCharId = settings?.activeCharacterId;
 
@@ -2995,10 +3010,16 @@ class EventEngine {
           console.log(`[EventEngine] toggle_button: Disabled button "${button.name}" (#${button.buttonId})`);
         }
 
-        saveData(DATA_FILES.characters, characters);
+        // Save using per-char storage if available
+        if (this.storageHelpers?.saveCharacter) {
+          this.storageHelpers.saveCharacter(character);
+        } else {
+          saveData(DATA_FILES.characters, characters);
+        }
 
-        // Broadcast update so frontend can refresh
-        this.broadcast('characters_update', characters);
+        // Broadcast update so frontend can refresh (reload for accurate data)
+        const updatedChars = this.storageHelpers?.loadCharacters() || characters;
+        this.broadcast('characters_update', updatedChars);
 
         return true;
       }
@@ -3032,7 +3053,8 @@ class EventEngine {
     if (!isSimpleAB && playerResponseEnabled) try {
       const settings = loadData(DATA_FILES.settings);
       const personas = loadData(DATA_FILES.personas) || [];
-      const characters = loadData(DATA_FILES.characters) || [];
+      // Use storage helpers if available for per-char storage support
+      const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters) || [];
       const activePersona = personas.find(p => p.id === settings?.activePersonaId);
       const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
       const playerName = activePersona?.displayName || 'The player';

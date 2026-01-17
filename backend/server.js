@@ -627,8 +627,10 @@ migrateDeviceBrands();
 // ============================================
 // Migrate legacy welcomeMessages, scenarios, exampleDialogues to new Story format (v2 - multi-version)
 function migrateCharacterStories() {
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   let migrated = false;
+  const migratedCharacters = []; // Track which characters were migrated for per-char saving
 
   for (const character of characters) {
     // Check if needs v2 migration - either:
@@ -723,11 +725,19 @@ function migrateCharacterStories() {
     character.activeStoryId = character.stories[0].id;
 
     migrated = true;
+    migratedCharacters.push(character);
     console.log(`[Migration] Migrated character "${character.name}" to Story v2 format (multi-version)`);
   }
 
   if (migrated) {
-    saveData(DATA_FILES.characters, characters);
+    // Save using per-char storage if active
+    if (isPerCharStorageActive()) {
+      for (const char of migratedCharacters) {
+        saveCharacter(char);
+      }
+    } else {
+      saveData(DATA_FILES.characters, characters);
+    }
     console.log('[Server] Character story migration complete');
   }
 }
@@ -1653,6 +1663,27 @@ STRICT RULES:
 });
 eventEngine.setSessionState(sessionState);
 
+// Inject storage helpers for per-char/per-flow storage access
+eventEngine.setStorageHelpers({
+  loadCharacters: () => isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []),
+  saveCharacter: (char) => {
+    if (isPerCharStorageActive()) {
+      saveCharacter(char);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      const idx = characters.findIndex(c => c.id === char.id);
+      if (idx !== -1) {
+        characters[idx] = char;
+        saveData(DATA_FILES.characters, characters);
+      }
+    }
+  },
+  isPerCharActive: isPerCharStorageActive,
+  loadFlow: (flowId) => isPerFlowStorageActive() ? loadFlow(flowId) : null,
+  loadAllFlows: () => isPerFlowStorageActive() ? loadAllFlows() : (loadData(DATA_FILES.flows) || []),
+  isPerFlowActive: isPerFlowStorageActive
+});
+
 // ============================================
 // Programmatic Button Sync System
 // ============================================
@@ -2084,7 +2115,8 @@ wss.on('connection', async (ws) => {
 
     // If no autosave was loaded, initialize emotion from character's starting emotion
     if (!autosaveLoaded && settings?.activeCharacterId) {
-      const characters = loadData(DATA_FILES.characters) || [];
+      // Use per-char storage if active, otherwise fall back to legacy
+      const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
       const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
       if (activeCharacter && activeCharacter.startingEmotion) {
         sessionState.emotion = activeCharacter.startingEmotion;
@@ -2094,7 +2126,8 @@ wss.on('connection', async (ws) => {
 
   // Initialize player/character names for variable substitution
   if (settings?.activeCharacterId) {
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     sessionState.characterName = activeCharacter?.name || null;
     // Sync character's autoReplyEnabled to session state
@@ -2377,29 +2410,35 @@ async function handleWsMessage(ws, type, data) {
       break;
     }
 
-    case 'update_character_flows':
+    case 'update_character_flows': {
       if (!sessionState.flowAssignments.characters) {
         sessionState.flowAssignments.characters = {};
       }
       sessionState.flowAssignments.characters[data.characterId] = data.flows;
 
-      // Persist to character data
-      const characters = loadData(DATA_FILES.characters) || [];
-      const charIndex = characters.findIndex(c => c.id === data.characterId);
+      // Persist to character data - use per-char storage if active
+      const charFlowChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const charIndex = charFlowChars.findIndex(c => c.id === data.characterId);
       if (charIndex !== -1) {
-        characters[charIndex].assignedFlows = data.flows;
-        saveData(DATA_FILES.characters, characters);
+        charFlowChars[charIndex].assignedFlows = data.flows;
+        if (isPerCharStorageActive()) {
+          saveCharacter(charFlowChars[charIndex]);
+        } else {
+          saveData(DATA_FILES.characters, charFlowChars);
+        }
       }
 
       // Sync auto-generated buttons based on new flow assignments
       const buttonsUpdated = syncAutoGeneratedButtons(data.characterId, data.flows);
       if (buttonsUpdated) {
-        broadcast('characters_update', loadData(DATA_FILES.characters));
+        const updatedChars = isPerCharStorageActive() ? loadAllCharacters() : loadData(DATA_FILES.characters);
+        broadcast('characters_update', updatedChars);
       }
 
       broadcast('flow_assignments_update', sessionState.flowAssignments);
       activateAssignedFlows();
       break;
+    }
 
     case 'update_global_flows':
       sessionState.flowAssignments.global = data.flows;
@@ -2519,7 +2558,8 @@ async function handleSwipeMessage(data) {
 
   const msg = sessionState.chatHistory[msgIndex];
   const settings = loadData(DATA_FILES.settings);
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const personas = loadData(DATA_FILES.personas) || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);

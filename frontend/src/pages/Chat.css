@@ -1897,6 +1897,15 @@
   opacity: 0.7;
 }
 
+/* Mobile: make message buttons always visible since no hover */
+@media (max-width: 768px) {
+  .msg-btn {
+    opacity: 0.8;
+    padding: 4px 8px;
+    font-size: 1rem;
+  }
+}
+
 /* Message Edit */
 .message-edit {
   margin-top: var(--spacing-sm);
