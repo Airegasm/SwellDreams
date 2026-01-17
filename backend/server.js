@@ -1964,7 +1964,8 @@ function syncPersonaButtonsForFlowChange(flowId) {
 
 // Load flow assignments from persisted character/persona data
 function loadFlowAssignments() {
-  const characters = loadData(DATA_FILES.characters) || [];
+  // Use per-char storage if active, otherwise fall back to legacy
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const personas = loadData(DATA_FILES.personas) || [];
   const settings = loadData(DATA_FILES.settings) || {};
 
