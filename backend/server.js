@@ -5624,6 +5624,8 @@ app.post('/api/devices/:ip/on', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
     } else if (brand === 'tuya') {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (brand === 'tapo') {
+      device = { ip: deviceIdOrIp, brand: 'tapo' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
@@ -5670,6 +5672,8 @@ app.post('/api/devices/:ip/off', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
     } else if (brand === 'tuya') {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (brand === 'tapo') {
+      device = { ip: deviceIdOrIp, brand: 'tapo' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
@@ -5702,6 +5706,8 @@ app.get('/api/devices/:ip/state', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'govee', sku: sku || '' };
     } else if (brand === 'tuya') {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
+    } else if (brand === 'tapo') {
+      device = { ip: deviceIdOrIp, brand: 'tapo' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
