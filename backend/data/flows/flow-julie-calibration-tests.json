@@ -10,7 +10,10 @@
     {
       "id": "julie-ct-btn",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Calibration Test",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "julie-ct-intro",
       "type": "action",
-      "position": { "x": 100, "y": 180 },
+      "position": {
+        "x": 100,
+        "y": 180
+      },
       "data": {
         "label": "Test Introduction",
         "actionType": "send_message",
@@ -35,21 +41,39 @@
     {
       "id": "julie-ct-branch",
       "type": "branch",
-      "position": { "x": 100, "y": 350 },
+      "position": {
+        "x": 100,
+        "y": 350
+      },
       "data": {
         "label": "Select Test",
         "branchType": "random",
         "branches": [
-          { "id": "timer", "label": "Endurance Timer", "weight": 35 },
-          { "id": "reflex", "label": "Reflex Test", "weight": 35 },
-          { "id": "dice", "label": "Probability Test", "weight": 30 }
+          {
+            "id": "timer",
+            "label": "Endurance Timer",
+            "weight": 35
+          },
+          {
+            "id": "reflex",
+            "label": "Reflex Test",
+            "weight": 35
+          },
+          {
+            "id": "dice",
+            "label": "Probability Test",
+            "weight": 30
+          }
         ]
       }
     },
     {
       "id": "julie-ct-timer-intro",
       "type": "action",
-      "position": { "x": -100, "y": 520 },
+      "position": {
+        "x": -100,
+        "y": 520
+      },
       "data": {
         "label": "Timer Test Intro",
         "actionType": "send_message",
@@ -62,7 +86,10 @@
     {
       "id": "julie-ct-timer",
       "type": "challenge",
-      "position": { "x": -100, "y": 680 },
+      "position": {
+        "x": -100,
+        "y": 680
+      },
       "data": {
         "label": "Endurance Timer",
         "challengeType": "timer",
@@ -70,15 +97,24 @@
         "timerLabel": "Hold as long as you can!",
         "timerSuccessThreshold": 15,
         "outcomes": [
-          { "label": "Success", "isSuccess": true },
-          { "label": "Early Stop", "isSuccess": false }
+          {
+            "label": "Success",
+            "isSuccess": true
+          },
+          {
+            "label": "Early Stop",
+            "isSuccess": false
+          }
         ]
       }
     },
     {
       "id": "julie-ct-timer-pump",
       "type": "action",
-      "position": { "x": -100, "y": 580 },
+      "position": {
+        "x": -100,
+        "y": 580
+      },
       "data": {
         "label": "Timer Pump Start",
         "actionType": "device_on",
@@ -94,7 +130,10 @@
     {
       "id": "julie-ct-timer-success",
       "type": "action",
-      "position": { "x": -200, "y": 850 },
+      "position": {
+        "x": -200,
+        "y": 850
+      },
       "data": {
         "label": "Timer Success",
         "actionType": "device_off",
@@ -109,7 +148,10 @@
     {
       "id": "julie-ct-timer-fail",
       "type": "action",
-      "position": { "x": 0, "y": 850 },
+      "position": {
+        "x": 0,
+        "y": 850
+      },
       "data": {
         "label": "Timer Early Stop",
         "actionType": "device_off",
@@ -124,7 +166,10 @@
     {
       "id": "julie-ct-reflex-intro",
       "type": "action",
-      "position": { "x": 100, "y": 520 },
+      "position": {
+        "x": 100,
+        "y": 520
+      },
       "data": {
         "label": "Reflex Test Intro",
         "actionType": "send_message",
@@ -137,7 +182,10 @@
     {
       "id": "julie-ct-reflex",
       "type": "challenge",
-      "position": { "x": 100, "y": 680 },
+      "position": {
+        "x": 100,
+        "y": 680
+      },
       "data": {
         "label": "Reflex Challenge",
         "challengeType": "reflex",
@@ -145,15 +193,24 @@
         "reflexTimeLimit": 2000,
         "reflexSuccessThreshold": 3,
         "outcomes": [
-          { "label": "Fast Reflexes", "isSuccess": true },
-          { "label": "Slow Response", "isSuccess": false }
+          {
+            "label": "Fast Reflexes",
+            "isSuccess": true
+          },
+          {
+            "label": "Slow Response",
+            "isSuccess": false
+          }
         ]
       }
     },
     {
       "id": "julie-ct-reflex-success",
       "type": "action",
-      "position": { "x": 50, "y": 850 },
+      "position": {
+        "x": 50,
+        "y": 850
+      },
       "data": {
         "label": "Reflex Success",
         "actionType": "pulse_pump",
@@ -172,7 +229,10 @@
     {
       "id": "julie-ct-reflex-fail",
       "type": "action",
-      "position": { "x": 150, "y": 850 },
+      "position": {
+        "x": 150,
+        "y": 850
+      },
       "data": {
         "label": "Reflex Slow",
         "actionType": "send_message",
@@ -185,7 +245,10 @@
     {
       "id": "julie-ct-dice-intro",
       "type": "action",
-      "position": { "x": 300, "y": 520 },
+      "position": {
+        "x": 300,
+        "y": 520
+      },
       "data": {
         "label": "Dice Test Intro",
         "actionType": "send_message",
@@ -198,7 +261,10 @@
     {
       "id": "julie-ct-dice",
       "type": "challenge",
-      "position": { "x": 300, "y": 680 },
+      "position": {
+        "x": 300,
+        "y": 680
+      },
       "data": {
         "label": "Probability Dice",
         "challengeType": "dice",
@@ -206,15 +272,24 @@
         "diceSides": 6,
         "diceSuccessThreshold": 7,
         "outcomes": [
-          { "label": "High Roll", "isSuccess": true },
-          { "label": "Low Roll", "isSuccess": false }
+          {
+            "label": "High Roll",
+            "isSuccess": true
+          },
+          {
+            "label": "Low Roll",
+            "isSuccess": false
+          }
         ]
       }
     },
     {
       "id": "julie-ct-dice-success",
       "type": "action",
-      "position": { "x": 250, "y": 850 },
+      "position": {
+        "x": 250,
+        "y": 850
+      },
       "data": {
         "label": "Dice High Roll",
         "actionType": "send_message",
@@ -227,7 +302,10 @@
     {
       "id": "julie-ct-dice-fail",
       "type": "action",
-      "position": { "x": 350, "y": 850 },
+      "position": {
+        "x": 350,
+        "y": 850
+      },
       "data": {
         "label": "Dice Low Roll",
         "actionType": "start_cycle",
@@ -247,20 +325,89 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "julie-ct-btn", "target": "julie-ct-intro" },
-    { "id": "e2", "source": "julie-ct-intro", "target": "julie-ct-branch" },
-    { "id": "e3", "source": "julie-ct-branch", "sourceHandle": "branch-0", "target": "julie-ct-timer-intro" },
-    { "id": "e4", "source": "julie-ct-branch", "sourceHandle": "branch-1", "target": "julie-ct-reflex-intro" },
-    { "id": "e5", "source": "julie-ct-branch", "sourceHandle": "branch-2", "target": "julie-ct-dice-intro" },
-    { "id": "e6", "source": "julie-ct-timer-intro", "target": "julie-ct-timer-pump" },
-    { "id": "e7", "source": "julie-ct-timer-pump", "target": "julie-ct-timer" },
-    { "id": "e8", "source": "julie-ct-timer", "sourceHandle": "outcome-0", "target": "julie-ct-timer-success" },
-    { "id": "e9", "source": "julie-ct-timer", "sourceHandle": "outcome-1", "target": "julie-ct-timer-fail" },
-    { "id": "e10", "source": "julie-ct-reflex-intro", "target": "julie-ct-reflex" },
-    { "id": "e11", "source": "julie-ct-reflex", "sourceHandle": "outcome-0", "target": "julie-ct-reflex-success" },
-    { "id": "e12", "source": "julie-ct-reflex", "sourceHandle": "outcome-1", "target": "julie-ct-reflex-fail" },
-    { "id": "e13", "source": "julie-ct-dice-intro", "target": "julie-ct-dice" },
-    { "id": "e14", "source": "julie-ct-dice", "sourceHandle": "outcome-0", "target": "julie-ct-dice-success" },
-    { "id": "e15", "source": "julie-ct-dice", "sourceHandle": "outcome-1", "target": "julie-ct-dice-fail" }
+    {
+      "id": "e1",
+      "source": "julie-ct-btn",
+      "target": "julie-ct-intro"
+    },
+    {
+      "id": "e2",
+      "source": "julie-ct-intro",
+      "target": "julie-ct-branch"
+    },
+    {
+      "id": "e3",
+      "source": "julie-ct-branch",
+      "sourceHandle": "branch-0",
+      "target": "julie-ct-timer-intro"
+    },
+    {
+      "id": "e4",
+      "source": "julie-ct-branch",
+      "sourceHandle": "branch-1",
+      "target": "julie-ct-reflex-intro"
+    },
+    {
+      "id": "e5",
+      "source": "julie-ct-branch",
+      "sourceHandle": "branch-2",
+      "target": "julie-ct-dice-intro"
+    },
+    {
+      "id": "e6",
+      "source": "julie-ct-timer-intro",
+      "target": "julie-ct-timer-pump"
+    },
+    {
+      "id": "e7",
+      "source": "julie-ct-timer-pump",
+      "target": "julie-ct-timer"
+    },
+    {
+      "id": "e8",
+      "source": "julie-ct-timer",
+      "sourceHandle": "outcome-0",
+      "target": "julie-ct-timer-success"
+    },
+    {
+      "id": "e9",
+      "source": "julie-ct-timer",
+      "sourceHandle": "outcome-1",
+      "target": "julie-ct-timer-fail"
+    },
+    {
+      "id": "e10",
+      "source": "julie-ct-reflex-intro",
+      "target": "julie-ct-reflex"
+    },
+    {
+      "id": "e11",
+      "source": "julie-ct-reflex",
+      "sourceHandle": "outcome-0",
+      "target": "julie-ct-reflex-success"
+    },
+    {
+      "id": "e12",
+      "source": "julie-ct-reflex",
+      "sourceHandle": "outcome-1",
+      "target": "julie-ct-reflex-fail"
+    },
+    {
+      "id": "e13",
+      "source": "julie-ct-dice-intro",
+      "target": "julie-ct-dice"
+    },
+    {
+      "id": "e14",
+      "source": "julie-ct-dice",
+      "sourceHandle": "outcome-0",
+      "target": "julie-ct-dice-success"
+    },
+    {
+      "id": "e15",
+      "source": "julie-ct-dice",
+      "sourceHandle": "outcome-1",
+      "target": "julie-ct-dice-fail"
+    }
   ]
 }

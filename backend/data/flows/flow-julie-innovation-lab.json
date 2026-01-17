@@ -10,7 +10,10 @@
     {
       "id": "julie-il-btn",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Innovation Lab",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "julie-il-intro",
       "type": "action",
-      "position": { "x": 100, "y": 180 },
+      "position": {
+        "x": 100,
+        "y": 180
+      },
       "data": {
         "label": "Lab Introduction",
         "actionType": "send_message",
@@ -35,18 +41,39 @@
     {
       "id": "julie-il-wheel",
       "type": "challenge",
-      "position": { "x": 100, "y": 350 },
+      "position": {
+        "x": 100,
+        "y": 350
+      },
       "data": {
         "label": "Wheel of Innovation",
         "challengeType": "wheel",
         "wheelSections": 6,
         "outcomes": [
-          { "label": "Rapid Pulse", "weight": 20 },
-          { "label": "Pressure Wave", "weight": 20 },
-          { "label": "Sustained Build", "weight": 20 },
-          { "label": "Oscillation", "weight": 15 },
-          { "label": "Mystery Protocol", "weight": 15 },
-          { "label": "Subject's Choice", "weight": 10 }
+          {
+            "label": "Rapid Pulse",
+            "weight": 20
+          },
+          {
+            "label": "Pressure Wave",
+            "weight": 20
+          },
+          {
+            "label": "Sustained Build",
+            "weight": 20
+          },
+          {
+            "label": "Oscillation",
+            "weight": 15
+          },
+          {
+            "label": "Mystery Protocol",
+            "weight": 15
+          },
+          {
+            "label": "Subject's Choice",
+            "weight": 10
+          }
         ],
         "spinDuration": 4
       }
@@ -54,7 +81,10 @@
     {
       "id": "julie-il-rapid",
       "type": "action",
-      "position": { "x": -200, "y": 550 },
+      "position": {
+        "x": -200,
+        "y": 550
+      },
       "data": {
         "label": "Rapid Pulse",
         "actionType": "pulse_pump",
@@ -73,7 +103,10 @@
     {
       "id": "julie-il-wave",
       "type": "action",
-      "position": { "x": -50, "y": 550 },
+      "position": {
+        "x": -50,
+        "y": 550
+      },
       "data": {
         "label": "Pressure Wave",
         "actionType": "start_cycle",
@@ -94,7 +127,10 @@
     {
       "id": "julie-il-sustained",
       "type": "action",
-      "position": { "x": 100, "y": 550 },
+      "position": {
+        "x": 100,
+        "y": 550
+      },
       "data": {
         "label": "Sustained Build",
         "actionType": "device_on",
@@ -114,7 +150,10 @@
     {
       "id": "julie-il-oscillation",
       "type": "action",
-      "position": { "x": 250, "y": 550 },
+      "position": {
+        "x": 250,
+        "y": 550
+      },
       "data": {
         "label": "Oscillation Pattern",
         "actionType": "start_cycle",
@@ -135,21 +174,39 @@
     {
       "id": "julie-il-mystery",
       "type": "branch",
-      "position": { "x": 400, "y": 550 },
+      "position": {
+        "x": 400,
+        "y": 550
+      },
       "data": {
         "label": "Mystery Protocol",
         "branchType": "random",
         "branches": [
-          { "id": "mystery-a", "label": "Double Intensity", "weight": 40 },
-          { "id": "mystery-b", "label": "Surprise Rest", "weight": 30 },
-          { "id": "mystery-c", "label": "Maximum Overdrive", "weight": 30 }
+          {
+            "id": "mystery-a",
+            "label": "Double Intensity",
+            "weight": 40
+          },
+          {
+            "id": "mystery-b",
+            "label": "Surprise Rest",
+            "weight": 30
+          },
+          {
+            "id": "mystery-c",
+            "label": "Maximum Overdrive",
+            "weight": 30
+          }
         ]
       }
     },
     {
       "id": "julie-il-mystery-intro",
       "type": "action",
-      "position": { "x": 400, "y": 430 },
+      "position": {
+        "x": 400,
+        "y": 430
+      },
       "data": {
         "label": "Mystery Intro",
         "actionType": "send_message",
@@ -162,7 +219,10 @@
     {
       "id": "julie-il-mystery-double",
       "type": "action",
-      "position": { "x": 300, "y": 720 },
+      "position": {
+        "x": 300,
+        "y": 720
+      },
       "data": {
         "label": "Double Intensity",
         "actionType": "start_cycle",
@@ -183,7 +243,10 @@
     {
       "id": "julie-il-mystery-rest",
       "type": "action",
-      "position": { "x": 450, "y": 720 },
+      "position": {
+        "x": 450,
+        "y": 720
+      },
       "data": {
         "label": "Surprise Rest",
         "actionType": "send_message",
@@ -196,7 +259,10 @@
     {
       "id": "julie-il-mystery-max",
       "type": "action",
-      "position": { "x": 600, "y": 720 },
+      "position": {
+        "x": 600,
+        "y": 720
+      },
       "data": {
         "label": "Maximum Overdrive",
         "actionType": "start_cycle",
@@ -217,7 +283,10 @@
     {
       "id": "julie-il-choice",
       "type": "player_choice",
-      "position": { "x": 550, "y": 550 },
+      "position": {
+        "x": 550,
+        "y": 550
+      },
       "data": {
         "label": "Subject's Choice",
         "description": "Julie looks at you with excitement...",
@@ -225,15 +294,26 @@
         "introMessage": "*bounces excitedly* SUBJECT'S CHOICE! You get to pick the technique! *presents options eagerly* What would YOU like to experience? I'm taking requests!",
         "introMessageSuppressLlm": false,
         "choices": [
-          { "id": "gentle", "label": "Something Gentle", "description": "Nice and easy" },
-          { "id": "intense", "label": "Challenge Me", "description": "Push my limits" }
+          {
+            "id": "gentle",
+            "label": "Something Gentle",
+            "description": "Nice and easy"
+          },
+          {
+            "id": "intense",
+            "label": "Challenge Me",
+            "description": "Push my limits"
+          }
         ]
       }
     },
     {
       "id": "julie-il-choice-gentle",
       "type": "action",
-      "position": { "x": 500, "y": 720 },
+      "position": {
+        "x": 500,
+        "y": 720
+      },
       "data": {
         "label": "Gentle Choice",
         "actionType": "pulse_pump",
@@ -252,7 +332,10 @@
     {
       "id": "julie-il-choice-intense",
       "type": "action",
-      "position": { "x": 650, "y": 720 },
+      "position": {
+        "x": 650,
+        "y": 720
+      },
       "data": {
         "label": "Intense Choice",
         "actionType": "start_cycle",
@@ -272,19 +355,86 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "julie-il-btn", "target": "julie-il-intro" },
-    { "id": "e2", "source": "julie-il-intro", "target": "julie-il-wheel" },
-    { "id": "e3", "source": "julie-il-wheel", "sourceHandle": "outcome-0", "target": "julie-il-rapid" },
-    { "id": "e4", "source": "julie-il-wheel", "sourceHandle": "outcome-1", "target": "julie-il-wave" },
-    { "id": "e5", "source": "julie-il-wheel", "sourceHandle": "outcome-2", "target": "julie-il-sustained" },
-    { "id": "e6", "source": "julie-il-wheel", "sourceHandle": "outcome-3", "target": "julie-il-oscillation" },
-    { "id": "e7", "source": "julie-il-wheel", "sourceHandle": "outcome-4", "target": "julie-il-mystery-intro" },
-    { "id": "e8", "source": "julie-il-wheel", "sourceHandle": "outcome-5", "target": "julie-il-choice" },
-    { "id": "e9", "source": "julie-il-mystery-intro", "target": "julie-il-mystery" },
-    { "id": "e10", "source": "julie-il-mystery", "sourceHandle": "branch-0", "target": "julie-il-mystery-double" },
-    { "id": "e11", "source": "julie-il-mystery", "sourceHandle": "branch-1", "target": "julie-il-mystery-rest" },
-    { "id": "e12", "source": "julie-il-mystery", "sourceHandle": "branch-2", "target": "julie-il-mystery-max" },
-    { "id": "e13", "source": "julie-il-choice", "sourceHandle": "gentle", "target": "julie-il-choice-gentle" },
-    { "id": "e14", "source": "julie-il-choice", "sourceHandle": "intense", "target": "julie-il-choice-intense" }
+    {
+      "id": "e1",
+      "source": "julie-il-btn",
+      "target": "julie-il-intro"
+    },
+    {
+      "id": "e2",
+      "source": "julie-il-intro",
+      "target": "julie-il-wheel"
+    },
+    {
+      "id": "e3",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-0",
+      "target": "julie-il-rapid"
+    },
+    {
+      "id": "e4",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-1",
+      "target": "julie-il-wave"
+    },
+    {
+      "id": "e5",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-2",
+      "target": "julie-il-sustained"
+    },
+    {
+      "id": "e6",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-3",
+      "target": "julie-il-oscillation"
+    },
+    {
+      "id": "e7",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-4",
+      "target": "julie-il-mystery-intro"
+    },
+    {
+      "id": "e8",
+      "source": "julie-il-wheel",
+      "sourceHandle": "outcome-5",
+      "target": "julie-il-choice"
+    },
+    {
+      "id": "e9",
+      "source": "julie-il-mystery-intro",
+      "target": "julie-il-mystery"
+    },
+    {
+      "id": "e10",
+      "source": "julie-il-mystery",
+      "sourceHandle": "branch-0",
+      "target": "julie-il-mystery-double"
+    },
+    {
+      "id": "e11",
+      "source": "julie-il-mystery",
+      "sourceHandle": "branch-1",
+      "target": "julie-il-mystery-rest"
+    },
+    {
+      "id": "e12",
+      "source": "julie-il-mystery",
+      "sourceHandle": "branch-2",
+      "target": "julie-il-mystery-max"
+    },
+    {
+      "id": "e13",
+      "source": "julie-il-choice",
+      "sourceHandle": "gentle",
+      "target": "julie-il-choice-gentle"
+    },
+    {
+      "id": "e14",
+      "source": "julie-il-choice",
+      "sourceHandle": "intense",
+      "target": "julie-il-choice-intense"
+    }
   ]
 }

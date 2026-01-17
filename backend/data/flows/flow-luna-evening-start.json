@@ -10,7 +10,10 @@
     {
       "id": "luna-es-trigger",
       "type": "trigger",
-      "position": { "x": 250, "y": 50 },
+      "position": {
+        "x": 250,
+        "y": 50
+      },
       "data": {
         "label": "First Player Message",
         "triggerType": "first_message",
@@ -22,7 +25,10 @@
     {
       "id": "luna-es-mood",
       "type": "action",
-      "position": { "x": 250, "y": 180 },
+      "position": {
+        "x": 250,
+        "y": 180
+      },
       "data": {
         "label": "Set the Mood",
         "actionType": "send_message",
@@ -36,21 +42,39 @@
     {
       "id": "luna-es-random",
       "type": "branch",
-      "position": { "x": 250, "y": 320 },
+      "position": {
+        "x": 250,
+        "y": 320
+      },
       "data": {
         "label": "Tonight's Activity",
         "branchType": "random",
         "branches": [
-          { "id": "intimate", "label": "Intimate Choices", "weight": 35 },
-          { "id": "comfort", "label": "Comfort & Care", "weight": 30 },
-          { "id": "reward", "label": "Reward Time", "weight": 35 }
+          {
+            "id": "intimate",
+            "label": "Intimate Choices",
+            "weight": 35
+          },
+          {
+            "id": "comfort",
+            "label": "Comfort & Care",
+            "weight": 30
+          },
+          {
+            "id": "reward",
+            "label": "Reward Time",
+            "weight": 35
+          }
         ]
       }
     },
     {
       "id": "luna-es-intimate",
       "type": "action",
-      "position": { "x": 0, "y": 480 },
+      "position": {
+        "x": 0,
+        "y": 480
+      },
       "data": {
         "label": "Start Intimate Choices",
         "actionType": "link_to_flow",
@@ -67,7 +91,10 @@
     {
       "id": "luna-es-comfort",
       "type": "action",
-      "position": { "x": 250, "y": 480 },
+      "position": {
+        "x": 250,
+        "y": 480
+      },
       "data": {
         "label": "Start Comfort Check",
         "actionType": "link_to_flow",
@@ -84,7 +111,10 @@
     {
       "id": "luna-es-reward",
       "type": "action",
-      "position": { "x": 500, "y": 480 },
+      "position": {
+        "x": 500,
+        "y": 480
+      },
       "data": {
         "label": "Start Reward System",
         "actionType": "link_to_flow",
@@ -100,10 +130,33 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "luna-es-trigger", "target": "luna-es-mood" },
-    { "id": "e2", "source": "luna-es-mood", "target": "luna-es-random" },
-    { "id": "e3", "source": "luna-es-random", "sourceHandle": "branch-0", "target": "luna-es-intimate" },
-    { "id": "e4", "source": "luna-es-random", "sourceHandle": "branch-1", "target": "luna-es-comfort" },
-    { "id": "e5", "source": "luna-es-random", "sourceHandle": "branch-2", "target": "luna-es-reward" }
+    {
+      "id": "e1",
+      "source": "luna-es-trigger",
+      "target": "luna-es-mood"
+    },
+    {
+      "id": "e2",
+      "source": "luna-es-mood",
+      "target": "luna-es-random"
+    },
+    {
+      "id": "e3",
+      "source": "luna-es-random",
+      "sourceHandle": "branch-0",
+      "target": "luna-es-intimate"
+    },
+    {
+      "id": "e4",
+      "source": "luna-es-random",
+      "sourceHandle": "branch-1",
+      "target": "luna-es-comfort"
+    },
+    {
+      "id": "e5",
+      "source": "luna-es-random",
+      "sourceHandle": "branch-2",
+      "target": "luna-es-reward"
+    }
   ]
 }

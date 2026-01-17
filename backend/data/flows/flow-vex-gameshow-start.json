@@ -10,7 +10,10 @@
     {
       "id": "vex-gs-trigger",
       "type": "trigger",
-      "position": { "x": 250, "y": 50 },
+      "position": {
+        "x": 250,
+        "y": 50
+      },
       "data": {
         "label": "First Player Message",
         "triggerType": "first_message",
@@ -22,7 +25,10 @@
     {
       "id": "vex-gs-selection",
       "type": "action",
-      "position": { "x": 250, "y": 180 },
+      "position": {
+        "x": 250,
+        "y": 180
+      },
       "data": {
         "label": "Game Selection",
         "actionType": "send_message",
@@ -36,22 +42,44 @@
     {
       "id": "vex-gs-random",
       "type": "branch",
-      "position": { "x": 250, "y": 320 },
+      "position": {
+        "x": 250,
+        "y": 320
+      },
       "data": {
         "label": "Pick Random Game",
         "branchType": "random",
         "branches": [
-          { "id": "wheel", "label": "Wheel of Fate", "weight": 25 },
-          { "id": "dice", "label": "Dice of Destiny", "weight": 25 },
-          { "id": "gauntlet", "label": "Challenge Gauntlet", "weight": 25 },
-          { "id": "bonus", "label": "Bonus Round", "weight": 25 }
+          {
+            "id": "wheel",
+            "label": "Wheel of Fate",
+            "weight": 25
+          },
+          {
+            "id": "dice",
+            "label": "Dice of Destiny",
+            "weight": 25
+          },
+          {
+            "id": "gauntlet",
+            "label": "Challenge Gauntlet",
+            "weight": 25
+          },
+          {
+            "id": "bonus",
+            "label": "Bonus Round",
+            "weight": 25
+          }
         ]
       }
     },
     {
       "id": "vex-gs-wheel",
       "type": "action",
-      "position": { "x": -50, "y": 480 },
+      "position": {
+        "x": -50,
+        "y": 480
+      },
       "data": {
         "label": "Start Wheel of Fate",
         "actionType": "link_to_flow",
@@ -68,7 +96,10 @@
     {
       "id": "vex-gs-dice",
       "type": "action",
-      "position": { "x": 150, "y": 480 },
+      "position": {
+        "x": 150,
+        "y": 480
+      },
       "data": {
         "label": "Start Dice of Destiny",
         "actionType": "link_to_flow",
@@ -85,7 +116,10 @@
     {
       "id": "vex-gs-gauntlet",
       "type": "action",
-      "position": { "x": 350, "y": 480 },
+      "position": {
+        "x": 350,
+        "y": 480
+      },
       "data": {
         "label": "Start Challenge Gauntlet",
         "actionType": "link_to_flow",
@@ -102,7 +136,10 @@
     {
       "id": "vex-gs-bonus",
       "type": "action",
-      "position": { "x": 550, "y": 480 },
+      "position": {
+        "x": 550,
+        "y": 480
+      },
       "data": {
         "label": "Start Bonus Round",
         "actionType": "link_to_flow",
@@ -118,11 +155,39 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "vex-gs-trigger", "target": "vex-gs-selection" },
-    { "id": "e2", "source": "vex-gs-selection", "target": "vex-gs-random" },
-    { "id": "e3", "source": "vex-gs-random", "sourceHandle": "branch-0", "target": "vex-gs-wheel" },
-    { "id": "e4", "source": "vex-gs-random", "sourceHandle": "branch-1", "target": "vex-gs-dice" },
-    { "id": "e5", "source": "vex-gs-random", "sourceHandle": "branch-2", "target": "vex-gs-gauntlet" },
-    { "id": "e6", "source": "vex-gs-random", "sourceHandle": "branch-3", "target": "vex-gs-bonus" }
+    {
+      "id": "e1",
+      "source": "vex-gs-trigger",
+      "target": "vex-gs-selection"
+    },
+    {
+      "id": "e2",
+      "source": "vex-gs-selection",
+      "target": "vex-gs-random"
+    },
+    {
+      "id": "e3",
+      "source": "vex-gs-random",
+      "sourceHandle": "branch-0",
+      "target": "vex-gs-wheel"
+    },
+    {
+      "id": "e4",
+      "source": "vex-gs-random",
+      "sourceHandle": "branch-1",
+      "target": "vex-gs-dice"
+    },
+    {
+      "id": "e5",
+      "source": "vex-gs-random",
+      "sourceHandle": "branch-2",
+      "target": "vex-gs-gauntlet"
+    },
+    {
+      "id": "e6",
+      "source": "vex-gs-random",
+      "sourceHandle": "branch-3",
+      "target": "vex-gs-bonus"
+    }
   ]
 }

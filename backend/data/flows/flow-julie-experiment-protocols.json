@@ -10,7 +10,10 @@
     {
       "id": "julie-ep-btn",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Begin Experiment",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "julie-ep-choice",
       "type": "player_choice",
-      "position": { "x": 100, "y": 180 },
+      "position": {
+        "x": 100,
+        "y": 180
+      },
       "data": {
         "label": "Select Protocol",
         "description": "Julie adjusts her clipboard and looks at you with scientific curiosity...",
@@ -51,7 +57,10 @@
     {
       "id": "julie-ep-standard-msg",
       "type": "action",
-      "position": { "x": -50, "y": 380 },
+      "position": {
+        "x": -50,
+        "y": 380
+      },
       "data": {
         "label": "Standard Response",
         "actionType": "send_message",
@@ -64,7 +73,10 @@
     {
       "id": "julie-ep-standard-pulse",
       "type": "action",
-      "position": { "x": -50, "y": 520 },
+      "position": {
+        "x": -50,
+        "y": 520
+      },
       "data": {
         "label": "Calibration Pulse",
         "actionType": "pulse_pump",
@@ -83,7 +95,10 @@
     {
       "id": "julie-ep-intensity-msg",
       "type": "action",
-      "position": { "x": 150, "y": 380 },
+      "position": {
+        "x": 150,
+        "y": 380
+      },
       "data": {
         "label": "Intensity Response",
         "actionType": "send_message",
@@ -96,7 +111,10 @@
     {
       "id": "julie-ep-intensity-device",
       "type": "action",
-      "position": { "x": 150, "y": 520 },
+      "position": {
+        "x": 150,
+        "y": 520
+      },
       "data": {
         "label": "Intensity Burst",
         "actionType": "start_cycle",
@@ -117,7 +135,10 @@
     {
       "id": "julie-ep-endurance-msg",
       "type": "action",
-      "position": { "x": 350, "y": 380 },
+      "position": {
+        "x": 350,
+        "y": 380
+      },
       "data": {
         "label": "Endurance Response",
         "actionType": "send_message",
@@ -130,7 +151,10 @@
     {
       "id": "julie-ep-endurance-device",
       "type": "action",
-      "position": { "x": 350, "y": 520 },
+      "position": {
+        "x": 350,
+        "y": 520
+      },
       "data": {
         "label": "Sustained Flow",
         "actionType": "device_on",
@@ -149,12 +173,43 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "julie-ep-btn", "target": "julie-ep-choice" },
-    { "id": "e2", "source": "julie-ep-choice", "sourceHandle": "standard", "target": "julie-ep-standard-msg" },
-    { "id": "e3", "source": "julie-ep-choice", "sourceHandle": "intensity", "target": "julie-ep-intensity-msg" },
-    { "id": "e4", "source": "julie-ep-choice", "sourceHandle": "endurance", "target": "julie-ep-endurance-msg" },
-    { "id": "e5", "source": "julie-ep-standard-msg", "target": "julie-ep-standard-pulse" },
-    { "id": "e6", "source": "julie-ep-intensity-msg", "target": "julie-ep-intensity-device" },
-    { "id": "e7", "source": "julie-ep-endurance-msg", "target": "julie-ep-endurance-device" }
+    {
+      "id": "e1",
+      "source": "julie-ep-btn",
+      "target": "julie-ep-choice"
+    },
+    {
+      "id": "e2",
+      "source": "julie-ep-choice",
+      "sourceHandle": "standard",
+      "target": "julie-ep-standard-msg"
+    },
+    {
+      "id": "e3",
+      "source": "julie-ep-choice",
+      "sourceHandle": "intensity",
+      "target": "julie-ep-intensity-msg"
+    },
+    {
+      "id": "e4",
+      "source": "julie-ep-choice",
+      "sourceHandle": "endurance",
+      "target": "julie-ep-endurance-msg"
+    },
+    {
+      "id": "e5",
+      "source": "julie-ep-standard-msg",
+      "target": "julie-ep-standard-pulse"
+    },
+    {
+      "id": "e6",
+      "source": "julie-ep-intensity-msg",
+      "target": "julie-ep-intensity-device"
+    },
+    {
+      "id": "e7",
+      "source": "julie-ep-endurance-msg",
+      "target": "julie-ep-endurance-device"
+    }
   ]
 }

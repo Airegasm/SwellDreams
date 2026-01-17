@@ -10,7 +10,10 @@
     {
       "id": "julie-lm-trigger",
       "type": "trigger",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Capacity Change",
         "triggerType": "player_state_change",
@@ -24,21 +27,43 @@
     {
       "id": "julie-lm-condition",
       "type": "condition",
-      "position": { "x": 100, "y": 180 },
+      "position": {
+        "x": 100,
+        "y": 180
+      },
       "data": {
         "label": "Analyze Level",
         "conditions": [
-          { "variable": "capacity", "operator": ">=", "value": 90 },
-          { "variable": "capacity", "operator": ">=", "value": 75 },
-          { "variable": "capacity", "operator": ">=", "value": 50 },
-          { "variable": "capacity", "operator": ">=", "value": 25 }
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 90
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 75
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 50
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 25
+          }
         ]
       }
     },
     {
       "id": "julie-lm-critical",
       "type": "action",
-      "position": { "x": -100, "y": 400 },
+      "position": {
+        "x": -100,
+        "y": 400
+      },
       "data": {
         "label": "Critical Capacity",
         "actionType": "send_message",
@@ -51,7 +76,10 @@
     {
       "id": "julie-lm-high",
       "type": "action",
-      "position": { "x": 50, "y": 400 },
+      "position": {
+        "x": 50,
+        "y": 400
+      },
       "data": {
         "label": "High Capacity",
         "actionType": "send_message",
@@ -64,7 +92,10 @@
     {
       "id": "julie-lm-medium",
       "type": "action",
-      "position": { "x": 200, "y": 400 },
+      "position": {
+        "x": 200,
+        "y": 400
+      },
       "data": {
         "label": "Medium Capacity",
         "actionType": "send_message",
@@ -77,7 +108,10 @@
     {
       "id": "julie-lm-low",
       "type": "action",
-      "position": { "x": 350, "y": 400 },
+      "position": {
+        "x": 350,
+        "y": 400
+      },
       "data": {
         "label": "Low Capacity",
         "actionType": "send_message",
@@ -90,7 +124,10 @@
     {
       "id": "julie-lm-baseline",
       "type": "action",
-      "position": { "x": 500, "y": 400 },
+      "position": {
+        "x": 500,
+        "y": 400
+      },
       "data": {
         "label": "Baseline",
         "actionType": "send_message",
@@ -103,7 +140,10 @@
     {
       "id": "julie-lm-safety-btn",
       "type": "button_press",
-      "position": { "x": 450, "y": 50 },
+      "position": {
+        "x": 450,
+        "y": 50
+      },
       "data": {
         "label": "Safety Stop",
         "buttonTarget": "character",
@@ -116,7 +156,10 @@
     {
       "id": "julie-lm-safety-action",
       "type": "action",
-      "position": { "x": 450, "y": 180 },
+      "position": {
+        "x": 450,
+        "y": 180
+      },
       "data": {
         "label": "Emergency Stop",
         "actionType": "device_off",
@@ -130,12 +173,45 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "julie-lm-trigger", "target": "julie-lm-condition" },
-    { "id": "e2", "source": "julie-lm-condition", "sourceHandle": "true-0", "target": "julie-lm-critical" },
-    { "id": "e3", "source": "julie-lm-condition", "sourceHandle": "true-1", "target": "julie-lm-high" },
-    { "id": "e4", "source": "julie-lm-condition", "sourceHandle": "true-2", "target": "julie-lm-medium" },
-    { "id": "e5", "source": "julie-lm-condition", "sourceHandle": "true-3", "target": "julie-lm-low" },
-    { "id": "e6", "source": "julie-lm-condition", "sourceHandle": "false", "target": "julie-lm-baseline" },
-    { "id": "e7", "source": "julie-lm-safety-btn", "target": "julie-lm-safety-action" }
+    {
+      "id": "e1",
+      "source": "julie-lm-trigger",
+      "target": "julie-lm-condition"
+    },
+    {
+      "id": "e2",
+      "source": "julie-lm-condition",
+      "sourceHandle": "true-0",
+      "target": "julie-lm-critical"
+    },
+    {
+      "id": "e3",
+      "source": "julie-lm-condition",
+      "sourceHandle": "true-1",
+      "target": "julie-lm-high"
+    },
+    {
+      "id": "e4",
+      "source": "julie-lm-condition",
+      "sourceHandle": "true-2",
+      "target": "julie-lm-medium"
+    },
+    {
+      "id": "e5",
+      "source": "julie-lm-condition",
+      "sourceHandle": "true-3",
+      "target": "julie-lm-low"
+    },
+    {
+      "id": "e6",
+      "source": "julie-lm-condition",
+      "sourceHandle": "false",
+      "target": "julie-lm-baseline"
+    },
+    {
+      "id": "e7",
+      "source": "julie-lm-safety-btn",
+      "target": "julie-lm-safety-action"
+    }
   ]
 }

@@ -2629,7 +2629,7 @@ async function handleWsMessage(ws, type, data) {
       // Handle user-initiated character message (verbatim, no LLM)
       {
         const settings = loadData(DATA_FILES.settings);
-        const characters = loadData(DATA_FILES.characters) || [];
+        const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
         const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
         if (!activeCharacter) {
@@ -4563,7 +4563,7 @@ app.post('/api/settings', async (req, res) => {
 
     // Update sessionState names for variable substitution
     if (charChanged && settings.activeCharacterId) {
-      const characters = loadData(DATA_FILES.characters) || [];
+      const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
       const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
       sessionState.characterName = activeCharacter?.name || null;
       // Sync character's autoReplyEnabled to session state

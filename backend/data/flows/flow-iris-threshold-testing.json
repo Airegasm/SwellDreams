@@ -10,7 +10,10 @@
     {
       "id": "iris-tt-btn",
       "type": "button_press",
-      "position": { "x": 200, "y": 50 },
+      "position": {
+        "x": 200,
+        "y": 50
+      },
       "data": {
         "label": "Begin Protocol",
         "buttonTarget": "character",
@@ -22,7 +25,10 @@
     {
       "id": "iris-tt-intro",
       "type": "action",
-      "position": { "x": 200, "y": 150 },
+      "position": {
+        "x": 200,
+        "y": 150
+      },
       "data": {
         "label": "Protocol Brief",
         "actionType": "send_message",
@@ -33,7 +39,10 @@
     {
       "id": "iris-tt-pause1",
       "type": "pause_resume",
-      "position": { "x": 200, "y": 280 },
+      "position": {
+        "x": 200,
+        "y": 280
+      },
       "data": {
         "label": "Await Response",
         "resumeAfterType": "messages",
@@ -43,7 +52,10 @@
     {
       "id": "iris-tt-phase1-start",
       "type": "action",
-      "position": { "x": 200, "y": 410 },
+      "position": {
+        "x": 200,
+        "y": 410
+      },
       "data": {
         "label": "Phase 1 Start",
         "actionType": "device_on",
@@ -64,7 +76,10 @@
     {
       "id": "iris-tt-pause2",
       "type": "pause_resume",
-      "position": { "x": 200, "y": 540 },
+      "position": {
+        "x": 200,
+        "y": 540
+      },
       "data": {
         "label": "Record Response",
         "resumeAfterType": "messages",
@@ -74,7 +89,10 @@
     {
       "id": "iris-tt-observation1",
       "type": "action",
-      "position": { "x": 200, "y": 670 },
+      "position": {
+        "x": 200,
+        "y": 670
+      },
       "data": {
         "label": "Phase 1 Observation",
         "actionType": "send_message",
@@ -85,7 +103,10 @@
     {
       "id": "iris-tt-pause3",
       "type": "pause_resume",
-      "position": { "x": 200, "y": 800 },
+      "position": {
+        "x": 200,
+        "y": 800
+      },
       "data": {
         "label": "Await Response",
         "resumeAfterType": "messages",
@@ -95,7 +116,10 @@
     {
       "id": "iris-tt-phase2-start",
       "type": "action",
-      "position": { "x": 200, "y": 930 },
+      "position": {
+        "x": 200,
+        "y": 930
+      },
       "data": {
         "label": "Phase 2 Start",
         "actionType": "device_on",
@@ -116,7 +140,10 @@
     {
       "id": "iris-tt-pause4",
       "type": "pause_resume",
-      "position": { "x": 200, "y": 1060 },
+      "position": {
+        "x": 200,
+        "y": 1060
+      },
       "data": {
         "label": "Record Response",
         "resumeAfterType": "messages",
@@ -126,7 +153,10 @@
     {
       "id": "iris-tt-observation2",
       "type": "action",
-      "position": { "x": 200, "y": 1190 },
+      "position": {
+        "x": 200,
+        "y": 1190
+      },
       "data": {
         "label": "Phase 2 Observation",
         "actionType": "send_message",
@@ -137,7 +167,10 @@
     {
       "id": "iris-tt-phase3-choice",
       "type": "simple_ab",
-      "position": { "x": 200, "y": 1320 },
+      "position": {
+        "x": 200,
+        "y": 1320
+      },
       "data": {
         "label": "Final Phase Decision",
         "description": "Dr. Chen awaits your response regarding the final phase.",
@@ -150,7 +183,10 @@
     {
       "id": "iris-tt-phase3-start",
       "type": "action",
-      "position": { "x": 50, "y": 1480 },
+      "position": {
+        "x": 50,
+        "y": 1480
+      },
       "data": {
         "label": "Phase 3 Start",
         "actionType": "device_on",
@@ -171,7 +207,10 @@
     {
       "id": "iris-tt-end-early",
       "type": "action",
-      "position": { "x": 350, "y": 1480 },
+      "position": {
+        "x": 350,
+        "y": 1480
+      },
       "data": {
         "label": "Protocol End",
         "actionType": "send_message",
@@ -182,7 +221,10 @@
     {
       "id": "iris-tt-pause5",
       "type": "pause_resume",
-      "position": { "x": 50, "y": 1610 },
+      "position": {
+        "x": 50,
+        "y": 1610
+      },
       "data": {
         "label": "Final Response",
         "resumeAfterType": "messages",
@@ -192,7 +234,10 @@
     {
       "id": "iris-tt-complete",
       "type": "action",
-      "position": { "x": 50, "y": 1740 },
+      "position": {
+        "x": 50,
+        "y": 1740
+      },
       "data": {
         "label": "Protocol Complete",
         "actionType": "send_message",
@@ -202,19 +247,85 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "iris-tt-btn", "target": "iris-tt-intro" },
-    { "id": "e2", "source": "iris-tt-intro", "target": "iris-tt-pause1" },
-    { "id": "e3", "source": "iris-tt-pause1", "sourceHandle": "source-resume", "target": "iris-tt-phase1-start" },
-    { "id": "e4", "source": "iris-tt-phase1-start", "sourceHandle": "completion", "target": "iris-tt-pause2" },
-    { "id": "e5", "source": "iris-tt-pause2", "sourceHandle": "source-resume", "target": "iris-tt-observation1" },
-    { "id": "e6", "source": "iris-tt-observation1", "target": "iris-tt-pause3" },
-    { "id": "e7", "source": "iris-tt-pause3", "sourceHandle": "source-resume", "target": "iris-tt-phase2-start" },
-    { "id": "e8", "source": "iris-tt-phase2-start", "sourceHandle": "completion", "target": "iris-tt-pause4" },
-    { "id": "e9", "source": "iris-tt-pause4", "sourceHandle": "source-resume", "target": "iris-tt-observation2" },
-    { "id": "e10", "source": "iris-tt-observation2", "target": "iris-tt-phase3-choice" },
-    { "id": "e11", "source": "iris-tt-phase3-choice", "sourceHandle": "a", "target": "iris-tt-phase3-start" },
-    { "id": "e12", "source": "iris-tt-phase3-choice", "sourceHandle": "b", "target": "iris-tt-end-early" },
-    { "id": "e13", "source": "iris-tt-phase3-start", "sourceHandle": "completion", "target": "iris-tt-pause5" },
-    { "id": "e14", "source": "iris-tt-pause5", "sourceHandle": "source-resume", "target": "iris-tt-complete" }
+    {
+      "id": "e1",
+      "source": "iris-tt-btn",
+      "target": "iris-tt-intro"
+    },
+    {
+      "id": "e2",
+      "source": "iris-tt-intro",
+      "target": "iris-tt-pause1"
+    },
+    {
+      "id": "e3",
+      "source": "iris-tt-pause1",
+      "sourceHandle": "source-resume",
+      "target": "iris-tt-phase1-start"
+    },
+    {
+      "id": "e4",
+      "source": "iris-tt-phase1-start",
+      "sourceHandle": "completion",
+      "target": "iris-tt-pause2"
+    },
+    {
+      "id": "e5",
+      "source": "iris-tt-pause2",
+      "sourceHandle": "source-resume",
+      "target": "iris-tt-observation1"
+    },
+    {
+      "id": "e6",
+      "source": "iris-tt-observation1",
+      "target": "iris-tt-pause3"
+    },
+    {
+      "id": "e7",
+      "source": "iris-tt-pause3",
+      "sourceHandle": "source-resume",
+      "target": "iris-tt-phase2-start"
+    },
+    {
+      "id": "e8",
+      "source": "iris-tt-phase2-start",
+      "sourceHandle": "completion",
+      "target": "iris-tt-pause4"
+    },
+    {
+      "id": "e9",
+      "source": "iris-tt-pause4",
+      "sourceHandle": "source-resume",
+      "target": "iris-tt-observation2"
+    },
+    {
+      "id": "e10",
+      "source": "iris-tt-observation2",
+      "target": "iris-tt-phase3-choice"
+    },
+    {
+      "id": "e11",
+      "source": "iris-tt-phase3-choice",
+      "sourceHandle": "a",
+      "target": "iris-tt-phase3-start"
+    },
+    {
+      "id": "e12",
+      "source": "iris-tt-phase3-choice",
+      "sourceHandle": "b",
+      "target": "iris-tt-end-early"
+    },
+    {
+      "id": "e13",
+      "source": "iris-tt-phase3-start",
+      "sourceHandle": "completion",
+      "target": "iris-tt-pause5"
+    },
+    {
+      "id": "e14",
+      "source": "iris-tt-pause5",
+      "sourceHandle": "source-resume",
+      "target": "iris-tt-complete"
+    }
   ]
 }

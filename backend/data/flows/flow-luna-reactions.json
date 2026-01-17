@@ -10,11 +10,20 @@
     {
       "id": "luna-rx-more",
       "type": "trigger",
-      "position": { "x": 0, "y": 50 },
+      "position": {
+        "x": 0,
+        "y": 50
+      },
       "data": {
         "label": "Wants More",
         "triggerType": "player_speaks",
-        "keywords": ["more", "harder", "faster", "don't stop", "keep going"],
+        "keywords": [
+          "more",
+          "harder",
+          "faster",
+          "don't stop",
+          "keep going"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -23,7 +32,10 @@
     {
       "id": "luna-rx-more-action",
       "type": "action",
-      "position": { "x": 0, "y": 180 },
+      "position": {
+        "x": 0,
+        "y": 180
+      },
       "data": {
         "label": "Give More",
         "actionType": "pulse_pump",
@@ -42,11 +54,18 @@
     {
       "id": "luna-rx-love",
       "type": "trigger",
-      "position": { "x": 250, "y": 50 },
+      "position": {
+        "x": 250,
+        "y": 50
+      },
       "data": {
         "label": "Love Declaration",
         "triggerType": "player_speaks",
-        "keywords": ["I love you", "love you", "love you so much"],
+        "keywords": [
+          "I love you",
+          "love you",
+          "love you so much"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -55,7 +74,10 @@
     {
       "id": "luna-rx-love-action",
       "type": "action",
-      "position": { "x": 250, "y": 180 },
+      "position": {
+        "x": 250,
+        "y": 180
+      },
       "data": {
         "label": "Love Response",
         "actionType": "pulse_pump",
@@ -74,11 +96,18 @@
     {
       "id": "luna-rx-please",
       "type": "trigger",
-      "position": { "x": 500, "y": 50 },
+      "position": {
+        "x": 500,
+        "y": 50
+      },
       "data": {
         "label": "Polite Request",
         "triggerType": "player_speaks",
-        "keywords": ["please", "Please", "pretty please"],
+        "keywords": [
+          "please",
+          "Please",
+          "pretty please"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -87,20 +116,34 @@
     {
       "id": "luna-rx-please-branch",
       "type": "branch",
-      "position": { "x": 500, "y": 180 },
+      "position": {
+        "x": 500,
+        "y": 180
+      },
       "data": {
         "label": "Please Response",
         "branchType": "random",
         "branches": [
-          { "id": "grant", "label": "Grants Request", "weight": 60 },
-          { "id": "tease", "label": "Teases First", "weight": 40 }
+          {
+            "id": "grant",
+            "label": "Grants Request",
+            "weight": 60
+          },
+          {
+            "id": "tease",
+            "label": "Teases First",
+            "weight": 40
+          }
         ]
       }
     },
     {
       "id": "luna-rx-please-grant",
       "type": "action",
-      "position": { "x": 400, "y": 340 },
+      "position": {
+        "x": 400,
+        "y": 340
+      },
       "data": {
         "label": "Grants",
         "actionType": "pulse_pump",
@@ -119,7 +162,10 @@
     {
       "id": "luna-rx-please-tease",
       "type": "action",
-      "position": { "x": 600, "y": 340 },
+      "position": {
+        "x": 600,
+        "y": 340
+      },
       "data": {
         "label": "Teases",
         "actionType": "send_message",
@@ -132,11 +178,21 @@
     {
       "id": "luna-rx-yes",
       "type": "trigger",
-      "position": { "x": 750, "y": 50 },
+      "position": {
+        "x": 750,
+        "y": 50
+      },
       "data": {
         "label": "Enthusiastic Yes",
         "triggerType": "player_speaks",
-        "keywords": ["yes", "Yes", "YES", "oh yes", "god yes", "fuck yes"],
+        "keywords": [
+          "yes",
+          "Yes",
+          "YES",
+          "oh yes",
+          "god yes",
+          "fuck yes"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -145,7 +201,10 @@
     {
       "id": "luna-rx-yes-action",
       "type": "action",
-      "position": { "x": 750, "y": 180 },
+      "position": {
+        "x": 750,
+        "y": 180
+      },
       "data": {
         "label": "Encouragement",
         "actionType": "pulse_pump",
@@ -161,11 +220,20 @@
     {
       "id": "luna-rx-good",
       "type": "trigger",
-      "position": { "x": 1000, "y": 50 },
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
       "data": {
         "label": "Feels Good",
         "triggerType": "player_speaks",
-        "keywords": ["feels good", "so good", "that's good", "amazing", "incredible"],
+        "keywords": [
+          "feels good",
+          "so good",
+          "that's good",
+          "amazing",
+          "incredible"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -174,7 +242,10 @@
     {
       "id": "luna-rx-good-action",
       "type": "action",
-      "position": { "x": 1000, "y": 180 },
+      "position": {
+        "x": 1000,
+        "y": 180
+      },
       "data": {
         "label": "Happy Response",
         "actionType": "send_message",
@@ -187,11 +258,19 @@
     {
       "id": "luna-rx-ai-affection",
       "type": "trigger",
-      "position": { "x": 0, "y": 450 },
+      "position": {
+        "x": 0,
+        "y": 450
+      },
       "data": {
         "label": "Luna Shows Affection",
         "triggerType": "ai_speaks",
-        "keywords": ["I love you", "love you baby", "you're amazing", "so proud of you"],
+        "keywords": [
+          "I love you",
+          "love you baby",
+          "you're amazing",
+          "so proud of you"
+        ],
         "unblockable": false,
         "notify": false,
         "hasPriority": false
@@ -200,7 +279,10 @@
     {
       "id": "luna-rx-ai-affection-action",
       "type": "action",
-      "position": { "x": 0, "y": 580 },
+      "position": {
+        "x": 0,
+        "y": 580
+      },
       "data": {
         "label": "Affection Reward",
         "actionType": "pulse_pump",
@@ -216,11 +298,20 @@
     {
       "id": "luna-rx-slow",
       "type": "trigger",
-      "position": { "x": 250, "y": 450 },
+      "position": {
+        "x": 250,
+        "y": 450
+      },
       "data": {
         "label": "Slow Down Request",
         "triggerType": "player_speaks",
-        "keywords": ["slow down", "too fast", "wait", "hold on", "need a break"],
+        "keywords": [
+          "slow down",
+          "too fast",
+          "wait",
+          "hold on",
+          "need a break"
+        ],
         "unblockable": true,
         "notify": false,
         "hasPriority": true
@@ -229,7 +320,10 @@
     {
       "id": "luna-rx-slow-action",
       "type": "action",
-      "position": { "x": 250, "y": 580 },
+      "position": {
+        "x": 250,
+        "y": 580
+      },
       "data": {
         "label": "Slow Down",
         "actionType": "device_off",
@@ -246,14 +340,52 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "luna-rx-more", "target": "luna-rx-more-action" },
-    { "id": "e2", "source": "luna-rx-love", "target": "luna-rx-love-action" },
-    { "id": "e3", "source": "luna-rx-please", "target": "luna-rx-please-branch" },
-    { "id": "e4", "source": "luna-rx-please-branch", "sourceHandle": "branch-0", "target": "luna-rx-please-grant" },
-    { "id": "e5", "source": "luna-rx-please-branch", "sourceHandle": "branch-1", "target": "luna-rx-please-tease" },
-    { "id": "e6", "source": "luna-rx-yes", "target": "luna-rx-yes-action" },
-    { "id": "e7", "source": "luna-rx-good", "target": "luna-rx-good-action" },
-    { "id": "e8", "source": "luna-rx-ai-affection", "target": "luna-rx-ai-affection-action" },
-    { "id": "e9", "source": "luna-rx-slow", "target": "luna-rx-slow-action" }
+    {
+      "id": "e1",
+      "source": "luna-rx-more",
+      "target": "luna-rx-more-action"
+    },
+    {
+      "id": "e2",
+      "source": "luna-rx-love",
+      "target": "luna-rx-love-action"
+    },
+    {
+      "id": "e3",
+      "source": "luna-rx-please",
+      "target": "luna-rx-please-branch"
+    },
+    {
+      "id": "e4",
+      "source": "luna-rx-please-branch",
+      "sourceHandle": "branch-0",
+      "target": "luna-rx-please-grant"
+    },
+    {
+      "id": "e5",
+      "source": "luna-rx-please-branch",
+      "sourceHandle": "branch-1",
+      "target": "luna-rx-please-tease"
+    },
+    {
+      "id": "e6",
+      "source": "luna-rx-yes",
+      "target": "luna-rx-yes-action"
+    },
+    {
+      "id": "e7",
+      "source": "luna-rx-good",
+      "target": "luna-rx-good-action"
+    },
+    {
+      "id": "e8",
+      "source": "luna-rx-ai-affection",
+      "target": "luna-rx-ai-affection-action"
+    },
+    {
+      "id": "e9",
+      "source": "luna-rx-slow",
+      "target": "luna-rx-slow-action"
+    }
   ]
 }
