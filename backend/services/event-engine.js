@@ -259,6 +259,7 @@ class EventEngine {
     this.testMode = false;
     this.testResults = [];
     this.testState = {}; // Mock state values for testing
+    this.testStepCallback = null; // Callback for streaming test steps
 
     // Flow pause/resume state
     this.isPaused = false;
@@ -297,19 +298,36 @@ class EventEngine {
   }
 
   /**
+   * Emit a test step - pushes to results array and calls streaming callback if set
+   * @param {Object} step - The step object to emit
+   */
+  emitTestStep(step) {
+    this.testResults.push(step);
+    if (this.testStepCallback) {
+      try {
+        this.testStepCallback(step);
+      } catch (err) {
+        console.error('[EventEngine] TEST - Step callback error:', err);
+      }
+    }
+  }
+
+  /**
    * Test execution from a specific node
    * Returns step-by-step results instead of broadcasting to frontend
    * All LLM is suppressed, devices are simulated, challenges/choices auto-resolve
    * @param {Object} flow - The flow to test
    * @param {string} nodeId - The node to start execution from
+   * @param {Function} stepCallback - Optional callback for streaming steps in real-time
    * @returns {Object} - { success: boolean, steps: Array, error?: string }
    */
-  async testFromNode(flow, nodeId) {
+  async testFromNode(flow, nodeId, stepCallback = null) {
     console.log(`[EventEngine] TEST MODE - Starting test from node ${nodeId} in flow "${flow.name}"`);
 
     // Set up test mode
     this.testMode = true;
     this.testResults = [];
+    this.testStepCallback = stepCallback; // Store callback for streaming
     this.testState = {
       capacity: 0,
       pain: 0,
@@ -336,7 +354,7 @@ class EventEngine {
     try {
       // Log test start
       const startNode = flow.nodes.find(n => n.id === nodeId);
-      this.testResults.push({
+      this.emitTestStep({
         type: 'test_start',
         label: `Test started from: ${startNode?.data?.label || nodeId}`,
         nodeId: nodeId,
@@ -347,7 +365,7 @@ class EventEngine {
       await this.executeTestFromNode(flow, nodeId);
 
       // Log test completion
-      this.testResults.push({
+      this.emitTestStep({
         type: 'test_complete',
         label: 'Test completed',
         totalSteps: this.testResults.length
@@ -356,7 +374,7 @@ class EventEngine {
       return { success: true, steps: this.testResults };
     } catch (error) {
       console.error(`[EventEngine] TEST MODE - Error:`, error);
-      this.testResults.push({
+      this.emitTestStep({
         type: 'error',
         label: 'Test error',
         details: error.message
@@ -366,6 +384,7 @@ class EventEngine {
       // Restore original state
       this.testMode = false;
       this.simulationMode = originalSimulationMode;
+      this.testStepCallback = null; // Clear callback
       if (originalSessionState) {
         this.sessionState = originalSessionState;
       }
@@ -408,7 +427,7 @@ class EventEngine {
       edges = immediateEdges;
       // Log completion edges as pending
       if (completionEdges.length > 0) {
-        this.testResults.push({
+        this.emitTestStep({
           type: 'pending_completion',
           label: `${completionEdges.length} completion edge(s) would execute when device turns off`,
           details: completionEdges.map(e => e.target).join(', ')
@@ -452,7 +471,7 @@ class EventEngine {
       case 'trigger':
       case 'button_press':
         nodeStep.details = `Trigger: ${node.data.triggerType || 'button_press'}`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
 
       case 'action':
@@ -464,12 +483,12 @@ class EventEngine {
       case 'branch':
         const branchResult = this.evaluateBranch(node.data);
         nodeStep.details = `Branch selected: ${branchResult}`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return branchResult;
 
       case 'delay':
         nodeStep.details = `Delay: ${node.data.delay || 1}s (skipped in test)`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
 
       case 'player_choice':
@@ -503,12 +522,12 @@ class EventEngine {
 
       case 'pause_resume':
         nodeStep.details = `Pause/Resume: ${node.data.resumeAfterValue || 4} ${node.data.resumeAfterType || 'messages'}`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;  // In test mode, execute both PAUSE and RESUME branches
 
       default:
         nodeStep.details = 'Unknown node type';
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
     }
   }
@@ -521,8 +540,8 @@ class EventEngine {
       case 'send_message':
         nodeStep.details = `AI Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
         nodeStep.suppressLlm = true; // Always suppress in test
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'broadcast',
           label: 'AI Message (suppressed)',
           details: data.message || '',
@@ -532,8 +551,8 @@ class EventEngine {
 
       case 'send_player_message':
         nodeStep.details = `Player Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'broadcast',
           label: 'Player Message (suppressed)',
           details: data.message || '',
@@ -543,13 +562,13 @@ class EventEngine {
 
       case 'system_message':
         nodeStep.details = `System Message: "${(data.message || '').substring(0, 50)}..."`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
 
       case 'device_on':
         nodeStep.details = `Device ON: ${data.device} (simulated)`;
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'device',
           label: `Device "${data.device}" turned ON`,
           details: data.untilType ? `Until: ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}` : 'Forever',
@@ -559,8 +578,8 @@ class EventEngine {
 
       case 'device_off':
         nodeStep.details = `Device OFF: ${data.device} (simulated)`;
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'device',
           label: `Device "${data.device}" turned OFF`,
           action: 'off'
@@ -569,8 +588,8 @@ class EventEngine {
 
       case 'start_cycle':
         nodeStep.details = `Start Cycle: ${data.device} (duration: ${data.duration || 5}s, interval: ${data.interval || 10}s, cycles: ${data.cycles || 'infinite'})`;
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'device',
           label: `Device "${data.device}" cycling`,
           details: `Duration: ${data.duration || 5}s, Interval: ${data.interval || 10}s, Cycles: ${data.cycles || 'infinite'}`,
@@ -580,13 +599,13 @@ class EventEngine {
 
       case 'stop_cycle':
         nodeStep.details = `Stop Cycle: ${data.device} (simulated)`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
 
       case 'pulse_pump':
         nodeStep.details = `Pulse Pump: ${data.device} (${data.pulses || 3} pulses, 1s on/1s off)`;
-        this.testResults.push(nodeStep);
-        this.testResults.push({
+        this.emitTestStep(nodeStep);
+        this.emitTestStep({
           type: 'device',
           label: `Device "${data.device}" pulsing`,
           details: `${data.pulses || 3} pulses (1s on/1s off each)`,
@@ -596,12 +615,12 @@ class EventEngine {
 
       case 'set_variable':
         nodeStep.details = `Set Variable: ${data.variableName} = ${data.variableValue}`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
 
       default:
         nodeStep.details = `Action: ${data.actionType}`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
         return true;
     }
   }
@@ -651,7 +670,7 @@ class EventEngine {
 
         // Record state change
         if (newValue !== currentValue) {
-          this.testResults.push({
+          this.emitTestStep({
             type: 'state_change',
             label: `${variable} adjusted for condition`,
             stateChange: {
@@ -663,13 +682,13 @@ class EventEngine {
         }
 
         nodeStep.details = `Condition: ${variable} ${operator} ${targetValue} → TRUE (adjusted)`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
 
         return { result: true, conditionIndex: i };
       } else if (variable === 'emotion') {
         // For emotion, set to target value
         if (this.testState.emotion !== targetValue) {
-          this.testResults.push({
+          this.emitTestStep({
             type: 'state_change',
             label: 'emotion adjusted for condition',
             stateChange: {
@@ -681,7 +700,7 @@ class EventEngine {
         }
 
         nodeStep.details = `Condition: emotion ${operator} "${targetValue}" → TRUE (adjusted)`;
-        this.testResults.push(nodeStep);
+        this.emitTestStep(nodeStep);
 
         return { result: true, conditionIndex: i };
       }
@@ -689,7 +708,7 @@ class EventEngine {
 
     // No conditions could be met
     nodeStep.details = 'No conditions matched → FALSE';
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
     return { result: false, conditionIndex: -1 };
   }
 
@@ -701,9 +720,9 @@ class EventEngine {
     const firstChoice = choices[0];
 
     nodeStep.details = `Player Choice: ${choices.length} options`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'choice',
       label: 'Player Choice presented',
       details: choices.map(c => c.label || c.id).join(', '),
@@ -711,7 +730,7 @@ class EventEngine {
     });
 
     if (firstChoice) {
-      this.testResults.push({
+      this.emitTestStep({
         type: 'choice_selected',
         label: `Auto-selected: "${firstChoice.label || firstChoice.id}"`,
         selectedChoice: firstChoice
@@ -731,9 +750,9 @@ class EventEngine {
     const data = node.data;
 
     nodeStep.details = `Simple A/B: "${data.labelA || 'A'}" vs "${data.labelB || 'B'}"`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'choice',
       label: 'Simple A/B presented',
       details: `A: ${data.labelA || 'Option A'}, B: ${data.labelB || 'Option B'}`,
@@ -743,7 +762,7 @@ class EventEngine {
       ]
     });
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'choice_selected',
       label: `Auto-selected: "${data.labelA || 'Option A'}"`,
       selectedChoice: { id: 'a', label: data.labelA || 'Option A' }
@@ -761,9 +780,9 @@ class EventEngine {
     const testValue = data.inputType === 'number' ? 5 : 'test_value';
 
     nodeStep.details = `Input: "${data.prompt?.substring(0, 40) || 'Enter value'}..." → [Flow:${variableName}]`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'input',
       label: 'Input requested',
       details: `Type: ${data.inputType || 'text'}, Variable: [Flow:${variableName}]`,
@@ -778,7 +797,7 @@ class EventEngine {
       this.sessionState.flowVariables[variableName] = testValue;
     }
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'input_filled',
       label: `Auto-filled: [Flow:${variableName}] = ${testValue}`,
       value: testValue
@@ -800,7 +819,7 @@ class EventEngine {
     const randomValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
 
     nodeStep.details = `Random: ${minValue}-${maxValue} → [Flow:${variableName}] = ${randomValue}`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
     // Store as flow variable
     this.variables[variableName] = randomValue;
@@ -899,9 +918,9 @@ class EventEngine {
     }
 
     nodeStep.details = `Challenge: ${challengeType}`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
-    this.testResults.push({
+    this.emitTestStep({
       type: 'challenge',
       label: `${challengeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Challenge`,
       details: resultDetails,
@@ -2143,10 +2162,10 @@ class EventEngine {
     const message = matchedRange?.message || '(no message)';
 
     nodeStep.details = `${isPlayerMessage ? 'Player' : 'AI'} Capacity Message (${currentCapacity}% → ${rangeLabel}): "${message.substring(0, 40)}${message.length > 40 ? '...' : ''}"`;
-    this.testResults.push(nodeStep);
+    this.emitTestStep(nodeStep);
 
     // Add broadcast result
-    this.testResults.push({
+    this.emitTestStep({
       type: 'broadcast',
       label: `${isPlayerMessage ? 'Player' : 'AI'} Message (suppressed)`,
       details: message,

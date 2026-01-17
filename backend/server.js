@@ -3210,16 +3210,32 @@ async function handleWsMessage(ws, type, data) {
       // Test flow execution from a specific node
       console.log(`[WS] Test node request: flow=${data.flowId}, node=${data.nodeId}`);
       try {
-        const flow = flows.find(f => f.id === data.flowId);
-        if (flow) {
-          const result = await eventEngine.testFromNode(flow, data.nodeId);
+        // Load full flow data (per-flow mode stores nodes/edges in separate files)
+        let flow;
+        if (isPerFlowStorageActive()) {
+          flow = loadFlow(data.flowId);
+        } else {
+          const allFlows = loadData(DATA_FILES.flows) || [];
+          flow = allFlows.find(f => f.id === data.flowId);
+        }
+
+        if (flow && flow.nodes) {
+          // Stream individual steps in real-time via callback
+          const stepCallback = (step) => {
+            try {
+              ws.send(JSON.stringify({ type: 'test_step', data: step }));
+            } catch (err) {
+              console.error('[WS] Failed to send test step:', err);
+            }
+          };
+          const result = await eventEngine.testFromNode(flow, data.nodeId, stepCallback);
           ws.send(JSON.stringify({ type: 'test_result', data: result }));
         } else {
           ws.send(JSON.stringify({
             type: 'test_result',
             data: {
               success: false,
-              error: `Flow "${data.flowId}" not found`,
+              error: `Flow "${data.flowId}" not found or has no nodes`,
               steps: []
             }
           }));

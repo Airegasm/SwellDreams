@@ -344,6 +344,11 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'test_step':
+        // Dispatch individual test step for real-time console streaming
+        window.dispatchEvent(new CustomEvent('test_step', { detail: data }));
+        break;
+
       case 'test_result':
         // Dispatch test result event for FlowEditor to display
         window.dispatchEvent(new CustomEvent('test_result', { detail: data }));

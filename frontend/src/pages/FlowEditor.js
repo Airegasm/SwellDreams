@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { useApp } from '../context/AppContext';
 import { useFlowHistory } from '../hooks/useFlowHistory';
 import TestResultsModal from '../components/TestResultsModal';
+import ConsolePanel from '../components/flow/ConsolePanel';
 
 // Custom node components
 import TriggerNode from '../components/flow/nodes/TriggerNode';
@@ -448,6 +449,36 @@ function FlowEditor() {
   const [testResults, setTestResults] = useState(null);
   const [testLoading, setTestLoading] = useState(false);
 
+  // Console state
+  const [consoleEntries, setConsoleEntries] = useState([]);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const consoleIdRef = useRef(0);
+
+  // Add entry to console
+  const addConsoleEntry = useCallback((entry) => {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const id = `entry-${++consoleIdRef.current}`;
+    setConsoleEntries(prev => [...prev.slice(-199), { ...entry, time, id }]); // Keep last 200
+    // Auto-expand console when new entries arrive
+    setConsoleCollapsed(false);
+  }, []);
+
+  // Format state change for console display
+  const formatStateChange = useCallback((stateChange) => {
+    if (!stateChange) return null;
+    const parts = [];
+    if (stateChange.capacity) {
+      parts.push(`Capacity: ${stateChange.capacity.from} → ${stateChange.capacity.to}`);
+    }
+    if (stateChange.pain) {
+      parts.push(`Pain: ${stateChange.pain.from} → ${stateChange.pain.to}`);
+    }
+    if (stateChange.emotion) {
+      parts.push(`Emotion: ${stateChange.emotion.from} → ${stateChange.emotion.to}`);
+    }
+    return parts.length > 0 ? parts.join('\n') : null;
+  }, []);
+
   // Undo handler
   const handleUndo = useCallback(() => {
     const previousState = undoHistory(nodes, edges);
@@ -513,16 +544,31 @@ function FlowEditor() {
 
   // Handle test node - execute flow test from a specific node
   const handleTestNode = useCallback((nodeId) => {
-    if (!selectedFlow) return;
+    if (!selectedFlow) {
+      addConsoleEntry({
+        icon: 'error',
+        category: 'error',
+        label: 'Cannot test: Please save the flow first'
+      });
+      return;
+    }
     setTestModalOpen(true);
     setTestLoading(true);
     setTestResults(null);
+
+    // Add console entry for test start
+    const node = nodes.find(n => n.id === nodeId);
+    addConsoleEntry({
+      icon: 'test_start',
+      category: 'test_start',
+      label: `Testing from: ${node?.data?.label || nodeId}`
+    });
 
     sendWsMessage('test_node', {
       flowId: selectedFlow.id,
       nodeId: nodeId
     });
-  }, [selectedFlow, sendWsMessage]);
+  }, [selectedFlow, sendWsMessage, nodes, addConsoleEntry]);
 
   const handleCopyNode = useCallback(() => {
     if (!contextMenu) return;
@@ -794,16 +840,50 @@ function FlowEditor() {
     }, 50);
   }, [nodes, edges, setNodes, reactFlowInstance, pushSnapshot]);
 
-  // Listen for test results
+  // Listen for test results and test steps (streaming)
   useEffect(() => {
-    const handleTestResult = (event) => {
-      setTestResults(event.detail);
-      setTestLoading(false);
+    let streamedStepCount = 0; // Track how many steps came via streaming
+
+    // Handle individual streaming steps
+    const handleTestStep = (event) => {
+      const step = event.detail;
+      streamedStepCount++;
+      addConsoleEntry({
+        icon: step.nodeType || step.type,
+        category: step.type,
+        label: step.label,
+        details: step.details || formatStateChange(step.stateChange)
+      });
     };
 
+    // Handle final test result
+    const handleTestResult = (event) => {
+      const { success, error } = event.detail;
+      setTestResults(event.detail);
+      setTestLoading(false);
+
+      // Note: Steps already added via streaming, don't add again to avoid duplicates
+      // Only show completion/error status
+
+      if (error) {
+        addConsoleEntry({
+          icon: 'error',
+          category: 'error',
+          label: `Error: ${error}`
+        });
+      }
+
+      // Reset streamed count for next test
+      streamedStepCount = 0;
+    };
+
+    window.addEventListener('test_step', handleTestStep);
     window.addEventListener('test_result', handleTestResult);
-    return () => window.removeEventListener('test_result', handleTestResult);
-  }, []);
+    return () => {
+      window.removeEventListener('test_step', handleTestStep);
+      window.removeEventListener('test_result', handleTestResult);
+    };
+  }, [addConsoleEntry, formatStateChange]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1541,31 +1621,39 @@ function FlowEditor() {
         </div>
       </div>
 
-      {/* Main Canvas */}
-      <div className="flow-canvas" ref={reactFlowWrapper}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onInit={setReactFlowInstance}
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onNodeContextMenu={onNodeContextMenu}
-          onPaneClick={onPaneClick}
-          onPaneContextMenu={onPaneContextMenu}
-          onSelectionChange={onSelectionChange}
-          onMoveEnd={handleMoveEnd}
-          nodeTypes={nodeTypes}
-          selectionOnDrag
-          selectionMode="partial"
-          panOnDrag={[1, 2]}
-        >
-          <Controls />
-          <MiniMap />
-          <Background variant="dots" gap={12} size={1} />
-        </ReactFlow>
+      {/* Main Canvas Area with Console */}
+      <div className="flow-canvas-area">
+        <div className="flow-canvas" ref={reactFlowWrapper}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onInit={setReactFlowInstance}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onNodeContextMenu={onNodeContextMenu}
+            onPaneClick={onPaneClick}
+            onPaneContextMenu={onPaneContextMenu}
+            onSelectionChange={onSelectionChange}
+            onMoveEnd={handleMoveEnd}
+            nodeTypes={nodeTypes}
+            selectionOnDrag
+            selectionMode="partial"
+            panOnDrag={[1, 2]}
+          >
+            <Controls />
+            <MiniMap />
+            <Background variant="dots" gap={12} size={1} />
+          </ReactFlow>
+        </div>
+        <ConsolePanel
+          entries={consoleEntries}
+          onClear={() => setConsoleEntries([])}
+          collapsed={consoleCollapsed}
+          onToggle={() => setConsoleCollapsed(c => !c)}
+        />
       </div>
 
       {/* Node Context Menu */}
