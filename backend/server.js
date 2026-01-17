@@ -2094,7 +2094,8 @@ wss.on('connection', async (ws) => {
   // Send welcome message if character is active but no chat history
   // Only send if truly empty (prevents duplicate from rapid reconnections)
   if (settings?.activeCharacterId && sessionState.chatHistory.length === 0) {
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     if (activeCharacter && sessionState.chatHistory.length === 0) { // Double-check after async operations
       await sendWelcomeMessage(activeCharacter, settings);
@@ -3696,7 +3697,8 @@ app.post('/api/settings', async (req, res) => {
 
   // Send welcome message if character changed and chat is empty
   if (charChanged && sessionState.chatHistory.length === 0 && settings.activeCharacterId) {
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     if (activeCharacter) {
       await sendWelcomeMessage(activeCharacter, decryptSettings(settings));
@@ -5383,7 +5385,8 @@ app.post('/api/session/reset', async (req, res) => {
 
   // Send welcome message if character is active
   if (settings?.activeCharacterId) {
-    const characters = loadData(DATA_FILES.characters) || [];
+    // Use per-char storage if active, otherwise fall back to legacy
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     if (activeCharacter) {
       await sendWelcomeMessage(activeCharacter, settings);
