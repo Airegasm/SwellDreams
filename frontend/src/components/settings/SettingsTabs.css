@@ -2512,6 +2512,47 @@
   pointer-events: none;
 }
 
+/* Sub-control row (indented, smaller) */
+.character-control-row.sub-control {
+  margin-left: var(--spacing-xl);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  gap: var(--spacing-sm);
+}
+
+.control-divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--spacing-md) 0;
+  opacity: 0.5;
+}
+
+.control-inline-label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.control-number-input {
+  width: 80px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.control-number-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.control-inline-hint {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+
 /* ============================================
    CALIBRATION MODAL - Full height, slides from top
    ============================================ */

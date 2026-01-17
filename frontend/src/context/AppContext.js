@@ -204,6 +204,11 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'ai_device_control':
+        // AI controlled a device - dispatch event for toast notification
+        window.dispatchEvent(new CustomEvent('ai_device_control', { detail: data }));
+        break;
+
       case 'flows_update':
         setFlows(data);
         break;

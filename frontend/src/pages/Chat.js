@@ -247,6 +247,18 @@ function Chat() {
     return () => window.removeEventListener('flow_toast', handleFlowToast);
   }, [showInfo, showSuccess, showWarning]);
 
+  // Listen for AI device control events
+  useEffect(() => {
+    const handleAiDeviceControl = (event) => {
+      const { deviceName, action } = event.detail;
+      const actionText = action === 'on' ? 'turned ON' : 'turned OFF';
+      showSuccess(`AI ${actionText} ${deviceName}`, 3000);
+    };
+
+    window.addEventListener('ai_device_control', handleAiDeviceControl);
+    return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
+  }, [showSuccess]);
+
   // Check device reachability on startup
   useEffect(() => {
     const checkDevices = async () => {

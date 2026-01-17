@@ -41,7 +41,9 @@ function GlobalTab() {
     hasCalibrated: false,
     autoLinkCapacityToPain: true,
     emotionalDecline: true,
-    autoCapacityMultiplier: 1.0
+    autoCapacityMultiplier: 1.0,
+    allowLlmDeviceControl: false,
+    llmDeviceControlMaxSeconds: 30
   });
 
   // Calibration modal state
@@ -822,6 +824,39 @@ function GlobalTab() {
               <span className="control-hint">Emotion degrades as capacity increases (slow 0-40%, faster 41-60%, rapid 61-80%, locked at Frightened by 75%)</span>
             </div>
           </div>
+
+          <hr className="control-divider" />
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.allowLlmDeviceControl}
+                onChange={(e) => handleCharacterControlChange('allowLlmDeviceControl', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Allow LLM Direct Control of Devices</span>
+              <span className="control-hint">The AI can turn devices on/off by including [pump on], [vibe on], etc. in its responses</span>
+            </div>
+          </div>
+
+          {characterControls.allowLlmDeviceControl && (
+            <div className="character-control-row sub-control">
+              <label className="control-inline-label">Max On Duration:</label>
+              <input
+                type="number"
+                min="5"
+                max="300"
+                step="5"
+                value={characterControls.llmDeviceControlMaxSeconds}
+                onChange={(e) => handleCharacterControlChange('llmDeviceControlMaxSeconds', parseInt(e.target.value) || 30)}
+                className="control-number-input"
+              />
+              <span className="control-inline-hint">seconds (AI will be told to turn off after this time)</span>
+            </div>
+          )}
         </div>
         )}
       </div>

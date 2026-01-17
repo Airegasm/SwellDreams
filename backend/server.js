@@ -1405,6 +1405,16 @@ eventEngine.setBroadcast(async (type, data) => {
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           finalText = aiControlResult.text;
+          // Broadcast AI device control event for toast notification
+          aiControlResult.results.forEach(r => {
+            if (r.success) {
+              broadcast('ai_device_control', {
+                device: r.command.device,
+                action: r.command.action,
+                deviceName: r.device?.label || r.device?.name || r.command.device
+              });
+            }
+          });
         }
 
         // Update placeholder with final result
@@ -3283,6 +3293,16 @@ async function handleChatMessage(data) {
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           aiMessage.content = aiControlResult.text;
+          // Broadcast AI device control event for toast notification
+          aiControlResult.results.forEach(r => {
+            if (r.success) {
+              broadcast('ai_device_control', {
+                device: r.command.device,
+                action: r.command.action,
+                deviceName: r.device?.label || r.device?.name || r.command.device
+              });
+            }
+          });
         }
 
         aiMessage.streaming = false;
@@ -3339,6 +3359,16 @@ async function handleChatMessage(data) {
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           finalText = aiControlResult.text;
+          // Broadcast AI device control event for toast notification
+          aiControlResult.results.forEach(r => {
+            if (r.success) {
+              broadcast('ai_device_control', {
+                device: r.command.device,
+                action: r.command.action,
+                deviceName: r.device?.label || r.device?.name || r.command.device
+              });
+            }
+          });
         }
 
         // Add AI response to chat
@@ -3435,6 +3465,16 @@ async function handleSpecialGenerate(data) {
       if (aiControlResult.commands.length > 0) {
         console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
         message.content = aiControlResult.text;
+        // Broadcast AI device control event for toast notification
+        aiControlResult.results.forEach(r => {
+          if (r.success) {
+            broadcast('ai_device_control', {
+              device: r.command.device,
+              action: r.command.action,
+              deviceName: r.device?.label || r.device?.name || r.command.device
+            });
+          }
+        });
       }
 
       message.streaming = false;
@@ -3493,6 +3533,16 @@ async function handleSpecialGenerate(data) {
     if (aiControlResult.commands.length > 0) {
       console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
       finalText = aiControlResult.text;
+      // Broadcast AI device control event for toast notification
+      aiControlResult.results.forEach(r => {
+        if (r.success) {
+          broadcast('ai_device_control', {
+            device: r.command.device,
+            action: r.command.action,
+            deviceName: r.device?.label || r.device?.name || r.command.device
+          });
+        }
+      });
     }
 
     const content = getFullContent(finalText);
@@ -3723,6 +3773,15 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += `Author Note: ${settings.globalPrompt}\n\n`;
     }
 
+    // Add LLM device control instructions if enabled
+    if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
+      const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
+      systemPrompt += `\n=== DEVICE CONTROL ===
+YOU CAN CONTROL DEVICES: [pump on/off], [vibe on/off], [tens on/off]
+Turn off within ${maxSeconds} seconds. Tags are hidden from player.
+=== END ===\n`;
+    }
+
     systemPrompt += `Continue from the text provided. Stay in character.`;
   }
 
@@ -3867,6 +3926,26 @@ function buildChatContext(character, settings) {
     systemPrompt += `\n[Author Note: ${settings.globalPrompt}]\n`;
   }
 
+  // Add LLM device control instructions if enabled
+  if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
+    const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
+    systemPrompt += `\n=== DEVICE CONTROL INSTRUCTIONS ===
+YOU CAN CONTROL PHYSICAL DEVICES. Include these EXACT tags in your response to control them:
+[pump on] - Turn on the inflation pump
+[pump off] - Turn off the inflation pump
+[vibe on] - Turn on the vibrator
+[vibe off] - Turn off the vibrator
+[tens on] - Turn on the TENS unit
+[tens off] - Turn off the TENS unit
+
+RULES:
+- ALWAYS turn devices OFF after ${maxSeconds} seconds max - include [pump off] or [vibe off] in your next response
+- Use device control when it fits the scene naturally
+- The tags will be removed from the displayed message - the player only sees the action happen
+- You MUST remember to turn things off - never leave devices running indefinitely
+=== END DEVICE CONTROL ===\n`;
+  }
+
   // Build prompt from recent chat history
   const recentMessages = sessionState.chatHistory.slice(-20);
   let prompt = '';
@@ -3886,6 +3965,12 @@ function buildChatContext(character, settings) {
       prompt += `${character.name}: ${msg.content}\n`;
     }
   });
+
+  // Add device control reminder at end of prompt if enabled
+  if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
+    const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
+    prompt += `\n[REMINDER: You can use [pump on/off], [vibe on/off], [tens on/off]. Turn off within ${maxSeconds}s.]\n`;
+  }
 
   prompt += `${character.name}:`;
 
