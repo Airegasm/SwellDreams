@@ -5647,11 +5647,17 @@ async function triggerEmergencyStop(reason) {
     const devices = loadData(DATA_FILES.devices) || [];
     for (const device of devices) {
       try {
-        deviceService.stopCycle(device.ip);
-        await deviceService.turnOff(device.ip);
-        console.log(`[FAILSAFE] Stopped device: ${device.name || device.ip}`);
+        // Get correct identifier - Tuya/Govee use deviceId, TPLink uses ip
+        const deviceIdentifier = (device.brand === 'tuya' || device.brand === 'govee' || device.brand === 'wyze')
+          ? device.deviceId
+          : device.ip;
+        if (deviceIdentifier) {
+          deviceService.stopCycle(deviceIdentifier);
+          await deviceService.turnOff(deviceIdentifier, device);
+          console.log(`[FAILSAFE] Stopped device: ${device.name || device.label || deviceIdentifier}`);
+        }
       } catch (err) {
-        console.error(`[FAILSAFE] Failed to stop device ${device.ip}:`, err.message);
+        console.error(`[FAILSAFE] Failed to stop device ${device.name || device.ip}:`, err.message);
       }
     }
 

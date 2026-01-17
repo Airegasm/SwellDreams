@@ -1,0 +1,5 @@
+# SwellDreams Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Wyze smart home device control
+wyze-sdk>=2.0.0

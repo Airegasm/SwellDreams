@@ -60,6 +60,12 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# Install Python dependencies if requirements.txt exists
+if [ -f "$SCRIPT_DIR/backend/requirements.txt" ]; then
+    echo "Installing Python dependencies..."
+    pip3 install -q -r "$SCRIPT_DIR/backend/requirements.txt" 2>/dev/null || pip install -q -r "$SCRIPT_DIR/backend/requirements.txt" 2>/dev/null || echo "Warning: Could not install Python dependencies. Some features may not work."
+fi
+
 PID_DIR="$SCRIPT_DIR/.pids"
 mkdir -p "$PID_DIR"
 

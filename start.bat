@@ -61,6 +61,16 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
+REM Install Python dependencies
+echo Installing Python dependencies...
+py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+if %ERRORLEVEL% neq 0 (
+    pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+    if %ERRORLEVEL% neq 0 (
+        echo Warning: Could not install some Python dependencies. Some features may not work.
+    )
+)
+
 REM Install/update backend dependencies
 echo Checking backend dependencies...
 cd /d "%SCRIPT_DIR%backend"

@@ -380,6 +380,10 @@ class DeviceService {
       }
 
       if (device?.brand === 'tuya') {
+        if (!device.deviceId) {
+          console.error(`[DeviceService] Tuya turnOn called but device.deviceId is missing! Device:`, JSON.stringify(device));
+          return { error: 'Tuya device missing deviceId' };
+        }
         await tuyaService.turnOn(device.deviceId);
         this.deviceStates.set(device.deviceId, {
           state: 'on',
@@ -455,6 +459,10 @@ class DeviceService {
       }
 
       if (device?.brand === 'tuya') {
+        if (!device.deviceId) {
+          console.error(`[DeviceService] Tuya turnOff called but device.deviceId is missing! Device:`, JSON.stringify(device));
+          return { error: 'Tuya device missing deviceId' };
+        }
         await tuyaService.turnOff(device.deviceId);
         this.deviceStates.set(device.deviceId, {
           state: 'off',

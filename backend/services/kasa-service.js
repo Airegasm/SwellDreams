@@ -14,6 +14,11 @@ const log = createLogger('Kasa');
 
 const KASA_PORT = 9999;
 const DEFAULT_TIMEOUT = 5000;
+const STATE_CACHE_TTL = 2000; // Cache state responses for 2 seconds
+
+// Cache for getInfo responses - prevents flooding when multiple outlets poll the same device
+// Key: IP address, Value: { data: response, timestamp: ms, promise: pending promise }
+const infoCache = new Map();
 
 /**
  * Encrypt a string using TP-Link's XOR autokey cipher
@@ -66,7 +71,7 @@ function sendCommand(ip, command, timeout = DEFAULT_TIMEOUT) {
   return new Promise((resolve, reject) => {
     const jsonCmd = JSON.stringify(command);
     const encrypted = encrypt(jsonCmd);
-    log.info(`[NATIVE NODE.JS] Sending command to ${ip}:`, Object.keys(command).join(', '));
+    log.debug(`[NATIVE NODE.JS] Sending command to ${ip}:`, Object.keys(command).join(', '));
 
     const socket = new net.Socket();
     let responseData = Buffer.alloc(0);
@@ -245,11 +250,40 @@ class KasaDevice {
   }
 
   /**
-   * Get device system info
+   * Get device system info (with caching to prevent flooding)
    */
   async getInfo() {
+    const cacheKey = this.ip;
+    const now = Date.now();
+    const cached = infoCache.get(cacheKey);
+
+    // Return cached response if still valid
+    if (cached && cached.data && (now - cached.timestamp) < STATE_CACHE_TTL) {
+      return cached.data;
+    }
+
+    // If there's a pending request for this IP, wait for it
+    if (cached && cached.promise) {
+      return cached.promise;
+    }
+
+    // Make the actual request
     const command = { system: { get_sysinfo: {} } };
-    return this._send(command);
+    const promise = this._send(command);
+
+    // Store the promise so concurrent requests can wait for it
+    infoCache.set(cacheKey, { promise, timestamp: now });
+
+    try {
+      const data = await promise;
+      // Cache the successful response
+      infoCache.set(cacheKey, { data, timestamp: Date.now(), promise: null });
+      return data;
+    } catch (error) {
+      // Clear cache on error so next request tries again
+      infoCache.delete(cacheKey);
+      throw error;
+    }
   }
 
   /**
@@ -257,7 +291,7 @@ class KasaDevice {
    * @returns {object} - { state: 'on'|'off', relay_state: 0|1, ... }
    */
   async getState() {
-    log.info(`[NATIVE NODE.JS] getState() called for ${this.ip}${this.childId ? ':' + this.childId : ''}`);
+    // Note: getInfo() has caching, so this won't flood the device even with rapid calls
     const info = await this.getInfo();
 
     if (info.error) {
