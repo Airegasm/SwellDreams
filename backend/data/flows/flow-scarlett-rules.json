@@ -54,12 +54,13 @@
         "y": 50
       },
       "data": {
-        "label": "Detects 'no'",
+        "label": "Detects Disobedience",
         "triggerType": "player_speaks",
         "keywords": [
-          "no",
-          "No",
-          "NO"
+          "I refuse",
+          "won't do it",
+          "not going to",
+          "forget it"
         ],
         "unblockable": true,
         "notify": false,
@@ -200,13 +201,13 @@
         "y": 50
       },
       "data": {
-        "label": "Detects begging",
+        "label": "Detects Desperation",
         "triggerType": "player_speaks",
         "keywords": [
-          "please",
-          "Please",
-          "PLEASE",
-          "beg"
+          "I can't take",
+          "too much",
+          "can't handle",
+          "give me a break"
         ],
         "unblockable": false,
         "notify": false,
