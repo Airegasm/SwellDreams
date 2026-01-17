@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
+import ActionWrapper from './ActionWrapper';
 import './Nodes.css';
 
 // Helper to create unique device identifier (handles power strip outlets with same IP)
@@ -41,18 +42,6 @@ function ActionNode({ data, selected }) {
               />
               Suppress LLM Enhancement
             </label>
-            <div className="config-row">
-              <label>Post Delay:</label>
-              <input
-                type="number"
-                value={data.postDelay ?? 3}
-                onChange={(e) => data.onChange?.('postDelay', parseFloat(e.target.value) || 0)}
-                min={0}
-                step={0.5}
-                className="node-input small"
-              />
-              <span>s</span>
-            </div>
           </div>
         );
 
@@ -597,7 +586,9 @@ function ActionNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        {renderConfig()}
+        <ActionWrapper data={data}>
+          {renderConfig()}
+        </ActionWrapper>
       </div>
       {(data.actionType === 'start_cycle' || data.actionType === 'device_on') ? (
         <>

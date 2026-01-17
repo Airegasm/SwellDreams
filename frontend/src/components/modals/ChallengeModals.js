@@ -134,9 +134,13 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
       } else {
         setIsSpinning(false);
         setResult(segments[selectedIndex]);
-        // Auto-submit after showing result
+        // Auto-submit after showing result - pass extended result object
         setTimeout(() => {
-          onResult(segments[selectedIndex].id);
+          onResult({
+            outputId: segments[selectedIndex].id,
+            segmentLabel: segments[selectedIndex].label,
+            allSegments: segments.map(s => s.label)
+          });
         }, 1500);
       }
     };
@@ -227,8 +231,8 @@ export function DiceRollModal({ challengeData, onResult, onCancel, compact = fal
           outputId = `result-${total}`;
         } else if (mode === 'ranges') {
           const matchedRange = ranges.find(r => total >= r.min && total <= r.max);
-          outputId = matchedRange ? matchedRange.id : ranges[0]?.id;
-          setResult({ label: matchedRange?.label || 'Unknown', total });
+          outputId = matchedRange ? matchedRange.id : 'other';
+          setResult({ label: matchedRange?.label || `Rolled ${total} (unmatched)`, total });
         } else if (mode === 'against') {
           // Character also rolls
           const charValues = rollDice();
@@ -249,9 +253,13 @@ export function DiceRollModal({ challengeData, onResult, onCancel, compact = fal
 
         setIsRolling(false);
 
-        // Auto-submit after showing result
+        // Auto-submit after showing result - pass extended result object
         setTimeout(() => {
-          onResult(outputId);
+          onResult({
+            outputId,
+            rollTotal: total,
+            diceValues: finalValues
+          });
         }, 2000);
       }
     }, 100);
@@ -824,8 +832,8 @@ export function SlotMachineModal({ challengeData, onResult, onCancel, compact = 
         ];
         setReels(finalReels);
 
-        // Check for matches
-        let matchedId = 'no-match';
+        // Check for matches - 'other' is fallback for unmatched
+        let matchedId = 'other';
         for (const match of matches) {
           if (match.pattern === 'three-of-a-kind') {
             if (finalReels[0] === finalReels[1] && finalReels[1] === finalReels[2]) {
@@ -848,12 +856,16 @@ export function SlotMachineModal({ challengeData, onResult, onCancel, compact = 
           }
         }
 
-        if (matchedId === 'no-match') {
+        if (matchedId === 'other') {
           setResult('No Match');
         }
 
         setIsSpinning(false);
-        setTimeout(() => onResult(matchedId), 1500);
+        // Pass extended result object with slot symbols
+        setTimeout(() => onResult({
+          outputId: matchedId,
+          slots: finalReels  // Use 'slots' for [Slots] variable
+        }), 1500);
       }
     }, 80);
   }, [isSpinning, symbols, matches, onResult]);

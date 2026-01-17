@@ -1,0 +1,733 @@
+{
+  "id": "flow-audit-challenges",
+  "name": "🧪 Audit - Challenges",
+  "category": "global",
+  "description": "Tests all 10 challenge node types",
+  "nodes": [
+    {
+      "id": "chal-btn-wheel",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Test Prize Wheel",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-wheel"
+      }
+    },
+    {
+      "id": "chal-wheel",
+      "type": "prize_wheel",
+      "position": { "x": 100, "y": 150 },
+      "data": {
+        "label": "Prize Wheel Test",
+        "segments": [
+          { "id": "seg-a", "label": "Prize A", "color": "#ef4444", "weight": 25 },
+          { "id": "seg-b", "label": "Prize B", "color": "#3b82f6", "weight": 25 },
+          { "id": "seg-c", "label": "Prize C", "color": "#22c55e", "weight": 25 },
+          { "id": "seg-d", "label": "Prize D", "color": "#f59e0b", "weight": 25 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "Spinning the prize wheel...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "chal-wheel-result",
+      "type": "action",
+      "position": { "x": 100, "y": 350 },
+      "data": {
+        "label": "Wheel Result",
+        "actionType": "system_message",
+        "message": "✅ PRIZE WHEEL: Won [Segment]!\nAll segments: [Segments]"
+      }
+    },
+    {
+      "id": "chal-btn-dice",
+      "type": "button_press",
+      "position": { "x": 350, "y": 50 },
+      "data": {
+        "label": "Test Dice Roll",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-dice"
+      }
+    },
+    {
+      "id": "chal-dice",
+      "type": "dice_roll",
+      "position": { "x": 350, "y": 150 },
+      "data": {
+        "label": "Dice Roll Test",
+        "diceCount": 2,
+        "mode": "ranges",
+        "ranges": [
+          { "id": "low", "label": "Low", "min": 2, "max": 5 },
+          { "id": "mid", "label": "Medium", "min": 6, "max": 9 },
+          { "id": "high", "label": "High", "min": 10, "max": 12 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "Rolling the dice...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "chal-dice-low",
+      "type": "action",
+      "position": { "x": 250, "y": 350 },
+      "data": {
+        "label": "Low Roll",
+        "actionType": "system_message",
+        "message": "✅ DICE: Low roll! Total: [Roll]"
+      }
+    },
+    {
+      "id": "chal-dice-mid",
+      "type": "action",
+      "position": { "x": 350, "y": 350 },
+      "data": {
+        "label": "Mid Roll",
+        "actionType": "system_message",
+        "message": "✅ DICE: Medium roll! Total: [Roll]"
+      }
+    },
+    {
+      "id": "chal-dice-high",
+      "type": "action",
+      "position": { "x": 450, "y": 350 },
+      "data": {
+        "label": "High Roll",
+        "actionType": "system_message",
+        "message": "✅ DICE: High roll! Total: [Roll]"
+      }
+    },
+    {
+      "id": "chal-dice-other",
+      "type": "action",
+      "position": { "x": 550, "y": 350 },
+      "data": {
+        "label": "Other",
+        "actionType": "system_message",
+        "message": "✅ DICE: Other exit (unmatched). Total: [Roll]"
+      }
+    },
+    {
+      "id": "chal-btn-coin",
+      "type": "button_press",
+      "position": { "x": 700, "y": 50 },
+      "data": {
+        "label": "Test Coin Flip",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-coin"
+      }
+    },
+    {
+      "id": "chal-coin",
+      "type": "coin_flip",
+      "position": { "x": 700, "y": 150 },
+      "data": {
+        "label": "Coin Flip Test",
+        "headsLabel": "Heads",
+        "tailsLabel": "Tails",
+        "headsWeight": 50,
+        "bestOf": 1
+      }
+    },
+    {
+      "id": "chal-coin-heads",
+      "type": "action",
+      "position": { "x": 650, "y": 350 },
+      "data": {
+        "label": "Heads",
+        "actionType": "system_message",
+        "message": "✅ COIN FLIP: Heads!"
+      }
+    },
+    {
+      "id": "chal-coin-tails",
+      "type": "action",
+      "position": { "x": 750, "y": 350 },
+      "data": {
+        "label": "Tails",
+        "actionType": "system_message",
+        "message": "✅ COIN FLIP: Tails!"
+      }
+    },
+    {
+      "id": "chal-btn-rps",
+      "type": "button_press",
+      "position": { "x": 950, "y": 50 },
+      "data": {
+        "label": "Test RPS",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-rps"
+      }
+    },
+    {
+      "id": "chal-rps",
+      "type": "rps",
+      "position": { "x": 950, "y": 150 },
+      "data": {
+        "label": "RPS Test",
+        "bestOf": 1,
+        "characterBias": null
+      }
+    },
+    {
+      "id": "chal-rps-win",
+      "type": "action",
+      "position": { "x": 900, "y": 350 },
+      "data": {
+        "label": "Player Wins",
+        "actionType": "system_message",
+        "message": "✅ RPS: Player wins!"
+      }
+    },
+    {
+      "id": "chal-rps-tie",
+      "type": "action",
+      "position": { "x": 1000, "y": 350 },
+      "data": {
+        "label": "Tie",
+        "actionType": "system_message",
+        "message": "✅ RPS: It's a tie!"
+      }
+    },
+    {
+      "id": "chal-rps-lose",
+      "type": "action",
+      "position": { "x": 1100, "y": 350 },
+      "data": {
+        "label": "Character Wins",
+        "actionType": "system_message",
+        "message": "✅ RPS: Character wins!"
+      }
+    },
+    {
+      "id": "chal-btn-timer",
+      "type": "button_press",
+      "position": { "x": 1250, "y": 50 },
+      "data": {
+        "label": "Test Timer",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-timer"
+      }
+    },
+    {
+      "id": "chal-timer",
+      "type": "timer_challenge",
+      "position": { "x": 1250, "y": 150 },
+      "data": {
+        "label": "Timer Test",
+        "duration": 5,
+        "precisionMode": false
+      }
+    },
+    {
+      "id": "chal-timer-success",
+      "type": "action",
+      "position": { "x": 1200, "y": 350 },
+      "data": {
+        "label": "Success",
+        "actionType": "system_message",
+        "message": "✅ TIMER: Success! Pressed in time."
+      }
+    },
+    {
+      "id": "chal-timer-timeout",
+      "type": "action",
+      "position": { "x": 1300, "y": 350 },
+      "data": {
+        "label": "Timeout",
+        "actionType": "system_message",
+        "message": "✅ TIMER: Timeout! Too slow."
+      }
+    },
+    {
+      "id": "chal-btn-guess",
+      "type": "button_press",
+      "position": { "x": 1500, "y": 50 },
+      "data": {
+        "label": "Test Number Guess",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-guess"
+      }
+    },
+    {
+      "id": "chal-guess",
+      "type": "number_guess",
+      "position": { "x": 1500, "y": 150 },
+      "data": {
+        "label": "Number Guess Test",
+        "min": 1,
+        "max": 10,
+        "maxAttempts": 5,
+        "closeThreshold": 2
+      }
+    },
+    {
+      "id": "chal-guess-correct",
+      "type": "action",
+      "position": { "x": 1400, "y": 350 },
+      "data": {
+        "label": "Correct",
+        "actionType": "system_message",
+        "message": "✅ NUMBER GUESS: Correct!"
+      }
+    },
+    {
+      "id": "chal-guess-close",
+      "type": "action",
+      "position": { "x": 1500, "y": 350 },
+      "data": {
+        "label": "Close",
+        "actionType": "system_message",
+        "message": "✅ NUMBER GUESS: Close! (within 2)"
+      }
+    },
+    {
+      "id": "chal-guess-wrong",
+      "type": "action",
+      "position": { "x": 1600, "y": 350 },
+      "data": {
+        "label": "Wrong",
+        "actionType": "system_message",
+        "message": "✅ NUMBER GUESS: Wrong! Out of attempts."
+      }
+    },
+    {
+      "id": "chal-btn-slots",
+      "type": "button_press",
+      "position": { "x": 100, "y": 500 },
+      "data": {
+        "label": "Test Slots",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-slots"
+      }
+    },
+    {
+      "id": "chal-slots",
+      "type": "slot_machine",
+      "position": { "x": 100, "y": 600 },
+      "data": {
+        "label": "Slot Machine Test",
+        "symbols": ["🍒", "🍋", "🔔", "⭐", "7️⃣"],
+        "matches": [
+          { "id": "jackpot", "pattern": "three-of-a-kind", "label": "Jackpot" },
+          { "id": "small-win", "pattern": "two-of-a-kind", "label": "Small Win" }
+        ]
+      }
+    },
+    {
+      "id": "chal-slots-jackpot",
+      "type": "action",
+      "position": { "x": 0, "y": 800 },
+      "data": {
+        "label": "Jackpot",
+        "actionType": "system_message",
+        "message": "✅ SLOTS: Jackpot! [Slots]"
+      }
+    },
+    {
+      "id": "chal-slots-small",
+      "type": "action",
+      "position": { "x": 100, "y": 800 },
+      "data": {
+        "label": "Small Win",
+        "actionType": "system_message",
+        "message": "✅ SLOTS: Small win! [Slots]"
+      }
+    },
+    {
+      "id": "chal-slots-other",
+      "type": "action",
+      "position": { "x": 200, "y": 800 },
+      "data": {
+        "label": "No Match",
+        "actionType": "system_message",
+        "message": "✅ SLOTS: No match. [Slots]"
+      }
+    },
+    {
+      "id": "chal-btn-cards",
+      "type": "button_press",
+      "position": { "x": 400, "y": 500 },
+      "data": {
+        "label": "Test Card Draw",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-cards"
+      }
+    },
+    {
+      "id": "chal-cards",
+      "type": "card_draw",
+      "position": { "x": 400, "y": 600 },
+      "data": {
+        "label": "Card Draw Test",
+        "deckType": "standard",
+        "outputMode": "suit"
+      }
+    },
+    {
+      "id": "chal-cards-hearts",
+      "type": "action",
+      "position": { "x": 300, "y": 800 },
+      "data": {
+        "label": "Hearts",
+        "actionType": "system_message",
+        "message": "✅ CARDS: Drew Hearts!"
+      }
+    },
+    {
+      "id": "chal-cards-diamonds",
+      "type": "action",
+      "position": { "x": 375, "y": 800 },
+      "data": {
+        "label": "Diamonds",
+        "actionType": "system_message",
+        "message": "✅ CARDS: Drew Diamonds!"
+      }
+    },
+    {
+      "id": "chal-cards-clubs",
+      "type": "action",
+      "position": { "x": 450, "y": 800 },
+      "data": {
+        "label": "Clubs",
+        "actionType": "system_message",
+        "message": "✅ CARDS: Drew Clubs!"
+      }
+    },
+    {
+      "id": "chal-cards-spades",
+      "type": "action",
+      "position": { "x": 525, "y": 800 },
+      "data": {
+        "label": "Spades",
+        "actionType": "system_message",
+        "message": "✅ CARDS: Drew Spades!"
+      }
+    },
+    {
+      "id": "chal-btn-simon",
+      "type": "button_press",
+      "position": { "x": 700, "y": 500 },
+      "data": {
+        "label": "Test Simon",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-simon"
+      }
+    },
+    {
+      "id": "chal-simon",
+      "type": "simon_challenge",
+      "position": { "x": 700, "y": 600 },
+      "data": {
+        "label": "Simon Test",
+        "startingLength": 3,
+        "maxLength": 5,
+        "maxMisses": 2,
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "Excellent memory!",
+        "aiMessageWinSuppressLlm": true,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "Better luck next time!",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "chal-simon-win",
+      "type": "action",
+      "position": { "x": 650, "y": 800 },
+      "data": {
+        "label": "Win",
+        "actionType": "system_message",
+        "message": "✅ SIMON: Victory! Memory game completed."
+      }
+    },
+    {
+      "id": "chal-simon-lose",
+      "type": "action",
+      "position": { "x": 750, "y": 800 },
+      "data": {
+        "label": "Lose",
+        "actionType": "system_message",
+        "message": "✅ SIMON: Game over. Too many misses."
+      }
+    },
+    {
+      "id": "chal-btn-reflex",
+      "type": "button_press",
+      "position": { "x": 950, "y": 500 },
+      "data": {
+        "label": "Test Reflex",
+        "buttonTarget": "character",
+        "buttonId": "audit-chal-reflex"
+      }
+    },
+    {
+      "id": "chal-reflex",
+      "type": "reflex_challenge",
+      "position": { "x": 950, "y": 600 },
+      "data": {
+        "label": "Reflex Test",
+        "timePerTarget": 3,
+        "rounds": 3,
+        "targetSize": "medium",
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "Quick reflexes!",
+        "aiMessageWinSuppressLlm": true,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "Too slow!",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "chal-reflex-win",
+      "type": "action",
+      "position": { "x": 900, "y": 800 },
+      "data": {
+        "label": "Win",
+        "actionType": "system_message",
+        "message": "✅ REFLEX: Victory! All targets hit."
+      }
+    },
+    {
+      "id": "chal-reflex-lose",
+      "type": "action",
+      "position": { "x": 1000, "y": 800 },
+      "data": {
+        "label": "Lose",
+        "actionType": "system_message",
+        "message": "✅ REFLEX: Game over. Missed too many targets."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-chal-1",
+      "source": "chal-btn-wheel",
+      "target": "chal-wheel"
+    },
+    {
+      "id": "e-chal-2",
+      "source": "chal-wheel",
+      "sourceHandle": "seg-a",
+      "target": "chal-wheel-result"
+    },
+    {
+      "id": "e-chal-3",
+      "source": "chal-wheel",
+      "sourceHandle": "seg-b",
+      "target": "chal-wheel-result"
+    },
+    {
+      "id": "e-chal-4",
+      "source": "chal-wheel",
+      "sourceHandle": "seg-c",
+      "target": "chal-wheel-result"
+    },
+    {
+      "id": "e-chal-5",
+      "source": "chal-wheel",
+      "sourceHandle": "seg-d",
+      "target": "chal-wheel-result"
+    },
+    {
+      "id": "e-chal-6",
+      "source": "chal-btn-dice",
+      "target": "chal-dice"
+    },
+    {
+      "id": "e-chal-7",
+      "source": "chal-dice",
+      "sourceHandle": "low",
+      "target": "chal-dice-low"
+    },
+    {
+      "id": "e-chal-8",
+      "source": "chal-dice",
+      "sourceHandle": "mid",
+      "target": "chal-dice-mid"
+    },
+    {
+      "id": "e-chal-9",
+      "source": "chal-dice",
+      "sourceHandle": "high",
+      "target": "chal-dice-high"
+    },
+    {
+      "id": "e-chal-10",
+      "source": "chal-dice",
+      "sourceHandle": "other",
+      "target": "chal-dice-other"
+    },
+    {
+      "id": "e-chal-11",
+      "source": "chal-btn-coin",
+      "target": "chal-coin"
+    },
+    {
+      "id": "e-chal-12",
+      "source": "chal-coin",
+      "sourceHandle": "heads",
+      "target": "chal-coin-heads"
+    },
+    {
+      "id": "e-chal-13",
+      "source": "chal-coin",
+      "sourceHandle": "tails",
+      "target": "chal-coin-tails"
+    },
+    {
+      "id": "e-chal-14",
+      "source": "chal-btn-rps",
+      "target": "chal-rps"
+    },
+    {
+      "id": "e-chal-15",
+      "source": "chal-rps",
+      "sourceHandle": "player-wins",
+      "target": "chal-rps-win"
+    },
+    {
+      "id": "e-chal-16",
+      "source": "chal-rps",
+      "sourceHandle": "tie",
+      "target": "chal-rps-tie"
+    },
+    {
+      "id": "e-chal-17",
+      "source": "chal-rps",
+      "sourceHandle": "character-wins",
+      "target": "chal-rps-lose"
+    },
+    {
+      "id": "e-chal-18",
+      "source": "chal-btn-timer",
+      "target": "chal-timer"
+    },
+    {
+      "id": "e-chal-19",
+      "source": "chal-timer",
+      "sourceHandle": "success",
+      "target": "chal-timer-success"
+    },
+    {
+      "id": "e-chal-20",
+      "source": "chal-timer",
+      "sourceHandle": "timeout",
+      "target": "chal-timer-timeout"
+    },
+    {
+      "id": "e-chal-21",
+      "source": "chal-btn-guess",
+      "target": "chal-guess"
+    },
+    {
+      "id": "e-chal-22",
+      "source": "chal-guess",
+      "sourceHandle": "correct",
+      "target": "chal-guess-correct"
+    },
+    {
+      "id": "e-chal-23",
+      "source": "chal-guess",
+      "sourceHandle": "close",
+      "target": "chal-guess-close"
+    },
+    {
+      "id": "e-chal-24",
+      "source": "chal-guess",
+      "sourceHandle": "wrong",
+      "target": "chal-guess-wrong"
+    },
+    {
+      "id": "e-chal-25",
+      "source": "chal-btn-slots",
+      "target": "chal-slots"
+    },
+    {
+      "id": "e-chal-26",
+      "source": "chal-slots",
+      "sourceHandle": "jackpot",
+      "target": "chal-slots-jackpot"
+    },
+    {
+      "id": "e-chal-27",
+      "source": "chal-slots",
+      "sourceHandle": "small-win",
+      "target": "chal-slots-small"
+    },
+    {
+      "id": "e-chal-28",
+      "source": "chal-slots",
+      "sourceHandle": "other",
+      "target": "chal-slots-other"
+    },
+    {
+      "id": "e-chal-29",
+      "source": "chal-btn-cards",
+      "target": "chal-cards"
+    },
+    {
+      "id": "e-chal-30",
+      "source": "chal-cards",
+      "sourceHandle": "hearts",
+      "target": "chal-cards-hearts"
+    },
+    {
+      "id": "e-chal-31",
+      "source": "chal-cards",
+      "sourceHandle": "diamonds",
+      "target": "chal-cards-diamonds"
+    },
+    {
+      "id": "e-chal-32",
+      "source": "chal-cards",
+      "sourceHandle": "clubs",
+      "target": "chal-cards-clubs"
+    },
+    {
+      "id": "e-chal-33",
+      "source": "chal-cards",
+      "sourceHandle": "spades",
+      "target": "chal-cards-spades"
+    },
+    {
+      "id": "e-chal-34",
+      "source": "chal-btn-simon",
+      "target": "chal-simon"
+    },
+    {
+      "id": "e-chal-35",
+      "source": "chal-simon",
+      "sourceHandle": "win",
+      "target": "chal-simon-win"
+    },
+    {
+      "id": "e-chal-36",
+      "source": "chal-simon",
+      "sourceHandle": "lose",
+      "target": "chal-simon-lose"
+    },
+    {
+      "id": "e-chal-37",
+      "source": "chal-btn-reflex",
+      "target": "chal-reflex"
+    },
+    {
+      "id": "e-chal-38",
+      "source": "chal-reflex",
+      "sourceHandle": "win",
+      "target": "chal-reflex-win"
+    },
+    {
+      "id": "e-chal-39",
+      "source": "chal-reflex",
+      "sourceHandle": "lose",
+      "target": "chal-reflex-lose"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}

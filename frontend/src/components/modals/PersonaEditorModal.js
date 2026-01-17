@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
@@ -6,6 +6,13 @@ import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const { flows, devices } = useApp();
+
+  // Helper to filter out flow IDs that no longer exist
+  const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
+  const filterValidFlows = useCallback((flowIds) => {
+    if (!flowIds || !Array.isArray(flowIds)) return [];
+    return flowIds.filter(id => validFlowIds.has(id));
+  }, [validFlowIds]);
 
   // Calculate initial data from persona prop
   const initialData = useMemo(() => {
@@ -19,7 +26,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         avatar: persona.avatar || '',
         stagedPortraits: persona.stagedPortraits || {},
         // New fields for buttons and flows
-        assignedFlows: persona.assignedFlows || [],
+        assignedFlows: filterValidFlows(persona.assignedFlows),
         buttons: persona.buttons || [],
         assignedButtons: persona.assignedButtons || []
       };
@@ -37,7 +44,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       buttons: [],
       assignedButtons: []
     };
-  }, [persona]);
+  }, [persona, filterValidFlows]);
 
   // Use draft persistence - survives accidental modal dismissal
   const draftKey = getDraftKey('persona', persona?.id);

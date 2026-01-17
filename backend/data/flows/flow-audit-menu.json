@@ -1,0 +1,40 @@
+{
+  "id": "flow-audit-menu",
+  "name": "🧪 Node Audit Suite - Menu",
+  "category": "global",
+  "description": "Master menu for comprehensive node testing suite",
+  "nodes": [
+    {
+      "id": "audit-btn-menu",
+      "type": "button_press",
+      "position": { "x": 250, "y": 50 },
+      "data": {
+        "label": "Audit Menu",
+        "buttonTarget": "character",
+        "buttonId": "audit-menu",
+        "unblockable": true,
+        "notify": true
+      }
+    },
+    {
+      "id": "audit-menu-intro",
+      "type": "action",
+      "position": { "x": 250, "y": 150 },
+      "data": {
+        "label": "Menu Intro",
+        "actionType": "system_message",
+        "message": "🧪 NODE AUDIT SUITE\n\nThis suite tests all 21 node types. Use the category buttons to run specific tests:\n\n• 🔘 Triggers (9 types)\n• ⚡ Actions (12 types)\n• 🔀 Logic (6 types)\n• 📊 Capacity (2 types)\n• 🎮 Challenges (10 types)\n• 🔤 Variables & Wrappers"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-menu-1",
+      "source": "audit-btn-menu",
+      "target": "audit-menu-intro"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}

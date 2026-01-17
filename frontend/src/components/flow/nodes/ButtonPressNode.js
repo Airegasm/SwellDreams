@@ -3,7 +3,10 @@ import { Handle, Position } from '@xyflow/react';
 import './Nodes.css';
 
 function ButtonPressNode({ data, selected }) {
-  const availableButtons = data.characterButtons || [];
+  const buttonTarget = data.buttonTarget || 'character';
+  const availableButtons = buttonTarget === 'persona'
+    ? (data.personaButtons || [])
+    : (data.characterButtons || []);
 
   // Common trigger options (Priority, Unblockable, Notify)
   const renderTriggerOptions = () => (
@@ -64,6 +67,18 @@ function ButtonPressNode({ data, selected }) {
       </div>
       <div className="node-body">
         <div className="node-config">
+          {/* Button Target Selector */}
+          <select
+            value={buttonTarget}
+            onChange={(e) => {
+              data.onChange?.('buttonTarget', e.target.value);
+              data.onChange?.('buttonId', ''); // Reset selection when target changes
+            }}
+            className="node-select"
+          >
+            <option value="character">Character Button</option>
+            <option value="persona">Persona Button</option>
+          </select>
           {/* Button Selection Dropdown */}
           {availableButtons.length > 0 && (
             <select
@@ -92,8 +107,8 @@ function ButtonPressNode({ data, selected }) {
           />
           <p className="node-hint" style={{fontSize: '0.75rem', color: '#888', margin: '0.25rem 0 0 0'}}>
             {availableButtons.length > 0
-              ? 'Select a button or type a custom label'
-              : 'Add buttons in Character Editor first, or type a custom label'}
+              ? `Select a ${buttonTarget} button or type a custom label`
+              : `Add buttons in ${buttonTarget === 'persona' ? 'Persona' : 'Character'} Editor first, or type a custom label`}
           </p>
           {renderTriggerOptions()}
         </div>

@@ -28,7 +28,6 @@ export const CONFIG = {
 
 // Event Types (used in flow triggers and WebSocket messages)
 export const EVENT_TYPES = {
-  FIRST_MESSAGE: 'first_message',
   DEVICE_ON: 'device_on',
   DEVICE_OFF: 'device_off',
   DEVICE_CYCLE_START: 'device_cycle_start',

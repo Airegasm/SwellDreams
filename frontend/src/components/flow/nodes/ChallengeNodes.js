@@ -1,8 +1,74 @@
 import React, { memo, useState, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import AIMessageFields from './AIMessageFields';
+import ActionWrapper from './ActionWrapper';
 import './Nodes.css';
 import './ChallengeNodes.css';
+
+// Outcome Messages component for win/lose with suppress LLM option
+function OutcomeMessages({ data }) {
+  return (
+    <div className="outcome-messages">
+      <div className="ai-message-section">
+        <label className="node-checkbox">
+          <input
+            type="checkbox"
+            checked={data.aiMessageWinEnabled || false}
+            onChange={(e) => data.onChange?.('aiMessageWinEnabled', e.target.checked)}
+          />
+          AI Message (Char Wins)
+        </label>
+        {data.aiMessageWinEnabled && (
+          <>
+            <textarea
+              value={data.aiMessageWin || ''}
+              onChange={(e) => data.onChange?.('aiMessageWin', e.target.value)}
+              placeholder="Prompt for AI when character wins..."
+              className="node-textarea"
+              rows={2}
+            />
+            <label className="node-checkbox suppress-llm">
+              <input
+                type="checkbox"
+                checked={data.aiMessageWinSuppressLlm || false}
+                onChange={(e) => data.onChange?.('aiMessageWinSuppressLlm', e.target.checked)}
+              />
+              Suppress LLM Enhancement
+            </label>
+          </>
+        )}
+      </div>
+      <div className="ai-message-section">
+        <label className="node-checkbox">
+          <input
+            type="checkbox"
+            checked={data.aiMessageLoseEnabled || false}
+            onChange={(e) => data.onChange?.('aiMessageLoseEnabled', e.target.checked)}
+          />
+          AI Message (Char Loses)
+        </label>
+        {data.aiMessageLoseEnabled && (
+          <>
+            <textarea
+              value={data.aiMessageLose || ''}
+              onChange={(e) => data.onChange?.('aiMessageLose', e.target.value)}
+              placeholder="Prompt for AI when character loses..."
+              className="node-textarea"
+              rows={2}
+            />
+            <label className="node-checkbox suppress-llm">
+              <input
+                type="checkbox"
+                checked={data.aiMessageLoseSuppressLlm || false}
+                onChange={(e) => data.onChange?.('aiMessageLoseSuppressLlm', e.target.checked)}
+              />
+              Suppress LLM Enhancement
+            </label>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // Default colors for wheel segments
 const SEGMENT_COLORS = [
@@ -66,54 +132,56 @@ function PrizeWheelNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="form-group">
-            <label>Segments ({segments.length}/12):</label>
-            <div className="segments-list">
-              {segments.map((segment, index) => (
-                <div key={segment.id} className="segment-item">
-                  <input
-                    type="color"
-                    value={segment.color}
-                    onChange={(e) => updateSegment(index, 'color', e.target.value)}
-                    className="segment-color"
-                  />
-                  <input
-                    type="text"
-                    value={segment.label}
-                    onChange={(e) => updateSegment(index, 'label', e.target.value)}
-                    placeholder={`Segment ${index + 1}`}
-                    className="node-input"
-                    style={{ flex: 1 }}
-                  />
-                  <input
-                    type="number"
-                    value={segment.weight}
-                    onChange={(e) => updateSegment(index, 'weight', Math.max(1, parseInt(e.target.value) || 1))}
-                    className="node-input tiny"
-                    min="1"
-                    max="10"
-                    title="Weight (probability)"
-                  />
-                  {segments.length > 2 && (
-                    <button
-                      className="segment-remove"
-                      onClick={() => removeSegment(index)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="form-group">
+              <label>Segments ({segments.length}/12):</label>
+              <div className="segments-list">
+                {segments.map((segment, index) => (
+                  <div key={segment.id} className="segment-item">
+                    <input
+                      type="color"
+                      value={segment.color}
+                      onChange={(e) => updateSegment(index, 'color', e.target.value)}
+                      className="segment-color"
+                    />
+                    <input
+                      type="text"
+                      value={segment.label}
+                      onChange={(e) => updateSegment(index, 'label', e.target.value)}
+                      placeholder={`Segment ${index + 1}`}
+                      className="node-input"
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      type="number"
+                      value={segment.weight}
+                      onChange={(e) => updateSegment(index, 'weight', Math.max(1, parseInt(e.target.value) || 1))}
+                      className="node-input tiny"
+                      min="1"
+                      max="10"
+                      title="Weight (probability)"
+                    />
+                    {segments.length > 2 && (
+                      <button
+                        className="segment-remove"
+                        onClick={() => removeSegment(index)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {segments.length < 12 && (
+                <button className="segment-add" onClick={addSegment}>
+                  + Add Segment
+                </button>
+              )}
             </div>
-            {segments.length < 12 && (
-              <button className="segment-add" onClick={addSegment}>
-                + Add Segment
-              </button>
-            )}
           </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       {segments.map((segment, index) => (
         <Handle
@@ -160,22 +228,29 @@ function DiceRollNode({ data, selected }) {
   const minTotal = diceCount;
   const maxTotal = diceCount * 6;
 
-  // Generate outputs based on mode
+  // Generate outputs based on mode - all modes include "Other" safety fallback
   const outputs = useMemo(() => {
     if (mode === 'direct') {
-      // Each possible total gets its own output
+      // Each possible total gets its own output + Other fallback
       const results = [];
       for (let i = minTotal; i <= maxTotal; i++) {
         results.push({ id: `result-${i}`, label: `${i}` });
       }
+      results.push({ id: 'other', label: 'Other' });
       return results;
     } else if (mode === 'ranges') {
-      return ranges.map(r => ({ id: r.id, label: r.label }));
+      // Custom ranges + Other for unmatched totals
+      return [
+        ...ranges.map(r => ({ id: r.id, label: r.label })),
+        { id: 'other', label: 'Other' }
+      ];
     } else if (mode === 'against') {
+      // Versus mode + Other safety fallback
       return [
         { id: 'player-wins', label: 'Player Wins' },
         { id: 'character-wins', label: 'Char Wins' },
-        { id: 'tie', label: 'Tie' }
+        { id: 'tie', label: 'Tie' },
+        { id: 'other', label: 'Other' }
       ];
     }
     return [];
@@ -246,104 +321,106 @@ function DiceRollNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-row">
-            <label>Dice:</label>
-            <input
-              type="number"
-              value={diceCount}
-              onChange={(e) => handleDiceCountChange(e.target.value)}
-              className="node-input tiny"
-              min="1"
-              max="10"
-            />
-            <span className="dice-range">({minTotal}-{maxTotal})</span>
-          </div>
-          <div className="config-row">
-            <label>Mode:</label>
-            <select
-              value={mode}
-              onChange={(e) => handleModeChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="direct">Direct Result</option>
-              <option value="ranges">Range Buckets</option>
-              <option value="against">Roll Against</option>
-            </select>
-          </div>
-
-          {mode === 'ranges' && (
-            <div className="form-group">
-              <label>Ranges:</label>
-              <div className="ranges-list">
-                {ranges.map((range, index) => (
-                  <div key={range.id} className="range-item">
-                    <input
-                      type="text"
-                      value={range.label}
-                      onChange={(e) => updateRange(index, 'label', e.target.value)}
-                      placeholder="Label"
-                      className="node-input"
-                      style={{ width: '60px' }}
-                    />
-                    <input
-                      type="number"
-                      value={range.min}
-                      onChange={(e) => updateRange(index, 'min', parseInt(e.target.value) || minTotal)}
-                      className="node-input tiny"
-                      min={minTotal}
-                      max={maxTotal}
-                    />
-                    <span className="range-separator">-</span>
-                    <input
-                      type="number"
-                      value={range.max}
-                      onChange={(e) => updateRange(index, 'max', parseInt(e.target.value) || maxTotal)}
-                      className="node-input tiny"
-                      min={minTotal}
-                      max={maxTotal}
-                    />
-                    {ranges.length > 2 && (
-                      <button
-                        className="range-remove"
-                        onClick={() => removeRange(index)}
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {ranges.length < 6 && (
-                <button className="range-add" onClick={addRange}>
-                  + Add Range
-                </button>
-              )}
-            </div>
-          )}
-
-          {mode === 'against' && (
+        <ActionWrapper data={data}>
+          <div className="node-config">
             <div className="config-row">
-              <label>Char +/-:</label>
+              <label>Dice:</label>
               <input
                 type="number"
-                value={characterAdvantage}
-                onChange={(e) => handleAdvantageChange(e.target.value)}
+                value={diceCount}
+                onChange={(e) => handleDiceCountChange(e.target.value)}
                 className="node-input tiny"
-                min="-2"
-                max="2"
-                title="Character advantage (-2 to +2)"
+                min="1"
+                max="10"
               />
+              <span className="dice-range">({minTotal}-{maxTotal})</span>
             </div>
-          )}
+            <div className="config-row">
+              <label>Mode:</label>
+              <select
+                value={mode}
+                onChange={(e) => handleModeChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="direct">Direct Result</option>
+                <option value="ranges">Range Buckets</option>
+                <option value="against">Roll Against</option>
+              </select>
+            </div>
 
-          {mode === 'direct' && (
-            <div className="config-hint">
-              Outputs: {minTotal} to {maxTotal} ({maxTotal - minTotal + 1} results)
-            </div>
-          )}
-        </div>
-        <AIMessageFields data={data} />
+            {mode === 'ranges' && (
+              <div className="form-group">
+                <label>Ranges:</label>
+                <div className="ranges-list">
+                  {ranges.map((range, index) => (
+                    <div key={range.id} className="range-item">
+                      <input
+                        type="text"
+                        value={range.label}
+                        onChange={(e) => updateRange(index, 'label', e.target.value)}
+                        placeholder="Label"
+                        className="node-input"
+                        style={{ width: '60px' }}
+                      />
+                      <input
+                        type="number"
+                        value={range.min}
+                        onChange={(e) => updateRange(index, 'min', parseInt(e.target.value) || minTotal)}
+                        className="node-input tiny"
+                        min={minTotal}
+                        max={maxTotal}
+                      />
+                      <span className="range-separator">-</span>
+                      <input
+                        type="number"
+                        value={range.max}
+                        onChange={(e) => updateRange(index, 'max', parseInt(e.target.value) || maxTotal)}
+                        className="node-input tiny"
+                        min={minTotal}
+                        max={maxTotal}
+                      />
+                      {ranges.length > 2 && (
+                        <button
+                          className="range-remove"
+                          onClick={() => removeRange(index)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {ranges.length < 6 && (
+                  <button className="range-add" onClick={addRange}>
+                    + Add Range
+                  </button>
+                )}
+              </div>
+            )}
+
+            {mode === 'against' && (
+              <div className="config-row">
+                <label>Char +/-:</label>
+                <input
+                  type="number"
+                  value={characterAdvantage}
+                  onChange={(e) => handleAdvantageChange(e.target.value)}
+                  className="node-input tiny"
+                  min="-2"
+                  max="2"
+                  title="Character advantage (-2 to +2)"
+                />
+              </div>
+            )}
+
+            {mode === 'direct' && (
+              <div className="config-hint">
+                Outputs: {minTotal} to {maxTotal} ({maxTotal - minTotal + 1} results)
+              </div>
+            )}
+          </div>
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       {outputs.map((output, index) => (
         <Handle
@@ -423,56 +500,58 @@ function CoinFlipNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="coin-options">
-            <div className="coin-option">
-              <label>Heads:</label>
-              <input
-                type="text"
-                value={headsLabel}
-                onChange={(e) => handleHeadsLabelChange(e.target.value)}
-                placeholder="Heads"
-                className="node-input"
-              />
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="coin-options">
+              <div className="coin-option">
+                <label>Heads:</label>
+                <input
+                  type="text"
+                  value={headsLabel}
+                  onChange={(e) => handleHeadsLabelChange(e.target.value)}
+                  placeholder="Heads"
+                  className="node-input"
+                />
+              </div>
+              <div className="coin-option">
+                <label>Tails:</label>
+                <input
+                  type="text"
+                  value={tailsLabel}
+                  onChange={(e) => handleTailsLabelChange(e.target.value)}
+                  placeholder="Tails"
+                  className="node-input"
+                />
+              </div>
             </div>
-            <div className="coin-option">
-              <label>Tails:</label>
+            <div className="config-row">
+              <label>Weight:</label>
               <input
-                type="text"
-                value={tailsLabel}
-                onChange={(e) => handleTailsLabelChange(e.target.value)}
-                placeholder="Tails"
-                className="node-input"
+                type="number"
+                value={headsWeight}
+                onChange={(e) => handleWeightChange(e.target.value)}
+                className="node-input tiny"
+                min="0"
+                max="100"
               />
+              <span className="weight-display">% heads</span>
+            </div>
+            <div className="config-row">
+              <label>Best of:</label>
+              <select
+                value={bestOf}
+                onChange={(e) => handleBestOfChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="1">Single flip</option>
+                <option value="3">Best of 3</option>
+                <option value="5">Best of 5</option>
+                <option value="7">Best of 7</option>
+              </select>
             </div>
           </div>
-          <div className="config-row">
-            <label>Weight:</label>
-            <input
-              type="number"
-              value={headsWeight}
-              onChange={(e) => handleWeightChange(e.target.value)}
-              className="node-input tiny"
-              min="0"
-              max="100"
-            />
-            <span className="weight-display">% heads</span>
-          </div>
-          <div className="config-row">
-            <label>Best of:</label>
-            <select
-              value={bestOf}
-              onChange={(e) => handleBestOfChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="1">Single flip</option>
-              <option value="3">Best of 3</option>
-              <option value="5">Best of 5</option>
-              <option value="7">Best of 7</option>
-            </select>
-          </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       <Handle
         type="source"
@@ -535,34 +614,36 @@ function RPSNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-row">
-            <label>Best of:</label>
-            <select
-              value={bestOf}
-              onChange={(e) => handleBestOfChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="1">Single round</option>
-              <option value="3">Best of 3</option>
-              <option value="5">Best of 5</option>
-            </select>
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="config-row">
+              <label>Best of:</label>
+              <select
+                value={bestOf}
+                onChange={(e) => handleBestOfChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="1">Single round</option>
+                <option value="3">Best of 3</option>
+                <option value="5">Best of 5</option>
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Char bias:</label>
+              <select
+                value={characterBias || 'random'}
+                onChange={(e) => handleBiasChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="random">Random</option>
+                <option value="rock">Prefers Rock</option>
+                <option value="paper">Prefers Paper</option>
+                <option value="scissors">Prefers Scissors</option>
+              </select>
+            </div>
           </div>
-          <div className="config-row">
-            <label>Char bias:</label>
-            <select
-              value={characterBias || 'random'}
-              onChange={(e) => handleBiasChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="random">Random</option>
-              <option value="rock">Prefers Rock</option>
-              <option value="paper">Prefers Paper</option>
-              <option value="scissors">Prefers Scissors</option>
-            </select>
-          </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       <Handle
         type="source"
@@ -641,44 +722,46 @@ function TimerChallengeNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-row">
-            <label>Duration:</label>
-            <input
-              type="number"
-              value={duration}
-              onChange={(e) => handleDurationChange(e.target.value)}
-              className="node-input small"
-              min="3"
-              max="120"
-            />
-            <span>sec</span>
-          </div>
-          <label className="node-checkbox">
-            <input
-              type="checkbox"
-              checked={precisionMode}
-              onChange={(e) => handlePrecisionModeChange(e.target.checked)}
-            />
-            Precision Mode
-          </label>
-          {precisionMode && (
+        <ActionWrapper data={data}>
+          <div className="node-config">
             <div className="config-row">
-              <label>Window:</label>
+              <label>Duration:</label>
               <input
                 type="number"
-                value={precisionWindow}
-                onChange={(e) => handlePrecisionWindowChange(e.target.value)}
+                value={duration}
+                onChange={(e) => handleDurationChange(e.target.value)}
                 className="node-input small"
-                min="0.5"
-                max="5"
-                step="0.5"
+                min="3"
+                max="120"
               />
               <span>sec</span>
             </div>
-          )}
-        </div>
-        <AIMessageFields data={data} />
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={precisionMode}
+                onChange={(e) => handlePrecisionModeChange(e.target.checked)}
+              />
+              Precision Mode
+            </label>
+            {precisionMode && (
+              <div className="config-row">
+                <label>Window:</label>
+                <input
+                  type="number"
+                  value={precisionWindow}
+                  onChange={(e) => handlePrecisionWindowChange(e.target.value)}
+                  className="node-input small"
+                  min="0.5"
+                  max="5"
+                  step="0.5"
+                />
+                <span>sec</span>
+              </div>
+            )}
+          </div>
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       <Handle
         type="source"
@@ -759,48 +842,50 @@ function NumberGuessNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-row">
-            <label>Range:</label>
-            <input
-              type="number"
-              value={min}
-              onChange={(e) => handleMinChange(e.target.value)}
-              className="node-input tiny"
-            />
-            <span className="range-separator">to</span>
-            <input
-              type="number"
-              value={max}
-              onChange={(e) => handleMaxChange(e.target.value)}
-              className="node-input tiny"
-            />
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="config-row">
+              <label>Range:</label>
+              <input
+                type="number"
+                value={min}
+                onChange={(e) => handleMinChange(e.target.value)}
+                className="node-input tiny"
+              />
+              <span className="range-separator">to</span>
+              <input
+                type="number"
+                value={max}
+                onChange={(e) => handleMaxChange(e.target.value)}
+                className="node-input tiny"
+              />
+            </div>
+            <div className="config-row">
+              <label>Attempts:</label>
+              <input
+                type="number"
+                value={maxAttempts}
+                onChange={(e) => handleMaxAttemptsChange(e.target.value)}
+                className="node-input tiny"
+                min="0"
+                title="0 = unlimited"
+              />
+              <span className="config-hint">(0=∞)</span>
+            </div>
+            <div className="config-row">
+              <label>Close if ±:</label>
+              <input
+                type="number"
+                value={closeThreshold}
+                onChange={(e) => handleCloseThresholdChange(e.target.value)}
+                className="node-input tiny"
+                min="0"
+                title="0 = exact only"
+              />
+            </div>
           </div>
-          <div className="config-row">
-            <label>Attempts:</label>
-            <input
-              type="number"
-              value={maxAttempts}
-              onChange={(e) => handleMaxAttemptsChange(e.target.value)}
-              className="node-input tiny"
-              min="0"
-              title="0 = unlimited"
-            />
-            <span className="config-hint">(0=∞)</span>
-          </div>
-          <div className="config-row">
-            <label>Close if ±:</label>
-            <input
-              type="number"
-              value={closeThreshold}
-              onChange={(e) => handleCloseThresholdChange(e.target.value)}
-              className="node-input tiny"
-              min="0"
-              title="0 = exact only"
-            />
-          </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       <Handle
         type="source"
@@ -880,10 +965,10 @@ function SlotMachineNode({ data, selected }) {
     data.onChange?.('symbols', syms.length > 0 ? syms : defaultSymbols);
   };
 
-  // Outputs: each match pattern + "no match"
+  // Outputs: each match pattern + "Other" fallback for unmatched
   const outputs = [
     ...matches.map(m => ({ id: m.id, label: m.label })),
-    { id: 'no-match', label: 'No Match' }
+    { id: 'other', label: 'Other' }
   ];
 
   return (
@@ -907,58 +992,60 @@ function SlotMachineNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="form-group">
-            <label>Symbols (comma-separated):</label>
-            <input
-              type="text"
-              value={symbols.join(', ')}
-              onChange={(e) => handleSymbolsChange(e.target.value)}
-              className="node-input"
-              placeholder="🍒, 🍋, 🔔, ⭐, 7️⃣"
-            />
-          </div>
-          <div className="form-group">
-            <label>Match Patterns:</label>
-            <div className="matches-list">
-              {matches.map((match, index) => (
-                <div key={match.id} className="match-item">
-                  <select
-                    value={match.pattern}
-                    onChange={(e) => updateMatch(index, 'pattern', e.target.value)}
-                    className="node-select"
-                  >
-                    <option value="three-of-a-kind">3 of a Kind</option>
-                    <option value="two-of-a-kind">2 of a Kind</option>
-                    <option value="any-7">Any 7️⃣</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={match.label}
-                    onChange={(e) => updateMatch(index, 'label', e.target.value)}
-                    className="node-input"
-                    placeholder="Label"
-                    style={{ width: '70px' }}
-                  />
-                  {matches.length > 1 && (
-                    <button
-                      className="match-remove"
-                      onClick={() => removeMatch(index)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="form-group">
+              <label>Symbols (comma-separated):</label>
+              <input
+                type="text"
+                value={symbols.join(', ')}
+                onChange={(e) => handleSymbolsChange(e.target.value)}
+                className="node-input"
+                placeholder="🍒, 🍋, 🔔, ⭐, 7️⃣"
+              />
             </div>
-            {matches.length < 5 && (
-              <button className="match-add" onClick={addMatch}>
-                + Add Match
-              </button>
-            )}
+            <div className="form-group">
+              <label>Match Patterns:</label>
+              <div className="matches-list">
+                {matches.map((match, index) => (
+                  <div key={match.id} className="match-item">
+                    <select
+                      value={match.pattern}
+                      onChange={(e) => updateMatch(index, 'pattern', e.target.value)}
+                      className="node-select"
+                    >
+                      <option value="three-of-a-kind">3 of a Kind</option>
+                      <option value="two-of-a-kind">2 of a Kind</option>
+                      <option value="any-7">Any 7️⃣</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={match.label}
+                      onChange={(e) => updateMatch(index, 'label', e.target.value)}
+                      className="node-input"
+                      placeholder="Label"
+                      style={{ width: '70px' }}
+                    />
+                    {matches.length > 1 && (
+                      <button
+                        className="match-remove"
+                        onClick={() => removeMatch(index)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {matches.length < 5 && (
+                <button className="match-add" onClick={addMatch}>
+                  + Add Match
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       {outputs.map((output, index) => (
         <Handle
@@ -976,7 +1063,7 @@ function SlotMachineNode({ data, selected }) {
             className="handle-label"
             style={{
               left: `${(index + 1) * (100 / (outputs.length + 1))}%`,
-              color: output.id === 'no-match' ? '#ef4444' : '#7c3aed'
+              color: output.id === 'other' ? '#ef4444' : '#7c3aed'
             }}
           >
             {output.label.substring(0, 8)}
@@ -1047,32 +1134,34 @@ function CardDrawNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-row">
-            <label>Deck:</label>
-            <select
-              value={deckType}
-              onChange={(e) => handleDeckTypeChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="standard">Standard 52</option>
-              <option value="tarot">Tarot Major</option>
-            </select>
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="config-row">
+              <label>Deck:</label>
+              <select
+                value={deckType}
+                onChange={(e) => handleDeckTypeChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="standard">Standard 52</option>
+                <option value="tarot">Tarot Major</option>
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Output:</label>
+              <select
+                value={outputMode}
+                onChange={(e) => handleOutputModeChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="suit">By Suit</option>
+                <option value="color">By Color</option>
+                <option value="range">By Range</option>
+              </select>
+            </div>
           </div>
-          <div className="config-row">
-            <label>Output:</label>
-            <select
-              value={outputMode}
-              onChange={(e) => handleOutputModeChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="suit">By Suit</option>
-              <option value="color">By Color</option>
-              <option value="range">By Range</option>
-            </select>
-          </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       {outputs.map((output, index) => (
         <Handle
@@ -1187,19 +1276,20 @@ function SimonChallengeNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-section-label">Sequence Settings</div>
-          <div className="config-row">
-            <label>Start Length:</label>
-            <input
-              type="number"
-              value={startingLength}
-              onChange={(e) => handleStartingLengthChange(e.target.value)}
-              className="node-input tiny"
-              min="2"
-              max="6"
-            />
-          </div>
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="config-section-label">Sequence Settings</div>
+            <div className="config-row">
+              <label>Start Length:</label>
+              <input
+                type="number"
+                value={startingLength}
+                onChange={(e) => handleStartingLengthChange(e.target.value)}
+                className="node-input tiny"
+                min="2"
+                max="6"
+              />
+            </div>
           <div className="config-row">
             <label>Max Length:</label>
             <input
@@ -1310,7 +1400,8 @@ function SimonChallengeNode({ data, selected }) {
             <span>sec</span>
           </div>
         </div>
-        <AIMessageFields data={data} />
+        <OutcomeMessages data={data} />
+      </ActionWrapper>
       </div>
       <Handle
         type="source"
@@ -1421,138 +1512,140 @@ function ReflexChallengeNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
-        <div className="node-config">
-          <div className="config-section-label">Game Settings</div>
-          <div className="config-row">
-            <label>Time/Target:</label>
-            <input
-              type="number"
-              value={timePerTarget}
-              onChange={(e) => handleTimePerTargetChange(e.target.value)}
-              className="node-input tiny"
-              min="1"
-              max="10"
-              step="0.5"
-            />
-            <span>sec</span>
-          </div>
-          <div className="config-row">
-            <label>Rounds:</label>
-            <select
-              value={rounds}
-              onChange={(e) => handleRoundsChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="3">3 rounds</option>
-              <option value="5">5 rounds</option>
-              <option value="7">7 rounds</option>
-              <option value="10">10 rounds</option>
-              <option value="15">15 rounds</option>
-            </select>
-          </div>
-          <div className="config-row">
-            <label>Target Size:</label>
-            <select
-              value={targetSize}
-              onChange={(e) => handleTargetSizeChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="large">Large (60px)</option>
-              <option value="medium">Medium (45px)</option>
-              <option value="small">Small (32px)</option>
-              <option value="tiny">Tiny (24px)</option>
-              <option value="minuscule">Minuscule (16px)</option>
-            </select>
-          </div>
+        <ActionWrapper data={data}>
+          <div className="node-config">
+            <div className="config-section-label">Game Settings</div>
+            <div className="config-row">
+              <label>Time/Target:</label>
+              <input
+                type="number"
+                value={timePerTarget}
+                onChange={(e) => handleTimePerTargetChange(e.target.value)}
+                className="node-input tiny"
+                min="1"
+                max="10"
+                step="0.5"
+              />
+              <span>sec</span>
+            </div>
+            <div className="config-row">
+              <label>Rounds:</label>
+              <select
+                value={rounds}
+                onChange={(e) => handleRoundsChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="3">3 rounds</option>
+                <option value="5">5 rounds</option>
+                <option value="7">7 rounds</option>
+                <option value="10">10 rounds</option>
+                <option value="15">15 rounds</option>
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Target Size:</label>
+              <select
+                value={targetSize}
+                onChange={(e) => handleTargetSizeChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="large">Large (60px)</option>
+                <option value="medium">Medium (45px)</option>
+                <option value="small">Small (32px)</option>
+                <option value="tiny">Tiny (24px)</option>
+                <option value="minuscule">Minuscule (16px)</option>
+              </select>
+            </div>
 
-          <div className="config-section-label">Per-Miss Penalty</div>
-          <div className="config-row">
-            <label>Device:</label>
-            <select
-              value={penaltyDevice}
-              onChange={(e) => handlePenaltyDeviceChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="">None</option>
-              {devices.map(d => (
-                <option key={d.alias || d.ip} value={d.alias || d.ip}>
-                  {d.name || d.alias || d.ip}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="config-row">
-            <label>Duration:</label>
-            <input
-              type="number"
-              value={penaltyDuration}
-              onChange={(e) => handlePenaltyDurationChange(e.target.value)}
-              className="node-input tiny"
-              min="1"
-              max="60"
-            />
-            <span>sec</span>
-          </div>
+            <div className="config-section-label">Per-Miss Penalty</div>
+            <div className="config-row">
+              <label>Device:</label>
+              <select
+                value={penaltyDevice}
+                onChange={(e) => handlePenaltyDeviceChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="">None</option>
+                {devices.map(d => (
+                  <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                    {d.name || d.alias || d.ip}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Duration:</label>
+              <input
+                type="number"
+                value={penaltyDuration}
+                onChange={(e) => handlePenaltyDurationChange(e.target.value)}
+                className="node-input tiny"
+                min="1"
+                max="60"
+              />
+              <span>sec</span>
+            </div>
 
-          <div className="config-section-label">Grand Penalty (Lose)</div>
-          <div className="config-row">
-            <label>Device:</label>
-            <select
-              value={grandPenaltyDevice}
-              onChange={(e) => handleGrandPenaltyDeviceChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="">None</option>
-              {devices.map(d => (
-                <option key={d.alias || d.ip} value={d.alias || d.ip}>
-                  {d.name || d.alias || d.ip}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="config-row">
-            <label>Duration:</label>
-            <input
-              type="number"
-              value={grandPenaltyDuration}
-              onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
-              className="node-input tiny"
-              min="1"
-              max="120"
-            />
-            <span>sec</span>
-          </div>
+            <div className="config-section-label">Grand Penalty (Lose)</div>
+            <div className="config-row">
+              <label>Device:</label>
+              <select
+                value={grandPenaltyDevice}
+                onChange={(e) => handleGrandPenaltyDeviceChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="">None</option>
+                {devices.map(d => (
+                  <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                    {d.name || d.alias || d.ip}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Duration:</label>
+              <input
+                type="number"
+                value={grandPenaltyDuration}
+                onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
+                className="node-input tiny"
+                min="1"
+                max="120"
+              />
+              <span>sec</span>
+            </div>
 
-          <div className="config-section-label">Reward (Win)</div>
-          <div className="config-row">
-            <label>Device:</label>
-            <select
-              value={rewardDevice}
-              onChange={(e) => handleRewardDeviceChange(e.target.value)}
-              className="node-select"
-            >
-              <option value="">None</option>
-              {devices.map(d => (
-                <option key={d.alias || d.ip} value={d.alias || d.ip}>
-                  {d.name || d.alias || d.ip}
-                </option>
-              ))}
-            </select>
+            <div className="config-section-label">Reward (Win)</div>
+            <div className="config-row">
+              <label>Device:</label>
+              <select
+                value={rewardDevice}
+                onChange={(e) => handleRewardDeviceChange(e.target.value)}
+                className="node-select"
+              >
+                <option value="">None</option>
+                {devices.map(d => (
+                  <option key={d.alias || d.ip} value={d.alias || d.ip}>
+                    {d.name || d.alias || d.ip}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Duration:</label>
+              <input
+                type="number"
+                value={rewardDuration}
+                onChange={(e) => handleRewardDurationChange(e.target.value)}
+                className="node-input tiny"
+                min="1"
+                max="60"
+              />
+              <span>sec</span>
+            </div>
           </div>
-          <div className="config-row">
-            <label>Duration:</label>
-            <input
-              type="number"
-              value={rewardDuration}
-              onChange={(e) => handleRewardDurationChange(e.target.value)}
-              className="node-input tiny"
-              min="1"
-              max="60"
-            />
-            <span>sec</span>
-          </div>
-        </div>
-        <AIMessageFields data={data} />
+          <OutcomeMessages data={data} />
+        </ActionWrapper>
       </div>
       <Handle
         type="source"

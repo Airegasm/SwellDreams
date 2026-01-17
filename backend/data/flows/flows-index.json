@@ -1,53 +1,5 @@
 [
   {
-    "id": "flow-elena-001",
-    "name": "Dr. Elena Vance - Clinical Protocol",
-    "characterId": "char-001",
-    "description": "Methodical, scheduled inflation with precise monitoring and safety checks"
-  },
-  {
-    "id": "flow-melody-001",
-    "name": "Nurse Melody - Gentle Care",
-    "characterId": "char-002",
-    "description": "Nurturing, encouraging inflation with gentle pacing and constant reassurance"
-  },
-  {
-    "id": "flow-sasha-001",
-    "name": "Sasha - Intimate Session",
-    "characterId": "char-003",
-    "description": "Sensual, teasing inflation focused on physical sensation and intimacy"
-  },
-  {
-    "id": "flow-jinx-001",
-    "name": "Jinx - Chaotic Inflation",
-    "characterId": "char-004",
-    "description": "Bratty, unpredictable inflation that pushes limits with mischievous energy"
-  },
-  {
-    "id": "flow-vera-001",
-    "name": "Mistress Vera - Dominant Control",
-    "characterId": "char-005",
-    "description": "Commanding, demanding inflation focused on obedience and submission"
-  },
-  {
-    "id": "flow-collector-001",
-    "name": "Doctor Claudia",
-    "characterId": "char-006",
-    "description": "Detached, unsettling experimentation treating subjects as specimens"
-  },
-  {
-    "id": "flow-bubble-001",
-    "name": "Bubble - Pure Joy",
-    "characterId": "char-007",
-    "description": "Excitable, enthusiastic inflation with boundless energy and balloon puns"
-  },
-  {
-    "id": "flow-helium-001",
-    "name": "Professor Helium - Mad Science",
-    "characterId": "char-008",
-    "description": "Manic, experimental inflation with questionable ethics and obsessive data collection"
-  },
-  {
     "id": "flow-global-001",
     "name": "Ambient Pressure Sensations",
     "characterId": null,
@@ -90,33 +42,45 @@
     "description": ""
   },
   {
-    "id": "flow-julie-buttons",
-    "name": "Julie - Pressing Buttons",
-    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
-    "description": "Comprehensive button-triggered flow testing all node types for belly inflation scenarios"
-  },
-  {
-    "id": "flow-julie-thinking",
-    "name": "Julie - Thinking it Through",
-    "characterId": null,
-    "description": ""
-  },
-  {
-    "id": "flow-julie-buttons-2",
-    "name": "Julie - Pressing More Buttons",
-    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
-    "description": "Advanced button-triggered flow with Simon, Reflex, and complex branching challenges"
-  },
-  {
     "id": "efce727e-3309-4d48-a23d-d197d2c7a390",
     "name": "Status Report",
     "characterId": null,
     "description": "Report player capacity status via persona button"
   },
   {
-    "id": "flow-julie-medical",
-    "name": "Julie - Medical Professional",
-    "characterId": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
-    "description": "Professional medical examination flow with abdominal compression exam and controlled inflation procedures"
+    "id": "flow-audit-menu",
+    "name": "🧪 Node Audit Suite - Menu",
+    "characterId": null,
+    "description": "Master menu for comprehensive node testing suite"
+  },
+  {
+    "id": "flow-audit-triggers",
+    "name": "🧪 Audit - Triggers",
+    "characterId": null,
+    "description": "Tests all 9 trigger node types"
+  },
+  {
+    "id": "flow-audit-actions",
+    "name": "🧪 Audit - Actions",
+    "characterId": null,
+    "description": "Tests all 12 action node types"
+  },
+  {
+    "id": "flow-audit-logic",
+    "name": "🧪 Audit - Logic",
+    "characterId": null,
+    "description": "Tests all 6 logic/flow control node types"
+  },
+  {
+    "id": "flow-audit-capacity",
+    "name": "🧪 Audit - Capacity Messages",
+    "characterId": null,
+    "description": "Tests capacity_ai_message and capacity_player_message nodes"
+  },
+  {
+    "id": "flow-audit-challenges",
+    "name": "🧪 Audit - Challenges",
+    "characterId": null,
+    "description": "Tests all 10 challenge node types"
   }
 ]

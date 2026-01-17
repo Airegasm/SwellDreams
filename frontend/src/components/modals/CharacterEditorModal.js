@@ -77,6 +77,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   // System-level global reminders from settings
   const systemGlobalReminders = settings?.globalReminders || [];
 
+  // Helper to filter out flow IDs that no longer exist
+  const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
+  const filterValidFlows = useCallback((flowIds) => {
+    if (!flowIds || !Array.isArray(flowIds)) return [];
+    return flowIds.filter(id => validFlowIds.has(id));
+  }, [validFlowIds]);
+
   // Calculate initial data from character prop
   const initialData = useMemo(() => {
     if (character) {
@@ -101,7 +108,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
           activeScenarioId: character.activeScenarioId || scenarios[0]?.id,
           exampleDialogues: character.exampleDialogues || [],
           autoReplyEnabled: character.autoReplyEnabled || false,
-          assignedFlows: character.assignedFlows || [],
+          assignedFlows: filterValidFlows(character.assignedFlows),
           assignedButtons: [],
           constantReminderIds: [],
           globalReminderIds: [],
@@ -133,7 +140,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
             activeScenarioId,
             exampleDialogues: s.exampleDialogues || [],
             autoReplyEnabled: s.autoReplyEnabled ?? character.autoReplyEnabled ?? false,
-            assignedFlows: s.assignedFlows || character.assignedFlows || [],
+            assignedFlows: filterValidFlows(s.assignedFlows || character.assignedFlows),
             assignedButtons: s.assignedButtons || [],
             constantReminderIds: s.constantReminderIds || [],
             globalReminderIds: s.globalReminderIds || [],
@@ -181,7 +188,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       buttons: [],
       globalReminders: []
     };
-  }, [character]);
+  }, [character, filterValidFlows]);
 
   // Use draft persistence - only enable when character is actually loaded
   const draftKey = getDraftKey('character', character?.id);

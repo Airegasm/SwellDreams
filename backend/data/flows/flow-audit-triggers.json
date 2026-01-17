@@ -1,0 +1,347 @@
+{
+  "id": "flow-audit-triggers",
+  "name": "🧪 Audit - Triggers",
+  "category": "global",
+  "description": "Tests all 9 trigger node types",
+  "nodes": [
+    {
+      "id": "trig-btn-device-on",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Test Device On Trigger",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-device-on"
+      }
+    },
+    {
+      "id": "trig-device-on-msg",
+      "type": "action",
+      "position": { "x": 100, "y": 150 },
+      "data": {
+        "label": "Device On Setup",
+        "actionType": "system_message",
+        "message": "🔘 DEVICE ON TRIGGER TEST\n\nA device_on trigger is now listening. Turn on any device to verify it fires."
+      }
+    },
+    {
+      "id": "trig-device-on-trigger",
+      "type": "trigger",
+      "position": { "x": 100, "y": 250 },
+      "data": {
+        "label": "Device On Listener",
+        "triggerType": "device_on",
+        "device": "",
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-device-on-result",
+      "type": "action",
+      "position": { "x": 100, "y": 350 },
+      "data": {
+        "label": "Device On Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: device_on trigger fired successfully!"
+      }
+    },
+    {
+      "id": "trig-btn-device-off",
+      "type": "button_press",
+      "position": { "x": 350, "y": 50 },
+      "data": {
+        "label": "Test Device Off Trigger",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-device-off"
+      }
+    },
+    {
+      "id": "trig-device-off-msg",
+      "type": "action",
+      "position": { "x": 350, "y": 150 },
+      "data": {
+        "label": "Device Off Setup",
+        "actionType": "system_message",
+        "message": "🔘 DEVICE OFF TRIGGER TEST\n\nA device_off trigger is now listening. Turn off any device to verify it fires."
+      }
+    },
+    {
+      "id": "trig-device-off-trigger",
+      "type": "trigger",
+      "position": { "x": 350, "y": 250 },
+      "data": {
+        "label": "Device Off Listener",
+        "triggerType": "device_off",
+        "device": "",
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-device-off-result",
+      "type": "action",
+      "position": { "x": 350, "y": 350 },
+      "data": {
+        "label": "Device Off Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: device_off trigger fired successfully!"
+      }
+    },
+    {
+      "id": "trig-btn-player-speaks",
+      "type": "button_press",
+      "position": { "x": 600, "y": 50 },
+      "data": {
+        "label": "Test Player Speaks",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-player-speaks"
+      }
+    },
+    {
+      "id": "trig-player-speaks-msg",
+      "type": "action",
+      "position": { "x": 600, "y": 150 },
+      "data": {
+        "label": "Player Speaks Setup",
+        "actionType": "system_message",
+        "message": "🔘 PLAYER SPEAKS TRIGGER TEST\n\nListening for keywords: 'audit', 'test*', '*check*'\n\nType a message containing any of these patterns."
+      }
+    },
+    {
+      "id": "trig-player-speaks-trigger",
+      "type": "trigger",
+      "position": { "x": 600, "y": 250 },
+      "data": {
+        "label": "Keyword Listener",
+        "triggerType": "player_speaks",
+        "keywords": ["audit", "test*", "*check*"],
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-player-speaks-result",
+      "type": "action",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Player Speaks Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: player_speaks trigger matched keyword pattern!"
+      }
+    },
+    {
+      "id": "trig-btn-random",
+      "type": "button_press",
+      "position": { "x": 850, "y": 50 },
+      "data": {
+        "label": "Test Random Trigger",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-random"
+      }
+    },
+    {
+      "id": "trig-random-msg",
+      "type": "action",
+      "position": { "x": 850, "y": 150 },
+      "data": {
+        "label": "Random Setup",
+        "actionType": "system_message",
+        "message": "🔘 RANDOM TRIGGER TEST\n\nSetting up 100% probability trigger - should fire immediately on next event."
+      }
+    },
+    {
+      "id": "trig-random-trigger",
+      "type": "trigger",
+      "position": { "x": 850, "y": 250 },
+      "data": {
+        "label": "Random 100%",
+        "triggerType": "random",
+        "probability": 100,
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-random-result",
+      "type": "action",
+      "position": { "x": 850, "y": 350 },
+      "data": {
+        "label": "Random Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: random trigger (100%) fired successfully!"
+      }
+    },
+    {
+      "id": "trig-btn-state-change",
+      "type": "button_press",
+      "position": { "x": 1100, "y": 50 },
+      "data": {
+        "label": "Test State Change",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-state"
+      }
+    },
+    {
+      "id": "trig-state-msg",
+      "type": "action",
+      "position": { "x": 1100, "y": 150 },
+      "data": {
+        "label": "State Setup",
+        "actionType": "system_message",
+        "message": "🔘 STATE CHANGE TRIGGER TEST\n\nListening for: capacity >= 60\n\nChange capacity to 60+ to verify trigger."
+      }
+    },
+    {
+      "id": "trig-state-trigger",
+      "type": "trigger",
+      "position": { "x": 1100, "y": 250 },
+      "data": {
+        "label": "Capacity >= 60",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": ">=",
+        "targetValue": 60,
+        "fireOnlyOnce": false,
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-state-result",
+      "type": "action",
+      "position": { "x": 1100, "y": 350 },
+      "data": {
+        "label": "State Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: player_state_change trigger fired! Capacity is now >= 60."
+      }
+    },
+    {
+      "id": "trig-btn-idle",
+      "type": "button_press",
+      "position": { "x": 1350, "y": 50 },
+      "data": {
+        "label": "Test Idle Trigger",
+        "buttonTarget": "character",
+        "buttonId": "audit-trig-idle"
+      }
+    },
+    {
+      "id": "trig-idle-msg",
+      "type": "action",
+      "position": { "x": 1350, "y": 150 },
+      "data": {
+        "label": "Idle Setup",
+        "actionType": "system_message",
+        "message": "🔘 IDLE TRIGGER TEST\n\nListening for 10 seconds of inactivity.\n\nDo nothing for 10 seconds to verify trigger."
+      }
+    },
+    {
+      "id": "trig-idle-trigger",
+      "type": "trigger",
+      "position": { "x": 1350, "y": 250 },
+      "data": {
+        "label": "Idle 10s",
+        "triggerType": "idle",
+        "threshold": 10,
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-idle-result",
+      "type": "action",
+      "position": { "x": 1350, "y": 350 },
+      "data": {
+        "label": "Idle Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: idle trigger fired after 10 seconds of inactivity!"
+      }
+    },
+    {
+      "id": "trig-btn-new-session",
+      "type": "trigger",
+      "position": { "x": 1600, "y": 50 },
+      "data": {
+        "label": "New Session Trigger",
+        "triggerType": "new_session",
+        "unblockable": true
+      }
+    },
+    {
+      "id": "trig-new-session-result",
+      "type": "action",
+      "position": { "x": 1600, "y": 150 },
+      "data": {
+        "label": "New Session Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: new_session trigger fired on session start!"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-trig-1",
+      "source": "trig-btn-device-on",
+      "target": "trig-device-on-msg"
+    },
+    {
+      "id": "e-trig-2",
+      "source": "trig-device-on-trigger",
+      "target": "trig-device-on-result"
+    },
+    {
+      "id": "e-trig-3",
+      "source": "trig-btn-device-off",
+      "target": "trig-device-off-msg"
+    },
+    {
+      "id": "e-trig-4",
+      "source": "trig-device-off-trigger",
+      "target": "trig-device-off-result"
+    },
+    {
+      "id": "e-trig-5",
+      "source": "trig-btn-player-speaks",
+      "target": "trig-player-speaks-msg"
+    },
+    {
+      "id": "e-trig-6",
+      "source": "trig-player-speaks-trigger",
+      "target": "trig-player-speaks-result"
+    },
+    {
+      "id": "e-trig-7",
+      "source": "trig-btn-random",
+      "target": "trig-random-msg"
+    },
+    {
+      "id": "e-trig-8",
+      "source": "trig-random-trigger",
+      "target": "trig-random-result"
+    },
+    {
+      "id": "e-trig-9",
+      "source": "trig-btn-state-change",
+      "target": "trig-state-msg"
+    },
+    {
+      "id": "e-trig-10",
+      "source": "trig-state-trigger",
+      "target": "trig-state-result"
+    },
+    {
+      "id": "e-trig-11",
+      "source": "trig-btn-idle",
+      "target": "trig-idle-msg"
+    },
+    {
+      "id": "e-trig-12",
+      "source": "trig-idle-trigger",
+      "target": "trig-idle-result"
+    },
+    {
+      "id": "e-trig-13",
+      "source": "trig-btn-new-session",
+      "target": "trig-new-session-result"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}

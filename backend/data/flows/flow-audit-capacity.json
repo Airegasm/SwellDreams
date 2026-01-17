@@ -1,0 +1,231 @@
+{
+  "id": "flow-audit-capacity",
+  "name": "🧪 Audit - Capacity Messages",
+  "category": "global",
+  "description": "Tests capacity_ai_message and capacity_player_message nodes",
+  "nodes": [
+    {
+      "id": "cap-btn-ai",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Test AI Capacity Msg",
+        "buttonTarget": "character",
+        "buttonId": "audit-cap-ai"
+      }
+    },
+    {
+      "id": "cap-ai-intro",
+      "type": "action",
+      "position": { "x": 100, "y": 150 },
+      "data": {
+        "label": "AI Capacity Intro",
+        "actionType": "system_message",
+        "message": "📊 AI CAPACITY MESSAGE TEST\n\nCurrent capacity: [Capacity]%\n\nThe capacity_ai_message node will select a message based on current capacity range."
+      }
+    },
+    {
+      "id": "cap-ai-message",
+      "type": "capacity_ai_message",
+      "position": { "x": 100, "y": 300 },
+      "data": {
+        "label": "Capacity AI Message",
+        "suppressLlm": true,
+        "postDelay": 1,
+        "ranges": {
+          "0-10": { "enableOutput": true, "message": "Barely started at [Capacity]%" },
+          "11-20": { "enableOutput": false, "message": "Getting warmed up at [Capacity]%" },
+          "21-30": { "enableOutput": false, "message": "Building nicely at [Capacity]%" },
+          "31-40": { "enableOutput": false, "message": "Making progress at [Capacity]%" },
+          "41-50": { "enableOutput": true, "message": "Halfway there at [Capacity]%" },
+          "51-60": { "enableOutput": false, "message": "Past the halfway mark at [Capacity]%" },
+          "61-70": { "enableOutput": false, "message": "Getting full at [Capacity]%" },
+          "71-80": { "enableOutput": false, "message": "Very full at [Capacity]%" },
+          "81-90": { "enableOutput": false, "message": "Almost there at [Capacity]%" },
+          "91-100": { "enableOutput": true, "message": "At the edge at [Capacity]%" },
+          ">100": { "enableOutput": false, "message": "Beyond limits at [Capacity]%" }
+        }
+      }
+    },
+    {
+      "id": "cap-ai-result-low",
+      "type": "action",
+      "position": { "x": 0, "y": 480 },
+      "data": {
+        "label": "Low Range Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY AI: Took 0-10% exit path"
+      }
+    },
+    {
+      "id": "cap-ai-result-mid",
+      "type": "action",
+      "position": { "x": 150, "y": 480 },
+      "data": {
+        "label": "Mid Range Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY AI: Took 41-50% exit path"
+      }
+    },
+    {
+      "id": "cap-ai-result-high",
+      "type": "action",
+      "position": { "x": 300, "y": 480 },
+      "data": {
+        "label": "High Range Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY AI: Took 91-100% exit path"
+      }
+    },
+    {
+      "id": "cap-ai-result-global",
+      "type": "action",
+      "position": { "x": 450, "y": 480 },
+      "data": {
+        "label": "Global Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY AI: Took global exit (range not enabled)"
+      }
+    },
+    {
+      "id": "cap-btn-player",
+      "type": "button_press",
+      "position": { "x": 700, "y": 50 },
+      "data": {
+        "label": "Test Player Capacity Msg",
+        "buttonTarget": "character",
+        "buttonId": "audit-cap-player"
+      }
+    },
+    {
+      "id": "cap-player-intro",
+      "type": "action",
+      "position": { "x": 700, "y": 150 },
+      "data": {
+        "label": "Player Capacity Intro",
+        "actionType": "system_message",
+        "message": "📊 PLAYER CAPACITY MESSAGE TEST\n\nCurrent capacity: [Capacity]%\n\nThe capacity_player_message node will generate a player message based on current capacity."
+      }
+    },
+    {
+      "id": "cap-player-message",
+      "type": "capacity_player_message",
+      "position": { "x": 700, "y": 300 },
+      "data": {
+        "label": "Capacity Player Message",
+        "suppressLlm": true,
+        "postDelay": 1,
+        "ranges": {
+          "0-10": { "enableOutput": false, "message": "I'm barely inflated at [Capacity]%" },
+          "11-20": { "enableOutput": false, "message": "I'm starting to feel it at [Capacity]%" },
+          "21-30": { "enableOutput": false, "message": "I can feel myself filling at [Capacity]%" },
+          "31-40": { "enableOutput": false, "message": "I'm getting fuller at [Capacity]%" },
+          "41-50": { "enableOutput": true, "message": "I'm halfway full at [Capacity]%" },
+          "51-60": { "enableOutput": false, "message": "I'm getting quite full at [Capacity]%" },
+          "61-70": { "enableOutput": false, "message": "I'm feeling very full at [Capacity]%" },
+          "71-80": { "enableOutput": false, "message": "I'm almost at capacity at [Capacity]%" },
+          "81-90": { "enableOutput": false, "message": "I'm nearly at my limit at [Capacity]%" },
+          "91-100": { "enableOutput": true, "message": "I'm at my absolute limit at [Capacity]%" },
+          ">100": { "enableOutput": false, "message": "I've exceeded my capacity at [Capacity]%" }
+        }
+      }
+    },
+    {
+      "id": "cap-player-result-mid",
+      "type": "action",
+      "position": { "x": 600, "y": 480 },
+      "data": {
+        "label": "Mid Range Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY PLAYER: Took 41-50% exit path"
+      }
+    },
+    {
+      "id": "cap-player-result-high",
+      "type": "action",
+      "position": { "x": 750, "y": 480 },
+      "data": {
+        "label": "High Range Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY PLAYER: Took 91-100% exit path"
+      }
+    },
+    {
+      "id": "cap-player-result-global",
+      "type": "action",
+      "position": { "x": 900, "y": 480 },
+      "data": {
+        "label": "Global Exit",
+        "actionType": "system_message",
+        "message": "✅ CAPACITY PLAYER: Took global exit (range not enabled)"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-cap-1",
+      "source": "cap-btn-ai",
+      "target": "cap-ai-intro"
+    },
+    {
+      "id": "e-cap-2",
+      "source": "cap-ai-intro",
+      "target": "cap-ai-message"
+    },
+    {
+      "id": "e-cap-3",
+      "source": "cap-ai-message",
+      "sourceHandle": "0-10",
+      "target": "cap-ai-result-low"
+    },
+    {
+      "id": "e-cap-4",
+      "source": "cap-ai-message",
+      "sourceHandle": "41-50",
+      "target": "cap-ai-result-mid"
+    },
+    {
+      "id": "e-cap-5",
+      "source": "cap-ai-message",
+      "sourceHandle": "91-100",
+      "target": "cap-ai-result-high"
+    },
+    {
+      "id": "e-cap-6",
+      "source": "cap-ai-message",
+      "sourceHandle": "global",
+      "target": "cap-ai-result-global"
+    },
+    {
+      "id": "e-cap-7",
+      "source": "cap-btn-player",
+      "target": "cap-player-intro"
+    },
+    {
+      "id": "e-cap-8",
+      "source": "cap-player-intro",
+      "target": "cap-player-message"
+    },
+    {
+      "id": "e-cap-9",
+      "source": "cap-player-message",
+      "sourceHandle": "41-50",
+      "target": "cap-player-result-mid"
+    },
+    {
+      "id": "e-cap-10",
+      "source": "cap-player-message",
+      "sourceHandle": "91-100",
+      "target": "cap-player-result-high"
+    },
+    {
+      "id": "e-cap-11",
+      "source": "cap-player-message",
+      "sourceHandle": "global",
+      "target": "cap-player-result-global"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}

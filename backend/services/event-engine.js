@@ -1162,9 +1162,6 @@ class EventEngine {
       if (node.type !== 'trigger') return false;
 
       switch (eventType) {
-        case 'first_message':
-          return node.data.triggerType === 'first_message';
-
         case 'device_on':
           if (node.data.triggerType !== 'device_on') return false;
           return !node.data.device || node.data.device === eventData.ip;
@@ -1999,18 +1996,28 @@ class EventEngine {
       challengeData: data
     };
 
-    // If AI intro message is enabled (defaults to true), generate an AI message first
-    if (data.aiMessageStartEnabled !== false && data.aiMessageStart) {
-      console.log(`[EventEngine] Challenge has AI intro message, generating AI message`);
-      await this.broadcast('ai_message', {
-        content: this.substituteVariables(data.aiMessageStart),
-        sender: 'flow',
-        suppressLlm: data.aiMessageStartSuppressLlm || false,
-        challengeContext: {
-          type: node.type,
-          event: 'start'
-        }
-      });
+    // Pre-message wrapper (replaces old aiMessageStart)
+    if (data.preMessageEnabled && data.preMessage) {
+      console.log(`[EventEngine] Challenge has pre-message, sending`);
+      const result = await this.sendWrapperMessage(
+        data.preMessage,
+        data.preMessageSuppressLlm,
+        data.preMessageTarget,
+        flow,
+        node.id
+      );
+      if (result === 'aborted') return 'aborted';
+    }
+
+    // Pre-delay
+    if (data.preDelay > 0) {
+      console.log(`[EventEngine] Challenge pre-delay: waiting ${data.preDelay}s`);
+      const epochBefore = this.abortEpoch;
+      await new Promise(resolve => setTimeout(resolve, data.preDelay * 1000));
+      if (this.abortEpoch !== epochBefore) {
+        console.log('[EventEngine] Execution aborted during challenge pre-delay');
+        return 'aborted';
+      }
     }
 
     // Broadcast challenge modal to frontend
@@ -2028,8 +2035,12 @@ class EventEngine {
   /**
    * Handle challenge result - continue flow based on which output was selected
    */
-  async handleChallengeResult(nodeId, outputId) {
-    console.log(`[EventEngine] Challenge result: output "${outputId}" for node ${nodeId}`);
+  async handleChallengeResult(nodeId, resultData) {
+    // Support both legacy string format and new object format
+    const outputId = typeof resultData === 'object' ? resultData.outputId : resultData;
+    const resultDetails = typeof resultData === 'object' ? resultData : {};
+
+    console.log(`[EventEngine] Challenge result: output "${outputId}" for node ${nodeId}`, resultDetails);
 
     if (!this.pendingChallenge) {
       console.log('[EventEngine] No pending challenge to continue');
@@ -2086,6 +2097,32 @@ class EventEngine {
       console.log(`[EventEngine] Stored challenge result: ${challengeNames[challengeType] || challengeType} - ${friendlyResult}`);
     }
 
+    // Store challenge-specific variables for use in subsequent nodes
+    if (challengeType === 'prize_wheel') {
+      // Use frontend-provided data or fall back to looking up from node data
+      const allSegments = resultDetails.allSegments?.join(', ')
+        || challengeData.segments?.map(s => s.label).join(', ') || '';
+      const segmentLabel = resultDetails.segmentLabel
+        || challengeData.segments?.find(s => s.id === outputId)?.label || outputId;
+      this.setVariable('Segments', allSegments);  // "Prize 1, Prize 2, Prize 3"
+      this.setVariable('Segment', segmentLabel);  // "Prize 2"
+      console.log(`[EventEngine] Set [Segments]="${allSegments}", [Segment]="${segmentLabel}"`);
+    }
+
+    if (challengeType === 'dice_roll') {
+      // Store roll total from frontend result details
+      const rollTotal = resultDetails.rollTotal ?? '';
+      this.setVariable('Roll', String(rollTotal));
+      console.log(`[EventEngine] Set [Roll]="${rollTotal}"`);
+    }
+
+    if (challengeType === 'slot_machine') {
+      // Store slot symbols from frontend result details
+      const slotsStr = resultDetails.slots?.join(' ') || '';
+      this.setVariable('Slots', slotsStr);
+      console.log(`[EventEngine] Set [Slots]="${slotsStr}"`);
+    }
+
     // Determine if this is a character win or character lose outcome
     // Character wins (player loses): character-wins, timeout, wrong, no-match, no_match
     // Player wins (character loses): player-wins, success, correct, jackpot
@@ -2095,12 +2132,13 @@ class EventEngine {
     const isCharacterWin = characterWinOutcomes.includes(outputId);
     const isPlayerWin = playerWinOutcomes.includes(outputId);
 
-    // Generate AI message for win/lose if enabled
+    // Generate AI message for win/lose if enabled (with optional LLM suppression)
     if (isCharacterWin && challengeData.aiMessageWinEnabled && challengeData.aiMessageWin) {
       console.log(`[EventEngine] Challenge character wins, generating AI message`);
       await this.broadcast('ai_message', {
         content: this.substituteVariables(challengeData.aiMessageWin),
         sender: 'flow',
+        suppressLlm: challengeData.aiMessageWinSuppressLlm || false,
         challengeContext: {
           type: challengeType,
           event: 'win',
@@ -2112,6 +2150,7 @@ class EventEngine {
       await this.broadcast('ai_message', {
         content: this.substituteVariables(challengeData.aiMessageLose),
         sender: 'flow',
+        suppressLlm: challengeData.aiMessageLoseSuppressLlm || false,
         challengeContext: {
           type: challengeType,
           event: 'lose',
@@ -2148,6 +2187,28 @@ class EventEngine {
           resultLabel: resultLabel
         }
       });
+    }
+
+    // Post-message wrapper (after challenge completes and win/lose messages)
+    if (challengeData.postMessageEnabled && challengeData.postMessage) {
+      console.log(`[EventEngine] Challenge has post-message, sending`);
+      // We need flow object - get it now
+      const flowDataForPost = this.activeFlows.get(flowId);
+      if (flowDataForPost) {
+        await this.sendWrapperMessage(
+          challengeData.postMessage,
+          challengeData.postMessageSuppressLlm,
+          challengeData.postMessageTarget,
+          flowDataForPost.flow,
+          pendingNodeId
+        );
+      }
+    }
+
+    // Post-delay
+    if (challengeData.postDelay > 0) {
+      console.log(`[EventEngine] Challenge post-delay: waiting ${challengeData.postDelay}s`);
+      await new Promise(resolve => setTimeout(resolve, challengeData.postDelay * 1000));
     }
 
     // Verify nodeId matches
@@ -2215,6 +2276,42 @@ class EventEngine {
    * @param {number} duration - Duration in seconds (0 = stay on indefinitely)
    * @param {string} actionType - 'penalty' or 'reward' (for logging)
    */
+  /**
+   * Send wrapper message (pre or post action/challenge message)
+   * @param {string} message - The message text
+   * @param {boolean} suppressLlm - Whether to suppress LLM enhancement
+   * @param {string} target - 'character' or 'persona'
+   * @param {Object} flow - The flow object
+   * @param {string} nodeId - The node ID
+   */
+  async sendWrapperMessage(message, suppressLlm, target, flow, nodeId) {
+    if (!message) return;
+
+    const broadcastData = {
+      content: this.substituteVariables(message),
+      sender: 'flow',
+      suppressLlm: suppressLlm || false,
+      flowId: flow.id,
+      nodeId: nodeId,
+      messageTarget: target || 'character'  // Used by frontend to route appropriately
+    };
+
+    // Route based on target
+    const eventType = target === 'persona' ? 'player_message' : 'ai_message';
+    console.log(`[EventEngine] Sending wrapper message (${target}):`, broadcastData.content?.substring(0, 50), suppressLlm ? '(verbatim)' : '(LLM enhanced)');
+
+    const epochBefore = this.abortEpoch;
+    await this.broadcast(eventType, broadcastData);
+
+    // Check if aborted during broadcast
+    if (this.abortEpoch !== epochBefore) {
+      console.log('[EventEngine] Execution aborted during wrapper message broadcast');
+      return 'aborted';
+    }
+
+    return true;
+  }
+
   async executePenaltyAction(deviceId, duration, actionType = 'penalty') {
     if (!deviceId) {
       console.log(`[EventEngine] No device specified for ${actionType}`);
@@ -2265,12 +2362,37 @@ class EventEngine {
       return false;
     }
 
+    // Pre-message wrapper
+    if (data.preMessageEnabled && data.preMessage) {
+      console.log(`[EventEngine] Action has pre-message, sending`);
+      const preResult = await this.sendWrapperMessage(
+        data.preMessage,
+        data.preMessageSuppressLlm,
+        data.preMessageTarget,
+        flow,
+        nodeId
+      );
+      if (preResult === 'aborted') return 'aborted';
+    }
+
+    // Pre-delay
+    if (data.preDelay > 0) {
+      console.log(`[EventEngine] Action pre-delay: waiting ${data.preDelay}s`);
+      const epochBefore = this.abortEpoch;
+      await new Promise(resolve => setTimeout(resolve, data.preDelay * 1000));
+      if (this.abortEpoch !== epochBefore) {
+        console.log('[EventEngine] Execution aborted during action pre-delay');
+        return 'aborted';
+      }
+    }
+
     const crypto = require('crypto');
+    let actionResult = true;  // Track result for post-message handling
 
     switch (data.actionType) {
       case 'send_message': {
         // Check abort again before sending message (LLM generation point)
-        if (this.aborted) return false;
+        if (this.aborted) { actionResult = false; break; }
         // AI message - optionally suppress LLM enhancement
         const broadcastData = {
           content: this.substituteVariables(data.message),
@@ -2287,22 +2409,12 @@ class EventEngine {
         // Check if aborted during broadcast (LLM generation)
         if (this.abortEpoch !== epochBeforeBroadcast) {
           console.log('[EventEngine] Execution aborted during AI message broadcast');
-          return 'aborted';
+          actionResult = 'aborted';
+          break;
         }
-
-        // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
-        const postDelay = data.postDelay ?? 3;
-        if (postDelay > 0) {
-          console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after AI message`);
-          const epochBeforeDelay = this.abortEpoch;
-          await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
-          // Check abort after delay - compare epochs to detect abort even if flag was reset
-          if (this.abortEpoch !== epochBeforeDelay) {
-            console.log('[EventEngine] Execution aborted during AI message post-delay');
-            return 'aborted';
-          }
-        }
-        return true;
+        // Post-delay now handled by wrapper postDelay
+        actionResult = true;
+        break;
       }
 
       case 'send_player_message': {
@@ -2322,22 +2434,12 @@ class EventEngine {
         // Check if aborted during broadcast (LLM generation)
         if (this.abortEpoch !== epochBeforeBroadcast) {
           console.log('[EventEngine] Execution aborted during player message broadcast');
-          return 'aborted';
+          actionResult = 'aborted';
+          break;
         }
-
-        // Post-delay after LLM generation completes (prevents LLM confusion in rapid flows)
-        const postDelay = data.postDelay ?? 3;
-        if (postDelay > 0) {
-          console.log(`[EventEngine] Post-delay: waiting ${postDelay}s after player message`);
-          const epochBeforeDelay = this.abortEpoch;
-          await new Promise(resolve => setTimeout(resolve, postDelay * 1000));
-          // Check abort after delay - compare epochs to detect abort even if flag was reset
-          if (this.abortEpoch !== epochBeforeDelay) {
-            console.log('[EventEngine] Execution aborted during player message post-delay');
-            return 'aborted';
-          }
-        }
-        return true;
+        // Post-delay now handled by wrapper postDelay
+        actionResult = true;
+        break;
       }
 
       case 'system_message': {
@@ -2345,11 +2447,12 @@ class EventEngine {
 
         console.log(`[EventEngine] Broadcasting system_message:`, broadcastData.content?.substring(0, 50));
         await this.broadcast('system_message', broadcastData);
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'device_on': {
-        if (!data.device) return false;
+        if (!data.device) { actionResult = false; break; }
 
         // Resolve device alias to full device object (includes childId, brand, sku)
         const deviceObj = resolveDeviceObject(data.device);
@@ -2410,12 +2513,14 @@ class EventEngine {
             }
           }
 
-          return 'device_on'; // Continue flow execution with dual outputs
+          actionResult = 'device_on'; // Continue flow execution with dual outputs
+          break;
         }
 
         if (!deviceObj || !resolvedDevice) {
           await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Check device state to prevent conflicts
@@ -2424,7 +2529,8 @@ class EventEngine {
 
           if (deviceState && deviceState.state === 'on') {
             console.log(`[EventEngine] Device ${resolvedDevice} is already on, skipping`);
-            return false;
+            actionResult = false;
+            break;
           }
         }
 
@@ -2432,7 +2538,8 @@ class EventEngine {
           await this.deviceService.turnOn(resolvedDevice, deviceObj);
         } catch (deviceError) {
           await this.broadcastError(`Failed to turn on "${deviceObj.name || data.device}"`, deviceError.message);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Track this device as flow-activated (for selective emergency stop)
@@ -2472,11 +2579,12 @@ class EventEngine {
           console.log(`[EventEngine] Monitoring device ${resolvedDevice} until ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}`);
         }
 
-        return 'device_on'; // Special return to handle dual outputs (immediate/completion)
+        actionResult = 'device_on'; // Special return to handle dual outputs (immediate/completion)
+        break;
       }
 
       case 'device_off': {
-        if (!data.device) return false;
+        if (!data.device) { actionResult = false; break; }
 
         // Resolve device alias to full device object (includes childId, brand, sku)
         const deviceObj = resolveDeviceObject(data.device);
@@ -2504,12 +2612,14 @@ class EventEngine {
             this.handleDeviceOnComplete(deviceKey);
           }
 
-          return true; // Continue flow execution
+          actionResult = true; // Continue flow execution
+          break;
         }
 
         if (!deviceObj || !resolvedDevice) {
           await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Check device state to prevent conflicts
@@ -2518,7 +2628,8 @@ class EventEngine {
 
           if (deviceState && deviceState.state === 'off') {
             console.log(`[EventEngine] Device ${resolvedDevice} is already off, skipping`);
-            return false;
+            actionResult = false;
+            break;
           }
         }
 
@@ -2526,7 +2637,8 @@ class EventEngine {
           await this.deviceService.turnOff(resolvedDevice, deviceObj);
         } catch (deviceError) {
           await this.broadcastError(`Failed to turn off "${deviceObj.name || data.device}"`, deviceError.message);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Remove from flow-activated devices tracking
@@ -2548,14 +2660,16 @@ class EventEngine {
           this.handleDeviceOnComplete(resolvedDevice);
         }
 
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'start_cycle': {
         console.log(`[EventEngine] Start Cycle action - device: ${data.device}, duration: ${data.duration}, interval: ${data.interval}, cycles: ${data.cycles}`);
         if (!data.device) {
           console.log(`[EventEngine] Start Cycle - no device specified!`);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Resolve device alias to full device object (includes childId, brand, sku)
@@ -2607,12 +2721,14 @@ class EventEngine {
             }, totalTime);
           }
 
-          return 'start_cycle'; // Continue flow execution with dual outputs
+          actionResult = 'start_cycle'; // Continue flow execution with dual outputs
+          break;
         }
 
         if (!deviceObj || !resolvedDevice) {
           await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Check if device is already cycling
@@ -2621,7 +2737,8 @@ class EventEngine {
 
           if (deviceState && deviceState.cycling) {
             console.log(`[EventEngine] Device ${resolvedDevice} is already cycling, skipping`);
-            return false;
+            actionResult = false;
+            break;
           }
         }
 
@@ -2634,7 +2751,8 @@ class EventEngine {
           }, deviceObj);
         } catch (deviceError) {
           await this.broadcastError(`Failed to start cycle on "${deviceObj.name || data.device}"`, deviceError.message);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Track this device as flow-activated (for selective emergency stop)
@@ -2684,11 +2802,12 @@ class EventEngine {
           console.log(`[EventEngine] Monitoring device ${resolvedDevice} until ${data.untilType} ${data.untilType === 'capacity' ? '>=' : '='} ${data.untilValue}`);
         }
 
-        return 'start_cycle'; // Special return to handle dual outputs (immediate/completion)
+        actionResult = 'start_cycle'; // Special return to handle dual outputs (immediate/completion)
+        break;
       }
 
       case 'stop_cycle': {
-        if (!data.device) return false;
+        if (!data.device) { actionResult = false; break; }
 
         // Resolve device alias to full device object (includes childId, brand, sku)
         const deviceObj = resolveDeviceObject(data.device);
@@ -2713,12 +2832,14 @@ class EventEngine {
           // Trigger cycle completion to execute completion edges
           this.handleCycleComplete(deviceKey);
 
-          return true; // Continue flow execution
+          actionResult = true; // Continue flow execution
+          break;
         }
 
         if (!deviceObj || !resolvedDevice) {
           await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Check if device is marked as cycling (for logging only)
@@ -2742,7 +2863,8 @@ class EventEngine {
           }
         } catch (deviceError) {
           await this.broadcastError(`Failed to stop cycle on "${deviceObj.name || data.device}"`, deviceError.message);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Clear monitor for this device
@@ -2755,14 +2877,16 @@ class EventEngine {
           }
         }
 
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'pulse_pump': {
         console.log(`[EventEngine] Pulse Pump action - device: ${data.device}, pulses: ${data.pulses}`);
         if (!data.device) {
           console.log(`[EventEngine] Pulse Pump - no device specified!`);
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Support variable substitution for pulse count (e.g., [Flow:PulseCount])
@@ -2784,12 +2908,14 @@ class EventEngine {
           await new Promise(resolve => setTimeout(resolve, totalTime));
 
           console.log(`[SIMULATION] Pulse pump complete for ${deviceKey}`);
-          return true;
+          actionResult = true;
+          break;
         }
 
         if (!deviceObj || !resolvedDevice) {
           await this.broadcastError(`Device "${data.device}" not found`, 'Check device configuration in Settings');
-          return false;
+          actionResult = false;
+          break;
         }
 
         console.log(`[EventEngine] Starting ${pulseCount} pulses for ${resolvedDevice}`);
@@ -2820,10 +2946,12 @@ class EventEngine {
           } catch (e) {
             console.error(`[EventEngine] Failed to turn off device after pulse error:`, e);
           }
-          return false;
+          actionResult = false;
+          break;
         }
 
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'declare_variable':
@@ -2837,7 +2965,8 @@ class EventEngine {
           }
           console.log(`[EventEngine] Declared variable [Flow:${data.name}] = ${this.variables[data.name]}`);
         }
-        return true;
+        actionResult = true;
+        break;
 
       case 'set_variable': {
         // Set either a system variable or a custom flow variable
@@ -2847,7 +2976,8 @@ class EventEngine {
 
         if (!variable) {
           console.log('[EventEngine] set_variable: No variable specified');
-          return false;
+          actionResult = false;
+          break;
         }
 
         if (varType === 'custom') {
@@ -2886,16 +3016,19 @@ class EventEngine {
             }
           } else {
             console.log(`[EventEngine] set_variable: Unknown system variable "${variable}"`);
-            return false;
+            actionResult = false;
+            break;
           }
         }
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'toggle_reminder': {
         if (!data.reminderId) {
           console.log('[EventEngine] toggle_reminder: No reminderId specified');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Use explicit reminderType if provided, otherwise fall back to ID prefix check
@@ -2907,13 +3040,15 @@ class EventEngine {
           const settings = loadData(DATA_FILES.settings);
           if (!settings || !settings.globalReminders) {
             console.log('[EventEngine] toggle_reminder: No global reminders found');
-            return false;
+            actionResult = false;
+            break;
           }
 
           const reminder = settings.globalReminders.find(r => r.id === data.reminderId);
           if (!reminder) {
             console.log(`[EventEngine] toggle_reminder: Global reminder ${data.reminderId} not found`);
-            return false;
+            actionResult = false;
+            break;
           }
 
           if (data.action === 'enable') {
@@ -2933,19 +3068,22 @@ class EventEngine {
 
           if (!characters || !activeCharId) {
             console.log('[EventEngine] toggle_reminder: No characters or active character');
-            return false;
+            actionResult = false;
+            break;
           }
 
           const character = characters.find(c => c.id === activeCharId);
           if (!character || !character.constantReminders) {
             console.log(`[EventEngine] toggle_reminder: Character ${activeCharId} not found or has no reminders`);
-            return false;
+            actionResult = false;
+            break;
           }
 
           const reminder = character.constantReminders.find(r => r.id === data.reminderId);
           if (!reminder) {
             console.log(`[EventEngine] toggle_reminder: Reminder ${data.reminderId} not found in character`);
-            return false;
+            actionResult = false;
+            break;
           }
 
           if (data.action === 'enable') {
@@ -2971,13 +3109,15 @@ class EventEngine {
           isGlobal
         });
 
-        return true;
+        actionResult = true;
+        break;
       }
 
       case 'toggle_button': {
         if (!data.buttonId) {
           console.log('[EventEngine] toggle_button: No buttonId specified');
-          return false;
+          actionResult = false;
+          break;
         }
 
         // Use storage helpers if available for per-char storage support
@@ -2987,19 +3127,22 @@ class EventEngine {
 
         if (!characters || !activeCharId) {
           console.log('[EventEngine] toggle_button: No characters or active character');
-          return false;
+          actionResult = false;
+          break;
         }
 
         const character = characters.find(c => c.id === activeCharId);
         if (!character || !character.buttons) {
           console.log(`[EventEngine] toggle_button: Character ${activeCharId} not found or has no buttons`);
-          return false;
+          actionResult = false;
+          break;
         }
 
         const button = character.buttons.find(b => String(b.buttonId) === String(data.buttonId));
         if (!button) {
           console.log(`[EventEngine] toggle_button: Button ${data.buttonId} not found in character`);
-          return false;
+          actionResult = false;
+          break;
         }
 
         if (data.action === 'enable') {
@@ -3021,12 +3164,40 @@ class EventEngine {
         const updatedChars = this.storageHelpers?.loadCharacters() || characters;
         this.broadcast('characters_update', updatedChars);
 
-        return true;
+        actionResult = true;
+        break;
       }
 
       default:
-        return true;
+        actionResult = true;
+        break;
     }
+
+    // Post-message wrapper (only for non-abort results)
+    if (actionResult !== 'aborted' && data.postMessageEnabled && data.postMessage) {
+      console.log(`[EventEngine] Action has post-message, sending`);
+      const postResult = await this.sendWrapperMessage(
+        data.postMessage,
+        data.postMessageSuppressLlm,
+        data.postMessageTarget,
+        flow,
+        nodeId
+      );
+      if (postResult === 'aborted') return 'aborted';
+    }
+
+    // Post-delay (only for non-abort results)
+    if (actionResult !== 'aborted' && data.postDelay > 0) {
+      console.log(`[EventEngine] Action post-delay: waiting ${data.postDelay}s`);
+      const epochBefore = this.abortEpoch;
+      await new Promise(resolve => setTimeout(resolve, data.postDelay * 1000));
+      if (this.abortEpoch !== epochBefore) {
+        console.log('[EventEngine] Execution aborted during action post-delay');
+        return 'aborted';
+      }
+    }
+
+    return actionResult;
   }
 
   /**
@@ -3530,6 +3701,12 @@ class EventEngine {
       result = result.replace(/\[Feeling\]/gi, painLabel); // Legacy support
       result = result.replace(/\[Emotion\]/gi, this.sessionState.emotion ?? 'neutral');
     }
+
+    // Challenge result variables (persist until next challenge of same type)
+    result = result.replace(/\[Segments\]/gi, this.variables['Segments'] || '');  // All wheel segment labels
+    result = result.replace(/\[Segment\]/gi, this.variables['Segment'] || '');    // Winning segment label
+    result = result.replace(/\[Roll\]/gi, this.variables['Roll'] || '');          // Dice total rolled
+    result = result.replace(/\[Slots\]/gi, this.variables['Slots'] || '');        // Slot machine symbols
 
     // Flow variables - [Flow:varname] syntax
     result = result.replace(/\[Flow:(\w+)\]/gi, (match, varName) => {

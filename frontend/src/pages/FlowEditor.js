@@ -70,7 +70,6 @@ const nodeTypes = {
 
 const NODE_TEMPLATES = {
   trigger: {
-    first_message: { label: 'First Chat Message', triggerType: 'first_message' },
     device_on: { label: 'Device Turns On', triggerType: 'device_on', device: '' },
     device_off: { label: 'Device Turns Off', triggerType: 'device_off', device: '' },
     player_speaks: { label: 'Player Speaks', triggerType: 'player_speaks', keywords: [''] },
@@ -96,18 +95,18 @@ const NODE_TEMPLATES = {
     default: { label: '' }
   },
   action: {
-    send_message: { label: 'Send AI Message', actionType: 'send_message', message: '', suppressLlm: false },
-    send_player_message: { label: 'Send Player Message', actionType: 'send_player_message', message: '', suppressLlm: false },
-    system_message: { label: 'System Message', actionType: 'system_message', message: '' },
-    device_on: { label: 'Turn Device On', actionType: 'device_on', device: '', untilType: 'forever', untilOperator: '>', untilValue: null },
-    device_off: { label: 'Turn Device Off', actionType: 'device_off', device: '' },
-    start_cycle: { label: 'Start Cycle', actionType: 'start_cycle', device: '', duration: 5, interval: 10, cycles: 0, untilType: 'forever', untilValue: null },
-    stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '' },
-    pulse_pump: { label: 'Pulse Pump', actionType: 'pulse_pump', device: '', pulses: 3 },
-    declare_variable: { label: 'Declare Variable', actionType: 'declare_variable', name: '', value: '' },
-    set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '' },
-    toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '' },
-    toggle_button: { label: 'Toggle Button', actionType: 'toggle_button', buttonId: '', action: 'enable' }
+    send_message: { label: 'Send AI Message', actionType: 'send_message', message: '', suppressLlm: false, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    send_player_message: { label: 'Send Player Message', actionType: 'send_player_message', message: '', suppressLlm: false, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    system_message: { label: 'System Message', actionType: 'system_message', message: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    device_on: { label: 'Turn Device On', actionType: 'device_on', device: '', untilType: 'forever', untilOperator: '>', untilValue: null, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    device_off: { label: 'Turn Device Off', actionType: 'device_off', device: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    start_cycle: { label: 'Start Cycle', actionType: 'start_cycle', device: '', duration: 5, interval: 10, cycles: 0, untilType: 'forever', untilValue: null, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    pulse_pump: { label: 'Pulse Pump', actionType: 'pulse_pump', device: '', pulses: 3, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    declare_variable: { label: 'Declare Variable', actionType: 'declare_variable', name: '', value: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    toggle_button: { label: 'Toggle Button', actionType: 'toggle_button', buttonId: '', action: 'enable', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
   },
   condition: {
     default: {
@@ -176,7 +175,7 @@ const NODE_TEMPLATES = {
       ranges: {}
     }
   },
-  // Challenge nodes - all have aiMessageStartEnabled: true by default
+  // Challenge nodes - all have wrapper fields and win/lose messages
   prize_wheel: {
     default: {
       label: 'Prize Wheel',
@@ -184,8 +183,10 @@ const NODE_TEMPLATES = {
         { id: 'seg-1', label: 'Prize 1', color: '#fb923c', weight: 1 },
         { id: 'seg-2', label: 'Prize 2', color: '#3b82f6', weight: 1 }
       ],
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   dice_roll: {
@@ -199,8 +200,10 @@ const NODE_TEMPLATES = {
         { id: 'range-3', label: 'High', min: 10, max: 12 }
       ],
       characterAdvantage: 0,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   coin_flip: {
@@ -210,8 +213,10 @@ const NODE_TEMPLATES = {
       tailsLabel: 'Tails',
       headsWeight: 50,
       bestOf: 1,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   rps: {
@@ -219,8 +224,10 @@ const NODE_TEMPLATES = {
       label: 'Rock Paper Scissors',
       bestOf: 1,
       characterBias: null,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   timer_challenge: {
@@ -229,8 +236,10 @@ const NODE_TEMPLATES = {
       duration: 10,
       precisionMode: false,
       precisionWindow: 1,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   number_guess: {
@@ -240,8 +249,10 @@ const NODE_TEMPLATES = {
       max: 10,
       maxAttempts: 3,
       closeThreshold: 0,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   slot_machine: {
@@ -252,8 +263,10 @@ const NODE_TEMPLATES = {
         { id: 'match-1', pattern: 'three-of-a-kind', label: 'Jackpot' },
         { id: 'match-2', pattern: 'two-of-a-kind', label: 'Small Win' }
       ],
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   card_draw: {
@@ -261,8 +274,10 @@ const NODE_TEMPLATES = {
       label: 'Card Draw',
       deckType: 'standard',
       outputMode: 'suit',
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   simon_challenge: {
@@ -277,8 +292,10 @@ const NODE_TEMPLATES = {
       grandPenaltyDuration: 10,
       rewardDevice: '',
       rewardDuration: 5,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   },
   reflex_challenge: {
@@ -293,8 +310,10 @@ const NODE_TEMPLATES = {
       grandPenaltyDuration: 10,
       rewardDevice: '',
       rewardDuration: 5,
-      aiMessageStartEnabled: true,
-      aiMessageStart: ''
+      preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0,
+      postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0,
+      aiMessageWinEnabled: false, aiMessageWin: '', aiMessageWinSuppressLlm: false,
+      aiMessageLoseEnabled: false, aiMessageLose: '', aiMessageLoseSuppressLlm: false
     }
   }
 };
@@ -303,7 +322,7 @@ let nodeId = 0;
 const getId = () => `node_${nodeId++}`;
 
 function FlowEditor() {
-  const { flows, api, devices, settings, characters, sendWsMessage } = useApp();
+  const { flows, api, devices, settings, characters, personas, sendWsMessage } = useApp();
   const navigate = useNavigate();
 
   // Slide animation state
@@ -344,6 +363,8 @@ function FlowEditor() {
   const activeCharacter = characters?.find(c => c.id === settings?.activeCharacterId);
   const characterReminders = activeCharacter?.constantReminders || [];
   const characterButtons = activeCharacter?.buttons || [];
+  const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
+  const personaButtons = activePersona?.buttons || [];
 
   // Extract all declared flow variable names from Declare Variable actions
   // In per-flow mode, flows array only contains index data, so we also check current nodes
@@ -504,6 +525,7 @@ function FlowEditor() {
         globalReminders,
         characterReminders,
         characterButtons,
+        personaButtons,
         flowVariables,
         onChange: (field, value) => updateNodeData(newNodeId, field, value),
         onTest: () => handleTestNode(newNodeId)
@@ -512,7 +534,7 @@ function FlowEditor() {
 
     setNodes((nds) => nds.concat(newNode));
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
 
   const handleUnlinkAll = useCallback(() => {
     if (!contextMenu) return;
@@ -607,6 +629,7 @@ function FlowEditor() {
             globalReminders,
             characterReminders,
             characterButtons,
+            personaButtons,
             flowVariables,
             onChange: (field, value) => updateNodeData(newNodeId, field, value),
             onTest: () => handleTestNode(newNodeId)
@@ -637,6 +660,7 @@ function FlowEditor() {
           globalReminders,
           characterReminders,
           characterButtons,
+          personaButtons,
           flowVariables,
           onChange: (field, value) => updateNodeData(newNodeId, field, value),
           onTest: () => handleTestNode(newNodeId)
@@ -645,7 +669,7 @@ function FlowEditor() {
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
@@ -875,6 +899,7 @@ function FlowEditor() {
           globalReminders,
           characterReminders,
           characterButtons,
+          personaButtons,
           flowVariables,
           onChange: (field, value) => updateNodeData(nodeId, field, value),
           onTest: () => handleTestNode(nodeId)
@@ -883,7 +908,7 @@ function FlowEditor() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -897,7 +922,7 @@ function FlowEditor() {
 
     // Strip runtime data from nodes before saving (devices, reminders, etc are added at load time)
     const cleanNodes = nodes.map(node => {
-      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
       return { ...node, data: cleanData };
     });
 
@@ -973,6 +998,7 @@ function FlowEditor() {
         globalReminders,
         characterReminders,
         characterButtons,
+        personaButtons,
         flowVariables,
         onChange: (field, value) => updateNodeData(node.id, field, value),
         onTest: () => handleTestNode(node.id)
@@ -982,7 +1008,7 @@ function FlowEditor() {
     setNodes(nodesWithHandlers);
     setEdges(flow.edges || []);
     setShowLoadModal(false);
-  }, [api, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
+  }, [api, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
 
   const handleNewFlow = () => {
     // Reset draft state
@@ -1068,7 +1094,7 @@ function FlowEditor() {
       const draftKey = getDraftKey();
       // Strip runtime data from nodes before saving
       const cleanNodes = nodes.map(node => {
-        const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+        const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
         return { ...node, data: cleanData };
       });
       const draft = {
@@ -1103,6 +1129,7 @@ function FlowEditor() {
               globalReminders,
               characterReminders,
               characterButtons,
+              personaButtons,
               flowVariables,
               onChange: (field, value) => updateNodeData(node.id, field, value),
               onTest: () => handleTestNode(node.id)
@@ -1120,7 +1147,7 @@ function FlowEditor() {
       }
     }
     draftInitialized.current = true;
-  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, flowVariables, updateNodeData, setNodes, setEdges]);
+  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges]);
 
   // Clear draft on successful save
   const clearFlowDraft = useCallback(() => {
@@ -1150,7 +1177,7 @@ function FlowEditor() {
 
     // Strip runtime data from nodes before exporting
     const cleanNodes = nodes.map(node => {
-      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, flowVariables: _fv, ...cleanData } = node.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
       return { ...node, data: cleanData };
     });
 
@@ -1446,6 +1473,20 @@ function FlowEditor() {
               onDragStart={(e) => onDragStart(e, 'slot_machine', 'default')}
             >
               🎰 Slot Machine
+            </div>
+            <div
+              className="palette-node simon-challenge"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'simon_challenge', 'default')}
+            >
+              🧠 Simon Challenge
+            </div>
+            <div
+              className="palette-node reflex-challenge"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'reflex_challenge', 'default')}
+            >
+              🎯 Reflex Challenge
             </div>
           </div>
         </div>

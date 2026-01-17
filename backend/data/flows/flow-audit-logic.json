@@ -1,0 +1,507 @@
+{
+  "id": "flow-audit-logic",
+  "name": "🧪 Audit - Logic",
+  "category": "global",
+  "description": "Tests all 6 logic/flow control node types",
+  "nodes": [
+    {
+      "id": "logic-btn-condition",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Test Condition Node",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-condition"
+      }
+    },
+    {
+      "id": "logic-condition-intro",
+      "type": "action",
+      "position": { "x": 100, "y": 150 },
+      "data": {
+        "label": "Condition Intro",
+        "actionType": "system_message",
+        "message": "❓ CONDITION NODE TEST\n\nTesting multi-condition evaluation:\n• Capacity > 80 → T1\n• Capacity > 50 → T2\n• Else → FALSE\n\nCurrent capacity: [Capacity]%"
+      }
+    },
+    {
+      "id": "logic-condition",
+      "type": "condition",
+      "position": { "x": 100, "y": 280 },
+      "data": {
+        "label": "Capacity Check",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">",
+            "value": 80
+          },
+          {
+            "variable": "capacity",
+            "operator": ">",
+            "value": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "logic-condition-t1",
+      "type": "action",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "T1 Result",
+        "actionType": "system_message",
+        "message": "✅ CONDITION T1: Capacity > 80 (value: [Capacity]%)"
+      }
+    },
+    {
+      "id": "logic-condition-t2",
+      "type": "action",
+      "position": { "x": 150, "y": 400 },
+      "data": {
+        "label": "T2 Result",
+        "actionType": "system_message",
+        "message": "✅ CONDITION T2: Capacity > 50 (value: [Capacity]%)"
+      }
+    },
+    {
+      "id": "logic-condition-false",
+      "type": "action",
+      "position": { "x": 300, "y": 400 },
+      "data": {
+        "label": "FALSE Result",
+        "actionType": "system_message",
+        "message": "✅ CONDITION FALSE: Capacity <= 50 (value: [Capacity]%)"
+      }
+    },
+    {
+      "id": "logic-btn-branch",
+      "type": "button_press",
+      "position": { "x": 500, "y": 50 },
+      "data": {
+        "label": "Test Branch Node",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-branch"
+      }
+    },
+    {
+      "id": "logic-branch-intro",
+      "type": "action",
+      "position": { "x": 500, "y": 150 },
+      "data": {
+        "label": "Branch Intro",
+        "actionType": "system_message",
+        "message": "🔀 BRANCH NODE TEST\n\nTesting random weighted branch:\n• Path A: 33%\n• Path B: 33%\n• Path C: 34%"
+      }
+    },
+    {
+      "id": "logic-branch",
+      "type": "branch",
+      "position": { "x": 500, "y": 280 },
+      "data": {
+        "label": "Random Branch",
+        "branchType": "random",
+        "branches": [
+          { "id": "branch-a", "label": "Path A", "weight": 33 },
+          { "id": "branch-b", "label": "Path B", "weight": 33 },
+          { "id": "branch-c", "label": "Path C", "weight": 34 }
+        ]
+      }
+    },
+    {
+      "id": "logic-branch-a",
+      "type": "action",
+      "position": { "x": 400, "y": 400 },
+      "data": {
+        "label": "Path A",
+        "actionType": "system_message",
+        "message": "✅ BRANCH: Took Path A (33% weight)"
+      }
+    },
+    {
+      "id": "logic-branch-b",
+      "type": "action",
+      "position": { "x": 550, "y": 400 },
+      "data": {
+        "label": "Path B",
+        "actionType": "system_message",
+        "message": "✅ BRANCH: Took Path B (33% weight)"
+      }
+    },
+    {
+      "id": "logic-branch-c",
+      "type": "action",
+      "position": { "x": 700, "y": 400 },
+      "data": {
+        "label": "Path C",
+        "actionType": "system_message",
+        "message": "✅ BRANCH: Took Path C (34% weight)"
+      }
+    },
+    {
+      "id": "logic-btn-choice",
+      "type": "button_press",
+      "position": { "x": 900, "y": 50 },
+      "data": {
+        "label": "Test Player Choice",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-choice"
+      }
+    },
+    {
+      "id": "logic-choice-intro",
+      "type": "action",
+      "position": { "x": 900, "y": 150 },
+      "data": {
+        "label": "Choice Intro",
+        "actionType": "system_message",
+        "message": "🎯 PLAYER CHOICE TEST\n\nPresenting 3 choices with descriptions..."
+      }
+    },
+    {
+      "id": "logic-choice",
+      "type": "player_choice",
+      "position": { "x": 900, "y": 280 },
+      "data": {
+        "label": "Test Choices",
+        "description": "Select an option to test choice routing:",
+        "aiMessageIntroEnabled": true,
+        "aiMessageIntro": "Please choose from the following options: [Choices]",
+        "aiMessageIntroSuppressLlm": true,
+        "choices": [
+          {
+            "id": "choice-alpha",
+            "label": "Alpha",
+            "description": "First test choice",
+            "playerResponseEnabled": true,
+            "playerResponse": "I chose Alpha",
+            "playerResponseSuppressLlm": true
+          },
+          {
+            "id": "choice-beta",
+            "label": "Beta",
+            "description": "Second test choice",
+            "playerResponseEnabled": true,
+            "playerResponse": "I chose Beta",
+            "playerResponseSuppressLlm": true
+          },
+          {
+            "id": "choice-gamma",
+            "label": "Gamma",
+            "description": "Third test choice",
+            "playerResponseEnabled": true,
+            "playerResponse": "I chose Gamma",
+            "playerResponseSuppressLlm": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "logic-choice-alpha",
+      "type": "action",
+      "position": { "x": 800, "y": 450 },
+      "data": {
+        "label": "Alpha Selected",
+        "actionType": "system_message",
+        "message": "✅ PLAYER CHOICE: Alpha path selected!"
+      }
+    },
+    {
+      "id": "logic-choice-beta",
+      "type": "action",
+      "position": { "x": 950, "y": 450 },
+      "data": {
+        "label": "Beta Selected",
+        "actionType": "system_message",
+        "message": "✅ PLAYER CHOICE: Beta path selected!"
+      }
+    },
+    {
+      "id": "logic-choice-gamma",
+      "type": "action",
+      "position": { "x": 1100, "y": 450 },
+      "data": {
+        "label": "Gamma Selected",
+        "actionType": "system_message",
+        "message": "✅ PLAYER CHOICE: Gamma path selected!"
+      }
+    },
+    {
+      "id": "logic-btn-ab",
+      "type": "button_press",
+      "position": { "x": 1300, "y": 50 },
+      "data": {
+        "label": "Test Simple A/B",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-ab"
+      }
+    },
+    {
+      "id": "logic-ab-intro",
+      "type": "action",
+      "position": { "x": 1300, "y": 150 },
+      "data": {
+        "label": "A/B Intro",
+        "actionType": "system_message",
+        "message": "⚡ SIMPLE A/B TEST\n\nPresenting two-option popup..."
+      }
+    },
+    {
+      "id": "logic-simple-ab",
+      "type": "simple_ab",
+      "position": { "x": 1300, "y": 280 },
+      "data": {
+        "label": "A/B Choice",
+        "description": "Choose Option A or Option B:",
+        "labelA": "Option A",
+        "descriptionA": "This is the first option",
+        "labelB": "Option B",
+        "descriptionB": "This is the second option"
+      }
+    },
+    {
+      "id": "logic-ab-a",
+      "type": "action",
+      "position": { "x": 1200, "y": 400 },
+      "data": {
+        "label": "Option A",
+        "actionType": "system_message",
+        "message": "✅ SIMPLE A/B: Option A selected!"
+      }
+    },
+    {
+      "id": "logic-ab-b",
+      "type": "action",
+      "position": { "x": 1400, "y": 400 },
+      "data": {
+        "label": "Option B",
+        "actionType": "system_message",
+        "message": "✅ SIMPLE A/B: Option B selected!"
+      }
+    },
+    {
+      "id": "logic-btn-delay",
+      "type": "button_press",
+      "position": { "x": 1600, "y": 50 },
+      "data": {
+        "label": "Test Delay Node",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-delay"
+      }
+    },
+    {
+      "id": "logic-delay-intro",
+      "type": "action",
+      "position": { "x": 1600, "y": 150 },
+      "data": {
+        "label": "Delay Intro",
+        "actionType": "system_message",
+        "message": "⏱️ DELAY NODE TEST\n\nWaiting 3 seconds..."
+      }
+    },
+    {
+      "id": "logic-delay",
+      "type": "delay",
+      "position": { "x": 1600, "y": 280 },
+      "data": {
+        "label": "3 Second Delay",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "logic-delay-result",
+      "type": "action",
+      "position": { "x": 1600, "y": 400 },
+      "data": {
+        "label": "Delay Complete",
+        "actionType": "system_message",
+        "message": "✅ DELAY: 3 seconds elapsed!"
+      }
+    },
+    {
+      "id": "logic-btn-input",
+      "type": "button_press",
+      "position": { "x": 1850, "y": 50 },
+      "data": {
+        "label": "Test Input Node",
+        "buttonTarget": "character",
+        "buttonId": "audit-logic-input"
+      }
+    },
+    {
+      "id": "logic-input-intro",
+      "type": "action",
+      "position": { "x": 1850, "y": 150 },
+      "data": {
+        "label": "Input Intro",
+        "actionType": "system_message",
+        "message": "📥 INPUT NODE TEST\n\nRequesting text input..."
+      }
+    },
+    {
+      "id": "logic-input",
+      "type": "input",
+      "position": { "x": 1850, "y": 280 },
+      "data": {
+        "label": "Text Input",
+        "inputType": "text",
+        "prompt": "Enter any text to test input node:",
+        "placeholder": "Type something here...",
+        "variableName": "auditInput",
+        "required": true
+      }
+    },
+    {
+      "id": "logic-input-result",
+      "type": "action",
+      "position": { "x": 1850, "y": 400 },
+      "data": {
+        "label": "Input Result",
+        "actionType": "system_message",
+        "message": "✅ INPUT: Received value '[Flow:auditInput]'"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-logic-1",
+      "source": "logic-btn-condition",
+      "target": "logic-condition-intro"
+    },
+    {
+      "id": "e-logic-2",
+      "source": "logic-condition-intro",
+      "target": "logic-condition"
+    },
+    {
+      "id": "e-logic-3",
+      "source": "logic-condition",
+      "sourceHandle": "true-0",
+      "target": "logic-condition-t1"
+    },
+    {
+      "id": "e-logic-4",
+      "source": "logic-condition",
+      "sourceHandle": "true-1",
+      "target": "logic-condition-t2"
+    },
+    {
+      "id": "e-logic-5",
+      "source": "logic-condition",
+      "sourceHandle": "false",
+      "target": "logic-condition-false"
+    },
+    {
+      "id": "e-logic-6",
+      "source": "logic-btn-branch",
+      "target": "logic-branch-intro"
+    },
+    {
+      "id": "e-logic-7",
+      "source": "logic-branch-intro",
+      "target": "logic-branch"
+    },
+    {
+      "id": "e-logic-8",
+      "source": "logic-branch",
+      "sourceHandle": "branch-a",
+      "target": "logic-branch-a"
+    },
+    {
+      "id": "e-logic-9",
+      "source": "logic-branch",
+      "sourceHandle": "branch-b",
+      "target": "logic-branch-b"
+    },
+    {
+      "id": "e-logic-10",
+      "source": "logic-branch",
+      "sourceHandle": "branch-c",
+      "target": "logic-branch-c"
+    },
+    {
+      "id": "e-logic-11",
+      "source": "logic-btn-choice",
+      "target": "logic-choice-intro"
+    },
+    {
+      "id": "e-logic-12",
+      "source": "logic-choice-intro",
+      "target": "logic-choice"
+    },
+    {
+      "id": "e-logic-13",
+      "source": "logic-choice",
+      "sourceHandle": "choice-alpha",
+      "target": "logic-choice-alpha"
+    },
+    {
+      "id": "e-logic-14",
+      "source": "logic-choice",
+      "sourceHandle": "choice-beta",
+      "target": "logic-choice-beta"
+    },
+    {
+      "id": "e-logic-15",
+      "source": "logic-choice",
+      "sourceHandle": "choice-gamma",
+      "target": "logic-choice-gamma"
+    },
+    {
+      "id": "e-logic-16",
+      "source": "logic-btn-ab",
+      "target": "logic-ab-intro"
+    },
+    {
+      "id": "e-logic-17",
+      "source": "logic-ab-intro",
+      "target": "logic-simple-ab"
+    },
+    {
+      "id": "e-logic-18",
+      "source": "logic-simple-ab",
+      "sourceHandle": "a",
+      "target": "logic-ab-a"
+    },
+    {
+      "id": "e-logic-19",
+      "source": "logic-simple-ab",
+      "sourceHandle": "b",
+      "target": "logic-ab-b"
+    },
+    {
+      "id": "e-logic-20",
+      "source": "logic-btn-delay",
+      "target": "logic-delay-intro"
+    },
+    {
+      "id": "e-logic-21",
+      "source": "logic-delay-intro",
+      "target": "logic-delay"
+    },
+    {
+      "id": "e-logic-22",
+      "source": "logic-delay",
+      "target": "logic-delay-result"
+    },
+    {
+      "id": "e-logic-23",
+      "source": "logic-btn-input",
+      "target": "logic-input-intro"
+    },
+    {
+      "id": "e-logic-24",
+      "source": "logic-input-intro",
+      "target": "logic-input"
+    },
+    {
+      "id": "e-logic-25",
+      "source": "logic-input",
+      "target": "logic-input-result"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}

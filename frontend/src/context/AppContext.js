@@ -481,13 +481,17 @@ export function AppProvider({ children }) {
     setSimpleABData(null);
   }, [simpleABData, sendWsMessage]);
 
-  // Handle challenge result - sends back the output ID that determines flow path
-  const handleChallengeResult = useCallback((outputId) => {
+  // Handle challenge result - sends back the result that determines flow path
+  // Accepts either string (legacy: outputId) or object ({ outputId, rollTotal?, reels?, ... })
+  const handleChallengeResult = useCallback((resultData) => {
     if (!challengeData) return;
+
+    // Support both legacy string format and new object format
+    const result = typeof resultData === 'object' ? resultData : { outputId: resultData };
 
     sendWsMessage('challenge_result', {
       nodeId: challengeData.nodeId,
-      outputId: outputId
+      ...result  // Spread all result data (outputId, rollTotal, reels, segmentLabel, etc.)
     });
 
     setChallengeData(null);

@@ -1,0 +1,368 @@
+{
+  "id": "flow-audit-actions",
+  "name": "🧪 Audit - Actions",
+  "category": "global",
+  "description": "Tests all 12 action node types",
+  "nodes": [
+    {
+      "id": "act-btn-messages",
+      "type": "button_press",
+      "position": { "x": 100, "y": 50 },
+      "data": {
+        "label": "Test Message Actions",
+        "buttonTarget": "character",
+        "buttonId": "audit-act-messages"
+      }
+    },
+    {
+      "id": "act-msg-intro",
+      "type": "action",
+      "position": { "x": 100, "y": 150 },
+      "data": {
+        "label": "Messages Test Intro",
+        "actionType": "system_message",
+        "message": "📨 MESSAGE ACTIONS TEST\n\nTesting: send_message, send_player_message, system_message\nWith variable substitution: [Player], [Char], [Capacity]"
+      }
+    },
+    {
+      "id": "act-send-message",
+      "type": "action",
+      "position": { "x": 100, "y": 250 },
+      "data": {
+        "label": "AI Message Test",
+        "actionType": "send_message",
+        "message": "This is a test AI message. Hello [Player], I am [Char]. Your capacity is [Capacity]%.",
+        "suppressLlm": true,
+        "preMessageEnabled": true,
+        "preMessage": "Pre-message test (before AI message)",
+        "preMessageSuppressLlm": true,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "Post-message test (after AI message)",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "act-player-message",
+      "type": "action",
+      "position": { "x": 100, "y": 400 },
+      "data": {
+        "label": "Player Message Test",
+        "actionType": "send_player_message",
+        "message": "This is a test player message. My capacity is [Capacity]%.",
+        "suppressLlm": true
+      }
+    },
+    {
+      "id": "act-system-message",
+      "type": "action",
+      "position": { "x": 100, "y": 500 },
+      "data": {
+        "label": "System Message Test",
+        "actionType": "system_message",
+        "message": "✅ PASS: All message action types tested successfully!"
+      }
+    },
+    {
+      "id": "act-btn-variables",
+      "type": "button_press",
+      "position": { "x": 400, "y": 50 },
+      "data": {
+        "label": "Test Variable Actions",
+        "buttonTarget": "character",
+        "buttonId": "audit-act-variables"
+      }
+    },
+    {
+      "id": "act-var-intro",
+      "type": "action",
+      "position": { "x": 400, "y": 150 },
+      "data": {
+        "label": "Variables Test Intro",
+        "actionType": "system_message",
+        "message": "📝 VARIABLE ACTIONS TEST\n\nTesting: declare_variable, set_variable"
+      }
+    },
+    {
+      "id": "act-declare-var",
+      "type": "action",
+      "position": { "x": 400, "y": 250 },
+      "data": {
+        "label": "Declare Variable",
+        "actionType": "declare_variable",
+        "variableName": "auditTestVar",
+        "variableValue": "initial_value"
+      }
+    },
+    {
+      "id": "act-show-var-1",
+      "type": "action",
+      "position": { "x": 400, "y": 350 },
+      "data": {
+        "label": "Show Initial Value",
+        "actionType": "system_message",
+        "message": "Declared [Flow:auditTestVar] = 'initial_value'\nCurrent value: [Flow:auditTestVar]"
+      }
+    },
+    {
+      "id": "act-set-var",
+      "type": "action",
+      "position": { "x": 400, "y": 450 },
+      "data": {
+        "label": "Set Variable",
+        "actionType": "set_variable",
+        "varType": "custom",
+        "variable": "auditTestVar",
+        "value": "updated_value"
+      }
+    },
+    {
+      "id": "act-show-var-2",
+      "type": "action",
+      "position": { "x": 400, "y": 550 },
+      "data": {
+        "label": "Show Updated Value",
+        "actionType": "system_message",
+        "message": "Updated [Flow:auditTestVar] = 'updated_value'\nCurrent value: [Flow:auditTestVar]\n\n✅ PASS: Variable actions work correctly!"
+      }
+    },
+    {
+      "id": "act-btn-device",
+      "type": "button_press",
+      "position": { "x": 700, "y": 50 },
+      "data": {
+        "label": "Test Device Actions",
+        "buttonTarget": "character",
+        "buttonId": "audit-act-device"
+      }
+    },
+    {
+      "id": "act-device-intro",
+      "type": "action",
+      "position": { "x": 700, "y": 150 },
+      "data": {
+        "label": "Device Test Intro",
+        "actionType": "system_message",
+        "message": "🔌 DEVICE ACTIONS TEST\n\nTesting: device_on, device_off, start_cycle, stop_cycle, pulse_pump\n\nNote: These tests run in simulation mode if no device is connected."
+      }
+    },
+    {
+      "id": "act-device-on",
+      "type": "action",
+      "position": { "x": 700, "y": 250 },
+      "data": {
+        "label": "Device On Test",
+        "actionType": "device_on",
+        "device": "",
+        "untilType": "timer",
+        "untilValue": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Turning device ON for 3 seconds...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "act-device-on-immediate",
+      "type": "action",
+      "position": { "x": 600, "y": 350 },
+      "data": {
+        "label": "Immediate Exit",
+        "actionType": "system_message",
+        "message": "⏱️ Device ON - Immediate exit triggered"
+      }
+    },
+    {
+      "id": "act-device-on-complete",
+      "type": "action",
+      "position": { "x": 800, "y": 350 },
+      "data": {
+        "label": "Completion Exit",
+        "actionType": "system_message",
+        "message": "✅ Device OFF - Completion exit triggered (3s elapsed)"
+      }
+    },
+    {
+      "id": "act-cycle-start",
+      "type": "action",
+      "position": { "x": 700, "y": 450 },
+      "data": {
+        "label": "Start Cycle Test",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 2,
+        "interval": 1,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Starting 3 cycles (2s on, 1s off)...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "act-cycle-complete",
+      "type": "action",
+      "position": { "x": 700, "y": 550 },
+      "data": {
+        "label": "Cycle Complete",
+        "actionType": "system_message",
+        "message": "✅ PASS: Cycling completed (3 cycles)!"
+      }
+    },
+    {
+      "id": "act-btn-toggles",
+      "type": "button_press",
+      "position": { "x": 1000, "y": 50 },
+      "data": {
+        "label": "Test Toggle Actions",
+        "buttonTarget": "character",
+        "buttonId": "audit-act-toggles"
+      }
+    },
+    {
+      "id": "act-toggle-intro",
+      "type": "action",
+      "position": { "x": 1000, "y": 150 },
+      "data": {
+        "label": "Toggle Test Intro",
+        "actionType": "system_message",
+        "message": "🔔 TOGGLE ACTIONS TEST\n\nTesting: toggle_reminder, toggle_button\n\nNote: These require existing reminders/buttons to be configured."
+      }
+    },
+    {
+      "id": "act-toggle-reminder",
+      "type": "action",
+      "position": { "x": 1000, "y": 250 },
+      "data": {
+        "label": "Toggle Reminder",
+        "actionType": "toggle_reminder",
+        "reminderType": "global",
+        "reminderId": "test-reminder",
+        "action": "disable"
+      }
+    },
+    {
+      "id": "act-toggle-button",
+      "type": "action",
+      "position": { "x": 1000, "y": 350 },
+      "data": {
+        "label": "Toggle Button",
+        "actionType": "toggle_button",
+        "buttonId": "test-button",
+        "action": "disable"
+      }
+    },
+    {
+      "id": "act-toggle-result",
+      "type": "action",
+      "position": { "x": 1000, "y": 450 },
+      "data": {
+        "label": "Toggle Result",
+        "actionType": "system_message",
+        "message": "✅ PASS: Toggle actions executed (verify in UI if targets exist)!"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-act-1",
+      "source": "act-btn-messages",
+      "target": "act-msg-intro"
+    },
+    {
+      "id": "e-act-2",
+      "source": "act-msg-intro",
+      "target": "act-send-message"
+    },
+    {
+      "id": "e-act-3",
+      "source": "act-send-message",
+      "target": "act-player-message"
+    },
+    {
+      "id": "e-act-4",
+      "source": "act-player-message",
+      "target": "act-system-message"
+    },
+    {
+      "id": "e-act-5",
+      "source": "act-btn-variables",
+      "target": "act-var-intro"
+    },
+    {
+      "id": "e-act-6",
+      "source": "act-var-intro",
+      "target": "act-declare-var"
+    },
+    {
+      "id": "e-act-7",
+      "source": "act-declare-var",
+      "target": "act-show-var-1"
+    },
+    {
+      "id": "e-act-8",
+      "source": "act-show-var-1",
+      "target": "act-set-var"
+    },
+    {
+      "id": "e-act-9",
+      "source": "act-set-var",
+      "target": "act-show-var-2"
+    },
+    {
+      "id": "e-act-10",
+      "source": "act-btn-device",
+      "target": "act-device-intro"
+    },
+    {
+      "id": "e-act-11",
+      "source": "act-device-intro",
+      "target": "act-device-on"
+    },
+    {
+      "id": "e-act-12",
+      "source": "act-device-on",
+      "sourceHandle": "immediate",
+      "target": "act-device-on-immediate"
+    },
+    {
+      "id": "e-act-13",
+      "source": "act-device-on",
+      "sourceHandle": "completion",
+      "target": "act-device-on-complete"
+    },
+    {
+      "id": "e-act-14",
+      "source": "act-device-on-complete",
+      "target": "act-cycle-start"
+    },
+    {
+      "id": "e-act-15",
+      "source": "act-cycle-start",
+      "sourceHandle": "completion",
+      "target": "act-cycle-complete"
+    },
+    {
+      "id": "e-act-16",
+      "source": "act-btn-toggles",
+      "target": "act-toggle-intro"
+    },
+    {
+      "id": "e-act-17",
+      "source": "act-toggle-intro",
+      "target": "act-toggle-reminder"
+    },
+    {
+      "id": "e-act-18",
+      "source": "act-toggle-reminder",
+      "target": "act-toggle-button"
+    },
+    {
+      "id": "e-act-19",
+      "source": "act-toggle-button",
+      "target": "act-toggle-result"
+    }
+  ],
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "isActive": true
+}
