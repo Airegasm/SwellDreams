@@ -90,3 +90,4 @@ backend/data/backup/
 
 # PID files
 .pids/
+backend/data/personas/personas-index.json
