@@ -22,6 +22,8 @@ class TuyaService {
     this.uid = null;
     this.tokenExpiry = null;
     this.knownDeviceIds = [];  // Store known device IDs
+    this.stateCache = new Map(); // { deviceId: { state, timestamp } }
+    this.CACHE_TTL_MS = 5000; // Cache device state for 5 seconds
   }
 
   setCredentials(accessId, accessSecret, region = 'us') {
@@ -214,24 +216,43 @@ class TuyaService {
 
   async turnOn(deviceId) {
     console.log(`[Tuya] Turning ON device ${deviceId}`);
-    return await this.sendCommand(deviceId, [
+    const result = await this.sendCommand(deviceId, [
       { code: 'switch_1', value: true },
       { code: 'switch', value: true }
     ]);
+    // Update cache immediately with new state
+    this.stateCache.set(deviceId, { state: 'on', timestamp: Date.now() });
+    return result;
   }
 
   async turnOff(deviceId) {
     console.log(`[Tuya] Turning OFF device ${deviceId}`);
-    return await this.sendCommand(deviceId, [
+    const result = await this.sendCommand(deviceId, [
       { code: 'switch_1', value: false },
       { code: 'switch', value: false }
     ]);
+    // Update cache immediately with new state
+    this.stateCache.set(deviceId, { state: 'off', timestamp: Date.now() });
+    return result;
   }
 
   async getPowerState(deviceId) {
+    // Check cache first
+    const cached = this.stateCache.get(deviceId);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL_MS) {
+      console.log(`[Tuya] Using cached state for ${deviceId}: ${cached.state}`);
+      return cached.state;
+    }
+
     const status = await this.getDeviceStatus(deviceId);
     const switchStatus = status.find(s => s.code === 'switch_1' || s.code === 'switch');
-    return switchStatus ? (switchStatus.value ? 'on' : 'off') : 'unknown';
+    const state = switchStatus ? (switchStatus.value ? 'on' : 'off') : 'unknown';
+
+    // Cache the result
+    this.stateCache.set(deviceId, { state, timestamp: Date.now() });
+    console.log(`[Tuya] Cached state for ${deviceId}: ${state}`);
+
+    return state;
   }
 
   async testConnection() {

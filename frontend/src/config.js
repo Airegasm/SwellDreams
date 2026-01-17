@@ -12,8 +12,8 @@ export const WS_URL = `ws://${API_HOST}:${API_PORT}`;
 
 // Timing Configuration
 export const CONFIG = {
-  // Polling intervals
-  POLL_INTERVAL_MS: 2500,
+  // Polling intervals (10s to avoid rate limits on cloud APIs like Tuya/Govee)
+  POLL_INTERVAL_MS: 10000,
   WS_RECONNECT_DELAY_MS: 3000,
 
   // Request timeouts
