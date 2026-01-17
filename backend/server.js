@@ -4649,6 +4649,112 @@ Devices auto-timeout after ${maxSeconds}s but you should turn them off narrative
 // API Routes
 // ============================================
 
+// --- Updates ---
+
+app.get('/api/updates/check', async (req, res) => {
+  const { execSync } = require('child_process');
+  const projectRoot = path.join(__dirname, '..');
+
+  try {
+    // Fetch latest from remote
+    execSync('git fetch origin', { cwd: projectRoot, stdio: 'pipe' });
+
+    // Get current and remote commit hashes
+    const localCommit = execSync('git rev-parse HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
+    const remoteCommit = execSync('git rev-parse origin/master', { cwd: projectRoot, encoding: 'utf8' }).trim();
+
+    // Get commit count difference
+    const behindCount = parseInt(execSync(`git rev-list --count HEAD..origin/master`, { cwd: projectRoot, encoding: 'utf8' }).trim()) || 0;
+
+    // Get current version from package.json
+    const pkg = require('./package.json');
+    const currentVersion = pkg.version;
+
+    // Get commit messages for pending updates
+    let pendingChanges = [];
+    if (behindCount > 0) {
+      const logOutput = execSync(`git log --oneline HEAD..origin/master`, { cwd: projectRoot, encoding: 'utf8' }).trim();
+      pendingChanges = logOutput.split('\n').filter(line => line.trim());
+    }
+
+    res.json({
+      hasUpdates: behindCount > 0,
+      currentVersion,
+      localCommit: localCommit.substring(0, 7),
+      remoteCommit: remoteCommit.substring(0, 7),
+      behindCount,
+      pendingChanges
+    });
+  } catch (error) {
+    console.error('[Updates] Check failed:', error.message);
+    res.json({
+      hasUpdates: false,
+      error: error.message,
+      currentVersion: require('./package.json').version
+    });
+  }
+});
+
+app.post('/api/updates/install', async (req, res) => {
+  const { spawn, execSync } = require('child_process');
+  const projectRoot = path.join(__dirname, '..');
+
+  try {
+    // Pull latest changes
+    console.log('[Updates] Pulling latest changes...');
+    execSync('git pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+
+    // Check if package.json changed (need to reinstall deps)
+    const changedFiles = execSync('git diff --name-only HEAD~1 HEAD', { cwd: projectRoot, encoding: 'utf8' });
+    const needsBackendInstall = changedFiles.includes('backend/package.json');
+    const needsFrontendInstall = changedFiles.includes('frontend/package.json');
+    const needsFrontendBuild = changedFiles.includes('frontend/');
+
+    // Send response before restarting
+    res.json({
+      success: true,
+      message: 'Update installed, restarting server...',
+      needsBackendInstall,
+      needsFrontendInstall,
+      needsFrontendBuild
+    });
+
+    // Schedule restart after response is sent
+    setTimeout(() => {
+      console.log('[Updates] Starting update process...');
+
+      // Create a detached update script that will:
+      // 1. Install dependencies if needed
+      // 2. Rebuild frontend if needed
+      // 3. Restart the server
+      const updateScript = `
+        cd "${projectRoot}"
+        ${needsBackendInstall ? 'echo "[Updates] Installing backend dependencies..." && cd backend && npm install && cd ..' : ''}
+        ${needsFrontendInstall ? 'echo "[Updates] Installing frontend dependencies..." && cd frontend && npm install && cd ..' : ''}
+        ${needsFrontendBuild ? 'echo "[Updates] Rebuilding frontend..." && cd frontend && npm run build && cd ..' : ''}
+        echo "[Updates] Restarting server..."
+        pkill -f "node server.js" || true
+        sleep 1
+        cd backend && node server.js > /tmp/swelldreams.log 2>&1 &
+        echo "[Updates] Server restarted"
+      `;
+
+      const child = spawn('bash', ['-c', updateScript], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      child.unref();
+    }, 500);
+
+  } catch (error) {
+    console.error('[Updates] Install failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // --- Settings ---
 
 app.get('/api/settings', (req, res) => {

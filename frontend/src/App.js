@@ -86,6 +86,10 @@ function App() {
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
+
+  // Update checking state
+  const [updateStatus, setUpdateStatus] = useState('checking'); // 'checking', 'up-to-date', 'available', 'installing', 'restarting', 'error'
+  const [updateInfo, setUpdateInfo] = useState(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // Session management state (lifted from Chat.js)
@@ -222,6 +226,69 @@ function App() {
       setShowTOS(true);
     }
   }, []);
+
+  // Check for updates when TOS modal is shown
+  useEffect(() => {
+    if (!showTOS) return;
+
+    const checkForUpdates = async () => {
+      setUpdateStatus('checking');
+      try {
+        const response = await fetch('/api/updates/check');
+        const data = await response.json();
+        setUpdateInfo(data);
+
+        if (data.error) {
+          setUpdateStatus('error');
+        } else if (data.hasUpdates) {
+          setUpdateStatus('available');
+        } else {
+          setUpdateStatus('up-to-date');
+        }
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+        setUpdateStatus('error');
+        setUpdateInfo({ error: error.message });
+      }
+    };
+
+    checkForUpdates();
+  }, [showTOS]);
+
+  // Handle installing updates
+  const handleInstallUpdate = async () => {
+    setUpdateStatus('installing');
+    try {
+      const response = await fetch('/api/updates/install', { method: 'POST' });
+      const data = await response.json();
+
+      if (data.success) {
+        setUpdateStatus('restarting');
+        // Wait for server to restart, then reload the page
+        setTimeout(() => {
+          const checkServer = async () => {
+            try {
+              const res = await fetch('/api/settings');
+              if (res.ok) {
+                window.location.reload();
+              } else {
+                setTimeout(checkServer, 1000);
+              }
+            } catch {
+              setTimeout(checkServer, 1000);
+            }
+          };
+          checkServer();
+        }, 3000);
+      } else {
+        setUpdateStatus('error');
+        setUpdateInfo({ error: data.error });
+      }
+    } catch (error) {
+      setUpdateStatus('error');
+      setUpdateInfo({ error: error.message });
+    }
+  };
 
   // Reset banner dismissed state when connection is restored
   useEffect(() => {
@@ -418,6 +485,49 @@ function App() {
               <pre className="tos-text">{TERMS_OF_SERVICE}</pre>
             </div>
             <div className="tos-footer">
+              {/* Update Status Section */}
+              <div className="tos-update-status">
+                {updateStatus === 'checking' && (
+                  <span className="update-checking">
+                    <span className="spinner-small"></span> Checking for updates...
+                  </span>
+                )}
+                {updateStatus === 'up-to-date' && (
+                  <span className="update-ok">
+                    ✓ v{updateInfo?.currentVersion} - Up to date
+                  </span>
+                )}
+                {updateStatus === 'available' && (
+                  <div className="update-available">
+                    <span className="update-badge">⬆ Update Available</span>
+                    <span className="update-details">
+                      {updateInfo?.behindCount} commit{updateInfo?.behindCount > 1 ? 's' : ''} behind
+                    </span>
+                    <button
+                      className="btn btn-sm btn-warning update-install-btn"
+                      onClick={handleInstallUpdate}
+                    >
+                      Install & Restart
+                    </button>
+                  </div>
+                )}
+                {updateStatus === 'installing' && (
+                  <span className="update-installing">
+                    <span className="spinner-small"></span> Installing update...
+                  </span>
+                )}
+                {updateStatus === 'restarting' && (
+                  <span className="update-restarting">
+                    <span className="spinner-small"></span> Restarting server...
+                  </span>
+                )}
+                {updateStatus === 'error' && (
+                  <span className="update-error">
+                    ⚠ Update check failed {updateInfo?.error && `(${updateInfo.error})`}
+                  </span>
+                )}
+              </div>
+
               <p className="tos-agreement">
                 By clicking "I Agree" you acknowledge that you have read, understood, and agree to the Terms of Service,
                 and certify that you are at least 18 years of age.
@@ -426,8 +536,14 @@ function App() {
                 <button className="btn btn-danger tos-exit-btn" onClick={handleDeclineTOS}>
                   Exit
                 </button>
-                <button className="btn btn-primary tos-agree-btn" onClick={handleAcceptTOS}>
-                  I Agree
+                <button
+                  className="btn btn-primary tos-agree-btn"
+                  onClick={handleAcceptTOS}
+                  disabled={updateStatus === 'checking' || updateStatus === 'installing' || updateStatus === 'restarting'}
+                >
+                  {updateStatus === 'checking' ? 'Please wait...' :
+                   updateStatus === 'installing' || updateStatus === 'restarting' ? 'Updating...' :
+                   'I Agree'}
                 </button>
               </div>
             </div>
