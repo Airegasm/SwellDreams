@@ -4695,15 +4695,32 @@ app.get('/api/updates/check', async (req, res) => {
   }
 });
 
+// Manual pull endpoint - for when auto-update fails (e.g., git identity issues)
+app.post('/api/updates/pull', async (req, res) => {
+  const { execSync } = require('child_process');
+  const projectRoot = path.join(__dirname, '..');
+
+  try {
+    console.log('[Updates] Manual pull requested...');
+    // Use temporary git identity to avoid "please tell me who you are" error
+    execSync('git -c user.email="update@swelldreams.local" -c user.name="SwellDreams" pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+    console.log('[Updates] Manual pull successful');
+    res.json({ success: true, message: 'Pull successful. Please restart the application.' });
+  } catch (error) {
+    console.error('[Updates] Manual pull failed:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/updates/install', async (req, res) => {
   const { spawn, execSync } = require('child_process');
   const projectRoot = path.join(__dirname, '..');
   const isWindows = process.platform === 'win32';
 
   try {
-    // Pull latest changes (--ff-only avoids needing git identity for merge commits)
+    // Pull latest changes with temporary git identity (avoids "please tell me who you are" error)
     console.log('[Updates] Pulling latest changes...');
-    execSync('git pull --ff-only origin master', { cwd: projectRoot, stdio: 'pipe' });
+    execSync('git -c user.email="update@swelldreams.local" -c user.name="SwellDreams" pull origin master', { cwd: projectRoot, stdio: 'pipe' });
 
     // Clear Python bytecode cache to ensure fresh script execution
     const pycacheDir = path.join(__dirname, 'scripts', '__pycache__');
