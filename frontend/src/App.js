@@ -10,6 +10,7 @@ import Help from './pages/Help';
 import Personas from './pages/Personas';
 import Characters from './pages/Characters';
 import HamburgerMenu from './components/HamburgerMenu';
+import HelpPanel from './components/HelpPanel';
 import SaveSessionModal from './components/modals/SaveSessionModal';
 import LoadSessionModal from './components/modals/LoadSessionModal';
 import { EMOTIONS } from './constants/stateValues';
@@ -94,6 +95,9 @@ function App() {
 
   // New session "Real Time Data" popup state
   const [showNewSessionPopup, setShowNewSessionPopup] = useState(false);
+
+  // Floating help panel state
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [newSessionData, setNewSessionData] = useState({
     capacity: 0,
     pain: 0,
@@ -329,6 +333,7 @@ function App() {
         onNewSession={handleNewSession}
         onSaveSession={() => setShowSaveModal(true)}
         onLoadSession={handleOpenLoadModal}
+        onHelpOpen={() => setShowHelpPanel(true)}
       />
 
       {/* Bottom metallic frame border */}
@@ -537,6 +542,12 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Floating Help Panel */}
+      <HelpPanel
+        isOpen={showHelpPanel}
+        onClose={() => setShowHelpPanel(false)}
+      />
     </div>
   );
 }

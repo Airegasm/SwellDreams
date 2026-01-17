@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import '../styles/HamburgerMenu.css';
 
-function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
+function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSessionSubmenuOpen, setIsSessionSubmenuOpen] = useState(false);
   const [isAutomationSubmenuOpen, setIsAutomationSubmenuOpen] = useState(false);
@@ -48,7 +48,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
   };
 
   // Modal pages that need exit animation before navigation
-  const MODAL_PAGES = ['/personas', '/characters', '/settings', '/screenplay', '/help'];
+  const MODAL_PAGES = ['/personas', '/characters', '/settings', '/screenplay'];
 
   // Check if current page is a modal page
   const isOnModalPage = () => {
@@ -211,13 +211,15 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession }) {
           Settings
         </NavLink>
 
-        <NavLink
-          to="/help"
-          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
-          onClick={(e) => handleNavClick(e, '/help')}
+        <button
+          className="hamburger-menu-item"
+          onClick={() => {
+            setIsOpen(false);
+            onHelpOpen?.();
+          }}
         >
           Help
-        </NavLink>
+        </button>
 
         <a
           href="https://github.com/airegasm/swelldreams/issues"
