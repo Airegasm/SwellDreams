@@ -4701,9 +4701,9 @@ app.post('/api/updates/install', async (req, res) => {
   const isWindows = process.platform === 'win32';
 
   try {
-    // Pull latest changes
+    // Pull latest changes (--ff-only avoids needing git identity for merge commits)
     console.log('[Updates] Pulling latest changes...');
-    execSync('git pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+    execSync('git pull --ff-only origin master', { cwd: projectRoot, stdio: 'pipe' });
 
     // Clear Python bytecode cache to ensure fresh script execution
     const pycacheDir = path.join(__dirname, 'scripts', '__pycache__');
