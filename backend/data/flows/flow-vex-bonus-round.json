@@ -1,0 +1,203 @@
+{
+  "id": "flow-vex-bonus-round",
+  "name": "Bonus Round",
+  "category": "character",
+  "description": "Slot machine + number guess for high stakes",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-br-btn",
+      "type": "button_press",
+      "position": { "x": 200, "y": 50 },
+      "data": {
+        "label": "Bonus Round",
+        "buttonTarget": "character",
+        "buttonId": "vex-bonus",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-br-intro",
+      "type": "action",
+      "position": { "x": 200, "y": 150 },
+      "data": {
+        "label": "Bonus Intro",
+        "actionType": "send_message",
+        "message": "*gold lights everywhere* WELCOME TO THE BONUS ROUND! This is where LEGENDS are made... or BROKEN! First, the SLOT MACHINE determines your MULTIPLIER. Then, guess the secret number to WIN IT ALL!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-slots",
+      "type": "slot_machine",
+      "position": { "x": 200, "y": 280 },
+      "data": {
+        "label": "Multiplier Slots",
+        "reels": [
+          { "id": "reel1", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] },
+          { "id": "reel2", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] },
+          { "id": "reel3", "symbols": ["7", "BAR", "Cherry", "Lemon", "Star"] }
+        ],
+        "matchRequirement": "any2",
+        "preMessageEnabled": true,
+        "preMessage": "*pulls lever* HERE! WE! GO! *reels spin*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-br-jackpot",
+      "type": "action",
+      "position": { "x": 0, "y": 480 },
+      "data": {
+        "label": "Slot Jackpot",
+        "actionType": "send_message",
+        "message": "*SIRENS AND BELLS* THREE OF A KIND! JACKPOT MULTIPLIER! Your reward - or punishment - will be TRIPLE STRENGTH! *maniacal laughter*",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "*stunned silence*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 2,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-partial",
+      "type": "action",
+      "position": { "x": 200, "y": 480 },
+      "data": {
+        "label": "Partial Win",
+        "actionType": "send_message",
+        "message": "*ding ding* Two matching! Not bad! You've earned the DOUBLE MULTIPLIER! Whatever happens next happens TWICE as hard!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-lose",
+      "type": "action",
+      "position": { "x": 400, "y": 480 },
+      "data": {
+        "label": "No Match",
+        "actionType": "send_message",
+        "message": "*sad slot sounds* No matches... but don't worry! Standard multiplier still applies. The game continues!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-guess-intro",
+      "type": "action",
+      "position": { "x": 200, "y": 600 },
+      "data": {
+        "label": "Number Game Intro",
+        "actionType": "send_message",
+        "message": "*drumroll* NOW... for the MAIN EVENT! I'm thinking of a number between 1 and 10. You have THREE guesses to find it. Guess correctly for GLORY! Fail for... well, you know!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-guess",
+      "type": "number_guess",
+      "position": { "x": 200, "y": 730 },
+      "data": {
+        "label": "Guess the Number",
+        "min": 1,
+        "max": 10,
+        "guesses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "The number is locked in my mind... Make your first guess!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-br-guess-win",
+      "type": "action",
+      "position": { "x": 100, "y": 880 },
+      "data": {
+        "label": "Guess Correct",
+        "actionType": "send_message",
+        "message": "*confetti cannon* YOU GOT IT! THE NUMBER WAS [Secret]! BONUS ROUND CHAMPION! *audience goes wild* Your reward awaits!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-reward",
+      "type": "action",
+      "position": { "x": 100, "y": 1000 },
+      "data": {
+        "label": "Victory Reward",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "And here's your BONUS ROUND REWARD! A gentle victory celebration!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*bows* You've EARNED this, champion. Until next time!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-br-guess-lose",
+      "type": "action",
+      "position": { "x": 350, "y": 880 },
+      "data": {
+        "label": "Guess Wrong",
+        "actionType": "send_message",
+        "message": "*buzzer* OUT OF GUESSES! The number was [Secret]! SO CLOSE... yet so far! And now... the BONUS ROUND PUNISHMENT with your earned multiplier!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-br-punish",
+      "type": "action",
+      "position": { "x": 350, "y": 1000 },
+      "data": {
+        "label": "Bonus Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*evil grin* Here comes the MULTIPLIED punishment! Remember, YOU chose to play the bonus round!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*takes a bow* AND THAT'S THE BONUS ROUND! Thanks for playing! *audience applauds*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-br-btn", "target": "vex-br-intro" },
+    { "id": "e2", "source": "vex-br-intro", "target": "vex-br-slots" },
+    { "id": "e3", "source": "vex-br-slots", "sourceHandle": "jackpot", "target": "vex-br-jackpot" },
+    { "id": "e4", "source": "vex-br-slots", "sourceHandle": "partial-win", "target": "vex-br-partial" },
+    { "id": "e5", "source": "vex-br-slots", "sourceHandle": "lose", "target": "vex-br-lose" },
+    { "id": "e6", "source": "vex-br-jackpot", "target": "vex-br-guess-intro" },
+    { "id": "e7", "source": "vex-br-partial", "target": "vex-br-guess-intro" },
+    { "id": "e8", "source": "vex-br-lose", "target": "vex-br-guess-intro" },
+    { "id": "e9", "source": "vex-br-guess-intro", "target": "vex-br-guess" },
+    { "id": "e10", "source": "vex-br-guess", "sourceHandle": "win", "target": "vex-br-guess-win" },
+    { "id": "e11", "source": "vex-br-guess", "sourceHandle": "lose", "target": "vex-br-guess-lose" },
+    { "id": "e12", "source": "vex-br-guess-win", "target": "vex-br-reward" },
+    { "id": "e13", "source": "vex-br-guess-lose", "target": "vex-br-punish" }
+  ]
+}

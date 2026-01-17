@@ -9,7 +9,9 @@ function SystemTab() {
     feelings: false,
     emotions: false,
     charcontrols: false,
-    autocapacity: false
+    autocapacity: false,
+    remoteAccess: false,
+    llmDeviceControl: false
   });
 
   const toggle = (section) => {
@@ -382,6 +384,159 @@ function SystemTab() {
               <strong>Important:</strong> Auto-capacity only tracks forward progression. It does not
               automatically decrease capacity when pumps are off. You can manually decrease capacity
               using keyboard shortcuts or set it via flows.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Remote Access */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('remoteAccess')}>
+          Remote Access & IP Whitelist
+          <span className="expand-icon">{expanded.remoteAccess ? '−' : '+'}</span>
+        </h3>
+        {expanded.remoteAccess && (
+          <div className="section-content">
+            <p>
+              Access SwellDreams from other devices (like a phone or tablet) on your network
+              or through Tailscale VPN. Useful for controlling sessions from a mobile device.
+            </p>
+
+            <h4 className="subsection-header">Enabling Remote Access</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Global</strong></li>
+              <li>Find the <strong>Remote Access</strong> section</li>
+              <li>Enable <strong>Allow Remote Connections</strong></li>
+              <li>Add IP addresses to the whitelist</li>
+            </ol>
+
+            <h4 className="subsection-header">IP Whitelist</h4>
+            <p>
+              For security, only whitelisted IP addresses can connect remotely. You must add
+              each device's IP address to the whitelist before it can access the application.
+            </p>
+            <ul className="help-list">
+              <li><strong>Local Network:</strong> Add your phone/tablet's local IP (e.g., 192.168.1.x)</li>
+              <li><strong>Tailscale:</strong> Add your device's Tailscale IP (e.g., 100.x.x.x)</li>
+              <li><strong>Auto-Add:</strong> When accessing from a local machine, use the "Add Current IP" button</li>
+            </ul>
+
+            <h4 className="subsection-header">Finding Your Device's IP</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Device</th>
+                  <th>How to Find IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>iPhone/iPad</strong></td>
+                  <td>Settings → Wi-Fi → tap the (i) next to your network</td>
+                </tr>
+                <tr>
+                  <td><strong>Android</strong></td>
+                  <td>Settings → Network → Wi-Fi → tap your network</td>
+                </tr>
+                <tr>
+                  <td><strong>Tailscale</strong></td>
+                  <td>Open Tailscale app → your IP is shown at the top</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="warning-box">
+              <strong>Security Note:</strong> Only add IPs you trust. Anyone with a whitelisted IP
+              can access your SwellDreams instance and control connected devices.
+            </div>
+
+            <h4 className="subsection-header">Connecting from Mobile</h4>
+            <ol className="help-list numbered">
+              <li>Ensure remote access is enabled and your device IP is whitelisted</li>
+              <li>Open a browser on your mobile device</li>
+              <li>Navigate to <code>http://[server-ip]:3001</code></li>
+              <li>The interface is optimized for mobile with touch-friendly controls</li>
+            </ol>
+          </div>
+        )}
+      </div>
+
+      {/* LLM Direct Device Control */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('llmDeviceControl')}>
+          LLM Direct Device Control
+          <span className="expand-icon">{expanded.llmDeviceControl ? '−' : '+'}</span>
+        </h3>
+        {expanded.llmDeviceControl && (
+          <div className="section-content">
+            <p>
+              When enabled, the AI character can directly control devices by including special
+              command tags in their responses. Commands are automatically executed and stripped
+              from the displayed message.
+            </p>
+
+            <h4 className="subsection-header">Available Commands</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>[pump on]</code></td>
+                  <td>Turns on the primary pump device</td>
+                </tr>
+                <tr>
+                  <td><code>[pump off]</code></td>
+                  <td>Turns off the primary pump device</td>
+                </tr>
+                <tr>
+                  <td><code>[vibe on]</code></td>
+                  <td>Turns on the vibrator device</td>
+                </tr>
+                <tr>
+                  <td><code>[vibe off]</code></td>
+                  <td>Turns off the vibrator device</td>
+                </tr>
+                <tr>
+                  <td><code>[tens on]</code></td>
+                  <td>Turns on the TENS device</td>
+                </tr>
+                <tr>
+                  <td><code>[tens off]</code></td>
+                  <td>Turns off the TENS device</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">How It Works</h4>
+            <ul className="help-list">
+              <li>The AI includes commands naturally in its roleplay responses</li>
+              <li>Commands are parsed out before displaying the message</li>
+              <li>The corresponding device action executes automatically</li>
+              <li>If no matching device is configured, the command is ignored</li>
+            </ul>
+
+            <h4 className="subsection-header">Enabling LLM Device Control</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Global</strong></li>
+              <li>Find <strong>LLM Direct Device Control</strong></li>
+              <li>Enable the toggle</li>
+              <li>Configure your devices in <strong>Settings → Devices</strong></li>
+            </ol>
+
+            <div className="info-box">
+              <strong>Character Prompting:</strong> For best results, include instructions in your
+              character's personality or reminders like: "You can control the pump using [pump on]
+              and [pump off] commands in your responses."
+            </div>
+
+            <div className="warning-box">
+              <strong>Safety:</strong> The AI controls devices based on its interpretation of the
+              roleplay. Always have a hardware disconnect within reach. The E-STOP button stops
+              all device activity regardless of what the AI is doing.
             </div>
           </div>
         )}

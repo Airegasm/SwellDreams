@@ -1,0 +1,357 @@
+{
+  "id": "flow-scarlett-rules",
+  "name": "Rule Enforcement",
+  "category": "character",
+  "description": "Keyword triggers for rule violations",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1768652719695,
+  "nodes": [
+    {
+      "id": "scarlett-rl-btn",
+      "type": "button_press",
+      "position": {
+        "x": -200,
+        "y": 50
+      },
+      "data": {
+        "label": "Recite the Rules",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-rules",
+        "unblockable": false,
+        "hasPriority": false
+      },
+      "measured": {
+        "width": 277,
+        "height": 237
+      }
+    },
+    {
+      "id": "scarlett-rl-recite",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 180
+      },
+      "data": {
+        "label": "Rules Recital",
+        "actionType": "send_message",
+        "message": "*crosses arms, looking pleased* Good. You wish to remember your place. The rules are simple: One - you address me as 'Mistress' at all times. Two - the word 'no' does not exist in your vocabulary. Three - you do not give orders, you receive them. Four - when I ask a question, you answer immediately and honestly. Five - your pleasure and your pain are mine to give. *steps closer* Break any rule, and there will be consequences. Understand?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 251,
+        "height": 199
+      }
+    },
+    {
+      "id": "scarlett-rl-trigger-no",
+      "type": "trigger",
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "data": {
+        "label": "Detects 'no'",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "no",
+          "No",
+          "NO"
+        ],
+        "unblockable": true,
+        "notify": false,
+        "hasPriority": true
+      },
+      "measured": {
+        "width": 257,
+        "height": 224
+      }
+    },
+    {
+      "id": "scarlett-rl-no-response",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 180
+      },
+      "data": {
+        "label": "No Response",
+        "actionType": "send_message",
+        "message": "*freezes, voice drops dangerously low* Did you just say 'no' to me? *steps closer* That word is forbidden here. You know the rules.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 251,
+        "height": 199
+      }
+    },
+    {
+      "id": "scarlett-rl-no-punishment",
+      "type": "action",
+      "position": {
+        "x": 76.40060295150323,
+        "y": 387.87801026003933
+      },
+      "data": {
+        "label": "No Punishment",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*activates device* Let this remind you of proper vocabulary. The phrase you ar elooking for is \"Yes, Mistress.\"",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false,
+        "postMessage": "The word you're looking for is 'Yes, Mistress.' Practice it.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      },
+      "measured": {
+        "width": 251,
+        "height": 285
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "scarlett-rl-trigger-stop",
+      "type": "trigger",
+      "position": {
+        "x": 400,
+        "y": 50
+      },
+      "data": {
+        "label": "Detects 'stop'",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "stop",
+          "Stop",
+          "STOP"
+        ],
+        "unblockable": true,
+        "notify": false,
+        "hasPriority": true
+      },
+      "measured": {
+        "width": 257,
+        "height": 224
+      }
+    },
+    {
+      "id": "scarlett-rl-stop-response",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 180
+      },
+      "data": {
+        "label": "Stop Response",
+        "actionType": "send_message",
+        "message": "*raises eyebrow* 'Stop'? You presume to give ME orders? *laughs coldly* How adorable. How mistaken.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 251,
+        "height": 199
+      }
+    },
+    {
+      "id": "scarlett-rl-stop-punishment",
+      "type": "action",
+      "position": {
+        "x": 395.0081352878187,
+        "y": 525.6526548037843
+      },
+      "data": {
+        "label": "Stop Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Since you want things to 'stop' so badly, let's give you something to really want stopped.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*smirks* Now. Do you have any other commands for me? No? Good.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      },
+      "measured": {
+        "width": 251,
+        "height": 473
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "scarlett-rl-trigger-please",
+      "type": "trigger",
+      "position": {
+        "x": 700,
+        "y": 50
+      },
+      "data": {
+        "label": "Detects begging",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "please",
+          "Please",
+          "PLEASE",
+          "beg"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      },
+      "measured": {
+        "width": 257,
+        "height": 246
+      }
+    },
+    {
+      "id": "scarlett-rl-please-response",
+      "type": "action",
+      "position": {
+        "x": 700,
+        "y": 180
+      },
+      "data": {
+        "label": "Begging Response",
+        "actionType": "send_message",
+        "message": "*tilts head* Begging already? *considers* I do enjoy that sound. Continue. Perhaps if you beg prettily enough, I'll show mercy. Perhaps.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 251,
+        "height": 199
+      }
+    },
+    {
+      "id": "scarlett-rl-pumpoff-btn",
+      "type": "button_press",
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
+      "data": {
+        "label": "Turn Off Pump",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-pump-off",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      },
+      "measured": {
+        "width": 277,
+        "height": 242
+      }
+    },
+    {
+      "id": "scarlett-rl-pumpoff-action",
+      "type": "action",
+      "position": {
+        "x": 1011.7996985242482,
+        "y": 332.2161109628041
+      },
+      "data": {
+        "label": "Pump Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*reaches over and flips the switch* [pump off] There. I'll give you a moment to catch your breath. *watches with a knowing smile* Don't get too comfortable though.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 251,
+        "height": 255
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_0",
+      "type": "action",
+      "position": {
+        "x": 674.872550294498,
+        "y": 473.9561646411483
+      },
+      "data": {
+        "label": "Send Player Message",
+        "actionType": "send_player_message",
+        "message": "",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 251,
+        "height": 199
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "scarlett-rl-btn",
+      "target": "scarlett-rl-recite"
+    },
+    {
+      "id": "e1",
+      "source": "scarlett-rl-trigger-no",
+      "target": "scarlett-rl-no-response"
+    },
+    {
+      "id": "e2",
+      "source": "scarlett-rl-no-response",
+      "target": "scarlett-rl-no-punishment"
+    },
+    {
+      "id": "e3",
+      "source": "scarlett-rl-trigger-stop",
+      "target": "scarlett-rl-stop-response"
+    },
+    {
+      "id": "e5",
+      "source": "scarlett-rl-trigger-please",
+      "target": "scarlett-rl-please-response"
+    },
+    {
+      "id": "e6",
+      "source": "scarlett-rl-pumpoff-btn",
+      "target": "scarlett-rl-pumpoff-action"
+    },
+    {
+      "source": "node_0",
+      "target": "scarlett-rl-stop-punishment",
+      "animated": true,
+      "id": "xy-edge__node_0-scarlett-rl-stop-punishment"
+    },
+    {
+      "source": "scarlett-rl-stop-response",
+      "target": "node_0",
+      "animated": true,
+      "id": "xy-edge__scarlett-rl-stop-response-node_0"
+    }
+  ]
+}

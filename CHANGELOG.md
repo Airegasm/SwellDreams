@@ -2,6 +2,48 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [2.0] - 2026-01-17
+
+### Added
+
+#### Builtin Characters & Personas
+- 4 builtin characters with unique personalities and pre-assigned flows:
+  - **Luna** - Sensual girlfriend with intimate choices, comfort checks, and reward flows
+  - **Mistress Scarlett** - Dominatrix with obedience tests, punishment sequences, and rule enforcement
+  - **Vex** - Gameshow host featuring all challenge nodes (wheel, dice, RPS, timer, slots, etc.)
+  - **Dr. Iris Chen** - Clinical researcher with data collection, capacity study, and threshold testing
+- 2 builtin personas with capacity-based reaction flows:
+  - **Marcus** - Eager male subject with enthusiastic reactions
+  - **Zara** - Bratty female subject with resistant/reluctant reactions
+
+#### New Flow Nodes
+- **Simon Challenge** - Memory game node (repeat colored button sequences)
+- **Reflex Challenge** - Reaction speed game node (click targets before timeout)
+- **Input Node** - Collect text/number input from player via modal popup
+- **Random Number Node** - Generate random integers and store in flow variables
+
+#### LLM Direct Device Control
+- AI characters can control devices via inline tags: `[pump on]`, `[pump off]`, `[vibe on/off]`, `[tens on/off]`
+- Commands auto-execute and are stripped from displayed message
+- Enable in Settings → Global
+
+#### Remote Access & Security
+- IP whitelist for remote connections (mobile/tablet access)
+- Tailscale and local network IP support
+- Auto-add current IP feature when accessing locally
+
+#### Help Documentation
+- Comprehensive documentation for all new features
+- Builtin characters and personas guide
+- Remote access setup instructions
+- LLM device control reference
+
+### Changed
+- Character/persona selector buttons now display horizontally (flexbox layout fix)
+- New folder structure for characters and personas (`/default/{id}/` with `img/` subfolder)
+
+---
+
 ## [2.0] - 2026-01-16
 
 ### Added

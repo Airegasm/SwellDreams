@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 function ButtonPressNode({ data, selected }) {
@@ -39,13 +40,14 @@ function ButtonPressNode({ data, selected }) {
           Priority
         </label>
         {data.hasPriority && (
-          <input
-            type="number"
+          <NumberInput
             className="node-input tiny"
-            value={data.priority ?? 3}
-            min="1"
-            max="5"
-            onChange={(e) => data.onChange?.('priority', Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+            value={data.priority}
+            defaultValue={3}
+            min={1}
+            max={5}
+            onChange={(val) => data.onChange?.('priority', Math.min(5, Math.max(1, val)))}
+            allowFloat={false}
           />
         )}
       </div>

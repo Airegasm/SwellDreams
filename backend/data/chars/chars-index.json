@@ -1,5 +1,29 @@
 [
   {
+    "id": "char-luna",
+    "name": "Luna",
+    "category": "default",
+    "description": "Your devoted girlfriend who delights in exploring intimacy with you. She's playful and caring, alway..."
+  },
+  {
+    "id": "char-scarlett",
+    "name": "Mistress Scarlett",
+    "category": "default",
+    "description": "A sophisticated dominatrix who demands absolute obedience. She is calculated, never cruel without pu..."
+  },
+  {
+    "id": "char-vex",
+    "name": "Vex",
+    "category": "default",
+    "description": "Welcome to the show! Vex is your charming gameshow host who loves nothing more than watching contest..."
+  },
+  {
+    "id": "char-iris",
+    "name": "Dr. Iris Chen",
+    "category": "default",
+    "description": "Dr. Chen is conducting important research on human capacity thresholds. You are Subject #47. Your co..."
+  },
+  {
     "id": "c74c9ace-2c54-4036-9ba0-c0924b7c7a08",
     "name": "Julie",
     "category": "custom",

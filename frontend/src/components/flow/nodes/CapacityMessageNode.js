@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 // Capacity range definitions
@@ -87,13 +88,13 @@ function CapacityMessageNode({ data, selected }) {
           </label>
           <div className="config-row">
             <label>Post Delay:</label>
-            <input
-              type="number"
-              value={data.postDelay ?? 3}
-              onChange={(e) => data.onChange?.('postDelay', parseFloat(e.target.value) || 0)}
+            <NumberInput
+              value={data.postDelay}
+              onChange={(val) => data.onChange?.('postDelay', val)}
+              defaultValue={3}
               min={0}
               step={0.5}
-              className="node-input small"
+              allowFloat={true}
             />
             <span>s</span>
           </div>

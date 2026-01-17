@@ -84,10 +84,12 @@ function findDeviceByType(devices, deviceType) {
  * @param {Array} commands - Parsed commands from parseDeviceCommands
  * @param {Array} devices - List of registered devices
  * @param {Object} deviceService - DeviceService instance
+ * @param {Object} options - Optional settings and sessionState for safety checks
  * @returns {Promise<Array>} - Results of each command execution
  */
-async function executeDeviceCommands(commands, devices, deviceService) {
+async function executeDeviceCommands(commands, devices, deviceService, options = {}) {
   const results = [];
+  const { settings, sessionState, broadcast } = options;
 
   for (const cmd of commands) {
     const device = findDeviceByType(devices, cmd.device);
@@ -102,6 +104,26 @@ async function executeDeviceCommands(commands, devices, deviceService) {
     const deviceId = device.brand === 'govee' || device.brand === 'tuya' || device.brand === 'wyze'
       ? device.deviceId
       : device.ip;
+
+    // Safety check: Block pump activation at 100% capacity (unless allowOverInflation is enabled)
+    if (cmd.action === 'on' && cmd.device === 'pump') {
+      const allowOverInflation = settings?.globalCharacterControls?.allowOverInflation;
+      const currentCapacity = sessionState?.capacity ?? 0;
+
+      if (!allowOverInflation && currentCapacity >= 100) {
+        log.warn(`AI pump command blocked by safety - capacity at ${currentCapacity}%`);
+        if (broadcast) {
+          broadcast('pump_safety_block', {
+            reason: 'capacity_limit',
+            capacity: currentCapacity,
+            device: device.label || device.name || 'Pump',
+            source: 'llm'
+          });
+        }
+        results.push({ command: cmd, success: false, blocked: true, error: 'Capacity at maximum - pump blocked for safety' });
+        continue;
+      }
+    }
 
     try {
       let result;
@@ -128,9 +150,10 @@ async function executeDeviceCommands(commands, devices, deviceService) {
  * @param {string} text - Raw LLM output
  * @param {Array} devices - List of registered devices
  * @param {Object} deviceService - DeviceService instance
+ * @param {Object} options - Optional settings and sessionState for safety checks
  * @returns {Promise<{text: string, commands: Array, results: Array}>}
  */
-async function processLlmOutput(text, devices, deviceService) {
+async function processLlmOutput(text, devices, deviceService, options = {}) {
   const commands = parseDeviceCommands(text);
 
   if (commands.length === 0) {
@@ -139,10 +162,10 @@ async function processLlmOutput(text, devices, deviceService) {
 
   log.info(`Found ${commands.length} device command(s) in LLM output`);
 
-  // Execute commands
-  const results = await executeDeviceCommands(commands, devices, deviceService);
+  // Execute commands (with safety checks if options provided)
+  const results = await executeDeviceCommands(commands, devices, deviceService, options);
 
-  // Strip commands from display text
+  // Strip commands from display text (always strip, even if blocked)
   const cleanedText = stripDeviceCommands(text);
 
   return { text: cleanedText, commands, results };

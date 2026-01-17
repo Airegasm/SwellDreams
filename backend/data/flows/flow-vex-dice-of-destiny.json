@@ -1,0 +1,172 @@
+{
+  "id": "flow-vex-dice-of-destiny",
+  "name": "Dice of Destiny",
+  "category": "character",
+  "description": "Roll dice to determine intensity levels",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-dd-btn",
+      "type": "button_press",
+      "position": { "x": 200, "y": 50 },
+      "data": {
+        "label": "Roll the Dice",
+        "buttonTarget": "character",
+        "buttonId": "vex-dice",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-dd-intro",
+      "type": "action",
+      "position": { "x": 200, "y": 150 },
+      "data": {
+        "label": "Dice Intro",
+        "actionType": "send_message",
+        "message": "*produces two gleaming dice* Welcome to DICE OF DESTINY! Roll low, and things stay gentle. Roll high... *evil grin* ...well, let's just say the audience LOVES a high roller!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-dice",
+      "type": "dice_roll",
+      "position": { "x": 200, "y": 280 },
+      "data": {
+        "label": "Destiny Dice",
+        "diceCount": 2,
+        "mode": "ranges",
+        "ranges": [
+          { "id": "low", "label": "Low (2-5)", "min": 2, "max": 5 },
+          { "id": "mid", "label": "Medium (6-8)", "min": 6, "max": 8 },
+          { "id": "high", "label": "High (9-11)", "min": 9, "max": 11 },
+          { "id": "max", "label": "SNAKE EYES/BOXCARS", "min": 12, "max": 12 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*rattles dice dramatically* Come onnnn, lucky seven! ...wait, that's bad for YOU! *throws dice*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-dd-low",
+      "type": "action",
+      "position": { "x": 0, "y": 480 },
+      "data": {
+        "label": "Low Roll",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*disappointed* Aww, only [Roll]? That's BARELY anything! *sighs* Fine, here's your gentle treatment...",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*yawns* The audience is getting BORED! Roll again soon!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-mid",
+      "type": "action",
+      "position": { "x": 175, "y": 480 },
+      "data": {
+        "label": "Medium Roll",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*nods approvingly* [Roll]! A respectable roll! Let's give our contestant a MODERATE experience!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*golf clap* Not bad, not bad. The dice were... fair today.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-high",
+      "type": "action",
+      "position": { "x": 350, "y": 480 },
+      "data": {
+        "label": "High Roll",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "*eyes widen* OOOOH, [Roll]! HIGH ROLLER! *audience roars* This is what we came to see, folks!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes brow* WHEW! That was INTENSE! How are you feeling, high roller?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-max",
+      "type": "action",
+      "position": { "x": 525, "y": 480 },
+      "data": {
+        "label": "Perfect Roll",
+        "actionType": "send_message",
+        "message": "*freezes in disbelief* TWELVE?! BOXCARS! THE MAXIMUM! *sirens blare* Ladies and gentlemen... this contestant just rolled PERFECTION!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-max-action",
+      "type": "action",
+      "position": { "x": 525, "y": 600 },
+      "data": {
+        "label": "Maximum Experience",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 3,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*rubs hands together* And for rolling the MAXIMUM, you get the MAXIMUM EXPERIENCE!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 2,
+        "postMessageEnabled": true,
+        "postMessage": "*standing ovation* LEGENDARY! You'll remember THIS roll forever!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "vex-dd-other",
+      "type": "action",
+      "position": { "x": 700, "y": 480 },
+      "data": {
+        "label": "Mystery Roll",
+        "actionType": "send_message",
+        "message": "*confused* Wait, that roll doesn't match any category? *checks dice* Eh, let's call it a MYSTERY RESULT! Anything could happen!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-dd-btn", "target": "vex-dd-intro" },
+    { "id": "e2", "source": "vex-dd-intro", "target": "vex-dd-dice" },
+    { "id": "e3", "source": "vex-dd-dice", "sourceHandle": "low", "target": "vex-dd-low" },
+    { "id": "e4", "source": "vex-dd-dice", "sourceHandle": "mid", "target": "vex-dd-mid" },
+    { "id": "e5", "source": "vex-dd-dice", "sourceHandle": "high", "target": "vex-dd-high" },
+    { "id": "e6", "source": "vex-dd-dice", "sourceHandle": "max", "target": "vex-dd-max" },
+    { "id": "e7", "source": "vex-dd-max", "target": "vex-dd-max-action" },
+    { "id": "e8", "source": "vex-dd-dice", "sourceHandle": "other", "target": "vex-dd-other" }
+  ]
+}

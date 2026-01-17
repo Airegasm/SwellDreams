@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 function InputNode({ data, selected }) {
@@ -81,20 +82,20 @@ function InputNode({ data, selected }) {
           {data.inputType === 'number' && (
             <div className="config-row">
               <label>Min:</label>
-              <input
-                type="number"
-                value={data.minValue ?? ''}
-                onChange={(e) => data.onChange?.('minValue', e.target.value ? parseFloat(e.target.value) : null)}
+              <NumberInput
+                value={data.minValue}
+                onChange={(val) => data.onChange?.('minValue', val)}
+                defaultValue={0}
                 className="node-input small"
-                placeholder="—"
+                allowFloat={true}
               />
               <label style={{ marginLeft: '10px' }}>Max:</label>
-              <input
-                type="number"
-                value={data.maxValue ?? ''}
-                onChange={(e) => data.onChange?.('maxValue', e.target.value ? parseFloat(e.target.value) : null)}
+              <NumberInput
+                value={data.maxValue}
+                onChange={(val) => data.onChange?.('maxValue', val)}
+                defaultValue={100}
                 className="node-input small"
-                placeholder="—"
+                allowFloat={true}
               />
             </div>
           )}

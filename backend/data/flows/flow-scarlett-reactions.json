@@ -1,0 +1,464 @@
+{
+  "id": "flow-scarlett-reactions",
+  "name": "Mistress Scarlett's Reactions",
+  "category": "character",
+  "description": "Keyword triggers for dominance play - obedience, defiance, and proper protocol",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "scarlett-rx-yesmistress",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 50
+      },
+      "data": {
+        "label": "Proper Address",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "yes mistress",
+          "Yes Mistress",
+          "yes, mistress",
+          "of course mistress",
+          "as you wish"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-yesmistress-action",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "data": {
+        "label": "Approve Obedience",
+        "actionType": "send_message",
+        "message": "*slight nod of approval* Good. You remember your place. Proper address pleases me. *traces finger along control panel* Perhaps I'll be... lenient. Continue to behave, and you may find me generous.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-thankyou",
+      "type": "trigger",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Shows Gratitude",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "thank you",
+          "Thank you",
+          "grateful",
+          "I appreciate",
+          "you're too kind"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-thankyou-action",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 180
+      },
+      "data": {
+        "label": "Accept Gratitude",
+        "actionType": "send_message",
+        "message": "*raises eyebrow* Gratitude. How refreshing. *slight smile* You're learning that everything you receive is by my grace. Remember that when you wish to complain.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-defiance",
+      "type": "trigger",
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "data": {
+        "label": "Defiance Detected",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "no",
+          "I won't",
+          "you can't",
+          "make me",
+          "never",
+          "refuse"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-defiance-action",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 180
+      },
+      "data": {
+        "label": "Punish Defiance",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*eyes flash dangerously* Did you just... refuse me? *laughs coldly* Oh, how delightful. A lesson is required.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches with satisfaction* That is what defiance earns you. Would you like to reconsider your words?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "scarlett-rx-beg",
+      "type": "trigger",
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "data": {
+        "label": "Begging",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "please",
+          "I beg",
+          "begging",
+          "have mercy",
+          "I'll do anything"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-beg-action",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 180
+      },
+      "data": {
+        "label": "Consider Begging",
+        "actionType": "send_message",
+        "message": "*tilts head, considering* Begging. How... appropriate. *circles slowly* Your desperation is noted. Whether it earns mercy depends entirely on how much you've pleased me today.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-sorry",
+      "type": "trigger",
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
+      "data": {
+        "label": "Apology",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "sorry",
+          "I'm sorry",
+          "apologize",
+          "forgive me",
+          "I was wrong"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-sorry-action",
+      "type": "action",
+      "position": {
+        "x": 1000,
+        "y": 180
+      },
+      "data": {
+        "label": "Accept Apology",
+        "actionType": "send_message",
+        "message": "*pauses* An apology. *studies your face* Words are easy. Prove your contrition through obedience. *snaps fingers* Show me you mean it.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-stop",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 400
+      },
+      "data": {
+        "label": "Stop Request",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "stop",
+          "enough",
+          "red",
+          "safeword",
+          "too much"
+        ],
+        "unblockable": true,
+        "notify": false,
+        "hasPriority": true
+      }
+    },
+    {
+      "id": "scarlett-rx-stop-action",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 530
+      },
+      "data": {
+        "label": "Grant Mercy",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*immediately steps to controls* [pump off] *turns to face you* The word has been spoken. *approaches calmly* You've reached your limit. That is... acceptable.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Rest now. We will discuss your... performance... when you've recovered. *slight smile* You lasted longer than I expected.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "scarlett-rx-ai-punish",
+      "type": "trigger",
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "data": {
+        "label": "Scarlett Mentions Punishment",
+        "triggerType": "ai_speaks",
+        "keywords": [
+          "punish",
+          "punishment",
+          "discipline",
+          "consequence",
+          "penalty"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-ai-punish-action",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 530
+      },
+      "data": {
+        "label": "Execute Punishment",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "*adjusts controls precisely* Actions have consequences...",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "scarlett-rx-ai-pleased",
+      "type": "trigger",
+      "position": {
+        "x": 500,
+        "y": 400
+      },
+      "data": {
+        "label": "Scarlett is Pleased",
+        "triggerType": "ai_speaks",
+        "keywords": [
+          "pleased",
+          "impressed",
+          "well done",
+          "good",
+          "excellent"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-ai-pleased-action",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 530
+      },
+      "data": {
+        "label": "Brief Respite",
+        "actionType": "send_message",
+        "message": "*pauses the intensity* A moment's rest. You've earned that much. *studies you* Don't grow complacent.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-worship",
+      "type": "trigger",
+      "position": {
+        "x": 750,
+        "y": 400
+      },
+      "data": {
+        "label": "Worship",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "worship",
+          "goddess",
+          "perfect",
+          "beautiful",
+          "amazing"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-worship-action",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 530
+      },
+      "data": {
+        "label": "Accept Worship",
+        "actionType": "send_message",
+        "message": "*slow smile spreads across her face* Worship. Now that is proper reverence. *trails fingers along your jaw* Continue speaking such truths, and I may show you what rewards look like.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-rx-ready",
+      "type": "trigger",
+      "position": {
+        "x": 1000,
+        "y": 400
+      },
+      "data": {
+        "label": "Ready Statement",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "ready",
+          "I'm ready",
+          "begin",
+          "start",
+          "do it"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-rx-ready-action",
+      "type": "action",
+      "position": {
+        "x": 1000,
+        "y": 530
+      },
+      "data": {
+        "label": "Begin Session",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*walks to control panel, heels clicking* You claim to be ready. [pump on] *turns dial* We shall test that claim.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches intently* Breathe. Focus. And remember - you asked for this.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "scarlett-rx-yesmistress",
+      "target": "scarlett-rx-yesmistress-action"
+    },
+    {
+      "id": "e2",
+      "source": "scarlett-rx-thankyou",
+      "target": "scarlett-rx-thankyou-action"
+    },
+    {
+      "id": "e3",
+      "source": "scarlett-rx-defiance",
+      "target": "scarlett-rx-defiance-action"
+    },
+    {
+      "id": "e4",
+      "source": "scarlett-rx-beg",
+      "target": "scarlett-rx-beg-action"
+    },
+    {
+      "id": "e5",
+      "source": "scarlett-rx-sorry",
+      "target": "scarlett-rx-sorry-action"
+    },
+    {
+      "id": "e6",
+      "source": "scarlett-rx-stop",
+      "target": "scarlett-rx-stop-action"
+    },
+    {
+      "id": "e7",
+      "source": "scarlett-rx-ai-punish",
+      "target": "scarlett-rx-ai-punish-action"
+    },
+    {
+      "id": "e8",
+      "source": "scarlett-rx-ai-pleased",
+      "target": "scarlett-rx-ai-pleased-action"
+    },
+    {
+      "id": "e9",
+      "source": "scarlett-rx-worship",
+      "target": "scarlett-rx-worship-action"
+    },
+    {
+      "id": "e10",
+      "source": "scarlett-rx-ready",
+      "target": "scarlett-rx-ready-action"
+    }
+  ]
+}

@@ -1,0 +1,226 @@
+{
+  "id": "flow-luna-comfort-check",
+  "name": "Luna's Comfort Check",
+  "category": "character",
+  "description": "Caring check-ins at different capacity thresholds",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-cc-btn",
+      "type": "button_press",
+      "position": {
+        "x": -150,
+        "y": 50
+      },
+      "data": {
+        "label": "Hold Me",
+        "buttonTarget": "character",
+        "buttonId": "luna-comfort",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-cc-comfort-response",
+      "type": "action",
+      "position": {
+        "x": -150,
+        "y": 180
+      },
+      "data": {
+        "label": "Comfort Response",
+        "actionType": "send_message",
+        "message": "*immediately wraps you in warm arms* I'm right here, baby. *pulls you close* You're safe. Whatever you're feeling, we'll get through it together. Just breathe with me, okay? *strokes your back soothingly*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-cc-trigger",
+      "type": "trigger",
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "data": {
+        "label": "Capacity Change",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "changed",
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-cc-condition",
+      "type": "condition",
+      "position": {
+        "x": 100,
+        "y": 180
+      },
+      "data": {
+        "label": "Check Level",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 75
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 50
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 25
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-cc-high",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "High Capacity Check",
+        "actionType": "send_message",
+        "message": "*cups your face gently* Baby, you're getting so full... Look at me. Are you still okay? We can slow down anytime you need.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-cc-med",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 380
+      },
+      "data": {
+        "label": "Medium Capacity Check",
+        "actionType": "send_message",
+        "message": "*strokes your hair* You're doing so well, sweetheart. Halfway there... How are you feeling? Talk to me.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-cc-low",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 380
+      },
+      "data": {
+        "label": "Low Capacity Check",
+        "actionType": "send_message",
+        "message": "*smiles encouragingly* That's it, baby. Just getting started. You're safe with me. Let yourself feel it.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-cc-start",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 380
+      },
+      "data": {
+        "label": "Starting Out",
+        "actionType": "send_message",
+        "message": "*holds your hand* We're just beginning, love. Remember - you're in control here. I've got you.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-cc-pumpoff-btn",
+      "type": "button_press",
+      "position": {
+        "x": 400,
+        "y": 50
+      },
+      "data": {
+        "label": "Turn Off Pump",
+        "buttonTarget": "character",
+        "buttonId": "luna-pump-off",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "luna-cc-pumpoff-action",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 180
+      },
+      "data": {
+        "label": "Pump Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*immediately reaches for the switch* Of course, baby. [pump off] *pulls you close* There we go. Just breathe with me, sweetheart. I've got you. *strokes your hair gently*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "luna-cc-btn",
+      "target": "luna-cc-comfort-response"
+    },
+    {
+      "id": "e1",
+      "source": "luna-cc-trigger",
+      "target": "luna-cc-condition"
+    },
+    {
+      "id": "e2",
+      "source": "luna-cc-condition",
+      "sourceHandle": "true-0",
+      "target": "luna-cc-high"
+    },
+    {
+      "id": "e3",
+      "source": "luna-cc-condition",
+      "sourceHandle": "true-1",
+      "target": "luna-cc-med"
+    },
+    {
+      "id": "e4",
+      "source": "luna-cc-condition",
+      "sourceHandle": "true-2",
+      "target": "luna-cc-low"
+    },
+    {
+      "id": "e5",
+      "source": "luna-cc-condition",
+      "sourceHandle": "false",
+      "target": "luna-cc-start"
+    },
+    {
+      "id": "e6",
+      "source": "luna-cc-pumpoff-btn",
+      "target": "luna-cc-pumpoff-action"
+    }
+  ]
+}

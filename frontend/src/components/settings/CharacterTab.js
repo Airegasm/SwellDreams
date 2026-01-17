@@ -92,6 +92,22 @@ function CharacterTab() {
     }
   };
 
+  const handleCopy = async (character) => {
+    try {
+      // Create a copy without the id (server will generate new one)
+      const { id, _isDefault, createdAt, updatedAt, ...charData } = character;
+      const copyData = {
+        ...charData,
+        name: `${character.name} (Copy)`
+      };
+      await api.createCharacter(copyData);
+      showSuccess?.(`Created copy of "${character.name}"`);
+    } catch (error) {
+      console.error('Failed to copy character:', error);
+      showError?.('Failed to copy character');
+    }
+  };
+
   return (
     <div className="settings-tab">
       <div className="tab-header-actions">
@@ -149,6 +165,13 @@ function CharacterTab() {
                     onClick={() => handleEdit(character)}
                   >
                     Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => handleCopy(character)}
+                    title="Create a copy of this character"
+                  >
+                    Copy
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"

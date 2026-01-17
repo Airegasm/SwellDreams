@@ -250,6 +250,9 @@ class EventEngine {
 
     // Priority-based flow interruption
     this.runningFlowPriority = null; // Current running flow's trigger priority (1-5, null if no priority or no flow running)
+
+    // Alternate welcome message from new_session triggers
+    this.alternateWelcome = null; // { text, suppressLlmEnhancement }
   }
 
   /**
@@ -258,6 +261,17 @@ class EventEngine {
   setSimulationMode(enabled) {
     this.simulationMode = enabled;
     console.log(`[EventEngine] Simulation mode ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  /**
+   * Get and consume alternate welcome message from new_session trigger
+   * Returns null if no alternate welcome was set, otherwise returns { text, suppressLlmEnhancement }
+   * The alternate welcome is cleared after retrieval (one-time use)
+   */
+  getAlternateWelcome() {
+    const welcome = this.alternateWelcome;
+    this.alternateWelcome = null;
+    return welcome;
   }
 
   /**
@@ -444,6 +458,9 @@ class EventEngine {
 
       case 'input':
         return this.executeTestInput(node, flow, nodeStep);
+
+      case 'random_number':
+        return this.executeTestRandomNumber(node, flow, nodeStep);
 
       case 'capacity_ai_message':
       case 'capacity_player_message':
@@ -739,6 +756,31 @@ class EventEngine {
       label: `Auto-filled: [Flow:${variableName}] = ${testValue}`,
       value: testValue
     });
+
+    return true; // Continue to next node
+  }
+
+  /**
+   * Execute random_number in test mode - generate and store random number
+   */
+  executeTestRandomNumber(node, flow, nodeStep) {
+    const data = node.data;
+    const minValue = data.minValue ?? 1;
+    const maxValue = data.maxValue ?? 100;
+    const variableName = data.variableName || 'RandomNum';
+
+    // Generate random integer between min and max (inclusive)
+    const randomValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
+
+    nodeStep.details = `Random: ${minValue}-${maxValue} → [Flow:${variableName}] = ${randomValue}`;
+    this.testResults.push(nodeStep);
+
+    // Store as flow variable
+    this.variables[variableName] = randomValue;
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables[variableName] = randomValue;
+    }
 
     return true; // Continue to next node
   }
@@ -1045,85 +1087,135 @@ class EventEngine {
 
   /**
    * Handle incoming event
+   * Only ONE trigger fires per event - selected by priority, then random among ties
    */
   async handleEvent(eventType, eventData) {
     this.lastActivity = Date.now();
     console.log(`[EventEngine] handleEvent called: ${eventType}`, eventData);
     console.log(`[EventEngine] Active flows: ${this.activeFlows.size}`);
 
-    // Sort flows by priority (0 = highest, 2 = lowest)
-    const sortedFlows = Array.from(this.activeFlows.entries())
-      .sort((a, b) => a[1].priority - b[1].priority);
+    // Initialize cooldown tracking if needed
+    if (!this.triggerCooldowns) {
+      this.triggerCooldowns = {};
+    }
+    if (typeof this.messageCount !== 'number') {
+      this.messageCount = 0;
+    }
 
-    for (const [flowId, { flow }] of sortedFlows) {
-      console.log(`[EventEngine] Checking flow: ${flow.name} (${flowId})`);
+    // Increment message count for player/ai speech events
+    if (eventType === 'player_speaks' || eventType === 'ai_speaks') {
+      this.messageCount++;
+      console.log(`[EventEngine] Message count incremented to ${this.messageCount}`);
+    }
+
+    // Collect ALL matching triggers across ALL flows
+    const allCandidates = [];
+
+    for (const [flowId, { flow, priority: flowPriority }] of this.activeFlows.entries()) {
       const triggers = this.findTriggerNodes(flow, eventType, eventData);
-      console.log(`[EventEngine] Found ${triggers.length} matching triggers`);
 
-      // Sort triggers by priority (if they have priority enabled)
-      // Priority 1 = highest, 5 = lowest, no priority = 99 (last)
-      const sortedTriggers = triggers.sort((a, b) => {
-        const aPriority = a.data.hasPriority ? (a.data.priority || 3) : 99;
-        const bPriority = b.data.hasPriority ? (b.data.priority || 3) : 99;
-        return aPriority - bPriority;
-      });
-
-      for (const trigger of sortedTriggers) {
+      for (const trigger of triggers) {
         if (this.shouldExecuteNode(flowId, trigger)) {
-          const triggerPriority = trigger.data.hasPriority ? (trigger.data.priority || 3) : null;
+          const triggerPriority = trigger.data.hasPriority ? (trigger.data.priority || 3) : 99;
           const isUnblockable = trigger.data.unblockable || false;
-          const shouldNotify = trigger.data.notify || false;
-          const triggerLabel = trigger.data.label || trigger.data.triggerType || 'Flow';
 
-          // Priority-based interruption logic (only when trigger has priority AND is not unblockable)
-          if (triggerPriority !== null && !isUnblockable) {
-            // Check if a prioritized flow is currently running
-            if (this.runningFlowPriority !== null) {
-              // Higher priority = lower number (1 is highest)
-              if (triggerPriority < this.runningFlowPriority) {
-                // New trigger has higher priority - abort current flow and run this one
-                console.log(`[EventEngine] Priority interrupt: new trigger (priority ${triggerPriority}) overrides running flow (priority ${this.runningFlowPriority})`);
-                if (shouldNotify) {
-                  await this.broadcast('flow_toast', {
-                    event: 'takeover',
-                    message: `${triggerLabel} (priority ${triggerPriority}) taking over`,
-                    flowName: flow.name,
-                    priority: triggerPriority
-                  });
-                }
-                this.abortCurrentFlow();
-              } else {
-                // Same or lower priority - ignore this trigger
-                console.log(`[EventEngine] Priority skip: trigger (priority ${triggerPriority}) ignored - running flow has priority ${this.runningFlowPriority}`);
-                if (shouldNotify) {
-                  await this.broadcast('flow_toast', {
-                    event: 'blocked',
-                    message: `${triggerLabel} blocked (priority ${triggerPriority} <= ${this.runningFlowPriority})`,
-                    flowName: flow.name,
-                    priority: triggerPriority
-                  });
-                }
-                continue;
-              }
+          allCandidates.push({
+            flowId,
+            flow,
+            trigger,
+            flowPriority,
+            triggerPriority,
+            // Combined priority: flow priority * 100 + trigger priority (lower = higher priority)
+            combinedPriority: (flowPriority * 100) + triggerPriority,
+            isUnblockable,
+            shouldNotify: trigger.data.notify || false,
+            triggerLabel: trigger.data.label || trigger.data.triggerType || 'Flow'
+          });
+        }
+      }
+    }
+
+    if (allCandidates.length === 0) {
+      console.log(`[EventEngine] No matching triggers found`);
+      return;
+    }
+
+    console.log(`[EventEngine] Found ${allCandidates.length} candidate trigger(s)`);
+
+    // Separate unblockable triggers (they always run)
+    const unblockableTriggers = allCandidates.filter(c => c.isUnblockable);
+    const normalTriggers = allCandidates.filter(c => !c.isUnblockable);
+
+    // Execute all unblockable triggers (these are exceptions)
+    for (const candidate of unblockableTriggers) {
+      console.log(`[EventEngine] Executing unblockable trigger ${candidate.trigger.id} from flow ${candidate.flow.name}`);
+      await this.executeFromNode(candidate.flow, candidate.trigger.id, null, false, null, candidate.shouldNotify);
+      // Update cooldown tracking for player_speaks/ai_speaks triggers
+      if (eventType === 'player_speaks' || eventType === 'ai_speaks') {
+        this.triggerCooldowns[candidate.trigger.id] = this.messageCount;
+      }
+    }
+
+    // For normal triggers, pick ONE based on priority then random
+    if (normalTriggers.length > 0) {
+      // Sort by combined priority (ascending - lower is higher priority)
+      normalTriggers.sort((a, b) => a.combinedPriority - b.combinedPriority);
+
+      // Find highest priority value
+      const highestPriority = normalTriggers[0].combinedPriority;
+
+      // Get all triggers with the highest priority
+      const topPriorityTriggers = normalTriggers.filter(c => c.combinedPriority === highestPriority);
+
+      // Pick one randomly from ties
+      const selected = topPriorityTriggers[Math.floor(Math.random() * topPriorityTriggers.length)];
+
+      console.log(`[EventEngine] Selected trigger: ${selected.trigger.id} from flow ${selected.flow.name} (priority: ${selected.combinedPriority}, chosen from ${topPriorityTriggers.length} candidates)`);
+
+      const triggerPriority = selected.trigger.data.hasPriority ? (selected.trigger.data.priority || 3) : null;
+
+      // Priority-based interruption logic
+      if (triggerPriority !== null) {
+        if (this.runningFlowPriority !== null) {
+          if (triggerPriority < this.runningFlowPriority) {
+            console.log(`[EventEngine] Priority interrupt: new trigger (priority ${triggerPriority}) overrides running flow (priority ${this.runningFlowPriority})`);
+            if (selected.shouldNotify) {
+              await this.broadcast('flow_toast', {
+                event: 'takeover',
+                message: `${selected.triggerLabel} (priority ${triggerPriority}) taking over`,
+                flowName: selected.flow.name,
+                priority: triggerPriority
+              });
             }
-            // Set this trigger's priority as the running priority
-            this.runningFlowPriority = triggerPriority;
-          }
-
-          // Unblockable flows run without affecting or being affected by priority
-          if (isUnblockable) {
-            console.log(`[EventEngine] Executing unblockable trigger ${trigger.id}`);
+            this.abortCurrentFlow();
           } else {
-            console.log(`[EventEngine] Executing trigger ${trigger.id} (priority: ${triggerPriority !== null ? triggerPriority : 'none'})`);
-          }
-
-          await this.executeFromNode(flow, trigger.id, null, false, triggerPriority, shouldNotify);
-
-          // Clear running priority when flow completes (if this trigger had priority and wasn't unblockable)
-          if (triggerPriority !== null && !isUnblockable) {
-            this.runningFlowPriority = null;
+            console.log(`[EventEngine] Priority skip: trigger (priority ${triggerPriority}) ignored - running flow has priority ${this.runningFlowPriority}`);
+            if (selected.shouldNotify) {
+              await this.broadcast('flow_toast', {
+                event: 'blocked',
+                message: `${selected.triggerLabel} blocked (priority ${triggerPriority} <= ${this.runningFlowPriority})`,
+                flowName: selected.flow.name,
+                priority: triggerPriority
+              });
+            }
+            return;
           }
         }
+        this.runningFlowPriority = triggerPriority;
+      }
+
+      // Execute the ONE selected trigger
+      console.log(`[EventEngine] Executing trigger ${selected.trigger.id} (priority: ${triggerPriority !== null ? triggerPriority : 'none'})`);
+      await this.executeFromNode(selected.flow, selected.trigger.id, null, false, triggerPriority, selected.shouldNotify);
+
+      // Update cooldown tracking for player_speaks/ai_speaks triggers
+      if (eventType === 'player_speaks' || eventType === 'ai_speaks') {
+        this.triggerCooldowns[selected.trigger.id] = this.messageCount;
+      }
+
+      // Clear running priority when flow completes
+      if (triggerPriority !== null) {
+        this.runningFlowPriority = null;
       }
     }
   }
@@ -1172,6 +1264,14 @@ class EventEngine {
 
         case 'player_speaks':
           if (node.data.triggerType !== 'player_speaks') return false;
+          // Check cooldown (default 5 messages)
+          const playerCooldown = node.data.cooldown ?? 5;
+          const playerLastFired = this.triggerCooldowns?.[node.id] || 0;
+          const playerMessagesSince = this.messageCount - playerLastFired;
+          if (playerLastFired > 0 && playerMessagesSince < playerCooldown) {
+            console.log(`[EventEngine] player_speaks trigger ${node.id} on cooldown (${playerMessagesSince}/${playerCooldown} messages)`);
+            return false;
+          }
           // Support both keywords array and legacy single keyword
           const playerKeywords = node.data.keywords || (node.data.keyword ? [node.data.keyword] : []);
           console.log(`[EventEngine] player_speaks trigger found, keywords:`, playerKeywords, `content: "${eventData.content}"`);
@@ -1186,6 +1286,14 @@ class EventEngine {
 
         case 'ai_speaks':
           if (node.data.triggerType !== 'ai_speaks') return false;
+          // Check cooldown (default 5 messages)
+          const aiCooldown = node.data.cooldown ?? 5;
+          const aiLastFired = this.triggerCooldowns?.[node.id] || 0;
+          const aiMessagesSince = this.messageCount - aiLastFired;
+          if (aiLastFired > 0 && aiMessagesSince < aiCooldown) {
+            console.log(`[EventEngine] ai_speaks trigger ${node.id} on cooldown (${aiMessagesSince}/${aiCooldown} messages)`);
+            return false;
+          }
           // Support both keywords array and legacy single keyword
           const aiKeywords = node.data.keywords || (node.data.keyword ? [node.data.keyword] : []);
           if (aiKeywords.length > 0 && aiKeywords.some(k => k)) {
@@ -1345,6 +1453,106 @@ class EventEngine {
     if (isEntryPoint && (node.type === 'trigger' || node.type === 'button_press')) {
       const triggerType = node.data.triggerType || node.type;
       const triggerLabel = node.data.label || triggerType;
+
+      // Initialize variables from new_session trigger's initialVariables
+      if (triggerType === 'new_session' && node.data.initialVariables) {
+        for (const varDef of node.data.initialVariables) {
+          if (varDef.name) {
+            const value = this.evaluateExpression(varDef.value || '');
+            this.variables[varDef.name] = value;
+            // Sync to sessionState for frontend access
+            if (this.sessionState) {
+              this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+              this.sessionState.flowVariables[varDef.name] = value;
+            }
+            console.log(`[EventEngine] Initialized variable from new_session: [Flow:${varDef.name}] = ${value}`);
+          }
+        }
+      }
+
+      // Store alternate welcome message from new_session trigger
+      if (triggerType === 'new_session' && node.data.alternateWelcomeEnabled && node.data.alternateWelcome) {
+        this.alternateWelcome = {
+          text: node.data.alternateWelcome,
+          suppressLlmEnhancement: node.data.suppressWelcomeEnhancement || false
+        };
+        console.log(`[EventEngine] Alternate welcome set from new_session trigger: "${node.data.alternateWelcome.substring(0, 50)}...", suppress LLM: ${this.alternateWelcome.suppressLlmEnhancement}`);
+      }
+
+      // Apply initial reminder states from new_session trigger
+      if (triggerType === 'new_session' && node.data.initialReminderStates) {
+        const settings = loadData(DATA_FILES.settings);
+        const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters);
+        const activeCharId = settings?.activeCharacterId;
+        const character = characters?.find(c => c.id === activeCharId);
+        let settingsChanged = false;
+        let characterChanged = false;
+
+        for (const [reminderId, action] of Object.entries(node.data.initialReminderStates)) {
+          const enabled = action === 'enable';
+
+          // Check global reminders first
+          const globalReminder = (settings?.globalReminders || []).find(r => r.id === reminderId);
+          if (globalReminder) {
+            globalReminder.enabled = enabled;
+            settingsChanged = true;
+            console.log(`[EventEngine] Initial state: Global reminder "${globalReminder.name}" set to ${enabled ? 'enabled' : 'disabled'}`);
+            continue;
+          }
+
+          // Check character reminders
+          if (character?.constantReminders) {
+            const charReminder = character.constantReminders.find(r => r.id === reminderId);
+            if (charReminder) {
+              charReminder.enabled = enabled;
+              characterChanged = true;
+              console.log(`[EventEngine] Initial state: Character reminder "${charReminder.name}" set to ${enabled ? 'enabled' : 'disabled'}`);
+            }
+          }
+        }
+
+        if (settingsChanged) {
+          saveData(DATA_FILES.settings, settings);
+        }
+        if (characterChanged && character) {
+          if (this.storageHelpers?.saveCharacter) {
+            this.storageHelpers.saveCharacter(character);
+          } else {
+            saveData(DATA_FILES.characters, characters);
+          }
+        }
+      }
+
+      // Apply initial button states from new_session trigger
+      if (triggerType === 'new_session' && node.data.initialButtonStates) {
+        const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters);
+        const settings = loadData(DATA_FILES.settings);
+        const activeCharId = settings?.activeCharacterId;
+        const character = characters?.find(c => c.id === activeCharId);
+
+        if (character?.buttons) {
+          let changed = false;
+          for (const [buttonId, action] of Object.entries(node.data.initialButtonStates)) {
+            const button = character.buttons.find(b => String(b.buttonId) === String(buttonId));
+            if (button) {
+              button.enabled = action === 'enable';
+              changed = true;
+              console.log(`[EventEngine] Initial state: Button "${button.name}" set to ${button.enabled ? 'enabled' : 'disabled'}`);
+            }
+          }
+
+          if (changed) {
+            if (this.storageHelpers?.saveCharacter) {
+              this.storageHelpers.saveCharacter(character);
+            } else {
+              saveData(DATA_FILES.characters, characters);
+            }
+            // Broadcast update so frontend can refresh
+            const updatedChars = this.storageHelpers?.loadCharacters() || characters;
+            this.broadcast('characters_update', updatedChars);
+          }
+        }
+      }
 
       // Count total significant steps in this flow
       const totalSteps = this.countFlowSteps(flow, nodeId);
@@ -1608,6 +1816,9 @@ class EventEngine {
         case 'input':
           return await this.executeInput(node, flow);
 
+        case 'random_number':
+          return await this.executeRandomNumber(node, flow);
+
         case 'capacity_ai_message':
         case 'capacity_player_message':
           return await this.executeCapacityMessage(node, flow);
@@ -1842,6 +2053,32 @@ class EventEngine {
     for (const edge of edges) {
       await this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify);
     }
+  }
+
+  /**
+   * Execute a random_number node - generate random number and store in flow variable
+   */
+  async executeRandomNumber(node, flow) {
+    const data = node.data;
+    const minValue = data.minValue ?? 1;
+    const maxValue = data.maxValue ?? 100;
+    const variableName = data.variableName || 'RandomNum';
+
+    // Generate random integer between min and max (inclusive)
+    const randomValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
+
+    // Store as flow variable
+    this.variables[variableName] = randomValue;
+
+    // Sync to sessionState for frontend access
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables[variableName] = randomValue;
+    }
+
+    console.log(`[EventEngine] Random number: [Flow:${variableName}] = ${randomValue} (range: ${minValue}-${maxValue})`);
+
+    return true; // Continue to next node
   }
 
   /**
@@ -2454,6 +2691,12 @@ class EventEngine {
       case 'device_on': {
         if (!data.device) { actionResult = false; break; }
 
+        // Resolve untilValue if it contains a variable reference (e.g., [Flow:Duration])
+        if (data.untilValue !== undefined && data.untilValue !== null) {
+          const resolvedUntil = this.substituteVariables(String(data.untilValue));
+          data.untilValue = parseFloat(resolvedUntil) || data.untilValue;
+        }
+
         // Resolve device alias to full device object (includes childId, brand, sku)
         const deviceObj = resolveDeviceObject(data.device);
         const resolvedDevice = deviceObj
@@ -2529,6 +2772,27 @@ class EventEngine {
 
           if (deviceState && deviceState.state === 'on') {
             console.log(`[EventEngine] Device ${resolvedDevice} is already on, skipping`);
+            actionResult = false;
+            break;
+          }
+        }
+
+        // Safety check: Block pump activation at 100% capacity (unless allowOverInflation is enabled)
+        const isPump = deviceObj.deviceType === 'PUMP' || deviceObj.isPrimaryPump;
+        if (isPump) {
+          const settings = loadData(DATA_FILES.settings);
+          const allowOverInflation = settings?.globalCharacterControls?.allowOverInflation;
+          const currentCapacity = this.sessionState?.capacity ?? 0;
+
+          if (!allowOverInflation && currentCapacity >= 100) {
+            console.log(`[EventEngine] Pump blocked by safety - capacity at ${currentCapacity}%`);
+            await this.broadcast('pump_safety_block', {
+              reason: 'capacity_limit',
+              capacity: currentCapacity,
+              device: deviceObj.label || deviceObj.name || resolvedDevice,
+              source: 'flow'
+            });
+            // Skip device activation but continue flow execution
             actionResult = false;
             break;
           }
@@ -2665,6 +2929,24 @@ class EventEngine {
       }
 
       case 'start_cycle': {
+        // Resolve numeric fields if they contain variable references
+        if (data.duration !== undefined) {
+          const resolved = this.substituteVariables(String(data.duration));
+          data.duration = parseFloat(resolved) || data.duration;
+        }
+        if (data.interval !== undefined) {
+          const resolved = this.substituteVariables(String(data.interval));
+          data.interval = parseFloat(resolved) || data.interval;
+        }
+        if (data.cycles !== undefined) {
+          const resolved = this.substituteVariables(String(data.cycles));
+          data.cycles = parseInt(resolved) || data.cycles;
+        }
+        if (data.untilValue !== undefined && data.untilValue !== null) {
+          const resolved = this.substituteVariables(String(data.untilValue));
+          data.untilValue = parseFloat(resolved) || data.untilValue;
+        }
+
         console.log(`[EventEngine] Start Cycle action - device: ${data.device}, duration: ${data.duration}, interval: ${data.interval}, cycles: ${data.cycles}`);
         if (!data.device) {
           console.log(`[EventEngine] Start Cycle - no device specified!`);
@@ -3518,7 +3800,14 @@ class EventEngine {
         value = this.variables.emotion || 'neutral';
         break;
       case 'device_state':
-        value = this.variables.deviceState || 'off';
+        // Check specific device state from execution history
+        const deviceId = data.device || 'primary_pump';
+        if (this.sessionState?.executionHistory?.deviceActions) {
+          const deviceState = this.sessionState.executionHistory.deviceActions[deviceId];
+          value = deviceState?.state || 'off';
+        } else {
+          value = 'off';
+        }
         break;
       case 'custom':
         value = this.variables[data.customVariable] ?? '';
@@ -3584,7 +3873,14 @@ class EventEngine {
           value = this.sessionState?.emotion ?? this.variables.emotion ?? 'neutral';
           break;
         case 'device_state':
-          value = this.variables.deviceState || 'off';
+          // Check specific device state from execution history
+          const condDeviceId = condition.device || 'primary_pump';
+          if (this.sessionState?.executionHistory?.deviceActions) {
+            const condDeviceState = this.sessionState.executionHistory.deviceActions[condDeviceId];
+            value = condDeviceState?.state || 'off';
+          } else {
+            value = 'off';
+          }
           break;
         case 'custom':
           // For custom variables, use the customVariable field
@@ -4119,6 +4415,7 @@ class EventEngine {
       emotion: 'neutral'
     };
     this.executedOnceConditions.clear();
+    this.alternateWelcome = null;
 
     console.log('[EventEngine] Cleanup complete - all state cleared');
   }

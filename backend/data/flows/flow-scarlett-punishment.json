@@ -1,0 +1,309 @@
+{
+  "id": "flow-scarlett-punishment",
+  "name": "Punishment Sequence",
+  "category": "character",
+  "description": "Timer challenge endurance test with device punishment",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "scarlett-pn-btn",
+      "type": "button_press",
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "data": {
+        "label": "Endurance Test",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-endure",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-mercy-btn",
+      "type": "button_press",
+      "position": {
+        "x": -200,
+        "y": 50
+      },
+      "data": {
+        "label": "Beg for Mercy",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-mercy",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "scarlett-mercy-decide",
+      "type": "branch",
+      "position": {
+        "x": -200,
+        "y": 180
+      },
+      "data": {
+        "label": "Mistress Decides",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "granted",
+            "label": "Mercy Granted",
+            "weight": 30
+          },
+          {
+            "id": "denied",
+            "label": "Mercy Denied",
+            "weight": 50
+          },
+          {
+            "id": "worse",
+            "label": "Made It Worse",
+            "weight": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "scarlett-mercy-granted",
+      "type": "action",
+      "position": {
+        "x": -350,
+        "y": 350
+      },
+      "data": {
+        "label": "Mercy Granted",
+        "actionType": "send_message",
+        "message": "*pauses, considering your pleading eyes* ...You beg so prettily. *traces finger along your jaw* Very well. I'm feeling generous today. Consider this a rare gift - don't expect it again.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-mercy-denied",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 350
+      },
+      "data": {
+        "label": "Mercy Denied",
+        "actionType": "send_message",
+        "message": "*laughs coldly* Mercy? *leans close* You think begging will move me? I decide when you've had enough. Your pleas only amuse me. Now... where were we?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-mercy-worse",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 350
+      },
+      "data": {
+        "label": "Made It Worse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*eyes flash dangerously* Mercy? You DARE ask for mercy without permission? *activates device* I'll teach you the cost of that mistake.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*smirks* That's what happens when you speak out of turn. Remember your place.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "scarlett-pn-intro",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "data": {
+        "label": "Challenge Setup",
+        "actionType": "send_message",
+        "message": "*circling you slowly* You think you've learned discipline? Let's put that to the test. You will endure what I give you for 20 seconds without pressing the escape button. Fail, and the punishment extends. Succeed... and you may impress me.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-start-device",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 280
+      },
+      "data": {
+        "label": "Start Pressure",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "forever",
+        "preMessageEnabled": true,
+        "preMessage": "*activates device* The challenge begins now.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-timer",
+      "type": "timer_challenge",
+      "position": {
+        "x": 100,
+        "y": 420
+      },
+      "data": {
+        "label": "Endurance Timer",
+        "mode": "escape",
+        "duration": 20,
+        "escapeWindow": 500,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-success-stop",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 580
+      },
+      "data": {
+        "label": "Stop Device",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-success-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 680
+      },
+      "data": {
+        "label": "Success Message",
+        "actionType": "send_message",
+        "message": "*pauses, studies you* ...Impressive. You endured. Perhaps there is potential in you after all. *slight smile* You may rest. You've earned it.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-fail-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 580
+      },
+      "data": {
+        "label": "Failure Message",
+        "actionType": "send_message",
+        "message": "*disappointed sigh* Pathetic. You couldn't even last 20 seconds. Now you'll experience an extended session as penance.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "scarlett-pn-fail-extend",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 700
+      },
+      "data": {
+        "label": "Extended Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 3,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*activates extended cycle* Count this as a lesson in consequences.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*regards you coldly* Next time, perhaps you'll try harder. Dismissed.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "mercy-e1",
+      "source": "scarlett-mercy-btn",
+      "target": "scarlett-mercy-decide"
+    },
+    {
+      "id": "mercy-e2",
+      "source": "scarlett-mercy-decide",
+      "sourceHandle": "branch-0",
+      "target": "scarlett-mercy-granted"
+    },
+    {
+      "id": "mercy-e3",
+      "source": "scarlett-mercy-decide",
+      "sourceHandle": "branch-1",
+      "target": "scarlett-mercy-denied"
+    },
+    {
+      "id": "mercy-e4",
+      "source": "scarlett-mercy-decide",
+      "sourceHandle": "branch-2",
+      "target": "scarlett-mercy-worse"
+    },
+    {
+      "id": "e1",
+      "source": "scarlett-pn-btn",
+      "target": "scarlett-pn-intro"
+    },
+    {
+      "id": "e2",
+      "source": "scarlett-pn-intro",
+      "target": "scarlett-pn-start-device"
+    },
+    {
+      "id": "e3",
+      "source": "scarlett-pn-start-device",
+      "sourceHandle": "immediate",
+      "target": "scarlett-pn-timer"
+    },
+    {
+      "id": "e4",
+      "source": "scarlett-pn-timer",
+      "sourceHandle": "success",
+      "target": "scarlett-pn-success-stop"
+    },
+    {
+      "id": "e5",
+      "source": "scarlett-pn-timer",
+      "sourceHandle": "timeout",
+      "target": "scarlett-pn-fail-msg"
+    },
+    {
+      "id": "e6",
+      "source": "scarlett-pn-success-stop",
+      "target": "scarlett-pn-success-msg"
+    },
+    {
+      "id": "e7",
+      "source": "scarlett-pn-fail-msg",
+      "target": "scarlett-pn-fail-extend"
+    }
+  ]
+}

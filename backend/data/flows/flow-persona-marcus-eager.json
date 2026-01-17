@@ -1,0 +1,98 @@
+{
+  "id": "flow-persona-marcus-eager",
+  "name": "Marcus - Eager Reactions",
+  "category": "persona",
+  "description": "Capacity-based eager/enthusiastic player messages",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "marcus-btn",
+      "type": "button_press",
+      "position": { "x": 200, "y": 50 },
+      "data": {
+        "label": "Express Eagerness",
+        "buttonTarget": "persona",
+        "buttonId": "marcus-eager",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "marcus-capacity-msg",
+      "type": "capacity_player_message",
+      "position": { "x": 200, "y": 180 },
+      "data": {
+        "label": "Eager Reactions",
+        "ranges": [
+          {
+            "min": 0,
+            "max": 10,
+            "message": "I'm ready... please, I've been thinking about this all day. Don't make me wait any longer.",
+            "enableOutput": true
+          },
+          {
+            "min": 11,
+            "max": 20,
+            "message": "Oh... yes, I can feel it starting. *breathes deeply* This is exactly what I needed.",
+            "enableOutput": true
+          },
+          {
+            "min": 21,
+            "max": 30,
+            "message": "Mmm, that's so good... I love how this feels. Please keep going, I can take more.",
+            "enableOutput": true
+          },
+          {
+            "min": 31,
+            "max": 40,
+            "message": "God, yes... *moans softly* My belly is getting so tight. It feels incredible. More, please...",
+            "enableOutput": true
+          },
+          {
+            "min": 41,
+            "max": 50,
+            "message": "Thank you... thank you so much. *pants* I'm getting so full and it feels amazing. I love this.",
+            "enableOutput": true
+          },
+          {
+            "min": 51,
+            "max": 60,
+            "message": "Oh god... *groans with pleasure* Look how big I'm getting! I never want this to stop.",
+            "enableOutput": true
+          },
+          {
+            "min": 61,
+            "max": 70,
+            "message": "Yes, yes, yes! *arches back* So full... so tight... I can barely breathe but I don't care. Keep going!",
+            "enableOutput": true
+          },
+          {
+            "min": 71,
+            "max": 80,
+            "message": "I'm yours... completely yours. *whimpers happily* Fill me more. I want to see how big I can get.",
+            "enableOutput": true
+          },
+          {
+            "min": 81,
+            "max": 90,
+            "message": "So... much... pressure... *eyes roll back* But I love it. I LOVE it. Please don't stop. I can take whatever you give me.",
+            "enableOutput": true
+          },
+          {
+            "min": 91,
+            "max": 100,
+            "message": "I'm... I'm at my limit... *trembling with pleasure* This is everything I've ever wanted. Thank you... thank you...",
+            "enableOutput": true
+          }
+        ],
+        "suppressLlm": false,
+        "postDelay": 0
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "marcus-btn", "target": "marcus-capacity-msg" }
+  ]
+}

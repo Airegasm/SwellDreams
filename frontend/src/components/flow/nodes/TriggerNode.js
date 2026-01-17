@@ -1,6 +1,7 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 function TriggerNode({ data, selected }) {
@@ -35,13 +36,14 @@ function TriggerNode({ data, selected }) {
           Priority
         </label>
         {data.hasPriority && (
-          <input
-            type="number"
+          <NumberInput
             className="node-input tiny"
-            value={data.priority ?? 3}
-            min="1"
-            max="5"
-            onChange={(e) => data.onChange?.('priority', Math.min(5, Math.max(1, parseInt(e.target.value) || 1)))}
+            value={data.priority}
+            defaultValue={3}
+            min={1}
+            max={5}
+            onChange={(val) => data.onChange?.('priority', Math.min(5, Math.max(1, val)))}
+            allowFloat={false}
           />
         )}
       </div>
@@ -111,6 +113,19 @@ function TriggerNode({ data, selected }) {
                 />
               </div>
             ))}
+            <div className="cooldown-row">
+              <span className="cooldown-label">Cooldown:</span>
+              <NumberInput
+                className="node-input tiny"
+                value={data.cooldown}
+                defaultValue={5}
+                min={0}
+                max={100}
+                onChange={(val) => data.onChange?.('cooldown', val)}
+                allowFloat={false}
+              />
+              <span className="cooldown-hint">messages</span>
+            </div>
             {renderTriggerOptions()}
           </div>
         );
@@ -119,13 +134,13 @@ function TriggerNode({ data, selected }) {
       case 'random':
         return (
           <div className="node-config">
-            <input
-              type="number"
-              value={data.probability || 50}
-              onChange={(e) => data.onChange?.('probability', parseInt(e.target.value))}
+            <NumberInput
+              value={data.probability}
+              onChange={(val) => data.onChange?.('probability', val)}
+              defaultValue={50}
               min={0}
               max={100}
-              className="node-input small"
+              allowFloat={false}
             />
             <span>% chance</span>
             {renderTriggerOptions()}
@@ -135,25 +150,239 @@ function TriggerNode({ data, selected }) {
       case 'idle':
         return (
           <div className="node-config">
-            <input
-              type="number"
-              value={data.threshold || 300}
-              onChange={(e) => data.onChange?.('threshold', parseInt(e.target.value))}
+            <NumberInput
+              value={data.threshold}
+              onChange={(val) => data.onChange?.('threshold', val)}
+              defaultValue={300}
               min={1}
-              className="node-input small"
+              allowFloat={false}
             />
             <span>seconds</span>
             {renderTriggerOptions()}
           </div>
         );
 
-      case 'new_session':
+      case 'new_session': {
+        const variables = data.initialVariables || [];
+
+        const addVariable = () => {
+          const nameInput = document.getElementById(`new-var-name-${data.id || 'default'}`);
+          const valueInput = document.getElementById(`new-var-value-${data.id || 'default'}`);
+          const name = nameInput?.value?.trim();
+          const value = valueInput?.value?.trim() || '';
+
+          if (name && !variables.some(v => v.name === name)) {
+            data.onChange?.('initialVariables', [...variables, { name, value }]);
+            if (nameInput) nameInput.value = '';
+            if (valueInput) valueInput.value = '';
+          }
+        };
+
+        const removeVariable = (index) => {
+          const newVars = variables.filter((_, i) => i !== index);
+          data.onChange?.('initialVariables', newVars);
+        };
+
         return (
           <div className="node-config">
             <span className="config-hint">Fires once at the start of each new session</span>
+
+            {/* Variable Declaration Section */}
+            <div className="variable-declaration-section">
+              <div className="var-input-row">
+                <input
+                  id={`new-var-name-${data.id || 'default'}`}
+                  type="text"
+                  className="node-input small"
+                  placeholder="Variable"
+                  onKeyDown={(e) => e.key === 'Enter' && addVariable()}
+                />
+                <input
+                  id={`new-var-value-${data.id || 'default'}`}
+                  type="text"
+                  className="node-input small"
+                  placeholder="Value (optional)"
+                  onKeyDown={(e) => e.key === 'Enter' && addVariable()}
+                />
+                <button className="var-add-btn" onClick={addVariable} title="Add variable">+</button>
+              </div>
+
+              {variables.length > 0 && (
+                <div className="var-list">
+                  {variables.map((v, i) => (
+                    <div key={i} className="var-list-item">
+                      <span className="var-name">{v.name}</span>
+                      {v.value && <span className="var-value">= {v.value}</span>}
+                      <button className="var-remove-btn" onClick={() => removeVariable(i)} title="Remove">−</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Alternate Welcome Section */}
+            <div className="alternate-welcome-section">
+              <div className="section-header">Alternate Welcome</div>
+              <div className="welcome-checkboxes">
+                <label className="node-checkbox" title="Use this welcome message instead of character settings">
+                  <input
+                    type="checkbox"
+                    checked={data.alternateWelcomeEnabled || false}
+                    onChange={(e) => data.onChange?.('alternateWelcomeEnabled', e.target.checked)}
+                  />
+                  Enable
+                </label>
+                <label className="node-checkbox" title="Send exactly as written without LLM enhancement">
+                  <input
+                    type="checkbox"
+                    checked={data.suppressWelcomeEnhancement || false}
+                    onChange={(e) => data.onChange?.('suppressWelcomeEnhancement', e.target.checked)}
+                  />
+                  Suppress LLM Enhancement
+                </label>
+              </div>
+              <textarea
+                className="node-textarea"
+                value={data.alternateWelcome || ''}
+                onChange={(e) => data.onChange?.('alternateWelcome', e.target.value)}
+                placeholder="Custom welcome message (overrides character welcome)..."
+                rows={3}
+                disabled={!data.alternateWelcomeEnabled}
+              />
+            </div>
+
+            {/* Initial Reminder States Section */}
+            {((data.globalReminders?.length > 0) || (data.characterReminders?.length > 0)) && (() => {
+              const allReminders = [
+                ...(data.globalReminders || []).map(r => ({ ...r, isGlobal: true })),
+                ...(data.characterReminders || []).map(r => ({ ...r, isGlobal: false }))
+              ];
+              const addedReminders = Object.entries(data.initialReminderStates || {});
+              const availableReminders = allReminders.filter(r => !(data.initialReminderStates || {})[r.id]);
+
+              const addReminder = (reminderId, action) => {
+                if (!reminderId) return;
+                const newStates = { ...(data.initialReminderStates || {}), [reminderId]: action };
+                data.onChange?.('initialReminderStates', newStates);
+              };
+
+              const removeReminder = (reminderId) => {
+                const newStates = { ...(data.initialReminderStates || {}) };
+                delete newStates[reminderId];
+                data.onChange?.('initialReminderStates', newStates);
+              };
+
+              return (
+                <div className="initial-states-section">
+                  <div className="section-header">Initial Reminder States</div>
+                  <div className="initial-add-row">
+                    <select id={`reminder-select-${data.id || 'default'}`} className="node-select small">
+                      <option value="">Select...</option>
+                      {availableReminders.map(r => (
+                        <option key={r.id} value={r.id}>{r.isGlobal ? '[G] ' : '[C] '}{r.name}</option>
+                      ))}
+                    </select>
+                    <select id={`reminder-action-${data.id || 'default'}`} className="node-select tiny">
+                      <option value="enable">On</option>
+                      <option value="disable">Off</option>
+                    </select>
+                    <button
+                      className="var-add-btn"
+                      onClick={() => {
+                        const sel = document.getElementById(`reminder-select-${data.id || 'default'}`);
+                        const act = document.getElementById(`reminder-action-${data.id || 'default'}`);
+                        addReminder(sel?.value, act?.value || 'enable');
+                        if (sel) sel.value = '';
+                      }}
+                      title="Add reminder"
+                    >+</button>
+                  </div>
+                  {addedReminders.length > 0 && (
+                    <div className="initial-badges">
+                      {addedReminders.map(([id, action]) => {
+                        const reminder = allReminders.find(r => r.id === id);
+                        if (!reminder) return null;
+                        return (
+                          <div key={id} className={`initial-badge ${action}`}>
+                            <span className="badge-tag">{reminder.isGlobal ? 'G' : 'C'}</span>
+                            <span className="badge-name">{reminder.name}</span>
+                            <span className="badge-action">{action === 'enable' ? 'ON' : 'OFF'}</span>
+                            <button className="badge-remove" onClick={() => removeReminder(id)}>×</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Initial Button States Section */}
+            {(data.characterButtons?.length > 0) && (() => {
+              const allButtons = data.characterButtons || [];
+              const addedButtons = Object.entries(data.initialButtonStates || {});
+              const availableButtons = allButtons.filter(b => !(data.initialButtonStates || {})[b.buttonId]);
+
+              const addButton = (buttonId, action) => {
+                if (!buttonId) return;
+                const newStates = { ...(data.initialButtonStates || {}), [buttonId]: action };
+                data.onChange?.('initialButtonStates', newStates);
+              };
+
+              const removeButton = (buttonId) => {
+                const newStates = { ...(data.initialButtonStates || {}) };
+                delete newStates[buttonId];
+                data.onChange?.('initialButtonStates', newStates);
+              };
+
+              return (
+                <div className="initial-states-section">
+                  <div className="section-header">Initial Button States</div>
+                  <div className="initial-add-row">
+                    <select id={`button-select-${data.id || 'default'}`} className="node-select small">
+                      <option value="">Select...</option>
+                      {availableButtons.map(b => (
+                        <option key={b.buttonId} value={b.buttonId}>{b.name}</option>
+                      ))}
+                    </select>
+                    <select id={`button-action-${data.id || 'default'}`} className="node-select tiny">
+                      <option value="enable">On</option>
+                      <option value="disable">Off</option>
+                    </select>
+                    <button
+                      className="var-add-btn"
+                      onClick={() => {
+                        const sel = document.getElementById(`button-select-${data.id || 'default'}`);
+                        const act = document.getElementById(`button-action-${data.id || 'default'}`);
+                        addButton(sel?.value, act?.value || 'enable');
+                        if (sel) sel.value = '';
+                      }}
+                      title="Add button"
+                    >+</button>
+                  </div>
+                  {addedButtons.length > 0 && (
+                    <div className="initial-badges">
+                      {addedButtons.map(([id, action]) => {
+                        const button = allButtons.find(b => String(b.buttonId) === String(id));
+                        if (!button) return null;
+                        return (
+                          <div key={id} className={`initial-badge ${action}`}>
+                            <span className="badge-name">{button.name}</span>
+                            <span className="badge-action">{action === 'enable' ? 'ON' : 'OFF'}</span>
+                            <button className="badge-remove" onClick={() => removeButton(id)}>×</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {renderTriggerOptions()}
           </div>
         );
+      }
 
       case 'player_state_change': {
         // Helper to check if state type supports numeric comparison
@@ -220,34 +449,37 @@ function TriggerNode({ data, selected }) {
               {data.stateType === 'capacity' || !data.stateType ? (
                 data.comparison === 'range' ? (
                   <>
-                    <input
-                      type="number"
+                    <NumberInput
                       className="node-input small"
-                      value={data.targetValue ?? 0}
-                      min="0"
-                      max="100"
-                      onChange={(e) => data.onChange?.('targetValue', parseInt(e.target.value) || 0)}
+                      value={data.targetValue}
+                      defaultValue={0}
+                      min={0}
+                      max={100}
+                      onChange={(val) => data.onChange?.('targetValue', val)}
+                      allowFloat={false}
                     />
                     <span>to</span>
-                    <input
-                      type="number"
+                    <NumberInput
                       className="node-input small"
-                      value={data.targetValue2 ?? 100}
-                      min="0"
-                      max="100"
-                      onChange={(e) => data.onChange?.('targetValue2', parseInt(e.target.value) || 0)}
+                      value={data.targetValue2}
+                      defaultValue={100}
+                      min={0}
+                      max={100}
+                      onChange={(val) => data.onChange?.('targetValue2', val)}
+                      allowFloat={false}
                     />
                     <span>%</span>
                   </>
                 ) : (
                   <>
-                    <input
-                      type="number"
+                    <NumberInput
                       className="node-input small"
-                      value={data.targetValue ?? 50}
-                      min="0"
-                      max="100"
-                      onChange={(e) => data.onChange?.('targetValue', parseInt(e.target.value) || 0)}
+                      value={data.targetValue}
+                      defaultValue={50}
+                      min={0}
+                      max={100}
+                      onChange={(val) => data.onChange?.('targetValue', val)}
+                      allowFloat={false}
                     />
                     <span>%</span>
                   </>

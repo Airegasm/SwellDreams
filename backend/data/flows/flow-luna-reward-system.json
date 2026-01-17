@@ -1,0 +1,166 @@
+{
+  "id": "flow-luna-reward-system",
+  "name": "Luna's Rewards",
+  "category": "character",
+  "description": "Random rewards for being good",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-rw-btn",
+      "type": "button_press",
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "data": {
+        "label": "Reward Me",
+        "buttonTarget": "character",
+        "buttonId": "luna-reward",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-rw-intro",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 150
+      },
+      "data": {
+        "label": "Reward Intro",
+        "actionType": "send_message",
+        "message": "*eyes sparkle* You've been so good for me, baby. I think you deserve something special...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-rw-branch",
+      "type": "branch",
+      "position": {
+        "x": 100,
+        "y": 280
+      },
+      "data": {
+        "label": "Surprise Reward",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "gentle-reward",
+            "label": "Gentle Touch",
+            "weight": 35
+          },
+          {
+            "id": "words-reward",
+            "label": "Sweet Words",
+            "weight": 35
+          },
+          {
+            "id": "special-reward",
+            "label": "Special Treat",
+            "weight": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-rw-gentle",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 420
+      },
+      "data": {
+        "label": "Gentle Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*kisses you softly* A little treat for my good baby...",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "Mmm, I love seeing you enjoy that. You earned it, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-rw-words",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 420
+      },
+      "data": {
+        "label": "Sweet Words",
+        "actionType": "send_message",
+        "message": "*wraps arms around you* I'm so proud of you, baby. The way you trust me, the way you let yourself feel... You're absolutely beautiful. I'm so lucky to have you.",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "*pulls you close*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-rw-special",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 420
+      },
+      "data": {
+        "label": "Special Treat",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 2,
+        "interval": 2,
+        "cycles": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*grins mischievously* Close your eyes... I have something special for you.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 2,
+        "postMessageEnabled": true,
+        "postMessage": "*laughs softly at your reaction* Surprised? That's what happens when you're this good to me...",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-rw-btn",
+      "target": "luna-rw-intro"
+    },
+    {
+      "id": "e2",
+      "source": "luna-rw-intro",
+      "target": "luna-rw-branch"
+    },
+    {
+      "id": "e3",
+      "source": "luna-rw-branch",
+      "sourceHandle": "branch-0",
+      "target": "luna-rw-gentle"
+    },
+    {
+      "id": "e4",
+      "source": "luna-rw-branch",
+      "sourceHandle": "branch-1",
+      "target": "luna-rw-words"
+    },
+    {
+      "id": "e5",
+      "source": "luna-rw-branch",
+      "sourceHandle": "branch-2",
+      "target": "luna-rw-special"
+    }
+  ]
+}

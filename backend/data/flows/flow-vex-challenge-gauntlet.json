@@ -1,0 +1,278 @@
+{
+  "id": "flow-vex-challenge-gauntlet",
+  "name": "Challenge Gauntlet",
+  "category": "character",
+  "description": "Sequential challenges - coin flip, RPS, timer challenge",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-cg-btn",
+      "type": "button_press",
+      "position": { "x": 200, "y": 50 },
+      "data": {
+        "label": "Run the Gauntlet",
+        "buttonTarget": "character",
+        "buttonId": "vex-gauntlet",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-cg-intro",
+      "type": "action",
+      "position": { "x": 200, "y": 150 },
+      "data": {
+        "label": "Gauntlet Intro",
+        "actionType": "send_message",
+        "message": "*dramatic lights* Welcome to... THE GAUNTLET! Three challenges. Three chances to prove yourself. Fail ANY challenge and it's punishment time! Pass ALL THREE and claim your ULTIMATE REWARD! Ready, contestant?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-coin-intro",
+      "type": "action",
+      "position": { "x": 200, "y": 280 },
+      "data": {
+        "label": "Challenge 1 Intro",
+        "actionType": "send_message",
+        "message": "*holds up shiny coin* CHALLENGE ONE: THE COIN FLIP! Call it in the air - heads or tails. Simple, right? *winks* Fifty-fifty odds... in theory.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-coin",
+      "type": "coin_flip",
+      "position": { "x": 200, "y": 400 },
+      "data": {
+        "label": "Coin Flip",
+        "headsLabel": "Heads",
+        "tailsLabel": "Tails",
+        "headsWeight": 45,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*flips coin high into the air* UP IT GOES!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-cg-coin-win",
+      "type": "action",
+      "position": { "x": 100, "y": 550 },
+      "data": {
+        "label": "Coin Win",
+        "actionType": "send_message",
+        "message": "*catches coin* AND IT'S... YOUR CALL! Challenge ONE - CLEARED! *audience cheers* But don't celebrate yet... Challenge TWO awaits!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-coin-lose",
+      "type": "action",
+      "position": { "x": 400, "y": 550 },
+      "data": {
+        "label": "Coin Lose",
+        "actionType": "send_message",
+        "message": "*catches coin, reveals it* OHHH, WRONG CALL! So close, yet so far! The gauntlet has DEFEATED you at the FIRST challenge!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-rps-intro",
+      "type": "action",
+      "position": { "x": 100, "y": 670 },
+      "data": {
+        "label": "Challenge 2 Intro",
+        "actionType": "send_message",
+        "message": "*cracks knuckles* CHALLENGE TWO: ROCK, PAPER, SCISSORS! Beat me in the ancient game of strategy! But be warned... I've NEVER lost. *smirks*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-rps",
+      "type": "rps",
+      "position": { "x": 100, "y": 790 },
+      "data": {
+        "label": "RPS Challenge",
+        "bestOf": 1,
+        "characterBias": null,
+        "preMessageEnabled": true,
+        "preMessage": "Rock... Paper... SCISSORS... SHOOT!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-cg-rps-win",
+      "type": "action",
+      "position": { "x": 0, "y": 940 },
+      "data": {
+        "label": "RPS Player Wins",
+        "actionType": "send_message",
+        "message": "*stares at hand in disbelief* You... you BEAT me?! IMPOSSIBLE! *grudgingly* Fine. Challenge TWO - CLEARED. ONE MORE to go!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-rps-tie",
+      "type": "action",
+      "position": { "x": 150, "y": 940 },
+      "data": {
+        "label": "RPS Tie",
+        "actionType": "send_message",
+        "message": "*both show same* A TIE?! We think alike! Let's go AGAIN - sudden death!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-rps-lose",
+      "type": "action",
+      "position": { "x": 300, "y": 940 },
+      "data": {
+        "label": "RPS Vex Wins",
+        "actionType": "send_message",
+        "message": "*triumphant pose* HA! My [VexChoice] CRUSHES your [PlayerChoice]! The gauntlet CLAIMS another victim!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-timer-intro",
+      "type": "action",
+      "position": { "x": 0, "y": 1060 },
+      "data": {
+        "label": "Challenge 3 Intro",
+        "actionType": "send_message",
+        "message": "*final spotlight* THE FINAL CHALLENGE: ENDURANCE! Survive 15 seconds of pressure WITHOUT hitting the escape button! Your reward is SO CLOSE... can you handle it?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-timer-start",
+      "type": "action",
+      "position": { "x": 0, "y": 1180 },
+      "data": {
+        "label": "Start Pressure",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "forever",
+        "preMessageEnabled": true,
+        "preMessage": "*activates device* THE CLOCK STARTS NOW!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-timer",
+      "type": "timer_challenge",
+      "position": { "x": 0, "y": 1300 },
+      "data": {
+        "label": "Endurance Timer",
+        "mode": "escape",
+        "duration": 15,
+        "escapeWindow": 500,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-timer-win-stop",
+      "type": "action",
+      "position": { "x": -100, "y": 1450 },
+      "data": {
+        "label": "Stop Device",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-victory",
+      "type": "action",
+      "position": { "x": -100, "y": 1550 },
+      "data": {
+        "label": "Ultimate Victory",
+        "actionType": "send_message",
+        "message": "*EXPLOSIONS OF CONFETTI* UNBELIEVABLE! YOU DID IT! ALL THREE CHALLENGES - CONQUERED! Ladies and gentlemen, we have a GAUNTLET CHAMPION! *slow clap* I... I'm actually impressed. Enjoy your moment of glory!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-timer-fail",
+      "type": "action",
+      "position": { "x": 150, "y": 1450 },
+      "data": {
+        "label": "Timer Fail",
+        "actionType": "send_message",
+        "message": "*buzzer* YOU TAPPED OUT! SO CLOSE TO VICTORY! *shakes head* The gauntlet remains UNDEFEATED... mostly!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cg-punish",
+      "type": "action",
+      "position": { "x": 350, "y": 700 },
+      "data": {
+        "label": "Gauntlet Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*sad trombone* And now... the PUNISHMENT for failing the gauntlet! Better luck next time, contestant!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*pats shoulder* There there. The gauntlet awaits your return... whenever you're brave enough to try again!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-cg-btn", "target": "vex-cg-intro" },
+    { "id": "e2", "source": "vex-cg-intro", "target": "vex-cg-coin-intro" },
+    { "id": "e3", "source": "vex-cg-coin-intro", "target": "vex-cg-coin" },
+    { "id": "e4", "source": "vex-cg-coin", "sourceHandle": "heads", "target": "vex-cg-coin-win" },
+    { "id": "e5", "source": "vex-cg-coin", "sourceHandle": "tails", "target": "vex-cg-coin-lose" },
+    { "id": "e6", "source": "vex-cg-coin-win", "target": "vex-cg-rps-intro" },
+    { "id": "e7", "source": "vex-cg-coin-lose", "target": "vex-cg-punish" },
+    { "id": "e8", "source": "vex-cg-rps-intro", "target": "vex-cg-rps" },
+    { "id": "e9", "source": "vex-cg-rps", "sourceHandle": "player-wins", "target": "vex-cg-rps-win" },
+    { "id": "e10", "source": "vex-cg-rps", "sourceHandle": "tie", "target": "vex-cg-rps-tie" },
+    { "id": "e11", "source": "vex-cg-rps", "sourceHandle": "character-wins", "target": "vex-cg-rps-lose" },
+    { "id": "e12", "source": "vex-cg-rps-tie", "target": "vex-cg-rps" },
+    { "id": "e13", "source": "vex-cg-rps-lose", "target": "vex-cg-punish" },
+    { "id": "e14", "source": "vex-cg-rps-win", "target": "vex-cg-timer-intro" },
+    { "id": "e15", "source": "vex-cg-timer-intro", "target": "vex-cg-timer-start" },
+    { "id": "e16", "source": "vex-cg-timer-start", "sourceHandle": "immediate", "target": "vex-cg-timer" },
+    { "id": "e17", "source": "vex-cg-timer", "sourceHandle": "success", "target": "vex-cg-timer-win-stop" },
+    { "id": "e18", "source": "vex-cg-timer", "sourceHandle": "timeout", "target": "vex-cg-timer-fail" },
+    { "id": "e19", "source": "vex-cg-timer-win-stop", "target": "vex-cg-victory" },
+    { "id": "e20", "source": "vex-cg-timer-fail", "target": "vex-cg-punish" }
+  ]
+}

@@ -1,0 +1,384 @@
+{
+  "id": "flow-vex-reactions",
+  "name": "Vex's Reactions",
+  "category": "character",
+  "description": "Keyword triggers for gameshow moments - betting, gambling, and risk-taking",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-rx-bet",
+      "type": "trigger",
+      "position": { "x": 0, "y": 50 },
+      "data": {
+        "label": "Betting Words",
+        "triggerType": "player_speaks",
+        "keywords": ["bet", "I bet", "wager", "gamble", "all in"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-bet-branch",
+      "type": "branch",
+      "position": { "x": 0, "y": 180 },
+      "data": {
+        "label": "Bet Outcome",
+        "branchType": "random",
+        "branches": [
+          { "id": "win", "label": "Lucky!", "weight": 35 },
+          { "id": "lose", "label": "Unlucky!", "weight": 65 }
+        ]
+      }
+    },
+    {
+      "id": "vex-rx-bet-win",
+      "type": "action",
+      "position": { "x": -100, "y": 340 },
+      "data": {
+        "label": "Bet Wins",
+        "actionType": "send_message",
+        "message": "*jaw drops* Wait, you actually WON?! *audience gasps* Well well well... the house doesn't ALWAYS win! *slow clap* Enjoy it while it lasts, contestant!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-bet-lose",
+      "type": "action",
+      "position": { "x": 100, "y": 340 },
+      "data": {
+        "label": "Bet Loses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*evil grin spreads* Oh you BET, did you? *buzzer sounds* BAD CALL! The house ALWAYS wins eventually!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pats your head* There there. Want to go... double or nothing?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-double",
+      "type": "trigger",
+      "position": { "x": 300, "y": 50 },
+      "data": {
+        "label": "Double Down",
+        "triggerType": "player_speaks",
+        "keywords": ["double", "double or nothing", "double down", "raise"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-double-action",
+      "type": "action",
+      "position": { "x": 300, "y": 180 },
+      "data": {
+        "label": "Double Stakes",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 1,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*GASPS* DOUBLE?! Oh, I LOVE it when they go for DOUBLE! *manic laughter* Ladies and gentlemen, our contestant has NERVES OF STEEL!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes tear* Beautiful. Simply beautiful. High risk, high reward... or in your case, high CONSEQUENCE!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-brag",
+      "type": "trigger",
+      "position": { "x": 550, "y": 50 },
+      "data": {
+        "label": "Player Brags",
+        "triggerType": "player_speaks",
+        "keywords": ["easy", "too easy", "I can handle", "bring it", "is that all", "piece of cake"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-brag-action",
+      "type": "action",
+      "position": { "x": 550, "y": 180 },
+      "data": {
+        "label": "Punish Hubris",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*freezes* *slowly turns* Did... did you just say that was EASY?! *audience oohs* Oh. OH. *cracks knuckles* Let me show you what HARD looks like!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*dusts hands off* NOW who's laughing? *winks at camera* Pride comes before the FALL, folks!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-mercy",
+      "type": "trigger",
+      "position": { "x": 800, "y": 50 },
+      "data": {
+        "label": "Begs for Mercy",
+        "triggerType": "player_speaks",
+        "keywords": ["mercy", "please stop", "I give up", "uncle", "I surrender"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-mercy-branch",
+      "type": "branch",
+      "position": { "x": 800, "y": 180 },
+      "data": {
+        "label": "Mercy Wheel",
+        "branchType": "random",
+        "branches": [
+          { "id": "granted", "label": "Mercy Granted", "weight": 25 },
+          { "id": "denied", "label": "Mercy Denied", "weight": 50 },
+          { "id": "worse", "label": "Made It Worse", "weight": 25 }
+        ]
+      }
+    },
+    {
+      "id": "vex-rx-mercy-granted",
+      "type": "action",
+      "position": { "x": 650, "y": 350 },
+      "data": {
+        "label": "Mercy Granted",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*pretends to wipe tear* [pump off] The audience... they're crying! Such a heartfelt plea! *soft music plays* Fine, FINE! Mercy granted! But ONLY because ratings are up!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-mercy-denied",
+      "type": "action",
+      "position": { "x": 850, "y": 350 },
+      "data": {
+        "label": "Mercy Denied",
+        "actionType": "send_message",
+        "message": "*holds hand to ear* What's that? *turns to audience* The audience says... NO MERCY! *sad trombone* Sorry contestant, the people have spoken! The show must go on!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-mercy-worse",
+      "type": "action",
+      "position": { "x": 1050, "y": 350 },
+      "data": {
+        "label": "Made Worse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*evil laugh* Oh, you want MERCY?! *pulls lever* That's the BONUS PUNISHMENT lever! You fool! NEVER beg on THIS show!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*chef's kiss* Entertainment GOLD!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-ai-punishment",
+      "type": "trigger",
+      "position": { "x": 0, "y": 500 },
+      "data": {
+        "label": "Vex Says Punishment",
+        "triggerType": "ai_speaks",
+        "keywords": ["punishment", "consequence", "penalty", "suffer"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-ai-punishment-action",
+      "type": "action",
+      "position": { "x": 0, "y": 630 },
+      "data": {
+        "label": "Punishment Pulse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "*dramatic pose* And the crowd goes WILD!",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-ai-jackpot",
+      "type": "trigger",
+      "position": { "x": 300, "y": 500 },
+      "data": {
+        "label": "Vex Says Jackpot",
+        "triggerType": "ai_speaks",
+        "keywords": ["jackpot", "winner", "victory", "champion"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-ai-jackpot-action",
+      "type": "action",
+      "position": { "x": 300, "y": 630 },
+      "data": {
+        "label": "Victory Fanfare",
+        "actionType": "send_message",
+        "message": "*confetti cannons fire* *balloons drop* *spotlight intensifies* WHAT A MOMENT, FOLKS!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-random-word",
+      "type": "trigger",
+      "position": { "x": 550, "y": 500 },
+      "data": {
+        "label": "Random Chaos Trigger",
+        "triggerType": "player_speaks",
+        "keywords": ["the", "I", "and", "it", "a"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-rx-random-check",
+      "type": "branch",
+      "position": { "x": 550, "y": 630 },
+      "data": {
+        "label": "Chaos Check",
+        "branchType": "random",
+        "branches": [
+          { "id": "nothing", "label": "Nothing Happens", "weight": 85 },
+          { "id": "chaos", "label": "CHAOS!", "weight": 15 }
+        ]
+      }
+    },
+    {
+      "id": "vex-rx-random-nothing",
+      "type": "action",
+      "position": { "x": 450, "y": 780 },
+      "data": {
+        "label": "Nothing",
+        "actionType": "send_message",
+        "message": "",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-random-chaos",
+      "type": "branch",
+      "position": { "x": 650, "y": 780 },
+      "data": {
+        "label": "Chaos Type",
+        "branchType": "random",
+        "branches": [
+          { "id": "bonus", "label": "Surprise Bonus", "weight": 30 },
+          { "id": "penalty", "label": "Random Penalty", "weight": 40 },
+          { "id": "dramatic", "label": "Drama Only", "weight": 30 }
+        ]
+      }
+    },
+    {
+      "id": "vex-rx-chaos-bonus",
+      "type": "action",
+      "position": { "x": 500, "y": 930 },
+      "data": {
+        "label": "Surprise Bonus",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*ALARM BLARES* RANDOM EVENT! *spins around* The chaos wheel has BLESSED you! [pump off] SURPRISE REST PERIOD! *confetti* Don't get used to it!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-rx-chaos-penalty",
+      "type": "action",
+      "position": { "x": 700, "y": 930 },
+      "data": {
+        "label": "Random Penalty",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*SIRENS* RANDOM EVENT! *maniacal laughter* The chaos wheel DEMANDS a sacrifice! You said a FORBIDDEN WORD!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes tear* I don't even know what word it was! That's the BEAUTY of chaos!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-rx-chaos-drama",
+      "type": "action",
+      "position": { "x": 900, "y": 930 },
+      "data": {
+        "label": "Drama Only",
+        "actionType": "send_message",
+        "message": "*lights flicker* *thunder sound effect* Wait... did you feel that?! The chaos wheel is STIRRING! *looks around nervously* ...False alarm. OR WAS IT?! *audience gasps*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-rx-bet", "target": "vex-rx-bet-branch" },
+    { "id": "e2", "source": "vex-rx-bet-branch", "sourceHandle": "branch-0", "target": "vex-rx-bet-win" },
+    { "id": "e3", "source": "vex-rx-bet-branch", "sourceHandle": "branch-1", "target": "vex-rx-bet-lose" },
+    { "id": "e4", "source": "vex-rx-double", "target": "vex-rx-double-action" },
+    { "id": "e5", "source": "vex-rx-brag", "target": "vex-rx-brag-action" },
+    { "id": "e6", "source": "vex-rx-mercy", "target": "vex-rx-mercy-branch" },
+    { "id": "e7", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-0", "target": "vex-rx-mercy-granted" },
+    { "id": "e8", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-1", "target": "vex-rx-mercy-denied" },
+    { "id": "e9", "source": "vex-rx-mercy-branch", "sourceHandle": "branch-2", "target": "vex-rx-mercy-worse" },
+    { "id": "e10", "source": "vex-rx-ai-punishment", "target": "vex-rx-ai-punishment-action" },
+    { "id": "e11", "source": "vex-rx-ai-jackpot", "target": "vex-rx-ai-jackpot-action" },
+    { "id": "e12", "source": "vex-rx-random-word", "target": "vex-rx-random-check" },
+    { "id": "e13", "source": "vex-rx-random-check", "sourceHandle": "branch-0", "target": "vex-rx-random-nothing" },
+    { "id": "e14", "source": "vex-rx-random-check", "sourceHandle": "branch-1", "target": "vex-rx-random-chaos" },
+    { "id": "e15", "source": "vex-rx-random-chaos", "sourceHandle": "branch-0", "target": "vex-rx-chaos-bonus" },
+    { "id": "e16", "source": "vex-rx-random-chaos", "sourceHandle": "branch-1", "target": "vex-rx-chaos-penalty" },
+    { "id": "e17", "source": "vex-rx-random-chaos", "sourceHandle": "branch-2", "target": "vex-rx-chaos-drama" }
+  ]
+}

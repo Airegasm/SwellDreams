@@ -20,6 +20,7 @@ const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
 const aiDeviceControl = require('./services/ai-device-control');
+const imageStorage = require('./services/image-storage');
 
 // Utilities
 const { createLogger } = require('./utils/logger');
@@ -131,7 +132,43 @@ app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/devices/')) {
     return next();
   }
+  // Skip rate limiting for images - static files
+  if (req.path.startsWith('/images/')) {
+    return next();
+  }
   generalLimiter(req, res, next);
+});
+
+// Serve images from data directories
+// URL format: /api/images/{personas|chars}/{default|custom}/{id}/{filename}
+app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
+  const { type, folder, id, filename } = req.params;
+
+  // Validate folder
+  if (folder !== 'default' && folder !== 'custom') {
+    return res.status(400).send('Invalid folder');
+  }
+
+  // Validate type
+  if (type !== 'personas' && type !== 'chars') {
+    return res.status(400).send('Invalid type');
+  }
+
+  // Get the file path using the image storage service
+  const imageStorage = require('./services/image-storage');
+  const filePath = imageStorage.getImageFilePath(type, folder, id, filename);
+
+  if (!filePath) {
+    return res.status(404).send('Not found');
+  }
+
+  // Check file exists and send it
+  const fsSync = require('fs');
+  if (fsSync.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('Image not found');
+  }
 });
 
 // Data directory
@@ -376,12 +413,16 @@ function saveCharsIndex(index) {
 }
 
 // Load single character by ID (checks both default and custom dirs)
+// Supports both old format ({id}.json) and new folder format ({id}/char.json)
 function loadCharacter(charId) {
-  // Check custom first, then default
+  // Check new folder format first (custom, then default)
+  const customFolderPath = path.join(CHARS_CUSTOM_DIR, charId, 'char.json');
+  const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, charId, 'char.json');
+  // Check old flat format
   const customPath = path.join(CHARS_CUSTOM_DIR, `${charId}.json`);
   const defaultPath = path.join(CHARS_DEFAULT_DIR, `${charId}.json`);
 
-  for (const charPath of [customPath, defaultPath]) {
+  for (const charPath of [customFolderPath, defaultFolderPath, customPath, defaultPath]) {
     if (fs.existsSync(charPath)) {
       try {
         return JSON.parse(fs.readFileSync(charPath, 'utf8'));
@@ -393,40 +434,74 @@ function loadCharacter(charId) {
   return null;
 }
 
-// Save single character to its own file + update index
+// Save single character to its own folder + update index
 // New characters go to custom/, existing stay in their location
+// Uses new folder structure: chars/{custom|default}/{id}/char.json + img/
+async function saveCharacterAsync(char, forceCustom = false) {
+  // Determine if this is a default or custom character
+  let isDefault = false;
+  const customFolderPath = path.join(CHARS_CUSTOM_DIR, char.id, 'char.json');
+  const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, char.id, 'char.json');
+  const oldCustomPath = path.join(CHARS_CUSTOM_DIR, `${char.id}.json`);
+  const oldDefaultPath = path.join(CHARS_DEFAULT_DIR, `${char.id}.json`);
+
+  if (forceCustom) {
+    isDefault = false;
+  } else if (fs.existsSync(defaultFolderPath) || fs.existsSync(oldDefaultPath)) {
+    isDefault = true;
+  }
+
+  // Process any base64 images and save them to disk
+  const processedChar = await imageStorage.processCharacterImages(char, isDefault);
+
+  // Save to new folder structure
+  await imageStorage.saveCharacterJson(processedChar, isDefault);
+  updateCharIndex(processedChar, isDefault ? 'default' : 'custom');
+
+  // Clean up old flat file if it exists
+  if (fs.existsSync(oldCustomPath)) {
+    try { fs.unlinkSync(oldCustomPath); } catch (e) {}
+  }
+
+  return processedChar;
+}
+
+// Sync wrapper for backwards compatibility
 function saveCharacter(char, forceCustom = false) {
-  // Ensure directories exist
-  if (!fs.existsSync(CHARS_CUSTOM_DIR)) {
-    fs.mkdirSync(CHARS_CUSTOM_DIR, { recursive: true });
+  // For sync calls, just save without async image processing
+  // This is used during migration - images will be processed on next save
+  const isDefault = !forceCustom && (
+    fs.existsSync(path.join(CHARS_DEFAULT_DIR, char.id, 'char.json')) ||
+    fs.existsSync(path.join(CHARS_DEFAULT_DIR, `${char.id}.json`))
+  );
+
+  const charDir = path.join(isDefault ? CHARS_DEFAULT_DIR : CHARS_CUSTOM_DIR, char.id);
+  if (!fs.existsSync(charDir)) {
+    fs.mkdirSync(charDir, { recursive: true });
   }
 
-  // Determine save location
-  let targetPath;
-  const customPath = path.join(CHARS_CUSTOM_DIR, `${char.id}.json`);
-  const defaultPath = path.join(CHARS_DEFAULT_DIR, `${char.id}.json`);
-
-  if (forceCustom || !fs.existsSync(defaultPath)) {
-    // New character or forced custom -> save to custom
-    targetPath = customPath;
-  } else if (fs.existsSync(customPath)) {
-    // Already in custom -> save to custom
-    targetPath = customPath;
-  } else {
-    // Exists in default -> save to default
-    targetPath = defaultPath;
-  }
-
+  const targetPath = path.join(charDir, 'char.json');
   fs.writeFileSync(targetPath, JSON.stringify(char, null, 2));
-  updateCharIndex(char, targetPath.includes('/custom/') ? 'custom' : 'default');
+  updateCharIndex(char, isDefault ? 'default' : 'custom');
 }
 
 // Delete character file + remove from index
 function deleteCharacterFile(charId) {
+  // Delete new folder structure
+  const customFolderPath = path.join(CHARS_CUSTOM_DIR, charId);
+  const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, charId);
+  // Delete old flat files
   const customPath = path.join(CHARS_CUSTOM_DIR, `${charId}.json`);
   const defaultPath = path.join(CHARS_DEFAULT_DIR, `${charId}.json`);
 
-  // Delete from wherever it exists
+  // Delete folder if exists
+  if (fs.existsSync(customFolderPath)) {
+    fs.rmSync(customFolderPath, { recursive: true, force: true });
+  }
+  if (fs.existsSync(defaultFolderPath)) {
+    fs.rmSync(defaultFolderPath, { recursive: true, force: true });
+  }
+  // Delete old flat files if exist
   if (fs.existsSync(customPath)) {
     fs.unlinkSync(customPath);
   }
@@ -477,6 +552,162 @@ function isPerCharStorageActive() {
   return fs.existsSync(path.join(CHARS_DIR, 'chars-index.json'));
 }
 
+// ============================================
+// Per-Persona File Storage Helpers
+// ============================================
+
+const PERSONAS_DIR = path.join(DATA_DIR, 'personas');
+const PERSONAS_DEFAULT_DIR = path.join(PERSONAS_DIR, 'default');
+const PERSONAS_CUSTOM_DIR = path.join(PERSONAS_DIR, 'custom');
+
+// Load personas index
+function loadPersonasIndex() {
+  const indexPath = path.join(PERSONAS_DIR, 'personas-index.json');
+  if (fs.existsSync(indexPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch (e) {
+      console.error('Error loading personas index:', e);
+    }
+  }
+  return [];
+}
+
+// Save personas index
+function savePersonasIndex(index) {
+  if (!fs.existsSync(PERSONAS_DIR)) {
+    fs.mkdirSync(PERSONAS_DIR, { recursive: true });
+  }
+  const indexPath = path.join(PERSONAS_DIR, 'personas-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+
+// Load single persona by ID (checks folder structure, then old format)
+function loadPersona(personaId) {
+  // Check new folder format (custom, then default)
+  const customFolderPath = path.join(PERSONAS_CUSTOM_DIR, personaId, 'persona.json');
+  const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, personaId, 'persona.json');
+
+  for (const personaPath of [customFolderPath, defaultFolderPath]) {
+    if (fs.existsSync(personaPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+      } catch (e) {
+        console.error(`Error loading persona ${personaId}:`, e);
+      }
+    }
+  }
+
+  // Fall back to old personas.json array format
+  const personas = loadAllPersonas() || [];
+  return personas.find(p => p.id === personaId) || null;
+}
+
+// Save single persona to its own folder + update index
+async function savePersonaAsync(persona, forceCustom = false) {
+  // Determine if this is a default or custom persona
+  let isDefault = false;
+  const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, persona.id, 'persona.json');
+
+  if (!forceCustom && fs.existsSync(defaultFolderPath)) {
+    isDefault = true;
+  }
+
+  // Process any base64 images and save them to disk
+  const processedPersona = await imageStorage.processPersonaImages(persona, isDefault);
+
+  // Save to new folder structure
+  await imageStorage.savePersonaJson(processedPersona, isDefault);
+  updatePersonaIndex(processedPersona, isDefault ? 'default' : 'custom');
+
+  return processedPersona;
+}
+
+// Delete persona folder + remove from index
+function deletePersonaFolder(personaId) {
+  const customFolderPath = path.join(PERSONAS_CUSTOM_DIR, personaId);
+  const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, personaId);
+
+  // Delete folder if exists
+  if (fs.existsSync(customFolderPath)) {
+    fs.rmSync(customFolderPath, { recursive: true, force: true });
+  }
+  if (fs.existsSync(defaultFolderPath)) {
+    fs.rmSync(defaultFolderPath, { recursive: true, force: true });
+  }
+  removeFromPersonaIndex(personaId);
+}
+
+// Update/add entry in personas index
+function updatePersonaIndex(persona, category = 'custom') {
+  const index = loadPersonasIndex();
+  const existing = index.findIndex(p => p.id === persona.id);
+  const entry = {
+    id: persona.id,
+    displayName: persona.displayName || 'Unnamed Persona',
+    category: category
+  };
+  if (existing >= 0) {
+    index[existing] = entry;
+  } else {
+    index.push(entry);
+  }
+  savePersonasIndex(index);
+}
+
+// Remove entry from personas index
+function removeFromPersonaIndex(personaId) {
+  const index = loadPersonasIndex();
+  const filtered = index.filter(p => p.id !== personaId);
+  savePersonasIndex(filtered);
+}
+
+// Load all personas (from both folder structure and old format)
+function loadAllPersonas() {
+  const personas = [];
+  const seenIds = new Set();
+
+  // Load from new folder structure
+  for (const [dir, isDefault] of [[PERSONAS_DEFAULT_DIR, true], [PERSONAS_CUSTOM_DIR, false]]) {
+    if (fs.existsSync(dir)) {
+      try {
+        const personaIds = fs.readdirSync(dir);
+        for (const id of personaIds) {
+          const personaPath = path.join(dir, id, 'persona.json');
+          if (fs.existsSync(personaPath)) {
+            try {
+              const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+              persona._isDefault = isDefault;
+              personas.push(persona);
+              seenIds.add(persona.id);
+            } catch (e) {
+              console.error(`Error loading persona ${id}:`, e);
+            }
+          }
+        }
+      } catch (e) {
+        // Directory may not exist
+      }
+    }
+  }
+
+  // Also load from old personas.json if it exists (for migration)
+  const oldPersonas = loadData(DATA_FILES.personas) || [];
+  for (const persona of oldPersonas) {
+    if (!seenIds.has(persona.id)) {
+      persona._isDefault = false;
+      personas.push(persona);
+    }
+  }
+
+  return personas;
+}
+
+// Check if per-persona folder storage is active
+function isPerPersonaStorageActive() {
+  return fs.existsSync(path.join(PERSONAS_DIR, 'personas-index.json'));
+}
+
 // Default data structures
 const DEFAULT_SETTINGS = {
   llm: { ...llmService.DEFAULT_SETTINGS },
@@ -501,9 +732,8 @@ function initializeDataFiles() {
   if (!loadData(DATA_FILES.settings)) {
     saveData(DATA_FILES.settings, DEFAULT_SETTINGS);
   }
-  if (!loadData(DATA_FILES.personas)) {
-    saveData(DATA_FILES.personas, DEFAULT_PERSONAS);
-  }
+  // Personas now use folder storage - no initialization needed
+  // Old personas.json is only used for migration
   if (!loadData(DATA_FILES.characters)) {
     saveData(DATA_FILES.characters, DEFAULT_CHARACTERS);
   }
@@ -1029,6 +1259,32 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
 
   console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
 
+  // Safety auto-shutoff: Turn off all pumps at 100% capacity (unless allowOverInflation is enabled)
+  if (totalCapacity >= 100 && !settings.globalCharacterControls?.allowOverInflation) {
+    const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+
+    for (const pump of pumpDevices) {
+      const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+      const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : pumpDeviceId;
+      const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
+
+      if (deviceState?.state === 'on') {
+        console.log(`[Safety] Auto-shutoff: Turning off pump "${pump.label || pump.name}" at ${totalCapacity}% capacity`);
+        deviceService.turnOff(pumpDeviceId, pump).then(() => {
+          if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
+            sessionState.executionHistory.deviceActions[stateKey].state = 'off';
+          }
+          broadcast('pump_safety_shutoff', {
+            device: pump.label || pump.name || pumpDeviceId,
+            capacity: totalCapacity
+          });
+        }).catch(err => {
+          console.error(`[Safety] Failed to auto-shutoff pump:`, err);
+        });
+      }
+    }
+  }
+
   // Broadcast update
   broadcast('auto_capacity_update', {
     capacity: totalCapacity,
@@ -1133,8 +1389,20 @@ function getActiveScenario(character) {
 async function sendWelcomeMessage(character, settings) {
   if (!character) return;
 
-  const welcomeMsg = getActiveWelcomeMessage(character);
-  if (!welcomeMsg || !welcomeMsg.text) return;
+  // Check for alternate welcome from new_session flow trigger first
+  const alternateWelcome = eventEngine.getAlternateWelcome();
+  let welcomeMsg;
+
+  if (alternateWelcome) {
+    console.log('[WELCOME] Using alternate welcome from flow trigger');
+    welcomeMsg = {
+      text: alternateWelcome.text,
+      llmEnhanced: !alternateWelcome.suppressLlmEnhancement
+    };
+  } else {
+    welcomeMsg = getActiveWelcomeMessage(character);
+    if (!welcomeMsg || !welcomeMsg.text) return;
+  }
 
   console.log('[WELCOME] Sending welcome message for', character.name, 'llmEnhanced:', welcomeMsg.llmEnhanced);
 
@@ -1401,7 +1669,12 @@ eventEngine.setBroadcast(async (type, data) => {
 
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
-        const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService);
+        const aiControlSettings = loadData(DATA_FILES.settings);
+        const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
+          settings: aiControlSettings,
+          sessionState,
+          broadcast
+        });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           finalText = aiControlResult.text;
@@ -1499,7 +1772,7 @@ eventEngine.setBroadcast(async (type, data) => {
     }
 
     const settings = loadData(DATA_FILES.settings);
-    const personas = loadData(DATA_FILES.personas) || [];
+    const personas = loadAllPersonas() || [];
     // Use per-char storage if active, otherwise fall back to legacy
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -1872,7 +2145,7 @@ function syncButtonsForFlowChange(flowId) {
   }
 
   // Sync persona buttons (for nodes with buttonTarget === 'persona')
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   for (const persona of personas) {
     const assignedFlows = persona.assignedFlows || [];
     // Sync if flow is in persona's assigned flows OR is a global flow (for active persona)
@@ -1890,6 +2163,47 @@ function syncButtonsForFlowChange(flowId) {
 }
 
 /**
+ * Sync auto-generated buttons for ALL characters and personas on startup
+ * Ensures buttons from button_press nodes in assigned flows are created
+ */
+function syncAllButtonsOnStartup() {
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const personas = loadAllPersonas() || [];
+  const settings = loadData(DATA_FILES.settings) || {};
+  const globalFlows = settings.globalFlows || [];
+  let charUpdates = 0;
+  let personaUpdates = 0;
+
+  // Sync all character buttons
+  for (const character of characters) {
+    const assignedFlows = character.assignedFlows || [];
+    // Include global flows for the active character
+    const combinedFlows = character.id === settings.activeCharacterId
+      ? [...new Set([...assignedFlows, ...globalFlows])]
+      : assignedFlows;
+    if (combinedFlows.length > 0) {
+      const updated = syncAutoGeneratedButtons(character.id, combinedFlows);
+      if (updated) charUpdates++;
+    }
+  }
+
+  // Sync all persona buttons
+  for (const persona of personas) {
+    const assignedFlows = persona.assignedFlows || [];
+    // Include global flows for the active persona
+    const combinedFlows = persona.id === settings.activePersonaId
+      ? [...new Set([...assignedFlows, ...globalFlows])]
+      : assignedFlows;
+    if (combinedFlows.length > 0) {
+      const updated = syncPersonaAutoGeneratedButtons(persona.id, combinedFlows);
+      if (updated) personaUpdates++;
+    }
+  }
+
+  console.log(`[Startup] Button sync complete: ${charUpdates} characters, ${personaUpdates} personas updated`);
+}
+
+/**
  * Synchronize auto-generated buttons for a persona based on assigned flows
  * @param {string} personaId - The persona ID
  * @param {Array<string>} assignedFlowIds - Array of flow IDs assigned to this persona
@@ -1897,7 +2211,7 @@ function syncButtonsForFlowChange(flowId) {
  */
 function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
   console.log(`[PersonaButtonSync] Syncing buttons for persona ${personaId} with flows:`, assignedFlowIds);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   // Use per-flow storage if active - load only assigned flows
   const flows = isPerFlowStorageActive() ? loadFlows(assignedFlowIds) : (loadData(DATA_FILES.flows) || []);
   console.log(`[PersonaButtonSync] Loaded ${flows.length} flows`);
@@ -2021,9 +2335,9 @@ function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
   const changed = buttons.length !== originalCount || newAutoCount !== originalAutoCount;
 
   if (changed) {
-    // Save updated persona
-    personas[personaIndex].buttons = buttons;
-    saveData(DATA_FILES.personas, personas);
+    // Save updated persona using folder storage
+    persona.buttons = buttons;
+    savePersonaAsync(persona).catch(err => console.error('Failed to save persona buttons:', err));
     console.log(`[PersonaButtonSync] Synced buttons for ${persona.displayName}: ${buttons.length} total (${newAutoCount} auto)`);
   }
 
@@ -2035,7 +2349,7 @@ function syncPersonaAutoGeneratedButtons(personaId, assignedFlowIds) {
  * Called when a flow is saved/updated
  */
 function syncPersonaButtonsForFlowChange(flowId) {
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   let anyUpdated = false;
 
   for (const persona of personas) {
@@ -2053,7 +2367,7 @@ function syncPersonaButtonsForFlowChange(flowId) {
 function loadFlowAssignments() {
   // Use per-char storage if active, otherwise fall back to legacy
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const settings = loadData(DATA_FILES.settings) || {};
 
   // Initialize if not exists
@@ -2097,6 +2411,9 @@ console.log('[Startup] Flow assignments loaded from persisted data');
 // Activate flows for current character/persona on startup
 activateAssignedFlows();
 console.log('[Startup] Flows activated for current session');
+
+// Sync auto-generated buttons from flows for all characters and personas
+syncAllButtonsOnStartup();
 
 // Load and decrypt API keys from settings for service initialization
 const startupSettings = decryptSettings(loadData(DATA_FILES.settings) || {});
@@ -2164,7 +2481,7 @@ wss.on('connection', async (ws) => {
     sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
   }
   if (settings?.activePersonaId) {
-    const personas = loadData(DATA_FILES.personas) || [];
+    const personas = loadAllPersonas() || [];
     const activePersona = personas.find(p => p.id === settings.activePersonaId);
     sessionState.playerName = activePersona?.displayName || null;
   }
@@ -2275,10 +2592,37 @@ async function handleWsMessage(ws, type, data) {
 
     case 'update_capacity':
       sessionState.capacity = data.capacity;
-      broadcast('capacity_update', { capacity: sessionState.capacity });
 
-      // Load settings for character controls
+      // Safety auto-shutoff: Turn off all pumps at 100% capacity (unless allowOverInflation is enabled)
       const capacitySettings = loadData(DATA_FILES.settings) || {};
+      if (sessionState.capacity >= 100 && !capacitySettings.globalCharacterControls?.allowOverInflation) {
+        const devices = loadData(DATA_FILES.devices) || [];
+        const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+
+        for (const pump of pumpDevices) {
+          const deviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : deviceId;
+          const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
+
+          if (deviceState?.state === 'on') {
+            console.log(`[Safety] Auto-shutoff: Turning off pump "${pump.label || pump.name}" at 100% capacity`);
+            try {
+              await deviceService.turnOff(deviceId, pump);
+              if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
+                sessionState.executionHistory.deviceActions[stateKey].state = 'off';
+              }
+              broadcast('pump_safety_shutoff', {
+                device: pump.label || pump.name || deviceId,
+                capacity: sessionState.capacity
+              });
+            } catch (err) {
+              console.error(`[Safety] Failed to auto-shutoff pump:`, err);
+            }
+          }
+        }
+      }
+
+      broadcast('capacity_update', { capacity: sessionState.capacity });
 
       // Auto-link capacity to pain if enabled (defaults to true if not set)
       if (capacitySettings.globalCharacterControls?.autoLinkCapacityToPain !== false) {
@@ -2422,12 +2766,12 @@ async function handleWsMessage(ws, type, data) {
       }
       sessionState.flowAssignments.personas[data.personaId] = data.flows;
 
-      // Persist to persona data
-      const personas = loadData(DATA_FILES.personas) || [];
-      const personaIndex = personas.findIndex(p => p.id === data.personaId);
-      if (personaIndex !== -1) {
-        personas[personaIndex].assignedFlows = data.flows;
-        saveData(DATA_FILES.personas, personas);
+      // Persist to persona data - use folder storage
+      const persona = loadPersona(data.personaId);
+      if (persona) {
+        persona.assignedFlows = data.flows;
+        // Use async save but don't await (fire and forget for WS handler)
+        savePersonaAsync(persona).catch(err => console.error('Failed to save persona flows:', err));
       }
 
       // Sync auto-generated buttons for this persona (include global flows)
@@ -2435,7 +2779,7 @@ async function handleWsMessage(ws, type, data) {
       const combinedPersonaFlowsForSync = [...new Set([...data.flows, ...globalFlowsForPersona])];
       const personaButtonsUpdated = syncPersonaAutoGeneratedButtons(data.personaId, combinedPersonaFlowsForSync);
       if (personaButtonsUpdated) {
-        broadcast('personas_update', loadData(DATA_FILES.personas));
+        broadcast('personas_update', loadAllPersonas());
       }
 
       broadcast('flow_assignments_update', sessionState.flowAssignments);
@@ -2551,7 +2895,7 @@ async function handleWsMessage(ws, type, data) {
 
       // Handle persona buttons
       if (settingsForGlobal.activePersonaId) {
-        const personas = loadData(DATA_FILES.personas) || [];
+        const personas = loadAllPersonas() || [];
         const personaIndex = personas.findIndex(p => p.id === settingsForGlobal.activePersonaId);
         if (personaIndex !== -1) {
           const persona = personas[personaIndex];
@@ -2593,8 +2937,8 @@ async function handleWsMessage(ws, type, data) {
           }
 
           if (buttons.length !== originalCount) {
-            personas[personaIndex].buttons = buttons;
-            saveData(DATA_FILES.personas, personas);
+            persona.buttons = buttons;
+            savePersonaAsync(persona).catch(err => console.error('Failed to save persona buttons:', err));
             buttonsUpdatedGlobal = true;
           }
         }
@@ -2604,7 +2948,7 @@ async function handleWsMessage(ws, type, data) {
       if (buttonsUpdatedGlobal) {
         const updatedChars = isPerCharStorageActive() ? loadAllCharacters() : loadData(DATA_FILES.characters);
         broadcast('characters_update', updatedChars);
-        broadcast('personas_update', loadData(DATA_FILES.personas));
+        broadcast('personas_update', loadAllPersonas());
       }
       break;
     }
@@ -2727,7 +3071,7 @@ async function handleSwipeMessage(data) {
   const settings = loadData(DATA_FILES.settings);
   // Use per-char storage if active, otherwise fall back to legacy
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
@@ -2976,7 +3320,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
     return;
   }
 
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   // Use passed personaId, or fall back to active persona from settings
   const effectivePersonaId = personaId || settings?.activePersonaId;
   const activePersona = personas.find(p => p.id === effectivePersonaId);
@@ -3289,7 +3633,12 @@ async function handleChatMessage(data) {
 
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
-        const aiControlResult = await aiDeviceControl.processLlmOutput(aiMessage.content, devices, deviceService);
+        const aiControlSettings = loadData(DATA_FILES.settings);
+        const aiControlResult = await aiDeviceControl.processLlmOutput(aiMessage.content, devices, deviceService, {
+          settings: aiControlSettings,
+          sessionState,
+          broadcast
+        });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           aiMessage.content = aiControlResult.text;
@@ -3355,7 +3704,12 @@ async function handleChatMessage(data) {
 
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
-        const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService);
+        const aiControlSettings = loadData(DATA_FILES.settings);
+        const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
+          settings: aiControlSettings,
+          sessionState,
+          broadcast
+        });
         if (aiControlResult.commands.length > 0) {
           console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
           finalText = aiControlResult.text;
@@ -3405,7 +3759,7 @@ async function handleSpecialGenerate(data) {
   const settings = loadData(DATA_FILES.settings);
   // Use per-char storage if active, otherwise fall back to legacy
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
@@ -3461,7 +3815,12 @@ async function handleSpecialGenerate(data) {
 
       // Process AI device commands (e.g., [pump on], [vibe off])
       const devices = loadData(DATA_FILES.devices) || [];
-      const aiControlResult = await aiDeviceControl.processLlmOutput(message.content, devices, deviceService);
+      const aiControlSettings = loadData(DATA_FILES.settings);
+      const aiControlResult = await aiDeviceControl.processLlmOutput(message.content, devices, deviceService, {
+        settings: aiControlSettings,
+        sessionState,
+        broadcast
+      });
       if (aiControlResult.commands.length > 0) {
         console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
         message.content = aiControlResult.text;
@@ -3529,7 +3888,12 @@ async function handleSpecialGenerate(data) {
 
     // Process AI device commands (e.g., [pump on], [vibe off])
     const devices = loadData(DATA_FILES.devices) || [];
-    const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService);
+    const aiControlSettings = loadData(DATA_FILES.settings);
+    const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
+      settings: aiControlSettings,
+      sessionState,
+      broadcast
+    });
     if (aiControlResult.commands.length > 0) {
       console.log(`[AIDeviceControl] Executed ${aiControlResult.commands.length} device command(s)`);
       finalText = aiControlResult.text;
@@ -3584,7 +3948,7 @@ async function handleImpersonateRequest(data) {
   const settings = loadData(DATA_FILES.settings);
   // Use per-char storage if active, otherwise fall back to legacy
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
@@ -3776,9 +4140,11 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     // Add LLM device control instructions if enabled
     if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
       const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-      systemPrompt += `\n=== DEVICE CONTROL ===
-YOU CAN CONTROL DEVICES: [pump on/off], [vibe on/off], [tens on/off]
-Turn off within ${maxSeconds} seconds. Tags are hidden from player.
+      systemPrompt += `\n=== DEVICE CONTROL - MANDATORY ===
+When you write about activating a device, ALWAYS include the tag: [pump on], [vibe on], or [tens on]
+When deactivating: [pump off], [vibe off], [tens off]
+Example: "*activates the pump* [pump on] Now let's begin..."
+Tags are hidden from player. Auto-timeout: ${maxSeconds}s.
 === END ===\n`;
     }
 
@@ -3817,7 +4183,7 @@ Turn off within ${maxSeconds} seconds. Tags are hidden from player.
 }
 
 function buildChatContext(character, settings) {
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
   const playerName = activePersona?.displayName || 'the player';
 
@@ -3929,20 +4295,26 @@ function buildChatContext(character, settings) {
   // Add LLM device control instructions if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
     const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-    systemPrompt += `\n=== DEVICE CONTROL INSTRUCTIONS ===
-YOU CAN CONTROL PHYSICAL DEVICES. Include these EXACT tags in your response to control them:
-[pump on] - Turn on the inflation pump
-[pump off] - Turn off the inflation pump
-[vibe on] - Turn on the vibrator
-[vibe off] - Turn off the vibrator
-[tens on] - Turn on the TENS unit
-[tens off] - Turn off the TENS unit
+    systemPrompt += `\n=== PHYSICAL DEVICE CONTROL - MANDATORY ===
+You control REAL physical devices. When your character activates equipment in the story, you MUST include the matching tag.
 
-RULES:
-- ALWAYS turn devices OFF after ${maxSeconds} seconds max - include [pump off] or [vibe off] in your next response
-- Use device control when it fits the scene naturally
-- The tags will be removed from the displayed message - the player only sees the action happen
-- You MUST remember to turn things off - never leave devices running indefinitely
+TAGS (include EXACTLY as shown):
+[pump on] / [pump off] - Air pump/inflation device
+[vibe on] / [vibe off] - Vibrator
+[tens on] / [tens off] - Electrical stimulation
+
+*** CRITICAL RULE ***
+WHENEVER you write about turning on, activating, starting, or engaging a pump/inflator/compressor:
+→ You MUST include [pump on] somewhere in your response
+WHENEVER you write about stopping, turning off, or deactivating:
+→ You MUST include [pump off] somewhere in your response
+
+EXAMPLE:
+WRONG: "*flips the switch on the pump* Let's see how much you can take..."
+CORRECT: "*flips the switch on the pump* [pump on] Let's see how much you can take..."
+
+The tag can go anywhere in your response - it will be hidden from the player.
+Devices auto-timeout after ${maxSeconds}s but you should turn them off narratively when appropriate.
 === END DEVICE CONTROL ===\n`;
   }
 
@@ -3968,8 +4340,7 @@ RULES:
 
   // Add device control reminder at end of prompt if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
-    const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-    prompt += `\n[REMINDER: You can use [pump on/off], [vibe on/off], [tens on/off]. Turn off within ${maxSeconds}s.]\n`;
+    prompt += `\n[DEVICE REMINDER: If you activate a pump/inflator in your response, include [pump on]. If deactivating, include [pump off].]\n`;
   }
 
   prompt += `${character.name}:`;
@@ -4038,7 +4409,7 @@ app.post('/api/settings', async (req, res) => {
       broadcast('auto_reply_update', { enabled: sessionState.autoReply });
     }
     if (personaChanged && settings.activePersonaId) {
-      const personas = loadData(DATA_FILES.personas) || [];
+      const personas = loadAllPersonas() || [];
       const activePersona = personas.find(p => p.id === settings.activePersonaId);
       sessionState.playerName = activePersona?.displayName || null;
     }
@@ -4239,41 +4610,73 @@ app.get('/api/openrouter/models', (req, res) => {
 // --- Personas ---
 
 app.get('/api/personas', (req, res) => {
-  const personas = loadData(DATA_FILES.personas) || [];
+  // Use new folder storage if active, otherwise fall back to old format
+  const personas = loadAllPersonas();
   res.json(personas);
 });
 
-app.post('/api/personas', (req, res) => {
-  const personas = loadData(DATA_FILES.personas) || [];
-  const newPersona = {
-    id: uuidv4(),
-    ...req.body,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  };
-  personas.push(newPersona);
-  saveData(DATA_FILES.personas, personas);
-  broadcast('personas_update', personas);
-  res.json(newPersona);
+app.get('/api/personas/:id', (req, res) => {
+  const persona = loadPersona(req.params.id);
+  if (persona) {
+    res.json(persona);
+  } else {
+    res.status(404).json({ error: 'Persona not found' });
+  }
 });
 
-app.put('/api/personas/:id', (req, res) => {
-  const personas = loadData(DATA_FILES.personas) || [];
-  const index = personas.findIndex(p => p.id === req.params.id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Persona not found' });
+app.post('/api/personas', async (req, res) => {
+  try {
+    const newPersona = {
+      id: uuidv4(),
+      ...req.body,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    // Use async version to process images and save to folder structure
+    const savedPersona = await savePersonaAsync(newPersona, true);
+    const personas = loadAllPersonas();
+    broadcast('personas_update', personas);
+    res.json(savedPersona);
+  } catch (err) {
+    console.error('Error creating persona:', err);
+    res.status(500).json({ error: 'Failed to create persona' });
   }
-  personas[index] = { ...personas[index], ...req.body, updatedAt: Date.now() };
-  saveData(DATA_FILES.personas, personas);
-  broadcast('personas_update', personas);
-  res.json(personas[index]);
+});
+
+app.put('/api/personas/:id', async (req, res) => {
+  try {
+    const existingPersona = loadPersona(req.params.id);
+    if (!existingPersona) {
+      return res.status(404).json({ error: 'Persona not found' });
+    }
+
+    const personaToSave = { ...existingPersona, ...req.body, updatedAt: Date.now() };
+    // Use async version to process images
+    const savedPersona = await savePersonaAsync(personaToSave);
+    const personas = loadAllPersonas();
+    broadcast('personas_update', personas);
+    res.json(savedPersona);
+  } catch (err) {
+    console.error('Error updating persona:', err);
+    res.status(500).json({ error: 'Failed to update persona' });
+  }
 });
 
 app.delete('/api/personas/:id', (req, res) => {
-  let personas = loadData(DATA_FILES.personas) || [];
-  personas = personas.filter(p => p.id !== req.params.id);
-  saveData(DATA_FILES.personas, personas);
-  broadcast('personas_update', personas);
+  // Delete from folder structure
+  deletePersonaFolder(req.params.id);
+
+  // Also remove from old personas.json if it exists there (migration cleanup)
+  let oldPersonas = loadData(DATA_FILES.personas) || [];
+  const originalLength = oldPersonas.length;
+  oldPersonas = oldPersonas.filter(p => p.id !== req.params.id);
+  if (oldPersonas.length !== originalLength) {
+    saveData(DATA_FILES.personas, oldPersonas);
+  }
+
+  const allPersonas = loadAllPersonas();
+  broadcast('personas_update', allPersonas);
   res.json({ success: true });
 });
 
@@ -4481,60 +4884,72 @@ app.get('/api/characters/:id', (req, res) => {
   }
 });
 
-app.post('/api/characters', (req, res) => {
-  const newCharacter = {
-    id: uuidv4(),
-    ...req.body,
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  };
+app.post('/api/characters', async (req, res) => {
+  try {
+    const newCharacter = {
+      id: uuidv4(),
+      ...req.body,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
 
-  if (isPerCharStorageActive()) {
-    saveCharacter(newCharacter, true); // Force to custom for new characters
-    const characters = loadAllCharacters();
-    broadcast('characters_update', characters);
-  } else {
-    const characters = loadData(DATA_FILES.characters) || [];
-    characters.push(newCharacter);
-    saveData(DATA_FILES.characters, characters);
-    broadcast('characters_update', characters);
+    if (isPerCharStorageActive()) {
+      // Use async version to process images
+      const savedChar = await saveCharacterAsync(newCharacter, true);
+      const characters = loadAllCharacters();
+      broadcast('characters_update', characters);
+      res.json(savedChar);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      characters.push(newCharacter);
+      saveData(DATA_FILES.characters, characters);
+      broadcast('characters_update', characters);
+      res.json(newCharacter);
+    }
+  } catch (err) {
+    console.error('Error creating character:', err);
+    res.status(500).json({ error: 'Failed to create character' });
   }
-
-  res.json(newCharacter);
 });
 
-app.put('/api/characters/:id', (req, res) => {
-  let updatedCharacter;
+app.put('/api/characters/:id', async (req, res) => {
+  try {
+    let updatedCharacter;
 
-  if (isPerCharStorageActive()) {
-    const existingCharacter = loadCharacter(req.params.id);
-    if (!existingCharacter) {
-      return res.status(404).json({ error: 'Character not found' });
+    if (isPerCharStorageActive()) {
+      const existingCharacter = loadCharacter(req.params.id);
+      if (!existingCharacter) {
+        return res.status(404).json({ error: 'Character not found' });
+      }
+      const charToSave = { ...existingCharacter, ...req.body, updatedAt: Date.now() };
+      // Use async version to process images
+      updatedCharacter = await saveCharacterAsync(charToSave);
+      const characters = loadAllCharacters();
+      broadcast('characters_update', characters);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      const index = characters.findIndex(c => c.id === req.params.id);
+      if (index === -1) {
+        return res.status(404).json({ error: 'Character not found' });
+      }
+      characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
+      updatedCharacter = characters[index];
+      saveData(DATA_FILES.characters, characters);
+      broadcast('characters_update', characters);
     }
-    updatedCharacter = { ...existingCharacter, ...req.body, updatedAt: Date.now() };
-    saveCharacter(updatedCharacter);
-    const characters = loadAllCharacters();
-    broadcast('characters_update', characters);
-  } else {
-    const characters = loadData(DATA_FILES.characters) || [];
-    const index = characters.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Character not found' });
+
+    // If this is the active character, sync autoReplyEnabled to session state
+    const settings = loadData(DATA_FILES.settings);
+    if (settings?.activeCharacterId === req.params.id && req.body.autoReplyEnabled !== undefined) {
+      sessionState.autoReply = req.body.autoReplyEnabled;
+      broadcast('auto_reply_update', { enabled: sessionState.autoReply });
     }
-    characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
-    updatedCharacter = characters[index];
-    saveData(DATA_FILES.characters, characters);
-    broadcast('characters_update', characters);
-  }
 
-  // If this is the active character, sync autoReplyEnabled to session state
-  const settings = loadData(DATA_FILES.settings);
-  if (settings?.activeCharacterId === req.params.id && req.body.autoReplyEnabled !== undefined) {
-    sessionState.autoReply = req.body.autoReplyEnabled;
-    broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+    res.json(updatedCharacter);
+  } catch (err) {
+    console.error('Error updating character:', err);
+    res.status(500).json({ error: 'Failed to update character' });
   }
-
-  res.json(updatedCharacter);
 });
 
 app.delete('/api/characters/:id', (req, res) => {
@@ -4772,6 +5187,29 @@ app.post('/api/devices/:ip/on', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
+    }
+
+    // Safety check: Block pump activation at 100% capacity (unless allowOverInflation is enabled)
+    const devices = loadData(DATA_FILES.devices) || [];
+    const settings = loadData(DATA_FILES.settings);
+    const fullDevice = devices.find(d =>
+      d.ip === deviceIdOrIp ||
+      d.deviceId === deviceIdOrIp ||
+      (d.ip === deviceIdOrIp && d.childId === childId)
+    );
+
+    const isPump = fullDevice?.deviceType === 'PUMP' || fullDevice?.isPrimaryPump;
+    const allowOverInflation = settings?.globalCharacterControls?.allowOverInflation;
+
+    if (isPump && !allowOverInflation && sessionState.capacity >= 100) {
+      console.log(`[Safety] Blocked manual pump activation - capacity at ${sessionState.capacity}%`);
+      broadcast('pump_safety_block', {
+        reason: 'capacity_limit',
+        capacity: sessionState.capacity,
+        device: fullDevice?.label || fullDevice?.name || deviceIdOrIp,
+        source: 'manual'
+      });
+      return res.json({ success: false, blocked: true, reason: 'Capacity at maximum - pump blocked for safety' });
     }
 
     const result = await deviceService.turnOn(deviceIdOrIp, device);
@@ -5308,7 +5746,7 @@ app.put('/api/flows/:id', (req, res) => {
     broadcast('characters_update', loadData(DATA_FILES.characters));
   }
   if (personaButtonsUpdated) {
-    broadcast('personas_update', loadData(DATA_FILES.personas));
+    broadcast('personas_update', loadAllPersonas());
   }
 
   if (isPerFlowStorageActive()) {
@@ -5367,7 +5805,7 @@ app.get('/api/export/character/:id', (req, res) => {
 
 // Export single persona
 app.get('/api/export/persona/:id', (req, res) => {
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const persona = personas.find(p => p.id === req.params.id);
   if (!persona) {
     return res.status(404).json({ error: 'Persona not found' });
@@ -5413,7 +5851,7 @@ app.get('/api/export/flow/:id', (req, res) => {
 
 // Export full backup (all data, excluding sensitive API keys)
 app.get('/api/export/backup', (req, res) => {
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const settings = loadData(DATA_FILES.settings) || {};
 
   // Load all characters (from per-char storage or legacy file)
@@ -5493,7 +5931,7 @@ app.post('/api/import/character', (req, res) => {
 });
 
 // Import persona
-app.post('/api/import/persona', (req, res) => {
+app.post('/api/import/persona', async (req, res) => {
   try {
     const importData = req.body;
 
@@ -5501,7 +5939,6 @@ app.post('/api/import/persona', (req, res) => {
       return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-persona.' });
     }
 
-    const personas = loadData(DATA_FILES.personas) || [];
     const newPersona = {
       ...importData.data,
       id: uuidv4(),
@@ -5509,11 +5946,11 @@ app.post('/api/import/persona', (req, res) => {
       updatedAt: Date.now()
     };
 
-    personas.push(newPersona);
-    saveData(DATA_FILES.personas, personas);
-    broadcast('personas_update', personas);
+    // Save to folder structure (always custom for imports)
+    const savedPersona = await savePersonaAsync(newPersona, true);
+    broadcast('personas_update', loadAllPersonas());
 
-    res.json({ success: true, persona: newPersona });
+    res.json({ success: true, persona: savedPersona });
   } catch (error) {
     console.error('[Import] Persona import error:', error);
     res.status(400).json({ error: 'Failed to import persona: ' + error.message });
@@ -5555,7 +5992,7 @@ app.post('/api/import/flow', (req, res) => {
 });
 
 // Import full backup
-app.post('/api/import/backup', (req, res) => {
+app.post('/api/import/backup', async (req, res) => {
   try {
     const importData = req.body;
 
@@ -5603,7 +6040,6 @@ app.post('/api/import/backup', (req, res) => {
 
     // Import personas
     if (importData.data.personas && Array.isArray(importData.data.personas)) {
-      const personas = loadData(DATA_FILES.personas) || [];
       for (const persona of importData.data.personas) {
         const newPersona = {
           ...persona,
@@ -5611,11 +6047,11 @@ app.post('/api/import/backup', (req, res) => {
           importedAt: Date.now(),
           updatedAt: Date.now()
         };
-        personas.push(newPersona);
+        // Save each persona to folder structure (always custom for imports)
+        await savePersonaAsync(newPersona, true);
         results.personas++;
       }
-      saveData(DATA_FILES.personas, personas);
-      broadcast('personas_update', personas);
+      broadcast('personas_update', loadAllPersonas());
     }
 
     // Import flows
@@ -5927,6 +6363,74 @@ app.use((err, req, res, next) => {
     error: 'An unexpected error occurred',
     code: 'INTERNAL_ERROR'
   });
+});
+
+// ============================================
+// Migration: Convert base64 images to files
+// ============================================
+app.post('/api/migrate-images', async (req, res) => {
+  try {
+    const results = { personas: { migrated: 0, errors: [] }, characters: { migrated: 0, errors: [] } };
+
+    // Migrate personas from old personas.json
+    const oldPersonas = loadData(DATA_FILES.personas) || [];
+    for (const persona of oldPersonas) {
+      try {
+        // Check if already migrated to folder structure
+        const customPath = path.join(PERSONAS_CUSTOM_DIR, persona.id, 'persona.json');
+        const defaultPath = path.join(PERSONAS_DEFAULT_DIR, persona.id, 'persona.json');
+        if (fs.existsSync(customPath) || fs.existsSync(defaultPath)) {
+          continue; // Already migrated
+        }
+
+        // Process images and save to folder structure
+        await savePersonaAsync(persona, true);
+        results.personas.migrated++;
+      } catch (err) {
+        results.personas.errors.push({ id: persona.id, error: err.message });
+      }
+    }
+
+    // Clear old personas.json after successful migration
+    if (results.personas.migrated > 0 && results.personas.errors.length === 0) {
+      saveData(DATA_FILES.personas, []);
+    }
+
+    // Migrate characters from old flat files
+    if (isPerCharStorageActive()) {
+      const allChars = loadAllCharacters();
+      for (const char of allChars) {
+        try {
+          // Check if already in new folder structure
+          const customFolderPath = path.join(CHARS_CUSTOM_DIR, char.id, 'char.json');
+          const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, char.id, 'char.json');
+          if (fs.existsSync(customFolderPath) || fs.existsSync(defaultFolderPath)) {
+            // Already in folder structure, just process images if needed
+            if (char.avatar && imageStorage.isBase64DataUri(char.avatar)) {
+              await saveCharacterAsync(char);
+              results.characters.migrated++;
+            }
+            continue;
+          }
+
+          // Process images and save to folder structure
+          await saveCharacterAsync(char, false);
+          results.characters.migrated++;
+        } catch (err) {
+          results.characters.errors.push({ id: char.id, error: err.message });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Migrated ${results.personas.migrated} personas and ${results.characters.migrated} characters`,
+      results
+    });
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Start server

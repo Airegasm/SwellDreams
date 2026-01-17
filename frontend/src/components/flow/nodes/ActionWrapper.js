@@ -1,4 +1,5 @@
 import React from 'react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 /**
@@ -60,13 +61,14 @@ function ActionWrapper({ data, children }) {
             />
             <div className="wrapper-delay-row">
               <label>Delay:</label>
-              <input
-                type="number"
-                value={data[delayKey] ?? 0}
-                onChange={(e) => data.onChange?.(delayKey, parseFloat(e.target.value) || 0)}
+              <NumberInput
+                value={data[delayKey]}
+                onChange={(val) => data.onChange?.(delayKey, val)}
+                defaultValue={0}
                 min={0}
                 step={0.5}
                 className="node-input tiny"
+                allowFloat={true}
               />
               <span>s</span>
             </div>

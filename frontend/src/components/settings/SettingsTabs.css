@@ -73,10 +73,11 @@
   text-shadow: none;
 }
 
-/* Card Avatar Thumbnails - Portrait */
+/* Card Avatar Thumbnails - Portrait, stretch to fill card height */
 .card-avatar {
-  width: 48px;
-  height: 72px;
+  width: 100px;
+  min-height: 72px;
+  align-self: stretch;
   border-radius: var(--border-radius);
   object-fit: cover;
   object-position: top;
@@ -86,8 +87,9 @@
 }
 
 .card-avatar-placeholder {
-  width: 48px;
-  height: 72px;
+  width: 100px;
+  min-height: 72px;
+  align-self: stretch;
   border-radius: var(--border-radius);
   flex-shrink: 0;
   display: flex;
@@ -121,8 +123,8 @@
 .card-header {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
   gap: var(--spacing-sm);
 }
 
@@ -134,18 +136,21 @@
 
 .list-item-actions {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--spacing-xs);
+  align-items: center;
 }
 
-/* Desktop: prevent wrap, keep actions on same row */
-@media (min-width: 900px) {
-  .card-header {
-    flex-wrap: nowrap;
-    gap: var(--spacing-md);
-  }
+/* Keep card info from expanding too much */
+.card-header .card-info {
+  overflow: hidden;
+}
 
-  .card-info {
-    overflow: hidden;
-  }
+/* Ensure action buttons stay in a horizontal row */
+.list-item-actions .btn {
+  white-space: nowrap;
 }
 
 .card-footer {

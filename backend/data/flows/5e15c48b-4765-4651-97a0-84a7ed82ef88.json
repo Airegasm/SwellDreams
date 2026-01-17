@@ -1,0 +1,195 @@
+{
+  "id": "5e15c48b-4765-4651-97a0-84a7ed82ef88",
+  "name": "Basic Pump Controls",
+  "category": "global",
+  "description": "Simple pump controls with configurable parameters for on, cycle, and pulse actions",
+  "nodes": [
+    {
+      "id": "pump-on-btn",
+      "type": "button_press",
+      "position": { "x": 0, "y": 50 },
+      "data": {
+        "label": "Timed Inflate",
+        "buttonTarget": "global",
+        "buttonId": "basic-pump-on",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "pump-on-input",
+      "type": "input",
+      "position": { "x": 0, "y": 180 },
+      "data": {
+        "label": "Duration",
+        "inputType": "number",
+        "variableName": "pumpDuration",
+        "prompt": "How many seconds should the pump run?",
+        "placeholder": "Enter seconds (e.g., 30)",
+        "min": 1,
+        "max": 300,
+        "required": true
+      }
+    },
+    {
+      "id": "pump-on-action",
+      "type": "action",
+      "position": { "x": 0, "y": 350 },
+      "data": {
+        "label": "Start Pump",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": "[Flow:pumpDuration]",
+        "preMessageEnabled": true,
+        "preMessage": "*turns on the pump* Running for [Flow:pumpDuration] seconds.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*the pump stops* Time's up.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 0
+      }
+    },
+    {
+      "id": "pump-cycle-btn",
+      "type": "button_press",
+      "position": { "x": 350, "y": 50 },
+      "data": {
+        "label": "Pump Cycle",
+        "buttonTarget": "global",
+        "buttonId": "basic-pump-cycle",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "pump-cycle-duration-input",
+      "type": "input",
+      "position": { "x": 350, "y": 180 },
+      "data": {
+        "label": "On Duration",
+        "inputType": "number",
+        "variableName": "cycleDuration",
+        "prompt": "How many seconds ON per cycle?",
+        "placeholder": "Seconds on (e.g., 5)",
+        "min": 1,
+        "max": 60,
+        "required": true
+      }
+    },
+    {
+      "id": "pump-cycle-interval-input",
+      "type": "input",
+      "position": { "x": 350, "y": 350 },
+      "data": {
+        "label": "Off Interval",
+        "inputType": "number",
+        "variableName": "cycleInterval",
+        "prompt": "How many seconds OFF between cycles?",
+        "placeholder": "Seconds off (e.g., 3)",
+        "min": 1,
+        "max": 30,
+        "required": true
+      }
+    },
+    {
+      "id": "pump-cycle-count-input",
+      "type": "input",
+      "position": { "x": 350, "y": 520 },
+      "data": {
+        "label": "Cycle Count",
+        "inputType": "number",
+        "variableName": "cycleCount",
+        "prompt": "How many cycles?",
+        "placeholder": "Number of cycles (e.g., 5)",
+        "min": 1,
+        "max": 20,
+        "required": true
+      }
+    },
+    {
+      "id": "pump-cycle-action",
+      "type": "action",
+      "position": { "x": 350, "y": 690 },
+      "data": {
+        "label": "Start Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": "[Flow:cycleDuration]",
+        "interval": "[Flow:cycleInterval]",
+        "cycles": "[Flow:cycleCount]",
+        "preMessageEnabled": true,
+        "preMessage": "*starts the cycling pattern* [Flow:cycleCount] cycles: [Flow:cycleDuration]s on, [Flow:cycleInterval]s off.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*cycling complete*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 0
+      }
+    },
+    {
+      "id": "pump-pulse-btn",
+      "type": "button_press",
+      "position": { "x": 700, "y": 50 },
+      "data": {
+        "label": "Pulse Pump",
+        "buttonTarget": "global",
+        "buttonId": "basic-pump-pulse",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "pump-pulse-input",
+      "type": "input",
+      "position": { "x": 700, "y": 180 },
+      "data": {
+        "label": "Pulse Count",
+        "inputType": "number",
+        "variableName": "pulseCount",
+        "prompt": "How many pulses?",
+        "placeholder": "Number of pulses (e.g., 10)",
+        "min": 1,
+        "max": 50,
+        "required": true
+      }
+    },
+    {
+      "id": "pump-pulse-action",
+      "type": "action",
+      "position": { "x": 700, "y": 350 },
+      "data": {
+        "label": "Pulse Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": "[Flow:pulseCount]",
+        "preMessageEnabled": true,
+        "preMessage": "*activates pulse mode* Delivering [Flow:pulseCount] pulses.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pulsing complete*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 0
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "pump-on-btn", "target": "pump-on-input" },
+    { "id": "e2", "source": "pump-on-input", "target": "pump-on-action" },
+    { "id": "e3", "source": "pump-cycle-btn", "target": "pump-cycle-duration-input" },
+    { "id": "e4", "source": "pump-cycle-duration-input", "target": "pump-cycle-interval-input" },
+    { "id": "e5", "source": "pump-cycle-interval-input", "target": "pump-cycle-count-input" },
+    { "id": "e6", "source": "pump-cycle-count-input", "target": "pump-cycle-action" },
+    { "id": "e7", "source": "pump-pulse-btn", "target": "pump-pulse-input" },
+    { "id": "e8", "source": "pump-pulse-input", "target": "pump-pulse-action" }
+  ],
+  "isActive": true,
+  "createdAt": 1768639977520,
+  "updatedAt": 1768700000000
+}

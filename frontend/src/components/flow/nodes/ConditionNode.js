@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 const VARIABLES = [
@@ -72,6 +73,7 @@ function ConditionNode({ data, selected }) {
       } else if (value === 'device_state') {
         newConditions[index].value = 'on';
         newConditions[index].operator = '==';
+        newConditions[index].device = 'primary_pump';
       } else if (value === 'custom') {
         newConditions[index].customVariable = flowVariables[0] || '';
         newConditions[index].value = '';
@@ -97,13 +99,14 @@ function ConditionNode({ data, selected }) {
     switch (condition.variable) {
       case 'capacity':
         return (
-          <input
-            type="number"
+          <NumberInput
             className="node-input small"
-            value={currentValue ?? (isSecondValue ? 100 : 50)}
+            value={currentValue}
+            defaultValue={isSecondValue ? 100 : 50}
             min={0}
             max={100}
-            onChange={(e) => updateCondition(index, field, parseInt(e.target.value) || 0)}
+            onChange={(val) => updateCondition(index, field, val)}
+            allowFloat={false}
           />
         );
       case 'pain':
@@ -202,6 +205,23 @@ function ConditionNode({ data, selected }) {
                   <option value="">Select Variable</option>
                   {flowVariables.map(v => (
                     <option key={v} value={v}>[Flow:{v}]</option>
+                  ))}
+                </select>
+              )}
+
+              {/* Device selector - shows when 'device_state' is selected */}
+              {condition.variable === 'device_state' && (
+                <select
+                  className="node-select"
+                  value={condition.device || 'primary_pump'}
+                  onChange={(e) => updateCondition(index, 'device', e.target.value)}
+                >
+                  <option value="primary_pump">Primary Pump</option>
+                  <option value="primary_vibe">Primary Vibe</option>
+                  {(data.devices || []).map(d => (
+                    <option key={d.deviceId || d.ip} value={d.deviceId || d.ip}>
+                      {d.label || d.name}
+                    </option>
                   ))}
                 </select>
               )}

@@ -1,0 +1,266 @@
+{
+  "id": "flow-vex-wheel-of-fate",
+  "name": "Wheel of Fate",
+  "category": "character",
+  "description": "Spin the prize wheel for varied outcomes",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-wf-btn",
+      "type": "button_press",
+      "position": { "x": 300, "y": 50 },
+      "data": {
+        "label": "Spin the Wheel",
+        "buttonTarget": "character",
+        "buttonId": "vex-wheel",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-wf-intro",
+      "type": "action",
+      "position": { "x": 300, "y": 150 },
+      "data": {
+        "label": "Wheel Intro",
+        "actionType": "send_message",
+        "message": "*lights flash dramatically* IT'S TIME FOR... THE WHEEL! OF! FATE! *audience cheers* Where will it land? Jackpot? Punishment? Only one way to find out!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-wheel",
+      "type": "prize_wheel",
+      "position": { "x": 300, "y": 280 },
+      "data": {
+        "label": "Wheel of Fate",
+        "segments": [
+          { "id": "jackpot", "label": "JACKPOT!", "color": "#ffd700", "weight": 10 },
+          { "id": "bonus", "label": "Bonus Round", "color": "#9333ea", "weight": 15 },
+          { "id": "small-prize", "label": "Small Prize", "color": "#22c55e", "weight": 25 },
+          { "id": "punishment", "label": "Punishment", "color": "#ef4444", "weight": 25 },
+          { "id": "double", "label": "Double Trouble", "color": "#f97316", "weight": 15 },
+          { "id": "spin-again", "label": "Spin Again!", "color": "#3b82f6", "weight": 10 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*wheel spins* Round and round it goes... where it stops, NOBODY knows!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-wf-jackpot",
+      "type": "action",
+      "position": { "x": 0, "y": 480 },
+      "data": {
+        "label": "Jackpot!",
+        "actionType": "send_message",
+        "message": "*sirens blare, confetti explodes* JACKPOT! JACKPOT! JACKPOT! Ladies and gentlemen, WE HAVE A WINNER! *laughs* Enjoy this moment... because the house ALWAYS gets it back eventually!",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "*stunned pause*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 2,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-bonus",
+      "type": "action",
+      "position": { "x": 150, "y": 480 },
+      "data": {
+        "label": "Bonus Round",
+        "actionType": "send_message",
+        "message": "*purple lights swirl* Ooooh, BONUS ROUND! This means you get to play ANOTHER game for even BIGGER stakes! *winks* Aren't you lucky?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-small-prize",
+      "type": "action",
+      "position": { "x": 300, "y": 480 },
+      "data": {
+        "label": "Small Prize",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*polite applause* A small prize! Not bad, not bad. Here's a little something for playing!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pats your head* There there. Better luck next spin!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-wf-punishment",
+      "type": "action",
+      "position": { "x": 450, "y": 480 },
+      "data": {
+        "label": "Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*ominous buzzer* Oh NOOOOO! PUNISHMENT! *cackles* The audience LOVES this part!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes tear from eye* Beautiful. Just beautiful. Your suffering is truly entertaining!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-wf-double",
+      "type": "action",
+      "position": { "x": 600, "y": 480 },
+      "data": {
+        "label": "Double Trouble",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "*dramatic gasp* DOUBLE TROUBLE! That means DOUBLE the intensity for TWICE as long! *evil grin*",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*chef's kiss* Now THAT'S entertainment! How do you feel, contestant?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-wf-spin-again",
+      "type": "action",
+      "position": { "x": 750, "y": 480 },
+      "data": {
+        "label": "Spin Again",
+        "actionType": "send_message",
+        "message": "*wheel glows blue* SPIN AGAIN! The wheel demands another chance! Will your luck hold? Only one way to find out...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-spin-again-wheel",
+      "type": "prize_wheel",
+      "position": { "x": 750, "y": 600 },
+      "data": {
+        "label": "Second Spin",
+        "segments": [
+          { "id": "jackpot2", "label": "JACKPOT!", "color": "#ffd700", "weight": 15 },
+          { "id": "small2", "label": "Small Prize", "color": "#22c55e", "weight": 35 },
+          { "id": "punishment2", "label": "Punishment", "color": "#ef4444", "weight": 50 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*spins again* HERE WE GO!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-wf-spin2-jackpot",
+      "type": "action",
+      "position": { "x": 650, "y": 780 },
+      "data": {
+        "label": "2nd Jackpot",
+        "actionType": "send_message",
+        "message": "*jaw drops* ANOTHER JACKPOT?! IMPOSSIBLE! *checks wheel* Okay, okay, you win this round!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-spin2-small",
+      "type": "action",
+      "position": { "x": 800, "y": 780 },
+      "data": {
+        "label": "2nd Small",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Another small prize! Not bad for a second spin!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-wf-spin2-punish",
+      "type": "action",
+      "position": { "x": 950, "y": 780 },
+      "data": {
+        "label": "2nd Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*evil laugh* Pushed your luck too far! Punishment it is!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Should have quit while you were ahead!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-wf-pumpoff-btn",
+      "type": "button_press",
+      "position": { "x": 0, "y": 50 },
+      "data": {
+        "label": "Turn Off Pump",
+        "buttonTarget": "character",
+        "buttonId": "vex-pump-off",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "vex-wf-pumpoff-action",
+      "type": "action",
+      "position": { "x": 0, "y": 150 },
+      "data": {
+        "label": "Pump Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*slams the buzzer dramatically* AAAAAND STOP! [pump off] *confetti slowly falls* Our contestant has called for a TIMEOUT! The audience groans... but the show must go on! *winks* Don't worry, we'll get back to the fun soon enough!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-wf-btn", "target": "vex-wf-intro" },
+    { "id": "e2", "source": "vex-wf-intro", "target": "vex-wf-wheel" },
+    { "id": "e3", "source": "vex-wf-wheel", "sourceHandle": "jackpot", "target": "vex-wf-jackpot" },
+    { "id": "e4", "source": "vex-wf-wheel", "sourceHandle": "bonus", "target": "vex-wf-bonus" },
+    { "id": "e5", "source": "vex-wf-wheel", "sourceHandle": "small-prize", "target": "vex-wf-small-prize" },
+    { "id": "e6", "source": "vex-wf-wheel", "sourceHandle": "punishment", "target": "vex-wf-punishment" },
+    { "id": "e7", "source": "vex-wf-wheel", "sourceHandle": "double", "target": "vex-wf-double" },
+    { "id": "e8", "source": "vex-wf-wheel", "sourceHandle": "spin-again", "target": "vex-wf-spin-again" },
+    { "id": "e9", "source": "vex-wf-spin-again", "target": "vex-wf-spin-again-wheel" },
+    { "id": "e10", "source": "vex-wf-spin-again-wheel", "sourceHandle": "jackpot2", "target": "vex-wf-spin2-jackpot" },
+    { "id": "e11", "source": "vex-wf-spin-again-wheel", "sourceHandle": "small2", "target": "vex-wf-spin2-small" },
+    { "id": "e12", "source": "vex-wf-spin-again-wheel", "sourceHandle": "punishment2", "target": "vex-wf-spin2-punish" },
+    { "id": "e13", "source": "vex-wf-pumpoff-btn", "target": "vex-wf-pumpoff-action" }
+  ]
+}

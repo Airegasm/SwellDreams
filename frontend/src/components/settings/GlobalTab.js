@@ -43,7 +43,8 @@ function GlobalTab() {
     emotionalDecline: true,
     autoCapacityMultiplier: 1.0,
     allowLlmDeviceControl: false,
-    llmDeviceControlMaxSeconds: 30
+    llmDeviceControlMaxSeconds: 30,
+    allowOverInflation: false
   });
 
   // Calibration modal state
@@ -857,6 +858,21 @@ function GlobalTab() {
               <span className="control-inline-hint">seconds (AI will be told to turn off after this time)</span>
             </div>
           )}
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.allowOverInflation}
+                onChange={(e) => handleCharacterControlChange('allowOverInflation', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Allow Over-Inflation</span>
+              <span className="control-hint">When OFF, pumps auto-stop at 100% capacity and cannot be reactivated until capacity drops</span>
+            </div>
+          </div>
         </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import ActionWrapper from './ActionWrapper';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 // Helper to create unique device identifier (handles power strip outlets with same IP)
@@ -127,13 +128,13 @@ function ActionNode({ data, selected }) {
             )}
             {data.untilType === 'capacity' && (
               <div className="config-row">
-                <input
-                  type="number"
-                  value={data.untilValue ?? 50}
-                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value) || 0)}
+                <NumberInput
+                  value={data.untilValue}
+                  onChange={(val) => data.onChange?.('untilValue', val)}
+                  defaultValue={50}
                   min={0}
                   max={100}
-                  className="node-input small"
+                  allowFloat={false}
                 />
                 <span>%</span>
               </div>
@@ -203,34 +204,34 @@ function ActionNode({ data, selected }) {
             </select>
             <div className="config-row">
               <label>Duration:</label>
-              <input
-                type="number"
-                value={data.duration || 5}
-                onChange={(e) => data.onChange?.('duration', parseInt(e.target.value))}
+              <NumberInput
+                value={data.duration}
+                onChange={(val) => data.onChange?.('duration', val)}
+                defaultValue={5}
                 min={1}
-                className="node-input small"
+                allowFloat={false}
               />
               <span>s</span>
             </div>
             <div className="config-row">
               <label>Interval:</label>
-              <input
-                type="number"
-                value={data.interval || 10}
-                onChange={(e) => data.onChange?.('interval', parseInt(e.target.value))}
+              <NumberInput
+                value={data.interval}
+                onChange={(val) => data.onChange?.('interval', val)}
+                defaultValue={10}
                 min={1}
-                className="node-input small"
+                allowFloat={false}
               />
               <span>s</span>
             </div>
             <div className="config-row">
               <label>Cycles:</label>
-              <input
-                type="number"
-                value={data.cycles || 0}
-                onChange={(e) => data.onChange?.('cycles', parseInt(e.target.value))}
+              <NumberInput
+                value={data.cycles}
+                onChange={(val) => data.onChange?.('cycles', val)}
+                defaultValue={0}
                 min={0}
-                className="node-input small"
+                allowFloat={false}
               />
               <span>(0=∞)</span>
             </div>
@@ -288,13 +289,13 @@ function ActionNode({ data, selected }) {
             )}
             {data.untilType === 'capacity' && (
               <div className="config-row">
-                <input
-                  type="number"
-                  value={data.untilValue ?? 50}
-                  onChange={(e) => data.onChange?.('untilValue', parseInt(e.target.value) || 0)}
+                <NumberInput
+                  value={data.untilValue}
+                  onChange={(val) => data.onChange?.('untilValue', val)}
+                  defaultValue={50}
                   min={0}
                   max={100}
-                  className="node-input small"
+                  allowFloat={false}
                 />
                 <span>%</span>
               </div>
@@ -344,13 +345,13 @@ function ActionNode({ data, selected }) {
             </select>
             <div className="config-row">
               <label>Pulses:</label>
-              <input
-                type="number"
-                value={data.pulses || 3}
-                onChange={(e) => data.onChange?.('pulses', parseInt(e.target.value))}
+              <NumberInput
+                value={data.pulses}
+                onChange={(val) => data.onChange?.('pulses', val)}
+                defaultValue={3}
                 min={1}
                 max={100}
-                className="node-input small"
+                allowFloat={false}
               />
               <span>(1s on/1s off)</span>
             </div>
@@ -426,14 +427,14 @@ function ActionNode({ data, selected }) {
             {/* Value Input - changes based on system variable type */}
             {data.varType !== 'custom' && data.variable === 'capacity' ? (
               <div className="config-row">
-                <input
-                  type="number"
-                  value={data.value ?? ''}
-                  onChange={(e) => data.onChange?.('value', e.target.value)}
+                <NumberInput
+                  value={data.value}
+                  onChange={(val) => data.onChange?.('value', val)}
+                  defaultValue={0}
                   min={0}
                   max={100}
                   placeholder="0-100"
-                  className="node-input small"
+                  allowFloat={false}
                 />
                 <span>%</span>
               </div>

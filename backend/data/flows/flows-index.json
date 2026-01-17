@@ -88,5 +88,134 @@
     "name": "🧪 Audit - Challenges",
     "characterId": null,
     "description": "Tests all 10 challenge node types"
+  },
+  {
+    "id": "5e15c48b-4765-4651-97a0-84a7ed82ef88",
+    "name": "Basic Pump Controls",
+    "characterId": null,
+    "description": ""
+  },
+  {
+    "id": "flow-luna-intimate-choices",
+    "name": "Luna's Intimate Choices",
+    "characterId": null,
+    "description": "Romantic pacing choices - gentle, passionate, or teasing"
+  },
+  {
+    "id": "flow-luna-comfort-check",
+    "name": "Luna's Comfort Check",
+    "characterId": null,
+    "description": "Caring check-ins at different capacity thresholds"
+  },
+  {
+    "id": "flow-luna-reward-system",
+    "name": "Luna's Rewards",
+    "characterId": null,
+    "description": "Random rewards for being good"
+  },
+  {
+    "id": "flow-scarlett-obedience",
+    "name": "Obedience Protocol",
+    "characterId": null,
+    "description": "Simple A/B obedience test with consequences"
+  },
+  {
+    "id": "flow-scarlett-punishment",
+    "name": "Punishment Sequence",
+    "characterId": null,
+    "description": "Timer challenge endurance test with device punishment"
+  },
+  {
+    "id": "flow-scarlett-rules",
+    "name": "Rule Enforcement",
+    "characterId": null,
+    "description": "Keyword triggers for rule violations"
+  },
+  {
+    "id": "flow-vex-wheel-of-fate",
+    "name": "Wheel of Fate",
+    "characterId": "char-vex",
+    "category": "character",
+    "description": "Spin the prize wheel for varied outcomes"
+  },
+  {
+    "id": "flow-vex-dice-of-destiny",
+    "name": "Dice of Destiny",
+    "characterId": "char-vex",
+    "category": "character",
+    "description": "Roll dice to determine intensity levels"
+  },
+  {
+    "id": "flow-vex-challenge-gauntlet",
+    "name": "Challenge Gauntlet",
+    "characterId": "char-vex",
+    "category": "character",
+    "description": "Sequential challenges - coin flip, RPS, timer"
+  },
+  {
+    "id": "flow-vex-bonus-round",
+    "name": "Bonus Round",
+    "characterId": "char-vex",
+    "category": "character",
+    "description": "Slot machine + number guess for high stakes"
+  },
+  {
+    "id": "flow-iris-data-collection",
+    "name": "Data Collection Protocol",
+    "characterId": null,
+    "description": "Input nodes for subjective ratings collection"
+  },
+  {
+    "id": "flow-iris-capacity-study",
+    "name": "Capacity Study",
+    "characterId": null,
+    "description": "Capacity message nodes for clinical observations"
+  },
+  {
+    "id": "flow-iris-threshold-testing",
+    "name": "Threshold Testing",
+    "characterId": null,
+    "description": "Systematic device progression with condition-based phases"
+  },
+  {
+    "id": "flow-persona-marcus-eager",
+    "name": "Marcus - Eager Reactions",
+    "characterId": null,
+    "category": "persona",
+    "description": "Capacity-based eager/enthusiastic player messages"
+  },
+  {
+    "id": "flow-persona-zara-bratty",
+    "name": "Zara - Bratty Reactions",
+    "characterId": null,
+    "category": "persona",
+    "description": "Capacity-based bratty/resistant player messages"
+  },
+  {
+    "id": "flow-luna-reactions",
+    "name": "Luna's Reactions",
+    "characterId": "char-luna",
+    "category": "character",
+    "description": "Keyword triggers for intimate moments - responds to affection and requests"
+  },
+  {
+    "id": "flow-vex-reactions",
+    "name": "Vex's Reactions",
+    "characterId": "char-vex",
+    "category": "character",
+    "description": "Keyword triggers for gameshow moments - betting, gambling, and random chaos"
+  },
+  {
+    "id": "flow-iris-reactions",
+    "name": "Dr. Chen's Reactions",
+    "characterId": "char-iris",
+    "category": "character",
+    "description": "Keyword triggers for clinical observations - scientific terms and subject responses"
+  },
+  {
+    "id": "flow-scarlett-reactions",
+    "name": "Mistress Scarlett's Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for dominance play - obedience, defiance, and proper protocol"
   }
 ]

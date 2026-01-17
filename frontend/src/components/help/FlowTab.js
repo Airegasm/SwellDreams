@@ -315,6 +315,16 @@ function FlowTab() {
                   <td>Quick two-button popup for binary decisions. Silent (no chat message) - great for branching without output.</td>
                   <td>Option A / Option B</td>
                 </tr>
+                <tr>
+                  <td><span className="node-type action">Input</span></td>
+                  <td>Collects text or number input from the player via modal popup. Stores the value in a flow variable for later use.</td>
+                  <td>Input type (text/number), variable name, prompt text, validation</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type action">Random Number</span></td>
+                  <td>Generates a random integer within a range and stores it in a flow variable. Useful for randomized behavior.</td>
+                  <td>Min/max values, variable name to store result</td>
+                </tr>
               </tbody>
             </table>
 
@@ -391,6 +401,16 @@ function FlowTab() {
                   <td><span className="node-type challenge">Card Draw</span></td>
                   <td>Draw a card from a deck. Configure winning suits/values.</td>
                   <td>Win conditions (specific suits, value ranges, face cards)</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Simon Challenge</span></td>
+                  <td>Memory game - repeat an increasingly long sequence of colored buttons.</td>
+                  <td>Starting length, max length, max misses, penalty/reward devices</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type challenge">Reflex Challenge</span></td>
+                  <td>Click targets as they appear before time runs out. Tests reaction speed.</td>
+                  <td>Time per target, number of rounds, target size, penalty/reward devices</td>
                 </tr>
               </tbody>
             </table>

@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 function DelayNode({ data, selected }) {
@@ -26,12 +27,12 @@ function DelayNode({ data, selected }) {
       <div className="node-body">
         <div className="node-config">
           <div className="delay-row">
-            <input
-              type="number"
-              value={data.duration || 5}
-              onChange={(e) => data.onChange?.('duration', parseInt(e.target.value))}
+            <NumberInput
+              value={data.duration}
+              onChange={(val) => data.onChange?.('duration', val)}
+              defaultValue={5}
               min={1}
-              className="node-input small"
+              allowFloat={false}
             />
             <select
               value={data.unit || 'seconds'}

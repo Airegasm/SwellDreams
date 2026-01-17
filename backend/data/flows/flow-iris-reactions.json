@@ -1,0 +1,279 @@
+{
+  "id": "flow-iris-reactions",
+  "name": "Dr. Chen's Reactions",
+  "category": "character",
+  "description": "Keyword triggers for clinical observations - scientific terms and subject responses",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-rx-ready",
+      "type": "trigger",
+      "position": { "x": 0, "y": 50 },
+      "data": {
+        "label": "Subject Ready",
+        "triggerType": "player_speaks",
+        "keywords": ["ready", "I'm ready", "proceed", "continue", "go ahead"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-ready-action",
+      "type": "action",
+      "position": { "x": 0, "y": 180 },
+      "data": {
+        "label": "Initiate Protocol",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*notes on clipboard* Subject indicates readiness. Initiating next phase of protocol. [pump on] *monitors readings* Baseline established.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*adjusts glasses* Parameters nominal. Please continue to report any significant sensations.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "iris-rx-data",
+      "type": "trigger",
+      "position": { "x": 250, "y": 50 },
+      "data": {
+        "label": "Requests Data",
+        "triggerType": "player_speaks",
+        "keywords": ["data", "results", "numbers", "readings", "what are my"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-data-action",
+      "type": "action",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "label": "Report Data",
+        "actionType": "send_message",
+        "message": "*checks monitors* Current capacity at [Capacity]%. Heart rate elevated but within acceptable parameters. Subjective distress markers suggest you're approaching 73rd percentile tolerance. *makes notation* Fascinating.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-rx-hypothesis",
+      "type": "trigger",
+      "position": { "x": 500, "y": 50 },
+      "data": {
+        "label": "Scientific Interest",
+        "triggerType": "player_speaks",
+        "keywords": ["hypothesis", "theory", "experiment", "test", "research", "study"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-hypothesis-action",
+      "type": "action",
+      "position": { "x": 500, "y": 180 },
+      "data": {
+        "label": "Scientific Response",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*looks up with rare interest* You're asking about the methodology? *slight smile* Most subjects don't inquire. I appreciate intellectual curiosity.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "The current hypothesis explores the correlation between psychological anticipation and physical capacity thresholds. Your participation provides valuable data points.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "iris-rx-pain",
+      "type": "trigger",
+      "position": { "x": 750, "y": 50 },
+      "data": {
+        "label": "Reports Pain",
+        "triggerType": "player_speaks",
+        "keywords": ["hurts", "pain", "painful", "it hurts", "ow", "ouch"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-pain-action",
+      "type": "action",
+      "position": { "x": 750, "y": 180 },
+      "data": {
+        "label": "Log Pain",
+        "actionType": "send_message",
+        "message": "*makes notation* Pain response noted at current threshold. *adjusts glasses* Specify the quality - sharp, dull, pressure, cramping? Precision in your feedback improves data quality. Your discomfort is... scientifically relevant.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-rx-stop",
+      "type": "trigger",
+      "position": { "x": 1000, "y": 50 },
+      "data": {
+        "label": "Requests Stop",
+        "triggerType": "player_speaks",
+        "keywords": ["stop", "enough", "red", "safeword", "too much", "I can't"],
+        "unblockable": true,
+        "notify": false,
+        "hasPriority": true
+      }
+    },
+    {
+      "id": "iris-rx-stop-action",
+      "type": "action",
+      "position": { "x": 1000, "y": 180 },
+      "data": {
+        "label": "Emergency Stop",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*immediately moves to controls* [pump off] Protocol suspended. *checks vitals* Subject has reached their stated limit. *makes rapid notes* This data point is valuable - your threshold appears to be at [Capacity]%.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Rest period initiated. Your cooperation with the study is... appreciated. We can resume when you've recovered sufficiently.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "iris-rx-ai-threshold",
+      "type": "trigger",
+      "position": { "x": 0, "y": 400 },
+      "data": {
+        "label": "Iris Mentions Threshold",
+        "triggerType": "ai_speaks",
+        "keywords": ["threshold", "limit", "capacity", "maximum", "peak"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-ai-threshold-action",
+      "type": "action",
+      "position": { "x": 0, "y": 530 },
+      "data": {
+        "label": "Threshold Adjustment",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 1,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "*adjusting parameters* Recalibrating based on new data...",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-rx-ai-fascinating",
+      "type": "trigger",
+      "position": { "x": 250, "y": 400 },
+      "data": {
+        "label": "Iris Finds Fascinating",
+        "triggerType": "ai_speaks",
+        "keywords": ["fascinating", "interesting", "remarkable", "unexpected", "anomaly"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-ai-fascinating-action",
+      "type": "action",
+      "position": { "x": 250, "y": 530 },
+      "data": {
+        "label": "Increase for Data",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "*scribbles notes rapidly* We need more data on this anomaly...",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-rx-cooperate",
+      "type": "trigger",
+      "position": { "x": 500, "y": 400 },
+      "data": {
+        "label": "Subject Cooperates",
+        "triggerType": "player_speaks",
+        "keywords": ["yes doctor", "Yes, Doctor", "understood", "I understand", "for science", "affirmative"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-cooperate-action",
+      "type": "action",
+      "position": { "x": 500, "y": 530 },
+      "data": {
+        "label": "Acknowledge Cooperation",
+        "actionType": "send_message",
+        "message": "*slight nod of approval* Your compliance is noted and appreciated, Subject #47. Cooperative subjects yield the most reliable data. *makes notation* I may include this in my recommendation for... future research opportunities.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-rx-question",
+      "type": "trigger",
+      "position": { "x": 750, "y": 400 },
+      "data": {
+        "label": "Questions Protocol",
+        "triggerType": "player_speaks",
+        "keywords": ["why", "what are you", "what is this", "explain", "purpose"],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-rx-question-action",
+      "type": "action",
+      "position": { "x": 750, "y": 530 },
+      "data": {
+        "label": "Explain (Clinically)",
+        "actionType": "send_message",
+        "message": "*pauses, considers* You're curious about the methodology. *adjusts glasses* This study examines the relationship between controlled physical stress and psychological adaptation. Your role is to experience and report. My role is to observe and document. The 'why' is... classified at this juncture.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "iris-rx-ready", "target": "iris-rx-ready-action" },
+    { "id": "e2", "source": "iris-rx-data", "target": "iris-rx-data-action" },
+    { "id": "e3", "source": "iris-rx-hypothesis", "target": "iris-rx-hypothesis-action" },
+    { "id": "e4", "source": "iris-rx-pain", "target": "iris-rx-pain-action" },
+    { "id": "e5", "source": "iris-rx-stop", "target": "iris-rx-stop-action" },
+    { "id": "e6", "source": "iris-rx-ai-threshold", "target": "iris-rx-ai-threshold-action" },
+    { "id": "e7", "source": "iris-rx-ai-fascinating", "target": "iris-rx-ai-fascinating-action" },
+    { "id": "e8", "source": "iris-rx-cooperate", "target": "iris-rx-cooperate-action" },
+    { "id": "e9", "source": "iris-rx-question", "target": "iris-rx-question-action" }
+  ]
+}

@@ -1,6 +1,7 @@
 import React, { memo, useState, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import ActionWrapper from './ActionWrapper';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 import './ChallengeNodes.css';
 
@@ -153,13 +154,14 @@ function PrizeWheelNode({ data, selected }) {
                       className="node-input"
                       style={{ flex: 1 }}
                     />
-                    <input
-                      type="number"
+                    <NumberInput
                       value={segment.weight}
-                      onChange={(e) => updateSegment(index, 'weight', Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(val) => updateSegment(index, 'weight', Math.max(1, val))}
+                      defaultValue={1}
+                      min={1}
+                      max={10}
                       className="node-input tiny"
-                      min="1"
-                      max="10"
+                      allowFloat={false}
                       title="Weight (probability)"
                     />
                     {segments.length > 2 && (
@@ -325,13 +327,14 @@ function DiceRollNode({ data, selected }) {
           <div className="node-config">
             <div className="config-row">
               <label>Dice:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={diceCount}
-                onChange={(e) => handleDiceCountChange(e.target.value)}
+                onChange={(val) => handleDiceCountChange(val)}
+                defaultValue={2}
+                min={1}
+                max={10}
                 className="node-input tiny"
-                min="1"
-                max="10"
+                allowFloat={false}
               />
               <span className="dice-range">({minTotal}-{maxTotal})</span>
             </div>
@@ -362,22 +365,24 @@ function DiceRollNode({ data, selected }) {
                         className="node-input"
                         style={{ width: '60px' }}
                       />
-                      <input
-                        type="number"
+                      <NumberInput
                         value={range.min}
-                        onChange={(e) => updateRange(index, 'min', parseInt(e.target.value) || minTotal)}
-                        className="node-input tiny"
+                        onChange={(val) => updateRange(index, 'min', val)}
+                        defaultValue={minTotal}
                         min={minTotal}
                         max={maxTotal}
+                        className="node-input tiny"
+                        allowFloat={false}
                       />
                       <span className="range-separator">-</span>
-                      <input
-                        type="number"
+                      <NumberInput
                         value={range.max}
-                        onChange={(e) => updateRange(index, 'max', parseInt(e.target.value) || maxTotal)}
-                        className="node-input tiny"
+                        onChange={(val) => updateRange(index, 'max', val)}
+                        defaultValue={maxTotal}
                         min={minTotal}
                         max={maxTotal}
+                        className="node-input tiny"
+                        allowFloat={false}
                       />
                       {ranges.length > 2 && (
                         <button
@@ -401,13 +406,14 @@ function DiceRollNode({ data, selected }) {
             {mode === 'against' && (
               <div className="config-row">
                 <label>Char +/-:</label>
-                <input
-                  type="number"
+                <NumberInput
                   value={characterAdvantage}
-                  onChange={(e) => handleAdvantageChange(e.target.value)}
+                  onChange={(val) => handleAdvantageChange(val)}
+                  defaultValue={0}
+                  min={-2}
+                  max={2}
                   className="node-input tiny"
-                  min="-2"
-                  max="2"
+                  allowFloat={false}
                   title="Character advantage (-2 to +2)"
                 />
               </div>
@@ -526,13 +532,14 @@ function CoinFlipNode({ data, selected }) {
             </div>
             <div className="config-row">
               <label>Weight:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={headsWeight}
-                onChange={(e) => handleWeightChange(e.target.value)}
+                onChange={(val) => handleWeightChange(val)}
+                defaultValue={50}
+                min={0}
+                max={100}
                 className="node-input tiny"
-                min="0"
-                max="100"
+                allowFloat={false}
               />
               <span className="weight-display">% heads</span>
             </div>
@@ -726,13 +733,14 @@ function TimerChallengeNode({ data, selected }) {
           <div className="node-config">
             <div className="config-row">
               <label>Duration:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={duration}
-                onChange={(e) => handleDurationChange(e.target.value)}
+                onChange={(val) => handleDurationChange(val)}
+                defaultValue={10}
+                min={3}
+                max={120}
                 className="node-input small"
-                min="3"
-                max="120"
+                allowFloat={false}
               />
               <span>sec</span>
             </div>
@@ -747,14 +755,15 @@ function TimerChallengeNode({ data, selected }) {
             {precisionMode && (
               <div className="config-row">
                 <label>Window:</label>
-                <input
-                  type="number"
+                <NumberInput
                   value={precisionWindow}
-                  onChange={(e) => handlePrecisionWindowChange(e.target.value)}
+                  onChange={(val) => handlePrecisionWindowChange(val)}
+                  defaultValue={1}
+                  min={0.5}
+                  max={5}
+                  step={0.5}
                   className="node-input small"
-                  min="0.5"
-                  max="5"
-                  step="0.5"
+                  allowFloat={true}
                 />
                 <span>sec</span>
               </div>
@@ -846,40 +855,44 @@ function NumberGuessNode({ data, selected }) {
           <div className="node-config">
             <div className="config-row">
               <label>Range:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={min}
-                onChange={(e) => handleMinChange(e.target.value)}
+                onChange={(val) => handleMinChange(val)}
+                defaultValue={1}
                 className="node-input tiny"
+                allowFloat={false}
               />
               <span className="range-separator">to</span>
-              <input
-                type="number"
+              <NumberInput
                 value={max}
-                onChange={(e) => handleMaxChange(e.target.value)}
+                onChange={(val) => handleMaxChange(val)}
+                defaultValue={10}
                 className="node-input tiny"
+                allowFloat={false}
               />
             </div>
             <div className="config-row">
               <label>Attempts:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={maxAttempts}
-                onChange={(e) => handleMaxAttemptsChange(e.target.value)}
+                onChange={(val) => handleMaxAttemptsChange(val)}
+                defaultValue={3}
+                min={0}
                 className="node-input tiny"
-                min="0"
+                allowFloat={false}
                 title="0 = unlimited"
               />
               <span className="config-hint">(0=∞)</span>
             </div>
             <div className="config-row">
               <label>Close if ±:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={closeThreshold}
-                onChange={(e) => handleCloseThresholdChange(e.target.value)}
+                onChange={(val) => handleCloseThresholdChange(val)}
+                defaultValue={0}
+                min={0}
                 className="node-input tiny"
-                min="0"
+                allowFloat={false}
                 title="0 = exact only"
               />
             </div>
@@ -1281,24 +1294,26 @@ function SimonChallengeNode({ data, selected }) {
             <div className="config-section-label">Sequence Settings</div>
             <div className="config-row">
               <label>Start Length:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={startingLength}
-                onChange={(e) => handleStartingLengthChange(e.target.value)}
+                onChange={(val) => handleStartingLengthChange(val)}
+                defaultValue={3}
+                min={2}
+                max={6}
                 className="node-input tiny"
-                min="2"
-                max="6"
+                allowFloat={false}
               />
             </div>
           <div className="config-row">
             <label>Max Length:</label>
-            <input
-              type="number"
+            <NumberInput
               value={maxLength}
-              onChange={(e) => handleMaxLengthChange(e.target.value)}
+              onChange={(val) => handleMaxLengthChange(val)}
+              defaultValue={8}
+              min={4}
+              max={12}
               className="node-input tiny"
-              min="4"
-              max="12"
+              allowFloat={false}
             />
           </div>
 
@@ -1320,25 +1335,27 @@ function SimonChallengeNode({ data, selected }) {
           </div>
           <div className="config-row">
             <label>Duration:</label>
-            <input
-              type="number"
+            <NumberInput
               value={penaltyDuration}
-              onChange={(e) => handlePenaltyDurationChange(e.target.value)}
+              onChange={(val) => handlePenaltyDurationChange(val)}
+              defaultValue={3}
+              min={1}
+              max={60}
               className="node-input tiny"
-              min="1"
-              max="60"
+              allowFloat={false}
             />
             <span>sec</span>
           </div>
           <div className="config-row">
             <label>Max Misses:</label>
-            <input
-              type="number"
+            <NumberInput
               value={maxMisses}
-              onChange={(e) => handleMaxMissesChange(e.target.value)}
+              onChange={(val) => handleMaxMissesChange(val)}
+              defaultValue={3}
+              min={1}
+              max={10}
               className="node-input tiny"
-              min="1"
-              max="10"
+              allowFloat={false}
             />
           </div>
 
@@ -1360,13 +1377,14 @@ function SimonChallengeNode({ data, selected }) {
           </div>
           <div className="config-row">
             <label>Duration:</label>
-            <input
-              type="number"
+            <NumberInput
               value={grandPenaltyDuration}
-              onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
+              onChange={(val) => handleGrandPenaltyDurationChange(val)}
+              defaultValue={10}
+              min={1}
+              max={120}
               className="node-input tiny"
-              min="1"
-              max="120"
+              allowFloat={false}
             />
             <span>sec</span>
           </div>
@@ -1389,13 +1407,14 @@ function SimonChallengeNode({ data, selected }) {
           </div>
           <div className="config-row">
             <label>Duration:</label>
-            <input
-              type="number"
+            <NumberInput
               value={rewardDuration}
-              onChange={(e) => handleRewardDurationChange(e.target.value)}
+              onChange={(val) => handleRewardDurationChange(val)}
+              defaultValue={5}
+              min={1}
+              max={60}
               className="node-input tiny"
-              min="1"
-              max="60"
+              allowFloat={false}
             />
             <span>sec</span>
           </div>
@@ -1517,14 +1536,15 @@ function ReflexChallengeNode({ data, selected }) {
             <div className="config-section-label">Game Settings</div>
             <div className="config-row">
               <label>Time/Target:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={timePerTarget}
-                onChange={(e) => handleTimePerTargetChange(e.target.value)}
+                onChange={(val) => handleTimePerTargetChange(val)}
+                defaultValue={3}
+                min={1}
+                max={10}
+                step={0.5}
                 className="node-input tiny"
-                min="1"
-                max="10"
-                step="0.5"
+                allowFloat={true}
               />
               <span>sec</span>
             </div>
@@ -1575,13 +1595,14 @@ function ReflexChallengeNode({ data, selected }) {
             </div>
             <div className="config-row">
               <label>Duration:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={penaltyDuration}
-                onChange={(e) => handlePenaltyDurationChange(e.target.value)}
+                onChange={(val) => handlePenaltyDurationChange(val)}
+                defaultValue={3}
+                min={1}
+                max={60}
                 className="node-input tiny"
-                min="1"
-                max="60"
+                allowFloat={false}
               />
               <span>sec</span>
             </div>
@@ -1604,13 +1625,14 @@ function ReflexChallengeNode({ data, selected }) {
             </div>
             <div className="config-row">
               <label>Duration:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={grandPenaltyDuration}
-                onChange={(e) => handleGrandPenaltyDurationChange(e.target.value)}
+                onChange={(val) => handleGrandPenaltyDurationChange(val)}
+                defaultValue={10}
+                min={1}
+                max={120}
                 className="node-input tiny"
-                min="1"
-                max="120"
+                allowFloat={false}
               />
               <span>sec</span>
             </div>
@@ -1633,13 +1655,14 @@ function ReflexChallengeNode({ data, selected }) {
             </div>
             <div className="config-row">
               <label>Duration:</label>
-              <input
-                type="number"
+              <NumberInput
                 value={rewardDuration}
-                onChange={(e) => handleRewardDurationChange(e.target.value)}
+                onChange={(val) => handleRewardDurationChange(val)}
+                defaultValue={5}
+                min={1}
+                max={60}
                 className="node-input tiny"
-                min="1"
-                max="60"
+                allowFloat={false}
               />
               <span>sec</span>
             </div>

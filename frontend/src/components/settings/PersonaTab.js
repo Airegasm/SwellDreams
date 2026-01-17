@@ -3,17 +3,14 @@ import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
-import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import PersonaEditorModal from '../modals/PersonaEditorModal';
 import './SettingsTabs.css';
 
 function PersonaTab() {
-  const { personas, flows, settings, sessionState, api, sendWsMessage } = useApp();
+  const { personas, settings, api } = useApp();
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
-  const [showFlowModal, setShowFlowModal] = useState(false);
-  const [selectedPersonaId, setSelectedPersonaId] = useState(null);
   const listRef = useRef(null);
 
   // Sort personas with active one first
@@ -70,34 +67,10 @@ function PersonaTab() {
     }
   };
 
-  const getPersonaFlows = (personaId) => {
-    return sessionState.flowAssignments?.personas?.[personaId] || [];
-  };
-
-  const handleOpenFlowModal = (personaId) => {
-    setSelectedPersonaId(personaId);
-    setShowFlowModal(true);
-  };
-
-  const handleSaveFlows = (flowIds) => {
-    sendWsMessage('update_persona_flows', {
-      personaId: selectedPersonaId,
-      flows: flowIds
-    });
-  };
-
-  const getFlowNames = (personaId) => {
-    const flowIds = getPersonaFlows(personaId);
-    return flowIds.map(id => {
-      const flow = flows.find(f => f.id === id);
-      return flow ? flow.name : null;
-    }).filter(Boolean);
-  };
-
   const handleExport = async (persona) => {
     try {
       const response = await apiFetch(`${API_BASE}/api/export/persona/${persona.id}`);
-      const filename = `${persona.name.replace(/[^a-z0-9]/gi, '_')}_persona.json`;
+      const filename = `${(persona.displayName || persona.name).replace(/[^a-z0-9]/gi, '_')}_persona.json`;
       const blob = new Blob([JSON.stringify(response, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -110,6 +83,22 @@ function PersonaTab() {
       showSuccess?.(`Exported "${persona.displayName || persona.name}"`);
     } catch (error) {
       showError(error.message || 'Failed to export persona');
+    }
+  };
+
+  const handleCopy = async (persona) => {
+    try {
+      // Create a copy without the id (server will generate new one)
+      const { id, _isDefault, createdAt, updatedAt, ...personaData } = persona;
+      const copyData = {
+        ...personaData,
+        displayName: `${persona.displayName} (Copy)`
+      };
+      await api.createPersona(copyData);
+      showSuccess?.(`Created copy of "${persona.displayName}"`);
+    } catch (error) {
+      console.error('Failed to copy persona:', error);
+      showError?.('Failed to copy persona');
     }
   };
 
@@ -176,6 +165,13 @@ function PersonaTab() {
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
+                    onClick={() => handleCopy(persona)}
+                    title="Create a copy of this persona"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    className="btn btn-sm btn-secondary"
                     onClick={() => handleExport(persona)}
                     title="Export persona as JSON"
                   >
@@ -189,20 +185,6 @@ function PersonaTab() {
                   </button>
                 </div>
               </div>
-              <div className="card-footer">
-                <div className="flow-line">
-                  <span className="flow-line-label">Flows:</span>
-                  <span className="flow-line-content">
-                    {getFlowNames(persona.id).join(', ') || 'None'}
-                  </span>
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => handleOpenFlowModal(persona.id)}
-                  >
-                    Flows
-                  </button>
-                </div>
-              </div>
             </div>
           ))
         )}
@@ -213,16 +195,6 @@ function PersonaTab() {
         onClose={() => setShowEditorModal(false)}
         onSave={handleSavePersona}
         persona={editingPersona}
-      />
-
-      <FlowAssignmentModal
-        isOpen={showFlowModal}
-        onClose={() => setShowFlowModal(false)}
-        onSave={handleSaveFlows}
-        flows={flows}
-        assignedFlowIds={selectedPersonaId ? getPersonaFlows(selectedPersonaId) : []}
-        category="persona"
-        title="Assign Persona Flows"
       />
     </div>
   );

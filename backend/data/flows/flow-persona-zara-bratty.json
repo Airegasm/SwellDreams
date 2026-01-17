@@ -1,0 +1,98 @@
+{
+  "id": "flow-persona-zara-bratty",
+  "name": "Zara - Bratty Reactions",
+  "category": "persona",
+  "description": "Capacity-based bratty/resistant player messages",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "zara-btn",
+      "type": "button_press",
+      "position": { "x": 200, "y": 50 },
+      "data": {
+        "label": "Express Brattiness",
+        "buttonTarget": "persona",
+        "buttonId": "zara-bratty",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "zara-capacity-msg",
+      "type": "capacity_player_message",
+      "position": { "x": 200, "y": 180 },
+      "data": {
+        "label": "Bratty Reactions",
+        "ranges": [
+          {
+            "min": 0,
+            "max": 10,
+            "message": "*crosses arms* Fine. Let's get this over with. But don't think I'm going to enjoy it or anything.",
+            "enableOutput": true
+          },
+          {
+            "min": 11,
+            "max": 20,
+            "message": "*rolls eyes* Is that it? I barely feel anything. You're going to have to try harder than that.",
+            "enableOutput": true
+          },
+          {
+            "min": 21,
+            "max": 30,
+            "message": "Okay, so I can feel it a little. Whatever. It's not like it's impressive or anything. *looks away*",
+            "enableOutput": true
+          },
+          {
+            "min": 31,
+            "max": 40,
+            "message": "*squirms* It's... getting a bit much. But I can handle it! I've had worse. Probably.",
+            "enableOutput": true
+          },
+          {
+            "min": 41,
+            "max": 50,
+            "message": "Halfway? *huffs* Big deal. I'm not even struggling. ...Much. Stop smirking at me!",
+            "enableOutput": true
+          },
+          {
+            "min": 51,
+            "max": 60,
+            "message": "F-fine, it's getting harder to ignore. *bites lip* But I'm NOT going to beg. You can forget about that.",
+            "enableOutput": true
+          },
+          {
+            "min": 61,
+            "max": 70,
+            "message": "*gasps* Okay, OKAY, that's a lot. Maybe I underestimated... But I'm still not saying I like it!",
+            "enableOutput": true
+          },
+          {
+            "min": 71,
+            "max": 80,
+            "message": "This is... I mean... *breathing heavily* It's not TERRIBLE. Just... don't read into that, got it?",
+            "enableOutput": true
+          },
+          {
+            "min": 81,
+            "max": 90,
+            "message": "*whimpers despite herself* S-shut up, I'm not enjoying this! My body is just... reacting! It doesn't mean anything!",
+            "enableOutput": true
+          },
+          {
+            "min": 91,
+            "max": 100,
+            "message": "I... I can't... *panting* Fine! FINE! It feels good, okay?! Are you happy now?! *blushes furiously*",
+            "enableOutput": true
+          }
+        ],
+        "suppressLlm": false,
+        "postDelay": 0
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "zara-btn", "target": "zara-capacity-msg" }
+  ]
+}

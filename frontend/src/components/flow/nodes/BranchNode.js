@@ -1,5 +1,6 @@
 import React, { memo, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import NumberInput from './NumberInput';
 import './Nodes.css';
 
 function BranchNode({ data, selected }) {
@@ -72,13 +73,14 @@ function BranchNode({ data, selected }) {
                 />
                 {data.branchType !== 'sequential' && (
                   <>
-                    <input
-                      type="number"
+                    <NumberInput
                       value={branch.weight}
-                      onChange={(e) => updateBranch(index, 'weight', parseInt(e.target.value))}
+                      onChange={(val) => updateBranch(index, 'weight', val)}
+                      defaultValue={0}
                       min={0}
                       max={100}
                       className="node-input tiny"
+                      allowFloat={false}
                     />
                     <span>%</span>
                   </>

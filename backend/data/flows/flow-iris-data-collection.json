@@ -1,0 +1,301 @@
+{
+  "id": "flow-iris-data-collection",
+  "name": "Data Collection Protocol",
+  "category": "character",
+  "description": "Input nodes for subjective ratings collection",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-dc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Collect Data",
+        "buttonTarget": "character",
+        "buttonId": "iris-data",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-dc-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 150
+      },
+      "data": {
+        "label": "Protocol Start",
+        "actionType": "send_message",
+        "message": "*picks up tablet* Initiating data collection protocol. Subject #47, I will require your subjective feedback on several parameters. Please respond accurately - imprecise data corrupts the study.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-pressure",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 280
+      },
+      "data": {
+        "label": "Pressure Rating",
+        "inputType": "number",
+        "variableName": "pressureRating",
+        "prompt": "On a scale of 1-10, rate your current internal pressure sensation.",
+        "placeholder": "Enter 1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-dc-pressure-log",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 420
+      },
+      "data": {
+        "label": "Log Pressure",
+        "actionType": "send_message",
+        "message": "*notes on tablet* Pressure sensation: [Flow:pressureRating] out of 10. Interesting. Within expected parameters for current capacity level.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-discomfort",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 540
+      },
+      "data": {
+        "label": "Discomfort Rating",
+        "inputType": "number",
+        "variableName": "discomfortRating",
+        "prompt": "Rate your current discomfort level from 1-10.",
+        "placeholder": "Enter 1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-dc-discomfort-log",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 680
+      },
+      "data": {
+        "label": "Log Discomfort",
+        "actionType": "send_message",
+        "message": "*records data* Discomfort level: [Flow:discomfortRating]. *adjusts glasses* The correlation between capacity and subjective discomfort continues to follow predictable patterns.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-condition",
+      "type": "condition",
+      "position": {
+        "x": 200,
+        "y": 800
+      },
+      "data": {
+        "label": "Evaluate Discomfort",
+        "conditions": [
+          {
+            "variable": "flow:discomfortRating",
+            "operator": ">=",
+            "value": 8
+          },
+          {
+            "variable": "flow:discomfortRating",
+            "operator": ">=",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-dc-high-response",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 950
+      },
+      "data": {
+        "label": "High Discomfort",
+        "actionType": "send_message",
+        "message": "*makes notation* Elevated discomfort levels detected. This is... useful data. We're approaching the upper threshold. I'll make a note to monitor for signs of distress.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-mid-response",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 950
+      },
+      "data": {
+        "label": "Moderate Discomfort",
+        "actionType": "send_message",
+        "message": "*nods* Moderate discomfort. Expected at this stage. Your body is adapting as predicted. We will continue with the current parameters.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-low-response",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 950
+      },
+      "data": {
+        "label": "Low Discomfort",
+        "actionType": "send_message",
+        "message": "*slight frown* Minimal discomfort at [Flow:discomfortRating]? Curious. Either your tolerance is exceptionally high, or we haven't reached meaningful thresholds yet. We should increase parameters.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-complete",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1100
+      },
+      "data": {
+        "label": "Data Complete",
+        "actionType": "send_message",
+        "message": "*saves data* Data collection complete for this interval. Pressure: [Flow:pressureRating], Discomfort: [Flow:discomfortRating]. All values logged. You may... rest briefly while I analyze.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-dc-pumpoff-btn",
+      "type": "button_press",
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "data": {
+        "label": "Turn Off Pump",
+        "buttonTarget": "character",
+        "buttonId": "iris-pump-off",
+        "unblockable": true,
+        "hasPriority": true,
+        "priority": 1
+      }
+    },
+    {
+      "id": "iris-dc-pumpoff-action",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 180
+      },
+      "data": {
+        "label": "Pump Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*glances at the monitor, then flips the switch* [pump off] Protocol paused. *makes a note on clipboard* Rest period initiated. Your vitals are within normal parameters. *adjusts glasses* We will resume data collection once you've recovered sufficiently.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-dc-btn",
+      "target": "iris-dc-intro"
+    },
+    {
+      "id": "e2",
+      "source": "iris-dc-intro",
+      "target": "iris-dc-pressure"
+    },
+    {
+      "id": "e3",
+      "source": "iris-dc-pressure",
+      "target": "iris-dc-pressure-log"
+    },
+    {
+      "id": "e4",
+      "source": "iris-dc-pressure-log",
+      "target": "iris-dc-discomfort"
+    },
+    {
+      "id": "e5",
+      "source": "iris-dc-discomfort",
+      "target": "iris-dc-discomfort-log"
+    },
+    {
+      "id": "e6",
+      "source": "iris-dc-discomfort-log",
+      "target": "iris-dc-condition"
+    },
+    {
+      "id": "e7",
+      "source": "iris-dc-condition",
+      "sourceHandle": "true-0",
+      "target": "iris-dc-high-response"
+    },
+    {
+      "id": "e8",
+      "source": "iris-dc-condition",
+      "sourceHandle": "true-1",
+      "target": "iris-dc-mid-response"
+    },
+    {
+      "id": "e9",
+      "source": "iris-dc-condition",
+      "sourceHandle": "false",
+      "target": "iris-dc-low-response"
+    },
+    {
+      "id": "e10",
+      "source": "iris-dc-high-response",
+      "target": "iris-dc-complete"
+    },
+    {
+      "id": "e11",
+      "source": "iris-dc-mid-response",
+      "target": "iris-dc-complete"
+    },
+    {
+      "id": "e12",
+      "source": "iris-dc-low-response",
+      "target": "iris-dc-complete"
+    },
+    {
+      "id": "e13",
+      "source": "iris-dc-pumpoff-btn",
+      "target": "iris-dc-pumpoff-action"
+    }
+  ]
+}

@@ -27,6 +27,7 @@ import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
 import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
 import InputNode from '../components/flow/nodes/InputNode';
+import RandomNumberNode from '../components/flow/nodes/RandomNumberNode';
 // Challenge nodes
 import {
   PrizeWheelNodeMemo as PrizeWheelNode,
@@ -55,6 +56,7 @@ const nodeTypes = {
   capacity_ai_message: CapacityMessageNode,
   capacity_player_message: CapacityMessageNode,
   input: InputNode,
+  random_number: RandomNumberNode,
   // Challenge nodes
   prize_wheel: PrizeWheelNode,
   dice_roll: DiceRollNode,
@@ -88,7 +90,8 @@ const NODE_TEMPLATES = {
     },
     new_session: {
       label: 'New Session',
-      triggerType: 'new_session'
+      triggerType: 'new_session',
+      initialVariables: []
     }
   },
   button_press: {
@@ -103,7 +106,6 @@ const NODE_TEMPLATES = {
     start_cycle: { label: 'Start Cycle', actionType: 'start_cycle', device: '', duration: 5, interval: 10, cycles: 0, untilType: 'forever', untilValue: null, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     pulse_pump: { label: 'Pulse Pump', actionType: 'pulse_pump', device: '', pulses: 3, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
-    declare_variable: { label: 'Declare Variable', actionType: 'declare_variable', name: '', value: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     toggle_button: { label: 'Toggle Button', actionType: 'toggle_button', buttonId: '', action: 'enable', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
@@ -154,6 +156,14 @@ const NODE_TEMPLATES = {
       minValue: null,
       maxValue: null,
       required: true
+    }
+  },
+  random_number: {
+    default: {
+      label: 'Random Number',
+      minValue: 1,
+      maxValue: 100,
+      variableName: 'RandomNum'
     }
   },
   // Capacity message nodes
@@ -366,23 +376,39 @@ function FlowEditor() {
   const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
   const personaButtons = activePersona?.buttons || [];
 
-  // Extract all declared flow variable names from Declare Variable actions
+  // Extract all declared flow variable names from New Session triggers and legacy Declare Variable actions
+  const reactFlowWrapper = useRef(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
   // In per-flow mode, flows array only contains index data, so we also check current nodes
   const flowVariables = useMemo(() => {
     const variableNames = new Set();
     // Check flows array (works in legacy mode, may be empty in per-flow mode)
     (flows || []).forEach(flow => {
       (flow.nodes || []).forEach(node => {
+        // Check New Session trigger nodes for initialVariables
+        if (node.type === 'trigger' && node.data?.triggerType === 'new_session' && node.data?.initialVariables) {
+          node.data.initialVariables.forEach(v => {
+            if (v.name) variableNames.add(v.name);
+          });
+        }
+        // Legacy: check Declare Variable action nodes
         if (node.type === 'action' && node.data?.actionType === 'declare_variable' && node.data?.name) {
           variableNames.add(node.data.name);
         }
       });
     });
+    // Also check current nodes (for per-flow mode where flows array may be sparse)
+    (nodes || []).forEach(node => {
+      if (node.type === 'trigger' && node.data?.triggerType === 'new_session' && node.data?.initialVariables) {
+        node.data.initialVariables.forEach(v => {
+          if (v.name) variableNames.add(v.name);
+        });
+      }
+    });
     return Array.from(variableNames).sort();
-  }, [flows]);
-  const reactFlowWrapper = useRef(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  }, [flows, nodes]);
 
   // Undo/Redo history
   const {
@@ -1411,6 +1437,13 @@ function FlowEditor() {
               onDragStart={(e) => onDragStart(e, 'delay', 'default')}
             >
               Delay
+            </div>
+            <div
+              className="palette-node random-number"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'random_number', 'default')}
+            >
+              🎲 Random Number
             </div>
           </div>
         </div>

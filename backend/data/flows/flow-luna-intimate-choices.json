@@ -1,0 +1,320 @@
+{
+  "id": "flow-luna-intimate-choices",
+  "name": "Luna's Intimate Choices",
+  "category": "character",
+  "description": "Romantic pacing choices - gentle, passionate, or teasing",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-ic-btn",
+      "type": "button_press",
+      "position": {
+        "x": 100,
+        "y": 50
+      },
+      "data": {
+        "label": "Set the Mood",
+        "buttonTarget": "character",
+        "buttonId": "luna-mood",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-ic-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 100,
+        "y": 180
+      },
+      "data": {
+        "label": "How do you want it?",
+        "description": "Luna wants to know how to make you feel good tonight...",
+        "introMessageEnabled": true,
+        "introMessage": "Come here, baby... *pulls you close* Tell me what you need tonight. How do you want me to touch you?",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "gentle",
+            "label": "Gentle & Slow",
+            "description": "Take your time with me"
+          },
+          {
+            "id": "passionate",
+            "label": "Passionate & Intense",
+            "description": "I want to feel everything"
+          },
+          {
+            "id": "tease",
+            "label": "Tease Me",
+            "description": "Make me wait for it"
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-ic-gentle-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "Gentle Response",
+        "actionType": "send_message",
+        "message": "Gentle it is, sweetheart... *traces fingers along your skin* We have all night. I want to savor every moment with you...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-ic-gentle-delay",
+      "type": "delay",
+      "position": {
+        "x": 0,
+        "y": 500
+      },
+      "data": {
+        "label": "Slow Pace",
+        "duration": 5,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "luna-ic-gentle-pulse",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "data": {
+        "label": "Gentle Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*kisses your neck softly* Feel that? Just a little bit... nice and easy...",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Mmm, you're doing so well, baby. How does that feel?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "luna-ic-passionate-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Passionate Response",
+        "actionType": "send_message",
+        "message": "*eyes light up* Oh, you want it intense? *pulls you closer* I've been waiting to hear you say that...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-ic-passionate-device",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 500
+      },
+      "data": {
+        "label": "Intense Start",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 1,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*breathes heavily* Hold on tight, love...",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches your reaction hungrily* Yes... just like that. Don't hold back.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-ic-tease-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 380
+      },
+      "data": {
+        "label": "Tease Response",
+        "actionType": "send_message",
+        "message": "*smirks playfully* Oh, you want to be teased? *runs finger down your chest* Careful what you wish for, baby...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-ic-tease-branch",
+      "type": "branch",
+      "position": {
+        "x": 400,
+        "y": 500
+      },
+      "data": {
+        "label": "Tease Pattern",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "tease-a",
+            "label": "Almost...",
+            "weight": 40
+          },
+          {
+            "id": "tease-b",
+            "label": "Not yet",
+            "weight": 40
+          },
+          {
+            "id": "tease-c",
+            "label": "Surprise!",
+            "weight": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-ic-tease-almost",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 650
+      },
+      "data": {
+        "label": "Almost Tease",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*leans in close, lips almost touching yours* Almost... *tiny pulse* ...but not quite yet.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 2,
+        "postMessageEnabled": true,
+        "postMessage": "*giggles* The look on your face... You want more, don't you?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-ic-tease-notyet",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 650
+      },
+      "data": {
+        "label": "Not Yet",
+        "actionType": "send_message",
+        "message": "*traces patterns on your skin* Mmm, I could do this all day... watching you squirm, waiting... Be patient for me, baby.",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "*whispers* Not yet...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 3,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-ic-tease-surprise",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 650
+      },
+      "data": {
+        "label": "Surprise Pulse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*suddenly* Surprise! *laughs*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*kisses you* See? Teasing can have its rewards too...",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-ic-btn",
+      "target": "luna-ic-choice"
+    },
+    {
+      "id": "e2",
+      "source": "luna-ic-choice",
+      "sourceHandle": "gentle",
+      "target": "luna-ic-gentle-msg"
+    },
+    {
+      "id": "e3",
+      "source": "luna-ic-choice",
+      "sourceHandle": "passionate",
+      "target": "luna-ic-passionate-msg"
+    },
+    {
+      "id": "e4",
+      "source": "luna-ic-choice",
+      "sourceHandle": "tease",
+      "target": "luna-ic-tease-msg"
+    },
+    {
+      "id": "e5",
+      "source": "luna-ic-gentle-msg",
+      "target": "luna-ic-gentle-delay"
+    },
+    {
+      "id": "e6",
+      "source": "luna-ic-gentle-delay",
+      "target": "luna-ic-gentle-pulse"
+    },
+    {
+      "id": "e7",
+      "source": "luna-ic-passionate-msg",
+      "target": "luna-ic-passionate-device"
+    },
+    {
+      "id": "e8",
+      "source": "luna-ic-tease-msg",
+      "target": "luna-ic-tease-branch"
+    },
+    {
+      "id": "e9",
+      "source": "luna-ic-tease-branch",
+      "sourceHandle": "branch-0",
+      "target": "luna-ic-tease-almost"
+    },
+    {
+      "id": "e10",
+      "source": "luna-ic-tease-branch",
+      "sourceHandle": "branch-1",
+      "target": "luna-ic-tease-notyet"
+    },
+    {
+      "id": "e11",
+      "source": "luna-ic-tease-branch",
+      "sourceHandle": "branch-2",
+      "target": "luna-ic-tease-surprise"
+    }
+  ]
+}

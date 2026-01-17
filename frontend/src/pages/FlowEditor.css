@@ -242,6 +242,12 @@
   color: #a78bfa;
 }
 
+.palette-node.random-number {
+  background-color: rgba(20, 184, 166, 0.2);
+  border-color: #14b8a6;
+  color: #2dd4bf;
+}
+
 /* Challenge Node Palette Colors */
 .palette-node.prize-wheel {
   background-color: rgba(251, 146, 60, 0.2);
@@ -301,6 +307,46 @@
   background-color: rgba(249, 115, 22, 0.2);
   border-color: #f97316;
   color: #f97316;
+}
+
+/* Capacity Message Node Palette Colors */
+.palette-node.capacity-ai-message {
+  background-color: rgba(6, 182, 212, 0.2);
+  border-color: #06b6d4;
+  color: #22d3ee;
+  position: relative;
+}
+
+.palette-node.capacity-player-message {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  position: relative;
+}
+
+/* Background indicator badge for capacity message nodes */
+.palette-node.capacity-ai-message::after,
+.palette-node.capacity-player-message::after {
+  content: 'BG';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
+.palette-node.capacity-ai-message::after {
+  background-color: rgba(6, 182, 212, 0.4);
+  color: #fff;
+}
+
+.palette-node.capacity-player-message::after {
+  background-color: rgba(245, 158, 11, 0.4);
+  color: #fff;
 }
 
 /* Canvas */

@@ -6,8 +6,10 @@ function ConversationsTab() {
     overview: false,
     chatInterface: false,
     mobileInterface: false,
+    builtinCharacters: false,
     characters: false,
     characterFields: false,
+    builtinPersonas: false,
     personas: false,
     personaFields: false,
     stagedPortraits: false,
@@ -206,6 +208,73 @@ function ConversationsTab() {
         )}
       </div>
 
+      {/* Builtin Characters */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('builtinCharacters')}>
+          Builtin Characters
+          <span className="expand-icon">{expanded.builtinCharacters ? '−' : '+'}</span>
+        </h3>
+        {expanded.builtinCharacters && (
+          <div className="section-content">
+            <p>
+              SwellDreams includes four pre-made characters, each with distinct personalities
+              and assigned flows that showcase different aspects of the system. Use them as-is
+              or as inspiration for your own creations.
+            </p>
+
+            <h4 className="subsection-header">Luna - The Sensual Girlfriend</h4>
+            <p>
+              <strong>Personality:</strong> Loving, intimate, teasing, affectionate. Uses pet names
+              and focuses on pleasure and connection.
+            </p>
+            <ul className="help-list">
+              <li><strong>Best For:</strong> Romantic, caring scenarios with gentle pacing</li>
+              <li><strong>Flows:</strong> Intimate Choices, Comfort Check, Reward System</li>
+              <li><strong>Key Features:</strong> Player choice nodes, capacity-based check-ins, random rewards</li>
+            </ul>
+
+            <h4 className="subsection-header">Mistress Scarlett - The Demanding Dominatrix</h4>
+            <p>
+              <strong>Personality:</strong> Strict, commanding, elegant cruelty. Expects absolute
+              obedience and punishes failure while rewarding submission.
+            </p>
+            <ul className="help-list">
+              <li><strong>Best For:</strong> D/s dynamics, discipline scenarios, rule enforcement</li>
+              <li><strong>Flows:</strong> Obedience Protocol, Punishment Sequence, Rule Enforcement</li>
+              <li><strong>Key Features:</strong> A/B choice consequences, timer challenges, keyword triggers</li>
+            </ul>
+
+            <h4 className="subsection-header">Vex - The Sadistic Gameshow Host</h4>
+            <p>
+              <strong>Personality:</strong> Chaotic, theatrical, gleefully cruel. Treats everything
+              as entertainment with heavy focus on games and challenges.
+            </p>
+            <ul className="help-list">
+              <li><strong>Best For:</strong> Gamified sessions, challenge-based progression, high stakes</li>
+              <li><strong>Flows:</strong> Wheel of Fate, Dice of Destiny, Challenge Gauntlet, Bonus Round</li>
+              <li><strong>Key Features:</strong> Uses all challenge nodes (wheel, dice, coin flip, RPS, slots, etc.)</li>
+            </ul>
+
+            <h4 className="subsection-header">Dr. Iris Chen - The Clinical Researcher</h4>
+            <p>
+              <strong>Personality:</strong> Methodical, detached, scientific curiosity. Treats the
+              subject as data with precise, analytical observation.
+            </p>
+            <ul className="help-list">
+              <li><strong>Best For:</strong> Medical/research roleplay, systematic progression, data collection</li>
+              <li><strong>Flows:</strong> Data Collection Protocol, Capacity Study, Threshold Testing</li>
+              <li><strong>Key Features:</strong> Input nodes for ratings, capacity messages, condition-based phases</li>
+            </ul>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Each builtin character comes with pre-assigned flows that demonstrate
+              different node types. Open them in the Flow Editor to learn how flows work, then modify
+              or create your own.
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Characters Overview */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('characters')}>
@@ -376,6 +445,57 @@ function ConversationsTab() {
             <div className="info-box">
               <strong>Note:</strong> You can switch personas mid-conversation if you want to
               roleplay as someone else. The AI will adapt to the new persona.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Builtin Personas */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('builtinPersonas')}>
+          Builtin Personas
+          <span className="expand-icon">{expanded.builtinPersonas ? '−' : '+'}</span>
+        </h3>
+        {expanded.builtinPersonas && (
+          <div className="section-content">
+            <p>
+              SwellDreams includes two pre-made personas with contrasting personalities to get you
+              started quickly. Each has assigned flows that generate automatic player reactions
+              based on capacity levels.
+            </p>
+
+            <h4 className="subsection-header">Marcus - The Eager Subject (Male)</h4>
+            <p>
+              <strong>Pronouns:</strong> he/him
+            </p>
+            <p>
+              <strong>Personality:</strong> Willing, excited, enjoys being controlled. Enthusiastic
+              about new experiences and expresses gratitude and pleasure openly.
+            </p>
+            <ul className="help-list">
+              <li><strong>Relationship with Inflation:</strong> Has fantasized about this for years and can barely contain his excitement. Deeply submissive and eager to please.</li>
+              <li><strong>Flow:</strong> Eager Reactions - capacity-based player messages expressing enthusiasm and gratitude</li>
+              <li><strong>Best For:</strong> Submissive scenarios, enthusiastic consent roleplay</li>
+            </ul>
+
+            <h4 className="subsection-header">Zara - The Bratty Subject (Female)</h4>
+            <p>
+              <strong>Pronouns:</strong> she/her
+            </p>
+            <p>
+              <strong>Personality:</strong> Playful resistance, needs convincing, talks back. Enjoys
+              the push-and-pull dynamic. Secretly loves it but won't admit it easily.
+            </p>
+            <ul className="help-list">
+              <li><strong>Relationship with Inflation:</strong> Acts like she doesn't want this but keeps coming back. Challenges authority while secretly craving the loss of control.</li>
+              <li><strong>Flow:</strong> Bratty Reactions - capacity-based player messages with resistance, complaints, and reluctant enjoyment</li>
+              <li><strong>Best For:</strong> Brat-taming scenarios, reluctant participant roleplay</li>
+            </ul>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Persona flows use <code>buttonTarget: 'persona'</code> to generate
+              player messages automatically. This creates immersive reactions without you needing to
+              type responses manually during intense moments.
             </div>
           </div>
         )}
