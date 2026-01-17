@@ -496,6 +496,65 @@
   white-space: nowrap;
 }
 
+/* Global Flows Assignment */
+.global-flows-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.flow-assignment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.global-flows-assignment .association-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  min-height: 32px;
+  align-items: center;
+}
+
+.global-flows-assignment .assoc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #2563eb;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border: 1px solid #3b82f6;
+}
+
+.global-flows-assignment .badge-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.global-flows-assignment .badge-remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.global-flows-assignment .empty-hint {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: var(--font-size-sm);
+}
+
 /* Control Mode Section */
 .control-mode-section {
   background-color: var(--bg-card);

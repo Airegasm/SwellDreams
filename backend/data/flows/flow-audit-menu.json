@@ -6,7 +6,10 @@
     {
       "id": "audit-btn-menu",
       "type": "button_press",
-      "position": { "x": 250, "y": 50 },
+      "position": {
+        "x": 250,
+        "y": 50
+      },
       "data": {
         "label": "Audit Menu",
         "buttonTarget": "character",
@@ -18,7 +21,10 @@
     {
       "id": "audit-menu-intro",
       "type": "action",
-      "position": { "x": 250, "y": 150 },
+      "position": {
+        "x": 250,
+        "y": 150
+      },
       "data": {
         "label": "Menu Intro",
         "actionType": "system_message",

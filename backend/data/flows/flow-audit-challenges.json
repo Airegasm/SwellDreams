@@ -6,7 +6,10 @@
     {
       "id": "chal-btn-wheel",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Test Prize Wheel",
         "buttonTarget": "character",
@@ -16,14 +19,37 @@
     {
       "id": "chal-wheel",
       "type": "prize_wheel",
-      "position": { "x": 100, "y": 150 },
+      "position": {
+        "x": 100,
+        "y": 150
+      },
       "data": {
         "label": "Prize Wheel Test",
         "segments": [
-          { "id": "seg-a", "label": "Prize A", "color": "#ef4444", "weight": 25 },
-          { "id": "seg-b", "label": "Prize B", "color": "#3b82f6", "weight": 25 },
-          { "id": "seg-c", "label": "Prize C", "color": "#22c55e", "weight": 25 },
-          { "id": "seg-d", "label": "Prize D", "color": "#f59e0b", "weight": 25 }
+          {
+            "id": "seg-a",
+            "label": "Prize A",
+            "color": "#ef4444",
+            "weight": 25
+          },
+          {
+            "id": "seg-b",
+            "label": "Prize B",
+            "color": "#3b82f6",
+            "weight": 25
+          },
+          {
+            "id": "seg-c",
+            "label": "Prize C",
+            "color": "#22c55e",
+            "weight": 25
+          },
+          {
+            "id": "seg-d",
+            "label": "Prize D",
+            "color": "#f59e0b",
+            "weight": 25
+          }
         ],
         "preMessageEnabled": true,
         "preMessage": "Spinning the prize wheel...",
@@ -33,7 +59,10 @@
     {
       "id": "chal-wheel-result",
       "type": "action",
-      "position": { "x": 100, "y": 350 },
+      "position": {
+        "x": 100,
+        "y": 350
+      },
       "data": {
         "label": "Wheel Result",
         "actionType": "system_message",
@@ -43,7 +72,10 @@
     {
       "id": "chal-btn-dice",
       "type": "button_press",
-      "position": { "x": 350, "y": 50 },
+      "position": {
+        "x": 350,
+        "y": 50
+      },
       "data": {
         "label": "Test Dice Roll",
         "buttonTarget": "character",
@@ -53,15 +85,33 @@
     {
       "id": "chal-dice",
       "type": "dice_roll",
-      "position": { "x": 350, "y": 150 },
+      "position": {
+        "x": 350,
+        "y": 150
+      },
       "data": {
         "label": "Dice Roll Test",
         "diceCount": 2,
         "mode": "ranges",
         "ranges": [
-          { "id": "low", "label": "Low", "min": 2, "max": 5 },
-          { "id": "mid", "label": "Medium", "min": 6, "max": 9 },
-          { "id": "high", "label": "High", "min": 10, "max": 12 }
+          {
+            "id": "low",
+            "label": "Low",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "mid",
+            "label": "Medium",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "high",
+            "label": "High",
+            "min": 10,
+            "max": 12
+          }
         ],
         "preMessageEnabled": true,
         "preMessage": "Rolling the dice...",
@@ -71,7 +121,10 @@
     {
       "id": "chal-dice-low",
       "type": "action",
-      "position": { "x": 250, "y": 350 },
+      "position": {
+        "x": 250,
+        "y": 350
+      },
       "data": {
         "label": "Low Roll",
         "actionType": "system_message",
@@ -81,7 +134,10 @@
     {
       "id": "chal-dice-mid",
       "type": "action",
-      "position": { "x": 350, "y": 350 },
+      "position": {
+        "x": 350,
+        "y": 350
+      },
       "data": {
         "label": "Mid Roll",
         "actionType": "system_message",
@@ -91,7 +147,10 @@
     {
       "id": "chal-dice-high",
       "type": "action",
-      "position": { "x": 450, "y": 350 },
+      "position": {
+        "x": 450,
+        "y": 350
+      },
       "data": {
         "label": "High Roll",
         "actionType": "system_message",
@@ -101,7 +160,10 @@
     {
       "id": "chal-dice-other",
       "type": "action",
-      "position": { "x": 550, "y": 350 },
+      "position": {
+        "x": 550,
+        "y": 350
+      },
       "data": {
         "label": "Other",
         "actionType": "system_message",
@@ -111,7 +173,10 @@
     {
       "id": "chal-btn-coin",
       "type": "button_press",
-      "position": { "x": 700, "y": 50 },
+      "position": {
+        "x": 700,
+        "y": 50
+      },
       "data": {
         "label": "Test Coin Flip",
         "buttonTarget": "character",
@@ -121,7 +186,10 @@
     {
       "id": "chal-coin",
       "type": "coin_flip",
-      "position": { "x": 700, "y": 150 },
+      "position": {
+        "x": 700,
+        "y": 150
+      },
       "data": {
         "label": "Coin Flip Test",
         "headsLabel": "Heads",
@@ -133,7 +201,10 @@
     {
       "id": "chal-coin-heads",
       "type": "action",
-      "position": { "x": 650, "y": 350 },
+      "position": {
+        "x": 650,
+        "y": 350
+      },
       "data": {
         "label": "Heads",
         "actionType": "system_message",
@@ -143,7 +214,10 @@
     {
       "id": "chal-coin-tails",
       "type": "action",
-      "position": { "x": 750, "y": 350 },
+      "position": {
+        "x": 750,
+        "y": 350
+      },
       "data": {
         "label": "Tails",
         "actionType": "system_message",
@@ -153,7 +227,10 @@
     {
       "id": "chal-btn-rps",
       "type": "button_press",
-      "position": { "x": 950, "y": 50 },
+      "position": {
+        "x": 950,
+        "y": 50
+      },
       "data": {
         "label": "Test RPS",
         "buttonTarget": "character",
@@ -163,7 +240,10 @@
     {
       "id": "chal-rps",
       "type": "rps",
-      "position": { "x": 950, "y": 150 },
+      "position": {
+        "x": 950,
+        "y": 150
+      },
       "data": {
         "label": "RPS Test",
         "bestOf": 1,
@@ -173,7 +253,10 @@
     {
       "id": "chal-rps-win",
       "type": "action",
-      "position": { "x": 900, "y": 350 },
+      "position": {
+        "x": 900,
+        "y": 350
+      },
       "data": {
         "label": "Player Wins",
         "actionType": "system_message",
@@ -183,7 +266,10 @@
     {
       "id": "chal-rps-tie",
       "type": "action",
-      "position": { "x": 1000, "y": 350 },
+      "position": {
+        "x": 1000,
+        "y": 350
+      },
       "data": {
         "label": "Tie",
         "actionType": "system_message",
@@ -193,7 +279,10 @@
     {
       "id": "chal-rps-lose",
       "type": "action",
-      "position": { "x": 1100, "y": 350 },
+      "position": {
+        "x": 1100,
+        "y": 350
+      },
       "data": {
         "label": "Character Wins",
         "actionType": "system_message",
@@ -203,7 +292,10 @@
     {
       "id": "chal-btn-timer",
       "type": "button_press",
-      "position": { "x": 1250, "y": 50 },
+      "position": {
+        "x": 1250,
+        "y": 50
+      },
       "data": {
         "label": "Test Timer",
         "buttonTarget": "character",
@@ -213,7 +305,10 @@
     {
       "id": "chal-timer",
       "type": "timer_challenge",
-      "position": { "x": 1250, "y": 150 },
+      "position": {
+        "x": 1250,
+        "y": 150
+      },
       "data": {
         "label": "Timer Test",
         "duration": 5,
@@ -223,7 +318,10 @@
     {
       "id": "chal-timer-success",
       "type": "action",
-      "position": { "x": 1200, "y": 350 },
+      "position": {
+        "x": 1200,
+        "y": 350
+      },
       "data": {
         "label": "Success",
         "actionType": "system_message",
@@ -233,7 +331,10 @@
     {
       "id": "chal-timer-timeout",
       "type": "action",
-      "position": { "x": 1300, "y": 350 },
+      "position": {
+        "x": 1300,
+        "y": 350
+      },
       "data": {
         "label": "Timeout",
         "actionType": "system_message",
@@ -243,7 +344,10 @@
     {
       "id": "chal-btn-guess",
       "type": "button_press",
-      "position": { "x": 1500, "y": 50 },
+      "position": {
+        "x": 1500,
+        "y": 50
+      },
       "data": {
         "label": "Test Number Guess",
         "buttonTarget": "character",
@@ -253,7 +357,10 @@
     {
       "id": "chal-guess",
       "type": "number_guess",
-      "position": { "x": 1500, "y": 150 },
+      "position": {
+        "x": 1500,
+        "y": 150
+      },
       "data": {
         "label": "Number Guess Test",
         "min": 1,
@@ -265,7 +372,10 @@
     {
       "id": "chal-guess-correct",
       "type": "action",
-      "position": { "x": 1400, "y": 350 },
+      "position": {
+        "x": 1400,
+        "y": 350
+      },
       "data": {
         "label": "Correct",
         "actionType": "system_message",
@@ -275,7 +385,10 @@
     {
       "id": "chal-guess-close",
       "type": "action",
-      "position": { "x": 1500, "y": 350 },
+      "position": {
+        "x": 1500,
+        "y": 350
+      },
       "data": {
         "label": "Close",
         "actionType": "system_message",
@@ -285,7 +398,10 @@
     {
       "id": "chal-guess-wrong",
       "type": "action",
-      "position": { "x": 1600, "y": 350 },
+      "position": {
+        "x": 1600,
+        "y": 350
+      },
       "data": {
         "label": "Wrong",
         "actionType": "system_message",
@@ -295,7 +411,10 @@
     {
       "id": "chal-btn-slots",
       "type": "button_press",
-      "position": { "x": 100, "y": 500 },
+      "position": {
+        "x": 100,
+        "y": 500
+      },
       "data": {
         "label": "Test Slots",
         "buttonTarget": "character",
@@ -305,20 +424,40 @@
     {
       "id": "chal-slots",
       "type": "slot_machine",
-      "position": { "x": 100, "y": 600 },
+      "position": {
+        "x": 100,
+        "y": 600
+      },
       "data": {
         "label": "Slot Machine Test",
-        "symbols": ["🍒", "🍋", "🔔", "⭐", "7️⃣"],
+        "symbols": [
+          "🍒",
+          "🍋",
+          "🔔",
+          "⭐",
+          "7️⃣"
+        ],
         "matches": [
-          { "id": "jackpot", "pattern": "three-of-a-kind", "label": "Jackpot" },
-          { "id": "small-win", "pattern": "two-of-a-kind", "label": "Small Win" }
+          {
+            "id": "jackpot",
+            "pattern": "three-of-a-kind",
+            "label": "Jackpot"
+          },
+          {
+            "id": "small-win",
+            "pattern": "two-of-a-kind",
+            "label": "Small Win"
+          }
         ]
       }
     },
     {
       "id": "chal-slots-jackpot",
       "type": "action",
-      "position": { "x": 0, "y": 800 },
+      "position": {
+        "x": 0,
+        "y": 800
+      },
       "data": {
         "label": "Jackpot",
         "actionType": "system_message",
@@ -328,7 +467,10 @@
     {
       "id": "chal-slots-small",
       "type": "action",
-      "position": { "x": 100, "y": 800 },
+      "position": {
+        "x": 100,
+        "y": 800
+      },
       "data": {
         "label": "Small Win",
         "actionType": "system_message",
@@ -338,7 +480,10 @@
     {
       "id": "chal-slots-other",
       "type": "action",
-      "position": { "x": 200, "y": 800 },
+      "position": {
+        "x": 200,
+        "y": 800
+      },
       "data": {
         "label": "No Match",
         "actionType": "system_message",
@@ -348,7 +493,10 @@
     {
       "id": "chal-btn-cards",
       "type": "button_press",
-      "position": { "x": 400, "y": 500 },
+      "position": {
+        "x": 400,
+        "y": 500
+      },
       "data": {
         "label": "Test Card Draw",
         "buttonTarget": "character",
@@ -358,7 +506,10 @@
     {
       "id": "chal-cards",
       "type": "card_draw",
-      "position": { "x": 400, "y": 600 },
+      "position": {
+        "x": 400,
+        "y": 600
+      },
       "data": {
         "label": "Card Draw Test",
         "deckType": "standard",
@@ -368,7 +519,10 @@
     {
       "id": "chal-cards-hearts",
       "type": "action",
-      "position": { "x": 300, "y": 800 },
+      "position": {
+        "x": 300,
+        "y": 800
+      },
       "data": {
         "label": "Hearts",
         "actionType": "system_message",
@@ -378,7 +532,10 @@
     {
       "id": "chal-cards-diamonds",
       "type": "action",
-      "position": { "x": 375, "y": 800 },
+      "position": {
+        "x": 375,
+        "y": 800
+      },
       "data": {
         "label": "Diamonds",
         "actionType": "system_message",
@@ -388,7 +545,10 @@
     {
       "id": "chal-cards-clubs",
       "type": "action",
-      "position": { "x": 450, "y": 800 },
+      "position": {
+        "x": 450,
+        "y": 800
+      },
       "data": {
         "label": "Clubs",
         "actionType": "system_message",
@@ -398,7 +558,10 @@
     {
       "id": "chal-cards-spades",
       "type": "action",
-      "position": { "x": 525, "y": 800 },
+      "position": {
+        "x": 525,
+        "y": 800
+      },
       "data": {
         "label": "Spades",
         "actionType": "system_message",
@@ -408,7 +571,10 @@
     {
       "id": "chal-btn-simon",
       "type": "button_press",
-      "position": { "x": 700, "y": 500 },
+      "position": {
+        "x": 700,
+        "y": 500
+      },
       "data": {
         "label": "Test Simon",
         "buttonTarget": "character",
@@ -418,7 +584,10 @@
     {
       "id": "chal-simon",
       "type": "simon_challenge",
-      "position": { "x": 700, "y": 600 },
+      "position": {
+        "x": 700,
+        "y": 600
+      },
       "data": {
         "label": "Simon Test",
         "startingLength": 3,
@@ -435,7 +604,10 @@
     {
       "id": "chal-simon-win",
       "type": "action",
-      "position": { "x": 650, "y": 800 },
+      "position": {
+        "x": 650,
+        "y": 800
+      },
       "data": {
         "label": "Win",
         "actionType": "system_message",
@@ -445,7 +617,10 @@
     {
       "id": "chal-simon-lose",
       "type": "action",
-      "position": { "x": 750, "y": 800 },
+      "position": {
+        "x": 750,
+        "y": 800
+      },
       "data": {
         "label": "Lose",
         "actionType": "system_message",
@@ -455,7 +630,10 @@
     {
       "id": "chal-btn-reflex",
       "type": "button_press",
-      "position": { "x": 950, "y": 500 },
+      "position": {
+        "x": 950,
+        "y": 500
+      },
       "data": {
         "label": "Test Reflex",
         "buttonTarget": "character",
@@ -465,7 +643,10 @@
     {
       "id": "chal-reflex",
       "type": "reflex_challenge",
-      "position": { "x": 950, "y": 600 },
+      "position": {
+        "x": 950,
+        "y": 600
+      },
       "data": {
         "label": "Reflex Test",
         "timePerTarget": 3,
@@ -482,7 +663,10 @@
     {
       "id": "chal-reflex-win",
       "type": "action",
-      "position": { "x": 900, "y": 800 },
+      "position": {
+        "x": 900,
+        "y": 800
+      },
       "data": {
         "label": "Win",
         "actionType": "system_message",
@@ -492,7 +676,10 @@
     {
       "id": "chal-reflex-lose",
       "type": "action",
-      "position": { "x": 1000, "y": 800 },
+      "position": {
+        "x": 1000,
+        "y": 800
+      },
       "data": {
         "label": "Lose",
         "actionType": "system_message",

@@ -6,7 +6,10 @@
     {
       "id": "act-btn-messages",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Test Message Actions",
         "buttonTarget": "character",
@@ -16,7 +19,10 @@
     {
       "id": "act-msg-intro",
       "type": "action",
-      "position": { "x": 100, "y": 150 },
+      "position": {
+        "x": 100,
+        "y": 150
+      },
       "data": {
         "label": "Messages Test Intro",
         "actionType": "system_message",
@@ -26,7 +32,10 @@
     {
       "id": "act-send-message",
       "type": "action",
-      "position": { "x": 100, "y": 250 },
+      "position": {
+        "x": 100,
+        "y": 250
+      },
       "data": {
         "label": "AI Message Test",
         "actionType": "send_message",
@@ -45,7 +54,10 @@
     {
       "id": "act-player-message",
       "type": "action",
-      "position": { "x": 100, "y": 400 },
+      "position": {
+        "x": 100,
+        "y": 400
+      },
       "data": {
         "label": "Player Message Test",
         "actionType": "send_player_message",
@@ -56,7 +68,10 @@
     {
       "id": "act-system-message",
       "type": "action",
-      "position": { "x": 100, "y": 500 },
+      "position": {
+        "x": 100,
+        "y": 500
+      },
       "data": {
         "label": "System Message Test",
         "actionType": "system_message",
@@ -66,7 +81,10 @@
     {
       "id": "act-btn-variables",
       "type": "button_press",
-      "position": { "x": 400, "y": 50 },
+      "position": {
+        "x": 400,
+        "y": 50
+      },
       "data": {
         "label": "Test Variable Actions",
         "buttonTarget": "character",
@@ -76,7 +94,10 @@
     {
       "id": "act-var-intro",
       "type": "action",
-      "position": { "x": 400, "y": 150 },
+      "position": {
+        "x": 400,
+        "y": 150
+      },
       "data": {
         "label": "Variables Test Intro",
         "actionType": "system_message",
@@ -86,7 +107,10 @@
     {
       "id": "act-declare-var",
       "type": "action",
-      "position": { "x": 400, "y": 250 },
+      "position": {
+        "x": 400,
+        "y": 250
+      },
       "data": {
         "label": "Declare Variable",
         "actionType": "declare_variable",
@@ -97,7 +121,10 @@
     {
       "id": "act-show-var-1",
       "type": "action",
-      "position": { "x": 400, "y": 350 },
+      "position": {
+        "x": 400,
+        "y": 350
+      },
       "data": {
         "label": "Show Initial Value",
         "actionType": "system_message",
@@ -107,7 +134,10 @@
     {
       "id": "act-set-var",
       "type": "action",
-      "position": { "x": 400, "y": 450 },
+      "position": {
+        "x": 400,
+        "y": 450
+      },
       "data": {
         "label": "Set Variable",
         "actionType": "set_variable",
@@ -119,7 +149,10 @@
     {
       "id": "act-show-var-2",
       "type": "action",
-      "position": { "x": 400, "y": 550 },
+      "position": {
+        "x": 400,
+        "y": 550
+      },
       "data": {
         "label": "Show Updated Value",
         "actionType": "system_message",
@@ -129,7 +162,10 @@
     {
       "id": "act-btn-device",
       "type": "button_press",
-      "position": { "x": 700, "y": 50 },
+      "position": {
+        "x": 700,
+        "y": 50
+      },
       "data": {
         "label": "Test Device Actions",
         "buttonTarget": "character",
@@ -139,7 +175,10 @@
     {
       "id": "act-device-intro",
       "type": "action",
-      "position": { "x": 700, "y": 150 },
+      "position": {
+        "x": 700,
+        "y": 150
+      },
       "data": {
         "label": "Device Test Intro",
         "actionType": "system_message",
@@ -149,7 +188,10 @@
     {
       "id": "act-device-on",
       "type": "action",
-      "position": { "x": 700, "y": 250 },
+      "position": {
+        "x": 700,
+        "y": 250
+      },
       "data": {
         "label": "Device On Test",
         "actionType": "device_on",
@@ -164,7 +206,10 @@
     {
       "id": "act-device-on-immediate",
       "type": "action",
-      "position": { "x": 600, "y": 350 },
+      "position": {
+        "x": 600,
+        "y": 350
+      },
       "data": {
         "label": "Immediate Exit",
         "actionType": "system_message",
@@ -174,7 +219,10 @@
     {
       "id": "act-device-on-complete",
       "type": "action",
-      "position": { "x": 800, "y": 350 },
+      "position": {
+        "x": 800,
+        "y": 350
+      },
       "data": {
         "label": "Completion Exit",
         "actionType": "system_message",
@@ -184,7 +232,10 @@
     {
       "id": "act-cycle-start",
       "type": "action",
-      "position": { "x": 700, "y": 450 },
+      "position": {
+        "x": 700,
+        "y": 450
+      },
       "data": {
         "label": "Start Cycle Test",
         "actionType": "start_cycle",
@@ -200,7 +251,10 @@
     {
       "id": "act-cycle-complete",
       "type": "action",
-      "position": { "x": 700, "y": 550 },
+      "position": {
+        "x": 700,
+        "y": 550
+      },
       "data": {
         "label": "Cycle Complete",
         "actionType": "system_message",
@@ -210,7 +264,10 @@
     {
       "id": "act-btn-toggles",
       "type": "button_press",
-      "position": { "x": 1000, "y": 50 },
+      "position": {
+        "x": 1000,
+        "y": 50
+      },
       "data": {
         "label": "Test Toggle Actions",
         "buttonTarget": "character",
@@ -220,7 +277,10 @@
     {
       "id": "act-toggle-intro",
       "type": "action",
-      "position": { "x": 1000, "y": 150 },
+      "position": {
+        "x": 1000,
+        "y": 150
+      },
       "data": {
         "label": "Toggle Test Intro",
         "actionType": "system_message",
@@ -230,7 +290,10 @@
     {
       "id": "act-toggle-reminder",
       "type": "action",
-      "position": { "x": 1000, "y": 250 },
+      "position": {
+        "x": 1000,
+        "y": 250
+      },
       "data": {
         "label": "Toggle Reminder",
         "actionType": "toggle_reminder",
@@ -242,7 +305,10 @@
     {
       "id": "act-toggle-button",
       "type": "action",
-      "position": { "x": 1000, "y": 350 },
+      "position": {
+        "x": 1000,
+        "y": 350
+      },
       "data": {
         "label": "Toggle Button",
         "actionType": "toggle_button",
@@ -253,7 +319,10 @@
     {
       "id": "act-toggle-result",
       "type": "action",
-      "position": { "x": 1000, "y": 450 },
+      "position": {
+        "x": 1000,
+        "y": 450
+      },
       "data": {
         "label": "Toggle Result",
         "actionType": "system_message",

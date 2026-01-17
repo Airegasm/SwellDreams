@@ -6,7 +6,10 @@
     {
       "id": "trig-btn-device-on",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Test Device On Trigger",
         "buttonTarget": "character",
@@ -16,7 +19,10 @@
     {
       "id": "trig-device-on-msg",
       "type": "action",
-      "position": { "x": 100, "y": 150 },
+      "position": {
+        "x": 100,
+        "y": 150
+      },
       "data": {
         "label": "Device On Setup",
         "actionType": "system_message",
@@ -26,7 +32,10 @@
     {
       "id": "trig-device-on-trigger",
       "type": "trigger",
-      "position": { "x": 100, "y": 250 },
+      "position": {
+        "x": 100,
+        "y": 250
+      },
       "data": {
         "label": "Device On Listener",
         "triggerType": "device_on",
@@ -37,7 +46,10 @@
     {
       "id": "trig-device-on-result",
       "type": "action",
-      "position": { "x": 100, "y": 350 },
+      "position": {
+        "x": 100,
+        "y": 350
+      },
       "data": {
         "label": "Device On Result",
         "actionType": "system_message",
@@ -47,7 +59,10 @@
     {
       "id": "trig-btn-device-off",
       "type": "button_press",
-      "position": { "x": 350, "y": 50 },
+      "position": {
+        "x": 350,
+        "y": 50
+      },
       "data": {
         "label": "Test Device Off Trigger",
         "buttonTarget": "character",
@@ -57,7 +72,10 @@
     {
       "id": "trig-device-off-msg",
       "type": "action",
-      "position": { "x": 350, "y": 150 },
+      "position": {
+        "x": 350,
+        "y": 150
+      },
       "data": {
         "label": "Device Off Setup",
         "actionType": "system_message",
@@ -67,7 +85,10 @@
     {
       "id": "trig-device-off-trigger",
       "type": "trigger",
-      "position": { "x": 350, "y": 250 },
+      "position": {
+        "x": 350,
+        "y": 250
+      },
       "data": {
         "label": "Device Off Listener",
         "triggerType": "device_off",
@@ -78,7 +99,10 @@
     {
       "id": "trig-device-off-result",
       "type": "action",
-      "position": { "x": 350, "y": 350 },
+      "position": {
+        "x": 350,
+        "y": 350
+      },
       "data": {
         "label": "Device Off Result",
         "actionType": "system_message",
@@ -88,7 +112,10 @@
     {
       "id": "trig-btn-player-speaks",
       "type": "button_press",
-      "position": { "x": 600, "y": 50 },
+      "position": {
+        "x": 600,
+        "y": 50
+      },
       "data": {
         "label": "Test Player Speaks",
         "buttonTarget": "character",
@@ -98,7 +125,10 @@
     {
       "id": "trig-player-speaks-msg",
       "type": "action",
-      "position": { "x": 600, "y": 150 },
+      "position": {
+        "x": 600,
+        "y": 150
+      },
       "data": {
         "label": "Player Speaks Setup",
         "actionType": "system_message",
@@ -108,18 +138,28 @@
     {
       "id": "trig-player-speaks-trigger",
       "type": "trigger",
-      "position": { "x": 600, "y": 250 },
+      "position": {
+        "x": 600,
+        "y": 250
+      },
       "data": {
         "label": "Keyword Listener",
         "triggerType": "player_speaks",
-        "keywords": ["audit", "test*", "*check*"],
+        "keywords": [
+          "audit",
+          "test*",
+          "*check*"
+        ],
         "unblockable": true
       }
     },
     {
       "id": "trig-player-speaks-result",
       "type": "action",
-      "position": { "x": 600, "y": 350 },
+      "position": {
+        "x": 600,
+        "y": 350
+      },
       "data": {
         "label": "Player Speaks Result",
         "actionType": "system_message",
@@ -129,7 +169,10 @@
     {
       "id": "trig-btn-random",
       "type": "button_press",
-      "position": { "x": 850, "y": 50 },
+      "position": {
+        "x": 850,
+        "y": 50
+      },
       "data": {
         "label": "Test Random Trigger",
         "buttonTarget": "character",
@@ -139,7 +182,10 @@
     {
       "id": "trig-random-msg",
       "type": "action",
-      "position": { "x": 850, "y": 150 },
+      "position": {
+        "x": 850,
+        "y": 150
+      },
       "data": {
         "label": "Random Setup",
         "actionType": "system_message",
@@ -149,7 +195,10 @@
     {
       "id": "trig-random-trigger",
       "type": "trigger",
-      "position": { "x": 850, "y": 250 },
+      "position": {
+        "x": 850,
+        "y": 250
+      },
       "data": {
         "label": "Random 100%",
         "triggerType": "random",
@@ -160,7 +209,10 @@
     {
       "id": "trig-random-result",
       "type": "action",
-      "position": { "x": 850, "y": 350 },
+      "position": {
+        "x": 850,
+        "y": 350
+      },
       "data": {
         "label": "Random Result",
         "actionType": "system_message",
@@ -170,7 +222,10 @@
     {
       "id": "trig-btn-state-change",
       "type": "button_press",
-      "position": { "x": 1100, "y": 50 },
+      "position": {
+        "x": 1100,
+        "y": 50
+      },
       "data": {
         "label": "Test State Change",
         "buttonTarget": "character",
@@ -180,7 +235,10 @@
     {
       "id": "trig-state-msg",
       "type": "action",
-      "position": { "x": 1100, "y": 150 },
+      "position": {
+        "x": 1100,
+        "y": 150
+      },
       "data": {
         "label": "State Setup",
         "actionType": "system_message",
@@ -190,7 +248,10 @@
     {
       "id": "trig-state-trigger",
       "type": "trigger",
-      "position": { "x": 1100, "y": 250 },
+      "position": {
+        "x": 1100,
+        "y": 250
+      },
       "data": {
         "label": "Capacity >= 60",
         "triggerType": "player_state_change",
@@ -204,7 +265,10 @@
     {
       "id": "trig-state-result",
       "type": "action",
-      "position": { "x": 1100, "y": 350 },
+      "position": {
+        "x": 1100,
+        "y": 350
+      },
       "data": {
         "label": "State Result",
         "actionType": "system_message",
@@ -214,7 +278,10 @@
     {
       "id": "trig-btn-idle",
       "type": "button_press",
-      "position": { "x": 1350, "y": 50 },
+      "position": {
+        "x": 1350,
+        "y": 50
+      },
       "data": {
         "label": "Test Idle Trigger",
         "buttonTarget": "character",
@@ -224,7 +291,10 @@
     {
       "id": "trig-idle-msg",
       "type": "action",
-      "position": { "x": 1350, "y": 150 },
+      "position": {
+        "x": 1350,
+        "y": 150
+      },
       "data": {
         "label": "Idle Setup",
         "actionType": "system_message",
@@ -234,7 +304,10 @@
     {
       "id": "trig-idle-trigger",
       "type": "trigger",
-      "position": { "x": 1350, "y": 250 },
+      "position": {
+        "x": 1350,
+        "y": 250
+      },
       "data": {
         "label": "Idle 10s",
         "triggerType": "idle",
@@ -245,7 +318,10 @@
     {
       "id": "trig-idle-result",
       "type": "action",
-      "position": { "x": 1350, "y": 350 },
+      "position": {
+        "x": 1350,
+        "y": 350
+      },
       "data": {
         "label": "Idle Result",
         "actionType": "system_message",
@@ -255,7 +331,10 @@
     {
       "id": "trig-btn-new-session",
       "type": "trigger",
-      "position": { "x": 1600, "y": 50 },
+      "position": {
+        "x": 1600,
+        "y": 50
+      },
       "data": {
         "label": "New Session Trigger",
         "triggerType": "new_session",
@@ -265,7 +344,10 @@
     {
       "id": "trig-new-session-result",
       "type": "action",
-      "position": { "x": 1600, "y": 150 },
+      "position": {
+        "x": 1600,
+        "y": 150
+      },
       "data": {
         "label": "New Session Result",
         "actionType": "system_message",

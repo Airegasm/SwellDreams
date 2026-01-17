@@ -17,7 +17,8 @@
       },
       "data": {
         "label": "Status Report",
-        "triggerType": "button_press"
+        "triggerType": "button_press",
+        "buttonTarget": "persona"
       },
       "measured": {
         "width": 224,

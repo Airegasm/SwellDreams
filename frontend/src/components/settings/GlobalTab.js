@@ -707,12 +707,12 @@ function GlobalTab() {
     });
   };
 
-  const getFlowNames = () => {
-    const flowIds = getGlobalFlows();
-    return flowIds.map(id => {
-      const flow = flows.find(f => f.id === id);
-      return flow ? flow.name : null;
-    }).filter(Boolean);
+  const handleRemoveGlobalFlow = (flowId) => {
+    const currentFlows = getGlobalFlows();
+    const updatedFlows = currentFlows.filter(id => id !== flowId);
+    sendWsMessage('update_global_flows', {
+      flows: updatedFlows
+    });
   };
 
   return (
@@ -956,28 +956,32 @@ function GlobalTab() {
             They are bound to this chat session and will be saved/loaded with it.
           </p>
 
-          <div className="global-flows-card-inner">
-            <div className="flow-line">
+          <div className="global-flows-assignment">
+            <div className="flow-assignment-header">
               <span className="flow-line-label">Active Flows:</span>
-              <span className="flow-line-content">
-                {getFlowNames().join(', ') || 'None'}
-              </span>
               <button
                 className="btn btn-primary"
                 onClick={() => setShowFlowModal(true)}
               >
-                Manage Flows
+                Add Flows
               </button>
             </div>
-          </div>
-
-          {getGlobalFlows().length > 0 && (
-            <div className="flow-info">
-              <p>
-                {getGlobalFlows().length} global flow{getGlobalFlows().length !== 1 ? 's' : ''} assigned
-              </p>
+            <div className="association-badges">
+              {getGlobalFlows().length === 0 ? (
+                <span className="empty-hint">No flows assigned</span>
+              ) : (
+                getGlobalFlows().map(flowId => {
+                  const flow = flows.find(f => f.id === flowId);
+                  return flow ? (
+                    <span key={flowId} className="assoc-badge">
+                      {flow.name}
+                      <button type="button" className="badge-remove" onClick={() => handleRemoveGlobalFlow(flowId)}>−</button>
+                    </span>
+                  ) : null;
+                })
+              )}
             </div>
-          )}
+          </div>
         </div>
         )}
       </div>

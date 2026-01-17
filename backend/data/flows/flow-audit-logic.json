@@ -6,7 +6,10 @@
     {
       "id": "logic-btn-condition",
       "type": "button_press",
-      "position": { "x": 100, "y": 50 },
+      "position": {
+        "x": 100,
+        "y": 50
+      },
       "data": {
         "label": "Test Condition Node",
         "buttonTarget": "character",
@@ -16,7 +19,10 @@
     {
       "id": "logic-condition-intro",
       "type": "action",
-      "position": { "x": 100, "y": 150 },
+      "position": {
+        "x": 100,
+        "y": 150
+      },
       "data": {
         "label": "Condition Intro",
         "actionType": "system_message",
@@ -26,7 +32,10 @@
     {
       "id": "logic-condition",
       "type": "condition",
-      "position": { "x": 100, "y": 280 },
+      "position": {
+        "x": 100,
+        "y": 280
+      },
       "data": {
         "label": "Capacity Check",
         "conditions": [
@@ -46,7 +55,10 @@
     {
       "id": "logic-condition-t1",
       "type": "action",
-      "position": { "x": 0, "y": 400 },
+      "position": {
+        "x": 0,
+        "y": 400
+      },
       "data": {
         "label": "T1 Result",
         "actionType": "system_message",
@@ -56,7 +68,10 @@
     {
       "id": "logic-condition-t2",
       "type": "action",
-      "position": { "x": 150, "y": 400 },
+      "position": {
+        "x": 150,
+        "y": 400
+      },
       "data": {
         "label": "T2 Result",
         "actionType": "system_message",
@@ -66,7 +81,10 @@
     {
       "id": "logic-condition-false",
       "type": "action",
-      "position": { "x": 300, "y": 400 },
+      "position": {
+        "x": 300,
+        "y": 400
+      },
       "data": {
         "label": "FALSE Result",
         "actionType": "system_message",
@@ -76,7 +94,10 @@
     {
       "id": "logic-btn-branch",
       "type": "button_press",
-      "position": { "x": 500, "y": 50 },
+      "position": {
+        "x": 500,
+        "y": 50
+      },
       "data": {
         "label": "Test Branch Node",
         "buttonTarget": "character",
@@ -86,7 +107,10 @@
     {
       "id": "logic-branch-intro",
       "type": "action",
-      "position": { "x": 500, "y": 150 },
+      "position": {
+        "x": 500,
+        "y": 150
+      },
       "data": {
         "label": "Branch Intro",
         "actionType": "system_message",
@@ -96,21 +120,39 @@
     {
       "id": "logic-branch",
       "type": "branch",
-      "position": { "x": 500, "y": 280 },
+      "position": {
+        "x": 500,
+        "y": 280
+      },
       "data": {
         "label": "Random Branch",
         "branchType": "random",
         "branches": [
-          { "id": "branch-a", "label": "Path A", "weight": 33 },
-          { "id": "branch-b", "label": "Path B", "weight": 33 },
-          { "id": "branch-c", "label": "Path C", "weight": 34 }
+          {
+            "id": "branch-a",
+            "label": "Path A",
+            "weight": 33
+          },
+          {
+            "id": "branch-b",
+            "label": "Path B",
+            "weight": 33
+          },
+          {
+            "id": "branch-c",
+            "label": "Path C",
+            "weight": 34
+          }
         ]
       }
     },
     {
       "id": "logic-branch-a",
       "type": "action",
-      "position": { "x": 400, "y": 400 },
+      "position": {
+        "x": 400,
+        "y": 400
+      },
       "data": {
         "label": "Path A",
         "actionType": "system_message",
@@ -120,7 +162,10 @@
     {
       "id": "logic-branch-b",
       "type": "action",
-      "position": { "x": 550, "y": 400 },
+      "position": {
+        "x": 550,
+        "y": 400
+      },
       "data": {
         "label": "Path B",
         "actionType": "system_message",
@@ -130,7 +175,10 @@
     {
       "id": "logic-branch-c",
       "type": "action",
-      "position": { "x": 700, "y": 400 },
+      "position": {
+        "x": 700,
+        "y": 400
+      },
       "data": {
         "label": "Path C",
         "actionType": "system_message",
@@ -140,7 +188,10 @@
     {
       "id": "logic-btn-choice",
       "type": "button_press",
-      "position": { "x": 900, "y": 50 },
+      "position": {
+        "x": 900,
+        "y": 50
+      },
       "data": {
         "label": "Test Player Choice",
         "buttonTarget": "character",
@@ -150,7 +201,10 @@
     {
       "id": "logic-choice-intro",
       "type": "action",
-      "position": { "x": 900, "y": 150 },
+      "position": {
+        "x": 900,
+        "y": 150
+      },
       "data": {
         "label": "Choice Intro",
         "actionType": "system_message",
@@ -160,7 +214,10 @@
     {
       "id": "logic-choice",
       "type": "player_choice",
-      "position": { "x": 900, "y": 280 },
+      "position": {
+        "x": 900,
+        "y": 280
+      },
       "data": {
         "label": "Test Choices",
         "description": "Select an option to test choice routing:",
@@ -198,7 +255,10 @@
     {
       "id": "logic-choice-alpha",
       "type": "action",
-      "position": { "x": 800, "y": 450 },
+      "position": {
+        "x": 800,
+        "y": 450
+      },
       "data": {
         "label": "Alpha Selected",
         "actionType": "system_message",
@@ -208,7 +268,10 @@
     {
       "id": "logic-choice-beta",
       "type": "action",
-      "position": { "x": 950, "y": 450 },
+      "position": {
+        "x": 950,
+        "y": 450
+      },
       "data": {
         "label": "Beta Selected",
         "actionType": "system_message",
@@ -218,7 +281,10 @@
     {
       "id": "logic-choice-gamma",
       "type": "action",
-      "position": { "x": 1100, "y": 450 },
+      "position": {
+        "x": 1100,
+        "y": 450
+      },
       "data": {
         "label": "Gamma Selected",
         "actionType": "system_message",
@@ -228,7 +294,10 @@
     {
       "id": "logic-btn-ab",
       "type": "button_press",
-      "position": { "x": 1300, "y": 50 },
+      "position": {
+        "x": 1300,
+        "y": 50
+      },
       "data": {
         "label": "Test Simple A/B",
         "buttonTarget": "character",
@@ -238,7 +307,10 @@
     {
       "id": "logic-ab-intro",
       "type": "action",
-      "position": { "x": 1300, "y": 150 },
+      "position": {
+        "x": 1300,
+        "y": 150
+      },
       "data": {
         "label": "A/B Intro",
         "actionType": "system_message",
@@ -248,7 +320,10 @@
     {
       "id": "logic-simple-ab",
       "type": "simple_ab",
-      "position": { "x": 1300, "y": 280 },
+      "position": {
+        "x": 1300,
+        "y": 280
+      },
       "data": {
         "label": "A/B Choice",
         "description": "Choose Option A or Option B:",
@@ -261,7 +336,10 @@
     {
       "id": "logic-ab-a",
       "type": "action",
-      "position": { "x": 1200, "y": 400 },
+      "position": {
+        "x": 1200,
+        "y": 400
+      },
       "data": {
         "label": "Option A",
         "actionType": "system_message",
@@ -271,7 +349,10 @@
     {
       "id": "logic-ab-b",
       "type": "action",
-      "position": { "x": 1400, "y": 400 },
+      "position": {
+        "x": 1400,
+        "y": 400
+      },
       "data": {
         "label": "Option B",
         "actionType": "system_message",
@@ -281,7 +362,10 @@
     {
       "id": "logic-btn-delay",
       "type": "button_press",
-      "position": { "x": 1600, "y": 50 },
+      "position": {
+        "x": 1600,
+        "y": 50
+      },
       "data": {
         "label": "Test Delay Node",
         "buttonTarget": "character",
@@ -291,7 +375,10 @@
     {
       "id": "logic-delay-intro",
       "type": "action",
-      "position": { "x": 1600, "y": 150 },
+      "position": {
+        "x": 1600,
+        "y": 150
+      },
       "data": {
         "label": "Delay Intro",
         "actionType": "system_message",
@@ -301,7 +388,10 @@
     {
       "id": "logic-delay",
       "type": "delay",
-      "position": { "x": 1600, "y": 280 },
+      "position": {
+        "x": 1600,
+        "y": 280
+      },
       "data": {
         "label": "3 Second Delay",
         "duration": 3,
@@ -311,7 +401,10 @@
     {
       "id": "logic-delay-result",
       "type": "action",
-      "position": { "x": 1600, "y": 400 },
+      "position": {
+        "x": 1600,
+        "y": 400
+      },
       "data": {
         "label": "Delay Complete",
         "actionType": "system_message",
@@ -321,7 +414,10 @@
     {
       "id": "logic-btn-input",
       "type": "button_press",
-      "position": { "x": 1850, "y": 50 },
+      "position": {
+        "x": 1850,
+        "y": 50
+      },
       "data": {
         "label": "Test Input Node",
         "buttonTarget": "character",
@@ -331,7 +427,10 @@
     {
       "id": "logic-input-intro",
       "type": "action",
-      "position": { "x": 1850, "y": 150 },
+      "position": {
+        "x": 1850,
+        "y": 150
+      },
       "data": {
         "label": "Input Intro",
         "actionType": "system_message",
@@ -341,7 +440,10 @@
     {
       "id": "logic-input",
       "type": "input",
-      "position": { "x": 1850, "y": 280 },
+      "position": {
+        "x": 1850,
+        "y": 280
+      },
       "data": {
         "label": "Text Input",
         "inputType": "text",
@@ -354,7 +456,10 @@
     {
       "id": "logic-input-result",
       "type": "action",
-      "position": { "x": 1850, "y": 400 },
+      "position": {
+        "x": 1850,
+        "y": 400
+      },
       "data": {
         "label": "Input Result",
         "actionType": "system_message",
