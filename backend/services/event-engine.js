@@ -149,6 +149,7 @@ function resolveDeviceObject(deviceRef) {
 /**
  * Match text against a pattern with wildcards (*) and word alternatives [word/word/word]
  * Example: *how*much*[pump/put/force]*me* matches "How much more are you going to pump into me?"
+ * Simple keywords without wildcards use word-boundary matching to avoid substring false positives
  * @param {string} text - The text to match against
  * @param {string} pattern - The pattern with wildcards and alternatives
  * @returns {boolean} - Whether the text matches the pattern
@@ -156,6 +157,9 @@ function resolveDeviceObject(deviceRef) {
 function matchPattern(text, pattern) {
   if (!pattern) return true;
   if (!text) return false;
+
+  // Check if this is a simple keyword (no wildcards or alternatives)
+  const isSimpleKeyword = !pattern.includes('*') && !pattern.includes('[');
 
   // Convert pattern to regex
   // 1. Escape special regex characters (except * and [ ] /)
@@ -191,6 +195,12 @@ function matchPattern(text, pattern) {
       regexStr += char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       i++;
     }
+  }
+
+  // For simple keywords, add word boundaries to prevent matching inside other words
+  // e.g., "no" should NOT match "knowing" or "nervous"
+  if (isSimpleKeyword) {
+    regexStr = '\\b' + regexStr + '\\b';
   }
 
   try {
