@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title SwellDreams
 
 REM SwellDreams Production Startup Script
@@ -23,22 +24,22 @@ echo   SwellDreams v2.5b Production Server
 echo ========================================
 echo.
 
-REM Check if Node.js is installed, try to install if not
-where node >nul 2>nul
-if %ERRORLEVEL% neq 0 (
+REM Check if Node.js is installed
+where node >nul 2>&1
+if !errorlevel! neq 0 (
     echo Node.js not found. Attempting to install...
 
     REM Try winget first (Windows 10/11)
-    where winget >nul 2>nul
-    if %ERRORLEVEL% equ 0 (
+    where winget >nul 2>&1
+    if !errorlevel! equ 0 (
         echo Using winget to install Node.js...
         winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements
         goto :check_node_again
     )
 
     REM Try chocolatey
-    where choco >nul 2>nul
-    if %ERRORLEVEL% equ 0 (
+    where choco >nul 2>&1
+    if !errorlevel! equ 0 (
         echo Using Chocolatey to install Node.js...
         choco install nodejs-lts -y
         goto :check_node_again
@@ -52,9 +53,9 @@ if %ERRORLEVEL% neq 0 (
 
 :check_node_again
 REM Refresh PATH and verify
-call refreshenv >nul 2>nul
-where node >nul 2>nul
-if %ERRORLEVEL% neq 0 (
+call refreshenv >nul 2>&1
+where node >nul 2>&1
+if !errorlevel! neq 0 (
     echo Error: Node.js installation may require a restart.
     echo Please restart your terminal and run this script again.
     pause
@@ -63,21 +64,16 @@ if %ERRORLEVEL% neq 0 (
 echo Node.js found:
 node --version
 
-REM Check if Python is installed
-where python >nul 2>nul
-if %ERRORLEVEL% neq 0 (
-    echo Error: Python is not installed. Please install Python first.
-    pause
-    exit /b 1
-)
-
-REM Install Python dependencies
-echo Installing Python dependencies...
-py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
-if %ERRORLEVEL% neq 0 (
-    pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
-    if %ERRORLEVEL% neq 0 (
-        echo Warning: Could not install some Python dependencies. Some features may not work.
+REM Check if Python is installed (optional - only warn)
+where python >nul 2>&1
+if !errorlevel! neq 0 (
+    echo Warning: Python not found. Some features may be limited.
+) else (
+    REM Install Python dependencies
+    echo Installing Python dependencies...
+    py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+    if !errorlevel! neq 0 (
+        pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
     )
 )
 
