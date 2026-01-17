@@ -170,7 +170,8 @@
         "flow-luna-intimate-choices",
         "flow-luna-comfort-check",
         "flow-luna-reward-system",
-        "flow-luna-reactions"
+        "flow-luna-reactions",
+        "flow-luna-evening-start"
       ],
       "assignedButtons": [],
       "constantReminderIds": [
@@ -186,6 +187,7 @@
     "flow-luna-comfort-check",
     "flow-luna-reward-system",
     "flow-luna-reactions",
+    "flow-luna-evening-start",
     "5e15c48b-4765-4651-97a0-84a7ed82ef88"
   ],
   "activeStoryId": "luna-story-default"

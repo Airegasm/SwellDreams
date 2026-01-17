@@ -188,7 +188,8 @@
         "flow-vex-dice-of-destiny",
         "flow-vex-challenge-gauntlet",
         "flow-vex-bonus-round",
-        "flow-vex-reactions"
+        "flow-vex-reactions",
+        "flow-vex-gameshow-start"
       ],
       "assignedButtons": [],
       "constantReminderIds": [
@@ -205,6 +206,7 @@
     "flow-vex-challenge-gauntlet",
     "flow-vex-bonus-round",
     "flow-vex-reactions",
+    "flow-vex-gameshow-start",
     "5e15c48b-4765-4651-97a0-84a7ed82ef88"
   ],
   "activeStoryId": "vex-story-default"

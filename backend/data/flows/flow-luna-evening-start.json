@@ -1,0 +1,121 @@
+{
+  "id": "flow-luna-evening-start",
+  "name": "Luna's Evening Auto-Start",
+  "category": "character",
+  "description": "Automatically sets the mood and begins an intimate activity after session starts",
+  "isActive": true,
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "nodes": [
+    {
+      "id": "luna-es-start",
+      "type": "trigger",
+      "position": { "x": 250, "y": 50 },
+      "data": {
+        "label": "Session Starts",
+        "triggerType": "new_session",
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-es-settle",
+      "type": "action",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "label": "Settle In",
+        "actionType": "send_message",
+        "message": "*snuggles closer, fingers tracing lazy patterns on your skin* Mmm... I've been thinking about this all day, baby. Just you and me... *kisses your cheek* No interruptions.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "luna-es-mood",
+      "type": "action",
+      "position": { "x": 250, "y": 340 },
+      "data": {
+        "label": "Set the Mood",
+        "actionType": "send_message",
+        "message": "*reaches for the pump control, eyes meeting yours with warmth* I know exactly what I want to do with you tonight, sweetheart... *bites lip playfully* The question is... how should we start?",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "luna-es-random",
+      "type": "branch",
+      "position": { "x": 250, "y": 500 },
+      "data": {
+        "label": "Tonight's Activity",
+        "branchType": "random",
+        "branches": [
+          { "id": "intimate", "label": "Intimate Choices", "weight": 35 },
+          { "id": "comfort", "label": "Comfort & Care", "weight": 30 },
+          { "id": "reward", "label": "Reward Time", "weight": 35 }
+        ]
+      }
+    },
+    {
+      "id": "luna-es-intimate",
+      "type": "action",
+      "position": { "x": 0, "y": 680 },
+      "data": {
+        "label": "Start Intimate Choices",
+        "actionType": "link_to_flow",
+        "flowId": "flow-luna-intimate-choices",
+        "flowNodeId": "luna-ic-choice",
+        "preMessageEnabled": true,
+        "preMessage": "*pulls you closer, voice dropping to a whisper* I want to explore with you tonight, baby. Gentle... passionate... or maybe a little teasing? *hand hovers over the controls* You trust me, right?",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-es-comfort",
+      "type": "action",
+      "position": { "x": 250, "y": 680 },
+      "data": {
+        "label": "Start Comfort Check",
+        "actionType": "link_to_flow",
+        "flowId": "flow-luna-comfort-check",
+        "flowNodeId": "luna-cc-comfort-response",
+        "preMessageEnabled": true,
+        "preMessage": "*wraps arms around you protectively* Tonight I just want to hold you, baby. Feel you against me... *soft smile* We'll go slow. I want to make sure you feel safe and loved every step of the way.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-es-reward",
+      "type": "action",
+      "position": { "x": 500, "y": 680 },
+      "data": {
+        "label": "Start Reward System",
+        "actionType": "link_to_flow",
+        "flowId": "flow-luna-reward-system",
+        "flowNodeId": "luna-rw-intro",
+        "preMessageEnabled": true,
+        "preMessage": "*eyes sparkling with affection* You've been so good for me, sweetheart. So good. *trails fingers down your arm* I think you deserve a reward tonight... *grins* And I know exactly how to give it to you.",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "luna-es-start", "target": "luna-es-settle" },
+    { "id": "e2", "source": "luna-es-settle", "target": "luna-es-mood" },
+    { "id": "e3", "source": "luna-es-mood", "target": "luna-es-random" },
+    { "id": "e4", "source": "luna-es-random", "sourceHandle": "branch-0", "target": "luna-es-intimate" },
+    { "id": "e5", "source": "luna-es-random", "sourceHandle": "branch-1", "target": "luna-es-comfort" },
+    { "id": "e6", "source": "luna-es-random", "sourceHandle": "branch-2", "target": "luna-es-reward" }
+  ]
+}

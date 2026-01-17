@@ -170,7 +170,8 @@
         "flow-iris-data-collection",
         "flow-iris-capacity-study",
         "flow-iris-threshold-testing",
-        "flow-iris-reactions"
+        "flow-iris-reactions",
+        "flow-iris-protocol-start"
       ],
       "assignedButtons": [],
       "constantReminderIds": [
@@ -186,6 +187,7 @@
     "flow-iris-capacity-study",
     "flow-iris-threshold-testing",
     "flow-iris-reactions",
+    "flow-iris-protocol-start",
     "5e15c48b-4765-4651-97a0-84a7ed82ef88"
   ],
   "activeStoryId": "iris-story-default"

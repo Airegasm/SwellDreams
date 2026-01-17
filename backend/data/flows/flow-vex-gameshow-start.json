@@ -1,0 +1,139 @@
+{
+  "id": "flow-vex-gameshow-start",
+  "name": "Vex's Gameshow Auto-Start",
+  "category": "character",
+  "description": "Automatically kicks off a random gameshow game after session starts",
+  "isActive": true,
+  "createdAt": 1737158400000,
+  "updatedAt": 1737158400000,
+  "nodes": [
+    {
+      "id": "vex-gs-start",
+      "type": "trigger",
+      "position": { "x": 250, "y": 50 },
+      "data": {
+        "label": "Session Starts",
+        "triggerType": "new_session",
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-gs-delay",
+      "type": "action",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "label": "Build Suspense",
+        "actionType": "send_message",
+        "message": "*dramatic music swells* NOW THEN! *rubs hands together* Before we get TOO comfortable... *eyes gleam* ...it's time to see what FATE has in store for our contestant today!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false,
+        "postDelay": 3
+      }
+    },
+    {
+      "id": "vex-gs-selection",
+      "type": "action",
+      "position": { "x": 250, "y": 340 },
+      "data": {
+        "label": "Game Selection Moment",
+        "actionType": "send_message",
+        "message": "*gestures to massive spinning selector* BEHOLD! The WHEEL OF GAMES! *pulls lever* Round and round it goes... where it stops... *dramatic pause* ...NOBODY knows!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "vex-gs-random",
+      "type": "branch",
+      "position": { "x": 250, "y": 500 },
+      "data": {
+        "label": "Pick Random Game",
+        "branchType": "random",
+        "branches": [
+          { "id": "wheel", "label": "Wheel of Fate", "weight": 25 },
+          { "id": "dice", "label": "Dice of Destiny", "weight": 25 },
+          { "id": "gauntlet", "label": "Challenge Gauntlet", "weight": 25 },
+          { "id": "bonus", "label": "Bonus Round", "weight": 25 }
+        ]
+      }
+    },
+    {
+      "id": "vex-gs-wheel",
+      "type": "action",
+      "position": { "x": -50, "y": 680 },
+      "data": {
+        "label": "Start Wheel of Fate",
+        "actionType": "link_to_flow",
+        "flowId": "flow-vex-wheel-of-fate",
+        "flowNodeId": "vex-wf-intro",
+        "preMessageEnabled": true,
+        "preMessage": "*DING DING DING* THE WHEEL OF FATE! *spotlight snaps to giant wheel* Oh, this is a CLASSIC! Step right up, contestant - let's see if Lady Luck is on YOUR side!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-gs-dice",
+      "type": "action",
+      "position": { "x": 150, "y": 680 },
+      "data": {
+        "label": "Start Dice of Destiny",
+        "actionType": "link_to_flow",
+        "flowId": "flow-vex-dice-of-destiny",
+        "flowNodeId": "vex-dd-intro",
+        "preMessageEnabled": true,
+        "preMessage": "*CRASH* DICE OF DESTINY! *produces glowing dice* The bones never lie, contestant! Roll low to survive... roll HIGH... *evil cackle* ...well, let's just say the audience LOVES a high roller!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-gs-gauntlet",
+      "type": "action",
+      "position": { "x": 350, "y": 680 },
+      "data": {
+        "label": "Start Challenge Gauntlet",
+        "actionType": "link_to_flow",
+        "flowId": "flow-vex-challenge-gauntlet",
+        "flowNodeId": "vex-cg-intro",
+        "preMessageEnabled": true,
+        "preMessage": "*GONG SOUNDS* THE CHALLENGE GAUNTLET! *arena lights flare* THREE challenges! THREE chances to prove yourself! Fail ANY... *ominous music* ...and face the CONSEQUENCES!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-gs-bonus",
+      "type": "action",
+      "position": { "x": 550, "y": 680 },
+      "data": {
+        "label": "Start Bonus Round",
+        "actionType": "link_to_flow",
+        "flowId": "flow-vex-bonus-round",
+        "flowNodeId": "vex-br-intro",
+        "preMessageEnabled": true,
+        "preMessage": "*FIREWORKS EXPLODE* THE BONUS ROUND?! *jaw drops* On the FIRST spin?! *audience goes wild* Ladies and gentlemen, our contestant is going STRAIGHT to the big leagues! This is where LEGENDS are made... or BROKEN!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "vex-gs-start", "target": "vex-gs-delay" },
+    { "id": "e2", "source": "vex-gs-delay", "target": "vex-gs-selection" },
+    { "id": "e3", "source": "vex-gs-selection", "target": "vex-gs-random" },
+    { "id": "e4", "source": "vex-gs-random", "sourceHandle": "branch-0", "target": "vex-gs-wheel" },
+    { "id": "e5", "source": "vex-gs-random", "sourceHandle": "branch-1", "target": "vex-gs-dice" },
+    { "id": "e6", "source": "vex-gs-random", "sourceHandle": "branch-2", "target": "vex-gs-gauntlet" },
+    { "id": "e7", "source": "vex-gs-random", "sourceHandle": "branch-3", "target": "vex-gs-bonus" }
+  ]
+}
