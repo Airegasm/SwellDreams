@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Tapo Device Control Script
-Uses plugp100 library with proper KLAP protocol support
+Uses 'tapo' library (Rust-based, more compatible)
 
 Usage:
   python tapo-control.py <command> <ip> <email> <password>
@@ -17,113 +17,73 @@ import sys
 import json
 import asyncio
 
-# Try to import plugp100 with helpful error message
+# Try to import tapo library
 try:
-    from plugp100.new.device_factory import connect, DeviceConnectConfiguration
-    from plugp100.common.credentials import AuthCredential
+    from tapo import ApiClient
 except ImportError as e:
     print(json.dumps({
         "success": False,
-        "error": f"plugp100 library not installed properly: {e}. Try: pip install plugp100"
-    }))
-    sys.exit(1)
-except Exception as e:
-    print(json.dumps({
-        "success": False,
-        "error": f"Failed to import plugp100: {type(e).__name__}: {e}"
+        "error": f"tapo library not installed. Try: pip install tapo"
     }))
     sys.exit(1)
 
 async def get_device(ip: str, email: str, password: str):
     """Create authenticated Tapo device connection"""
+    client = ApiClient(email, password)
+    # Try P100/P105 first (most common), then P110/P115
     try:
-        credentials = AuthCredential(email, password)
-        config = DeviceConnectConfiguration(host=ip, credentials=credentials)
-        device = await connect(config)
+        device = await client.p100(ip)
         return device
-    except TypeError as e:
-        # Handle "super() argument" errors which may indicate Python version issues
-        if "super()" in str(e):
-            raise Exception(f"Python compatibility error. Try upgrading Python to 3.10+ or reinstalling plugp100: {e}")
-        raise
+    except:
+        try:
+            device = await client.p110(ip)
+            return device
+        except Exception as e:
+            raise Exception(f"Could not connect to Tapo device at {ip}: {e}")
 
 async def turn_on(ip: str, email: str, password: str):
     """Turn device on"""
-    device = None
     try:
         device = await get_device(ip, email, password)
         await device.on()
         return {"success": True, "state": "on"}
     except Exception as e:
         return {"success": False, "error": str(e)}
-    finally:
-        if device and hasattr(device, 'close'):
-            try:
-                await device.close()
-            except:
-                pass
 
 async def turn_off(ip: str, email: str, password: str):
     """Turn device off"""
-    device = None
     try:
         device = await get_device(ip, email, password)
         await device.off()
         return {"success": True, "state": "off"}
     except Exception as e:
         return {"success": False, "error": str(e)}
-    finally:
-        if device and hasattr(device, 'close'):
-            try:
-                await device.close()
-            except:
-                pass
 
 async def get_state(ip: str, email: str, password: str):
     """Get device power state"""
-    device = None
     try:
         device = await get_device(ip, email, password)
         info = await device.get_device_info()
-        # Handle both dict and object responses
-        if hasattr(info, 'device_on'):
-            device_on = info.device_on
-        elif isinstance(info, dict):
-            device_on = info.get("device_on", False)
-        else:
-            device_on = getattr(info, 'device_on', False)
+        device_on = info.device_on if hasattr(info, 'device_on') else False
         return {"success": True, "state": "on" if device_on else "off"}
     except Exception as e:
         return {"success": False, "error": str(e)}
-    finally:
-        if device and hasattr(device, 'close'):
-            try:
-                await device.close()
-            except:
-                pass
 
 async def get_info(ip: str, email: str, password: str):
     """Get device info"""
-    device = None
     try:
         device = await get_device(ip, email, password)
         info = await device.get_device_info()
-        # Convert to dict if it's an object
-        if hasattr(info, '__dict__'):
-            info_dict = {k: v for k, v in info.__dict__.items() if not k.startswith('_')}
-        elif isinstance(info, dict):
-            info_dict = info
-        else:
-            info_dict = {"raw": str(info)}
+        # Convert to dict
+        info_dict = {}
+        for attr in ['device_id', 'type', 'model', 'nickname', 'device_on', 'on_time',
+                     'overheated', 'ip', 'mac', 'hw_ver', 'fw_ver', 'rssi', 'ssid']:
+            if hasattr(info, attr):
+                val = getattr(info, attr)
+                info_dict[attr] = val
         return {"success": True, "info": info_dict}
     except Exception as e:
         return {"success": False, "error": str(e)}
-    finally:
-        if device and hasattr(device, 'close'):
-            try:
-                await device.close()
-            except:
-                pass
 
 async def main():
     if len(sys.argv) < 5:

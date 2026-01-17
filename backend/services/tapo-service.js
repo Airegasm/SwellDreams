@@ -22,7 +22,7 @@ class TapoService {
   }
 
   /**
-   * Check if Python and plugp100 are available, auto-install if needed
+   * Check if Python and tapo library are available, auto-install if needed
    * @returns {boolean|string} true if ready, error message string if not
    */
   _ensurePythonReady() {
@@ -39,27 +39,27 @@ class TapoService {
       return this.pythonReady;
     }
 
-    // Check if plugp100 is installed
+    // Check if tapo library is installed
     try {
-      execSync(`${PYTHON_CMD} -c "import plugp100"`, { encoding: 'utf8', stdio: 'pipe' });
-      log.info('Python plugp100 library is ready');
+      execSync(`${PYTHON_CMD} -c "from tapo import ApiClient"`, { encoding: 'utf8', stdio: 'pipe' });
+      log.info('Python tapo library is ready');
       this.pythonReady = true;
       return true;
     } catch (error) {
       // Not installed, try to auto-install
-      log.info('plugp100 not found, attempting auto-install...');
+      log.info('tapo library not found, attempting auto-install...');
       try {
         const pipFlags = process.platform === 'linux' ? '--break-system-packages' : '';
-        execSync(`${PIP_CMD} install ${pipFlags} plugp100>=5.1.0`, {
+        execSync(`${PIP_CMD} install ${pipFlags} tapo`, {
           encoding: 'utf8',
           stdio: 'pipe',
           timeout: 120000
         });
-        log.info('Successfully installed plugp100');
+        log.info('Successfully installed tapo library');
         this.pythonReady = true;
         return true;
       } catch (installError) {
-        this.pythonReady = `Failed to install plugp100: ${installError.message}. Try manually: ${PIP_CMD} install plugp100`;
+        this.pythonReady = `Failed to install tapo: ${installError.message}. Try manually: ${PIP_CMD} install tapo`;
         log.error(this.pythonReady);
         return this.pythonReady;
       }

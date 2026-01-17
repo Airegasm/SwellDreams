@@ -4,5 +4,5 @@
 # Wyze smart home device control
 wyze-sdk>=2.0.0
 
-# TP-Link Tapo device control (KLAP protocol support)
-plugp100>=5.1.0
+# TP-Link Tapo device control (Rust-based, better compatibility)
+tapo
