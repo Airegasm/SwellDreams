@@ -16,9 +16,13 @@ function DataTab() {
 
   // Collapsible section states
   const [expandedSections, setExpandedSections] = useState({
-    export: true,
-    import: true,
-    backup: true
+    export: false,
+    import: false,
+    backup: false,
+    // Sub-sections within export
+    characters: false,
+    personas: false,
+    flows: false
   });
 
   const toggleSection = (section) => {
@@ -166,67 +170,88 @@ function DataTab() {
             </p>
 
             {/* Characters */}
-            <div className="export-category">
-              <h4>Characters ({characters.length})</h4>
-              {characters.length === 0 ? (
-                <p className="empty-message">No characters to export</p>
-              ) : (
-                <div className="export-list">
-                  {characters.map(char => (
-                    <div key={char.id} className="export-item">
-                      <span className="export-item-name">{char.name}</span>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => handleExportCharacter(char)}
-                      >
-                        Export
-                      </button>
+            <div className="export-category-collapsible">
+              <div className="export-category-header" onClick={() => toggleSection('characters')}>
+                <span>Characters ({characters.length})</span>
+                <span className="collapse-icon">{expandedSections.characters ? '▼' : '▶'}</span>
+              </div>
+              {expandedSections.characters && (
+                <div className="export-category-content">
+                  {characters.length === 0 ? (
+                    <p className="empty-message">No characters to export</p>
+                  ) : (
+                    <div className="export-list">
+                      {characters.map(char => (
+                        <div key={char.id} className="export-item">
+                          <span className="export-item-name">{char.name}</span>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleExportCharacter(char)}
+                          >
+                            Export
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
 
             {/* Personas */}
-            <div className="export-category">
-              <h4>Personas ({personas.length})</h4>
-              {personas.length === 0 ? (
-                <p className="empty-message">No personas to export</p>
-              ) : (
-                <div className="export-list">
-                  {personas.map(persona => (
-                    <div key={persona.id} className="export-item">
-                      <span className="export-item-name">{persona.name}</span>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => handleExportPersona(persona)}
-                      >
-                        Export
-                      </button>
+            <div className="export-category-collapsible">
+              <div className="export-category-header" onClick={() => toggleSection('personas')}>
+                <span>Personas ({personas.length})</span>
+                <span className="collapse-icon">{expandedSections.personas ? '▼' : '▶'}</span>
+              </div>
+              {expandedSections.personas && (
+                <div className="export-category-content">
+                  {personas.length === 0 ? (
+                    <p className="empty-message">No personas to export</p>
+                  ) : (
+                    <div className="export-list">
+                      {personas.map(persona => (
+                        <div key={persona.id} className="export-item">
+                          <span className="export-item-name">{persona.name}</span>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleExportPersona(persona)}
+                          >
+                            Export
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
 
             {/* Flows */}
-            <div className="export-category">
-              <h4>Flows ({flows.length})</h4>
-              {flows.length === 0 ? (
-                <p className="empty-message">No flows to export</p>
-              ) : (
-                <div className="export-list">
-                  {flows.map(flow => (
-                    <div key={flow.id} className="export-item">
-                      <span className="export-item-name">{flow.name}</span>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => handleExportFlow(flow)}
-                      >
-                        Export
-                      </button>
+            <div className="export-category-collapsible">
+              <div className="export-category-header" onClick={() => toggleSection('flows')}>
+                <span>Flows ({flows.length})</span>
+                <span className="collapse-icon">{expandedSections.flows ? '▼' : '▶'}</span>
+              </div>
+              {expandedSections.flows && (
+                <div className="export-category-content">
+                  {flows.length === 0 ? (
+                    <p className="empty-message">No flows to export</p>
+                  ) : (
+                    <div className="export-list">
+                      {flows.map(flow => (
+                        <div key={flow.id} className="export-item">
+                          <span className="export-item-name">{flow.name}</span>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleExportFlow(flow)}
+                          >
+                            Export
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
