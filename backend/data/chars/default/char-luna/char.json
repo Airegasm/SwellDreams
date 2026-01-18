@@ -7,7 +7,7 @@
   "startingEmotion": "blissful",
   "autoReplyEnabled": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1768647282788,
+  "updatedAt": 1768695363316,
   "exampleDialogues": [
     {
       "user": "*[Player] shifts nervously* I'm not sure I can handle much more...",
@@ -187,8 +187,7 @@
     "flow-luna-comfort-check",
     "flow-luna-reward-system",
     "flow-luna-reactions",
-    "flow-luna-evening-start",
-    "5e15c48b-4765-4651-97a0-84a7ed82ef88"
+    "flow-luna-evening-start"
   ],
   "activeStoryId": "luna-story-default"
 }
