@@ -4967,15 +4967,16 @@ app.get('/api/updates/check', async (req, res) => {
   }
 });
 
-// Manual pull endpoint - for when auto-update fails (e.g., git identity issues)
+// Manual pull endpoint - for when auto-update fails
 app.post('/api/updates/pull', async (req, res) => {
   const { execSync } = require('child_process');
   const projectRoot = path.join(__dirname, '..');
 
   try {
     console.log('[Updates] Manual pull requested...');
-    // Use temporary git identity to avoid "please tell me who you are" error
-    execSync('git -c user.email="update@swelldreams.local" -c user.name="SwellDreams" pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+    // Fetch and reset to remote - no merge needed, ensures exact match with remote
+    execSync('git fetch origin master', { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    execSync('git reset --hard origin/master', { cwd: projectRoot, stdio: 'pipe' });
     console.log('[Updates] Manual pull successful');
     res.json({ success: true, message: 'Pull successful. Please restart the application.' });
   } catch (error) {
@@ -4990,9 +4991,12 @@ app.post('/api/updates/install', async (req, res) => {
   const isWindows = process.platform === 'win32';
 
   try {
-    // Pull latest changes with temporary git identity (avoids "please tell me who you are" error)
-    console.log('[Updates] Pulling latest changes...');
-    execSync('git -c user.email="update@swelldreams.local" -c user.name="SwellDreams" pull origin master', { cwd: projectRoot, stdio: 'pipe' });
+    // Fetch and reset to remote (no merge, no committer identity needed)
+    // This ensures local repo always matches remote exactly - users shouldn't modify tracked files
+    console.log('[Updates] Fetching latest changes...');
+    execSync('git fetch origin master', { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    console.log('[Updates] Resetting to remote...');
+    execSync('git reset --hard origin/master', { cwd: projectRoot, stdio: 'pipe' });
 
     // Clear Python bytecode cache to ensure fresh script execution
     const pycacheDir = path.join(__dirname, 'scripts', '__pycache__');
