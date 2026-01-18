@@ -604,20 +604,12 @@ class EventEngine {
         nodeStep.details = `AI Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
 
-        // Actually send the message
-        await this.broadcast('ai_message', {
-          content: message,
-          sender: 'flow',
-          suppressLlm: data.suppressLlm || false,
-          flowId: flow.id,
-          nodeId: nodeId
-        });
-
+        // Show in console instead of chat
         this.emitTestStep({
-          type: 'broadcast',
-          label: 'AI Message sent',
+          type: 'message',
+          label: 'AI Message',
           details: message,
-          broadcastType: 'ai_message'
+          messageType: 'ai'
         });
         return true;
       }
@@ -627,20 +619,12 @@ class EventEngine {
         nodeStep.details = `Player Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
 
-        // Actually send the message
-        await this.broadcast('player_message', {
-          content: message,
-          sender: 'flow',
-          suppressLlm: data.suppressLlm || false,
-          flowId: flow.id,
-          nodeId: nodeId
-        });
-
+        // Show in console instead of chat
         this.emitTestStep({
-          type: 'broadcast',
-          label: 'Player Message sent',
+          type: 'message',
+          label: 'Player Message',
           details: message,
-          broadcastType: 'player_message'
+          messageType: 'player'
         });
         return true;
       }
@@ -649,7 +633,14 @@ class EventEngine {
         const message = this.substituteVariables(data.message || '');
         nodeStep.details = `System Message: "${message.substring(0, 50)}..."`;
         this.emitTestStep(nodeStep);
-        await this.broadcast('system_message', { content: message });
+
+        // Show in console instead of chat
+        this.emitTestStep({
+          type: 'message',
+          label: 'System Message',
+          details: message,
+          messageType: 'system'
+        });
         return true;
       }
 
