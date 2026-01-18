@@ -61,11 +61,14 @@
 /* Modal Tabs - Underline style matching Settings */
 .character-modal-tabs {
   display: flex;
+  flex-wrap: wrap;
   padding: var(--spacing-sm) var(--spacing-lg);
   background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
   border-bottom: 1px solid var(--border-color);
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm) var(--spacing-md);
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .character-modal-tabs .modal-tab {

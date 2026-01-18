@@ -28,6 +28,12 @@ export function useDraft(draftKey, initialData, isOpen) {
         initializedRef.current = false;
       }
 
+      // Skip if already initialized - don't reset formData when initialData changes
+      // This prevents losing user changes when background data updates
+      if (initializedRef.current) {
+        return;
+      }
+
       const storageKey = `swelldreams-draft-${draftKey}`;
       const savedDraft = sessionStorage.getItem(storageKey);
 

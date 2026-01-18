@@ -833,10 +833,12 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   };
 
   const handleToggleButton = (buttonId, enabled) => {
-    const updatedButtons = buttons.map(b =>
-      b.buttonId === buttonId ? { ...b, enabled } : b
-    );
-    setFormData({ ...formData, buttons: updatedButtons });
+    setFormData(prev => ({
+      ...prev,
+      buttons: (prev.buttons || []).map(b =>
+        b.buttonId === buttonId ? { ...b, enabled } : b
+      )
+    }));
   };
 
   const handleEditButton = (button) => {
@@ -847,8 +849,10 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
 
   const handleDeleteButton = (buttonId) => {
     if (window.confirm('Delete this button?')) {
-      const updatedButtons = buttons.filter(b => b.buttonId !== buttonId);
-      setFormData({ ...formData, buttons: updatedButtons });
+      setFormData(prev => ({
+        ...prev,
+        buttons: (prev.buttons || []).filter(b => b.buttonId !== buttonId)
+      }));
     }
   };
 
@@ -858,14 +862,23 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       return;
     }
 
-    if (editingButtonId !== null) {
-      const updatedButtons = buttons.map(b =>
-        b.buttonId === editingButtonId ? buttonForm : b
-      );
-      setFormData({ ...formData, buttons: updatedButtons });
-    } else {
-      setFormData({ ...formData, buttons: [...buttons, buttonForm] });
-    }
+    // Use functional update to avoid stale closure issues
+    setFormData(prev => {
+      const currentButtons = prev.buttons || [];
+      if (editingButtonId !== null) {
+        return {
+          ...prev,
+          buttons: currentButtons.map(b =>
+            b.buttonId === editingButtonId ? buttonForm : b
+          )
+        };
+      } else {
+        return {
+          ...prev,
+          buttons: [...currentButtons, buttonForm]
+        };
+      }
+    });
 
     setShowButtonForm(false);
     setEditingButtonId(null);
