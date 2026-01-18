@@ -11,7 +11,9 @@ function CharacterTab() {
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
+  const [importing, setImporting] = useState(false);
   const listRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Sort characters with active one first
   const sortedCharacters = [...characters].sort((a, b) => {
@@ -108,14 +110,67 @@ function CharacterTab() {
     }
   };
 
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validate file type
+      if (data.type !== 'swelldreams-character') {
+        throw new Error('Invalid file: Expected a SwellDreams character export file.');
+      }
+
+      const result = await apiFetch(`${API_BASE}/api/import/character`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      showSuccess?.(`Imported "${result.character?.name || 'character'}" successfully`);
+    } catch (error) {
+      console.error('Failed to import character:', error);
+      showError?.(error.message || 'Failed to import character');
+    } finally {
+      setImporting(false);
+      // Reset file input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="settings-tab">
       <div className="tab-header-actions">
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImport}
+          accept=".json"
+          style={{ display: 'none' }}
+        />
         <button
           className="btn btn-primary"
           onClick={handleNew}
         >
           + New Character
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={handleImportClick}
+          disabled={importing}
+          title="Import character from JSON file"
+        >
+          {importing ? 'Importing...' : 'Import'}
         </button>
       </div>
 
