@@ -599,6 +599,12 @@ function FlowEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Refs to access current nodes/edges in callbacks without stale closures
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+
   // In per-flow mode, flows array only contains index data, so we also check current nodes
   const flowVariables = useMemo(() => {
     const variableNames = new Set();
@@ -755,8 +761,12 @@ function FlowEditor() {
   }, []);
 
   // Handle test node - execute flow test from a specific node
+  // Uses refs to avoid stale closure issues with onTest callbacks
   const handleTestNode = useCallback((nodeId) => {
-    if (nodes.length === 0) {
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+
+    if (currentNodes.length === 0) {
       addConsoleEntry({
         icon: 'error',
         category: 'error',
@@ -769,7 +779,7 @@ function FlowEditor() {
     setTestResults(null);
 
     // Add console entry for test start
-    const node = nodes.find(n => n.id === nodeId);
+    const node = currentNodes.find(n => n.id === nodeId);
     addConsoleEntry({
       icon: 'test_start',
       category: 'test_start',
@@ -777,7 +787,7 @@ function FlowEditor() {
     });
 
     // Strip runtime handlers from nodes before sending
-    const cleanNodes = nodes.map(n => {
+    const cleanNodes = currentNodes.map(n => {
       const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = n.data;
       return { ...n, data: cleanData };
     });
@@ -790,10 +800,10 @@ function FlowEditor() {
         id: selectedFlow?.id || 'unsaved',
         name: flowName || 'Unsaved Flow',
         nodes: cleanNodes,
-        edges: edges
+        edges: currentEdges
       }
     });
-  }, [selectedFlow, sendWsMessage, nodes, edges, flowName, addConsoleEntry]);
+  }, [selectedFlow, sendWsMessage, flowName, addConsoleEntry]);
 
   const handleCopyNode = useCallback(() => {
     if (!contextMenu) return;

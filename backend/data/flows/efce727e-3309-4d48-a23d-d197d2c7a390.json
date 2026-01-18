@@ -1,0 +1,166 @@
+{
+  "id": "efce727e-3309-4d48-a23d-d197d2c7a390",
+  "name": "Status Report",
+  "description": "Report player capacity status via persona button",
+  "category": "persona",
+  "characterId": null,
+  "isActive": true,
+  "createdAt": 1768518798108,
+  "updatedAt": 1768537614931,
+  "nodes": [
+    {
+      "id": "status-report-button",
+      "type": "button_press",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "data": {
+        "label": "Status Report",
+        "triggerType": "button_press",
+        "buttonTarget": "persona"
+      },
+      "measured": {
+        "width": 224,
+        "height": 206
+      }
+    },
+    {
+      "id": "status-report-player-msg",
+      "type": "capacity_player_message",
+      "position": {
+        "x": 100,
+        "y": 250
+      },
+      "data": {
+        "label": "Player Status",
+        "messageType": "player",
+        "suppressLlm": false,
+        "postDelay": 2,
+        "ranges": {
+          "range_0_10": {
+            "message": "[Player] reports feeling completely empty and deflated, almost hollow inside.",
+            "enableOutput": false
+          },
+          "range_11_20": {
+            "message": "[Player] admits to feeling the first hints of pressure building, a subtle tightness beginning.",
+            "enableOutput": false
+          },
+          "range_21_30": {
+            "message": "[Player] confesses the swelling is becoming noticeable now, breathing a little harder.",
+            "enableOutput": false
+          },
+          "range_31_40": {
+            "message": "[Player] gasps that their belly is visibly distended, the pressure mounting steadily.",
+            "enableOutput": false
+          },
+          "range_41_50": {
+            "message": "[Player] whimpers that they're halfway to capacity, skin growing taut and sensitive.",
+            "enableOutput": false
+          },
+          "range_51_60": {
+            "message": "[Player] moans that the pressure is becoming overwhelming, each breath labored.",
+            "enableOutput": false
+          },
+          "range_61_70": {
+            "message": "[Player] pleads that they're so full it's almost unbearable, stretched to their limits.",
+            "enableOutput": false
+          },
+          "range_71_80": {
+            "message": "[Player] cries out that their capacity is nearly maxed, every sensation amplified.",
+            "enableOutput": false
+          },
+          "range_81_90": {
+            "message": "[Player] desperately reports they're approaching critical fullness, barely able to speak.",
+            "enableOutput": false
+          },
+          "range_91_100": {
+            "message": "[Player] gasps that they've reached absolute maximum capacity, completely overwhelmed.",
+            "enableOutput": false
+          },
+          "range_over_100": {
+            "message": "[Player] whimpers in disbelief that they've exceeded all known limits, body trembling.",
+            "enableOutput": false
+          }
+        }
+      },
+      "measured": {
+        "width": 280,
+        "height": 441
+      }
+    },
+    {
+      "id": "status-report-ai-msg",
+      "type": "capacity_ai_message",
+      "position": {
+        "x": 496.6610919764029,
+        "y": 330.8981055423333
+      },
+      "data": {
+        "label": "AI Response",
+        "messageType": "ai",
+        "suppressLlm": false,
+        "postDelay": 3,
+        "ranges": {
+          "range_0_10": {
+            "message": "[Char] clinically notes [Player]'s baseline state, documenting zero distension and normal respiration.",
+            "enableOutput": false
+          },
+          "range_11_20": {
+            "message": "[Char] observes and records the initial signs of inflation in [Player], noting early pressure indicators.",
+            "enableOutput": false
+          },
+          "range_21_30": {
+            "message": "[Char] measures [Player]'s visible distension, clinically assessing the rate of expansion.",
+            "enableOutput": false
+          },
+          "range_31_40": {
+            "message": "[Char] documents [Player]'s progressing inflation, noting abdominal circumference increase.",
+            "enableOutput": false
+          },
+          "range_41_50": {
+            "message": "[Char] records [Player] reaching the midpoint threshold, observing skin elasticity response.",
+            "enableOutput": false
+          },
+          "range_51_60": {
+            "message": "[Char] monitors [Player]'s elevated pressure readings, documenting respiratory changes.",
+            "enableOutput": false
+          },
+          "range_61_70": {
+            "message": "[Char] notes [Player]'s approach to upper capacity limits, assessing physiological stress markers.",
+            "enableOutput": false
+          },
+          "range_71_80": {
+            "message": "[Char] clinically observes [Player]'s near-maximum distension, recording all vital indicators.",
+            "enableOutput": false
+          },
+          "range_81_90": {
+            "message": "[Char] documents [Player]'s critical capacity status, monitoring for threshold breach.",
+            "enableOutput": false
+          },
+          "range_91_100": {
+            "message": "[Char] confirms [Player] has achieved maximum recorded capacity, all readings at peak levels.",
+            "enableOutput": false
+          },
+          "range_over_100": {
+            "message": "[Char] records unprecedented capacity breach in [Player], documenting extraordinary physiological state.",
+            "enableOutput": false
+          }
+        }
+      },
+      "measured": {
+        "width": 280,
+        "height": 441
+      },
+      "selected": true,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-btn-to-player",
+      "source": "status-report-button",
+      "target": "status-report-player-msg"
+    }
+  ]
+}
