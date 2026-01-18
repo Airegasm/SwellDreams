@@ -420,6 +420,49 @@ function isPerFlowStorageActive() {
   return fs.existsSync(path.join(FLOWS_DIR, 'flows-index.json'));
 }
 
+// Rebuild flows index from actual files on disk
+// Called on startup if index is missing or empty
+function rebuildFlowsIndex() {
+  console.log('[Server] Rebuilding flows index from disk...');
+  const index = [];
+
+  if (fs.existsSync(FLOWS_DIR)) {
+    const files = fs.readdirSync(FLOWS_DIR);
+    for (const file of files) {
+      // Skip the index file itself
+      if (file === 'flows-index.json') continue;
+      if (!file.endsWith('.json')) continue;
+
+      const flowPath = path.join(FLOWS_DIR, file);
+      try {
+        const flow = JSON.parse(fs.readFileSync(flowPath, 'utf8'));
+        index.push({
+          id: flow.id,
+          name: flow.name || 'Untitled Flow',
+          characterId: flow.characterId || null,
+          description: flow.description || ''
+        });
+        console.log(`[Server]   Found flow: ${flow.name || flow.id}`);
+      } catch (e) {
+        console.error(`[Server]   Error reading ${flowPath}:`, e.message);
+      }
+    }
+  }
+
+  saveFlowsIndex(index);
+  console.log(`[Server] Rebuilt flows index: ${index.length} flows found`);
+  return index;
+}
+
+// Ensure flows index exists and is populated
+function ensureFlowsIndex() {
+  const index = loadFlowsIndex();
+  if (index.length === 0) {
+    return rebuildFlowsIndex();
+  }
+  return index;
+}
+
 // ============================================
 // Per-Character File Storage Helpers
 // ============================================
@@ -588,6 +631,70 @@ function loadAllCharacters() {
 // Check if per-character storage is active (migration completed)
 function isPerCharStorageActive() {
   return fs.existsSync(path.join(CHARS_DIR, 'chars-index.json'));
+}
+
+// Rebuild chars index from actual files on disk
+// Called on startup if index is missing or empty
+function rebuildCharsIndex() {
+  console.log('[Server] Rebuilding characters index from disk...');
+  const index = [];
+
+  // Scan default characters
+  if (fs.existsSync(CHARS_DEFAULT_DIR)) {
+    const defaultDirs = fs.readdirSync(CHARS_DEFAULT_DIR);
+    for (const dirName of defaultDirs) {
+      const charPath = path.join(CHARS_DEFAULT_DIR, dirName, 'char.json');
+      if (fs.existsSync(charPath)) {
+        try {
+          const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
+          index.push({
+            id: char.id || dirName,
+            name: char.name || dirName,
+            category: 'default',
+            description: (char.description || '').substring(0, 100) + '...'
+          });
+          console.log(`[Server]   Found default character: ${char.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${charPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  // Scan custom characters
+  if (fs.existsSync(CHARS_CUSTOM_DIR)) {
+    const customDirs = fs.readdirSync(CHARS_CUSTOM_DIR);
+    for (const dirName of customDirs) {
+      const charPath = path.join(CHARS_CUSTOM_DIR, dirName, 'char.json');
+      if (fs.existsSync(charPath)) {
+        try {
+          const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
+          index.push({
+            id: char.id || dirName,
+            name: char.name || dirName,
+            category: 'custom',
+            description: (char.description || '').substring(0, 100) + '...'
+          });
+          console.log(`[Server]   Found custom character: ${char.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${charPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  saveCharsIndex(index);
+  console.log(`[Server] Rebuilt characters index: ${index.length} characters found`);
+  return index;
+}
+
+// Ensure chars index exists and is populated
+function ensureCharsIndex() {
+  const index = loadCharsIndex();
+  if (index.length === 0) {
+    return rebuildCharsIndex();
+  }
+  return index;
 }
 
 // ============================================
@@ -3210,9 +3317,12 @@ async function handleWsMessage(ws, type, data) {
       // Test flow execution from a specific node
       console.log(`[WS] Test node request: flow=${data.flowId}, node=${data.nodeId}`);
       try {
-        // Load full flow data (per-flow mode stores nodes/edges in separate files)
+        // Use provided flowData if available (allows testing unsaved flows)
+        // Otherwise load from storage
         let flow;
-        if (isPerFlowStorageActive()) {
+        if (data.flowData && data.flowData.nodes) {
+          flow = data.flowData;
+        } else if (isPerFlowStorageActive()) {
           flow = loadFlow(data.flowId);
         } else {
           const allFlows = loadData(DATA_FILES.flows) || [];
@@ -7059,6 +7169,11 @@ app.post('/api/migrate-images', async (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 8889;
+
+// Ensure character and flow indexes exist before starting
+ensureCharsIndex();
+ensureFlowsIndex();
+
 server.listen(PORT, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT}`);
 });
