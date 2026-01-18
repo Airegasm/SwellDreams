@@ -98,3 +98,6 @@ backend/data/backup/
 
 # PID files
 .pids/
+
+# Dev machine marker (skips cleanup of test characters)
+backend/.devmachine

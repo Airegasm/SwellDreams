@@ -4877,15 +4877,24 @@ app.get('/api/updates/check', async (req, res) => {
   const { execSync } = require('child_process');
   const projectRoot = path.join(__dirname, '..');
 
+  console.log('[Updates] Check started');
+
   try {
     // Clean up accidentally distributed custom content
     // These were tracked in git by mistake and should be removed from user installations
-    try {
+    // Skip cleanup on dev machine (check for .devmachine marker file)
+    const isDevMachine = fs.existsSync(path.join(__dirname, '.devmachine'));
+    if (isDevMachine) {
+      console.log('[Cleanup] Dev machine detected, skipping cleanup');
+    } else try {
+      console.log('[Cleanup] Starting cleanup check...');
       const charsToRemove = ['Julie'];
       const personasToRemove = ['Rachel'];
 
       // Remove custom characters by name
+      console.log('[Cleanup] Loading characters...');
       const allChars = loadAllCharacters();
+      console.log(`[Cleanup] Found ${allChars.length} characters`);
       for (const charName of charsToRemove) {
         const char = allChars.find(c => c.name === charName);
         if (char) {
@@ -4895,7 +4904,9 @@ app.get('/api/updates/check', async (req, res) => {
       }
 
       // Remove custom personas by name
+      console.log('[Cleanup] Loading personas...');
       const allPersonas = loadAllPersonas();
+      console.log(`[Cleanup] Found ${allPersonas.length} personas`);
       for (const personaName of personasToRemove) {
         const persona = allPersonas.find(p => p.displayName === personaName);
         if (persona) {
@@ -4903,13 +4914,15 @@ app.get('/api/updates/check', async (req, res) => {
           deletePersonaFolder(persona.id);
         }
       }
+      console.log('[Cleanup] Cleanup check complete');
     } catch (cleanupError) {
       console.error('[Cleanup] Error during cleanup:', cleanupError.message);
       // Don't fail the update check if cleanup fails
     }
 
     // Fetch latest from remote
-    execSync('git fetch origin', { cwd: projectRoot, stdio: 'pipe' });
+    console.log('[Updates] Fetching from origin...');
+    execSync('git fetch origin', { cwd: projectRoot, stdio: 'pipe', timeout: 15000 });
 
     // Get current and remote commit hashes
     const localCommit = execSync('git rev-parse HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
@@ -6658,11 +6671,35 @@ app.get('/api/export/character/:id', (req, res) => {
     return res.status(404).json({ error: 'Character not found' });
   }
 
+  // Clone character data for export
+  const exportCharacter = { ...character };
+
+  // Embed avatar image if it exists and is a local path
+  if (exportCharacter.avatar && exportCharacter.avatar.startsWith('/api/images/')) {
+    try {
+      // Parse avatar path: /api/images/chars/{folder}/{id}/{filename}
+      const avatarMatch = exportCharacter.avatar.match(/^\/api\/images\/(chars)\/(default|custom)\/([^/]+)\/(.+)$/);
+      if (avatarMatch) {
+        const [, type, folder, charId, filename] = avatarMatch;
+        const filePath = imageStorage.getImageFilePath(type, folder, charId, filename);
+        if (filePath && fs.existsSync(filePath)) {
+          const imageBuffer = fs.readFileSync(filePath);
+          const ext = path.extname(filename).toLowerCase().replace('.', '');
+          const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+          exportCharacter.avatarData = `data:image/${mimeType};base64,${imageBuffer.toString('base64')}`;
+        }
+      }
+    } catch (err) {
+      console.error('[Export] Failed to embed avatar image:', err.message);
+      // Continue without embedded image - avatar URL will still be present
+    }
+  }
+
   const exportData = {
     type: 'swelldreams-character',
     version: EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
-    data: character
+    data: exportCharacter
   };
 
   res.setHeader('Content-Type', 'application/json');
@@ -6764,7 +6801,7 @@ app.get('/api/export/backup', (req, res) => {
 });
 
 // Import character
-app.post('/api/import/character', (req, res) => {
+app.post('/api/import/character', async (req, res) => {
   try {
     const importData = req.body;
 
@@ -6772,12 +6809,39 @@ app.post('/api/import/character', (req, res) => {
       return res.status(400).json({ error: 'Invalid import file type. Expected swelldreams-character.' });
     }
 
+    // Generate new ID first - needed for saving the image
+    const newId = uuidv4();
+
     const newCharacter = {
       ...importData.data,
-      id: uuidv4(), // Generate new ID to avoid conflicts
+      id: newId,
       importedAt: Date.now(),
       updatedAt: Date.now()
     };
+
+    // Handle embedded avatar image
+    if (newCharacter.avatarData && imageStorage.isBase64DataUri(newCharacter.avatarData)) {
+      try {
+        // Save the embedded image to disk and get the new URL path
+        const newAvatarPath = await imageStorage.saveCharacterImage(
+          newId,
+          newCharacter.avatarData,
+          'avatar',
+          false // Always import to custom
+        );
+        newCharacter.avatar = newAvatarPath;
+      } catch (imgError) {
+        console.error('[Import] Failed to save embedded image:', imgError.message);
+        // Clear avatar if image save failed
+        newCharacter.avatar = null;
+      }
+    } else if (newCharacter.avatar && newCharacter.avatar.startsWith('/api/images/')) {
+      // Avatar URL points to the old system - clear it since the image won't exist
+      newCharacter.avatar = null;
+    }
+
+    // Remove the embedded image data - don't store it in JSON
+    delete newCharacter.avatarData;
 
     if (isPerCharStorageActive()) {
       saveCharacter(newCharacter, true); // Import to custom
