@@ -56,16 +56,25 @@ backend/data/flows.json
 # Backup files from migrations
 backend/data/*.backup
 
-# Per-character storage
-backend/data/chars/custom/          # Personal characters (gitignored)
-backend/data/chars/chars-index.json # Index is auto-generated
+# Per-character storage (custom chars are user-created, index is auto-generated)
+backend/data/chars/custom/
+backend/data/chars/chars-index.json
 
-# Per-flow storage
-backend/data/flows/flows-index.json # Index is auto-generated
+# Per-persona storage (custom personas are user-created, index is auto-generated)
+backend/data/personas/custom/
+backend/data/personas/personas-index.json
 
-# NOTE: Default characters and flows are committed:
-# - backend/data/chars/default/*.json
-# - backend/data/flows/*.json (except index)
+# Per-flow storage (index is auto-generated)
+backend/data/flows/flows-index.json
+# UUID-named flows are custom/user-created (e.g., 5e15c48b-4765-4651-97a0-84a7ed82ef88.json)
+backend/data/flows/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
+# Custom character flows (add your custom character names here if needed)
+backend/data/flows/flow-julie-*.json
+
+# NOTE: Only DEFAULT characters, personas, and flows are committed:
+# - backend/data/chars/default/
+# - backend/data/personas/default/
+# - backend/data/flows/flow-*.json (named flows for default chars only)
 
 # Settings contains API keys - use settings.template.json instead
 backend/data/settings.json
@@ -89,4 +98,3 @@ backend/data/backup/
 
 # PID files
 .pids/
-backend/data/personas/personas-index.json

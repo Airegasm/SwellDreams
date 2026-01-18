@@ -454,12 +454,22 @@ function rebuildFlowsIndex() {
   return index;
 }
 
-// Ensure flows index exists and is populated
+// Ensure flows index exists, is populated, and all indexed flows exist on disk
 function ensureFlowsIndex() {
   const index = loadFlowsIndex();
   if (index.length === 0) {
     return rebuildFlowsIndex();
   }
+
+  // Validate that all indexed flows actually exist on disk
+  // This prevents stale index entries from hiding missing files
+  for (const entry of index) {
+    if (loadFlow(entry.id) === null) {
+      console.log(`[Server] Flow '${entry.name}' (${entry.id}) in index but not on disk - rebuilding index`);
+      return rebuildFlowsIndex();
+    }
+  }
+
   return index;
 }
 
@@ -688,12 +698,22 @@ function rebuildCharsIndex() {
   return index;
 }
 
-// Ensure chars index exists and is populated
+// Ensure chars index exists, is populated, and all indexed characters exist on disk
 function ensureCharsIndex() {
   const index = loadCharsIndex();
   if (index.length === 0) {
     return rebuildCharsIndex();
   }
+
+  // Validate that all indexed characters actually exist on disk
+  // This prevents stale index entries from hiding missing files
+  for (const entry of index) {
+    if (loadCharacter(entry.id) === null) {
+      console.log(`[Server] Character '${entry.name}' (${entry.id}) in index but not on disk - rebuilding index`);
+      return rebuildCharsIndex();
+    }
+  }
+
   return index;
 }
 
@@ -851,6 +871,77 @@ function loadAllPersonas() {
 // Check if per-persona folder storage is active
 function isPerPersonaStorageActive() {
   return fs.existsSync(path.join(PERSONAS_DIR, 'personas-index.json'));
+}
+
+// Rebuild personas index from actual files on disk
+function rebuildPersonasIndex() {
+  console.log('[Server] Rebuilding personas index from disk...');
+  const index = [];
+
+  // Scan default personas
+  if (fs.existsSync(PERSONAS_DEFAULT_DIR)) {
+    const defaultDirs = fs.readdirSync(PERSONAS_DEFAULT_DIR);
+    for (const dirName of defaultDirs) {
+      const personaPath = path.join(PERSONAS_DEFAULT_DIR, dirName, 'persona.json');
+      if (fs.existsSync(personaPath)) {
+        try {
+          const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+          index.push({
+            id: persona.id || dirName,
+            displayName: persona.displayName || dirName,
+            category: 'default'
+          });
+          console.log(`[Server]   Found default persona: ${persona.displayName || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${personaPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  // Scan custom personas
+  if (fs.existsSync(PERSONAS_CUSTOM_DIR)) {
+    const customDirs = fs.readdirSync(PERSONAS_CUSTOM_DIR);
+    for (const dirName of customDirs) {
+      const personaPath = path.join(PERSONAS_CUSTOM_DIR, dirName, 'persona.json');
+      if (fs.existsSync(personaPath)) {
+        try {
+          const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+          index.push({
+            id: persona.id || dirName,
+            displayName: persona.displayName || dirName,
+            category: 'custom'
+          });
+          console.log(`[Server]   Found custom persona: ${persona.displayName || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${personaPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  savePersonasIndex(index);
+  console.log(`[Server] Rebuilt personas index: ${index.length} personas found`);
+  return index;
+}
+
+// Ensure personas index exists, is populated, and all indexed personas exist on disk
+function ensurePersonasIndex() {
+  const index = loadPersonasIndex();
+  if (index.length === 0) {
+    return rebuildPersonasIndex();
+  }
+
+  // Validate that all indexed personas actually exist on disk
+  // This prevents stale index entries from hiding missing files
+  for (const entry of index) {
+    if (loadPersona(entry.id) === null) {
+      console.log(`[Server] Persona '${entry.displayName}' (${entry.id}) in index but not on disk - rebuilding index`);
+      return rebuildPersonasIndex();
+    }
+  }
+
+  return index;
 }
 
 // Default data structures
@@ -4787,6 +4878,36 @@ app.get('/api/updates/check', async (req, res) => {
   const projectRoot = path.join(__dirname, '..');
 
   try {
+    // Clean up accidentally distributed custom content
+    // These were tracked in git by mistake and should be removed from user installations
+    try {
+      const charsToRemove = ['Julie'];
+      const personasToRemove = ['Rachel'];
+
+      // Remove custom characters by name
+      const allChars = loadAllCharacters();
+      for (const charName of charsToRemove) {
+        const char = allChars.find(c => c.name === charName);
+        if (char) {
+          console.log(`[Cleanup] Removing accidentally distributed character: ${charName} (${char.id})`);
+          deleteCharacterFile(char.id);
+        }
+      }
+
+      // Remove custom personas by name
+      const allPersonas = loadAllPersonas();
+      for (const personaName of personasToRemove) {
+        const persona = allPersonas.find(p => p.displayName === personaName);
+        if (persona) {
+          console.log(`[Cleanup] Removing accidentally distributed persona: ${personaName} (${persona.id})`);
+          deletePersonaFolder(persona.id);
+        }
+      }
+    } catch (cleanupError) {
+      console.error('[Cleanup] Error during cleanup:', cleanupError.message);
+      // Don't fail the update check if cleanup fails
+    }
+
     // Fetch latest from remote
     execSync('git fetch origin', { cwd: projectRoot, stdio: 'pipe' });
 
@@ -7182,9 +7303,10 @@ app.post('/api/migrate-images', async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 8889;
 
-// Ensure character and flow indexes exist before starting
+// Ensure all indexes exist and are valid before starting
 ensureCharsIndex();
 ensureFlowsIndex();
+ensurePersonasIndex();
 
 server.listen(PORT, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT}`);
