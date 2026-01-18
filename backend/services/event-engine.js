@@ -601,13 +601,19 @@ class EventEngine {
     switch (data.actionType) {
       case 'send_message': {
         const message = this.substituteVariables(data.message || '');
-        nodeStep.details = `AI Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
+        // Get character name for display
+        const settings = loadData(DATA_FILES.settings);
+        const characters = this.storageHelpers?.loadCharacters?.() || loadData(DATA_FILES.characters) || [];
+        const activeChar = characters.find(c => c.id === settings?.activeCharacterId);
+        const charName = activeChar?.name || 'Char';
+
+        nodeStep.details = `${charName}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
 
         // Show in console instead of chat
         this.emitTestStep({
           type: 'message',
-          label: 'AI Message',
+          label: charName,
           details: message,
           messageType: 'ai'
         });
@@ -616,13 +622,19 @@ class EventEngine {
 
       case 'send_player_message': {
         const message = this.substituteVariables(data.message || '');
-        nodeStep.details = `Player Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
+        // Get persona name for display
+        const settings = loadData(DATA_FILES.settings);
+        const personas = loadData(DATA_FILES.personas) || [];
+        const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+        const playerName = activePersona?.displayName || 'Player';
+
+        nodeStep.details = `${playerName}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
 
         // Show in console instead of chat
         this.emitTestStep({
           type: 'message',
-          label: 'Player Message',
+          label: playerName,
           details: message,
           messageType: 'player'
         });
@@ -631,13 +643,13 @@ class EventEngine {
 
       case 'system_message': {
         const message = this.substituteVariables(data.message || '');
-        nodeStep.details = `System Message: "${message.substring(0, 50)}..."`;
+        nodeStep.details = `System: "${message.substring(0, 50)}..."`;
         this.emitTestStep(nodeStep);
 
         // Show in console instead of chat
         this.emitTestStep({
           type: 'message',
-          label: 'System Message',
+          label: 'System',
           details: message,
           messageType: 'system'
         });
