@@ -99,9 +99,10 @@
   background-size: cover;
   background-position: center;
   scrollbar-gutter: stable;
+  color: #1a1a1a; /* Override global light text color */
 }
 
-/* Rounded scrollbar */
+/* Rounded scrollbar - matches chat page style */
 .persona-modal-body::-webkit-scrollbar {
   width: 12px;
 }
@@ -112,13 +113,17 @@
 }
 
 .persona-modal-body::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(255, 255, 255, 0.2);
   border-radius: var(--border-radius);
-  border: 2px solid transparent;
+  border: 2px solid var(--bg-secondary);
 }
 
 .persona-modal-body::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.persona-modal-body::-webkit-scrollbar-corner {
+  border-radius: var(--border-radius);
 }
 
 /* Modal Footer */

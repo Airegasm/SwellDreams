@@ -102,6 +102,7 @@
   background-size: cover;
   background-position: center;
   scrollbar-gutter: stable;
+  color: #1a1a1a; /* Override global light text color */
 }
 
 /* Rounded scrollbar - matches chat page style */
