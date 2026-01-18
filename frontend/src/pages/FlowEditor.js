@@ -9,6 +9,7 @@ import {
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useViewport,
   ReactFlowProvider
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -30,6 +31,14 @@ import PauseResumeNode from '../components/flow/nodes/PauseResumeNode';
 import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
 import InputNode from '../components/flow/nodes/InputNode';
 import RandomNumberNode from '../components/flow/nodes/RandomNumberNode';
+// New advanced nodes
+import CommentNode from '../components/flow/nodes/CommentNode';
+import CounterNode from '../components/flow/nodes/CounterNode';
+import LoopNode from '../components/flow/nodes/LoopNode';
+import SwitchNode from '../components/flow/nodes/SwitchNode';
+import SessionTimerNode from '../components/flow/nodes/SessionTimerNode';
+// Flow templates
+import { FLOW_TEMPLATES, TEMPLATE_CATEGORIES } from '../data/flowTemplates';
 // Challenge nodes
 import {
   PrizeWheelNodeMemo as PrizeWheelNode,
@@ -60,6 +69,12 @@ const nodeTypes = {
   capacity_player_message: CapacityMessageNode,
   input: InputNode,
   random_number: RandomNumberNode,
+  // Advanced logic nodes
+  comment: CommentNode,
+  counter: CounterNode,
+  loop: LoopNode,
+  switch: SwitchNode,
+  sessionTimer: SessionTimerNode,
   // Challenge nodes
   prize_wheel: PrizeWheelNode,
   dice_roll: DiceRollNode,
@@ -174,6 +189,53 @@ const NODE_TEMPLATES = {
       minValue: 1,
       maxValue: 100,
       variableName: 'RandomNum'
+    }
+  },
+  // Advanced logic nodes
+  comment: {
+    default: {
+      label: 'Note',
+      text: '',
+      color: 'yellow'
+    }
+  },
+  counter: {
+    default: {
+      label: 'Counter',
+      variable: 'counter',
+      operation: 'increment',
+      amount: 1,
+      initializeDefault: true,
+      initialValue: 0
+    }
+  },
+  loop: {
+    default: {
+      label: 'Loop',
+      mode: 'fixed',
+      iterations: 5,
+      variable: 'capacity',
+      operator: '>=',
+      value: 50,
+      maxIterations: 100
+    }
+  },
+  switch: {
+    default: {
+      label: 'Switch',
+      variable: 'custom',
+      customVariable: '',
+      cases: [{ value: '' }],
+      includeDefault: true
+    }
+  },
+  sessionTimer: {
+    default: {
+      label: 'Session Timer',
+      mode: 'check',
+      duration: 5,
+      unit: 'minutes',
+      onlyOnce: true
     }
   },
   // Capacity message nodes
@@ -341,6 +403,152 @@ const NODE_TEMPLATES = {
 let nodeId = 0;
 const getId = () => `node_${nodeId++}`;
 
+// Node groups layer - renders colored rectangles behind grouped nodes
+function NodeGroupsLayer({ groups, nodes, onToggleCollapse, onUpdateLabel, onDeleteGroup, editingGroupId, setEditingGroupId }) {
+  const { x, y, zoom } = useViewport();
+
+  const GROUP_COLORS = {
+    blue: { bg: 'rgba(59, 130, 246, 0.15)', border: '#3b82f6' },
+    green: { bg: 'rgba(34, 197, 94, 0.15)', border: '#22c55e' },
+    purple: { bg: 'rgba(168, 85, 247, 0.15)', border: '#a855f7' },
+    orange: { bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316' },
+    red: { bg: 'rgba(239, 68, 68, 0.15)', border: '#ef4444' }
+  };
+
+  const getGroupBounds = (group) => {
+    const groupNodes = nodes.filter(n => group.nodeIds.includes(n.id));
+    if (groupNodes.length === 0) return null;
+
+    const padding = 20;
+    const headerHeight = 32;
+    const minX = Math.min(...groupNodes.map(n => n.position.x)) - padding;
+    const minY = Math.min(...groupNodes.map(n => n.position.y)) - padding - headerHeight;
+    const maxX = Math.max(...groupNodes.map(n => n.position.x + 280)) + padding;
+    const maxY = Math.max(...groupNodes.map(n => n.position.y + 150)) + padding;
+
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  };
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        overflow: 'hidden'
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+          transformOrigin: '0 0'
+        }}
+      >
+        {groups.map(group => {
+          const bounds = getGroupBounds(group);
+          if (!bounds) return null;
+
+          const colors = GROUP_COLORS[group.color] || GROUP_COLORS.blue;
+
+          return (
+            <div
+              key={group.id}
+              className="node-group"
+              style={{
+                position: 'absolute',
+                left: bounds.x,
+                top: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+                backgroundColor: colors.bg,
+                border: `2px dashed ${colors.border}`,
+                borderRadius: 8,
+                pointerEvents: 'auto'
+              }}
+            >
+              <div
+                className="node-group-header"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '4px 8px',
+                  backgroundColor: colors.border,
+                  borderRadius: '6px 6px 0 0',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {editingGroupId === group.id ? (
+                  <input
+                    type="text"
+                    defaultValue={group.label}
+                    autoFocus
+                    style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '2px 4px',
+                      borderRadius: 3,
+                      fontSize: 12,
+                      width: '100px'
+                    }}
+                    onBlur={(e) => onUpdateLabel(group.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onUpdateLabel(group.id, e.target.value);
+                      } else if (e.key === 'Escape') {
+                        setEditingGroupId(null);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingGroupId(group.id);
+                    }}
+                    style={{ cursor: 'text' }}
+                  >
+                    📦 {group.label}
+                  </span>
+                )}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteGroup(group.id);
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.2)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      fontSize: 10
+                    }}
+                    title="Ungroup"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FlowEditor() {
   const { flows, api, devices, settings, characters, personas, sendWsMessage } = useApp();
   const navigate = useNavigate();
@@ -454,6 +662,10 @@ function FlowEditor() {
   const [consoleCollapsed, setConsoleCollapsed] = useState(false);
   const consoleIdRef = useRef(0);
 
+  // Node groups state
+  const [groups, setGroups] = useState([]);
+  const [editingGroupId, setEditingGroupId] = useState(null);
+
   // Add entry to console
   const addConsoleEntry = useCallback((entry) => {
     const time = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -544,11 +756,11 @@ function FlowEditor() {
 
   // Handle test node - execute flow test from a specific node
   const handleTestNode = useCallback((nodeId) => {
-    if (!selectedFlow) {
+    if (nodes.length === 0) {
       addConsoleEntry({
         icon: 'error',
         category: 'error',
-        label: 'Cannot test: Please save the flow first'
+        label: 'Cannot test: No nodes in flow'
       });
       return;
     }
@@ -564,11 +776,24 @@ function FlowEditor() {
       label: `Testing from: ${node?.data?.label || nodeId}`
     });
 
-    sendWsMessage('test_node', {
-      flowId: selectedFlow.id,
-      nodeId: nodeId
+    // Strip runtime handlers from nodes before sending
+    const cleanNodes = nodes.map(n => {
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = n.data;
+      return { ...n, data: cleanData };
     });
-  }, [selectedFlow, sendWsMessage, nodes, addConsoleEntry]);
+
+    // Send current flow data directly (works for unsaved flows)
+    sendWsMessage('test_node', {
+      flowId: selectedFlow?.id || 'unsaved',
+      nodeId: nodeId,
+      flowData: {
+        id: selectedFlow?.id || 'unsaved',
+        name: flowName || 'Unsaved Flow',
+        nodes: cleanNodes,
+        edges: edges
+      }
+    });
+  }, [selectedFlow, sendWsMessage, nodes, edges, flowName, addConsoleEntry]);
 
   const handleCopyNode = useCallback(() => {
     if (!contextMenu) return;
@@ -631,6 +856,53 @@ function FlowEditor() {
     closeContextMenu();
   }, [contextMenu, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
 
+  // Insert a flow template
+  const handleInsertTemplate = useCallback((template) => {
+    if (!reactFlowInstance) return;
+
+    // Get viewport center for positioning
+    const { x: viewX, y: viewY, zoom } = reactFlowInstance.getViewport();
+    const centerX = (-viewX + window.innerWidth / 2) / zoom;
+    const centerY = (-viewY + window.innerHeight / 2) / zoom;
+
+    // Generate unique IDs for nodes and edges
+    const idMap = {};
+    const newNodes = template.nodes.map(node => {
+      const newId = getId();
+      idMap[node.id] = newId;
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: centerX + node.position.x,
+          y: centerY + node.position.y
+        },
+        data: {
+          ...node.data,
+          onChange: (field, value) => {
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === newId ? { ...n, data: { ...n.data, [field]: value } } : n
+              )
+            );
+          },
+          onTest: () => handleTestNode(newId)
+        }
+      };
+    });
+
+    const newEdges = template.edges.map(edge => ({
+      ...edge,
+      id: `e_${idMap[edge.source]}_${idMap[edge.target]}_${Date.now()}`,
+      source: idMap[edge.source],
+      target: idMap[edge.target]
+    }));
+
+    pushSnapshot(nodes, edges, 'insert_template');
+    setNodes((nds) => [...nds, ...newNodes]);
+    setEdges((eds) => [...eds, ...newEdges]);
+  }, [reactFlowInstance, setNodes, setEdges, nodes, edges, pushSnapshot]);
+
   // Close context menu when clicking elsewhere
   const onPaneClick = useCallback(() => {
     closeContextMenu();
@@ -671,9 +943,85 @@ function FlowEditor() {
     pushSnapshot(nodes, edges, 'delete_selected');
     setNodes((nds) => nds.filter(n => !selectedNodeIds.includes(n.id)));
     setEdges((eds) => eds.filter(e => !selectedNodeIds.includes(e.source) && !selectedNodeIds.includes(e.target)));
+    // Also remove nodes from any groups they belong to
+    setGroups((grps) => grps.map(g => ({
+      ...g,
+      nodeIds: g.nodeIds.filter(id => !selectedNodeIds.includes(id))
+    })).filter(g => g.nodeIds.length > 0));
     setSelectedNodeIds([]);
     closeContextMenu();
   }, [selectedNodeIds, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot]);
+
+  // Group colors
+  const GROUP_COLORS = [
+    { value: 'blue', label: 'Blue', bg: 'rgba(59, 130, 246, 0.15)', border: '#3b82f6' },
+    { value: 'green', label: 'Green', bg: 'rgba(34, 197, 94, 0.15)', border: '#22c55e' },
+    { value: 'purple', label: 'Purple', bg: 'rgba(168, 85, 247, 0.15)', border: '#a855f7' },
+    { value: 'orange', label: 'Orange', bg: 'rgba(249, 115, 22, 0.15)', border: '#f97316' },
+    { value: 'red', label: 'Red', bg: 'rgba(239, 68, 68, 0.15)', border: '#ef4444' }
+  ];
+
+  // Create group from selected nodes
+  const handleCreateGroup = useCallback(() => {
+    if (selectedNodeIds.length < 2) {
+      closeContextMenu();
+      return;
+    }
+
+    const groupId = `group_${Date.now()}`;
+    const colorIndex = groups.length % GROUP_COLORS.length;
+    const newGroup = {
+      id: groupId,
+      label: `Group ${groups.length + 1}`,
+      color: GROUP_COLORS[colorIndex].value,
+      nodeIds: [...selectedNodeIds],
+      collapsed: false
+    };
+
+    setGroups(prev => [...prev, newGroup]);
+    setSelectedNodeIds([]);
+    closeContextMenu();
+  }, [selectedNodeIds, groups, closeContextMenu]);
+
+  // Delete a group (keeps nodes, just removes grouping)
+  const handleDeleteGroup = useCallback((groupId) => {
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+  }, []);
+
+  // Toggle group collapse
+  const handleToggleGroupCollapse = useCallback((groupId) => {
+    setGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, collapsed: !g.collapsed } : g
+    ));
+  }, []);
+
+  // Update group label
+  const handleUpdateGroupLabel = useCallback((groupId, newLabel) => {
+    setGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, label: newLabel } : g
+    ));
+    setEditingGroupId(null);
+  }, []);
+
+  // Calculate group bounds from its nodes
+  const getGroupBounds = useCallback((group) => {
+    const groupNodes = nodes.filter(n => group.nodeIds.includes(n.id));
+    if (groupNodes.length === 0) return null;
+
+    const padding = 20;
+    const headerHeight = 30;
+    const minX = Math.min(...groupNodes.map(n => n.position.x)) - padding;
+    const minY = Math.min(...groupNodes.map(n => n.position.y)) - padding - headerHeight;
+    const maxX = Math.max(...groupNodes.map(n => n.position.x + 280)) + padding;
+    const maxY = Math.max(...groupNodes.map(n => n.position.y + 150)) + padding;
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  }, [nodes]);
 
   // Paste (handles both single and multiple nodes)
   const handlePaste = useCallback(() => {
@@ -1046,6 +1394,7 @@ function FlowEditor() {
       category: flowCategory,
       nodes: cleanNodes,
       edges: edges,
+      groups: groups,
       isActive: false
     };
 
@@ -1053,7 +1402,12 @@ function FlowEditor() {
       if (selectedFlow) {
         await api.updateFlow(selectedFlow.id, flowData);
       } else {
-        await api.createFlow(flowData);
+        const newFlow = await api.createFlow(flowData);
+        // Set selectedFlow so testing works after first save
+        if (newFlow && newFlow.id) {
+          setSelectedFlow(newFlow);
+          localStorage.setItem('lastFlowId', newFlow.id);
+        }
       }
       // Clear draft on successful save
       clearFlowDraft();
@@ -1122,6 +1476,7 @@ function FlowEditor() {
 
     setNodes(nodesWithHandlers);
     setEdges(flow.edges || []);
+    setGroups(flow.groups || []);
     setShowLoadModal(false);
   }, [api, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
 
@@ -1138,6 +1493,7 @@ function FlowEditor() {
     setFlowCategory('character');
     setNodes([]);
     setEdges([]);
+    setGroups([]);
     // Reset nodeId counter for new flow
     nodeId = 0;
     // Clear last flow from localStorage
@@ -1215,6 +1571,7 @@ function FlowEditor() {
       const draft = {
         nodes: cleanNodes,
         edges,
+        groups,
         flowName,
         flowCategory,
         timestamp: Date.now()
@@ -1223,7 +1580,7 @@ function FlowEditor() {
     }, 500); // Debounce 500ms
 
     return () => clearTimeout(timeoutId);
-  }, [nodes, edges, flowName, flowCategory, getDraftKey]);
+  }, [nodes, edges, groups, flowName, flowCategory, getDraftKey]);
 
   // Check for draft when flow selection changes
   useEffect(() => {
@@ -1252,6 +1609,7 @@ function FlowEditor() {
           }));
           setNodes(nodesWithHandlers);
           setEdges(draft.edges || []);
+          setGroups(draft.groups || []);
           if (draft.flowName) setFlowName(draft.flowName);
           if (draft.flowCategory) setFlowCategory(draft.flowCategory);
           setHasDraft(true);
@@ -1541,6 +1899,47 @@ function FlowEditor() {
             >
               🎲 Random Number
             </div>
+            <div
+              className="palette-node loop"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'loop', 'default')}
+            >
+              🔄 Loop
+            </div>
+            <div
+              className="palette-node switch"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'switch', 'default')}
+            >
+              ⑃ Switch
+            </div>
+            <div
+              className="palette-node counter"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'counter', 'default')}
+            >
+              🔢 Counter
+            </div>
+            <div
+              className="palette-node session-timer"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'sessionTimer', 'default')}
+            >
+              ⏱️ Session Timer
+            </div>
+          </div>
+        </div>
+
+        <div className="sidebar-section">
+          <h3>Utility</h3>
+          <div className="node-palette">
+            <div
+              className="palette-node comment"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'comment', 'default')}
+            >
+              📝 Comment
+            </div>
           </div>
         </div>
 
@@ -1619,6 +2018,26 @@ function FlowEditor() {
             </div>
           </div>
         </div>
+
+        <div className="sidebar-section templates-section">
+          <h3>Templates</h3>
+          <div className="templates-palette">
+            {FLOW_TEMPLATES.map(template => (
+              <div
+                key={template.id}
+                className="template-item"
+                onClick={() => handleInsertTemplate(template)}
+                title={template.description}
+              >
+                <span className="template-icon">{template.icon}</span>
+                <div className="template-info">
+                  <span className="template-name">{template.name}</span>
+                  <span className="template-category">{template.category}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Main Canvas Area with Console */}
@@ -1643,6 +2062,15 @@ function FlowEditor() {
             selectionMode="partial"
             panOnDrag={[1, 2]}
           >
+            <NodeGroupsLayer
+              groups={groups}
+              nodes={nodes}
+              onToggleCollapse={handleToggleGroupCollapse}
+              onUpdateLabel={handleUpdateGroupLabel}
+              onDeleteGroup={handleDeleteGroup}
+              editingGroupId={editingGroupId}
+              setEditingGroupId={setEditingGroupId}
+            />
             <Controls />
             <MiniMap />
             <Background variant="dots" gap={12} size={1} />
@@ -1675,6 +2103,10 @@ function FlowEditor() {
               </button>
               <button onClick={handlePaste} disabled={!clipboard}>
                 <span className="menu-icon">📄</span> Paste
+              </button>
+              <div className="menu-divider" />
+              <button onClick={handleCreateGroup}>
+                <span className="menu-icon">📦</span> Create Group
               </button>
               <div className="menu-divider" />
               <button onClick={handleDeleteSelected} className="delete">

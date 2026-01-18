@@ -4,8 +4,10 @@
   "description": "SwellDreams - Single-player inflation roleplay backend",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "npm run build:frontend && node server.js",
+    "build:frontend": "cd ../frontend && npm run build",
+    "dev": "node --watch server.js",
+    "server": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

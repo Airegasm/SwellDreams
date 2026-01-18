@@ -525,6 +525,44 @@ class EventEngine {
         this.emitTestStep(nodeStep);
         return true;  // In test mode, execute both PAUSE and RESUME branches
 
+      // Advanced logic nodes
+      case 'comment':
+        nodeStep.details = `Comment: "${(node.data.text || '').substring(0, 50)}${(node.data.text || '').length > 50 ? '...' : ''}"`;
+        this.emitTestStep(nodeStep);
+        return true;
+
+      case 'counter': {
+        const counterResult = this.executeCounter(node, flow);
+        const varName = node.data.variable || 'counter';
+        const newValue = this.flowVariables.get(`${flow.id}:${varName}`);
+        nodeStep.details = `Counter "${varName}": ${node.data.operation || 'increment'} -> ${newValue}`;
+        this.emitTestStep(nodeStep);
+        return counterResult;
+      }
+
+      case 'loop': {
+        const loopResult = this.executeLoop(node, flow);
+        const counterKey = `${flow.id}:__loop_${node.id}`;
+        const iteration = this.flowVariables.get(counterKey) || 0;
+        nodeStep.details = `Loop iteration ${iteration}: ${loopResult === 'done' ? 'completed' : 'continuing'}`;
+        this.emitTestStep(nodeStep);
+        return loopResult;
+      }
+
+      case 'switch': {
+        const switchResult = this.executeSwitch(node, flow);
+        nodeStep.details = `Switch: routed to "${switchResult || 'no match'}"`;
+        this.emitTestStep(nodeStep);
+        return switchResult;
+      }
+
+      case 'sessionTimer': {
+        const timerResult = this.executeSessionTimer(node, flow);
+        nodeStep.details = `Session Timer: ${timerResult === 'true' ? 'condition met' : 'condition not met'}`;
+        this.emitTestStep(nodeStep);
+        return timerResult;
+      }
+
       default:
         nodeStep.details = 'Unknown node type';
         this.emitTestStep(nodeStep);
@@ -1903,6 +1941,23 @@ class EventEngine {
         case 'pause_resume':
           return await this.executePauseResume(node, flow);
 
+        // Advanced logic nodes
+        case 'comment':
+          // Comment nodes are just for documentation, skip execution
+          return true;
+
+        case 'counter':
+          return this.executeCounter(node, flow);
+
+        case 'loop':
+          return this.executeLoop(node, flow);
+
+        case 'switch':
+          return this.executeSwitch(node, flow);
+
+        case 'sessionTimer':
+          return this.executeSessionTimer(node, flow);
+
         default:
           return true;
       }
@@ -2641,6 +2696,258 @@ class EventEngine {
 
     // Return 'wait' to stop chain execution - RESUME will fire after message count
     return 'wait';
+  }
+
+  /**
+   * Execute a counter node - increment/decrement/set a flow variable
+   */
+  executeCounter(node, flow) {
+    const data = node.data;
+    const variable = data.variable || 'counter';
+    const operation = data.operation || 'increment';
+    const amount = parseFloat(data.amount) || 1;
+    const initializeDefault = data.initializeDefault !== false;
+    const initialValue = parseFloat(data.initialValue) || 0;
+
+    // Get current value from flow variables
+    let currentValue = this.flowVariables.get(`${flow.id}:${variable}`);
+
+    // Initialize if not set and initialization is enabled
+    if (currentValue === undefined && initializeDefault) {
+      currentValue = initialValue;
+    } else if (currentValue === undefined) {
+      currentValue = 0;
+    }
+
+    // Apply operation
+    let newValue;
+    switch (operation) {
+      case 'increment':
+        newValue = currentValue + amount;
+        break;
+      case 'decrement':
+        newValue = currentValue - amount;
+        break;
+      case 'set':
+        newValue = amount;
+        break;
+      case 'reset':
+        newValue = initialValue;
+        break;
+      default:
+        newValue = currentValue + 1;
+    }
+
+    // Store the new value
+    this.flowVariables.set(`${flow.id}:${variable}`, newValue);
+
+    console.log(`[EventEngine] Counter "${variable}": ${currentValue} -> ${newValue} (${operation})`);
+    return true;
+  }
+
+  /**
+   * Execute a loop node - manage iteration counter and return appropriate handle
+   */
+  executeLoop(node, flow) {
+    const data = node.data;
+    const mode = data.mode || 'fixed';
+    const iterations = parseInt(data.iterations) || 5;
+    const maxIterations = parseInt(data.maxIterations) || 100;
+
+    // Get or initialize loop counter for this specific node
+    const counterKey = `${flow.id}:__loop_${node.id}`;
+    let counter = this.flowVariables.get(counterKey) || 0;
+
+    if (mode === 'fixed') {
+      // Fixed count mode
+      counter++;
+      this.flowVariables.set(counterKey, counter);
+
+      if (counter > iterations || counter > maxIterations) {
+        // Reset counter and exit loop
+        this.flowVariables.set(counterKey, 0);
+        console.log(`[EventEngine] Loop "${data.label || node.id}" completed after ${counter - 1} iterations`);
+        return 'done';
+      }
+
+      console.log(`[EventEngine] Loop "${data.label || node.id}" iteration ${counter}/${iterations}`);
+      return 'loop';
+    } else {
+      // Until condition mode
+      counter++;
+      this.flowVariables.set(counterKey, counter);
+
+      // Safety check
+      if (counter > maxIterations) {
+        console.log(`[EventEngine] Loop "${data.label || node.id}" hit max iterations (${maxIterations}), exiting`);
+        this.flowVariables.set(counterKey, 0);
+        return 'done';
+      }
+
+      // Evaluate condition
+      const variable = data.variable || 'capacity';
+      const operator = data.operator || '>=';
+      const targetValue = data.value;
+
+      let currentValue;
+      if (variable === 'capacity') {
+        currentValue = this.sessionState.capacity;
+      } else if (variable === 'pain') {
+        currentValue = this.sessionState.pain;
+      } else if (variable === 'emotion') {
+        currentValue = this.sessionState.emotion;
+      } else if (variable === 'custom') {
+        const customVar = data.customVariable || '';
+        currentValue = this.flowVariables.get(`${flow.id}:${customVar}`);
+      } else {
+        currentValue = this.flowVariables.get(`${flow.id}:${variable}`);
+      }
+
+      const conditionMet = this.compareValues(currentValue, operator, targetValue);
+
+      if (conditionMet) {
+        // Condition met, exit loop
+        this.flowVariables.set(counterKey, 0);
+        console.log(`[EventEngine] Loop "${data.label || node.id}" condition met after ${counter} iterations`);
+        return 'done';
+      }
+
+      console.log(`[EventEngine] Loop "${data.label || node.id}" iteration ${counter}, condition not yet met`);
+      return 'loop';
+    }
+  }
+
+  /**
+   * Execute a switch node - route based on variable value
+   */
+  executeSwitch(node, flow) {
+    const data = node.data;
+    const variable = data.variable || 'custom';
+    const cases = data.cases || [];
+    const includeDefault = data.includeDefault !== false;
+
+    // Get the current value of the variable
+    let currentValue;
+    if (variable === 'capacity') {
+      currentValue = this.sessionState.capacity;
+    } else if (variable === 'pain') {
+      currentValue = this.sessionState.pain;
+    } else if (variable === 'emotion') {
+      currentValue = this.sessionState.emotion;
+    } else if (variable === 'custom') {
+      const customVar = data.customVariable || '';
+      currentValue = this.flowVariables.get(`${flow.id}:${customVar}`);
+    } else {
+      currentValue = this.flowVariables.get(`${flow.id}:${variable}`);
+    }
+
+    // Convert to string for comparison (handles undefined/null)
+    const valueStr = String(currentValue);
+
+    // Find matching case
+    for (let i = 0; i < cases.length; i++) {
+      const caseValue = String(cases[i].value);
+      if (valueStr === caseValue) {
+        console.log(`[EventEngine] Switch "${data.label || node.id}" matched case ${i}: "${caseValue}"`);
+        return `case-${i}`;
+      }
+    }
+
+    // No match - return default handle or null
+    if (includeDefault) {
+      console.log(`[EventEngine] Switch "${data.label || node.id}" no match, using default`);
+      return 'default';
+    }
+
+    console.log(`[EventEngine] Switch "${data.label || node.id}" no match and no default`);
+    return null;
+  }
+
+  /**
+   * Execute a session timer node - check elapsed time
+   */
+  executeSessionTimer(node, flow) {
+    const data = node.data;
+    const mode = data.mode || 'check';
+    const duration = parseInt(data.duration) || 5;
+    const unit = data.unit || 'minutes';
+    const onlyOnce = data.onlyOnce || false;
+
+    // Convert duration to milliseconds
+    const durationMs = unit === 'minutes' ? duration * 60 * 1000 : duration * 1000;
+
+    // Get session start time (use flow start time or current session)
+    const sessionStartKey = `${flow.id}:__session_start`;
+    let sessionStart = this.flowVariables.get(sessionStartKey);
+    if (!sessionStart) {
+      sessionStart = Date.now();
+      this.flowVariables.set(sessionStartKey, sessionStart);
+    }
+
+    const elapsed = Date.now() - sessionStart;
+
+    // Check if already triggered (for onlyOnce mode)
+    const triggeredKey = `${flow.id}:__timer_triggered_${node.id}`;
+    const alreadyTriggered = this.flowVariables.get(triggeredKey);
+
+    if (onlyOnce && alreadyTriggered) {
+      console.log(`[EventEngine] Session timer "${data.label || node.id}" already triggered, returning false`);
+      return 'false';
+    }
+
+    if (mode === 'check') {
+      // Simple elapsed time check
+      if (elapsed >= durationMs) {
+        if (onlyOnce) {
+          this.flowVariables.set(triggeredKey, true);
+        }
+        console.log(`[EventEngine] Session timer "${data.label || node.id}" elapsed ${Math.floor(elapsed/1000)}s >= ${duration}${unit === 'minutes' ? 'm' : 's'}, returning true`);
+        return 'true';
+      }
+      console.log(`[EventEngine] Session timer "${data.label || node.id}" elapsed ${Math.floor(elapsed/1000)}s < ${duration}${unit === 'minutes' ? 'm' : 's'}, returning false`);
+      return 'false';
+    } else {
+      // Interval mode - check if we're at the right interval
+      const lastIntervalKey = `${flow.id}:__timer_interval_${node.id}`;
+      const lastInterval = this.flowVariables.get(lastIntervalKey) || 0;
+      const currentInterval = Math.floor(elapsed / durationMs);
+
+      if (currentInterval > lastInterval) {
+        this.flowVariables.set(lastIntervalKey, currentInterval);
+        console.log(`[EventEngine] Session timer "${data.label || node.id}" interval ${currentInterval} triggered`);
+        return 'true';
+      }
+      return 'false';
+    }
+  }
+
+  /**
+   * Helper to compare values with an operator
+   */
+  compareValues(current, operator, target) {
+    // Convert to numbers if both are numeric strings
+    const numCurrent = parseFloat(current);
+    const numTarget = parseFloat(target);
+    const isNumeric = !isNaN(numCurrent) && !isNaN(numTarget);
+
+    switch (operator) {
+      case '==':
+        return isNumeric ? numCurrent === numTarget : String(current) === String(target);
+      case '!=':
+        return isNumeric ? numCurrent !== numTarget : String(current) !== String(target);
+      case '>':
+        return isNumeric ? numCurrent > numTarget : false;
+      case '<':
+        return isNumeric ? numCurrent < numTarget : false;
+      case '>=':
+        return isNumeric ? numCurrent >= numTarget : false;
+      case '<=':
+        return isNumeric ? numCurrent <= numTarget : false;
+      case 'contains':
+        return String(current).toLowerCase().includes(String(target).toLowerCase());
+      default:
+        return false;
+    }
   }
 
   /**

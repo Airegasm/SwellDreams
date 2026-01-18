@@ -1275,3 +1275,311 @@
   margin-top: 2px;
   font-family: monospace;
 }
+
+/* ============================================
+   Comment Node
+   ============================================ */
+.comment-node {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.comment-node .comment-header {
+  padding: 6px 10px;
+}
+
+.comment-node .comment-body {
+  padding: 8px;
+}
+
+.comment-node .comment-textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: vertical;
+  background: transparent;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.comment-node .comment-textarea:focus {
+  outline: none;
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+.comment-node .comment-color-picker {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.comment-node .color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.comment-node .color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.comment-node .color-swatch.active {
+  border-color: #1f2937;
+  box-shadow: 0 0 0 2px white;
+}
+
+/* ============================================
+   Counter Node
+   ============================================ */
+.counter-node {
+  border-color: #8b5cf6;
+  min-width: 200px;
+}
+
+.counter-node .node-header {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.counter-node .react-flow__handle {
+  border-color: #8b5cf6;
+}
+
+.counter-node .config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.counter-node .config-row label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+/* ============================================
+   Loop Node
+   ============================================ */
+.loop-node {
+  border-color: #22c55e;
+  min-width: 220px;
+  position: relative;
+}
+
+.loop-node .node-header {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.loop-node .react-flow__handle {
+  border-color: #22c55e;
+}
+
+.loop-node .config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.loop-node .config-row label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+.loop-node .handle-label.loop-handle {
+  position: absolute;
+  right: 12px;
+  top: 58%;
+  font-size: 9px;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.loop-node .handle-label.done-handle {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* ============================================
+   Switch Node
+   ============================================ */
+.switch-node {
+  border-color: #f97316;
+  min-width: 240px;
+  position: relative;
+}
+
+.switch-node .node-header {
+  background-color: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+}
+
+.switch-node .react-flow__handle {
+  border-color: #f97316;
+}
+
+.switch-node .config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.switch-node .config-row label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+.switch-cases-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0 6px 0;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.add-case-btn {
+  background-color: #f97316;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 9px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.add-case-btn:hover {
+  background-color: #ea580c;
+}
+
+.switch-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.switch-case-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.switch-case-row .case-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 48px;
+}
+
+.switch-case-row .node-input,
+.switch-case-row .node-select {
+  flex: 1;
+  font-size: 10px;
+}
+
+.case-remove-btn {
+  background-color: var(--accent-error);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.case-remove-btn:hover {
+  background-color: #dc2626;
+}
+
+.switch-handle-label {
+  position: absolute;
+  right: 12px;
+  font-size: 9px;
+  color: #fb923c;
+  font-weight: 600;
+}
+
+.switch-node .handle-label.default-handle {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* ============================================
+   Session Timer Node
+   ============================================ */
+.session-timer-node {
+  border-color: #0ea5e9;
+  min-width: 220px;
+  position: relative;
+}
+
+.session-timer-node .node-header {
+  background-color: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+}
+
+.session-timer-node .react-flow__handle {
+  border-color: #0ea5e9;
+}
+
+.session-timer-node .config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.session-timer-node .config-row label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 50px;
+}
+
+.session-timer-node .node-select.small {
+  width: 60px;
+}
+
+.session-timer-node .handle-label.timer-true-handle {
+  position: absolute;
+  right: 12px;
+  top: 58%;
+  font-size: 9px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.session-timer-node .handle-label.timer-false-handle {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: #ef4444;
+  font-weight: 600;
+}

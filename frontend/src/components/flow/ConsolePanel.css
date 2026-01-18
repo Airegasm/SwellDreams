@@ -148,7 +148,7 @@
 
 .entry-main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
 }
 
@@ -157,19 +157,20 @@
   font-size: 10px;
   flex-shrink: 0;
   min-width: 65px;
+  padding-top: 1px;
 }
 
 .entry-icon {
   flex-shrink: 0;
   width: 16px;
   text-align: center;
+  padding-top: 1px;
 }
 
 .entry-label {
   flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .entry-expand-hint {
