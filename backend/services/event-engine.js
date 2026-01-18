@@ -322,26 +322,27 @@ class EventEngine {
    * @returns {Object} - { success: boolean, steps: Array, error?: string }
    */
   async testFromNode(flow, nodeId, stepCallback = null) {
-    console.log(`[EventEngine] TEST MODE - Starting test from node ${nodeId} in flow "${flow.name}"`);
+    console.log(`[EventEngine] TEST MODE - Starting LIVE test from node ${nodeId} in flow "${flow.name}"`);
 
-    // Set up test mode
+    // Set up test mode - but keep it live (not simulated)
     this.testMode = true;
     this.testResults = [];
     this.testStepCallback = stepCallback; // Store callback for streaming
+
+    // Use current real session state values for test state display
     this.testState = {
-      capacity: 0,
-      pain: 0,
-      emotion: 'neutral'
+      capacity: this.sessionState?.capacity || 0,
+      pain: this.sessionState?.pain || 0,
+      emotion: this.sessionState?.emotion || 'neutral'
     };
 
     // Store original state
     const originalSimulationMode = this.simulationMode;
-    const originalSessionState = this.sessionState ? { ...this.sessionState } : null;
 
-    // Enable simulation mode for devices
-    this.simulationMode = true;
+    // Keep simulation mode OFF - we want real execution
+    // this.simulationMode = true;  // REMOVED - test should actually execute
 
-    // Create a mock session state for testing
+    // Ensure session state exists
     if (!this.sessionState) {
       this.sessionState = {
         capacity: 0,
@@ -381,16 +382,14 @@ class EventEngine {
       });
       return { success: false, error: error.message, steps: this.testResults };
     } finally {
-      // Restore original state
+      // Clean up test mode but keep state changes (it's a live test)
       this.testMode = false;
       this.simulationMode = originalSimulationMode;
       this.testStepCallback = null; // Clear callback
-      if (originalSessionState) {
-        this.sessionState = originalSessionState;
-      }
+      // Don't restore session state - live test effects should persist
       this.testResults = [];
       this.testState = {};
-      console.log('[EventEngine] TEST MODE - Completed, state restored');
+      console.log('[EventEngine] TEST MODE - Completed (live test, state changes persisted)');
     }
   }
 
@@ -571,90 +570,193 @@ class EventEngine {
   }
 
   /**
-   * Execute action node in test mode
+   * Execute action node in test mode - LIVE execution with logging
    */
   async executeTestAction(data, flow, nodeId, nodeStep) {
+    // Helper to resolve device
+    const resolveDeviceObject = (deviceAlias) => {
+      if (!deviceAlias) return null;
+      const devices = this.deviceService?.devices;
+      if (!devices) return null;
+
+      // Check for primary_pump alias
+      if (deviceAlias === 'primary_pump') {
+        for (const [, device] of devices) {
+          if (device.isPrimaryPump) return device;
+        }
+      }
+      // Check for primary_vibe alias
+      if (deviceAlias === 'primary_vibe') {
+        for (const [, device] of devices) {
+          if (device.isPrimaryVibe) return device;
+        }
+      }
+      // Direct match
+      for (const [, device] of devices) {
+        if (device.ip === deviceAlias || device.deviceId === deviceAlias) return device;
+      }
+      return null;
+    };
+
     switch (data.actionType) {
-      case 'send_message':
-        nodeStep.details = `AI Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
-        nodeStep.suppressLlm = true; // Always suppress in test
+      case 'send_message': {
+        const message = this.substituteVariables(data.message || '');
+        nodeStep.details = `AI Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
+
+        // Actually send the message
+        await this.broadcast('ai_message', {
+          content: message,
+          sender: 'flow',
+          suppressLlm: data.suppressLlm || false,
+          flowId: flow.id,
+          nodeId: nodeId
+        });
+
         this.emitTestStep({
           type: 'broadcast',
-          label: 'AI Message (suppressed)',
-          details: data.message || '',
+          label: 'AI Message sent',
+          details: message,
           broadcastType: 'ai_message'
         });
         return true;
+      }
 
-      case 'send_player_message':
-        nodeStep.details = `Player Message: "${(data.message || '').substring(0, 50)}${(data.message || '').length > 50 ? '...' : ''}"`;
+      case 'send_player_message': {
+        const message = this.substituteVariables(data.message || '');
+        nodeStep.details = `Player Message: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`;
         this.emitTestStep(nodeStep);
+
+        // Actually send the message
+        await this.broadcast('player_message', {
+          content: message,
+          sender: 'flow',
+          suppressLlm: data.suppressLlm || false,
+          flowId: flow.id,
+          nodeId: nodeId
+        });
+
         this.emitTestStep({
           type: 'broadcast',
-          label: 'Player Message (suppressed)',
-          details: data.message || '',
+          label: 'Player Message sent',
+          details: message,
           broadcastType: 'player_message'
         });
         return true;
+      }
 
-      case 'system_message':
-        nodeStep.details = `System Message: "${(data.message || '').substring(0, 50)}..."`;
+      case 'system_message': {
+        const message = this.substituteVariables(data.message || '');
+        nodeStep.details = `System Message: "${message.substring(0, 50)}..."`;
         this.emitTestStep(nodeStep);
+        await this.broadcast('system_message', { content: message });
         return true;
+      }
 
-      case 'device_on':
-        nodeStep.details = `Device ON: ${data.device} (simulated)`;
+      case 'device_on': {
+        nodeStep.details = `Device ON: ${data.device}`;
         this.emitTestStep(nodeStep);
-        this.emitTestStep({
-          type: 'device',
-          label: `Device "${data.device}" turned ON`,
-          details: data.untilType ? `Until: ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}` : 'Forever',
-          action: 'on'
-        });
+
+        if (data.device && this.deviceService) {
+          const deviceObj = resolveDeviceObject(data.device);
+          const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+          await this.deviceService.turnOn(deviceId, deviceObj);
+
+          this.emitTestStep({
+            type: 'device',
+            label: `Device "${data.device}" turned ON`,
+            details: data.untilType ? `Until: ${data.untilType} ${data.untilOperator || '>'} ${data.untilValue}` : 'Forever',
+            action: 'on'
+          });
+        }
         return 'device_on';
+      }
 
-      case 'device_off':
-        nodeStep.details = `Device OFF: ${data.device} (simulated)`;
+      case 'device_off': {
+        nodeStep.details = `Device OFF: ${data.device}`;
         this.emitTestStep(nodeStep);
-        this.emitTestStep({
-          type: 'device',
-          label: `Device "${data.device}" turned OFF`,
-          action: 'off'
-        });
-        return true;
 
-      case 'start_cycle':
+        if (data.device && this.deviceService) {
+          const deviceObj = resolveDeviceObject(data.device);
+          const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+          await this.deviceService.turnOff(deviceId, deviceObj);
+
+          this.emitTestStep({
+            type: 'device',
+            label: `Device "${data.device}" turned OFF`,
+            action: 'off'
+          });
+        }
+        return true;
+      }
+
+      case 'start_cycle': {
         nodeStep.details = `Start Cycle: ${data.device} (duration: ${data.duration || 5}s, interval: ${data.interval || 10}s, cycles: ${data.cycles || 'infinite'})`;
         this.emitTestStep(nodeStep);
-        this.emitTestStep({
-          type: 'device',
-          label: `Device "${data.device}" cycling`,
-          details: `Duration: ${data.duration || 5}s, Interval: ${data.interval || 10}s, Cycles: ${data.cycles || 'infinite'}`,
-          action: 'cycle'
-        });
+
+        if (data.device && this.deviceService) {
+          const deviceObj = resolveDeviceObject(data.device);
+          const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+          await this.deviceService.startCycle(deviceId, {
+            duration: data.duration || 5,
+            interval: data.interval || 10,
+            cycles: data.cycles || 0
+          }, deviceObj);
+
+          this.emitTestStep({
+            type: 'device',
+            label: `Device "${data.device}" cycling`,
+            details: `Duration: ${data.duration || 5}s, Interval: ${data.interval || 10}s, Cycles: ${data.cycles || 'infinite'}`,
+            action: 'cycle'
+          });
+        }
         return 'start_cycle';
+      }
 
-      case 'stop_cycle':
-        nodeStep.details = `Stop Cycle: ${data.device} (simulated)`;
+      case 'stop_cycle': {
+        nodeStep.details = `Stop Cycle: ${data.device}`;
+        this.emitTestStep(nodeStep);
+
+        if (data.device && this.deviceService) {
+          const deviceObj = resolveDeviceObject(data.device);
+          const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+          await this.deviceService.stopCycle(deviceId, deviceObj);
+        }
+        return true;
+      }
+
+      case 'pulse_pump': {
+        nodeStep.details = `Pulse Pump: ${data.device} (${data.pulses || 3} pulses)`;
+        this.emitTestStep(nodeStep);
+
+        if (data.device && this.deviceService) {
+          const deviceObj = resolveDeviceObject(data.device);
+          const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+          await this.deviceService.pulsePump(deviceId, data.pulses || 3, deviceObj);
+
+          this.emitTestStep({
+            type: 'device',
+            label: `Device "${data.device}" pulsing`,
+            details: `${data.pulses || 3} pulses`,
+            action: 'pulse'
+          });
+        }
+        return true;
+      }
+
+      case 'set_variable': {
+        const varType = data.varType || 'flow';
+        const varName = data.variable || data.variableName;
+        const varValue = this.substituteVariables(String(data.value || data.variableValue || ''));
+
+        if (varType === 'flow' && varName) {
+          this.flowVariables.set(`${flow.id}:${varName}`, varValue);
+        }
+
+        nodeStep.details = `Set Variable: ${varName} = ${varValue}`;
         this.emitTestStep(nodeStep);
         return true;
-
-      case 'pulse_pump':
-        nodeStep.details = `Pulse Pump: ${data.device} (${data.pulses || 3} pulses, 1s on/1s off)`;
-        this.emitTestStep(nodeStep);
-        this.emitTestStep({
-          type: 'device',
-          label: `Device "${data.device}" pulsing`,
-          details: `${data.pulses || 3} pulses (1s on/1s off each)`,
-          action: 'pulse'
-        });
-        return true;
-
-      case 'set_variable':
-        nodeStep.details = `Set Variable: ${data.variableName} = ${data.variableValue}`;
-        this.emitTestStep(nodeStep);
-        return true;
+      }
 
       default:
         nodeStep.details = `Action: ${data.actionType}`;
@@ -664,7 +766,7 @@ class EventEngine {
   }
 
   /**
-   * Evaluate condition in test mode - automatically adjust test state to meet conditions
+   * Evaluate condition in test mode - uses real session state values
    */
   evaluateTestCondition(data, flowId, nodeId, nodeStep) {
     const conditions = data.conditions || [data];
@@ -674,78 +776,70 @@ class EventEngine {
       const variable = condition.variable;
       const operator = condition.operator;
       const targetValue = parseFloat(condition.value) || condition.value;
+      const targetValue2 = condition.value2 !== undefined ? parseFloat(condition.value2) : null;
 
-      // Get current test state value
-      let currentValue = this.testState[variable] ?? 0;
-
-      // For numeric conditions, adjust test state to meet the condition
-      if (['capacity', 'pain'].includes(variable) && typeof targetValue === 'number') {
-        let newValue = currentValue;
-
-        switch (operator) {
-          case '>':
-            newValue = targetValue + 1;
-            break;
-          case '>=':
-            newValue = targetValue;
-            break;
-          case '==':
-          case '=':
-            newValue = targetValue;
-            break;
-          case '<':
-            newValue = targetValue - 1;
-            break;
-          case '<=':
-            newValue = targetValue;
-            break;
-          case 'range':
-            const min = parseFloat(condition.value);
-            const max = parseFloat(condition.value2);
-            newValue = (min + max) / 2;
-            break;
+      // Get current REAL session state value
+      let currentValue;
+      if (['capacity', 'pain', 'emotion'].includes(variable)) {
+        currentValue = this.sessionState?.[variable] ?? (variable === 'emotion' ? 'neutral' : 0);
+      } else {
+        // Check flow variables
+        currentValue = this.flowVariables.get(`${flowId}:${variable}`);
+        if (currentValue === undefined) {
+          currentValue = 0;
         }
+        // Try to parse as number
+        const numVal = parseFloat(currentValue);
+        if (!isNaN(numVal)) currentValue = numVal;
+      }
 
-        // Record state change
-        if (newValue !== currentValue) {
-          this.emitTestStep({
-            type: 'state_change',
-            label: `${variable} adjusted for condition`,
-            stateChange: {
-              [variable]: { from: currentValue, to: newValue }
-            },
-            details: `${variable}: ${currentValue} → ${newValue} (to meet ${operator} ${targetValue})`
-          });
-          this.testState[variable] = newValue;
-        }
+      // Update test state for display
+      if (['capacity', 'pain', 'emotion'].includes(variable)) {
+        this.testState[variable] = currentValue;
+      }
 
-        nodeStep.details = `Condition: ${variable} ${operator} ${targetValue} → TRUE (adjusted)`;
+      // Evaluate the condition
+      let result = false;
+      switch (operator) {
+        case '>':
+          result = currentValue > targetValue;
+          break;
+        case '>=':
+          result = currentValue >= targetValue;
+          break;
+        case '<':
+          result = currentValue < targetValue;
+          break;
+        case '<=':
+          result = currentValue <= targetValue;
+          break;
+        case '==':
+        case '=':
+          result = currentValue == targetValue;
+          break;
+        case '!=':
+          result = currentValue != targetValue;
+          break;
+        case 'range':
+          result = currentValue >= targetValue && currentValue <= targetValue2;
+          break;
+        default:
+          result = currentValue == targetValue;
+      }
+
+      if (result) {
+        nodeStep.details = `Condition: ${variable} (${currentValue}) ${operator} ${targetValue}${targetValue2 !== null ? `-${targetValue2}` : ''} → TRUE`;
         this.emitTestStep(nodeStep);
-
-        return { result: true, conditionIndex: i };
-      } else if (variable === 'emotion') {
-        // For emotion, set to target value
-        if (this.testState.emotion !== targetValue) {
-          this.emitTestStep({
-            type: 'state_change',
-            label: 'emotion adjusted for condition',
-            stateChange: {
-              emotion: { from: this.testState.emotion || 'neutral', to: targetValue }
-            },
-            details: `emotion: ${this.testState.emotion || 'neutral'} → ${targetValue}`
-          });
-          this.testState.emotion = targetValue;
-        }
-
-        nodeStep.details = `Condition: emotion ${operator} "${targetValue}" → TRUE (adjusted)`;
-        this.emitTestStep(nodeStep);
-
         return { result: true, conditionIndex: i };
       }
     }
 
-    // No conditions could be met
-    nodeStep.details = 'No conditions matched → FALSE';
+    // No conditions matched
+    const firstCond = conditions[0];
+    const currentVal = ['capacity', 'pain', 'emotion'].includes(firstCond?.variable)
+      ? (this.sessionState?.[firstCond.variable] ?? 0)
+      : this.flowVariables.get(`${flowId}:${firstCond?.variable}`) ?? 0;
+    nodeStep.details = `Condition: ${firstCond?.variable} (${currentVal}) ${firstCond?.operator} ${firstCond?.value} → FALSE`;
     this.emitTestStep(nodeStep);
     return { result: false, conditionIndex: -1 };
   }
