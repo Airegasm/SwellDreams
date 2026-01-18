@@ -8,13 +8,26 @@ REM Get script directory
 set SCRIPT_DIR=%~dp0
 echo Script directory: %SCRIPT_DIR%
 
+REM Read version from version.json
+set VERSION=unknown
+set CODENAME=
+for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"version\""') do (
+    set VERSION=%%~a
+)
+for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"codename\""') do (
+    set CODENAME=%%~a
+)
+REM Trim spaces
+set VERSION=%VERSION: =%
+set CODENAME=%CODENAME: =%
+
 REM Stop any existing SERVER instance (not this startup window)
 echo Stopping any existing SwellDreams server...
 taskkill /FI "WINDOWTITLE eq SwellDreams Server*" /F >nul 2>&1
 
 echo.
 echo ========================================
-echo   SwellDreams v2.5b Production Server
+echo   SwellDreams v%VERSION% %CODENAME%
 echo ========================================
 echo.
 
@@ -78,7 +91,7 @@ timeout /t 2 /nobreak >nul
 
 echo.
 echo ========================================
-echo   SwellDreams v2.5b is running!
+echo   SwellDreams v%VERSION% is running!
 echo   http://localhost:8889
 echo ========================================
 echo.
