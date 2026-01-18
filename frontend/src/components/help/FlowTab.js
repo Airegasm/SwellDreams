@@ -333,6 +333,44 @@ function FlowTab() {
               </tbody>
             </table>
 
+            <h4 className="subsection-header">Advanced Logic Nodes</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Description</th>
+                  <th>Configuration</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span className="node-type comment">Comment</span></td>
+                  <td>Visual annotation node for documenting your flow. Does not affect execution - purely for notes and organization.</td>
+                  <td>Text content, background color</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type action">Counter</span></td>
+                  <td>Increments, decrements, or sets a numeric variable. Great for tracking attempts, rounds, or any cumulative value.</td>
+                  <td>Variable name, operation (increment/decrement/set), amount, initial value</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type branch">Loop</span></td>
+                  <td>Repeats connected nodes either a fixed number of times or until a condition is met. Includes safety limit to prevent infinite loops.</td>
+                  <td>Mode (fixed/condition), iterations or condition, max iterations safety cap</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type branch">Switch</span></td>
+                  <td>Multi-way branch based on a variable's exact value. Like a condition node but with many possible paths instead of just true/false.</td>
+                  <td>Variable to check, case values, optional default path</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type condition">Session Timer</span></td>
+                  <td>Checks or waits for session duration. Use to trigger events after the player has been in session for a certain time.</td>
+                  <td>Mode (check/wait), duration, unit (seconds/minutes)</td>
+                </tr>
+              </tbody>
+            </table>
+
             <div className="info-box">
               <p>
                 <strong>Condition Variables:</strong> You can check <code>[Capacity]</code> (0-100),
