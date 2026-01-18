@@ -3773,7 +3773,9 @@ async function handleButtonTurnOn(action) {
 }
 
 async function handleButtonCycle(action) {
-  const { device: deviceKey, duration, interval } = action.config || action.params || {};
+  const { device: deviceKey, duration, interval, cycles } = action.config || action.params || {};
+
+  console.log(`[Button] Cycle action received: deviceKey=${deviceKey}, duration=${duration}, interval=${interval}, cycles=${cycles}`);
 
   if (!deviceKey) {
     console.log('[Button] No device specified for cycle');
@@ -3788,9 +3790,12 @@ async function handleButtonCycle(action) {
     return;
   }
 
+  console.log(`[Button] Resolved device: id=${deviceId}, brand=${deviceObj?.brand}, deviceId=${deviceObj?.deviceId}`);
+
   const cycleData = {
     duration: parseInt(duration) || 5,
-    interval: parseInt(interval) || 2
+    interval: parseInt(interval) || 2,
+    cycles: parseInt(cycles) || 0
   };
 
   console.log(`[Button] Starting cycle on device ${deviceId}: ${JSON.stringify(cycleData)}`);

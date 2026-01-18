@@ -592,6 +592,8 @@ class DeviceService {
   async startCycle(ip, options = {}, device = null) {
     const { duration = 5, interval = 10, cycles = 0, repeat = false } = options;
 
+    console.log(`[DeviceService] startCycle called: ip=${ip}, duration=${duration}s, interval=${interval}s, cycles=${cycles}, brand=${device?.brand}`);
+
     // Stop existing cycle if any
     this.stopCycle(ip, device);
 
@@ -606,26 +608,40 @@ class DeviceService {
       }
 
       currentCycle++;
+      console.log(`[DeviceService] Cycle ${currentCycle}: turning ON device ${ip} (brand: ${device?.brand})`);
 
       // Turn on (pass device object for proper brand/childId support)
-      await this.turnOn(ip, device);
+      const onResult = await this.turnOn(ip, device);
+      if (onResult.error) {
+        console.error(`[DeviceService] Cycle ${currentCycle}: turnOn failed:`, onResult.error);
+      }
       this.emitEvent('cycle_on', { ip, cycle: currentCycle, duration, device });
 
       // Schedule turn off
       const offTimer = setTimeout(async () => {
-        await this.turnOff(ip, device);
-        this.emitEvent('cycle_off', { ip, cycle: currentCycle, device });
-
-        // Schedule next cycle if not done
-        if (currentCycle < maxCycles || repeat) {
-          const nextTimer = setTimeout(runCycle, interval * 1000);
-          const cycleInfo = this.activeCycles.get(ip);
-          if (cycleInfo) {
-            cycleInfo.intervalTimer = nextTimer;
+        try {
+          console.log(`[DeviceService] Cycle ${currentCycle}: turning OFF device ${ip} after ${duration}s (brand: ${device?.brand})`);
+          const offResult = await this.turnOff(ip, device);
+          if (offResult.error) {
+            console.error(`[DeviceService] Cycle ${currentCycle}: turnOff failed:`, offResult.error);
           }
-        } else {
-          // stopCycle will emit cycle_complete
-          this.stopCycle(ip, device);
+          this.emitEvent('cycle_off', { ip, cycle: currentCycle, device });
+
+          // Schedule next cycle if not done
+          if (currentCycle < maxCycles || repeat) {
+            console.log(`[DeviceService] Scheduling next cycle in ${interval}s`);
+            const nextTimer = setTimeout(runCycle, interval * 1000);
+            const cycleInfo = this.activeCycles.get(ip);
+            if (cycleInfo) {
+              cycleInfo.intervalTimer = nextTimer;
+            }
+          } else {
+            // stopCycle will emit cycle_complete
+            console.log(`[DeviceService] Cycle complete after ${currentCycle} cycles`);
+            this.stopCycle(ip, device);
+          }
+        } catch (err) {
+          console.error(`[DeviceService] Cycle ${currentCycle}: error in turnOff callback:`, err.message);
         }
       }, duration * 1000);
 
