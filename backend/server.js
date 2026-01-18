@@ -4797,8 +4797,9 @@ app.get('/api/updates/check', async (req, res) => {
     // Get commit count difference
     const behindCount = parseInt(execSync(`git rev-list --count HEAD..origin/master`, { cwd: projectRoot, encoding: 'utf8' }).trim()) || 0;
 
-    // Get current version from package.json
-    const pkg = require('./package.json');
+    // Get current version from package.json (read fresh, don't use cached require)
+    const pkgPath = path.join(__dirname, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
     const currentVersion = pkg.version;
 
     // Get commit messages for pending updates
@@ -4818,10 +4819,16 @@ app.get('/api/updates/check', async (req, res) => {
     });
   } catch (error) {
     console.error('[Updates] Check failed:', error.message);
+    // Read version fresh from disk
+    let currentVersion = 'unknown';
+    try {
+      const pkgPath = path.join(__dirname, 'package.json');
+      currentVersion = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version;
+    } catch (e) {}
     res.json({
       hasUpdates: false,
       error: error.message,
-      currentVersion: require('./package.json').version
+      currentVersion
     });
   }
 });
