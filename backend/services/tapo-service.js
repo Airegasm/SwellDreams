@@ -5,7 +5,7 @@
  * Supports: P100, P105, P110, P115 smart plugs
  */
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const path = require('path');
 const { createLogger } = require('../utils/logger');
 
@@ -123,11 +123,11 @@ class TapoService {
     }
 
     try {
+      // Use execFileSync to avoid shell interpretation of special characters in password
       // -B flag disables bytecode caching to ensure fresh script execution after updates
-      const result = execSync(
-        `${PYTHON_CMD} -B "${SCRIPT_PATH}" ${command} ${ip} "${this.email}" "${this.password}"`,
-        { encoding: 'utf8', timeout: 30000 }
-      );
+      const result = execFileSync(PYTHON_CMD, [
+        '-B', SCRIPT_PATH, command, ip, this.email, this.password
+      ], { encoding: 'utf8', timeout: 30000 });
       return JSON.parse(result.trim());
     } catch (error) {
       log.error(`Python script error for ${command} on ${ip}:`, error.message);
