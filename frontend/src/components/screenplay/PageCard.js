@@ -125,9 +125,9 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
       case 'delay':
         return { duration: 1000 };
       case 'pump':
-        return { device: 'Primary Pump', action: 'cycle', duration: 5, interval: 10, cycles: 0, pulses: 3 };
+        return { device: 'Primary Pump', action: 'cycle', duration: 5, interval: 10, cycles: 0, pulses: 3, untilEnabled: false, untilType: 'capacity', untilValue: 50, blockContinue: false };
       case 'mock_pump':
-        return { target: 'inflatee1', action: 'cycle', duration: 5000, intensity: 50 };
+        return { target: 'inflatee1', action: 'cycle', duration: 5000, intensity: 50, untilEnabled: false, untilType: 'capacity', untilValue: 50, blockContinue: false };
       case 'end':
         return { endingType: 'normal', message: 'The End' };
       default:

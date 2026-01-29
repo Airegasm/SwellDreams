@@ -1340,6 +1340,60 @@
   margin-top: var(--spacing-xs);
 }
 
+.pump-until-row {
+  flex-wrap: wrap;
+}
+
+.pump-until-select {
+  min-width: 100px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.pump-until-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pump-until-input {
+  width: 60px !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  margin-bottom: 0 !important;
+}
+
+.pump-until-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pump-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  margin-left: var(--spacing-sm);
+}
+
+.pump-row .checkbox-label {
+  min-width: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+}
+
+.pump-row .checkbox-label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.pump-row .checkbox-label input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Variable Hints */
 .var-hints {
   font-size: var(--font-size-xs);

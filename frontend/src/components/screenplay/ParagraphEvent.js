@@ -781,6 +781,50 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                   <span className="pump-unit">seconds</span>
                 </div>
               )}
+              {data.action === 'on' && (
+                <div className="pump-row pump-until-row">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={data.untilEnabled || false}
+                      onChange={(e) => handleDataChange('untilEnabled', e.target.checked)}
+                    />
+                    Until
+                  </label>
+                  <select
+                    value={data.untilType || 'capacity'}
+                    onChange={(e) => handleDataChange('untilType', e.target.value)}
+                    disabled={!data.untilEnabled}
+                    className="pump-until-select"
+                  >
+                    <option value="capacity">Capacity</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={data.untilValue || 50}
+                    onChange={(e) => handleDataChange('untilValue', Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
+                    min={1}
+                    max={100}
+                    disabled={!data.untilEnabled}
+                    className="pump-until-input"
+                  />
+                  <span className="pump-unit">%</span>
+                </div>
+              )}
+              <div className="pump-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={data.blockContinue || false}
+                    onChange={(e) => handleDataChange('blockContinue', e.target.checked)}
+                    disabled={data.action === 'on' && !data.untilEnabled}
+                  />
+                  Block Continue
+                </label>
+                <span className="pump-hint">
+                  {data.action === 'on' && !data.untilEnabled ? '(requires Until for On)' : '(prevents page change until complete)'}
+                </span>
+              </div>
               <div className="pump-description">
                 {PUMP_ACTION_DESCRIPTIONS[data.action || 'cycle']} (controls actual device)
               </div>
@@ -845,6 +889,50 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                   <span className="pump-unit">%</span>
                 </div>
               )}
+              {data.action === 'on' && (
+                <div className="pump-row pump-until-row">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={data.untilEnabled || false}
+                      onChange={(e) => handleDataChange('untilEnabled', e.target.checked)}
+                    />
+                    Until
+                  </label>
+                  <select
+                    value={data.untilType || 'capacity'}
+                    onChange={(e) => handleDataChange('untilType', e.target.value)}
+                    disabled={!data.untilEnabled}
+                    className="pump-until-select"
+                  >
+                    <option value="capacity">Capacity</option>
+                  </select>
+                  <input
+                    type="number"
+                    value={data.untilValue || 50}
+                    onChange={(e) => handleDataChange('untilValue', Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
+                    min={1}
+                    max={100}
+                    disabled={!data.untilEnabled}
+                    className="pump-until-input"
+                  />
+                  <span className="pump-unit">%</span>
+                </div>
+              )}
+              <div className="pump-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={data.blockContinue || false}
+                    onChange={(e) => handleDataChange('blockContinue', e.target.checked)}
+                    disabled={data.action === 'on' && !data.untilEnabled}
+                  />
+                  Block Continue
+                </label>
+                <span className="pump-hint">
+                  {data.action === 'on' && !data.untilEnabled ? '(requires Until for On)' : '(prevents page change until complete)'}
+                </span>
+              </div>
               <div className="pump-description">
                 {PUMP_ACTION_DESCRIPTIONS[data.action || 'cycle']}
               </div>

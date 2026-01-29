@@ -5,7 +5,7 @@ import { API_BASE } from '../../config';
 import './PlayViewer.css';
 
 function PlayViewer({ playId, onClose }) {
-  const { plays, actors, settings, sendWsMessage } = useApp();
+  const { plays, actors, settings, sendWsMessage, sessionState } = useApp();
   const [enhanceCache, setEnhanceCache] = useState({}); // Cache enhanced text
   const [play, setPlay] = useState(null);
   const [currentPageId, setCurrentPageId] = useState(null);
@@ -27,6 +27,7 @@ function PlayViewer({ playId, onClose }) {
   const [rightImageUrl, setRightImageUrl] = useState(null); // Custom image URL for right filmstrip (overrides actor)
   const [rightImageName, setRightImageName] = useState(null); // Name/label for custom image
   const [playStarted, setPlayStarted] = useState(false); // Track if play has started (for filmstrip animation)
+  const [autoAdvancePending, setAutoAdvancePending] = useState(false); // Track if we should auto-advance to next paragraph
   const pumpTimerRef = useRef(null);
   const contentRef = useRef(null);
 
@@ -64,6 +65,16 @@ function PlayViewer({ playId, onClose }) {
       }
     };
   }, []);
+
+  // Sync inflatee1 capacity with global sessionState.capacity (from flow/real pump)
+  useEffect(() => {
+    if (sessionState?.capacity !== undefined) {
+      setInflateeCapacity(prev => ({
+        ...prev,
+        inflatee1: sessionState.capacity
+      }));
+    }
+  }, [sessionState?.capacity]);
 
   // Get actor by ID
   const getActor = useCallback((actorId) => {
@@ -404,6 +415,7 @@ function PlayViewer({ playId, onClose }) {
         } else {
           // Continue to next paragraph
           setCurrentParaIndex(prev => prev + 1);
+          setAutoAdvancePending(true);
         }
         setIsProcessing(false);
         break;
@@ -417,6 +429,7 @@ function PlayViewer({ playId, onClose }) {
         }));
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
+        setAutoAdvancePending(true);
         break;
 
       case 'set_npc_actor_avatar':
@@ -434,6 +447,7 @@ function PlayViewer({ playId, onClose }) {
         }
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
+        setAutoAdvancePending(true);
         break;
 
       case 'delay':
@@ -441,6 +455,7 @@ function PlayViewer({ playId, onClose }) {
         setTimeout(() => {
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
+          setAutoAdvancePending(true);
         }, para.data.duration || 1000);
         break;
 
@@ -499,6 +514,7 @@ function PlayViewer({ playId, onClose }) {
 
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
+        setAutoAdvancePending(true);
         break;
 
       case 'mock_pump':
@@ -534,11 +550,13 @@ function PlayViewer({ playId, onClose }) {
           setPumpStatus(prev => ({ ...prev, [target]: null }));
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
+          setAutoAdvancePending(true);
         } else if (action === 'on') {
           // Turn pump on indefinitely
           setPumpStatus(prev => ({ ...prev, [target]: 'on' }));
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
+          setAutoAdvancePending(true);
         } else {
           // Cycle, pulse, or timed - run for duration then continue
           setPumpStatus(prev => ({ ...prev, [target]: action }));
@@ -557,6 +575,7 @@ function PlayViewer({ playId, onClose }) {
             }
             setCurrentParaIndex(prev => prev + 1);
             setIsProcessing(false);
+            setAutoAdvancePending(true);
           }, duration);
         }
         break;
@@ -797,6 +816,18 @@ function PlayViewer({ playId, onClose }) {
       processNextParagraph();
     }
   }, [currentPage, currentParaIndex, displayedParagraphs.length, isProcessing, processNextParagraph]);
+
+  // Auto-advance to next paragraph for non-interactive events (pump, delay, set_variable, etc.)
+  useEffect(() => {
+    if (autoAdvancePending && !isProcessing) {
+      setAutoAdvancePending(false);
+      // Small delay to allow state to settle
+      const timer = setTimeout(() => {
+        processNextParagraph();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [autoAdvancePending, isProcessing, processNextParagraph]);
 
   // Render a single paragraph
   const renderParagraph = (para) => {
