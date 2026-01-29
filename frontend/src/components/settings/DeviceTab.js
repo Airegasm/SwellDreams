@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import './SettingsTabs.css';
 
@@ -12,6 +13,7 @@ const DEVICE_TYPES = [
 const MAX_DEVICES = 5;
 
 function DeviceTab() {
+  const navigate = useNavigate();
   const { devices, api } = useApp();
   const [scanning, setScanning] = useState(false);
   const [scanCompleted, setScanCompleted] = useState(false);
@@ -854,6 +856,19 @@ function DeviceTab() {
                   ))}
                 </select>
                 <div className="configured-device-controls">
+                  {device.deviceType === 'PUMP' && (
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      style={{ minWidth: '80px', paddingLeft: '8px', paddingRight: '8px' }}
+                      onClick={() => {
+                        sessionStorage.setItem('calibrate-device-id', device.id);
+                        navigate('/settings/global');
+                      }}
+                      title="Calibrate pump capacity"
+                    >
+                      Calibrate
+                    </button>
+                  )}
                   {(device.deviceType === 'PUMP' || device.deviceType === 'VIBE') ? (
                     <button
                       className={`btn btn-sm ${(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? 'btn-primary' : 'btn-secondary'}`}
@@ -890,6 +905,12 @@ function DeviceTab() {
                     <span className="popup-divider">|</span>
                     <strong>{getDeviceInfo(device).label}:</strong> {getDeviceInfo(device).value}
                     <button className="popup-close" onClick={() => setInfoPopupDevice(null)}>×</button>
+                  </div>
+                )}
+                {device.deviceType === 'PUMP' && device.calibrationTime > 0 && (
+                  <div className="device-calibration-status">
+                    <span className="calibration-badge calibrated">✓ Calibrated</span>
+                    <span className="calibration-time">Time: {device.calibrationTime} secs</span>
                   </div>
                 )}
               </div>

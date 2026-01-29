@@ -1,0 +1,108 @@
+/* MediaBubble - Full-width media display in chat */
+.media-bubble {
+  width: 100% !important;
+  min-width: 200px !important;
+  align-self: stretch !important;
+  background: rgba(128, 128, 128, 0.3) !important;
+  border: 1px solid rgba(128, 128, 128, 0.5) !important;
+  border-radius: 8px !important;
+  margin: 8px 0 !important;
+  overflow: visible !important;
+  display: block !important;
+}
+
+.media-bubble-header {
+  background: rgba(0, 0, 0, 0.3) !important;
+  padding: 8px 12px !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3) !important;
+  display: block !important;
+}
+
+.media-bubble-content {
+  padding: 12px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  min-height: 100px !important;
+}
+
+/* Image styling */
+.media-bubble-image {
+  border-radius: var(--border-radius);
+  display: block;
+  object-fit: contain;
+}
+
+.media-bubble-image.portrait {
+  max-height: 400px;
+  width: auto;
+  max-width: 100%;
+}
+
+.media-bubble-image.landscape {
+  max-width: 100%;
+  height: auto;
+  max-height: 350px;
+}
+
+/* Video styling */
+.media-bubble-video {
+  max-width: 100% !important;
+  max-height: 400px !important;
+  min-height: 150px !important;
+  border-radius: 8px !important;
+  background: #000 !important;
+  display: block !important;
+}
+
+/* Blocking video indicator */
+.media-bubble-video.blocking {
+  box-shadow: 0 0 15px rgba(255, 165, 0, 0.6) !important;
+  border: 2px solid orange !important;
+}
+
+/* Audio styling */
+.media-bubble-audio-container {
+  width: 100% !important;
+  padding: 8px 0 !important;
+  display: block !important;
+}
+
+.media-bubble-audio {
+  width: 100% !important;
+  height: 50px !important;
+  display: block !important;
+}
+
+/* Loading state */
+.media-bubble-loading .media-bubble-content {
+  min-height: 100px;
+}
+
+.media-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: mediaSpin 0.8s linear infinite;
+}
+
+@keyframes mediaSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error state */
+.media-bubble-error {
+  background: rgba(255, 107, 107, 0.2);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+.media-error-text {
+  color: #ff6b6b;
+  font-style: italic;
+  margin: 0;
+}

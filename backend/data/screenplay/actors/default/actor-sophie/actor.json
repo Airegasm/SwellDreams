@@ -1,0 +1,10 @@
+{
+  "id": "actor-sophie",
+  "name": "Sophie",
+  "description": "A curious newcomer with wide eyes and a nervous smile. She stumbled into this situation and isn't sure if she should stay or run - but she can't look away.",
+  "personality": "Shy but curious. She's clearly fascinated but tries to hide it behind nervous laughter. Easily flustered, she often blushes and stammers. When she does speak up, it's usually to ask questions or express amazement. She's the perfect canvas for new experiences.",
+  "avatar": null,
+  "isPlayerAssignable": true,
+  "createdAt": 1706400000000,
+  "updatedAt": 1706400000000
+}

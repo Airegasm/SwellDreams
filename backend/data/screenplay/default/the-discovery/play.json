@@ -1,0 +1,818 @@
+{
+  "id": "the-discovery",
+  "name": "The Discovery",
+  "description": "You stumble upon two girls with an unusual hobby. They're eager to share it with you... and see just how far you're willing to go.",
+  "actors": ["actor-mia", "actor-jade", "actor-sophie"],
+  "playerActorId": null,
+  "authorMode": "2nd-person",
+  "startPageId": "page-stumble",
+  "pages": {
+    "page-stumble": {
+      "id": "page-stumble",
+      "title": "An Unexpected Discovery",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "narration",
+          "data": {
+            "text": "You're at a house party, looking for somewhere quieter. The upstairs hallway is dim, and you notice a door slightly ajar, soft laughter drifting out. Curiosity gets the better of you.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "Pushing the door open, you freeze. Two girls are inside—one with short dark hair lounging on the bed, another with long auburn waves kneeling beside her. The dark-haired girl's belly is... noticeably round and tight, and she's rubbing it with a satisfied smile. A tube and pump sit nearby.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Well, well. Looks like we have a visitor.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Oh! Hi there. Don't be shy—come in! I'm Mia, and that's Jade. We were just... having some fun.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "narration",
+          "data": {
+            "text": "Jade sits up slowly, her swollen belly shifting with the movement. She pats it proudly, watching your reaction with amusement.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "choice",
+          "data": {
+            "prompt": "What do you do?",
+            "choices": [
+              {
+                "text": "\"I'm sorry, I didn't mean to intrude...\" (Turn to leave)",
+                "targetPageId": "page-leaving"
+              },
+              {
+                "text": "\"What... what are you doing?\" (Stay curious)",
+                "targetPageId": "page-curious"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-leaving": {
+      "id": "page-leaving",
+      "title": "Pulled Back",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "narration",
+          "data": {
+            "text": "You start to back away, but Mia quickly stands up.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Wait! Please don't go. It's okay, really. We don't bite... much.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "You're curious. I can see it in your eyes. You wouldn't have stared so long otherwise.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "She's not wrong. Despite your embarrassment, you can't deny the fascination.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-curious"
+          }
+        }
+      ]
+    },
+    "page-curious": {
+      "id": "page-curious",
+      "title": "The Explanation",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "It's called belly inflation. Air, water, sometimes other things... it makes your belly grow. Feels amazing when you get into it. Tight, full, warm...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "It's about pushing your limits. Seeing how much you can take. The pressure building inside you, your skin stretching tight...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "narration",
+          "data": {
+            "text": "Jade runs her hands over her inflated belly, demonstrating how firm it is. The skin looks drum-tight.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Have you ever thought about trying it? We could show you. Start small, nothing scary.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Or not so small. Depends how adventurous you're feeling.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "choice",
+          "data": {
+            "prompt": "How do you respond?",
+            "choices": [
+              {
+                "text": "\"Maybe just a little... to see what it's like.\"",
+                "targetPageId": "page-gentle-start"
+              },
+              {
+                "text": "\"I'm intrigued. Show me what you've got.\"",
+                "targetPageId": "page-bold-start"
+              },
+              {
+                "text": "\"This isn't really my thing...\"",
+                "targetPageId": "page-reluctant"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-reluctant": {
+      "id": "page-reluctant",
+      "title": "Gentle Persuasion",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "That's okay! No pressure at all. But... you're still here. Still watching. That means something, doesn't it?",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "She moves closer, her voice soft and reassuring.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Just watch for a bit. See how Jade looks, how she feels. If you change your mind... we'll be here.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Jade begins to pump more air into herself, her belly growing rounder before your eyes. She lets out a soft moan of pleasure as the pressure builds. It's hard to look away.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "set_variable",
+          "data": {
+            "variableName": "watched_demo",
+            "value": "true"
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "choice",
+          "data": {
+            "prompt": "After watching...",
+            "choices": [
+              {
+                "text": "\"Okay... maybe I'll try a little.\"",
+                "targetPageId": "page-gentle-start"
+              },
+              {
+                "text": "\"That looks... intense. I want to feel that.\"",
+                "targetPageId": "page-bold-start"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-gentle-start": {
+      "id": "page-gentle-start",
+      "title": "Taking It Slow",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "set_variable",
+          "data": {
+            "variableName": "intensity",
+            "value": "gentle"
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Perfect! We'll go nice and slow. Just relax and tell us if anything feels like too much.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "narration",
+          "data": {
+            "text": "Mia guides you to lie down on the bed. She's gentle, patient, explaining everything as she prepares the equipment. The tube is thin, the pump small.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Ready? Just a little bit to start. You're going to feel some pressure, but it'll be nice. I promise.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "narration",
+          "data": {
+            "text": "She begins pumping slowly. You feel the first rush of air, your belly starting to rise. It's strange at first—the fullness, the gentle stretching—but not unpleasant.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Look at that... already starting to show. How does it feel?",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-7",
+          "type": "narration",
+          "data": {
+            "text": "Your belly has a noticeable curve now, pressing gently against your waistband. Mia pauses, letting you adjust.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-8",
+          "type": "choice",
+          "data": {
+            "prompt": "How do you feel?",
+            "choices": [
+              {
+                "text": "\"That's enough for now. This is... a lot.\"",
+                "targetPageId": "page-gentle-end"
+              },
+              {
+                "text": "\"It feels... good. Keep going.\"",
+                "targetPageId": "page-gentle-more"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-bold-start": {
+      "id": "page-bold-start",
+      "title": "Diving In",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "set_variable",
+          "data": {
+            "variableName": "intensity",
+            "value": "intense"
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Now we're talking. I like someone who isn't afraid to push themselves.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "narration",
+          "data": {
+            "text": "Jade takes charge now, her movements confident and practiced. She selects a larger pump, her eyes glinting with anticipation.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Lie back. We're going to fill you up properly. Don't worry—I know exactly how far to push.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "narration",
+          "data": {
+            "text": "The pumping begins faster than expected. Your belly swells rapidly, the pressure building quicker than you anticipated. It's intense, overwhelming, your skin stretching tight as you grow rounder.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Oh wow... look at you. You're getting so big already...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-7",
+          "type": "narration",
+          "data": {
+            "text": "Your belly is round and firm now, pressing hard against your clothes. The fullness is almost too much—but there's something thrilling about it too.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-8",
+          "type": "choice",
+          "data": {
+            "prompt": "The pressure is building...",
+            "choices": [
+              {
+                "text": "\"Wait—slow down!\"",
+                "targetPageId": "page-intense-pause"
+              },
+              {
+                "text": "\"Don't stop. I can take more.\"",
+                "targetPageId": "page-intense-more"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-gentle-more": {
+      "id": "page-gentle-more",
+      "title": "A Little More",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "That's it... you're doing so well. Just a bit more...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "She continues pumping, each squeeze adding to the growing pressure inside you. Your belly rounds out further, the skin beginning to feel tight. It's an unfamiliar sensation—full, heavy, stretched—but oddly satisfying.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Not bad for a first timer. You've got potential.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Mia rests her hand on your swollen belly, feeling how firm it's become. She smiles warmly.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "You look amazing. How about we stop here? Or... Jade could show you what it's like to really push your limits.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "choice",
+          "data": {
+            "prompt": "What do you want?",
+            "choices": [
+              {
+                "text": "\"This is perfect. I'm happy here.\"",
+                "targetPageId": "page-gentle-end"
+              },
+              {
+                "text": "\"Let Jade take over. I want to see how far I can go.\"",
+                "targetPageId": "page-intense-more"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-intense-pause": {
+      "id": "page-intense-pause",
+      "title": "Catching Your Breath",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "narration",
+          "data": {
+            "text": "Jade pauses, but doesn't stop completely. The pressure holds steady, keeping you full and tight.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Taking a breather? That's fine. Feel that pressure... that's your limit right now. But limits are meant to be pushed.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "You're doing great. Just breathe. When you're ready, we can keep going... or stop here. It's up to you.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Your belly is large and round, straining against your clothes. The tightness is intense, but as you breathe through it, you start to adjust. The fullness becomes almost... comfortable.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "choice",
+          "data": {
+            "prompt": "Now that you've caught your breath...",
+            "choices": [
+              {
+                "text": "\"Okay... I think I can handle a little more.\"",
+                "targetPageId": "page-intense-more"
+              },
+              {
+                "text": "\"This is my limit. Let's stop here.\"",
+                "targetPageId": "page-intense-end"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-gentle-end": {
+      "id": "page-gentle-end",
+      "title": "Satisfied",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "You did wonderful. How do you feel?",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "You look down at your gently rounded belly. It's not huge, but there's a noticeable fullness—a soft curve that wasn't there before. You run your hand over it, feeling the slight pressure inside.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Not bad for a first time. Come back when you want to try something more... intense.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Or just come back to hang out. We're here most weekends.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "narration",
+          "data": {
+            "text": "As the air slowly releases and your belly returns to normal, you realize you're already thinking about next time. Maybe you'll push a little further...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "end",
+          "data": {
+            "endingType": "good",
+            "message": "Ending: A Gentle Introduction"
+          }
+        }
+      ]
+    },
+    "page-intense-more": {
+      "id": "page-intense-more",
+      "title": "Pushing Limits",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "That's what I like to hear.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "Jade resumes pumping with renewed enthusiasm. Each squeeze sends more air rushing in, your already-full belly growing even larger. The pressure is immense now, your skin stretched drum-tight.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "Oh my god... look how big you're getting. That's incredible...",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Your belly is massive now, round and hard like a beach ball. Every breath is shallow, the fullness pressing against your lungs. It's overwhelming—the tightness, the pressure, the strange thrill of being pushed to your absolute limit.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Feel that? That's your edge. Right there. That's where it gets interesting.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "narration",
+          "data": {
+            "text": "Jade's hand rests on your straining belly, feeling how impossibly tight it's become. She looks satisfied. Impressed, even.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-7",
+          "type": "choice",
+          "data": {
+            "prompt": "You're at your limit...",
+            "choices": [
+              {
+                "text": "\"That's it—I can't take any more!\"",
+                "targetPageId": "page-intense-end"
+              },
+              {
+                "text": "\"Just... a little... more...\"",
+                "targetPageId": "page-maximum"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-intense-end": {
+      "id": "page-intense-end",
+      "title": "At Your Limit",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "narration",
+          "data": {
+            "text": "Jade stops, admiring her work. Your belly is huge—round, firm, straining against every seam of your clothing.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Look at you. Absolutely stuffed. You took that like a pro.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "You were amazing! How does it feel being so full?",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Words escape you. The pressure is all-consuming, every nerve focused on the massive tightness of your belly. It's intense, overwhelming... and undeniably exhilarating.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Same time next week? I want to see if we can push you even further.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "narration",
+          "data": {
+            "text": "Despite the intensity—or maybe because of it—you find yourself nodding. You've discovered something new about yourself tonight. And you definitely want more.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-7",
+          "type": "end",
+          "data": {
+            "endingType": "good",
+            "message": "Ending: Pushing Boundaries"
+          }
+        }
+      ]
+    },
+    "page-maximum": {
+      "id": "page-maximum",
+      "title": "Beyond Limits",
+      "paragraphs": [
+        {
+          "id": "para-1",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "You're serious? ...I like you.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-2",
+          "type": "narration",
+          "data": {
+            "text": "A few more pumps. Your belly groans in protest, stretched beyond anything you thought possible. The tightness is almost painful, but mixed with something else—a strange, intense pleasure from pushing so far past your limits.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-3",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-mia",
+            "text": "That's... that's incredible. I've never seen anyone go this far on their first try.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-4",
+          "type": "narration",
+          "data": {
+            "text": "Your belly is absolutely massive now—round and tight as a drum, your skin stretched to its absolute maximum. Every tiny movement sends waves of pressure through you. You can barely breathe, barely think. There's only the fullness, the tightness, the overwhelming sensation of being completely stuffed.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-5",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "Perfect. Absolutely perfect. You're a natural.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-6",
+          "type": "narration",
+          "data": {
+            "text": "Both girls admire your massively swollen form. Jade traces her fingers over your straining belly while Mia watches in awe. You've never felt anything like this—pushed to your absolute limit and loving every second of it.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-7",
+          "type": "dialogue",
+          "data": {
+            "actorId": "actor-jade",
+            "text": "You belong here. Come back tomorrow night. We have so much more to show you.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-8",
+          "type": "end",
+          "data": {
+            "endingType": "good",
+            "message": "Ending: Maximum Capacity"
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": 1706400000000,
+  "updatedAt": 1706400000000
+}

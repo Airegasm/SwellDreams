@@ -44,6 +44,7 @@ function GlobalTab() {
     autoCapacityMultiplier: 1.0,
     allowLlmDeviceControl: false,
     llmDeviceControlMaxSeconds: 30,
+    llmDeviceControlPulseDuration: 3,
     allowOverInflation: false,
     enableAutoPopRoleplay: false,
     autoPopMode: 'fixed',
@@ -507,6 +508,29 @@ function GlobalTab() {
     };
   }, []);
 
+  // Handle calibrate request from DeviceTab navigation (via sessionStorage)
+  useEffect(() => {
+    const calibrateDeviceId = sessionStorage.getItem('calibrate-device-id');
+    if (calibrateDeviceId) {
+      // Clear immediately to prevent re-triggering
+      sessionStorage.removeItem('calibrate-device-id');
+      // Find the device and load its existing calibration data
+      const device = pumpDevices.find(d => d.id === calibrateDeviceId) || pumpDevices[0];
+      if (device) {
+        const hasCalibration = device.calibrationTime > 0;
+        setCalibrationState(prev => ({
+          ...prev,
+          selectedPumpId: device.id,
+          currentTime: device.calibrationTime || 0,
+          capacity: hasCalibration ? 100 : 0, // If calibrated, start at 100% (full)
+          painLevel: device.calibrationPainAtMax || 0,
+          phase: hasCalibration ? 'paused' : 'setup' // Allow continuing if already calibrated
+        }));
+      }
+      setShowCalibrationModal(true);
+    }
+  }, [pumpDevices]);
+
   // Check for capacity reaching 100%
   useEffect(() => {
     if (calibrationState.capacity >= 100 && calibrationState.phase === 'paused') {
@@ -831,6 +855,21 @@ function GlobalTab() {
             </div>
           </div>
 
+          <div className="character-control-row">
+            <label className="control-inline-label">Capacity Multiplier:</label>
+            <input
+              type="range"
+              min="0.25"
+              max="3"
+              step="0.25"
+              value={characterControls.autoCapacityMultiplier}
+              onChange={(e) => handleCharacterControlChange('autoCapacityMultiplier', parseFloat(e.target.value))}
+              className="multiplier-slider"
+            />
+            <span className="multiplier-value">{characterControls.autoCapacityMultiplier}x</span>
+            <span className="control-inline-hint">Speed of capacity tracking (1x = calibrated rate)</span>
+          </div>
+
           <hr className="control-divider" />
 
           <div className="character-control-row">
@@ -849,19 +888,34 @@ function GlobalTab() {
           </div>
 
           {characterControls.allowLlmDeviceControl && (
-            <div className="character-control-row sub-control">
-              <label className="control-inline-label">Max On Duration:</label>
-              <input
-                type="number"
-                min="5"
-                max="300"
-                step="5"
-                value={characterControls.llmDeviceControlMaxSeconds}
-                onChange={(e) => handleCharacterControlChange('llmDeviceControlMaxSeconds', parseInt(e.target.value) || 30)}
-                className="control-number-input"
-              />
-              <span className="control-inline-hint">seconds (AI will be told to turn off after this time)</span>
-            </div>
+            <>
+              <div className="character-control-row sub-control">
+                <label className="control-inline-label">Max On Duration:</label>
+                <input
+                  type="number"
+                  min="5"
+                  max="300"
+                  step="5"
+                  value={characterControls.llmDeviceControlMaxSeconds}
+                  onChange={(e) => handleCharacterControlChange('llmDeviceControlMaxSeconds', parseInt(e.target.value) || 30)}
+                  className="control-number-input"
+                />
+                <span className="control-inline-hint">seconds (AI will be told to turn off after this time)</span>
+              </div>
+              <div className="character-control-row sub-control">
+                <label className="control-inline-label">Pulse Duration:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  step="1"
+                  value={characterControls.llmDeviceControlPulseDuration}
+                  onChange={(e) => handleCharacterControlChange('llmDeviceControlPulseDuration', parseInt(e.target.value) || 3)}
+                  className="control-number-input"
+                />
+                <span className="control-inline-hint">seconds (for rhythmic/pulsing pump phrases)</span>
+              </div>
+            </>
           )}
 
           <div className="character-control-row">

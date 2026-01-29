@@ -8,8 +8,11 @@ import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
+import { parseMediaVariables } from '../utils/mediaVariables';
 import { getPortraitForCapacity } from '../utils/stagedPortraits';
 import StatusBadges from '../components/StatusBadges';
+import MediaBubble from '../components/chat/MediaBubble';
+import SilentAudioPlayer from '../components/chat/SilentAudioPlayer';
 import './Chat.css';
 
 function Chat() {
@@ -88,6 +91,16 @@ function Chat() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const randomPopThresholdRef = useRef(null); // Stores random pop threshold for session
+  const historicalMessageIds = useRef(null); // Track messages that existed on mount (don't autoplay their media)
+
+  // On first render, capture existing message IDs as "historical" - their media won't autoplay
+  useEffect(() => {
+    if (historicalMessageIds.current === null && messages.length > 0) {
+      historicalMessageIds.current = new Set(messages.map(m => m.id));
+    } else if (historicalMessageIds.current === null) {
+      historicalMessageIds.current = new Set();
+    }
+  }, [messages]);
 
   // Check if LLM is configured
   const isLlmConfigured = () => {
@@ -351,6 +364,18 @@ function Chat() {
     }
   }, [messageHistory, sendWsMessage]);
 
+  // Track if user is near bottom of chat (for smart auto-scroll)
+  const isNearBottomRef = useRef(true);
+  const lastMessageCountRef = useRef(0);
+
+  // Check if scrolled near bottom (within 150px)
+  const checkIfNearBottom = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const threshold = 150;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  };
+
   // Scroll to bottom helper
   const scrollToBottom = (smooth = true) => {
     const container = messagesContainerRef.current;
@@ -362,13 +387,54 @@ function Chat() {
     }
   };
 
+  // Track scroll position to know if user scrolled away
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      isNearBottomRef.current = checkIfNearBottom();
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll on new messages (only if near bottom or new message arrived)
   useEffect(() => {
     if (messages.length > 0 && !sessionLoading && !isPanelBlocking) {
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
+      const isNewMessage = messages.length > lastMessageCountRef.current;
+      lastMessageCountRef.current = messages.length;
+
+      // Always scroll for new messages, but during streaming only if near bottom
+      if (isNewMessage || (sessionState.isGenerating && isNearBottomRef.current)) {
+        requestAnimationFrame(() => {
+          scrollToBottom();
+        });
+      }
     }
   }, [messages, sessionState.isGenerating, sessionLoading, isPanelBlocking]);
+
+  // Initial load scroll - multiple attempts to handle media loading
+  const initialScrollDone = useRef(false);
+  useEffect(() => {
+    if (!sessionLoading && messages.length > 0 && !initialScrollDone.current) {
+      initialScrollDone.current = true;
+      // Immediate scroll
+      scrollToBottom(false);
+      // Delayed scrolls to catch media that loads after render
+      setTimeout(() => scrollToBottom(false), 100);
+      setTimeout(() => scrollToBottom(false), 300);
+      setTimeout(() => scrollToBottom(false), 600);
+    }
+  }, [sessionLoading, messages.length]);
+
+  // Handler for when media loads - scroll if near bottom
+  const handleMediaLoad = () => {
+    if (isNearBottomRef.current) {
+      requestAnimationFrame(() => scrollToBottom());
+    }
+  };
 
   // Keyboard shortcuts for capacity control
   useEffect(() => {
@@ -1115,7 +1181,7 @@ function Chat() {
         )}
 
         {/* Interactive overlay - slides down from top for challenges, choices, etc */}
-        <div className={`challenge-overlay ${(challengeData || playerChoiceData) ? 'open' : ''}`}>
+        <div className={`challenge-overlay ${(challengeData || playerChoiceData || inputData) ? 'open' : ''}`}>
           {challengeData && (
             <ChallengeModal
               challengeData={challengeData}
@@ -1178,56 +1244,88 @@ function Chat() {
               msg.sender !== 'player' &&
               index === filteredMsgs.length - 1;
 
+            // Parse media variables from message content
+            const { cleanContent, mediaItems } = parseMediaVariables(msg.content);
+            const hasTextContent = cleanContent && cleanContent.trim().length > 0;
+
             return (
-              <div
-                key={msg.id}
-                id={`msg-${msg.id}`}
-                className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}`}
-              >
-                <div className="message-header">
-                  <span className="message-sender">
-                    {msg.sender === 'player' ? `${activePersona?.displayName || 'Player'} (You)` : msg.characterName || 'Character'}
-                  </span>
-                  <div className="message-controls">
-                    <button
-                      className="msg-btn"
-                      onClick={() => handleEditMessage(msg)}
-                      title="Edit message"
-                    >✏️</button>
-                    <button
-                      className="msg-btn"
-                      onClick={() => handleSwipeMessage(msg)}
-                      title="Swipe (regenerate)"
-                    >➡️</button>
-                    <button
-                      className="msg-btn"
-                      onClick={() => handleDeleteMessage(msg.id)}
-                      title="Delete message"
-                    >🗑️</button>
-                  </div>
-                  <span className="message-time">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-                {editingId === msg.id ? (
-                  <div className="message-edit">
-                    <textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      rows={4}
-                    />
-                    <div className="edit-buttons">
-                      <button className="btn btn-primary btn-sm" onClick={() => handleSaveEdit(msg.id)}>Save</button>
-                      <button className="btn btn-secondary btn-sm" onClick={handleCancelEdit}>Cancel</button>
+              <React.Fragment key={msg.id}>
+                {/* Only show message bubble if there's text content OR we're editing */}
+                {(hasTextContent || editingId === msg.id) && (
+                  <div
+                    id={`msg-${msg.id}`}
+                    className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}`}
+                  >
+                    <div className="message-header">
+                      <span className="message-sender">
+                        {msg.sender === 'player' ? `${activePersona?.displayName || 'Player'} (You)` : msg.characterName || 'Character'}
+                      </span>
+                      <div className="message-controls">
+                        <button
+                          className="msg-btn"
+                          onClick={() => handleEditMessage(msg)}
+                          title="Edit message"
+                        >✏️</button>
+                        <button
+                          className="msg-btn"
+                          onClick={() => handleSwipeMessage(msg)}
+                          title="Swipe (regenerate)"
+                        >➡️</button>
+                        <button
+                          className="msg-btn"
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          title="Delete message"
+                        >🗑️</button>
+                      </div>
+                      <span className="message-time">
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
                     </div>
-                  </div>
-                ) : (
-                  <div className={`message-content ${msg.streaming ? 'streaming' : ''}`}>
-                    {substituteVariables(msg.content, subContext)}
-                    {msg.streaming && <span className="streaming-cursor">▌</span>}
+                    {editingId === msg.id ? (
+                      <div className="message-edit">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          rows={4}
+                        />
+                        <div className="edit-buttons">
+                          <button className="btn btn-primary btn-sm" onClick={() => handleSaveEdit(msg.id)}>Save</button>
+                          <button className="btn btn-secondary btn-sm" onClick={handleCancelEdit}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`message-content ${msg.streaming ? 'streaming' : ''}`}>
+                        {substituteVariables(cleanContent, subContext)}
+                        {msg.streaming && <span className="streaming-cursor">▌</span>}
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+
+                {/* Render media bubbles for any media variables found (except nomsg audio) */}
+                {mediaItems
+                  .filter(item => !(item.type === 'audio' && item.nomsg))
+                  .map((item, mediaIndex) => (
+                    <MediaBubble
+                      key={`${msg.id}-media-${mediaIndex}`}
+                      type={item.type}
+                      tag={item.tag}
+                      loop={item.loop || false}
+                      blocking={item.blocking || false}
+                      autoplay={!historicalMessageIds.current?.has(msg.id)}
+                      onLoad={handleMediaLoad}
+                    />
+                  ))}
+                {/* Silent audio players for nomsg audio (only for new messages) */}
+                {!historicalMessageIds.current?.has(msg.id) && mediaItems
+                  .filter(item => item.type === 'audio' && item.nomsg)
+                  .map((item, mediaIndex) => (
+                    <SilentAudioPlayer
+                      key={`${msg.id}-silent-audio-${mediaIndex}`}
+                      tag={item.tag}
+                    />
+                  ))}
+              </React.Fragment>
             );
           })
           )}
@@ -1479,7 +1577,10 @@ function Chat() {
                 {(() => {
                   // Filter buttons to only show those with actions linked to assigned flows
                   // Use sessionState.flowAssignments which is updated in real-time via WebSocket
-                  const assignedFlows = sessionState?.flowAssignments?.characters?.[activeCharacter?.id] || activeCharacter?.assignedFlows || [];
+                  // Fallback to active story's flows (flows are stored at story level, not character level)
+                  const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
+                  const storyFlows = activeStory?.assignedFlows || activeCharacter?.assignedFlows || [];
+                  const assignedFlows = sessionState?.flowAssignments?.characters?.[activeCharacter?.id] || storyFlows;
                   const filteredButtons = (activeCharacter?.buttons || []).filter(button => {
                     // If button has no actions, show it
                     if (!button.actions || button.actions.length === 0) return true;

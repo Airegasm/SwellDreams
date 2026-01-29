@@ -1,0 +1,15 @@
+.media-crop-modal {
+  width: 90%;
+  max-width: 600px;
+}
+
+.media-crop-modal .crop-container {
+  border-radius: var(--border-radius);
+  background: #000;
+}
+
+.media-crop-modal .text-muted {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+}

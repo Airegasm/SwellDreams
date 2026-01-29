@@ -9,6 +9,7 @@ import ScreenPlay from './pages/ScreenPlay';
 import Help from './pages/Help';
 import Personas from './pages/Personas';
 import Characters from './pages/Characters';
+import MediaAlbum from './pages/MediaAlbum';
 import HamburgerMenu from './components/HamburgerMenu';
 import HelpPanel from './components/HelpPanel';
 import SaveSessionModal from './components/modals/SaveSessionModal';
@@ -371,7 +372,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v2.5.6</span>
+      <span className="version-badge">v3.0.0b</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -445,8 +446,23 @@ function App() {
               <Characters />
             </div>
           } />
+          <Route path="/media-album" element={
+            <div className="center-modal-overlay">
+              <MediaAlbum />
+            </div>
+          } />
+          <Route path="/media-album/:tab" element={
+            <div className="center-modal-overlay">
+              <MediaAlbum />
+            </div>
+          } />
           <Route path="/flows" element={<FlowEditor />} />
           <Route path="/screenplay" element={
+            <div className="center-modal-overlay">
+              <ScreenPlay />
+            </div>
+          } />
+          <Route path="/screenplay/:tab" element={
             <div className="center-modal-overlay">
               <ScreenPlay />
             </div>

@@ -27,6 +27,13 @@ function Settings() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Sync activeTab with URL param when it changes (e.g., from DeviceTab navigate)
+  useEffect(() => {
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [tab, activeTab]);
+
   // Listen for exit-modal event from HamburgerMenu
   useEffect(() => {
     const handleExitModal = (event) => {

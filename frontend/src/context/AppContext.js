@@ -44,6 +44,10 @@ export function AppProvider({ children }) {
   const [flows, setFlows] = useState([]);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
 
+  // ScreenPlay data
+  const [actors, setActors] = useState([]);
+  const [plays, setPlays] = useState([]);
+
   // Session state
   const [sessionState, setSessionState] = useState({
     capacity: 0,
@@ -194,6 +198,14 @@ export function AppProvider({ children }) {
 
       case 'devices_update':
         setDevices(data);
+        break;
+
+      case 'actors_update':
+        setActors(data);
+        break;
+
+      case 'plays_update':
+        setPlays(data);
         break;
 
       case 'device_warning':
@@ -620,6 +632,166 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
+    // Actors (ScreenPlay)
+    getActors: () => apiFetch(`${API_BASE}/api/actors`),
+
+    getActor: (id) => apiFetch(`${API_BASE}/api/actors/${id}`),
+
+    createActor: (data) => apiFetch(`${API_BASE}/api/actors`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateActor: (id, data) => apiFetch(`${API_BASE}/api/actors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteActor: (id) => apiFetch(`${API_BASE}/api/actors/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Plays (ScreenPlay)
+    getPlays: () => apiFetch(`${API_BASE}/api/plays`),
+
+    getPlay: (id) => apiFetch(`${API_BASE}/api/plays/${id}`),
+
+    createPlay: (data) => apiFetch(`${API_BASE}/api/plays`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updatePlay: (id, data) => apiFetch(`${API_BASE}/api/plays/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deletePlay: (id) => apiFetch(`${API_BASE}/api/plays/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Media Images
+    getMediaImages: () => apiFetch(`${API_BASE}/api/media/images`),
+
+    createMediaImage: (data) => apiFetch(`${API_BASE}/api/media/images`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+    updateMediaImage: (id, data) => apiFetch(`${API_BASE}/api/media/images/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteMediaImage: (id) => apiFetch(`${API_BASE}/api/media/images/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Image folders
+    getImageFolders: () => apiFetch(`${API_BASE}/api/media/images/folders`),
+    createImageFolder: (path) => apiFetch(`${API_BASE}/api/media/images/folders`, {
+      method: 'POST',
+      body: JSON.stringify({ path })
+    }),
+    renameImageFolder: (oldPath, newPath) => apiFetch(`${API_BASE}/api/media/images/folders`, {
+      method: 'PUT',
+      body: JSON.stringify({ oldPath, newPath })
+    }),
+    deleteImageFolder: (path) => apiFetch(`${API_BASE}/api/media/images/folders/${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    }),
+
+    // Media Videos (uses FormData for file upload)
+    getMediaVideos: () => apiFetch(`${API_BASE}/api/media/videos`),
+
+    uploadMediaVideo: async (file, tag, description, folder = null) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tag', tag);
+      formData.append('description', description);
+      if (folder) formData.append('folder', folder);
+      const response = await fetch(`${API_BASE}/api/media/videos`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      return response.json();
+    },
+
+    updateMediaVideo: (id, data) => apiFetch(`${API_BASE}/api/media/videos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteMediaVideo: (id) => apiFetch(`${API_BASE}/api/media/videos/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Video folders
+    getVideoFolders: () => apiFetch(`${API_BASE}/api/media/videos/folders`),
+    createVideoFolder: (path) => apiFetch(`${API_BASE}/api/media/videos/folders`, {
+      method: 'POST',
+      body: JSON.stringify({ path })
+    }),
+    renameVideoFolder: (oldPath, newPath) => apiFetch(`${API_BASE}/api/media/videos/folders`, {
+      method: 'PUT',
+      body: JSON.stringify({ oldPath, newPath })
+    }),
+    deleteVideoFolder: (path) => apiFetch(`${API_BASE}/api/media/videos/folders/${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    }),
+
+    // Media Audio (uses FormData for file upload)
+    getMediaAudio: () => apiFetch(`${API_BASE}/api/media/audios`),
+
+    uploadMediaAudio: async (file, tag, description, folder = null) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('tag', tag);
+      formData.append('description', description);
+      if (folder) formData.append('folder', folder);
+      const response = await fetch(`${API_BASE}/api/media/audios`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      return response.json();
+    },
+
+    updateMediaAudio: (id, data) => apiFetch(`${API_BASE}/api/media/audios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+
+    deleteMediaAudio: (id) => apiFetch(`${API_BASE}/api/media/audios/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Audio folders
+    getAudioFolders: () => apiFetch(`${API_BASE}/api/media/audios/folders`),
+    createAudioFolder: (path) => apiFetch(`${API_BASE}/api/media/audios/folders`, {
+      method: 'POST',
+      body: JSON.stringify({ path })
+    }),
+    renameAudioFolder: (oldPath, newPath) => apiFetch(`${API_BASE}/api/media/audios/folders`, {
+      method: 'PUT',
+      body: JSON.stringify({ oldPath, newPath })
+    }),
+    deleteAudioFolder: (path) => apiFetch(`${API_BASE}/api/media/audios/folders/${encodeURIComponent(path)}`, {
+      method: 'DELETE'
+    }),
+
+    // Media lookup by tag (for chat media variables)
+    lookupMediaByTag: (type, tag) => apiFetch(
+      `${API_BASE}/api/media/lookup?type=${encodeURIComponent(type)}&tag=${encodeURIComponent(tag)}`
+    ),
+
     // Devices
     getDevices: () => apiFetch(`${API_BASE}/api/devices`),
 
@@ -889,6 +1061,8 @@ export function AppProvider({ children }) {
     api.getDevices().then(setDevices).catch(console.error);
     api.getFlows().then(setFlows).catch(console.error);
     api.getConnectionProfiles().then(setConnectionProfiles).catch(console.error);
+    api.getActors().then(setActors).catch(console.error);
+    api.getPlays().then(setPlays).catch(console.error);
     fetchSimulationStatus();
 
     return () => {
@@ -1023,6 +1197,12 @@ export function AppProvider({ children }) {
     flows,
     setFlows,
     connectionProfiles,
+
+    // ScreenPlay data
+    actors,
+    setActors,
+    plays,
+    setPlays,
 
     // Session
     sessionState,

@@ -1,0 +1,10 @@
+{
+  "id": "actor-mia",
+  "name": "Mia",
+  "description": "A bubbly, enthusiastic girl with a mischievous smile. She's the more gentle one, always encouraging but never forcing.",
+  "personality": "Sweet and supportive, but with a playful edge. Loves to tease and gets genuinely excited watching others try new things. Patient and reassuring, she makes everything feel safe while still being enticing.",
+  "avatar": null,
+  "isPlayerAssignable": false,
+  "createdAt": 1706400000000,
+  "updatedAt": 1706400000000
+}

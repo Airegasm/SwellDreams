@@ -561,6 +561,81 @@ function ActionNode({ data, selected }) {
         );
       }
 
+      case 'show_image':
+        return (
+          <div className="node-config">
+            <input
+              type="text"
+              value={data.tag || ''}
+              onChange={(e) => data.onChange?.('tag', e.target.value)}
+              placeholder="Image tag"
+              className="node-input"
+            />
+          </div>
+        );
+
+      case 'play_video':
+        return (
+          <div className="node-config">
+            <input
+              type="text"
+              value={data.tag || ''}
+              onChange={(e) => data.onChange?.('tag', e.target.value)}
+              placeholder="Video tag"
+              className="node-input"
+            />
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={data.loop || false}
+                onChange={(e) => {
+                  data.onChange?.('loop', e.target.checked);
+                  if (e.target.checked) data.onChange?.('blocking', false);
+                }}
+              />
+              Loop
+            </label>
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={data.blocking || false}
+                disabled={data.loop}
+                onChange={(e) => data.onChange?.('blocking', e.target.checked)}
+              />
+              Blocking (pause flow until video ends)
+            </label>
+          </div>
+        );
+
+      case 'play_audio':
+        return (
+          <div className="node-config">
+            <input
+              type="text"
+              value={data.tag || ''}
+              onChange={(e) => data.onChange?.('tag', e.target.value)}
+              placeholder="Audio tag"
+              className="node-input"
+            />
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={data.noBubble || false}
+                onChange={(e) => data.onChange?.('noBubble', e.target.checked)}
+              />
+              No bubble (play silently)
+            </label>
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={data.blocking || false}
+                onChange={(e) => data.onChange?.('blocking', e.target.checked)}
+              />
+              Blocking (pause flow until audio ends)
+            </label>
+          </div>
+        );
+
       default:
         return null;
     }

@@ -1,8 +1,8 @@
 # SwellDreams
 
-**v2.5b**
+**v3.0.0b "Stable Beta"**
 
-An AI-powered interactive roleplay platform with smart device integration and visual flow automation.
+An AI-powered interactive roleplay platform with smart device integration, visual flow automation, and interactive visual novel authoring.
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -38,7 +38,15 @@ An AI-powered interactive roleplay platform with smart device integration and vi
 - **Pause/Resume**: Pause flow execution, let natural conversation happen, auto-resume after N messages
 - **Input & Random Nodes**: Collect player input and generate random values for dynamic flows
 - **Flow Priority**: Set execution priority (1-5) and mark flows as unblockable
-- **ScreenPlay**: View flow-generated narrative content in a dedicated page
+
+### ScreenPlay (Alpha)
+- **Visual Novel Authoring**: Create interactive CYOA-style plays with actors
+- **Multiple Paragraph Types**: Narration, dialogue, player dialogue, choices, inline questions
+- **LLM Enhancement**: AI-powered text expansion for narrative content
+- **Variable System**: Set and check play variables with `[Play:varname]` syntax
+- **Pump Control**: Real and mock pump events with device integration
+- **Capacity Tracking**: Player and NPC capacity gauges with pain scale
+- **Filmstrip UI**: Cinematic presentation with character portraits
 
 ### Custom Buttons
 - **Quick Actions**: Add custom buttons to characters for one-click actions

@@ -455,16 +455,16 @@ function makeStreamingRequest(url, body, onToken) {
 function trimIncompleteSentences(text) {
   if (!text || typeof text !== 'string') return text;
 
-  const trimmed = text.trim();
+  let trimmed = text.trim();
 
   // Valid endings for roleplay text: . ? ! *
   // Quote " is only valid if preceded by text (closing quote), not if it's an opening quote
   if (/[.?!*]\s*$/.test(trimmed)) {
-    return trimmed;
+    return balanceQuotesAndAsterisks(trimmed);
   }
   // Check for closing quote: " preceded by sentence-ending punctuation or word char
   if (/[.?!*\w]"\s*$/.test(trimmed)) {
-    return trimmed;
+    return balanceQuotesAndAsterisks(trimmed);
   }
 
   // Find the last valid ending character
@@ -488,11 +488,38 @@ function trimIncompleteSentences(text) {
 
   if (lastValidEnd > 0 && lastValidEnd >= trimmed.length * 0.7) {
     // Only trim if we keep at least 70% of the text
-    return trimmed.substring(0, lastValidEnd + 1).trim();
+    trimmed = trimmed.substring(0, lastValidEnd + 1).trim();
+    return balanceQuotesAndAsterisks(trimmed);
   }
 
   // Return original if no good trim point
-  return trimmed;
+  return balanceQuotesAndAsterisks(trimmed);
+}
+
+/**
+ * Ensure quotes and asterisks are balanced (even count)
+ * Adds closing characters if needed to properly close dialog and actions
+ */
+function balanceQuotesAndAsterisks(text) {
+  if (!text || typeof text !== 'string') return text;
+
+  let result = text;
+
+  // Count double quotes
+  const quoteCount = (result.match(/"/g) || []).length;
+  if (quoteCount % 2 !== 0) {
+    // Odd number of quotes - add closing quote
+    result += '"';
+  }
+
+  // Count asterisks (used for actions like *walks over*)
+  const asteriskCount = (result.match(/\*/g) || []).length;
+  if (asteriskCount % 2 !== 0) {
+    // Odd number of asterisks - add closing asterisk
+    result += '*';
+  }
+
+  return result;
 }
 
 /**

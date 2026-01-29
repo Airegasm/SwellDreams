@@ -1,11 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import PlaysTab from '../components/screenplay/PlaysTab';
+import ActorsTab from '../components/screenplay/ActorsTab';
+import StoryboardTab from '../components/screenplay/StoryboardTab';
+import ControlsTab from '../components/screenplay/ControlsTab';
 import './ScreenPlay.css';
 
+const TABS = [
+  { id: 'plays', label: 'Plays' },
+  { id: 'actors', label: 'Actors' },
+  { id: 'storyboard', label: 'Storyboard' },
+  { id: 'controls', label: 'Controls' }
+];
+
 function ScreenPlay() {
+  const { tab } = useParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(tab || 'plays');
   const [animationState, setAnimationState] = useState('entering');
   const isExiting = useRef(false);
+
+  // State for currently editing play (passed to Storyboard)
+  const [editingPlayId, setEditingPlayId] = useState(null);
 
   // Trigger enter animation after mount
   useEffect(() => {
@@ -14,6 +30,13 @@ function ScreenPlay() {
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  // Sync activeTab with URL param when it changes
+  useEffect(() => {
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [tab, activeTab]);
 
   // Listen for exit-modal event from HamburgerMenu
   useEffect(() => {
@@ -35,10 +58,35 @@ function ScreenPlay() {
     if (isExiting.current) return;
     isExiting.current = true;
     setAnimationState('exiting');
-    // Wait for exit animation to complete before navigating
     setTimeout(() => {
       navigate('/');
     }, 500);
+  };
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    navigate(`/screenplay/${tabId}`);
+  };
+
+  // Handler for editing a play from PlaysTab
+  const handleEditPlay = (playId) => {
+    setEditingPlayId(playId);
+    handleTabChange('storyboard');
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'plays':
+        return <PlaysTab onEditPlay={handleEditPlay} />;
+      case 'actors':
+        return <ActorsTab />;
+      case 'storyboard':
+        return <StoryboardTab editingPlayId={editingPlayId} setEditingPlayId={setEditingPlayId} />;
+      case 'controls':
+        return <ControlsTab />;
+      default:
+        return <PlaysTab onEditPlay={handleEditPlay} />;
+    }
   };
 
   return (
@@ -68,10 +116,20 @@ function ScreenPlay() {
           </button>
         </div>
 
-        <div className="screenplay-content">
-          <div className="screenplay-placeholder">
-            <p>ScreenPlay editor coming soon...</p>
-          </div>
+        <div className="tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`tab ${activeTab === t.id ? 'active' : ''}`}
+              onClick={() => handleTabChange(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="tab-content">
+          {renderTabContent()}
         </div>
       </div>
     </>

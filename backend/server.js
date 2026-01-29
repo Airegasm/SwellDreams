@@ -6,6 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
@@ -22,6 +23,7 @@ const wyzeService = require('./services/wyze-service');
 const tapoService = require('./services/tapo-service');
 const aiDeviceControl = require('./services/ai-device-control');
 const imageStorage = require('./services/image-storage');
+const mediaStorage = require('./services/media-storage');
 
 // Utilities
 const { createLogger } = require('./utils/logger');
@@ -100,7 +102,7 @@ const CORS_OPTIONS = {
 
 // Middleware
 app.use(cors(CORS_OPTIONS));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // Rate limiting configurations
 const generalLimiter = rateLimit({
@@ -137,11 +139,15 @@ app.use('/api', (req, res, next) => {
   if (req.path.startsWith('/images/')) {
     return next();
   }
+  // Skip rate limiting for media uploads/downloads - large files
+  if (req.path.startsWith('/media/')) {
+    return next();
+  }
   generalLimiter(req, res, next);
 });
 
 // Serve images from data directories
-// URL format: /api/images/{personas|chars}/{default|custom}/{id}/{filename}
+// URL format: /api/images/{personas|chars|actors}/{default|custom}/{id}/{filename}
 app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
   const { type, folder, id, filename } = req.params;
 
@@ -151,8 +157,18 @@ app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
   }
 
   // Validate type
-  if (type !== 'personas' && type !== 'chars') {
+  if (type !== 'personas' && type !== 'chars' && type !== 'actors') {
     return res.status(400).send('Invalid type');
+  }
+
+  // For actors, serve from screenplay/actors directory
+  if (type === 'actors') {
+    const actorImgPath = path.join(__dirname, 'data', 'screenplay', 'actors', folder, id, 'img', filename);
+    if (fs.existsSync(actorImgPath)) {
+      return res.sendFile(actorImgPath);
+    } else {
+      return res.status(404).send('Image not found');
+    }
   }
 
   // Get the file path using the image storage service
@@ -171,6 +187,400 @@ app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
     res.status(404).send('Image not found');
   }
 });
+
+// ==================== MEDIA ALBUM API ====================
+
+// Initialize media directories on startup
+mediaStorage.initMediaDirectories().catch(err => {
+  console.error('Failed to initialize media directories:', err);
+});
+
+// Configure multer for video/audio uploads (memory storage for processing)
+const mediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: mediaStorage.VIDEO_SIZE_LIMIT // Use the larger limit (500MB)
+  }
+});
+
+// --- Media Images ---
+app.get('/api/media/images', async (req, res) => {
+  try {
+    const images = await mediaStorage.loadImagesIndex();
+    res.json(images);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/images', async (req, res) => {
+  try {
+    const { imageData, orientation, tag, description, folder } = req.body;
+    if (!imageData || !orientation || !tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: imageData, orientation, tag, description' });
+    }
+    const image = await mediaStorage.saveMediaImage(imageData, orientation, tag, description, folder);
+    res.json(image);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/images/:id', async (req, res) => {
+  try {
+    const { tag, description, folder } = req.body;
+    if (!tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: tag, description' });
+    }
+    const image = await mediaStorage.updateMediaImage(req.params.id, tag, description, folder);
+    res.json(image);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/images/:id', async (req, res) => {
+  try {
+    await mediaStorage.deleteMediaImage(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/media/images/:id/file', async (req, res) => {
+  try {
+    const image = await mediaStorage.getMediaImage(req.params.id);
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    const filePath = mediaStorage.getMediaImageFilePath(image.filename);
+    res.sendFile(filePath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Image folders
+app.get('/api/media/images/folders', async (req, res) => {
+  try {
+    const folders = await mediaStorage.getImageFolders();
+    res.json(folders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/images/folders', async (req, res) => {
+  try {
+    const { path: folderPath } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folder path' });
+    }
+    const folder = await mediaStorage.createImageFolder(folderPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/images/folders', async (req, res) => {
+  try {
+    const { oldPath, newPath } = req.body;
+    if (!oldPath || !newPath) {
+      return res.status(400).json({ error: 'Missing oldPath or newPath' });
+    }
+    const folder = await mediaStorage.renameImageFolder(oldPath, newPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/images/folders/:path', async (req, res) => {
+  try {
+    const folderPath = decodeURIComponent(req.params.path);
+    await mediaStorage.deleteImageFolder(folderPath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// --- Media Videos ---
+app.get('/api/media/videos', async (req, res) => {
+  try {
+    const videos = await mediaStorage.loadVideosIndex();
+    res.json(videos);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/videos', mediaUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No video file uploaded' });
+    }
+    const { tag, description, folder } = req.body;
+    if (!tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: tag, description' });
+    }
+    const video = await mediaStorage.saveMediaVideo(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      tag,
+      description,
+      folder
+    );
+    res.json(video);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/videos/:id', async (req, res) => {
+  try {
+    const { tag, description, folder } = req.body;
+    if (!tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: tag, description' });
+    }
+    const video = await mediaStorage.updateMediaVideo(req.params.id, tag, description, folder);
+    res.json(video);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/videos/:id', async (req, res) => {
+  try {
+    await mediaStorage.deleteMediaVideo(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/media/videos/:id/file', async (req, res) => {
+  try {
+    const video = await mediaStorage.getMediaVideo(req.params.id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    const filePath = mediaStorage.getMediaVideoFilePath(video.filename);
+    res.sendFile(filePath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Video folders
+app.get('/api/media/videos/folders', async (req, res) => {
+  try {
+    const folders = await mediaStorage.getVideoFolders();
+    res.json(folders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/videos/folders', async (req, res) => {
+  try {
+    const { path: folderPath } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folder path' });
+    }
+    const folder = await mediaStorage.createVideoFolder(folderPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/videos/folders', async (req, res) => {
+  try {
+    const { oldPath, newPath } = req.body;
+    if (!oldPath || !newPath) {
+      return res.status(400).json({ error: 'Missing oldPath or newPath' });
+    }
+    const folder = await mediaStorage.renameVideoFolder(oldPath, newPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/videos/folders/:path', async (req, res) => {
+  try {
+    const folderPath = decodeURIComponent(req.params.path);
+    await mediaStorage.deleteVideoFolder(folderPath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// --- Media Audio ---
+app.get('/api/media/audios', async (req, res) => {
+  try {
+    const audio = await mediaStorage.loadAudioIndex();
+    res.json(audio);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/audios', mediaUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded' });
+    }
+    const { tag, description, folder } = req.body;
+    if (!tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: tag, description' });
+    }
+    const audio = await mediaStorage.saveMediaAudio(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      tag,
+      description,
+      folder || null
+    );
+    res.json(audio);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/audios/:id', async (req, res) => {
+  try {
+    const { tag, description, folder } = req.body;
+    if (!tag || !description) {
+      return res.status(400).json({ error: 'Missing required fields: tag, description' });
+    }
+    const audio = await mediaStorage.updateMediaAudio(req.params.id, tag, description, folder);
+    res.json(audio);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/audios/:id', async (req, res) => {
+  try {
+    await mediaStorage.deleteMediaAudio(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/media/audios/:id/file', async (req, res) => {
+  try {
+    const audio = await mediaStorage.getMediaAudio(req.params.id);
+    if (!audio) {
+      return res.status(404).json({ error: 'Audio not found' });
+    }
+    const filePath = mediaStorage.getMediaAudioFilePath(audio.filename);
+    res.sendFile(filePath);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Audio folders
+app.get('/api/media/audios/folders', async (req, res) => {
+  try {
+    const folders = await mediaStorage.getAudioFolders();
+    res.json(folders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/media/audios/folders', async (req, res) => {
+  try {
+    const { path: folderPath } = req.body;
+    if (!folderPath) {
+      return res.status(400).json({ error: 'Missing folder path' });
+    }
+    const folder = await mediaStorage.createAudioFolder(folderPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/media/audios/folders', async (req, res) => {
+  try {
+    const { oldPath, newPath } = req.body;
+    if (!oldPath || !newPath) {
+      return res.status(400).json({ error: 'Missing oldPath or newPath' });
+    }
+    const folder = await mediaStorage.renameAudioFolder(oldPath, newPath);
+    res.json({ path: folder });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/media/audios/folders/:path', async (req, res) => {
+  try {
+    const folderPath = decodeURIComponent(req.params.path);
+    await mediaStorage.deleteAudioFolder(folderPath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Media tag lookup - resolve tag to media metadata
+app.get('/api/media/lookup', async (req, res) => {
+  const { type, tag } = req.query;
+
+  if (!type || !tag) {
+    return res.status(400).json({ error: 'type and tag query parameters are required' });
+  }
+
+  try {
+    let index, item;
+
+    switch (type) {
+      case 'image':
+        index = await mediaStorage.loadImagesIndex();
+        item = index.find(i => i.tag === tag);
+        break;
+      case 'video':
+        index = await mediaStorage.loadVideosIndex();
+        item = index.find(v => v.tag === tag);
+        break;
+      case 'audio':
+        index = await mediaStorage.loadAudioIndex();
+        item = index.find(a => a.tag === tag);
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid type. Must be image, video, or audio' });
+    }
+
+    if (!item) {
+      return res.status(404).json({ error: `${type} with tag "${tag}" not found` });
+    }
+
+    res.json({
+      id: item.id,
+      tag: item.tag,
+      description: item.description,
+      orientation: item.orientation || null,
+      type: type,
+      fileUrl: `/api/media/${type}s/${item.id}/file`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== END MEDIA ALBUM API ====================
 
 // Data directory
 const DATA_DIR = path.join(__dirname, 'data');
@@ -944,6 +1354,418 @@ function ensurePersonasIndex() {
   return index;
 }
 
+// ============================================
+// Per-Actor File Storage Helpers (ScreenPlay)
+// ============================================
+
+const SCREENPLAY_DIR = path.join(DATA_DIR, 'screenplay');
+const ACTORS_DIR = path.join(SCREENPLAY_DIR, 'actors');
+const ACTORS_DEFAULT_DIR = path.join(ACTORS_DIR, 'default');
+const ACTORS_CUSTOM_DIR = path.join(ACTORS_DIR, 'custom');
+
+// Ensure actors directories exist
+function ensureActorsDirs() {
+  if (!fs.existsSync(SCREENPLAY_DIR)) fs.mkdirSync(SCREENPLAY_DIR, { recursive: true });
+  if (!fs.existsSync(ACTORS_DIR)) fs.mkdirSync(ACTORS_DIR, { recursive: true });
+  if (!fs.existsSync(ACTORS_DEFAULT_DIR)) fs.mkdirSync(ACTORS_DEFAULT_DIR, { recursive: true });
+  if (!fs.existsSync(ACTORS_CUSTOM_DIR)) fs.mkdirSync(ACTORS_CUSTOM_DIR, { recursive: true });
+}
+
+// Load actors index
+function loadActorsIndex() {
+  const indexPath = path.join(SCREENPLAY_DIR, 'actors-index.json');
+  if (fs.existsSync(indexPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch (e) {
+      console.error('Error loading actors index:', e);
+    }
+  }
+  return [];
+}
+
+// Save actors index
+function saveActorsIndex(index) {
+  ensureActorsDirs();
+  const indexPath = path.join(SCREENPLAY_DIR, 'actors-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+
+// Load single actor by ID
+function loadActor(actorId) {
+  const customFolderPath = path.join(ACTORS_CUSTOM_DIR, actorId, 'actor.json');
+  const defaultFolderPath = path.join(ACTORS_DEFAULT_DIR, actorId, 'actor.json');
+
+  for (const actorPath of [customFolderPath, defaultFolderPath]) {
+    if (fs.existsSync(actorPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(actorPath, 'utf8'));
+      } catch (e) {
+        console.error(`Error loading actor ${actorId}:`, e);
+      }
+    }
+  }
+  return null;
+}
+
+// Save single actor to its own folder + update index
+async function saveActorAsync(actor, forceCustom = false) {
+  ensureActorsDirs();
+
+  // Determine if this is a default or custom actor
+  let isDefault = false;
+  const defaultFolderPath = path.join(ACTORS_DEFAULT_DIR, actor.id, 'actor.json');
+
+  if (!forceCustom && fs.existsSync(defaultFolderPath)) {
+    isDefault = true;
+  }
+
+  const targetDir = isDefault ? ACTORS_DEFAULT_DIR : ACTORS_CUSTOM_DIR;
+  const actorDir = path.join(targetDir, actor.id);
+
+  if (!fs.existsSync(actorDir)) {
+    fs.mkdirSync(actorDir, { recursive: true });
+  }
+
+  // Process avatar image if it's base64
+  let processedActor = { ...actor };
+  if (actor.avatar && actor.avatar.startsWith('data:')) {
+    const imgDir = path.join(actorDir, 'img');
+    if (!fs.existsSync(imgDir)) {
+      fs.mkdirSync(imgDir, { recursive: true });
+    }
+
+    // Extract base64 data and save to file
+    const matches = actor.avatar.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (matches) {
+      const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+      const imgPath = path.join(imgDir, `avatar.${ext}`);
+      fs.writeFileSync(imgPath, Buffer.from(matches[2], 'base64'));
+      processedActor.avatar = `/api/images/actors/${isDefault ? 'default' : 'custom'}/${actor.id}/avatar.${ext}`;
+    }
+  }
+
+  // Save actor JSON
+  const actorPath = path.join(actorDir, 'actor.json');
+  fs.writeFileSync(actorPath, JSON.stringify(processedActor, null, 2));
+
+  updateActorIndex(processedActor, isDefault ? 'default' : 'custom');
+  return processedActor;
+}
+
+// Delete actor file + remove from index
+function deleteActorFile(actorId) {
+  const customFolderPath = path.join(ACTORS_CUSTOM_DIR, actorId);
+  const defaultFolderPath = path.join(ACTORS_DEFAULT_DIR, actorId);
+
+  if (fs.existsSync(customFolderPath)) {
+    fs.rmSync(customFolderPath, { recursive: true, force: true });
+  }
+  if (fs.existsSync(defaultFolderPath)) {
+    fs.rmSync(defaultFolderPath, { recursive: true, force: true });
+  }
+  removeFromActorIndex(actorId);
+}
+
+// Update/add entry in actor index
+function updateActorIndex(actor, category = 'custom') {
+  const index = loadActorsIndex();
+  const existing = index.findIndex(a => a.id === actor.id);
+  const entry = {
+    id: actor.id,
+    name: actor.name || 'Unnamed Actor',
+    category: category,
+    description: actor.description ? actor.description.substring(0, 100) + '...' : ''
+  };
+  if (existing >= 0) {
+    index[existing] = entry;
+  } else {
+    index.push(entry);
+  }
+  saveActorsIndex(index);
+}
+
+// Remove entry from actor index
+function removeFromActorIndex(actorId) {
+  const index = loadActorsIndex();
+  const filtered = index.filter(a => a.id !== actorId);
+  saveActorsIndex(filtered);
+}
+
+// Load all actors
+function loadAllActors() {
+  const index = loadActorsIndex();
+  return index.map(a => loadActor(a.id)).filter(a => a !== null);
+}
+
+// Rebuild actors index from disk
+function rebuildActorsIndex() {
+  console.log('[Server] Rebuilding actors index from disk...');
+  const index = [];
+
+  // Scan default actors
+  if (fs.existsSync(ACTORS_DEFAULT_DIR)) {
+    const defaultDirs = fs.readdirSync(ACTORS_DEFAULT_DIR);
+    for (const dirName of defaultDirs) {
+      const actorPath = path.join(ACTORS_DEFAULT_DIR, dirName, 'actor.json');
+      if (fs.existsSync(actorPath)) {
+        try {
+          const actor = JSON.parse(fs.readFileSync(actorPath, 'utf8'));
+          index.push({
+            id: actor.id || dirName,
+            name: actor.name || dirName,
+            category: 'default',
+            description: (actor.description || '').substring(0, 100) + '...'
+          });
+          console.log(`[Server]   Found default actor: ${actor.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${actorPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  // Scan custom actors
+  if (fs.existsSync(ACTORS_CUSTOM_DIR)) {
+    const customDirs = fs.readdirSync(ACTORS_CUSTOM_DIR);
+    for (const dirName of customDirs) {
+      const actorPath = path.join(ACTORS_CUSTOM_DIR, dirName, 'actor.json');
+      if (fs.existsSync(actorPath)) {
+        try {
+          const actor = JSON.parse(fs.readFileSync(actorPath, 'utf8'));
+          index.push({
+            id: actor.id || dirName,
+            name: actor.name || dirName,
+            category: 'custom',
+            description: (actor.description || '').substring(0, 100) + '...'
+          });
+          console.log(`[Server]   Found custom actor: ${actor.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${actorPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  saveActorsIndex(index);
+  console.log(`[Server] Rebuilt actors index: ${index.length} actors found`);
+  return index;
+}
+
+// Ensure actors index exists and is valid
+function ensureActorsIndex() {
+  ensureActorsDirs();
+  const index = loadActorsIndex();
+  if (index.length === 0) {
+    // Check if there are any actors on disk
+    const hasDefault = fs.existsSync(ACTORS_DEFAULT_DIR) && fs.readdirSync(ACTORS_DEFAULT_DIR).length > 0;
+    const hasCustom = fs.existsSync(ACTORS_CUSTOM_DIR) && fs.readdirSync(ACTORS_CUSTOM_DIR).length > 0;
+    if (hasDefault || hasCustom) {
+      return rebuildActorsIndex();
+    }
+  }
+  return index;
+}
+
+// ============================================
+// Per-Play File Storage Helpers (ScreenPlay)
+// ============================================
+
+// SCREENPLAY_DIR already defined above in actors section
+const PLAYS_DEFAULT_DIR = path.join(SCREENPLAY_DIR, 'default');
+const PLAYS_CUSTOM_DIR = path.join(SCREENPLAY_DIR, 'custom');
+
+// Ensure plays directories exist
+function ensurePlaysDirs() {
+  if (!fs.existsSync(SCREENPLAY_DIR)) fs.mkdirSync(SCREENPLAY_DIR, { recursive: true });
+  if (!fs.existsSync(PLAYS_DEFAULT_DIR)) fs.mkdirSync(PLAYS_DEFAULT_DIR, { recursive: true });
+  if (!fs.existsSync(PLAYS_CUSTOM_DIR)) fs.mkdirSync(PLAYS_CUSTOM_DIR, { recursive: true });
+}
+
+// Load plays index
+function loadPlaysIndex() {
+  const indexPath = path.join(SCREENPLAY_DIR, 'plays-index.json');
+  if (fs.existsSync(indexPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    } catch (e) {
+      console.error('Error loading plays index:', e);
+    }
+  }
+  return [];
+}
+
+// Save plays index
+function savePlaysIndex(index) {
+  ensurePlaysDirs();
+  const indexPath = path.join(SCREENPLAY_DIR, 'plays-index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+}
+
+// Load single play by ID (uses folder structure: {play-id}/play.json)
+function loadPlay(playId) {
+  const customPath = path.join(PLAYS_CUSTOM_DIR, playId, 'play.json');
+  const defaultPath = path.join(PLAYS_DEFAULT_DIR, playId, 'play.json');
+
+  for (const playPath of [customPath, defaultPath]) {
+    if (fs.existsSync(playPath)) {
+      try {
+        return JSON.parse(fs.readFileSync(playPath, 'utf8'));
+      } catch (e) {
+        console.error(`Error loading play ${playId}:`, e);
+      }
+    }
+  }
+  return null;
+}
+
+// Save single play to folder + update index
+async function savePlayAsync(play, forceCustom = false) {
+  ensurePlaysDirs();
+
+  // Determine if this is a default or custom play
+  let isDefault = false;
+  const defaultPath = path.join(PLAYS_DEFAULT_DIR, play.id, 'play.json');
+
+  if (!forceCustom && fs.existsSync(defaultPath)) {
+    isDefault = true;
+  }
+
+  const targetDir = isDefault ? PLAYS_DEFAULT_DIR : PLAYS_CUSTOM_DIR;
+  const playDir = path.join(targetDir, play.id);
+
+  if (!fs.existsSync(playDir)) {
+    fs.mkdirSync(playDir, { recursive: true });
+  }
+
+  const playPath = path.join(playDir, 'play.json');
+  fs.writeFileSync(playPath, JSON.stringify(play, null, 2));
+  updatePlayIndex(play, isDefault ? 'default' : 'custom');
+
+  return play;
+}
+
+// Delete play folder + remove from index
+function deletePlayFile(playId) {
+  const customPath = path.join(PLAYS_CUSTOM_DIR, playId);
+  const defaultPath = path.join(PLAYS_DEFAULT_DIR, playId);
+
+  if (fs.existsSync(customPath)) {
+    fs.rmSync(customPath, { recursive: true, force: true });
+  }
+  if (fs.existsSync(defaultPath)) {
+    fs.rmSync(defaultPath, { recursive: true, force: true });
+  }
+  removeFromPlayIndex(playId);
+}
+
+// Update/add entry in play index
+function updatePlayIndex(play, category = 'custom') {
+  const index = loadPlaysIndex();
+  const existing = index.findIndex(p => p.id === play.id);
+  const entry = {
+    id: play.id,
+    name: play.name || 'Unnamed Play',
+    category: category,
+    description: play.description ? play.description.substring(0, 100) + '...' : '',
+    actorCount: play.actors ? play.actors.length : 0
+  };
+  if (existing >= 0) {
+    index[existing] = entry;
+  } else {
+    index.push(entry);
+  }
+  savePlaysIndex(index);
+}
+
+// Remove entry from play index
+function removeFromPlayIndex(playId) {
+  const index = loadPlaysIndex();
+  const filtered = index.filter(p => p.id !== playId);
+  savePlaysIndex(filtered);
+}
+
+// Load all plays
+function loadAllPlays() {
+  const index = loadPlaysIndex();
+  return index.map(p => loadPlay(p.id)).filter(p => p !== null);
+}
+
+// Rebuild plays index from disk
+function rebuildPlaysIndex() {
+  console.log('[Server] Rebuilding plays index from disk...');
+  const index = [];
+
+  // Scan default plays (folder structure: {play-id}/play.json)
+  if (fs.existsSync(PLAYS_DEFAULT_DIR)) {
+    const defaultDirs = fs.readdirSync(PLAYS_DEFAULT_DIR);
+    for (const dirName of defaultDirs) {
+      const playPath = path.join(PLAYS_DEFAULT_DIR, dirName, 'play.json');
+      if (fs.existsSync(playPath)) {
+        try {
+          const play = JSON.parse(fs.readFileSync(playPath, 'utf8'));
+          index.push({
+            id: play.id || dirName,
+            name: play.name || dirName,
+            category: 'default',
+            description: (play.description || '').substring(0, 100) + '...',
+            actorCount: play.actors ? play.actors.length : 0
+          });
+          console.log(`[Server]   Found default play: ${play.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${playPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  // Scan custom plays (folder structure: {play-id}/play.json)
+  if (fs.existsSync(PLAYS_CUSTOM_DIR)) {
+    const customDirs = fs.readdirSync(PLAYS_CUSTOM_DIR);
+    for (const dirName of customDirs) {
+      const playPath = path.join(PLAYS_CUSTOM_DIR, dirName, 'play.json');
+      if (fs.existsSync(playPath)) {
+        try {
+          const play = JSON.parse(fs.readFileSync(playPath, 'utf8'));
+          index.push({
+            id: play.id || dirName,
+            name: play.name || dirName,
+            category: 'custom',
+            description: (play.description || '').substring(0, 100) + '...',
+            actorCount: play.actors ? play.actors.length : 0
+          });
+          console.log(`[Server]   Found custom play: ${play.name || dirName}`);
+        } catch (e) {
+          console.error(`[Server]   Error reading ${playPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  savePlaysIndex(index);
+  console.log(`[Server] Rebuilt plays index: ${index.length} plays found`);
+  return index;
+}
+
+// Ensure plays index exists and is valid
+function ensurePlaysIndex() {
+  ensurePlaysDirs();
+  const index = loadPlaysIndex();
+  if (index.length === 0) {
+    // Check if there are any plays on disk (folder structure)
+    const hasDefault = fs.existsSync(PLAYS_DEFAULT_DIR) && fs.readdirSync(PLAYS_DEFAULT_DIR).some(d =>
+      fs.existsSync(path.join(PLAYS_DEFAULT_DIR, d, 'play.json'))
+    );
+    const hasCustom = fs.existsSync(PLAYS_CUSTOM_DIR) && fs.readdirSync(PLAYS_CUSTOM_DIR).some(d =>
+      fs.existsSync(path.join(PLAYS_CUSTOM_DIR, d, 'play.json'))
+    );
+    if (hasDefault || hasCustom) {
+      return rebuildPlaysIndex();
+    }
+  }
+  return index;
+}
+
 // Default data structures
 const DEFAULT_SETTINGS = {
   llm: { ...llmService.DEFAULT_SETTINGS },
@@ -1233,6 +2055,7 @@ const sessionState = {
   messageInputHistory: [], // Track input history for up/down arrow navigation
   flowVariables: {},
   deviceStates: {},
+  mediaBlocking: false, // When true, blocks LLM responses and flow processing (blocking video playing)
   flowAssignments: {
     personas: {},
     characters: {},
@@ -1720,6 +2543,35 @@ async function sendWelcomeMessage(character, settings) {
         systemPrompt += '\n';
       }
 
+      // Add belly state instructions (CRITICAL for accurate capacity descriptions)
+      const capacity = Math.round(sessionState.capacity || 0);
+      const painLevel = sessionState.pain || 0;
+      const getCapacityDesc = (cap) => {
+        if (cap <= 0) return 'flat/normal';
+        if (cap <= 10) return 'very slight fullness, barely noticeable';
+        if (cap <= 25) return 'mildly bloated, like after a large meal';
+        if (cap <= 40) return 'noticeably swollen, belly pushing out';
+        if (cap <= 55) return 'significantly inflated, round and taut';
+        if (cap <= 70) return 'heavily inflated, stretched drum-tight';
+        if (cap <= 85) return 'massively distended, skin pulled tight';
+        if (cap <= 95) return 'enormous, straining at maximum capacity';
+        return 'beyond full, dangerously over-inflated';
+      };
+      const bellyDesc = getCapacityDesc(capacity);
+      const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+      const painLabel = painLabels[painLevel] || 'None';
+
+      systemPrompt += `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
+      systemPrompt += `${playerName}'s belly is at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
+      systemPrompt += `${playerName}'s pain/discomfort level is EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
+      systemPrompt += `STRICT RULES:\n`;
+      systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
+      systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
+      systemPrompt += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
+      systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
+      systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
+      systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+
       systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
 
       const result = await llmService.generate({
@@ -1752,6 +2604,14 @@ async function sendWelcomeMessage(character, settings) {
   const devices = loadData(DATA_FILES.devices) || [];
   console.log(`[WELCOME] Processing AI device commands in: "${placeholderMessage.content.substring(0, 200)}..."`);
   console.log(`[WELCOME] Devices available: ${devices.length}, looking for [pump on], [vibe on], etc.`);
+
+  // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+  const reinforceResult = aiDeviceControl.reinforcePumpControl(placeholderMessage.content, devices, sessionState, settings);
+  if (reinforceResult.reinforced) {
+    console.log(`[WELCOME] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+    placeholderMessage.content = reinforceResult.text;
+  }
+
   const aiControlResult = await aiDeviceControl.processLlmOutput(placeholderMessage.content, devices, deviceService, {
     settings,
     sessionState,
@@ -1868,8 +2728,13 @@ eventEngine.setBroadcast(async (type, data) => {
 
       try {
         // Build context based on whether this is player voice or character voice
+        // For action wrappers, skip chat history to keep responses focused on the action
         let context;
-        if (isPlayerVoice) {
+        if (data.isActionWrapper) {
+          // Action wrapper - minimal context, no chat history
+          context = buildActionWrapperContext(activeCharacter, activePersona, settings, isPlayerVoice);
+          console.log('[EventEngine] Using action wrapper context (no chat history)');
+        } else if (isPlayerVoice) {
           // Use guided impersonation context for player voice
           context = buildSpecialContext('guided_impersonate', data.content, activeCharacter, activePersona, settings);
         } else {
@@ -1955,10 +2820,10 @@ If announcing the result, say "${result}" - not something else.
         if (isPlayerVoice) {
           // For player voice, buildSpecialContext already set up the context
           // Just add the action instruction and capacity
-          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nIgnore previous conversation flow. Simply perform the action described above as ${activePersona?.displayName || 'the player'}.\n=== END CRITICAL INSTRUCTION ===`;
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nELABORATE on this action with vivid detail, physical sensations, emotions, and reactions. Do NOT just repeat the action verbatim - expand it into a full, immersive message. Ignore previous conversation flow.\n=== END CRITICAL INSTRUCTION ===`;
         } else {
           // For character voice, add full instruction
-          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}${capacityStateInstruction}\nIgnore previous conversation flow. Do NOT respond to what the player said. Simply perform the action described above.\n=== END CRITICAL INSTRUCTION ===`;
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}${capacityStateInstruction}\nELABORATE on this action with vivid detail, physical descriptions, character reactions, and in-character dialogue. Do NOT just repeat the action verbatim - expand it into a full, immersive roleplay message. Ignore previous conversation flow.\n=== END CRITICAL INSTRUCTION ===`;
         }
 
         // Strip any trailing speaker tag from the context (buildChatContext/buildSpecialContext add one)
@@ -2002,6 +2867,9 @@ If announcing the result, say "${result}" - not something else.
         let retryCount = 0;
         const maxRetries = 2;
 
+        console.log(`[EventEngine] LLM response (${finalText?.length || 0} chars): "${finalText?.substring(0, 100)}..."`);
+        console.log(`[EventEngine] Checking: blank=${isBlankMessage(finalText)}, duplicate=${isDuplicateMessage(finalText)}`);
+
         // Retry if blank or duplicate
         while ((isBlankMessage(finalText) || isDuplicateMessage(finalText)) && retryCount < maxRetries) {
           retryCount++;
@@ -2035,9 +2903,27 @@ If announcing the result, say "${result}" - not something else.
         // Apply variable substitution to final result
         finalText = substituteAllVariables(finalText);
 
-        // Process AI device commands (e.g., [pump on], [vibe off])
+        // Strip device tags from flow-generated messages to prevent LLM from interfering with flow device control
+        if (data.flowId) {
+          const deviceTagPattern = /\[\s*(pump|vibe|tens)\s+(on|off)\s*\]/gi;
+          const strippedTags = finalText.match(deviceTagPattern);
+          if (strippedTags && strippedTags.length > 0) {
+            console.log(`[EventEngine] Stripping ${strippedTags.length} device tag(s) from flow-generated LLM response: ${strippedTags.join(', ')}`);
+            finalText = finalText.replace(deviceTagPattern, '').replace(/\s{2,}/g, ' ').trim();
+          }
+        }
+
+        // Process AI device commands (e.g., [pump on], [vibe off]) - only for non-flow messages
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
+
+        // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+        if (reinforceResult.reinforced) {
+          console.log(`[EventEngine/ai_message] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+          finalText = reinforceResult.text;
+        }
+
         const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
@@ -2778,11 +3664,14 @@ function loadFlowAssignments() {
     console.log(`[FlowLoad] Global flows: ${settings.globalFlows.join(', ')}`);
   }
 
-  // Load character flow assignments
+  // Load character flow assignments (consider story-level flows for active story)
   characters.forEach(char => {
-    if (char.assignedFlows && char.assignedFlows.length > 0) {
-      sessionState.flowAssignments.characters[char.id] = char.assignedFlows;
-      console.log(`[FlowLoad] Character ${char.name}: ${char.assignedFlows.join(', ')}`);
+    // Get flows from active story, falling back to character-level flows
+    const activeStory = char.stories?.find(s => s.id === char.activeStoryId) || char.stories?.[0];
+    const flows = activeStory?.assignedFlows || char.assignedFlows || [];
+    if (flows.length > 0) {
+      sessionState.flowAssignments.characters[char.id] = flows;
+      console.log(`[FlowLoad] Character ${char.name}: ${flows.join(', ')}`);
     }
   });
 
@@ -3134,6 +4023,36 @@ async function handleWsMessage(ws, type, data) {
       console.log(`[Settings] Control mode set to: ${data.mode} (simulation: ${isSimulated})`);
       break;
 
+    case 'media_blocking':
+      // Block/unblock LLM responses and flow processing for blocking videos
+      const wasBlocking = sessionState.mediaBlocking;
+      sessionState.mediaBlocking = data.blocking === true;
+      console.log(`[Media] Blocking ${data.blocking ? 'STARTED' : 'ENDED'} for video: ${data.tag}`);
+      broadcast('media_blocking_update', { blocking: sessionState.mediaBlocking, tag: data.tag });
+
+      // When blocking ends, resume any paused flow nodes and trigger AI response
+      if (wasBlocking && !data.blocking) {
+        // Resume any flow nodes waiting on media completion
+        eventEngine.handleMediaBlockingComplete().catch(err => {
+          console.error('[Media] Failed to resume flow after blocking:', err);
+        });
+
+        // Trigger AI response for the last player message if auto-reply is enabled
+        if (sessionState.autoReply) {
+          const lastPlayerMsg = [...sessionState.chatHistory].reverse().find(m => m.sender === 'player');
+          if (lastPlayerMsg) {
+            console.log('[Media] Blocking ended - triggering AI response for queued message');
+            // Trigger flows first
+            await eventEngine.handleEvent('player_speaks', { content: lastPlayerMsg.content });
+            // Then generate AI response
+            generateAIResponseAfterBlocking().catch(err => {
+              console.error('[Media] Failed to generate AI response after blocking:', err);
+            });
+          }
+        }
+      }
+      break;
+
     case 'end_infinite_cycle':
       // deviceIp can be just IP or IP:childId format
       const cycleDeviceKey = data.deviceIp;
@@ -3467,6 +4386,69 @@ async function handleWsMessage(ws, type, data) {
       await eventEngine.resumeFlows();
       break;
 
+    case 'screenplay_pump':
+      // Handle pump commands from ScreenPlay viewer
+      {
+        const devices = loadData(DATA_FILES.devices) || [];
+        // Find device by alias/label
+        const device = devices.find(d =>
+          d.label === data.device ||
+          d.name === data.device ||
+          d.isPrimaryPump && data.device === 'Primary Pump'
+        );
+
+        if (!device) {
+          console.log(`[ScreenPlay] Pump device not found: ${data.device}`);
+          break;
+        }
+
+        const deviceId = device.brand === 'govee' || device.brand === 'tuya' ? device.deviceId : device.ip;
+        console.log(`[ScreenPlay] Pump command: ${data.type} for ${data.device} (${deviceId})`);
+
+        try {
+          switch (data.type) {
+            case 'start_cycle':
+              await deviceService.startCycle(deviceId, {
+                duration: data.duration || 5,
+                interval: data.interval || 10,
+                cycles: data.cycles || 0
+              }, device);
+              break;
+
+            case 'stop_cycle':
+              await deviceService.stopCycle(deviceId, device);
+              break;
+
+            case 'pulse_pump':
+              await deviceService.pulsePump(deviceId, data.pulses || 3, device);
+              break;
+
+            case 'device_on':
+              await deviceService.turnOn(deviceId, device);
+              // If timed, set up auto-off
+              if (data.duration) {
+                setTimeout(async () => {
+                  try {
+                    await deviceService.turnOff(deviceId, device);
+                    console.log(`[ScreenPlay] Timed pump off after ${data.duration}s`);
+                  } catch (err) {
+                    console.error('[ScreenPlay] Failed to turn off timed pump:', err.message);
+                  }
+                }, data.duration * 1000);
+              }
+              break;
+
+            case 'device_off':
+              await deviceService.turnOff(deviceId, device);
+              await deviceService.stopCycle(deviceId, device);
+              break;
+          }
+        } catch (err) {
+          console.error(`[ScreenPlay] Pump command failed:`, err.message);
+        }
+      }
+      break;
+
     default:
       console.log('[WS] Unknown message type:', type);
   }
@@ -3585,6 +4567,40 @@ Your response MUST be about: "${guidanceText}"
         settings: settings.llm
       });
       resultText = result.text;
+    }
+
+    // Process AI device commands (e.g., [pump on], [vibe off])
+    const devices = loadData(DATA_FILES.devices) || [];
+
+    // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+    const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings);
+    if (reinforceResult.reinforced) {
+      console.log(`[Swipe] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+      resultText = reinforceResult.text;
+    }
+
+    const aiControlResult = await aiDeviceControl.processLlmOutput(resultText, devices, deviceService, {
+      settings,
+      sessionState,
+      broadcast,
+      injectContext: (text) => {
+        // Append to this message so LLM thinks they said it
+        resultText += ` ${text}`;
+      }
+    });
+    if (aiControlResult.commands.length > 0) {
+      console.log(`[Swipe] AIDeviceControl executed ${aiControlResult.commands.length} device command(s)`);
+      resultText = aiControlResult.text;
+      // Broadcast AI device control event for toast notification
+      aiControlResult.results.forEach(r => {
+        if (r.success) {
+          broadcast('ai_device_control', {
+            device: r.command.device,
+            action: r.command.action,
+            deviceName: r.device?.label || r.device?.name || r.command.device
+          });
+        }
+      });
     }
 
     // Restore history and update the message (apply variable substitution)
@@ -4033,6 +5049,23 @@ async function handleChatMessage(data) {
   broadcast('chat_message', playerMessage);
   autosaveSession();
 
+  // Check if message contains a blocking video - parse and set blocking state
+  const blockingVideoPattern = /\[Video:([^\]:]+):blocking\]/i;
+  const blockingMatch = content.match(blockingVideoPattern);
+  if (blockingMatch) {
+    const blockingTag = blockingMatch[1].trim();
+    sessionState.mediaBlocking = true;
+    console.log(`[Chat] Blocking video detected in message: ${blockingTag} - skipping flows and AI response`);
+    broadcast('media_blocking_update', { blocking: true, tag: blockingTag });
+    return;
+  }
+
+  // Check if blocking video is already playing - skip flows and LLM
+  if (sessionState.mediaBlocking) {
+    console.log('[Chat] Blocking video playing - skipping flows and AI response');
+    return;
+  }
+
   // Trigger player speaks event for flow engine
   await eventEngine.handleEvent('player_speaks', { content });
 
@@ -4105,6 +5138,14 @@ async function handleChatMessage(data) {
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
+
+        // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(aiMessage.content, devices, sessionState, aiControlSettings);
+        if (reinforceResult.reinforced) {
+          console.log(`[Chat/Stream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+          aiMessage.content = reinforceResult.text;
+        }
+
         const aiControlResult = await aiDeviceControl.processLlmOutput(aiMessage.content, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
@@ -4190,6 +5231,14 @@ async function handleChatMessage(data) {
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
+
+        // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+        if (reinforceResult.reinforced) {
+          console.log(`[Chat/NonStream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+          finalText = reinforceResult.text;
+        }
+
         const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
           settings: aiControlSettings,
           sessionState,
@@ -4239,6 +5288,112 @@ async function handleChatMessage(data) {
       broadcast('generating_stop', {});
       broadcast('error', { message: 'Failed to generate AI response', error: error.message });
     }
+  }
+}
+
+/**
+ * Generate AI response after blocking video ends
+ * This is called when a blocking video finishes to respond to the queued player message
+ */
+async function generateAIResponseAfterBlocking() {
+  const settings = loadData(DATA_FILES.settings);
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+
+  const hasLlmConfig = settings?.llm?.llmUrl ||
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+
+  if (!activeCharacter || !hasLlmConfig) {
+    console.log('[Media] No character or LLM configured - skipping post-blocking response');
+    return;
+  }
+
+  // Notify UI that AI is generating
+  broadcast('generating_start', { characterName: activeCharacter.name });
+
+  try {
+    const context = buildChatContext(activeCharacter, settings);
+    console.log('[Media] Generating AI response after blocking ended...');
+
+    const useStreaming = settings?.llm?.streamResponse !== false;
+    let finalText = '';
+
+    if (useStreaming) {
+      const streamMsgId = uuidv4();
+      const aiMessage = {
+        id: streamMsgId,
+        content: '',
+        sender: 'character',
+        characterId: activeCharacter.id,
+        characterName: activeCharacter.name,
+        timestamp: Date.now(),
+        streaming: true
+      };
+      sessionState.chatHistory.push(aiMessage);
+      broadcast('chat_message', aiMessage);
+
+      const llmSettings = {
+        ...settings.llm,
+        stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+      };
+
+      finalText = await llmService.generateStream({
+        prompt: context.prompt,
+        systemPrompt: context.systemPrompt,
+        settings: llmSettings,
+        onChunk: (chunk) => {
+          const streamMsg = sessionState.chatHistory.find(m => m.id === streamMsgId);
+          if (streamMsg) {
+            streamMsg.content += chunk;
+            broadcast('chat_chunk', { id: streamMsgId, chunk, content: streamMsg.content });
+          }
+        }
+      });
+
+      const streamMsg = sessionState.chatHistory.find(m => m.id === streamMsgId);
+      if (streamMsg) {
+        streamMsg.content = stripCrossRoleContent(finalText, context.stopSequences, true);
+        streamMsg.content = substituteAllVariables(streamMsg.content);
+        streamMsg.streaming = false;
+        broadcast('chat_complete', { id: streamMsgId, content: streamMsg.content });
+      }
+    } else {
+      const llmSettings = {
+        ...settings.llm,
+        stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+      };
+
+      const result = await llmService.generate({
+        prompt: context.prompt,
+        systemPrompt: context.systemPrompt,
+        settings: llmSettings
+      });
+      finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
+      finalText = substituteAllVariables(finalText);
+
+      const aiMessage = {
+        id: uuidv4(),
+        content: finalText,
+        sender: 'character',
+        characterId: activeCharacter.id,
+        characterName: activeCharacter.name,
+        timestamp: Date.now()
+      };
+      sessionState.chatHistory.push(aiMessage);
+      broadcast('chat_message', aiMessage);
+    }
+
+    broadcast('generating_stop', {});
+    autosaveSession();
+
+    // Trigger AI speaks event for flow engine
+    const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
+    await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
+
+  } catch (error) {
+    console.error('[Media] LLM error after blocking:', error.message);
+    broadcast('generating_stop', {});
+    broadcast('error', { message: 'Failed to generate AI response', error: error.message });
   }
 }
 
@@ -4305,6 +5460,14 @@ async function handleSpecialGenerate(data) {
       // Process AI device commands (e.g., [pump on], [vibe off])
       const devices = loadData(DATA_FILES.devices) || [];
       const aiControlSettings = loadData(DATA_FILES.settings);
+
+      // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+      const reinforceResult = aiDeviceControl.reinforcePumpControl(message.content, devices, sessionState, aiControlSettings);
+      if (reinforceResult.reinforced) {
+        console.log(`[SpecialGen/Stream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+        message.content = reinforceResult.text;
+      }
+
       const aiControlResult = await aiDeviceControl.processLlmOutput(message.content, devices, deviceService, {
         settings: aiControlSettings,
         sessionState,
@@ -4382,6 +5545,14 @@ async function handleSpecialGenerate(data) {
     // Process AI device commands (e.g., [pump on], [vibe off])
     const devices = loadData(DATA_FILES.devices) || [];
     const aiControlSettings = loadData(DATA_FILES.settings);
+
+    // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
+    const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+    if (reinforceResult.reinforced) {
+      console.log(`[SpecialGen/NonStream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
+      finalText = reinforceResult.text;
+    }
+
     const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
       settings: aiControlSettings,
       sessionState,
@@ -4488,6 +5659,45 @@ async function handleImpersonateRequest(data) {
   }
 }
 
+/**
+ * Build minimal context for action wrapper messages (no chat history)
+ * Keeps the LLM focused on the action topic without continuing previous conversation
+ */
+function buildActionWrapperContext(character, persona, settings, isPlayerVoice) {
+  const playerName = persona?.displayName || 'the player';
+  const speakerName = isPlayerVoice ? playerName : character.name;
+
+  // Minimal system prompt - just character identity and current state
+  let systemPrompt = isPlayerVoice
+    ? `You are writing as ${playerName}, a player character.\n`
+    : `You are ${character.name}. ${character.description}\n`;
+
+  systemPrompt += `\nPersonality: ${isPlayerVoice ? (persona?.personality || 'a willing participant') : character.personality}\n`;
+
+  // Add current capacity state
+  if (sessionState.capacity !== undefined) {
+    const capacity = Math.round(sessionState.capacity);
+    const subject = isPlayerVoice ? 'Your' : `${playerName}'s`;
+    systemPrompt += `\n${subject} belly is currently at ${capacity}% capacity.\n`;
+  }
+
+  // Key instruction: do NOT continue conversation, just perform the action
+  systemPrompt += `\n=== ACTION WRAPPER INSTRUCTIONS ===
+This is a standalone action message. DO NOT:
+- Continue or reply to any previous conversation
+- Reference what was just said before
+- Ask questions or wait for responses
+
+JUST perform the described action directly, as if starting a new scene focused solely on this moment.
+Keep responses SHORT and focused (2-3 sentences max).
+=== END INSTRUCTIONS ===\n`;
+
+  // Minimal prompt - just the speaker tag
+  const prompt = isPlayerVoice ? '[Player]:' : `${character.name}:`;
+
+  return { systemPrompt, prompt };
+}
+
 function buildSpecialContext(mode, guidedText, character, persona, settings) {
   let systemPrompt = '';
   let prompt = '';
@@ -4561,6 +5771,11 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
     instructions += `- The belly state is FIXED and STATIC until the system updates it\n`;
     instructions += `- Treat the current state as having always been this way in this moment\n`;
+    // Add exaggeration prevention for low capacity
+    if (capacity <= 50) {
+      instructions += `- FORBIDDEN at ${capacity}%: "beachball", "basketball", "about to burst", "enormous", "massive", "huge", "ready to pop"\n`;
+      instructions += `- These terms are ONLY appropriate above 85% capacity - using them now would be WRONG\n`;
+    }
     instructions += `=== END MANDATORY BELLY STATE ===\n\n`;
     return instructions;
   };
@@ -4733,6 +5948,11 @@ function buildChatContext(character, settings) {
     instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
     instructions += `- The belly state is FIXED and STATIC until the system updates it\n`;
     instructions += `- Treat the current state as having always been this way in this moment\n`;
+    // Add exaggeration prevention for low capacity
+    if (capacity <= 50) {
+      instructions += `- FORBIDDEN at ${capacity}%: "beachball", "basketball", "about to burst", "enormous", "massive", "huge", "ready to pop"\n`;
+      instructions += `- These terms are ONLY appropriate above 85% capacity - using them now would be WRONG\n`;
+    }
     instructions += `=== END MANDATORY BELLY STATE ===\n\n`;
     return instructions;
   };
@@ -5129,8 +6349,6 @@ app.post('/api/settings', async (req, res) => {
   const personaChanged = req.body.activePersonaId !== undefined && req.body.activePersonaId !== oldSettings.activePersonaId;
 
   if (charChanged || personaChanged) {
-    activateAssignedFlows();
-
     // Update sessionState names for variable substitution
     if (charChanged && settings.activeCharacterId) {
       const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
@@ -5139,12 +6357,25 @@ app.post('/api/settings', async (req, res) => {
       // Sync character's autoReplyEnabled to session state
       sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
       broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+
+      // Sync flow assignments from active story
+      if (activeCharacter) {
+        const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+        const storyFlows = activeStory?.assignedFlows || activeCharacter.assignedFlows || [];
+        if (!sessionState.flowAssignments.characters) {
+          sessionState.flowAssignments.characters = {};
+        }
+        sessionState.flowAssignments.characters[settings.activeCharacterId] = storyFlows;
+        broadcast('flow_assignments_update', sessionState.flowAssignments);
+      }
     }
     if (personaChanged && settings.activePersonaId) {
       const personas = loadAllPersonas() || [];
       const activePersona = personas.find(p => p.id === settings.activePersonaId);
       sessionState.playerName = activePersona?.displayName || null;
     }
+
+    activateAssignedFlows();
   }
 
   // Broadcast masked settings to clients
@@ -5656,8 +6887,6 @@ app.put('/api/characters/:id', async (req, res) => {
       const charToSave = { ...existingCharacter, ...req.body, updatedAt: Date.now() };
       // Use async version to process images
       updatedCharacter = await saveCharacterAsync(charToSave);
-      const characters = loadAllCharacters();
-      broadcast('characters_update', characters);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
       const index = characters.findIndex(c => c.id === req.params.id);
@@ -5667,14 +6896,59 @@ app.put('/api/characters/:id', async (req, res) => {
       characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
       updatedCharacter = characters[index];
       saveData(DATA_FILES.characters, characters);
-      broadcast('characters_update', characters);
     }
+
+    // Sync buttons if character has story flows assigned
+    // Get all flows from all stories plus character-level assignedFlows
+    const allFlowIds = new Set();
+    if (updatedCharacter.assignedFlows) {
+      updatedCharacter.assignedFlows.forEach(id => allFlowIds.add(id));
+    }
+    if (updatedCharacter.stories) {
+      for (const story of updatedCharacter.stories) {
+        if (story.assignedFlows) {
+          story.assignedFlows.forEach(id => allFlowIds.add(id));
+        }
+      }
+    }
+    // Include global flows
+    const globalFlows = sessionState.flowAssignments?.global || [];
+    globalFlows.forEach(id => allFlowIds.add(id));
+
+    if (allFlowIds.size > 0) {
+      const buttonsUpdated = syncAutoGeneratedButtons(req.params.id, [...allFlowIds]);
+      if (buttonsUpdated) {
+        // Reload character after button sync
+        updatedCharacter = isPerCharStorageActive()
+          ? loadCharacter(req.params.id)
+          : (loadData(DATA_FILES.characters) || []).find(c => c.id === req.params.id);
+      }
+    }
+
+    // Update session state flow assignments
+    const activeStory = updatedCharacter.stories?.find(s => s.id === updatedCharacter.activeStoryId)
+      || updatedCharacter.stories?.[0];
+    const storyFlows = activeStory?.assignedFlows || updatedCharacter.assignedFlows || [];
+    if (!sessionState.flowAssignments.characters) {
+      sessionState.flowAssignments.characters = {};
+    }
+    sessionState.flowAssignments.characters[req.params.id] = storyFlows;
+    broadcast('flow_assignments_update', sessionState.flowAssignments);
+
+    // Broadcast updated characters
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : loadData(DATA_FILES.characters);
+    broadcast('characters_update', characters);
 
     // If this is the active character, sync autoReplyEnabled to session state
     const settings = loadData(DATA_FILES.settings);
     if (settings?.activeCharacterId === req.params.id && req.body.autoReplyEnabled !== undefined) {
       sessionState.autoReply = req.body.autoReplyEnabled;
       broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+    }
+
+    // Activate flows if this is the active character
+    if (settings?.activeCharacterId === req.params.id) {
+      activateAssignedFlows();
     }
 
     res.json(updatedCharacter);
@@ -5696,6 +6970,202 @@ app.delete('/api/characters/:id', (req, res) => {
     broadcast('characters_update', characters);
   }
   res.json({ success: true });
+});
+
+// --- Actors (ScreenPlay) ---
+
+app.get('/api/actors', (req, res) => {
+  const actors = loadAllActors();
+  res.json(actors);
+});
+
+app.get('/api/actors/:id', (req, res) => {
+  const actor = loadActor(req.params.id);
+  if (actor) {
+    res.json(actor);
+  } else {
+    res.status(404).json({ error: 'Actor not found' });
+  }
+});
+
+app.post('/api/actors', async (req, res) => {
+  try {
+    const newActor = {
+      id: uuidv4(),
+      ...req.body,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const savedActor = await saveActorAsync(newActor, true);
+    const actors = loadAllActors();
+    broadcast('actors_update', actors);
+    res.json(savedActor);
+  } catch (err) {
+    console.error('Error creating actor:', err);
+    res.status(500).json({ error: 'Failed to create actor' });
+  }
+});
+
+app.put('/api/actors/:id', async (req, res) => {
+  try {
+    const existingActor = loadActor(req.params.id);
+    if (!existingActor) {
+      return res.status(404).json({ error: 'Actor not found' });
+    }
+    const actorToSave = { ...existingActor, ...req.body, updatedAt: Date.now() };
+    const updatedActor = await saveActorAsync(actorToSave);
+
+    const actors = loadAllActors();
+    broadcast('actors_update', actors);
+    res.json(updatedActor);
+  } catch (err) {
+    console.error('Error updating actor:', err);
+    res.status(500).json({ error: 'Failed to update actor' });
+  }
+});
+
+app.delete('/api/actors/:id', (req, res) => {
+  deleteActorFile(req.params.id);
+  const actors = loadAllActors();
+  broadcast('actors_update', actors);
+  res.json({ success: true });
+});
+
+// --- Plays (ScreenPlay) ---
+
+app.get('/api/plays', (req, res) => {
+  const plays = loadAllPlays();
+  res.json(plays);
+});
+
+app.get('/api/plays/:id', (req, res) => {
+  const play = loadPlay(req.params.id);
+  if (play) {
+    res.json(play);
+  } else {
+    res.status(404).json({ error: 'Play not found' });
+  }
+});
+
+app.post('/api/plays', async (req, res) => {
+  try {
+    const newPlay = {
+      id: uuidv4(),
+      ...req.body,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const savedPlay = await savePlayAsync(newPlay, true);
+    const plays = loadAllPlays();
+    broadcast('plays_update', plays);
+    res.json(savedPlay);
+  } catch (err) {
+    console.error('Error creating play:', err);
+    res.status(500).json({ error: 'Failed to create play' });
+  }
+});
+
+app.put('/api/plays/:id', async (req, res) => {
+  try {
+    const existingPlay = loadPlay(req.params.id);
+    if (!existingPlay) {
+      return res.status(404).json({ error: 'Play not found' });
+    }
+    const playToSave = { ...existingPlay, ...req.body, updatedAt: Date.now() };
+    const updatedPlay = await savePlayAsync(playToSave);
+
+    const plays = loadAllPlays();
+    broadcast('plays_update', plays);
+    res.json(updatedPlay);
+  } catch (err) {
+    console.error('Error updating play:', err);
+    res.status(500).json({ error: 'Failed to update play' });
+  }
+});
+
+app.delete('/api/plays/:id', (req, res) => {
+  deletePlayFile(req.params.id);
+  const plays = loadAllPlays();
+  broadcast('plays_update', plays);
+  res.json({ success: true });
+});
+
+// Enhance screenplay text via LLM
+app.post('/api/screenplay/enhance', llmLimiter, async (req, res) => {
+  try {
+    const { text, type, actorName, actorPersonality, authorMode, maxTokens, definitions, scenario, previousText } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    const settings = loadData(DATA_FILES.settings)?.llm || DEFAULT_SETTINGS.llm;
+
+    // Build system prompt with definitions and scenario context
+    let systemPrompt = 'You are a creative writer. Write naturally and conversationally - avoid purple prose and overwriting. Be direct and grounded.\n\n';
+
+    // Include global definitions first (constant context)
+    if (definitions) {
+      systemPrompt += `DEFINITIONS:\n${definitions}\n\n`;
+    }
+
+    // Include play-specific scenario
+    if (scenario) {
+      systemPrompt += `STORY CONTEXT: ${scenario}\n\n`;
+    }
+
+    if (authorMode === '2nd-person') {
+      systemPrompt += 'Write in second person ("you"). ';
+    } else if (authorMode === '1st-person') {
+      systemPrompt += 'Write in first person ("I"). ';
+    } else {
+      systemPrompt += 'Write in third person. ';
+    }
+
+    if (type === 'narration') {
+      systemPrompt += 'Expand the following narration briefly. Add sensory details but keep it grounded. No dialogue. Output only the narration text.';
+    } else if (type === 'dialogue') {
+      systemPrompt += `Enhance dialogue spoken by ${actorName || 'a character'}. `;
+      if (actorPersonality) {
+        systemPrompt += `Personality: ${actorPersonality}. `;
+      }
+      systemPrompt += 'Keep it natural and in-character. You may add brief actions. Output only the dialogue (no name prefix).';
+    } else if (type === 'player_dialogue') {
+      systemPrompt += 'Enhance this player dialogue naturally. Output only the dialogue text.';
+    }
+
+    // Build prompt with previous context for coherence
+    let fullPrompt = '';
+    if (previousText && previousText.length > 0) {
+      fullPrompt += 'PREVIOUS STORY TEXT:\n' + previousText + '\n\n';
+    }
+    fullPrompt += 'ENHANCE THIS:\n' + text;
+
+    // Use provided maxTokens or default to 120
+    const tokenLimit = maxTokens || 120;
+
+    const result = await llmService.generate({
+      prompt: fullPrompt,
+      systemPrompt,
+      settings: { ...settings, maxTokens: tokenLimit }
+    });
+
+    if (result && result.text) {
+      // Clean up the response - remove any wrapping quotes that LLM might add
+      let enhanced = result.text.trim();
+      if (enhanced.startsWith('"') && enhanced.endsWith('"')) {
+        enhanced = enhanced.slice(1, -1);
+      }
+      res.json({ success: true, text: enhanced });
+    } else {
+      res.status(500).json({ error: 'LLM returned empty response' });
+    }
+  } catch (error) {
+    console.error('[Screenplay] Enhancement error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- Devices ---
@@ -7375,6 +8845,8 @@ const PORT = process.env.PORT || 8889;
 ensureCharsIndex();
 ensureFlowsIndex();
 ensurePersonasIndex();
+ensureActorsIndex();
+ensurePlaysIndex();
 
 server.listen(PORT, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT}`);

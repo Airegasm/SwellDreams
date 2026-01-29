@@ -2759,6 +2759,44 @@ class EventEngine {
   }
 
   /**
+   * Handle media blocking complete - resume flow after blocking video/audio finishes
+   */
+  async handleMediaBlockingComplete() {
+    if (!this.pendingMediaCompletion) {
+      console.log('[EventEngine] No pending media completion to continue');
+      return;
+    }
+
+    const { flowId, nodeId } = this.pendingMediaCompletion;
+    this.pendingMediaCompletion = null;
+
+    console.log(`[EventEngine] Media blocking complete, resuming flow ${flowId} from node ${nodeId}`);
+
+    const flowData = this.activeFlows.get(flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${flowId} not found for media resume`);
+      return;
+    }
+
+    const flow = flowData.flow;
+    const node = flow.nodes.find(n => n.id === nodeId);
+    if (!node) {
+      console.log(`[EventEngine] Node ${nodeId} not found in flow`);
+      return;
+    }
+
+    // Execute outgoing edges from the completed node
+    const edges = flow.edges.filter(e => e.source === nodeId);
+    for (const edge of edges) {
+      const nextNode = flow.nodes.find(n => n.id === edge.target);
+      if (nextNode) {
+        console.log(`[EventEngine] Resuming from media node to ${nextNode.id} (${nextNode.type})`);
+        await this.executeChain(nextNode, flow, { fromMediaResume: true });
+      }
+    }
+  }
+
+  /**
    * Execute a pause_resume node - pause flow and resume after N messages
    */
   async executePauseResume(node, flow) {
@@ -3222,7 +3260,12 @@ class EventEngine {
         data.preMessageSuppressLlm,
         data.preMessageTarget,
         flow,
-        nodeId
+        nodeId,
+        {
+          isActionWrapper: true,
+          actionType: data.actionType,
+          maxTokensOverride: 100  // Keep wrapper messages short
+        }
       );
       if (preResult === 'aborted') return 'aborted';
     }
@@ -3623,7 +3666,11 @@ class EventEngine {
             flowId: flow.id,
             nodeId: nodeId,
             isInfinite,
-            deviceObj: deviceObj || { ip: deviceKey }
+            deviceObj: deviceObj || { ip: deviceKey },
+            // Store post-message data to send when cycle completes
+            postMessage: data.postMessageEnabled ? data.postMessage : null,
+            postMessageSuppressLlm: data.postMessageSuppressLlm,
+            postMessageTarget: data.postMessageTarget
           });
           console.log(`[SIMULATION] Tracking cycle completion for device ${deviceKey}, infinite: ${isInfinite}`);
 
@@ -3699,7 +3746,11 @@ class EventEngine {
           flowId: flow.id,
           nodeId: nodeId,
           isInfinite,
-          deviceObj // Store for debugging/future use
+          deviceObj, // Store for debugging/future use
+          // Store post-message data to send when cycle completes
+          postMessage: data.postMessageEnabled ? data.postMessage : null,
+          postMessageSuppressLlm: data.postMessageSuppressLlm,
+          postMessageTarget: data.postMessageTarget
         });
         console.log(`[EventEngine] Tracking cycle completion for device ${resolvedDevice}, infinite: ${isInfinite}`);
 
@@ -4091,22 +4142,105 @@ class EventEngine {
         break;
       }
 
+      case 'show_image': {
+        const tag = data.tag?.trim();
+        if (!tag) {
+          console.log('[EventEngine] show_image: No tag specified');
+          actionResult = false;
+          break;
+        }
+        const content = `[Image:${tag}]`;
+        await this.broadcast('ai_message', {
+          content,
+          sender: 'flow',
+          suppressLlm: true,
+          flowId: flow.id,
+          nodeId
+        });
+        console.log(`[EventEngine] show_image: Displayed image tag "${tag}"`);
+        actionResult = true;
+        break;
+      }
+
+      case 'play_video': {
+        const tag = data.tag?.trim();
+        if (!tag) {
+          console.log('[EventEngine] play_video: No tag specified');
+          actionResult = false;
+          break;
+        }
+        let modifier = '';
+        if (data.loop) modifier = ':loop';
+        else if (data.blocking) modifier = ':blocking';
+        const content = `[Video:${tag}${modifier}]`;
+        await this.broadcast('ai_message', {
+          content,
+          sender: 'flow',
+          suppressLlm: true,
+          flowId: flow.id,
+          nodeId
+        });
+        console.log(`[EventEngine] play_video: Playing video tag "${tag}"${modifier ? ` (${modifier.substring(1)})` : ''}`);
+        if (data.blocking && !data.loop) {
+          this.pendingMediaCompletion = { flowId: flow.id, nodeId };
+          console.log(`[EventEngine] play_video: Blocking - waiting for video to complete`);
+          return 'wait';
+        }
+        actionResult = true;
+        break;
+      }
+
+      case 'play_audio': {
+        const tag = data.tag?.trim();
+        if (!tag) {
+          console.log('[EventEngine] play_audio: No tag specified');
+          actionResult = false;
+          break;
+        }
+        const modifier = data.noBubble ? ':nomsg' : '';
+        const content = `[Audio:${tag}${modifier}]`;
+        await this.broadcast('ai_message', {
+          content,
+          sender: 'flow',
+          suppressLlm: true,
+          flowId: flow.id,
+          nodeId
+        });
+        console.log(`[EventEngine] play_audio: Playing audio tag "${tag}"${modifier ? ' (no bubble)' : ''}`);
+        if (data.blocking) {
+          this.pendingMediaCompletion = { flowId: flow.id, nodeId };
+          console.log(`[EventEngine] play_audio: Blocking - waiting for audio to complete`);
+          return 'wait';
+        }
+        actionResult = true;
+        break;
+      }
+
       default:
         actionResult = true;
         break;
     }
 
     // Post-message wrapper (only for non-abort results)
-    if (actionResult !== 'aborted' && data.postMessageEnabled && data.postMessage) {
+    // Skip for cycle actions - post-message will be sent when cycle completes
+    const isCycleAction = actionResult === 'start_cycle';
+    if (actionResult !== 'aborted' && !isCycleAction && data.postMessageEnabled && data.postMessage) {
       console.log(`[EventEngine] Action has post-message, sending`);
       const postResult = await this.sendWrapperMessage(
         data.postMessage,
         data.postMessageSuppressLlm,
         data.postMessageTarget,
         flow,
-        nodeId
+        nodeId,
+        {
+          isActionWrapper: true,
+          actionType: data.actionType,
+          maxTokensOverride: 100  // Keep wrapper messages short
+        }
       );
       if (postResult === 'aborted') return 'aborted';
+    } else if (isCycleAction && data.postMessageEnabled && data.postMessage) {
+      console.log(`[EventEngine] Cycle action has post-message - deferring until cycle completes`);
     }
 
     // Post-delay (only for non-abort results)
@@ -4660,16 +4794,26 @@ class EventEngine {
 
   /**
    * Evaluate expression (simple)
+   * Supports: numbers, [Flow:varname] syntax, and legacy {varname} syntax
    */
   evaluateExpression(expr) {
     if (typeof expr !== 'string') return expr;
 
-    // Check if it's a number
-    if (!isNaN(expr)) {
+    // Check if it's a number (but not empty string)
+    if (expr.trim() !== '' && !isNaN(expr)) {
       return parseFloat(expr);
     }
 
-    // Check for variable reference
+    // Check for [Flow:varname] syntax
+    const flowMatch = expr.match(/^\[Flow:(\w+)\]$/i);
+    if (flowMatch) {
+      const varName = flowMatch[1];
+      const value = this.variables[varName];
+      console.log(`[EventEngine] evaluateExpression: [Flow:${varName}] = ${value}`);
+      return value !== undefined ? value : expr;
+    }
+
+    // Check for legacy {varname} pattern
     if (expr.startsWith('{') && expr.endsWith('}')) {
       const varName = expr.slice(1, -1);
       return this.variables[varName];
@@ -4928,6 +5072,23 @@ class EventEngine {
 
     // Find the flow and node
     const flowData = this.activeFlows.get(pending.flowId);
+
+    // Send deferred post-message now that cycle is complete
+    if (pending.postMessage && flowData) {
+      console.log(`[EventEngine] Sending deferred post-message for completed cycle`);
+      await this.sendWrapperMessage(
+        pending.postMessage,
+        pending.postMessageSuppressLlm,
+        pending.postMessageTarget,
+        flowData.flow,
+        pending.nodeId,
+        {
+          isActionWrapper: true,
+          actionType: 'start_cycle',
+          maxTokensOverride: 100
+        }
+      );
+    }
     if (!flowData) {
       console.log(`[EventEngine] Flow ${pending.flowId} no longer active, cannot execute completion chain`);
       return;
@@ -5118,6 +5279,14 @@ class EventEngine {
 
     // Clear execution history
     this.executionHistory = [];
+
+    // Clear device state tracking (all devices are now off after emergency stop)
+    if (this.sessionState?.executionHistory?.deviceActions) {
+      for (const deviceId of Object.keys(this.sessionState.executionHistory.deviceActions)) {
+        this.sessionState.executionHistory.deviceActions[deviceId].state = 'off';
+      }
+      console.log('[EventEngine] Reset all device states to off');
+    }
 
     // Sync player state tracking to current session values (don't reset to 0)
     // This prevents false "state change" events after emergency stop

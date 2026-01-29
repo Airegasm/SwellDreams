@@ -11,6 +11,8 @@ function FlowTab() {
     patterns: false,
     priority: false,
     flowSettings: false,
+    mediaTagging: false,
+    mediaNodes: false,
     screenplay: false,
     tips: false
   });
@@ -642,35 +644,254 @@ function FlowTab() {
         )}
       </div>
 
+      {/* Media Tagging */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('mediaTagging')}>
+          Media Tagging (Chat Messages)
+          <span className="expand-icon">{expanded.mediaTagging ? '−' : '+'}</span>
+        </h3>
+        {expanded.mediaTagging && (
+          <div className="section-content">
+            <p>
+              Media tags let you embed images, videos, and audio directly in chat messages.
+              Use these tags in flow message nodes, character prompts, or any text that appears in chat.
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Tag Syntax</th>
+                  <th>Description</th>
+                  <th>Example</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>[Image:tag]</code></td>
+                  <td>Display an image from your Media Album</td>
+                  <td><code>[Image:selfie-smile]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[Video:tag]</code></td>
+                  <td>Play a video once</td>
+                  <td><code>[Video:intro-clip]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[Video:tag:loop]</code></td>
+                  <td>Loop the video continuously</td>
+                  <td><code>[Video:ambient:loop]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[Video:tag:blocking]</code></td>
+                  <td>Pause flow execution until video ends</td>
+                  <td><code>[Video:cutscene:blocking]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[Audio:tag]</code></td>
+                  <td>Play audio with a visible player</td>
+                  <td><code>[Audio:voice-line]</code></td>
+                </tr>
+                <tr>
+                  <td><code>[Audio:tag:nomsg]</code></td>
+                  <td>Play audio silently (no bubble in chat)</td>
+                  <td><code>[Audio:bgm:nomsg]</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="info-box">
+              <strong>Setup:</strong> Before using media tags, add your media files to the
+              <strong> Media Album</strong> (found in Settings) and assign each file a unique tag name.
+            </div>
+
+            <h4 className="subsection-header">Example Usage in Flow Message</h4>
+            <div className="code-example">
+              *She pulls out her phone and snaps a quick selfie* [Image:selfie-wink]<br />
+              "Check this out!" [Video:demo-clip]<br />
+              *Soft music begins to play* [Audio:ambient-music:nomsg]
+            </div>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Media tags are automatically stripped from the text, so they
+              won't appear as visible brackets in the chat. Only the media content displays.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Media Nodes */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('mediaNodes')}>
+          Media Nodes (Flow Actions)
+          <span className="expand-icon">{expanded.mediaNodes ? '−' : '+'}</span>
+        </h3>
+        {expanded.mediaNodes && (
+          <div className="section-content">
+            <p>
+              Media action nodes in flows let you display images, play videos, or trigger audio
+              as part of your automation sequences.
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Description</th>
+                  <th>Options</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span className="node-type action">Show Image</span></td>
+                  <td>Display an image in chat by its media tag</td>
+                  <td>Media tag selector</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type action">Play Video</span></td>
+                  <td>Play a video in chat. Can loop or block flow execution.</td>
+                  <td>Media tag, Loop toggle, Blocking toggle</td>
+                </tr>
+                <tr>
+                  <td><span className="node-type action">Play Audio</span></td>
+                  <td>Play an audio file. Can show player or play silently.</td>
+                  <td>Media tag, Silent/nomsg toggle, Blocking toggle</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Blocking Mode</h4>
+            <p>
+              When <strong>Blocking</strong> is enabled on a video or audio node, flow execution
+              pauses until the media finishes playing. This is useful for cutscenes or sequences
+              where timing matters.
+            </p>
+
+            <div className="tip-box">
+              <strong>Media Nodes vs Tags:</strong> Use <strong>media nodes</strong> when you want
+              precise flow control (blocking, specific timing). Use <strong>media tags</strong>
+              in message text when you want media to appear inline with dialogue or narration.
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ScreenPlay */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('screenplay')}>
-          ScreenPlay Page
+          ScreenPlay (Visual Novel System)
           <span className="expand-icon">{expanded.screenplay ? '−' : '+'}</span>
         </h3>
         {expanded.screenplay && (
           <div className="section-content">
             <p>
-              The <strong>ScreenPlay</strong> page (found under Automation in the menu) displays
-              content generated by flows in a dedicated view, separate from the main chat.
+              <strong>ScreenPlay</strong> is a visual novel-style storytelling system separate from
+              the main chat. Create branching interactive stories with actors, dialogue, choices,
+              and device integration.
             </p>
 
-            <h4 className="subsection-header">Use Cases</h4>
+            <h4 className="subsection-header">Key Concepts</h4>
             <ul className="help-list">
-              <li><strong>Story Scripts</strong> - View narrative content generated by AI message nodes</li>
-              <li><strong>Game Logs</strong> - Track flow-generated events and outcomes</li>
-              <li><strong>Debug View</strong> - Monitor what your flows are producing</li>
+              <li><strong>Plays</strong> - Complete stories containing pages, actors, and scenarios</li>
+              <li><strong>Pages</strong> - Story segments containing paragraphs (think of them as scenes)</li>
+              <li><strong>Paragraphs</strong> - Individual story elements: narration, dialogue, choices, actions</li>
+              <li><strong>Actors</strong> - Characters in your play with avatars and personalities</li>
             </ul>
 
-            <h4 className="subsection-header">How to Send Content to ScreenPlay</h4>
+            <h4 className="subsection-header">Paragraph Types</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Narration</strong></td>
+                  <td>Descriptive text (2nd or 3rd person based on author mode)</td>
+                </tr>
+                <tr>
+                  <td><strong>Dialogue</strong></td>
+                  <td>Character speech with actor avatar and name</td>
+                </tr>
+                <tr>
+                  <td><strong>Player Dialogue</strong></td>
+                  <td>Speech attributed to the player character</td>
+                </tr>
+                <tr>
+                  <td><strong>Choice</strong></td>
+                  <td>Multiple options that branch to different pages</td>
+                </tr>
+                <tr>
+                  <td><strong>Inline Choice</strong></td>
+                  <td>Questions/options that show responses without changing page</td>
+                </tr>
+                <tr>
+                  <td><strong>Condition</strong></td>
+                  <td>Check a variable and branch to different pages</td>
+                </tr>
+                <tr>
+                  <td><strong>Set Variable</strong></td>
+                  <td>Store or modify a play variable</td>
+                </tr>
+                <tr>
+                  <td><strong>Go to Page</strong></td>
+                  <td>Jump to another page in the play</td>
+                </tr>
+                <tr>
+                  <td><strong>Delay</strong></td>
+                  <td>Pause before continuing to next paragraph</td>
+                </tr>
+                <tr>
+                  <td><strong>Pump</strong></td>
+                  <td>Control real devices (on, off, cycle, pulse, timed)</td>
+                </tr>
+                <tr>
+                  <td><strong>Mock Pump</strong></td>
+                  <td>Simulate pump for NPC/Inflatee 2 (visual only)</td>
+                </tr>
+                <tr>
+                  <td><strong>Set NPC Avatar</strong></td>
+                  <td>Change the right filmstrip avatar dynamically</td>
+                </tr>
+                <tr>
+                  <td><strong>End</strong></td>
+                  <td>End the play with a good/bad/neutral outcome</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Variables</h4>
+            <p>Use variables in text and conditions:</p>
+            <div className="code-example">
+              [Player] - Player character name<br />
+              [Capacity] / [Capacity1] - Inflatee 1 capacity (0-100)<br />
+              [Capacity_mock] / [Capacity2] - Inflatee 2 capacity<br />
+              [Feeling] - Pain description based on capacity<br />
+              [Feeling_mock] - Pain description for Inflatee 2<br />
+              [Play:varname] - Custom play variable
+            </div>
+
+            <h4 className="subsection-header">LLM Enhancement</h4>
             <p>
-              Use the <strong>Send to ScreenPlay</strong> action node in your flows. Any text
-              sent to ScreenPlay appears in the dedicated viewer without affecting the main chat.
+              Enable <strong>LLM Enhancement</strong> on narration or dialogue paragraphs to have
+              the AI expand brief prompts into rich, detailed content. Configure max tokens to
+              control response length. The AI uses the play's scenario and actor personalities.
             </p>
 
+            <h4 className="subsection-header">Inflatees & Filmstrips</h4>
+            <p>
+              Plays can track two inflatees with capacity gauges shown in the side filmstrips:
+            </p>
+            <ul className="help-list">
+              <li><strong>Inflatee 1 (Left)</strong> - The player, controlled by real pump actions</li>
+              <li><strong>Inflatee 2 (Right)</strong> - Optional NPC, controlled by mock_pump events</li>
+            </ul>
+
             <div className="info-box">
-              <strong>Note:</strong> ScreenPlay content persists until cleared. You can review
-              the full history of flow-generated content during a session.
+              <strong>Getting Started:</strong> Go to <strong>Automation → ScreenPlay</strong>,
+              create a new Play, add actors, write your scenario, then click
+              <strong> Storyboard</strong> to build your pages and paragraphs.
             </div>
           </div>
         )}
