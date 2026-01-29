@@ -1,30 +1,24 @@
-/* Play Viewer Overlay */
+/* Play Viewer Overlay - Full screen */
 .play-viewer-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(0, 0, 0, 0.95);
   z-index: 1000;
-  padding: var(--spacing-lg) 0;
-  gap: 0;
 }
 
-/* Play Viewer Container */
+/* Play Viewer Container - Full screen */
 .play-viewer {
-  width: 100%;
-  max-width: 700px;
-  height: 90vh;
-  max-height: 800px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: var(--bg-secondary);
-  border-radius: var(--border-radius-lg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
 
@@ -452,7 +446,7 @@
 }
 
 /* ===================== */
-/* Filmstrip Layout */
+/* Filmstrip Avatar Overlay */
 /* ===================== */
 
 .play-viewer-body {
@@ -461,68 +455,81 @@
   overflow: hidden;
 }
 
-/* Filmstrip Columns - Match Chat sidebar width (240px) */
+/* Avatar columns - overlay on existing filmstrips at screen edges */
+/* NOTE: These are portaled to body to avoid transform containment issues */
 .filmstrip-column {
-  width: 240px;
-  height: 100%;
-  position: relative;
-  background: var(--bg-secondary);
-  flex-shrink: 0;
+  position: fixed;
+  top: 62px;
+  bottom: 6px;
+  width: 231px;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
-  padding: var(--spacing-md);
-  padding-top: 80px;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0;
+  pointer-events: none;
 }
 
-/* Filmstrip perforations on outer edge only */
-.filmstrip-column::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 16px;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      transparent 0px,
-      transparent 6px,
-      rgba(255, 255, 255, 0.15) 6px,
-      rgba(255, 255, 255, 0.15) 14px,
-      transparent 14px,
-      transparent 20px
-    ),
-    linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
-  z-index: 5;
+.filmstrip-column.filmstrip-left {
+  left: 6px;
 }
 
-.filmstrip-column.filmstrip-left::before {
-  left: 0;
-  border-right: 2px solid #333;
+.filmstrip-column.filmstrip-right {
+  right: 6px;
 }
 
-.filmstrip-column.filmstrip-right::before {
-  right: 0;
-  border-left: 2px solid #333;
-}
-
-/* Avatar Frame - Large portrait like Chat screen */
+/* Avatar Frame - content on the filmstrip */
 .avatar-frame {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3/4;
-  border-radius: var(--border-radius);
-  overflow: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  flex-shrink: 0;
-  opacity: 0;
-  transform: translateY(-30px);
-  transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
 }
 
 .avatar-frame.visible {
-  transform: translateY(0);
-  opacity: 1;
+  /* No opacity transition - always fully visible */
+}
+
+/* Name badge ABOVE portrait - gunmetal metallic */
+.avatar-frame .frame-name {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 0;
+  background: linear-gradient(
+    180deg,
+    #5c6169 0%,
+    #4a4e54 8%,
+    #2d3036 15%,
+    #5c6169 25%,
+    #3d4147 40%,
+    #1a1d21 60%,
+    #0d0f12 80%,
+    #1a1d21 100%
+  );
+  border-radius: 6px 6px 0 0;
+  color: #fff;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Portrait container - full width of filmstrip */
+.avatar-frame .portrait-wrapper {
+  width: 231px;
+  height: 308px;
+  overflow: hidden;
+  background: #0a0a0a;
+  border-left: 3px solid #3d4147;
+  border-right: 3px solid #3d4147;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Avatar image/placeholder fills the frame */
@@ -530,7 +537,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--border-radius);
 }
 
 .avatar-frame .frame-avatar-placeholder {
@@ -539,81 +545,85 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 4rem;
-  color: var(--text-muted);
-  background: var(--bg-input);
-  border-radius: var(--border-radius);
+  font-size: 5rem;
+  color: rgba(255, 255, 255, 0.2);
+  background: #0a0a0a;
 }
 
 .avatar-frame .frame-avatar-placeholder.empty {
-  opacity: 0.5;
+  color: rgba(255, 255, 255, 0.1);
 }
 
-/* Name label at bottom of portrait */
-.avatar-frame .frame-name {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: var(--spacing-sm) var(--spacing-xs);
-  background: linear-gradient(transparent, rgba(0,0,0,0.8));
-  color: var(--text-primary);
-  text-align: center;
-  font-weight: 600;
-  font-size: var(--font-size-base);
-}
-
-/* Remove the old avatar-container - portrait is the container now */
-.avatar-frame .avatar-container {
-  display: contents;
-}
-
-/* Capacity Gauge - Below portrait */
-.capacity-gauge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-xs);
-  width: 100%;
-  margin-top: var(--spacing-md);
-}
-
-.gauge-label {
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.gauge-bar {
-  width: 100%;
-  max-width: 180px;
-  height: 24px;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-  border: 2px solid var(--border-color);
-  overflow: hidden;
+/* Round Capacity Gauge - large version */
+.capacity-gauge-round {
   position: relative;
+  width: 120px;
+  height: 120px;
+  margin-top: -40px;
+  background: rgba(20, 20, 25, 1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
-.gauge-fill {
+.capacity-gauge-inner {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Gauge Background Arc - green to yellow to red */
+.gauge-arc {
   position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  background: linear-gradient(90deg, #ff4757 0%, #ff6b9d 100%);
-  border-radius: 10px 0 0 10px;
-  transition: width 0.3s ease;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 225deg,
+    #00ff88 0deg,
+    #fbbf24 135deg,
+    #ff4757 270deg,
+    transparent 270deg
+  );
+  mask: radial-gradient(circle at center, transparent 55%, black 56%);
+  -webkit-mask: radial-gradient(circle at center, transparent 55%, black 56%);
 }
 
-.capacity-gauge.mock .gauge-fill {
-  background: linear-gradient(90deg, #4757ff 0%, #6b9dff 100%);
+/* Needle */
+.gauge-needle {
+  position: absolute;
+  width: 3px;
+  height: 42px;
+  background: #fff;
+  border-radius: 3px;
+  transform-origin: bottom center;
+  bottom: 50%;
+  left: calc(50% - 1.5px);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.gauge-value {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-primary);
+/* Center dot */
+.gauge-center {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Percentage display */
+.gauge-percent {
+  position: absolute;
+  bottom: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
 }
 
 /* Adjust content area */
@@ -624,13 +634,9 @@
   scroll-behavior: smooth;
 }
 
-/* Mobile: hide filmstrips on small screens */
+/* Mobile: hide avatar overlays on small screens */
 @media (max-width: 900px) {
   .play-viewer-overlay .filmstrip-column {
     display: none;
-  }
-
-  .play-viewer-overlay {
-    padding: 0;
   }
 }

@@ -3,15 +3,27 @@ import { useApp } from '../../context/AppContext';
 import PlayViewer from './PlayViewer';
 import './ScreenPlayTabs.css';
 
-function PlaysTab({ onEditPlay }) {
+function PlaysTab({ onEditPlay, triggerCreate }) {
   const { plays, actors, api } = useApp();
   const [isCreating, setIsCreating] = useState(false);
+
+  // Handle triggerCreate from StoryboardTab
+  useEffect(() => {
+    if (triggerCreate) {
+      setIsCreating(true);
+      setSelectedPlayId(null);
+    }
+  }, [triggerCreate]);
   const [newPlayName, setNewPlayName] = useState('');
   const [newPlayDescription, setNewPlayDescription] = useState('');
+  const [newPlayLocation, setNewPlayLocation] = useState('');
+  const [newPlayRelationships, setNewPlayRelationships] = useState('');
   const [newPlayActors, setNewPlayActors] = useState([]);
   const [playingPlayId, setPlayingPlayId] = useState(null);
   const [selectedPlayId, setSelectedPlayId] = useState(null);
   const [editedScenario, setEditedScenario] = useState('');
+  const [editedLocation, setEditedLocation] = useState('');
+  const [editedRelationships, setEditedRelationships] = useState('');
   const [editedActors, setEditedActors] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -44,6 +56,8 @@ function PlaysTab({ onEditPlay }) {
   useEffect(() => {
     if (selectedPlay) {
       setEditedScenario(selectedPlay.description || '');
+      setEditedLocation(selectedPlay.location || '');
+      setEditedRelationships(selectedPlay.actorRelationships || '');
       setEditedActors(selectedPlay.actors || []);
       // Load inflatee settings
       setInflatee1Capacity(selectedPlay.inflatee1Capacity || 0);
@@ -62,6 +76,8 @@ function PlaysTab({ onEditPlay }) {
       const newPlay = {
         name: newPlayName.trim(),
         description: newPlayDescription.trim(),
+        location: newPlayLocation.trim(),
+        actorRelationships: newPlayRelationships.trim(),
         actors: newPlayActors,
         playerActorId: null,
         authorMode: '2nd-person',
@@ -78,6 +94,8 @@ function PlaysTab({ onEditPlay }) {
       const created = await api.createPlay(newPlay);
       setNewPlayName('');
       setNewPlayDescription('');
+      setNewPlayLocation('');
+      setNewPlayRelationships('');
       setNewPlayActors([]);
       setIsCreating(false);
       // Select the newly created play
@@ -108,6 +126,8 @@ function PlaysTab({ onEditPlay }) {
       await api.updatePlay(selectedPlayId, {
         ...selectedPlay,
         description: editedScenario,
+        location: editedLocation,
+        actorRelationships: editedRelationships,
         actors: editedActors,
         inflatee1Capacity,
         inflatee2Enabled,
@@ -123,6 +143,16 @@ function PlaysTab({ onEditPlay }) {
 
   const handleScenarioChange = (value) => {
     setEditedScenario(value);
+    setHasChanges(true);
+  };
+
+  const handleLocationChange = (value) => {
+    setEditedLocation(value);
+    setHasChanges(true);
+  };
+
+  const handleRelationshipsChange = (value) => {
+    setEditedRelationships(value);
     setHasChanges(true);
   };
 
@@ -263,6 +293,26 @@ function PlaysTab({ onEditPlay }) {
               </div>
 
               <div className="form-group">
+                <label>Location</label>
+                <textarea
+                  value={newPlayLocation}
+                  onChange={(e) => setNewPlayLocation(e.target.value)}
+                  placeholder="Where does this play take place? Describe the setting..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Actor Relationships</label>
+                <textarea
+                  value={newPlayRelationships}
+                  onChange={(e) => setNewPlayRelationships(e.target.value)}
+                  placeholder="Describe relationships between actors..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="form-group">
                 <label>Actors</label>
                 <div className="actors-manager">
                   <div className="selected-actors">
@@ -354,6 +404,26 @@ function PlaysTab({ onEditPlay }) {
                 <span className="form-hint">
                   This context is provided to the LLM when enhancing dialogue and narration.
                 </span>
+              </div>
+
+              <div className="form-group">
+                <label>Location</label>
+                <textarea
+                  value={editedLocation}
+                  onChange={(e) => handleLocationChange(e.target.value)}
+                  placeholder="Where does this play take place? Describe the setting..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Actor Relationships</label>
+                <textarea
+                  value={editedRelationships}
+                  onChange={(e) => handleRelationshipsChange(e.target.value)}
+                  placeholder="Describe relationships between actors (e.g., 'Sophie and Mia are college roommates')..."
+                  rows={3}
+                />
               </div>
 
               <div className="form-group">
@@ -502,6 +572,8 @@ function PlaysTab({ onEditPlay }) {
                     className="btn btn-secondary"
                     onClick={() => {
                       setEditedScenario(selectedPlay.description || '');
+                      setEditedLocation(selectedPlay.location || '');
+                      setEditedRelationships(selectedPlay.actorRelationships || '');
                       setEditedActors(selectedPlay.actors || []);
                       setHasChanges(false);
                     }}

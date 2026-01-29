@@ -2,26 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import './ScreenPlayTabs.css';
 
-// Immutable core definition - always included
-const CORE_DEFINITION = `Belly inflation is the practice of inflating one's belly with air, water, or other substances to make it swell tight like a balloon. This is NOT pregnancy. It's about the sensation of fullness, tightness, pressure, and expansion. The belly becomes round, firm, and drum-tight as it grows larger.
+// Default core definition
+const DEFAULT_CORE_DEFINITION = `Belly inflation is the practice of inflating one's belly with air, water, or other substances to make it swell tight like a balloon. This is NOT pregnancy. It's about the sensation of fullness, tightness, pressure, and expansion. The belly becomes round, firm, and drum-tight as it grows larger.
 
 Key sensations: pressure building, skin stretching taut, growing tightness, overwhelming fullness, the belly becoming hard and round like a ball.`;
 
 function ControlsTab() {
   const { settings, api } = useApp();
+  const [coreDefinition, setCoreDefinition] = useState(DEFAULT_CORE_DEFINITION);
   const [additionalDefinitions, setAdditionalDefinitions] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load additional definitions from settings
+  // Load definitions from settings
   useEffect(() => {
+    if (settings?.screenplayCoreDefinition !== undefined) {
+      setCoreDefinition(settings.screenplayCoreDefinition || DEFAULT_CORE_DEFINITION);
+    }
     if (settings?.screenplayAdditionalDefinitions !== undefined) {
       setAdditionalDefinitions(settings.screenplayAdditionalDefinitions || '');
-      setHasChanges(false);
     }
-  }, [settings?.screenplayAdditionalDefinitions]);
+    setHasChanges(false);
+  }, [settings?.screenplayCoreDefinition, settings?.screenplayAdditionalDefinitions]);
 
-  const handleDefinitionsChange = (value) => {
+  const handleCoreDefinitionChange = (value) => {
+    setCoreDefinition(value);
+    setHasChanges(true);
+  };
+
+  const handleAdditionalChange = (value) => {
     setAdditionalDefinitions(value);
     setHasChanges(true);
   };
@@ -29,10 +38,12 @@ function ControlsTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save the full combined definition and the additional part separately
+      // Save both core and additional definitions
+      const fullDefinitions = coreDefinition + (additionalDefinitions ? '\n\n' + additionalDefinitions : '');
       await api.updateSettings({
         ...settings,
-        screenplayDefinitions: CORE_DEFINITION + (additionalDefinitions ? '\n\n' + additionalDefinitions : ''),
+        screenplayCoreDefinition: coreDefinition,
+        screenplayDefinitions: fullDefinitions,
         screenplayAdditionalDefinitions: additionalDefinitions
       });
       setHasChanges(false);
@@ -43,8 +54,14 @@ function ControlsTab() {
   };
 
   const handleDiscard = () => {
+    setCoreDefinition(settings?.screenplayCoreDefinition || DEFAULT_CORE_DEFINITION);
     setAdditionalDefinitions(settings?.screenplayAdditionalDefinitions || '');
     setHasChanges(false);
+  };
+
+  const handleResetCore = () => {
+    setCoreDefinition(DEFAULT_CORE_DEFINITION);
+    setHasChanges(true);
   };
 
   return (
@@ -60,13 +77,21 @@ function ControlsTab() {
         </p>
 
         <div className="form-group">
-          <label>Core Definition (immutable)</label>
+          <div className="label-row">
+            <label>Core Definition</label>
+            <button
+              className="btn btn-xs btn-secondary"
+              onClick={handleResetCore}
+              title="Reset to default"
+            >
+              Reset Default
+            </button>
+          </div>
           <textarea
-            value={CORE_DEFINITION}
-            readOnly
-            disabled
+            value={coreDefinition}
+            onChange={(e) => handleCoreDefinitionChange(e.target.value)}
             rows={6}
-            className="definitions-textarea immutable"
+            className="definitions-textarea"
           />
         </div>
 
@@ -74,7 +99,7 @@ function ControlsTab() {
           <label>Additional Definitions (optional)</label>
           <textarea
             value={additionalDefinitions}
-            onChange={(e) => handleDefinitionsChange(e.target.value)}
+            onChange={(e) => handleAdditionalChange(e.target.value)}
             placeholder="Add any additional context, terms, or themes you want the LLM to know about..."
             rows={4}
             className="definitions-textarea"

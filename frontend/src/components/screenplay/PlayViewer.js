@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import './PlayViewer.css';
@@ -244,6 +245,8 @@ function PlayViewer({ playId, onClose }) {
           maxTokens,
           definitions: settings?.screenplayDefinitions || '',
           scenario: play?.description || '',
+          location: play?.location || '',
+          actorRelationships: play?.actorRelationships || '',
           previousText
         })
       });
@@ -883,38 +886,28 @@ function PlayViewer({ playId, onClose }) {
     );
   }
 
-  // Render capacity gauge (horizontal bar)
-  const renderCapacityGauge = (capacity, label, isMock = false) => (
-    <div className={`capacity-gauge ${isMock ? 'mock' : ''}`}>
-      <div className="gauge-label">{label}</div>
-      <div className="gauge-bar">
-        <div
-          className="gauge-fill"
-          style={{ width: `${Math.min(100, Math.max(0, capacity))}%` }}
-        />
+  // Render round capacity gauge (matches StatusBadges style)
+  const renderCapacityGauge = (capacity) => {
+    // Needle rotation: -135deg at 0%, +135deg at 100% (270deg range)
+    const needleRotation = -135 + (Math.min(100, Math.max(0, capacity)) * 2.7);
+    return (
+      <div className="capacity-gauge-round">
+        <div className="capacity-gauge-inner">
+          <div className="gauge-arc" />
+          <div
+            className="gauge-needle"
+            style={{ transform: `rotate(${needleRotation}deg)` }}
+          />
+          <div className="gauge-center" />
+          <div className="gauge-percent">{Math.round(capacity)}%</div>
+        </div>
       </div>
-      <div className="gauge-value">{Math.round(capacity)}%</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className={`play-viewer-overlay ${playStarted ? 'started' : ''}`}>
-      {/* Left Filmstrip - Screen Edge */}
-      <div className="filmstrip-column filmstrip-left">
-        <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
-          {inflatee1Actor?.avatar ? (
-            <img src={inflatee1Actor.avatar} alt={inflatee1Actor.name} className="frame-avatar" />
-          ) : (
-            <div className="frame-avatar-placeholder">
-              {inflatee1Actor?.name?.charAt(0) || '?'}
-            </div>
-          )}
-          <div className="frame-name">{inflatee1Actor?.name || 'Player'}</div>
-        </div>
-        {playStarted && renderCapacityGauge(inflateeCapacity.inflatee1, 'Capacity')}
-      </div>
-
-      {/* Main Modal */}
+      {/* Main Play Viewer - Full Screen */}
       <div className="play-viewer">
         <div className="play-viewer-header">
           <h2>{play.name}</h2>
@@ -998,24 +991,47 @@ function PlayViewer({ playId, onClose }) {
         </div>
       </div>
 
-      {/* Right Filmstrip - Screen Edge */}
-      <div className="filmstrip-column filmstrip-right">
-        <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
-          {rightImageUrl ? (
-            <img src={rightImageUrl} alt={rightImageName || 'NPC'} className="frame-avatar" />
-          ) : rightActor?.avatar ? (
-            <img src={rightActor.avatar} alt={rightActor.name} className="frame-avatar" />
-          ) : rightActor ? (
-            <div className="frame-avatar-placeholder">
-              {rightActor.name?.charAt(0) || '?'}
+      {/* Filmstrip avatars - portaled to body to avoid transform containment */}
+      {createPortal(
+        <>
+          <div className="filmstrip-column filmstrip-left">
+            <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
+              <div className="frame-name">{inflatee1Actor?.name || 'Player'}</div>
+              <div className="portrait-wrapper">
+                {inflatee1Actor?.avatar ? (
+                  <img src={inflatee1Actor.avatar} alt={inflatee1Actor.name} className="frame-avatar" />
+                ) : (
+                  <div className="frame-avatar-placeholder">
+                    {inflatee1Actor?.name?.charAt(0) || '?'}
+                  </div>
+                )}
+              </div>
+              {renderCapacityGauge(inflateeCapacity.inflatee1)}
             </div>
-          ) : (
-            <div className="frame-avatar-placeholder empty">?</div>
-          )}
-          <div className="frame-name">{rightImageName || rightActor?.name || '—'}</div>
-        </div>
-        {playStarted && play?.inflatee2Enabled && renderCapacityGauge(inflateeCapacity.inflatee2, 'Mock', true)}
-      </div>
+          </div>
+
+          <div className="filmstrip-column filmstrip-right">
+            <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
+              <div className="frame-name">{rightImageName || rightActor?.name || '—'}</div>
+              <div className="portrait-wrapper">
+                {rightImageUrl ? (
+                  <img src={rightImageUrl} alt={rightImageName || 'NPC'} className="frame-avatar" />
+                ) : rightActor?.avatar ? (
+                  <img src={rightActor.avatar} alt={rightActor.name} className="frame-avatar" />
+                ) : rightActor ? (
+                  <div className="frame-avatar-placeholder">
+                    {rightActor.name?.charAt(0) || '?'}
+                  </div>
+                ) : (
+                  <div className="frame-avatar-placeholder empty">?</div>
+                )}
+              </div>
+              {play?.inflatee2Enabled && renderCapacityGauge(inflateeCapacity.inflatee2)}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }

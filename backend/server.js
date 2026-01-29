@@ -7095,7 +7095,7 @@ app.delete('/api/plays/:id', (req, res) => {
 // Enhance screenplay text via LLM
 app.post('/api/screenplay/enhance', llmLimiter, async (req, res) => {
   try {
-    const { text, type, actorName, actorPersonality, authorMode, maxTokens, definitions, scenario, previousText } = req.body;
+    const { text, type, actorName, actorPersonality, authorMode, maxTokens, definitions, scenario, location, actorRelationships, previousText } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
@@ -7114,6 +7114,16 @@ app.post('/api/screenplay/enhance', llmLimiter, async (req, res) => {
     // Include play-specific scenario
     if (scenario) {
       systemPrompt += `STORY CONTEXT: ${scenario}\n\n`;
+    }
+
+    // Include location
+    if (location) {
+      systemPrompt += `LOCATION: ${location}\n\n`;
+    }
+
+    // Include actor relationships
+    if (actorRelationships) {
+      systemPrompt += `CHARACTER RELATIONSHIPS: ${actorRelationships}\n\n`;
     }
 
     if (authorMode === '2nd-person') {

@@ -1,10 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
+import { API_BASE } from '../../config';
 import PageCard from './PageCard';
 import './ScreenPlayTabs.css';
 
-function StoryboardTab({ editingPlayId, setEditingPlayId }) {
-  const { plays, actors, api } = useApp();
+const PARAGRAPH_TYPES = [
+  { type: 'narration', label: 'Narration', icon: '📖', desc: 'Story text' },
+  { type: 'dialogue', label: 'Dialogue', icon: '💬', desc: 'NPC speaks' },
+  { type: 'player_dialogue', label: 'Player Dialogue', icon: '🗣️', desc: 'Player speaks' },
+  { type: 'choice', label: 'Choice', icon: '❓', desc: 'Branch options' },
+  { type: 'inline_choice', label: 'Inline Choice', icon: '💭', desc: 'Questions' },
+  { type: 'goto_page', label: 'Go to Page', icon: '➡️', desc: 'Jump to page' },
+  { type: 'condition', label: 'Condition', icon: '⚡', desc: 'If/then logic' },
+  { type: 'set_variable', label: 'Set Variable', icon: '📝', desc: 'Store value' },
+  { type: 'set_npc_actor_avatar', label: 'Set NPC Avatar', icon: '🎭', desc: 'Change avatar' },
+  { type: 'delay', label: 'Delay', icon: '⏱️', desc: 'Wait time' },
+  { type: 'pump', label: 'Pump (Real)', icon: '⛽', desc: 'Device control' },
+  { type: 'mock_pump', label: 'Mock Pump', icon: '🎈', desc: 'Simulate pump' },
+  { type: 'end', label: 'End', icon: '🏁', desc: 'Finish play' }
+];
+
+function StoryboardTab({ editingPlayId, setEditingPlayId, onCreateNew }) {
+  const { plays, actors, api, settings } = useApp();
   const [currentPlay, setCurrentPlay] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [mediaImages, setMediaImages] = useState([]);
@@ -116,28 +134,82 @@ function StoryboardTab({ editingPlayId, setEditingPlayId }) {
     setCurrentPlay(null);
   };
 
-  // No play selected - show play selector
+  // Handle drag start from palette
+  const handleDragStart = (e, type) => {
+    e.dataTransfer.setData('paragraphType', type);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  // Handle LLM enhance for text in storyboard editor
+  const handleEnhanceText = useCallback(async (text, type, actorId) => {
+    if (!text || !currentPlay) return text;
+
+    try {
+      const actor = actorId ? actors.find(a => a.id === actorId) : null;
+
+      const response = await fetch(`${API_BASE}/api/screenplay/enhance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          type,
+          actorName: actor?.name,
+          actorPersonality: actor?.personality,
+          authorMode: currentPlay?.authorMode || '2nd-person',
+          maxTokens: 150,
+          definitions: settings?.screenplayDefinitions || '',
+          scenario: currentPlay?.description || '',
+          location: currentPlay?.location || '',
+          actorRelationships: currentPlay?.actorRelationships || '',
+          previousText: ''
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.text) {
+          return result.text;
+        }
+      }
+    } catch (error) {
+      console.error('Enhancement failed:', error);
+    }
+
+    return text;
+  }, [currentPlay, actors, settings?.screenplayDefinitions]);
+
+  // No play selected - show play selector with Create New option
   if (!currentPlay) {
     return (
       <div className="storyboard-tab">
         <div className="storyboard-empty">
-          <h3>Select a Play to Edit</h3>
-          <p>Go to the Plays tab and click "Edit" on a play, or select one below:</p>
-          <div className="play-select-list">
-            {plays.length === 0 ? (
-              <p className="no-plays">No plays available. Create one in the Plays tab.</p>
-            ) : (
-              plays.map(play => (
-                <button
-                  key={play.id}
-                  className="play-select-btn"
-                  onClick={() => setEditingPlayId(play.id)}
-                >
-                  {play.name}
-                </button>
-              ))
-            )}
-          </div>
+          <h3>Storyboard Editor</h3>
+          <p>Select a play to edit or create a new one:</p>
+
+          <button
+            className="btn btn-primary btn-lg create-new-btn"
+            onClick={onCreateNew}
+          >
+            + Create New Play
+          </button>
+
+          {plays.length > 0 && (
+            <>
+              <div className="divider-text">or edit existing</div>
+              <div className="play-select-list">
+                {plays.map(play => (
+                  <button
+                    key={play.id}
+                    className="play-select-btn"
+                    onClick={() => setEditingPlayId(play.id)}
+                  >
+                    {play.name}
+                    <span className="play-meta">{Object.keys(play.pages || {}).length} pages</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -146,8 +218,33 @@ function StoryboardTab({ editingPlayId, setEditingPlayId }) {
   const pages = currentPlay.pages || {};
   const pageOrder = Object.keys(pages);
 
+  // Render the draggable palette (portaled to overlap filmstrip)
+  const renderPalette = () => createPortal(
+    <div className="storyboard-palette">
+      <div className="palette-header">Events</div>
+      <div className="palette-items">
+        {PARAGRAPH_TYPES.map(({ type, label, icon, desc }) => (
+          <div
+            key={type}
+            className="palette-item"
+            draggable
+            onDragStart={(e) => handleDragStart(e, type)}
+          >
+            <span className="palette-icon">{icon}</span>
+            <div className="palette-text">
+              <span className="palette-label">{label}</span>
+              <span className="palette-desc">{desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>,
+    document.body
+  );
+
   return (
-    <div className="storyboard-tab">
+    <div className="storyboard-tab storyboard-editing">
+      {renderPalette()}
       <div className="storyboard-header">
         <div className="storyboard-title">
           <button className="btn btn-secondary btn-sm" onClick={handleClose}>
@@ -236,6 +333,7 @@ function StoryboardTab({ editingPlayId, setEditingPlayId }) {
             onUpdate={(updates) => handlePageUpdate(pageId, updates)}
             onDelete={() => handleDeletePage(pageId)}
             onSetStart={() => handlePlayChange({ startPageId: pageId })}
+            onEnhanceText={handleEnhanceText}
           />
         ))}
 

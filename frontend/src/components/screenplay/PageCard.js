@@ -18,9 +18,32 @@ const PARAGRAPH_TYPES = [
   { type: 'end', label: 'End', icon: '🏁' }
 ];
 
-function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages, onUpdate, onDelete, onSetStart }) {
+function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages, onUpdate, onDelete, onSetStart, onEnhanceText }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Handle drag over
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  // Handle drop from palette
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const type = e.dataTransfer.getData('paragraphType');
+    if (type) {
+      handleAddParagraph(type);
+    }
+  };
 
   const handleTitleChange = (e) => {
     onUpdate({ title: e.target.value });
@@ -113,7 +136,12 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
   };
 
   return (
-    <div className={`page-card ${isStartPage ? 'start-page' : ''}`}>
+    <div
+      className={`page-card ${isStartPage ? 'start-page' : ''} ${isDragOver ? 'drag-over' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className="page-card-header">
         <button
           className="collapse-btn"
@@ -164,6 +192,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
                 onUpdate={(updates) => handleUpdateParagraph(paragraph.id, updates)}
                 onDelete={() => handleDeleteParagraph(paragraph.id)}
                 onMove={(dir) => handleMoveParagraph(paragraph.id, dir)}
+                onEnhanceText={onEnhanceText}
               />
             ))}
           </div>

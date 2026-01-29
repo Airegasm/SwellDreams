@@ -25,13 +25,62 @@ const PUMP_ACTION_DESCRIPTIONS = {
   off: 'Turn pump off'
 };
 
-function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaImages, onUpdate, onDelete, onMove }) {
+function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaImages, onUpdate, onDelete, onMove, onEnhanceText }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhancingOptionIdx, setEnhancingOptionIdx] = useState(null);
 
   const handleDataChange = (field, value) => {
     onUpdate({
       data: { ...paragraph.data, [field]: value }
     });
+  };
+
+  // Handle LLM enhance button click
+  const handleEnhanceClick = async (e) => {
+    e.stopPropagation();
+    if (!onEnhanceText || isEnhancing) return;
+
+    const text = paragraph.data?.text;
+    if (!text) return;
+
+    setIsEnhancing(true);
+    try {
+      const enhancedText = await onEnhanceText(text, paragraph.type, paragraph.data?.actorId);
+      if (enhancedText && enhancedText !== text) {
+        handleDataChange('text', enhancedText);
+      }
+    } catch (err) {
+      console.error('Enhance failed:', err);
+    }
+    setIsEnhancing(false);
+  };
+
+  // Check if this paragraph type supports enhancement
+  const canEnhance = ['narration', 'dialogue', 'player_dialogue'].includes(paragraph.type);
+
+  // Handle LLM enhance for inline choice responses
+  const handleEnhanceOptionResponse = async (optionIdx, actorId) => {
+    if (!onEnhanceText || enhancingOptionIdx !== null) return;
+
+    const options = paragraph.data?.options || [];
+    const option = options[optionIdx];
+    if (!option?.response) return;
+
+    setEnhancingOptionIdx(optionIdx);
+    try {
+      // Use dialogue type for actor responses, narration for narrator
+      const type = actorId ? 'dialogue' : 'narration';
+      const enhancedText = await onEnhanceText(option.response, type, actorId);
+      if (enhancedText && enhancedText !== option.response) {
+        const newOptions = [...options];
+        newOptions[optionIdx] = { ...option, response: enhancedText };
+        handleDataChange('options', newOptions);
+      }
+    } catch (err) {
+      console.error('Enhance option failed:', err);
+    }
+    setEnhancingOptionIdx(null);
   };
 
   const renderEditor = () => {
@@ -338,17 +387,27 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                       ✕
                     </button>
                   </div>
-                  <textarea
-                    value={option.response || ''}
-                    onChange={(e) => {
-                      const newOptions = [...data.options];
-                      newOptions[idx] = { ...option, response: e.target.value };
-                      handleDataChange('options', newOptions);
-                    }}
-                    placeholder="Response text..."
-                    rows={2}
-                    className="option-response"
-                  />
+                  <div className="response-row">
+                    <textarea
+                      value={option.response || ''}
+                      onChange={(e) => {
+                        const newOptions = [...data.options];
+                        newOptions[idx] = { ...option, response: e.target.value };
+                        handleDataChange('options', newOptions);
+                      }}
+                      placeholder="Response text..."
+                      rows={2}
+                      className="option-response"
+                    />
+                    <button
+                      className="enhance-btn enhance-btn-inline"
+                      onClick={() => handleEnhanceOptionResponse(idx, option.responseActorId)}
+                      disabled={enhancingOptionIdx !== null || !option.response}
+                      title="LLM Enhance response"
+                    >
+                      {enhancingOptionIdx === idx ? '...' : '🤖'}
+                    </button>
+                  </div>
                   <div className="choice-extras">
                     <div className="choice-extra-row">
                       <span className="extra-label">Set var:</span>
@@ -866,6 +925,16 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
         <span className="para-icon">{TYPE_ICONS[paragraph.type] || '?'}</span>
         <span className="para-summary">{getSummary()}</span>
         <div className="para-controls">
+          {canEnhance && (
+            <button
+              className="enhance-btn"
+              onClick={handleEnhanceClick}
+              disabled={isEnhancing || !paragraph.data?.text}
+              title="LLM Enhance text"
+            >
+              {isEnhancing ? '...' : '🤖'}
+            </button>
+          )}
           <button
             className="move-btn"
             onClick={(e) => { e.stopPropagation(); onMove('up'); }}

@@ -22,6 +22,8 @@ function ScreenPlay() {
 
   // State for currently editing play (passed to Storyboard)
   const [editingPlayId, setEditingPlayId] = useState(null);
+  // State to trigger create mode in PlaysTab
+  const [triggerCreate, setTriggerCreate] = useState(false);
 
   // Trigger enter animation after mount
   useEffect(() => {
@@ -74,18 +76,32 @@ function ScreenPlay() {
     handleTabChange('storyboard');
   };
 
+  // Handler for creating new play from StoryboardTab
+  const handleCreateNew = () => {
+    setTriggerCreate(true);
+    handleTabChange('plays');
+  };
+
+  // Reset trigger after tab renders
+  useEffect(() => {
+    if (triggerCreate && activeTab === 'plays') {
+      // The PlaysTab will pick up the trigger
+      setTimeout(() => setTriggerCreate(false), 100);
+    }
+  }, [triggerCreate, activeTab]);
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'plays':
-        return <PlaysTab onEditPlay={handleEditPlay} />;
+        return <PlaysTab onEditPlay={handleEditPlay} triggerCreate={triggerCreate} />;
       case 'actors':
         return <ActorsTab />;
       case 'storyboard':
-        return <StoryboardTab editingPlayId={editingPlayId} setEditingPlayId={setEditingPlayId} />;
+        return <StoryboardTab editingPlayId={editingPlayId} setEditingPlayId={setEditingPlayId} onCreateNew={handleCreateNew} />;
       case 'controls':
         return <ControlsTab />;
       default:
-        return <PlaysTab onEditPlay={handleEditPlay} />;
+        return <PlaysTab onEditPlay={handleEditPlay} triggerCreate={triggerCreate} />;
     }
   };
 
