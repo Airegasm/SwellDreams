@@ -111,3 +111,4 @@ backend/data/backup/
 
 # Dev machine marker (skips cleanup of test characters)
 backend/.devmachine
+CLAUDE.md
