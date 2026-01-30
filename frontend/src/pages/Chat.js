@@ -163,8 +163,8 @@ function Chat() {
     setPersonaActionPage(0);
   }, [activePersona?.id]);
 
-  // Panel blocking - disable interactions when slide panel is open (challenges are now inline)
-  const isPanelBlocking = !!(playerChoiceData);
+  // Panel blocking - all interactive elements are now inline, no blocking needed
+  const isPanelBlocking = false;
 
   // Flow in progress - disable action buttons and guided buttons while flow is executing
   const flowInProgress = flowExecutions && flowExecutions.length > 0;
@@ -1024,10 +1024,7 @@ function Chat() {
         onClick={closeDrawers}
       />
 
-      {/* Blocking overlay for slide panel interactions */}
-      <div
-        className={`chat-blocking-overlay ${playerChoiceData || inputData ? 'visible' : ''}`}
-      />
+      {/* Blocking overlay - no longer needed, all interactive elements are inline */}
 
       {/* Mobile Header Badges - StatusBadges in header area on mobile */}
       <div className="mobile-header-badges mobile-only">
@@ -1147,37 +1144,7 @@ function Chat() {
           })()}
         </div>
 
-        {/* Simple A/B Choice Popup - compact version near portrait */}
-        {simpleABData && (
-          <div className="simple-ab-popup">
-            <div className="simple-ab-popup-header">
-              <span>Choose</span>
-            </div>
-            {simpleABData.description && (
-              <p className="ab-popup-description">{substituteVariables(simpleABData.description, subContext)}</p>
-            )}
-            <div className="ab-popup-buttons">
-              <button
-                className="btn-ab-compact btn-ab-a"
-                onClick={() => handleSimpleAB('a')}
-              >
-                <span className="ab-label">{simpleABData.labelA}</span>
-                {simpleABData.descriptionA && (
-                  <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
-                )}
-              </button>
-              <button
-                className="btn-ab-compact btn-ab-b"
-                onClick={() => handleSimpleAB('b')}
-              >
-                <span className="ab-label">{simpleABData.labelB}</span>
-                {simpleABData.descriptionB && (
-                  <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Simple A/B and other interactive elements now displayed inline in chat */}
 
       </div>
 
@@ -1202,25 +1169,7 @@ function Chat() {
           </div>
         )}
 
-        {/* Interactive overlay - slides down from top for choices, inputs (challenges now inline) */}
-        <div className={`challenge-overlay ${(playerChoiceData || inputData) ? 'open' : ''}`}>
-          {playerChoiceData && (
-            <PlayerChoiceModal
-              choiceData={playerChoiceData}
-              onChoice={handlePlayerChoice}
-              subContext={subContext}
-              compact={false}
-            />
-          )}
-          {inputData && (
-            <InputModal
-              inputData={inputData}
-              onSubmit={handleInputResponse}
-              subContext={subContext}
-              compact={false}
-            />
-          )}
-        </div>
+        {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
 
         <div className="chat-messages" ref={messagesContainerRef}>
           {sessionLoading ? (
@@ -1378,6 +1327,74 @@ function Chat() {
             <div className="message message-challenge-result">
               <div className="challenge-result-display">
                 ✓ {challengeResult}
+              </div>
+            </div>
+          )}
+
+          {/* Inline player choice display */}
+          {playerChoiceData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Choice</span>
+              </div>
+              <div className="choice-inline-container">
+                <PlayerChoiceModal
+                  choiceData={playerChoiceData}
+                  onChoice={handlePlayerChoice}
+                  subContext={subContext}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Inline simple A/B choice display */}
+          {simpleABData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Choose</span>
+              </div>
+              <div className="choice-inline-container simple-ab-inline">
+                {simpleABData.description && (
+                  <p className="ab-description">{substituteVariables(simpleABData.description, subContext)}</p>
+                )}
+                <div className="ab-buttons">
+                  <button
+                    className="btn btn-choice btn-ab-a"
+                    onClick={() => handleSimpleAB('a')}
+                  >
+                    <span className="ab-label">{simpleABData.labelA}</span>
+                    {simpleABData.descriptionA && (
+                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
+                    )}
+                  </button>
+                  <button
+                    className="btn btn-choice btn-ab-b"
+                    onClick={() => handleSimpleAB('b')}
+                  >
+                    <span className="ab-label">{simpleABData.labelB}</span>
+                    {simpleABData.descriptionB && (
+                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Inline input display */}
+          {inputData && (
+            <div className="message message-input">
+              <div className="message-header">
+                <span className="message-sender">Input</span>
+              </div>
+              <div className="input-inline-container">
+                <InputModal
+                  inputData={inputData}
+                  onSubmit={handleInputResponse}
+                  subContext={subContext}
+                  compact={true}
+                />
               </div>
             </div>
           )}
