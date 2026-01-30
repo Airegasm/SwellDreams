@@ -3,9 +3,14 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import './PlayViewer.css';
+import ChallengeCoin from './challenges/ChallengeCoin';
+import ChallengeDice from './challenges/ChallengeDice';
+import ChallengeWheel from './challenges/ChallengeWheel';
+import ChallengeRPS from './challenges/ChallengeRPS';
+import ChallengeNumberGuess from './challenges/ChallengeNumberGuess';
 
 function PlayViewer({ playId, onClose }) {
-  const { plays, actors, settings, sendWsMessage, sessionState } = useApp();
+  const { plays, actors, settings, devices, sendWsMessage, sessionState } = useApp();
   const [enhanceCache, setEnhanceCache] = useState({}); // Cache enhanced text
   const [play, setPlay] = useState(null);
   const [currentPageId, setCurrentPageId] = useState(null);
@@ -18,23 +23,56 @@ function PlayViewer({ playId, onClose }) {
   const [isWaitingForInlineChoice, setIsWaitingForInlineChoice] = useState(false);
   const [currentInlineChoice, setCurrentInlineChoice] = useState(null); // The inline_choice paragraph data
   const [usedInlineOptions, setUsedInlineOptions] = useState({}); // Track used options per paragraph: { paraId: Set of option indices }
+  const [isWaitingForPopup, setIsWaitingForPopup] = useState(false);
+  const [currentPopupData, setCurrentPopupData] = useState(null);
+  const [isWaitingForChallenge, setIsWaitingForChallenge] = useState(false);
+  const [currentChallengeType, setCurrentChallengeType] = useState(null);
+  const [currentChallengeData, setCurrentChallengeData] = useState(null);
   const [isEnded, setIsEnded] = useState(false);
   const [endingData, setEndingData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [pumpStatus, setPumpStatus] = useState({ inflatee1: null, inflatee2: null }); // 'cycle', 'pulse', 'on', null
   const [inflateeCapacity, setInflateeCapacity] = useState({ inflatee1: 0, inflatee2: 0 });
-  const [rightActorId, setRightActorId] = useState(null); // Actor shown on right filmstrip
+  const [rightActorId, setRightActorId] = useState(null); // Actor shown on right filmstrip (upper)
   const [rightImageUrl, setRightImageUrl] = useState(null); // Custom image URL for right filmstrip (overrides actor)
   const [rightImageName, setRightImageName] = useState(null); // Name/label for custom image
+  const [thirdActorId, setThirdActorId] = useState(null); // Third actor shown on right filmstrip (lower)
   const [playStarted, setPlayStarted] = useState(false); // Track if play has started (for filmstrip animation)
+  const [isClosing, setIsClosing] = useState(false); // Track if we're closing (for slide-out animation)
   const [autoAdvancePending, setAutoAdvancePending] = useState(false); // Track if we should auto-advance to next paragraph
+  const [displayedToasts, setDisplayedToasts] = useState([]); // Toast notifications
+  const [showPumpDialog, setShowPumpDialog] = useState(null); // 'cycle', 'pulse', 'timed', 'until', or null
+  const [pumpDialogValues, setPumpDialogValues] = useState({ duration: 5, interval: 10, cycles: 0, pulses: 3, targetCapacity: 100 });
   const pumpTimerRef = useRef(null);
+  const mockPumpIntervalRef = useRef(null); // Interval for continuous inflatee2 capacity tracking
+  const mockPumpStartTimeRef = useRef(null); // Track when mock pump started for inflatee2
+  const mockPumpTrackingActiveRef = useRef(false); // Guard against concurrent tracking starts
   const contentRef = useRef(null);
+  const hasAutoStartedRef = useRef(false); // Track if current page has been auto-started
+
+  // Mobile-specific state
+  const [expandedAvatarIndex, setExpandedAvatarIndex] = useState(null); // null, -1 (player), 0 (main NPC), or 1 (third actor)
+  const [expandedGaugeIndex, setExpandedGaugeIndex] = useState(null); // null, 0 (player), or 1 (inflatee2)
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
 
   // Load play on mount
   useEffect(() => {
     const foundPlay = plays.find(p => p.id === playId);
     if (foundPlay) {
+      // Stop all pumps when loading a new play
+      if (mockPumpIntervalRef.current) {
+        clearInterval(mockPumpIntervalRef.current);
+        mockPumpIntervalRef.current = null;
+      }
+      mockPumpTrackingActiveRef.current = false; // Clear guard
+      if (pumpTimerRef.current) {
+        clearTimeout(pumpTimerRef.current);
+      }
+      // Send emergency stop to real pumps
+      sendWsMessage('screenplay_pump', {
+        type: 'emergency_stop_all'
+      });
+
       setPlay(foundPlay);
       setCurrentPageId(foundPlay.startPageId);
       setCurrentParaIndex(0);
@@ -52,19 +90,42 @@ function PlayViewer({ playId, onClose }) {
       // Initialize right actor to first non-player actor or inflatee2
       const playActors = foundPlay.actors || [];
       const playerActor = actors.find(a => playActors.includes(a.id) && a.isPlayerAssignable);
-      const firstNonPlayer = actors.find(a => playActors.includes(a.id) && a.id !== playerActor?.id);
-      setRightActorId(foundPlay.inflatee2ActorId || firstNonPlayer?.id || null);
-    }
-  }, [playId, plays, actors]);
+      const nonPlayerActors = actors.filter(a => playActors.includes(a.id) && a.id !== playerActor?.id);
+      const firstNonPlayer = nonPlayerActors[0];
+      const secondNonPlayer = nonPlayerActors[1];
 
-  // Cleanup pump timer on unmount
+      setRightActorId(foundPlay.inflatee2ActorId || firstNonPlayer?.id || null);
+
+      // Set third actor if there are 3+ actors total
+      if (playActors.length >= 3 && secondNonPlayer) {
+        setThirdActorId(secondNonPlayer.id);
+      } else {
+        setThirdActorId(null);
+      }
+
+      console.log('[Screenplay] New play loaded - all pumps stopped, capacities reset');
+    }
+  }, [playId, plays, actors, sendWsMessage]);
+
+  // Cleanup pump timer and mock pump interval on unmount
   useEffect(() => {
     return () => {
+      // Trigger closing animation
+      setIsClosing(true);
+
       if (pumpTimerRef.current) {
         clearTimeout(pumpTimerRef.current);
       }
+      if (mockPumpIntervalRef.current) {
+        clearInterval(mockPumpIntervalRef.current);
+      }
+      mockPumpTrackingActiveRef.current = false; // Clear guard
+      // Emergency stop all pumps when component unmounts
+      sendWsMessage('screenplay_pump', {
+        type: 'emergency_stop_all'
+      });
     };
-  }, []);
+  }, [sendWsMessage]);
 
   // Sync inflatee1 capacity with global sessionState.capacity (from flow/real pump)
   useEffect(() => {
@@ -93,11 +154,24 @@ function PlayViewer({ playId, onClose }) {
     return actors.find(a => a.id === rightActorId);
   }, [rightActorId, actors]);
 
+  // Get third filmstrip actor (bottom right)
+  const thirdActor = React.useMemo(() => {
+    if (!thirdActorId) return null;
+    return actors.find(a => a.id === thirdActorId);
+  }, [thirdActorId, actors]);
+
   // Get player actor (the player-assignable one)
   const getPlayerActor = useCallback(() => {
     if (!play?.actors) return null;
     return actors.find(a => play.actors.includes(a.id) && a.isPlayerAssignable);
   }, [play, actors]);
+
+  // Get calibration time from primary pump device
+  const getPrimaryPumpCalibrationTime = useCallback(() => {
+    if (!devices || devices.length === 0) return 150; // Default to 150 seconds
+    const primaryPump = devices.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    return primaryPump?.calibrationTime || 150;
+  }, [devices]);
 
   // Pain labels (same scale as event engine)
   const PAIN_LABELS = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
@@ -278,12 +352,181 @@ function PlayViewer({ playId, onClose }) {
     return text;
   }, [enhanceCache, getActor, getPreviousText, play?.authorMode, play?.description, settings?.screenplayDefinitions]);
 
+  // Start continuous capacity tracking for inflatee2 (mock pump)
+  const startMockPumpTracking = useCallback(() => {
+    // Guard: Don't create new interval if tracking already active
+    if (mockPumpTrackingActiveRef.current) {
+      console.log('[PlayViewer] Mock tracking already active - ignoring duplicate start');
+      return;
+    }
+
+    // Clear any existing interval (defensive)
+    if (mockPumpIntervalRef.current) {
+      clearInterval(mockPumpIntervalRef.current);
+      mockPumpIntervalRef.current = null;
+    }
+
+    // Mark as active BEFORE creating interval
+    mockPumpTrackingActiveRef.current = true;
+
+    // Get calibration time (in seconds to reach 100%)
+    const calibrationTime = getPrimaryPumpCalibrationTime();
+
+    // Get capacity modifier from settings (same as backend calculation)
+    const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
+
+    // Record start time and get initial capacity synchronously
+    const startTime = Date.now();
+    mockPumpStartTimeRef.current = startTime;
+
+    // Get initial capacity immediately (synchronously)
+    const initialCapacity = inflateeCapacity.inflatee2;
+
+    // Create interval OUTSIDE of setState to ensure it's created immediately
+    // Update every 1 second to match real pump update rate
+    mockPumpIntervalRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000; // seconds elapsed
+      // Match backend formula: (elapsed / calibrationTime) * 100 * capacityModifier
+      const capacityGain = (elapsed / calibrationTime) * 100 * capacityModifier;
+      const newCapacity = Math.min(100, initialCapacity + capacityGain);
+
+      setInflateeCapacity(prev => ({
+        ...prev,
+        inflatee2: newCapacity
+      }));
+    }, 1000);
+
+    console.log('[PlayViewer] Mock tracking started:', {
+      intervalId: mockPumpIntervalRef.current,
+      initialCapacity,
+      calibrationTime,
+      capacityModifier
+    });
+  }, [getPrimaryPumpCalibrationTime, settings, sessionState]);
+
+  // Stop continuous capacity tracking for inflatee2
+  const stopMockPumpTracking = useCallback(() => {
+    if (mockPumpIntervalRef.current) {
+      clearInterval(mockPumpIntervalRef.current);
+      mockPumpIntervalRef.current = null;
+      console.log('[PlayViewer] Mock tracking stopped');
+    }
+    mockPumpStartTimeRef.current = null;
+    mockPumpTrackingActiveRef.current = false; // Clear guard
+  }, []);
+
+  // Sync mock pump tracking with pumpStatus changes (safety net)
+  useEffect(() => {
+    // If inflatee2 pump status becomes null but interval is still running, stop it
+    if (pumpStatus.inflatee2 === null && mockPumpIntervalRef.current !== null) {
+      console.log('[PlayViewer] Auto-stopping orphaned mock tracking');
+      stopMockPumpTracking();
+    }
+  }, [pumpStatus.inflatee2, stopMockPumpTracking]);
+
+  // Emergency stop - stop all pumps (real and mock)
+  const handleEmergencyStop = useCallback(() => {
+    // Stop mock pump tracking
+    stopMockPumpTracking();
+
+    // Clear pump timer
+    if (pumpTimerRef.current) {
+      clearTimeout(pumpTimerRef.current);
+    }
+
+    // Clear pump status
+    setPumpStatus({ inflatee1: null, inflatee2: null });
+
+    // Send WebSocket message to stop all real devices
+    sendWsMessage('screenplay_pump', {
+      type: 'emergency_stop_all'
+    });
+
+    console.log('[Screenplay] Emergency stop activated - all pumps stopped');
+  }, [stopMockPumpTracking, sendWsMessage]);
+
+  // Pump control handlers
+  const handlePumpOn = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'device_on',
+      device: 'Primary Pump'
+    });
+    console.log('[Screenplay] Pump ON');
+  }, [sendWsMessage]);
+
+  const handlePumpOff = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'device_off',
+      device: 'Primary Pump'
+    });
+    console.log('[Screenplay] Pump OFF');
+  }, [sendWsMessage]);
+
+  const handlePumpCycle = useCallback(() => {
+    setShowPumpDialog('cycle');
+  }, []);
+
+  const handlePumpPulse = useCallback(() => {
+    setShowPumpDialog('pulse');
+  }, []);
+
+  const handlePumpTimed = useCallback(() => {
+    setShowPumpDialog('timed');
+  }, []);
+
+  const handlePumpUntil = useCallback(() => {
+    setShowPumpDialog('until');
+  }, []);
+
+  const executePumpCycle = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'start_cycle',
+      device: 'Primary Pump',
+      duration: pumpDialogValues.duration,
+      interval: pumpDialogValues.interval,
+      cycles: pumpDialogValues.cycles
+    });
+    console.log('[Screenplay] Pump CYCLE started:', pumpDialogValues);
+    setShowPumpDialog(null);
+  }, [sendWsMessage, pumpDialogValues]);
+
+  const executePumpPulse = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'pulse_pump',
+      device: 'Primary Pump',
+      pulses: pumpDialogValues.pulses
+    });
+    console.log('[Screenplay] Pump PULSE:', pumpDialogValues.pulses);
+    setShowPumpDialog(null);
+  }, [sendWsMessage, pumpDialogValues]);
+
+  const executePumpTimed = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'device_on',
+      device: 'Primary Pump',
+      duration: pumpDialogValues.duration
+    });
+    console.log('[Screenplay] Pump TIMED:', pumpDialogValues.duration);
+    setShowPumpDialog(null);
+  }, [sendWsMessage, pumpDialogValues]);
+
+  const executePumpUntil = useCallback(() => {
+    sendWsMessage('screenplay_pump', {
+      type: 'device_on_until',
+      device: 'Primary Pump',
+      targetCapacity: pumpDialogValues.targetCapacity,
+      untilType: 'capacity'
+    });
+    console.log('[Screenplay] Pump UNTIL capacity:', pumpDialogValues.targetCapacity);
+    setShowPumpDialog(null);
+  }, [sendWsMessage, pumpDialogValues]);
+
   // Get current page
   const currentPage = play?.pages?.[currentPageId];
 
   // Process next paragraph
   const processNextParagraph = useCallback(() => {
-    if (!currentPage || isWaitingForChoice || isEnded || isProcessing) return;
+    if (!currentPage || isWaitingForChoice || isWaitingForPopup || isEnded || isProcessing) return;
 
     const paragraphs = currentPage.paragraphs || [];
 
@@ -412,12 +655,17 @@ function PlayViewer({ playId, onClose }) {
         const targetPage = result ? para.data.truePageId : para.data.falsePageId;
         if (targetPage) {
           goToPage(targetPage);
+          setIsProcessing(false);
         } else {
           // Continue to next paragraph
           setCurrentParaIndex(prev => prev + 1);
-          setAutoAdvancePending(true);
+          setIsProcessing(false);
+          // Auto-advance immediately
+          setTimeout(() => {
+            setIsProcessing(false);
+            processNextParagraph();
+          }, 10);
         }
-        setIsProcessing(false);
         break;
 
       case 'set_variable':
@@ -429,7 +677,11 @@ function PlayViewer({ playId, onClose }) {
         }));
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
-        setAutoAdvancePending(true);
+        // Auto-advance immediately
+        setTimeout(() => {
+          setIsProcessing(false);
+          processNextParagraph();
+        }, 10);
         break;
 
       case 'set_npc_actor_avatar':
@@ -447,7 +699,11 @@ function PlayViewer({ playId, onClose }) {
         }
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
-        setAutoAdvancePending(true);
+        // Auto-advance immediately
+        setTimeout(() => {
+          setIsProcessing(false);
+          processNextParagraph();
+        }, 10);
         break;
 
       case 'delay':
@@ -455,7 +711,11 @@ function PlayViewer({ playId, onClose }) {
         setTimeout(() => {
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
-          setAutoAdvancePending(true);
+          // Auto-advance after delay
+          setTimeout(() => {
+            setIsProcessing(false);
+            processNextParagraph();
+          }, 10);
         }, para.data.duration || 1000);
         break;
 
@@ -514,7 +774,11 @@ function PlayViewer({ playId, onClose }) {
 
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
-        setAutoAdvancePending(true);
+        // Auto-advance immediately for pump events
+        setTimeout(() => {
+          setIsProcessing(false);
+          processNextParagraph();
+        }, 10);
         break;
 
       case 'mock_pump':
@@ -548,36 +812,253 @@ function PlayViewer({ playId, onClose }) {
         if (action === 'off') {
           // Turn pump off
           setPumpStatus(prev => ({ ...prev, [target]: null }));
+          if (target === 'inflatee2') {
+            stopMockPumpTracking();
+          }
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
-          setAutoAdvancePending(true);
+          // Auto-advance immediately for pump events
+          setTimeout(() => {
+            setIsProcessing(false);
+            processNextParagraph();
+          }, 10);
         } else if (action === 'on') {
-          // Turn pump on indefinitely
+          // Turn pump on indefinitely with continuous capacity tracking
           setPumpStatus(prev => ({ ...prev, [target]: 'on' }));
+          if (target === 'inflatee2') {
+            startMockPumpTracking();
+          }
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
-          setAutoAdvancePending(true);
+          // Auto-advance immediately for pump events
+          setTimeout(() => {
+            setIsProcessing(false);
+            processNextParagraph();
+          }, 10);
         } else {
-          // Cycle, pulse, or timed - run for duration then continue
+          // Cycle, pulse, or timed - run for duration with continuous tracking then stop
           setPumpStatus(prev => ({ ...prev, [target]: action }));
 
-          // Simulate capacity increase over time
-          const capacityIncrease = Math.min(intensity / 10, 10); // Max 10% per action
-          setInflateeCapacity(prev => ({
-            ...prev,
-            [target]: Math.min(100, prev[target] + capacityIncrease)
-          }));
+          if (target === 'inflatee2') {
+            startMockPumpTracking();
+          }
 
           pumpTimerRef.current = setTimeout(() => {
-            // For cycle/pulse, stop after duration; for timed, stop completely
-            if (action === 'timed') {
-              setPumpStatus(prev => ({ ...prev, [target]: null }));
+            // Stop tracking and pump after duration
+            if (target === 'inflatee2') {
+              stopMockPumpTracking();
             }
+            // Always set status to null when timer expires
+            setPumpStatus(prev => ({ ...prev, [target]: null }));
             setCurrentParaIndex(prev => prev + 1);
             setIsProcessing(false);
-            setAutoAdvancePending(true);
+            // Auto-advance immediately for pump events
+            setTimeout(() => {
+              setIsProcessing(false);
+              processNextParagraph();
+            }, 10);
           }, duration);
         }
+        break;
+
+      case 'parallel_container':
+        // Execute all child events simultaneously and immediately continue
+        const children = para.data.children || [];
+
+        // Fire off all child events without waiting
+        children.forEach(child => {
+          // Execute child based on its type
+          switch (child.type) {
+            case 'pump':
+              // Real pump event
+              const pumpDevice = child.data.device || 'Primary Pump';
+              const pumpAction = child.data.action || 'cycle';
+
+              if (pumpAction === 'cycle') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'start_cycle',
+                  device: pumpDevice,
+                  duration: child.data.duration || 5,
+                  interval: child.data.interval || 10,
+                  cycles: child.data.cycles || 0
+                });
+              } else if (pumpAction === 'pulse') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'pulse_pump',
+                  device: pumpDevice,
+                  pulses: child.data.pulses || 3
+                });
+              } else if (pumpAction === 'timed') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'device_on',
+                  device: pumpDevice,
+                  duration: child.data.duration || 5
+                });
+              } else if (pumpAction === 'on') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'device_on',
+                  device: pumpDevice
+                });
+              } else if (pumpAction === 'off') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'device_off',
+                  device: pumpDevice
+                });
+              } else if (pumpAction === 'until') {
+                sendWsMessage('screenplay_pump', {
+                  type: 'device_on_until',
+                  device: pumpDevice,
+                  targetCapacity: child.data.targetCapacity || 50,
+                  untilType: 'capacity'
+                });
+              }
+              break;
+
+            case 'mock_pump':
+              // Mock pump event - fire and forget
+              const mockTarget = child.data.target || 'inflatee1';
+              const mockAction = child.data.action || 'cycle';
+              const mockDuration = child.data.duration || 5000;
+
+              if (mockAction === 'off') {
+                setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
+                if (mockTarget === 'inflatee2') {
+                  stopMockPumpTracking();
+                }
+              } else if (mockAction === 'on') {
+                setPumpStatus(prev => ({ ...prev, [mockTarget]: 'on' }));
+                if (mockTarget === 'inflatee2') {
+                  startMockPumpTracking();
+                }
+              } else if (mockAction === 'until') {
+                // Run until target capacity reached
+                setPumpStatus(prev => ({ ...prev, [mockTarget]: 'until' }));
+                if (mockTarget === 'inflatee2') {
+                  startMockPumpTracking();
+                }
+
+                const targetCap = child.data.targetCapacity || 50;
+                const checkInterval = setInterval(() => {
+                  const currentCap = inflateeCapacity[mockTarget] || 0;
+                  if (currentCap >= targetCap) {
+                    clearInterval(checkInterval);
+                    if (mockTarget === 'inflatee2') {
+                      stopMockPumpTracking();
+                    }
+                    setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
+                  }
+                }, 500);
+
+                // Safety timeout: 10 minutes
+                setTimeout(() => {
+                  clearInterval(checkInterval);
+                  if (mockTarget === 'inflatee2') {
+                    stopMockPumpTracking();
+                  }
+                  setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
+                }, 600000);
+              } else {
+                // Cycle, pulse, or timed - run for duration
+                setPumpStatus(prev => ({ ...prev, [mockTarget]: mockAction }));
+                if (mockTarget === 'inflatee2') {
+                  startMockPumpTracking();
+                }
+                setTimeout(() => {
+                  if (mockTarget === 'inflatee2') {
+                    stopMockPumpTracking();
+                  }
+                  // Always set status to null after timed operations
+                  setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
+                }, mockDuration);
+              }
+              break;
+
+            case 'set_variable':
+              // Set a variable
+              const varName = child.data.variableName;
+              const varValue = child.data.value;
+              if (varName) {
+                setVariables(prev => ({
+                  ...prev,
+                  [varName]: varValue
+                }));
+              }
+              break;
+
+            case 'set_npc_actor_avatar':
+              // Set NPC actor avatar
+              if (child.data.sourceType === 'image' && child.data.imageTag) {
+                setRightImageUrl(`${API_BASE}/api/media/images/tag/${child.data.imageTag}`);
+                setRightImageName(child.data.imageTag);
+                setRightActorId(null);
+              } else if (child.data.actorId) {
+                setRightActorId(child.data.actorId);
+                setRightImageUrl(null);
+                setRightImageName(null);
+              }
+              break;
+
+            case 'delay':
+              // Delays are ignored in parallel containers (they run in background)
+              break;
+
+            default:
+              // Unknown child type, ignore
+              break;
+          }
+        });
+
+        // Immediately advance to next paragraph without waiting
+        setCurrentParaIndex(prev => prev + 1);
+        setIsProcessing(false);
+        setAutoAdvancePending(true); // Trigger auto-advance via effect
+        break;
+
+      case 'popup':
+        // Show popup notification with OK/Cancel buttons
+        setCurrentPopupData(para.data);
+        setIsWaitingForPopup(true);
+        setIsProcessing(false);
+        break;
+
+      case 'toast':
+        // Display toast notification that auto-fades
+        const toastId = `toast-${Date.now()}`;
+        const toastDuration = para.data.duration || 2000;
+
+        // Show toast immediately
+        setDisplayedToasts(prev => [...prev, {
+          id: toastId,
+          message: substituteVariables(para.data.message || 'Notification'),
+          duration: toastDuration
+        }]);
+
+        // Auto-remove toast after duration
+        setTimeout(() => {
+          setDisplayedToasts(prev => prev.filter(t => t.id !== toastId));
+        }, toastDuration + 500); // +500ms for fade animation
+
+        // Advance immediately without waiting
+        setCurrentParaIndex(prev => prev + 1);
+        setIsProcessing(false);
+        setAutoAdvancePending(true);
+        break;
+
+      case 'challenge_wheel':
+      case 'challenge_dice':
+      case 'challenge_coin':
+      case 'challenge_rps':
+      case 'challenge_timer':
+      case 'challenge_number_guess':
+      case 'challenge_slots':
+      case 'challenge_card':
+      case 'challenge_simon':
+      case 'challenge_reflex':
+        // Show challenge modal
+        setCurrentChallengeType(para.type);
+        setCurrentChallengeData(para.data);
+        setIsWaitingForChallenge(true);
+        setIsProcessing(false);
         break;
 
       case 'end':
@@ -592,7 +1073,7 @@ function PlayViewer({ playId, onClose }) {
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
     }
-  }, [currentPage, currentPageId, currentParaIndex, isWaitingForChoice, isEnded, isProcessing, variables]);
+  }, [currentPage, currentPageId, currentParaIndex, isWaitingForChoice, isWaitingForPopup, isEnded, isProcessing, variables, substituteVariables, enhanceText, sendWsMessage, startMockPumpTracking]);
 
   // Go to a specific page
   const goToPage = useCallback((pageId) => {
@@ -611,6 +1092,7 @@ function PlayViewer({ playId, onClose }) {
     setDisplayedParagraphs([]);
     setIsWaitingForChoice(false);
     setCurrentChoices([]);
+    hasAutoStartedRef.current = false; // Reset auto-start flag for new page
   }, [play, currentPageId, currentParaIndex, displayedParagraphs]);
 
   // Check if a choice/option passes its condition
@@ -769,10 +1251,10 @@ function PlayViewer({ playId, onClose }) {
   // Restart play
   const handleRestart = useCallback(() => {
     if (!play) return;
-    // Clear pump timer
-    if (pumpTimerRef.current) {
-      clearTimeout(pumpTimerRef.current);
-    }
+
+    // Emergency stop all pumps first
+    handleEmergencyStop();
+
     setCurrentPageId(play.startPageId);
     setCurrentParaIndex(0);
     setDisplayedParagraphs([]);
@@ -785,21 +1267,100 @@ function PlayViewer({ playId, onClose }) {
     setUsedInlineOptions({});
     setIsEnded(false);
     setEndingData(null);
-    // Reset pump/inflatee state
-    setPumpStatus({ inflatee1: null, inflatee2: null });
+    setIsProcessing(false); // Reset processing state to allow auto-start
+    hasAutoStartedRef.current = false; // Reset auto-start flag to allow restart
+
+    // Reset all capacities to initial values
     setInflateeCapacity({
       inflatee1: play.inflatee1Capacity || 0,
       inflatee2: play.inflatee2Capacity || 0
     });
+
     // Reset filmstrip state
     setRightImageUrl(null);
     setRightImageName(null);
     // Reset right actor to initial
     const playActors = play.actors || [];
     const playerActor = actors.find(a => playActors.includes(a.id) && a.isPlayerAssignable);
-    const firstNonPlayer = actors.find(a => playActors.includes(a.id) && a.id !== playerActor?.id);
+    const nonPlayerActors = actors.filter(a => playActors.includes(a.id) && a.id !== playerActor?.id);
+    const firstNonPlayer = nonPlayerActors[0];
+    const secondNonPlayer = nonPlayerActors[1];
+
     setRightActorId(play.inflatee2ActorId || firstNonPlayer?.id || null);
-  }, [play, actors]);
+
+    // Reset third actor if there are 3+ actors total
+    if (playActors.length >= 3 && secondNonPlayer) {
+      setThirdActorId(secondNonPlayer.id);
+    } else {
+      setThirdActorId(null);
+    }
+
+    console.log('[Screenplay] Play reset - all states cleared, will auto-restart');
+  }, [play, actors, handleEmergencyStop]);
+
+  // Exit play (close viewer)
+  const handleExit = useCallback(() => {
+    // Trigger closing animation
+    setIsClosing(true);
+
+    // Emergency stop all pumps before closing
+    handleEmergencyStop();
+
+    console.log('[Screenplay] Exiting play - all pumps stopped, avatars sliding out');
+
+    // Wait for slide-out animation to complete (500ms) before closing
+    setTimeout(() => {
+      onClose();
+    }, 500);
+  }, [handleEmergencyStop, onClose]);
+
+  // Handle popup OK (proceed/continue)
+  const handlePopupOk = useCallback(() => {
+    setIsWaitingForPopup(false);
+    setCurrentPopupData(null);
+    setCurrentParaIndex(prev => prev + 1);
+    processNextParagraph();
+  }, [processNextParagraph]);
+
+  // Handle popup Cancel (exit play)
+  const handlePopupCancel = useCallback(() => {
+    setIsWaitingForPopup(false);
+    setCurrentPopupData(null);
+    handleExit();
+  }, [handleExit]);
+
+  // Handle challenge completion
+  const handleChallengeComplete = useCallback((result) => {
+    setIsWaitingForChallenge(false);
+
+    // Store result in session variables if resultVariable specified
+    if (currentChallengeData?.resultVariable && result.value !== undefined) {
+      setVariables(prev => ({
+        ...prev,
+        [currentChallengeData.resultVariable]: result.value
+      }));
+    }
+
+    // Store additional variables (e.g., cardValue, cardSuit, playerChoice)
+    if (result.additionalVariables) {
+      setVariables(prev => ({
+        ...prev,
+        ...result.additionalVariables
+      }));
+    }
+
+    // Navigate to target page or continue
+    if (result.targetPageId) {
+      goToPage(result.targetPageId);
+    } else {
+      // Continue to next paragraph
+      setCurrentParaIndex(prev => prev + 1);
+      processNextParagraph();
+    }
+
+    setCurrentChallengeType(null);
+    setCurrentChallengeData(null);
+  }, [currentChallengeData, processNextParagraph, goToPage]);
 
   // Auto-scroll to bottom when new content appears
   useEffect(() => {
@@ -808,9 +1369,10 @@ function PlayViewer({ playId, onClose }) {
     }
   }, [displayedParagraphs]);
 
-  // Auto-process first paragraph when page loads
+  // Auto-process first paragraph when page loads (only once per page)
   useEffect(() => {
-    if (currentPage && currentParaIndex === 0 && displayedParagraphs.length === 0 && !isProcessing) {
+    if (currentPage && currentParaIndex === 0 && displayedParagraphs.length === 0 && !isProcessing && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true; // Mark as auto-started to prevent duplicates
       // Mark play as started when first paragraph processes
       setPlayStarted(true);
       processNextParagraph();
@@ -948,9 +1510,6 @@ function PlayViewer({ playId, onClose }) {
                 ← Back
               </button>
             )}
-            <button className="close-btn" onClick={onClose} title="Exit play">
-              &times;
-            </button>
           </div>
         </div>
 
@@ -966,18 +1525,24 @@ function PlayViewer({ playId, onClose }) {
               {displayedParagraphs.map(para => renderParagraph(para))}
             </div>
 
+            {/* Desktop ending display - inline */}
             {isEnded && endingData && (
-              <div className={`ending-display ${endingData.endingType}`}>
+              <div className={`ending-display desktop-only ${endingData.endingType}`}>
                 <h3>{endingData.endingType === 'good' ? '🎉' : endingData.endingType === 'bad' ? '💀' : '🏁'} {endingData.message || 'The End'}</h3>
-                <button className="restart-btn" onClick={handleRestart}>
-                  Play Again
-                </button>
+                <div className="ending-buttons">
+                  <button className="restart-btn" onClick={handleRestart}>
+                    Play Again
+                  </button>
+                  <button className="exit-btn" onClick={handleExit}>
+                    Exit
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="play-viewer-footer">
+        <div className="play-viewer-footer desktop-only">
           {isWaitingForChoice ? (
             <div className="choices-display">
               {getVisibleChoices().map((choice, idx) => (
@@ -1022,11 +1587,11 @@ function PlayViewer({ playId, onClose }) {
         </div>
       </div>
 
-      {/* Filmstrip avatars - portaled to body to avoid transform containment */}
+      {/* Desktop Filmstrip avatars - portaled to body to avoid transform containment */}
       {createPortal(
         <>
           <div className="filmstrip-column filmstrip-left">
-            <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
+            <div className={`avatar-frame ${playStarted && !isClosing ? 'visible' : ''}`}>
               <div className="frame-name">{inflatee1Actor?.name || 'Player'}</div>
               <div className="portrait-wrapper">
                 {inflatee1Actor?.avatar ? (
@@ -1039,10 +1604,37 @@ function PlayViewer({ playId, onClose }) {
               </div>
               {renderCapacityGauge(inflateeCapacity.inflatee1)}
             </div>
+
+            {/* Control panel (bottom left) */}
+            <div className={`control-panel ${playStarted && !isClosing ? 'visible' : ''}`}>
+              <div className="control-panel-content">
+                <div className="control-row control-row-main">
+                  <button className="reset-btn" onClick={handleRestart} title="Reset play">
+                    RESET
+                  </button>
+                  <button className="exit-btn" onClick={handleExit} title="Exit play">
+                    EXIT
+                  </button>
+                </div>
+                <div className="control-section-label">Pump Controls</div>
+                <div className="control-row">
+                  <button className="pump-btn" onClick={handlePumpOn}>ON</button>
+                  <button className="pump-btn" onClick={handlePumpOff}>OFF</button>
+                </div>
+                <div className="control-row">
+                  <button className="pump-btn" onClick={handlePumpCycle}>CYCLE</button>
+                  <button className="pump-btn" onClick={handlePumpPulse}>PULSE</button>
+                </div>
+                <div className="control-row">
+                  <button className="pump-btn" onClick={handlePumpTimed}>TIMED</button>
+                  <button className="pump-btn" onClick={handlePumpUntil}>UNTIL</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="filmstrip-column filmstrip-right">
-            <div className={`avatar-frame ${playStarted ? 'visible' : ''}`}>
+            <div className={`avatar-frame ${playStarted && !isClosing ? 'visible' : ''}`}>
               <div className="frame-name">{rightImageName || rightActor?.name || '—'}</div>
               <div className="portrait-wrapper">
                 {rightImageUrl ? (
@@ -1059,8 +1651,400 @@ function PlayViewer({ playId, onClose }) {
               </div>
               {play?.inflatee2Enabled && renderCapacityGauge(inflateeCapacity.inflatee2)}
             </div>
+
+            {/* Third actor frame (bottom right) - only if 3+ actors */}
+            {thirdActor && (
+              <div className={`avatar-frame avatar-frame-third ${playStarted && !isClosing ? 'visible' : ''}`}>
+                <div className="frame-name">{thirdActor.name}</div>
+                <div className="portrait-wrapper portrait-wrapper-small">
+                  {thirdActor.avatar ? (
+                    <img src={thirdActor.avatar} alt={thirdActor.name} className="frame-avatar" />
+                  ) : (
+                    <div className="frame-avatar-placeholder">
+                      {thirdActor.name?.charAt(0) || '?'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </>,
+        document.body
+      )}
+
+      {/* Mobile-only gauges and avatars - portaled to body */}
+      {playStarted && !isClosing && createPortal(
+        <>
+          {/* Mobile Gauges (left side) */}
+          <div className="mobile-gauges">
+            {/* Player gauge */}
+            <div
+              className={`mobile-gauge ${expandedGaugeIndex === 0 ? 'expanded' : ''}`}
+              onClick={() => setExpandedGaugeIndex(expandedGaugeIndex === 0 ? null : 0)}
+            >
+              <div className="mobile-gauge-inner">
+                <div className="mobile-gauge-arc" />
+                <div
+                  className="mobile-gauge-needle"
+                  style={{ transform: `rotate(${-135 + (Math.min(100, Math.max(0, inflateeCapacity.inflatee1)) * 2.7)}deg)` }}
+                />
+                <div className="mobile-gauge-center" />
+                <div className="mobile-gauge-percent">{Math.round(inflateeCapacity.inflatee1)}%</div>
+              </div>
+              <div className="mobile-gauge-name">{inflatee1Actor?.name || 'Player'}</div>
+            </div>
+
+            {/* Inflatee2 gauge (if enabled) */}
+            {play?.inflatee2Enabled && (
+              <div
+                className={`mobile-gauge ${expandedGaugeIndex === 1 ? 'expanded' : ''}`}
+                onClick={() => setExpandedGaugeIndex(expandedGaugeIndex === 1 ? null : 1)}
+              >
+                <div className="mobile-gauge-inner">
+                  <div className="mobile-gauge-arc" />
+                  <div
+                    className="mobile-gauge-needle"
+                    style={{ transform: `rotate(${-135 + (Math.min(100, Math.max(0, inflateeCapacity.inflatee2)) * 2.7)}deg)` }}
+                  />
+                  <div className="mobile-gauge-center" />
+                  <div className="mobile-gauge-percent">{Math.round(inflateeCapacity.inflatee2)}%</div>
+                </div>
+                <div className="mobile-gauge-name">{rightActor?.name || rightImageName || 'Inflatee 2'}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Avatar Bubbles (right side) */}
+          <div className="mobile-avatars">
+            {/* Player avatar (top) */}
+            {inflatee1Actor && (
+              <div
+                className={`mobile-avatar-bubble ${expandedAvatarIndex === -1 ? 'expanded' : ''}`}
+                onClick={() => setExpandedAvatarIndex(expandedAvatarIndex === -1 ? null : -1)}
+              >
+                {inflatee1Actor.avatar ? (
+                  <img src={inflatee1Actor.avatar} alt={inflatee1Actor.name} />
+                ) : (
+                  <div className="mobile-avatar-placeholder">
+                    {inflatee1Actor.name?.charAt(0) || '?'}
+                  </div>
+                )}
+                <div className="mobile-avatar-name">
+                  {inflatee1Actor.name || 'Player'}
+                </div>
+              </div>
+            )}
+
+            {/* Inflatee2 avatar - shows rightActor which is set to inflatee2ActorId */}
+            {(rightActor || rightImageUrl) && (
+              <div
+                className={`mobile-avatar-bubble ${expandedAvatarIndex === 0 ? 'expanded' : ''}`}
+                onClick={() => setExpandedAvatarIndex(expandedAvatarIndex === 0 ? null : 0)}
+              >
+                {rightImageUrl ? (
+                  <img src={rightImageUrl} alt={rightImageName || 'Inflatee 2'} />
+                ) : rightActor?.avatar ? (
+                  <img src={rightActor.avatar} alt={rightActor.name} />
+                ) : rightActor ? (
+                  <div className="mobile-avatar-placeholder">
+                    {rightActor.name?.charAt(0) || '?'}
+                  </div>
+                ) : null}
+                <div className="mobile-avatar-name">
+                  {rightImageName || rightActor?.name || 'Inflatee 2'}
+                </div>
+              </div>
+            )}
+
+            {/* Third actor avatar (only show if not the same as rightActor) */}
+            {thirdActor && thirdActor.id !== rightActorId && (
+              <div
+                className={`mobile-avatar-bubble ${expandedAvatarIndex === 1 ? 'expanded' : ''}`}
+                onClick={() => setExpandedAvatarIndex(expandedAvatarIndex === 1 ? null : 1)}
+              >
+                {thirdActor.avatar ? (
+                  <img src={thirdActor.avatar} alt={thirdActor.name} />
+                ) : (
+                  <div className="mobile-avatar-placeholder">
+                    {thirdActor.name?.charAt(0) || '?'}
+                  </div>
+                )}
+                <div className="mobile-avatar-name">{thirdActor.name}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Controls Panel */}
+          <div className={`mobile-controls-panel ${mobileControlsOpen ? 'open' : ''}`}>
+            <div className="mobile-controls-header">
+              <div className="mobile-controls-title">Controls</div>
+              <button className="mobile-controls-close" onClick={() => setMobileControlsOpen(false)}>
+                ×
+              </button>
+            </div>
+            <div className="mobile-controls-content">
+              <div className="mobile-control-row mobile-control-row-main">
+                <button className="mobile-reset-btn" onClick={() => { handleRestart(); setMobileControlsOpen(false); }}>
+                  RESET
+                </button>
+                <button className="mobile-exit-btn" onClick={() => { handleExit(); setMobileControlsOpen(false); }}>
+                  EXIT
+                </button>
+              </div>
+              <div className="mobile-control-section-label">Pump Controls</div>
+              <div className="mobile-control-row">
+                <button className="mobile-pump-btn" onClick={() => { handlePumpOn(); setMobileControlsOpen(false); }}>ON</button>
+                <button className="mobile-pump-btn" onClick={() => { handlePumpOff(); setMobileControlsOpen(false); }}>OFF</button>
+              </div>
+              <div className="mobile-control-row">
+                <button className="mobile-pump-btn" onClick={() => { handlePumpCycle(); setMobileControlsOpen(false); }}>CYCLE</button>
+                <button className="mobile-pump-btn" onClick={() => { handlePumpPulse(); setMobileControlsOpen(false); }}>PULSE</button>
+              </div>
+              <div className="mobile-control-row">
+                <button className="mobile-pump-btn" onClick={() => { handlePumpTimed(); setMobileControlsOpen(false); }}>TIMED</button>
+                <button className="mobile-pump-btn" onClick={() => { handlePumpUntil(); setMobileControlsOpen(false); }}>UNTIL</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Footer (portaled to ensure it's always visible) - hide when ended */}
+          {!isEnded && (
+            <div className="mobile-footer">
+              {isWaitingForChoice ? (
+              <div className="choices-display">
+                {getVisibleChoices().map((choice, idx) => (
+                  <button
+                    key={idx}
+                    className="choice-btn"
+                    onClick={() => handleChoiceSelect(choice)}
+                  >
+                    {choice.text}
+                  </button>
+                ))}
+              </div>
+            ) : isWaitingForInlineChoice ? (
+              <div className="choices-display">
+                {getAvailableInlineOptions().map((option) => (
+                  <button
+                    key={option.originalIndex}
+                    className="choice-btn inline-option"
+                    onClick={() => handleInlineOptionSelect(option, option.originalIndex)}
+                  >
+                    {option.text}
+                  </button>
+                ))}
+                <button
+                  className={`choice-btn continue-option ${!canInlineContinue() ? 'disabled' : ''}`}
+                  onClick={handleInlineContinue}
+                  disabled={!canInlineContinue()}
+                  title={!canInlineContinue() ? 'Select all options first' : ''}
+                >
+                  {currentInlineChoice?.data?.continueText || 'Continue'}
+                </button>
+              </div>
+            ) : !isEnded && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
+              <>
+                <button className="mobile-controls-btn" onClick={() => setMobileControlsOpen(true)}>
+                  Controls
+                </button>
+                <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+                  {isProcessing ? '...' : 'Continue'}
+                </button>
+              </>
+            ) : !isEnded && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
+              <div className="page-end-message">
+                End of page - add more paragraphs or an ending
+              </div>
+            ) : null}
+          </div>
+          )}
+
+          {/* Mobile ending display - portaled and centered */}
+          {isEnded && endingData && (
+            <div className={`ending-display mobile-only ${endingData.endingType}`}>
+              <h3>{endingData.endingType === 'good' ? '🎉' : endingData.endingType === 'bad' ? '💀' : '🏁'} {endingData.message || 'The End'}</h3>
+              <div className="ending-buttons">
+                <button className="restart-btn" onClick={handleRestart}>
+                  Play Again
+                </button>
+                <button className="exit-btn" onClick={handleExit}>
+                  Exit
+                </button>
+              </div>
+            </div>
+          )}
+        </>,
+        document.body
+      )}
+
+      {/* Pump control dialogs */}
+      {showPumpDialog && (
+        <div className="pump-dialog-overlay" onClick={() => setShowPumpDialog(null)}>
+          <div className="pump-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>{showPumpDialog.toUpperCase()} Settings</h3>
+
+            {showPumpDialog === 'cycle' && (
+              <>
+                <div className="pump-dialog-field">
+                  <label>Duration (seconds):</label>
+                  <input
+                    type="number"
+                    value={pumpDialogValues.duration}
+                    onChange={(e) => setPumpDialogValues(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                    min="1"
+                  />
+                </div>
+                <div className="pump-dialog-field">
+                  <label>Interval (seconds):</label>
+                  <input
+                    type="number"
+                    value={pumpDialogValues.interval}
+                    onChange={(e) => setPumpDialogValues(prev => ({ ...prev, interval: Number(e.target.value) }))}
+                    min="1"
+                  />
+                </div>
+                <div className="pump-dialog-field">
+                  <label>Cycles (0 = infinite):</label>
+                  <input
+                    type="number"
+                    value={pumpDialogValues.cycles}
+                    onChange={(e) => setPumpDialogValues(prev => ({ ...prev, cycles: Number(e.target.value) }))}
+                    min="0"
+                  />
+                </div>
+              </>
+            )}
+
+            {showPumpDialog === 'pulse' && (
+              <div className="pump-dialog-field">
+                <label>Number of pulses:</label>
+                <input
+                  type="number"
+                  value={pumpDialogValues.pulses}
+                  onChange={(e) => setPumpDialogValues(prev => ({ ...prev, pulses: Number(e.target.value) }))}
+                  min="1"
+                />
+              </div>
+            )}
+
+            {showPumpDialog === 'timed' && (
+              <div className="pump-dialog-field">
+                <label>Duration (seconds):</label>
+                <input
+                  type="number"
+                  value={pumpDialogValues.duration}
+                  onChange={(e) => setPumpDialogValues(prev => ({ ...prev, duration: Number(e.target.value) }))}
+                  min="1"
+                />
+              </div>
+            )}
+
+            {showPumpDialog === 'until' && (
+              <div className="pump-dialog-field">
+                <label>Target Capacity (%):</label>
+                <input
+                  type="number"
+                  value={pumpDialogValues.targetCapacity}
+                  onChange={(e) => setPumpDialogValues(prev => ({ ...prev, targetCapacity: Number(e.target.value) }))}
+                  min="0"
+                  max="100"
+                />
+              </div>
+            )}
+
+            <div className="pump-dialog-actions">
+              <button className="pump-dialog-cancel" onClick={() => setShowPumpDialog(null)}>Cancel</button>
+              <button
+                className="pump-dialog-confirm"
+                onClick={() => {
+                  if (showPumpDialog === 'cycle') executePumpCycle();
+                  else if (showPumpDialog === 'pulse') executePumpPulse();
+                  else if (showPumpDialog === 'timed') executePumpTimed();
+                  else if (showPumpDialog === 'until') executePumpUntil();
+                }}
+              >
+                Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup notification dialog */}
+      {isWaitingForPopup && currentPopupData && (
+        <div className="popup-overlay">
+          <div className="popup-dialog">
+            <div className="popup-message">
+              {substituteVariables(currentPopupData.message || 'Notification')}
+            </div>
+            <div className="popup-actions">
+              <button className="popup-btn popup-cancel" onClick={handlePopupCancel}>
+                Cancel - Exit
+              </button>
+              <button className="popup-btn popup-ok" onClick={handlePopupOk}>
+                OK - Proceed
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isWaitingForChallenge && currentChallengeType && (
+        <div className="challenge-overlay">
+          {currentChallengeType === 'challenge_coin' && (
+            <ChallengeCoin
+              data={currentChallengeData}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          )}
+          {currentChallengeType === 'challenge_dice' && (
+            <ChallengeDice
+              data={currentChallengeData}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          )}
+          {currentChallengeType === 'challenge_wheel' && (
+            <ChallengeWheel
+              data={currentChallengeData}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          )}
+          {currentChallengeType === 'challenge_rps' && (
+            <ChallengeRPS
+              data={currentChallengeData}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          )}
+          {currentChallengeType === 'challenge_number_guess' && (
+            <ChallengeNumberGuess
+              data={currentChallengeData}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      {displayedToasts.length > 0 && createPortal(
+        <div className="toast-container">
+          {displayedToasts.map((toast, index) => (
+            <div
+              key={toast.id}
+              className="toast-notification"
+              style={{
+                animationDuration: `${toast.duration}ms`,
+                bottom: `${20 + (index * 80)}px` // Stack toasts if multiple
+              }}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>,
         document.body
       )}
     </div>

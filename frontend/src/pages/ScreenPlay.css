@@ -126,6 +126,26 @@
   text-underline-offset: 3px;
 }
 
+/* Mobile: ensure full height coverage */
+@media (max-width: 768px) {
+  .screenplay-page {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+  }
+
+  .screenplay-page .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Tab content area */
 .screenplay-page .tab-content {
   background-color: var(--bg-secondary);

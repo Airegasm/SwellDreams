@@ -249,6 +249,23 @@
   font-style: italic;
 }
 
+/* Mobile responsive - Plays tab vertical layout */
+@media (max-width: 768px) {
+  .plays-layout {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .plays-list-panel {
+    width: 100%;
+    max-height: 300px;
+  }
+
+  .plays-detail-panel {
+    width: 100%;
+  }
+}
+
 /* Actors Manager */
 .actors-manager {
   display: flex;
@@ -1486,6 +1503,9 @@
     #1a1d21 100%
   );
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .palette-items {
@@ -1557,6 +1577,103 @@
 .palette-items::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 3px;
+}
+
+/* Palette toggle button - positioned at bottom of palette */
+.palette-toggle {
+  position: fixed;
+  left: 243px; /* Palette width (231px) + left offset (6px) + gap (6px) */
+  bottom: 12px; /* Align with bottom of palette */
+  width: 36px;
+  height: 48px;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 33, 40, 0.98) 0%,
+    rgba(20, 22, 28, 0.98) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  color: var(--accent-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: none; /* Hidden on desktop */
+  align-items: center;
+  justify-content: center;
+  transition: left 0.3s ease;
+  z-index: 10001;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.palette-toggle:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(40, 43, 50, 0.98) 0%,
+    rgba(30, 32, 38, 0.98) 100%
+  );
+  color: var(--accent-hover);
+  border-color: var(--accent-color);
+}
+
+/* Collapsed state - palette slides left */
+.storyboard-palette.collapsed {
+  transform: translateX(-100%);
+}
+
+/* When palette collapsed, button stays at left edge */
+.storyboard-palette.collapsed ~ .palette-toggle {
+  left: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Mobile responsive - show toggle and enable collapse */
+@media (max-width: 768px) {
+  .palette-toggle {
+    display: flex;
+  }
+
+  .storyboard-palette {
+    transition: transform 0.3s ease;
+  }
+
+  /* Stack storyboard header vertically on mobile */
+  .storyboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .storyboard-title {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .storyboard-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .play-name-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .author-mode-select {
+    flex: 1;
+  }
+
+  /* Ensure add-page-btn is visible at bottom on mobile */
+  .storyboard-pages {
+    padding-bottom: 80px;
+  }
+
+  .add-page-btn {
+    margin-bottom: 60px;
+    padding: var(--spacing-lg);
+    font-size: 1rem;
+    font-weight: 600;
+  }
 }
 
 /* ===================== */

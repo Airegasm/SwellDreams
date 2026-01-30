@@ -56,6 +56,11 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
     setIsOpen(false);
     setIsSessionSubmenuOpen(false);
 
+    // If already on the target path (or a subpath like /screenplay/plays), just close menu
+    if (location.pathname === targetPath || location.pathname.startsWith(targetPath + '/')) {
+      return;
+    }
+
     if (location.pathname === '/flows') {
       // Dispatch exit event for FlowEditor to animate out
       window.dispatchEvent(new CustomEvent('exit-flows', { detail: { path: targetPath } }));

@@ -2,7 +2,11 @@
   "id": "the-discovery",
   "name": "The Discovery",
   "description": "You stumble upon two girls with an unusual hobby. They're eager to share it with you... and see just how far you're willing to go.",
-  "actors": ["actor-mia", "actor-jade", "actor-sophie"],
+  "actors": [
+    "actor-mia",
+    "actor-jade",
+    "actor-sophie"
+  ],
   "playerActorId": null,
   "authorMode": "2nd-person",
   "startPageId": "page-stumble",
@@ -814,5 +818,10 @@
     }
   },
   "createdAt": 1706400000000,
-  "updatedAt": 1706400000000
+  "updatedAt": 1769666892731,
+  "inflatee1Capacity": 0,
+  "inflatee2Enabled": true,
+  "inflatee2ActorId": "actor-mia",
+  "inflatee2Capacity": 0,
+  "maxPainAtFull": 10
 }

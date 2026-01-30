@@ -2070,7 +2070,8 @@ const sessionState = {
   autoReply: false, // When false, AI only responds via Guided Response/Events/Flows
   playerName: null, // Active persona's display name
   characterName: null, // Active character's name
-  pumpRuntimeTracker: {} // deviceKey -> { totalSeconds } for auto-capacity tracking
+  pumpRuntimeTracker: {}, // deviceKey -> { totalSeconds } for auto-capacity tracking
+  runtimeTrackingEnabled: true // Flag to enable/disable runtime tracking (used during emergency stop)
 };
 
 // LLM State - tracks busy state and queues flow messages when LLM is busy
@@ -2192,8 +2193,10 @@ function loadAutosave() {
       sessionState.chatHistory = autosaveData.chatHistory || [];
       sessionState.messageInputHistory = autosaveData.messageInputHistory || [];
       sessionState.flowVariables = autosaveData.flowVariables || {};
-      sessionState.pumpRuntimeTracker = autosaveData.pumpRuntimeTracker || {};
+      // DO NOT restore pumpRuntimeTracker - prevents pumps from auto-starting on refresh
+      sessionState.pumpRuntimeTracker = {};
       console.log('[Autosave] Loaded previous session with', sessionState.chatHistory.length, 'messages, capacity:', sessionState.capacity);
+      console.log('[Autosave] Pump runtime tracker NOT restored - pumps will not auto-start');
       return true;
     }
   } catch (error) {
@@ -2267,6 +2270,12 @@ console.warn = (...args) => {
  * Handle pump runtime events for auto-capacity tracking
  */
 function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isRealTime }) {
+  // Check if runtime tracking is enabled (can be disabled during emergency stop)
+  if (!sessionState.runtimeTrackingEnabled) {
+    console.warn(`[AutoCapacity] Runtime tracking DISABLED, ignoring event for ${ip}, runtime=${runtimeSeconds}s, isRealTime=${isRealTime}`);
+    return;
+  }
+
   const settings = loadData(DATA_FILES.settings) || {};
   const useAutoCapacity = settings.globalCharacterControls?.useAutoCapacity;
 
@@ -2274,6 +2283,12 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
 
   // Update tracker
   if (!sessionState.pumpRuntimeTracker[ip]) {
+    // If this is a final event with significant runtime AND capacity is currently 0,
+    // this is likely an old event from before emergency stop - ignore it
+    if (!isRealTime && runtimeSeconds > 1 && sessionState.capacity === 0) {
+      console.warn(`[AutoCapacity] Ignoring final event for ${ip} with ${runtimeSeconds.toFixed(1)}s - capacity is 0 (likely post-emergency-stop)`);
+      return;
+    }
     sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0 };
   }
 
@@ -4389,7 +4404,90 @@ async function handleWsMessage(ws, type, data) {
     case 'screenplay_pump':
       // Handle pump commands from ScreenPlay viewer
       {
+        console.log(`[ScreenPlay] Received screenplay_pump message, type=${data.type}, device=${data.device}`);
         const devices = loadData(DATA_FILES.devices) || [];
+
+        // Handle emergency stop all
+        if (data.type === 'emergency_stop_all') {
+          console.log('[ScreenPlay] Emergency stop all - stopping all pump devices and freezing capacity');
+
+          // Disable runtime tracking to prevent final events from recreating tracker entries
+          sessionState.runtimeTrackingEnabled = false;
+
+          // FIRST: Stop ALL pump runtime tracking intervals immediately
+          // This ensures no intervals keep running even if device turnOff fails
+          deviceService.stopAllPumpRuntimeTracking();
+
+          const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+          console.log(`[ScreenPlay] Found ${pumpDevices.length} pump devices to stop:`, pumpDevices.map(p => `${p.label || p.name} (${p.ip || p.deviceId})`));
+
+          // Also check for ANY currently running devices in the runtime tracker
+          const runningDeviceKeys = Object.keys(sessionState.pumpRuntimeTracker);
+          console.log(`[ScreenPlay] Runtime tracker shows ${runningDeviceKeys.length} active devices:`, runningDeviceKeys);
+
+          // Stop all pump devices
+          for (const pump of pumpDevices) {
+            const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+            console.log(`[ScreenPlay] Attempting to stop pump: ${pump.label || pump.name}, brand=${pump.brand}, id=${pumpDeviceId}`);
+            try {
+              const turnOffResult = await deviceService.turnOff(pumpDeviceId, pump);
+              console.log(`[ScreenPlay] TurnOff result:`, turnOffResult);
+              const stopCycleResult = await deviceService.stopCycle(pumpDeviceId, pump);
+              console.log(`[ScreenPlay] StopCycle result:`, stopCycleResult);
+              console.log(`[ScreenPlay] Successfully stopped pump: ${pump.label || pump.name || pumpDeviceId}`);
+            } catch (err) {
+              console.error(`[ScreenPlay] Failed to stop pump ${pumpDeviceId}:`, err.message, err.stack);
+            }
+          }
+
+          // Also stop any devices in the runtime tracker that might not be marked as pumps
+          for (const deviceKey of runningDeviceKeys) {
+            // Find the device by IP/deviceId
+            const device = devices.find(d =>
+              d.ip === deviceKey ||
+              d.deviceId === deviceKey ||
+              `${d.ip}:${d.childId}` === deviceKey
+            );
+            if (device && !pumpDevices.includes(device)) {
+              console.log(`[ScreenPlay] Also stopping tracked device: ${device.label || device.name || deviceKey}`);
+              try {
+                await deviceService.turnOff(deviceKey, device);
+                await deviceService.stopCycle(deviceKey, device);
+              } catch (err) {
+                console.error(`[ScreenPlay] Failed to stop tracked device ${deviceKey}:`, err.message);
+              }
+            }
+          }
+
+          // Clear pump runtime tracking and zero out capacity
+          console.log('[ScreenPlay] Clearing pump runtime tracker - capacity reset to 0');
+          sessionState.pumpRuntimeTracker = {};
+          sessionState.capacity = 0;
+          sessionState.pain = 0;
+
+          // Broadcast capacity update to zero the gauge
+          broadcast('capacity_update', {
+            capacity: 0,
+            pain: 0
+          });
+
+          // Broadcast auto_capacity_update as well to ensure frontend syncs
+          broadcast('auto_capacity_update', {
+            capacity: 0,
+            pain: 0,
+            isOverInflating: false
+          });
+
+          // Re-enable runtime tracking after delay
+          // This prevents old pump_runtime events from recreating capacity
+          setTimeout(() => {
+            sessionState.runtimeTrackingEnabled = true;
+            console.log('[ScreenPlay] Runtime tracking re-enabled - ready for new pump activity');
+          }, 3000);
+
+          break;
+        }
+
         // Find device by alias/label
         const device = devices.find(d =>
           d.label === data.device ||
@@ -4441,6 +4539,46 @@ async function handleWsMessage(ws, type, data) {
             case 'device_off':
               await deviceService.turnOff(deviceId, device);
               await deviceService.stopCycle(deviceId, device);
+              break;
+
+            case 'device_on_until':
+              // Turn on pump and monitor capacity until target is reached
+              await deviceService.turnOn(deviceId, device);
+              const targetCapacity = data.targetCapacity || 50;
+              const untilType = data.untilType || 'capacity';
+              console.log(`[ScreenPlay] Starting pump UNTIL ${untilType}=${targetCapacity}%`);
+
+              // Set up capacity monitoring interval
+              const monitorInterval = setInterval(() => {
+                const currentCapacity = sessionState.capacity || 0;
+
+                // Check if target reached
+                if (currentCapacity >= targetCapacity) {
+                  console.log(`[ScreenPlay] Target capacity ${targetCapacity}% reached (current: ${currentCapacity}%). Stopping pump.`);
+                  clearInterval(monitorInterval);
+
+                  // Turn off pump
+                  deviceService.turnOff(deviceId, device)
+                    .then(() => {
+                      console.log(`[ScreenPlay] Pump stopped at ${currentCapacity}%`);
+                    })
+                    .catch(err => {
+                      console.error(`[ScreenPlay] Failed to stop pump at target:`, err.message);
+                    });
+                }
+              }, 500); // Check every 500ms
+
+              // Safety timeout: stop after 10 minutes even if target not reached
+              setTimeout(() => {
+                clearInterval(monitorInterval);
+                deviceService.turnOff(deviceId, device)
+                  .then(() => {
+                    console.log(`[ScreenPlay] Pump stopped by safety timeout after 10 minutes`);
+                  })
+                  .catch(err => {
+                    console.error(`[ScreenPlay] Failed to stop pump on timeout:`, err.message);
+                  });
+              }, 600000);
               break;
           }
         } catch (err) {
@@ -7987,14 +8125,17 @@ app.post('/api/emergency-stop', async (req, res) => {
     llm: null
   };
 
-  // 1. Halt all flow execution and get list of flow-activated devices
+  // 1. Stop ALL pump runtime tracking intervals immediately
+  deviceService.stopAllPumpRuntimeTracking();
+
+  // 2. Halt all flow execution and get list of flow-activated devices
   let devicesToStop = [];
   if (eventEngine) {
     results.flows = eventEngine.emergencyStop();
     devicesToStop = results.flows.devicesToStop || [];
   }
 
-  // 2. Stop only flow-activated devices (not all devices)
+  // 3. Stop only flow-activated devices (not all devices)
   for (const deviceInfo of devicesToStop) {
     try {
       const deviceId = deviceInfo.deviceId;
@@ -8014,10 +8155,10 @@ app.post('/api/emergency-stop', async (req, res) => {
     console.log('[EMERGENCY STOP] No flow-activated devices to stop');
   }
 
-  // 3. Abort all pending LLM requests
+  // 4. Abort all pending LLM requests
   results.llm = { aborted: llmService.abortAllRequests() };
 
-  // 4. Clear any LLM device control auto-off timers
+  // 5. Clear any LLM device control auto-off timers
   aiDeviceControl.clearAllLlmTimers();
 
   broadcast('emergency_stop', { timestamp: Date.now(), results });
@@ -8886,7 +9027,11 @@ async function triggerEmergencyStop(reason) {
   console.error(`[FAILSAFE] ========================================\n`);
 
   try {
-    // 1. Stop all device cycles and turn off devices
+    // 1. Stop ALL pump runtime tracking intervals immediately
+    deviceService.stopAllPumpRuntimeTracking();
+    console.log('[FAILSAFE] Pump runtime tracking stopped');
+
+    // 2. Stop all device cycles and turn off devices
     const devices = loadData(DATA_FILES.devices) || [];
     for (const device of devices) {
       try {
@@ -8904,17 +9049,17 @@ async function triggerEmergencyStop(reason) {
       }
     }
 
-    // 2. Stop all flows
+    // 3. Stop all flows
     if (eventEngine) {
       eventEngine.emergencyStop();
       console.log('[FAILSAFE] Flows halted');
     }
 
-    // 3. Abort all LLM requests
+    // 4. Abort all LLM requests
     llmService.abortAllRequests();
     console.log('[FAILSAFE] LLM requests aborted');
 
-    // 4. Kill any lingering Python processes
+    // 5. Kill any lingering Python processes
     killAllPythonProcesses();
     console.log('[FAILSAFE] Python processes terminated');
 
@@ -8944,6 +9089,12 @@ async function triggerEmergencyStop(reason) {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', async (error) => {
+  // Ignore EPIPE errors - they're harmless (attempt to write to already-closed process)
+  if (error.code === 'EPIPE' || error.errno === -4047 || error.syscall === 'write') {
+    console.log('[FAILSAFE] Ignoring EPIPE error (broken pipe to subprocess)');
+    return;
+  }
+
   console.error('[FAILSAFE] Uncaught Exception:', error);
   await triggerEmergencyStop(`Uncaught Exception: ${error.message}`);
 

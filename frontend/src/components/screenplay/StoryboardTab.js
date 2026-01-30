@@ -18,6 +18,19 @@ const PARAGRAPH_TYPES = [
   { type: 'delay', label: 'Delay', icon: '⏱️', desc: 'Wait time' },
   { type: 'pump', label: 'Pump (Real)', icon: '⛽', desc: 'Device control' },
   { type: 'mock_pump', label: 'Mock Pump', icon: '🎈', desc: 'Simulate pump' },
+  { type: 'parallel_container', label: 'Parallel Container', icon: '⚙️', desc: 'Run events simultaneously' },
+  { type: 'popup', label: 'Popup', icon: '🔔', desc: 'OK/Cancel dialog' },
+  { type: 'toast', label: 'Toast', icon: '📢', desc: 'Brief notification' },
+  { type: 'challenge_wheel', label: 'Prize Wheel', icon: '🎡', desc: 'Spin for outcome' },
+  { type: 'challenge_dice', label: 'Dice Roll', icon: '🎲', desc: 'Roll for outcome' },
+  { type: 'challenge_coin', label: 'Coin Flip', icon: '🪙', desc: 'Heads or tails' },
+  { type: 'challenge_rps', label: 'Rock Paper Scissors', icon: '✊', desc: 'Win/lose/tie' },
+  { type: 'challenge_timer', label: 'Timer Challenge', icon: '⏱️', desc: 'Stop at target' },
+  { type: 'challenge_number_guess', label: 'Number Guess', icon: '🔢', desc: 'Guess the number' },
+  { type: 'challenge_slots', label: 'Slot Machine', icon: '🎰', desc: 'Match symbols' },
+  { type: 'challenge_card', label: 'Card Draw', icon: '🃏', desc: 'Draw a card' },
+  { type: 'challenge_simon', label: 'Simon Says', icon: '🎮', desc: 'Repeat pattern' },
+  { type: 'challenge_reflex', label: 'Reflex Challenge', icon: '⚡', desc: 'Quick reaction' },
   { type: 'end', label: 'End', icon: '🏁', desc: 'Finish play' }
 ];
 
@@ -26,6 +39,7 @@ function StoryboardTab({ editingPlayId, setEditingPlayId, onCreateNew }) {
   const [currentPlay, setCurrentPlay] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [mediaImages, setMediaImages] = useState([]);
+  const [isPaletteCollapsed, setIsPaletteCollapsed] = useState(false);
 
   // Load play when editingPlayId changes
   useEffect(() => {
@@ -220,25 +234,34 @@ function StoryboardTab({ editingPlayId, setEditingPlayId, onCreateNew }) {
 
   // Render the draggable palette (portaled to overlap filmstrip)
   const renderPalette = () => createPortal(
-    <div className="storyboard-palette">
-      <div className="palette-header">Events</div>
-      <div className="palette-items">
-        {PARAGRAPH_TYPES.map(({ type, label, icon, desc }) => (
-          <div
-            key={type}
-            className="palette-item"
-            draggable
-            onDragStart={(e) => handleDragStart(e, type)}
-          >
-            <span className="palette-icon">{icon}</span>
-            <div className="palette-text">
-              <span className="palette-label">{label}</span>
-              <span className="palette-desc">{desc}</span>
+    <>
+      <div className={`storyboard-palette ${isPaletteCollapsed ? 'collapsed' : ''}`}>
+        <div className="palette-header">Events</div>
+        <div className="palette-items">
+          {PARAGRAPH_TYPES.map(({ type, label, icon, desc }) => (
+            <div
+              key={type}
+              className="palette-item"
+              draggable
+              onDragStart={(e) => handleDragStart(e, type)}
+            >
+              <span className="palette-icon">{icon}</span>
+              <div className="palette-text">
+                <span className="palette-label">{label}</span>
+                <span className="palette-desc">{desc}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>,
+      <button
+        className="palette-toggle"
+        onClick={() => setIsPaletteCollapsed(!isPaletteCollapsed)}
+        title={isPaletteCollapsed ? 'Show palette' : 'Hide palette'}
+      >
+        {isPaletteCollapsed ? '▶' : '◀'}
+      </button>
+    </>,
     document.body
   );
 

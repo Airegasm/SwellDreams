@@ -14,6 +14,19 @@ const TYPE_ICONS = {
   delay: '⏱️',
   pump: '⛽',
   mock_pump: '🎈',
+  parallel_container: '⚙️',
+  popup: '🔔',
+  toast: '📢',
+  challenge_wheel: '🎡',
+  challenge_dice: '🎲',
+  challenge_coin: '🪙',
+  challenge_rps: '✊',
+  challenge_timer: '⏱️',
+  challenge_number_guess: '🔢',
+  challenge_slots: '🎰',
+  challenge_card: '🃏',
+  challenge_simon: '🎮',
+  challenge_reflex: '⚡',
   end: '🏁'
 };
 
@@ -29,6 +42,7 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
   const [isExpanded, setIsExpanded] = useState(true);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhancingOptionIdx, setEnhancingOptionIdx] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDataChange = (field, value) => {
     onUpdate({
@@ -940,6 +954,912 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
           </div>
         );
 
+      case 'parallel_container':
+        // Helper to create default data for child types
+        const getDefaultChildData = (type) => {
+          switch (type) {
+            case 'pump':
+              return { device: 'Primary Pump', action: 'on', duration: 5, interval: 10 };
+            case 'mock_pump':
+              return { target: 'inflatee1', action: 'cycle', duration: 5000, intensity: 50 };
+            case 'set_variable':
+              return { variableName: '', value: '' };
+            case 'delay':
+              return { duration: 1000 };
+            case 'set_npc_actor_avatar':
+              return { sourceType: 'actor', actorId: '', imageTag: '', targetActorId: '' };
+            default:
+              return {};
+          }
+        };
+
+        // Handle drag over
+        const handleContainerDragOver = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = 'copy';
+          setIsDragOver(true);
+        };
+
+        const handleContainerDragLeave = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragOver(false);
+        };
+
+        // Handle drop from palette
+        const handleContainerDrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsDragOver(false);
+          const type = e.dataTransfer.getData('paragraphType');
+
+          // Only allow certain types in parallel containers
+          const allowedTypes = ['pump', 'mock_pump', 'set_variable', 'delay', 'set_npc_actor_avatar'];
+          if (type && allowedTypes.includes(type)) {
+            const newChild = {
+              id: `child-${Date.now()}`,
+              type,
+              data: getDefaultChildData(type)
+            };
+            handleDataChange('children', [...(data.children || []), newChild]);
+          }
+        };
+
+        return (
+          <div className="para-editor">
+            <div className="parallel-container-note">
+              ⚙️ Events in this container run simultaneously. Drag events from the palette or use + buttons below.
+            </div>
+            <div
+              className={`parallel-children-list ${isDragOver ? 'drag-over' : ''}`}
+              onDragOver={handleContainerDragOver}
+              onDragLeave={handleContainerDragLeave}
+              onDrop={handleContainerDrop}
+            >
+              {(data.children || []).map((child, idx) => {
+                const updateChild = (updates) => {
+                  const newChildren = [...(data.children || [])];
+                  newChildren[idx] = { ...child, ...updates };
+                  handleDataChange('children', newChildren);
+                };
+                const updateChildData = (field, value) => {
+                  const newChildren = [...(data.children || [])];
+                  newChildren[idx] = { ...child, data: { ...child.data, [field]: value } };
+                  handleDataChange('children', newChildren);
+                };
+
+                return (
+                  <div key={child.id || idx} className="parallel-child-item">
+                    <div className="parallel-child-header">
+                      <span className="para-icon">{TYPE_ICONS[child.type] || '?'}</span>
+                      <span className="child-type-label">{child.type}</span>
+                      <button
+                        className="delete-child-btn"
+                        onClick={() => {
+                          const newChildren = [...(data.children || [])];
+                          newChildren.splice(idx, 1);
+                          handleDataChange('children', newChildren);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {child.type === 'pump' && (
+                      <div className="parallel-child-editor">
+                        <select
+                          value={child.data.device || 'Primary Pump'}
+                          onChange={(e) => updateChildData('device', e.target.value)}
+                        >
+                          <option value="Primary Pump">Primary Pump</option>
+                          <option value="Secondary Pump">Secondary Pump</option>
+                        </select>
+                        <select
+                          value={child.data.action || 'on'}
+                          onChange={(e) => updateChildData('action', e.target.value)}
+                        >
+                          <option value="on">On</option>
+                          <option value="off">Off</option>
+                          <option value="cycle">Cycle</option>
+                          <option value="pulse">Pulse</option>
+                          <option value="until">Until</option>
+                        </select>
+                        {(child.data.action === 'cycle' || child.data.action === 'pulse') && (
+                          <>
+                            <input
+                              type="number"
+                              value={child.data.duration || 5}
+                              onChange={(e) => updateChildData('duration', parseInt(e.target.value) || 5)}
+                              placeholder="Duration"
+                              className="short-input"
+                            />
+                            {child.data.action === 'cycle' && (
+                              <input
+                                type="number"
+                                value={child.data.interval || 10}
+                                onChange={(e) => updateChildData('interval', parseInt(e.target.value) || 10)}
+                                placeholder="Interval"
+                                className="short-input"
+                              />
+                            )}
+                          </>
+                        )}
+                        {child.data.action === 'until' && (
+                          <>
+                            <input
+                              type="number"
+                              value={child.data.targetCapacity || 50}
+                              onChange={(e) => updateChildData('targetCapacity', parseInt(e.target.value) || 50)}
+                              placeholder="Target %"
+                              className="short-input"
+                              min="1"
+                              max="100"
+                            />
+                            <span>%</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {child.type === 'mock_pump' && (
+                      <div className="parallel-child-editor">
+                        <select
+                          value={child.data.target || 'inflatee1'}
+                          onChange={(e) => updateChildData('target', e.target.value)}
+                        >
+                          <option value="inflatee1">Player</option>
+                          <option value="inflatee2">Inflatee 2</option>
+                        </select>
+                        <select
+                          value={child.data.action || 'cycle'}
+                          onChange={(e) => updateChildData('action', e.target.value)}
+                        >
+                          <option value="on">On</option>
+                          <option value="off">Off</option>
+                          <option value="cycle">Cycle</option>
+                          <option value="pulse">Pulse</option>
+                          <option value="timed">Timed</option>
+                          <option value="until">Until</option>
+                        </select>
+                        {child.data.action !== 'off' && child.data.action !== 'on' && child.data.action !== 'until' && (
+                          <>
+                            <input
+                              type="number"
+                              value={child.data.duration || 5000}
+                              onChange={(e) => updateChildData('duration', parseInt(e.target.value) || 5000)}
+                              placeholder="Duration (ms)"
+                              className="short-input"
+                            />
+                            <span>ms</span>
+                          </>
+                        )}
+                        {child.data.action === 'until' && (
+                          <>
+                            <input
+                              type="number"
+                              value={child.data.targetCapacity || 50}
+                              onChange={(e) => updateChildData('targetCapacity', parseInt(e.target.value) || 50)}
+                              placeholder="Target %"
+                              className="short-input"
+                              min="1"
+                              max="100"
+                            />
+                            <span>%</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {child.type === 'set_variable' && (
+                      <div className="parallel-child-editor">
+                        <input
+                          type="text"
+                          value={child.data.variableName || ''}
+                          onChange={(e) => updateChildData('variableName', e.target.value)}
+                          placeholder="Variable name"
+                        />
+                        <input
+                          type="text"
+                          value={child.data.value || ''}
+                          onChange={(e) => updateChildData('value', e.target.value)}
+                          placeholder="Value"
+                        />
+                      </div>
+                    )}
+                    {child.type === 'delay' && (
+                      <div className="parallel-child-editor">
+                        <label>Wait:</label>
+                        <input
+                          type="number"
+                          value={child.data.duration || 1000}
+                          onChange={(e) => updateChildData('duration', parseInt(e.target.value) || 1000)}
+                          placeholder="Duration (ms)"
+                          className="short-input"
+                        />
+                        <span>ms</span>
+                      </div>
+                    )}
+                    {child.type === 'set_npc_actor_avatar' && (
+                      <div className="parallel-child-editor">
+                        <select
+                          value={child.data.targetActorId || ''}
+                          onChange={(e) => updateChildData('targetActorId', e.target.value)}
+                        >
+                          <option value="">Target Actor...</option>
+                          {actors.map(actor => (
+                            <option key={actor.id} value={actor.id}>{actor.name}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={child.data.sourceType || 'actor'}
+                          onChange={(e) => updateChildData('sourceType', e.target.value)}
+                        >
+                          <option value="actor">From Actor</option>
+                          <option value="image">From Image</option>
+                        </select>
+                        {child.data.sourceType === 'actor' ? (
+                          <select
+                            value={child.data.actorId || ''}
+                            onChange={(e) => updateChildData('actorId', e.target.value)}
+                          >
+                            <option value="">Select actor...</option>
+                            {actors.map(actor => (
+                              <option key={actor.id} value={actor.id}>{actor.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <select
+                            value={child.data.imageTag || ''}
+                            onChange={(e) => updateChildData('imageTag', e.target.value)}
+                          >
+                            <option value="">Select image...</option>
+                            {(mediaImages || []).map(img => (
+                              <option key={img.tag} value={img.tag}>{img.tag}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {(data.children || []).length === 0 && (
+                <div className="empty-container-hint">No events yet - click + buttons below to add</div>
+              )}
+            </div>
+            <div className="add-parallel-child-row">
+              <button
+                className="add-parallel-child-btn"
+                onClick={() => {
+                  const newChild = {
+                    id: `child-${Date.now()}`,
+                    type: 'pump',
+                    data: { device: 'Primary Pump', action: 'on' }
+                  };
+                  handleDataChange('children', [...(data.children || []), newChild]);
+                }}
+              >
+                + Pump
+              </button>
+              <button
+                className="add-parallel-child-btn"
+                onClick={() => {
+                  const newChild = {
+                    id: `child-${Date.now()}`,
+                    type: 'mock_pump',
+                    data: { target: 'inflatee1', action: 'cycle', duration: 5000, intensity: 50 }
+                  };
+                  handleDataChange('children', [...(data.children || []), newChild]);
+                }}
+              >
+                + Mock Pump
+              </button>
+              <button
+                className="add-parallel-child-btn"
+                onClick={() => {
+                  const newChild = {
+                    id: `child-${Date.now()}`,
+                    type: 'set_variable',
+                    data: { variableName: '', value: '' }
+                  };
+                  handleDataChange('children', [...(data.children || []), newChild]);
+                }}
+              >
+                + Set Variable
+              </button>
+              <button
+                className="add-parallel-child-btn"
+                onClick={() => {
+                  const newChild = {
+                    id: `child-${Date.now()}`,
+                    type: 'delay',
+                    data: { duration: 1000 }
+                  };
+                  handleDataChange('children', [...(data.children || []), newChild]);
+                }}
+              >
+                + Delay
+              </button>
+              <button
+                className="add-parallel-child-btn"
+                onClick={() => {
+                  const newChild = {
+                    id: `child-${Date.now()}`,
+                    type: 'set_npc_actor_avatar',
+                    data: { sourceType: 'actor', actorId: '', imageTag: '', targetActorId: '' }
+                  };
+                  handleDataChange('children', [...(data.children || []), newChild]);
+                }}
+              >
+                + Set Avatar
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'popup':
+        return (
+          <div className="para-editor">
+            <textarea
+              value={data.message || ''}
+              onChange={(e) => handleDataChange('message', e.target.value)}
+              placeholder="Popup message (supports variables)..."
+              rows="4"
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+            <div className="para-hint">
+              OK button proceeds to next paragraph, Cancel button exits play
+            </div>
+          </div>
+        );
+
+      case 'toast':
+        return (
+          <div className="para-editor">
+            <textarea
+              value={data.message || ''}
+              onChange={(e) => handleDataChange('message', e.target.value)}
+              placeholder="Toast message (supports variables)..."
+              rows="2"
+              style={{ width: '100%', resize: 'vertical' }}
+            />
+            <div className="form-row">
+              <label>Duration:</label>
+              <input
+                type="number"
+                value={data.duration || 2000}
+                onChange={(e) => handleDataChange('duration', parseInt(e.target.value) || 2000)}
+                min={500}
+                max={10000}
+                step={500}
+                className="short-input"
+              />
+              <span>ms</span>
+            </div>
+            <div className="para-hint">
+              Auto-advances immediately - toast shows briefly then fades
+            </div>
+          </div>
+        );
+
+      case 'challenge_coin':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Heads → Go to page:</label>
+              <select
+                value={data.headsPageId || ''}
+                onChange={(e) => handleDataChange('headsPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Tails → Go to page:</label>
+              <select
+                value={data.tailsPageId || ''}
+                onChange={(e) => handleDataChange('tailsPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.resultVariable || ''}
+                onChange={(e) => handleDataChange('resultVariable', e.target.value)}
+                placeholder="Variable to store result (optional)"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.autoFlip || false}
+                onChange={(e) => handleDataChange('autoFlip', e.target.checked)}
+              />
+              {' '}Auto-flip on load
+            </label>
+          </div>
+        );
+
+      case 'challenge_dice':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Dice Type:</label>
+              <select
+                value={data.diceType || 6}
+                onChange={(e) => handleDataChange('diceType', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              >
+                <option value={4}>d4 (1-4)</option>
+                <option value={6}>d6 (1-6)</option>
+                <option value={8}>d8 (1-8)</option>
+                <option value={10}>d10 (1-10)</option>
+                <option value={12}>d12 (1-12)</option>
+                <option value={20}>d20 (1-20)</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Mode:</label>
+              <select
+                value={data.mode || 'ranges'}
+                onChange={(e) => handleDataChange('mode', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="ranges">Ranges (e.g., 1-2 = Low, 3-4 = High)</option>
+                <option value="direct">Direct (separate page for each value)</option>
+              </select>
+            </div>
+
+            {data.mode === 'ranges' && (
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Ranges:</label>
+                {(data.ranges || []).map((range, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      value={range.min}
+                      onChange={(e) => {
+                        const newRanges = [...data.ranges];
+                        newRanges[idx].min = parseInt(e.target.value);
+                        handleDataChange('ranges', newRanges);
+                      }}
+                      placeholder="Min"
+                      style={{ width: '60px' }}
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      value={range.max}
+                      onChange={(e) => {
+                        const newRanges = [...data.ranges];
+                        newRanges[idx].max = parseInt(e.target.value);
+                        handleDataChange('ranges', newRanges);
+                      }}
+                      placeholder="Max"
+                      style={{ width: '60px' }}
+                    />
+                    <input
+                      type="text"
+                      value={range.label}
+                      onChange={(e) => {
+                        const newRanges = [...data.ranges];
+                        newRanges[idx].label = e.target.value;
+                        handleDataChange('ranges', newRanges);
+                      }}
+                      placeholder="Label"
+                      style={{ flex: 1 }}
+                    />
+                    <select
+                      value={range.targetPageId || ''}
+                      onChange={(e) => {
+                        const newRanges = [...data.ranges];
+                        newRanges[idx].targetPageId = e.target.value;
+                        handleDataChange('ranges', newRanges);
+                      }}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Continue...</option>
+                      {Object.keys(allPages).map(pageId => (
+                        <option key={pageId} value={pageId}>
+                          {allPages[pageId].title}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const newRanges = data.ranges.filter((_, i) => i !== idx);
+                        handleDataChange('ranges', newRanges);
+                      }}
+                      style={{ padding: '4px 8px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newRanges = [...(data.ranges || []), { min: 1, max: 2, label: '', targetPageId: '' }];
+                    handleDataChange('ranges', newRanges);
+                  }}
+                  style={{ marginTop: '5px' }}
+                >
+                  + Add Range
+                </button>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.resultVariable || ''}
+                onChange={(e) => handleDataChange('resultVariable', e.target.value)}
+                placeholder="Variable to store result (optional)"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.autoRoll || false}
+                onChange={(e) => handleDataChange('autoRoll', e.target.checked)}
+              />
+              {' '}Auto-roll on load
+            </label>
+          </div>
+        );
+
+      case 'challenge_wheel':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Wheel Segments:</label>
+              {(data.segments || []).map((seg, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={seg.label}
+                    onChange={(e) => {
+                      const newSegments = [...data.segments];
+                      newSegments[idx].label = e.target.value;
+                      handleDataChange('segments', newSegments);
+                    }}
+                    placeholder="Label"
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="color"
+                    value={seg.color || '#ccc'}
+                    onChange={(e) => {
+                      const newSegments = [...data.segments];
+                      newSegments[idx].color = e.target.value;
+                      handleDataChange('segments', newSegments);
+                    }}
+                    style={{ width: '50px' }}
+                  />
+                  <input
+                    type="number"
+                    value={seg.weight || 1}
+                    onChange={(e) => {
+                      const newSegments = [...data.segments];
+                      newSegments[idx].weight = parseInt(e.target.value) || 1;
+                      handleDataChange('segments', newSegments);
+                    }}
+                    placeholder="Weight"
+                    style={{ width: '70px' }}
+                    min="1"
+                  />
+                  <select
+                    value={seg.targetPageId || ''}
+                    onChange={(e) => {
+                      const newSegments = [...data.segments];
+                      newSegments[idx].targetPageId = e.target.value;
+                      handleDataChange('segments', newSegments);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="">Continue...</option>
+                    {Object.keys(allPages).map(pageId => (
+                      <option key={pageId} value={pageId}>
+                        {allPages[pageId].title}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const newSegments = data.segments.filter((_, i) => i !== idx);
+                      handleDataChange('segments', newSegments);
+                    }}
+                    style={{ padding: '4px 8px' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da'];
+                  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                  const newSegments = [...(data.segments || []), { label: '', color: randomColor, weight: 1, targetPageId: '' }];
+                  handleDataChange('segments', newSegments);
+                }}
+                style={{ marginTop: '5px' }}
+              >
+                + Add Segment
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.resultVariable || ''}
+                onChange={(e) => handleDataChange('resultVariable', e.target.value)}
+                placeholder="Variable to store result (optional)"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.autoSpin || false}
+                onChange={(e) => handleDataChange('autoSpin', e.target.checked)}
+              />
+              {' '}Auto-spin on load
+            </label>
+          </div>
+        );
+
+      case 'challenge_rps':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Opponent Choice:</label>
+              <select
+                value={data.opponentChoice || 'random'}
+                onChange={(e) => handleDataChange('opponentChoice', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="random">Random</option>
+                <option value="rock">Always Rock</option>
+                <option value="paper">Always Paper</option>
+                <option value="scissors">Always Scissors</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Win → Go to page:</label>
+              <select
+                value={data.winPageId || ''}
+                onChange={(e) => handleDataChange('winPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Lose → Go to page:</label>
+              <select
+                value={data.losePageId || ''}
+                onChange={(e) => handleDataChange('losePageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Tie → Go to page:</label>
+              <select
+                value={data.tiePageId || ''}
+                onChange={(e) => handleDataChange('tiePageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.resultVariable || ''}
+                onChange={(e) => handleDataChange('resultVariable', e.target.value)}
+                placeholder="Result variable (win/lose/tie)"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.playerChoiceVariable || ''}
+                onChange={(e) => handleDataChange('playerChoiceVariable', e.target.value)}
+                placeholder="Player choice variable (rock/paper/scissors)"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.showOpponentChoice !== false}
+                onChange={(e) => handleDataChange('showOpponentChoice', e.target.checked)}
+              />
+              {' '}Show opponent's choice
+            </label>
+          </div>
+        );
+
+      case 'challenge_number_guess':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Min Number:</label>
+                <input
+                  type="number"
+                  value={data.minNumber || 1}
+                  onChange={(e) => handleDataChange('minNumber', parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Max Number:</label>
+                <input
+                  type="number"
+                  value={data.maxNumber || 10}
+                  onChange={(e) => handleDataChange('maxNumber', parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Attempts (0 = unlimited):</label>
+              <input
+                type="number"
+                value={data.attempts || 3}
+                onChange={(e) => handleDataChange('attempts', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+                min="0"
+              />
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Correct → Go to page:</label>
+              <select
+                value={data.correctPageId || ''}
+                onChange={(e) => handleDataChange('correctPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Incorrect → Go to page:</label>
+              <select
+                value={data.incorrectPageId || ''}
+                onChange={(e) => handleDataChange('incorrectPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <input
+                type="text"
+                value={data.resultVariable || ''}
+                onChange={(e) => handleDataChange('resultVariable', e.target.value)}
+                placeholder="Variable to store guessed number"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <label style={{ display: 'block', marginBottom: '5px' }}>
+              <input
+                type="checkbox"
+                checked={data.showHints !== false}
+                onChange={(e) => handleDataChange('showHints', e.target.checked)}
+              />
+              {' '}Show hints (higher/lower)
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.continueOnFail !== false}
+                onChange={(e) => handleDataChange('continueOnFail', e.target.checked)}
+              />
+              {' '}Allow continue after failure
+            </label>
+          </div>
+        );
+
       case 'end':
         return (
           <div className="para-editor">
@@ -1000,6 +1920,25 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
       case 'mock_pump':
         const targetLabel = data.target === 'inflatee2' ? 'Inflatee 2' : 'Player';
         return `${targetLabel}: ${data.action || 'cycle'}${data.duration ? ` (${data.duration}ms)` : ''}`;
+      case 'parallel_container':
+        const childCount = (data.children || []).length;
+        return `${childCount} event${childCount !== 1 ? 's' : ''} run simultaneously`;
+      case 'popup':
+        const msg = data.message || 'Popup';
+        return msg.length > 30 ? msg.substring(0, 30) + '...' : msg;
+      case 'toast':
+        const toastMsg = data.message || 'Toast';
+        return toastMsg.length > 30 ? toastMsg.substring(0, 30) + '...' : toastMsg;
+      case 'challenge_coin':
+        return '🪙 Coin Flip: Heads or Tails';
+      case 'challenge_dice':
+        return `🎲 Dice: d${data.diceType || 6} (${data.mode || 'ranges'})`;
+      case 'challenge_wheel':
+        return `🎡 Wheel: ${data.segments?.length || 0} segments`;
+      case 'challenge_rps':
+        return `✊ Rock Paper Scissors`;
+      case 'challenge_number_guess':
+        return `🔢 Guess ${data.minNumber || 1}-${data.maxNumber || 10} (${data.attempts || 3} attempts)`;
       case 'end':
         return `${data.endingType} ending`;
       default:

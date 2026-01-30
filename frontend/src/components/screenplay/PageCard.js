@@ -15,6 +15,19 @@ const PARAGRAPH_TYPES = [
   { type: 'delay', label: 'Delay', icon: '⏱️' },
   { type: 'pump', label: 'Pump (Real)', icon: '⛽' },
   { type: 'mock_pump', label: 'Mock Pump', icon: '🎈' },
+  { type: 'parallel_container', label: 'Parallel Container', icon: '⚙️' },
+  { type: 'popup', label: 'Popup', icon: '🔔' },
+  { type: 'toast', label: 'Toast', icon: '📢' },
+  { type: 'challenge_wheel', label: 'Prize Wheel', icon: '🎡' },
+  { type: 'challenge_dice', label: 'Dice Roll', icon: '🎲' },
+  { type: 'challenge_coin', label: 'Coin Flip', icon: '🪙' },
+  { type: 'challenge_rps', label: 'Rock Paper Scissors', icon: '✊' },
+  { type: 'challenge_timer', label: 'Timer Challenge', icon: '⏱️' },
+  { type: 'challenge_number_guess', label: 'Number Guess', icon: '🔢' },
+  { type: 'challenge_slots', label: 'Slot Machine', icon: '🎰' },
+  { type: 'challenge_card', label: 'Card Draw', icon: '🃏' },
+  { type: 'challenge_simon', label: 'Simon Says', icon: '🎮' },
+  { type: 'challenge_reflex', label: 'Reflex Challenge', icon: '⚡' },
   { type: 'end', label: 'End', icon: '🏁' }
 ];
 
@@ -25,6 +38,16 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
 
   // Handle drag over
   const handleDragOver = (e) => {
+    // Check if drag is over a parallel container - if so, ignore it
+    let target = e.target;
+    while (target && target !== e.currentTarget) {
+      if (target.classList && target.classList.contains('parallel-children-list')) {
+        // This drag is over a parallel container, don't highlight page
+        return;
+      }
+      target = target.parentElement;
+    }
+
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
@@ -37,6 +60,16 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
 
   // Handle drop from palette
   const handleDrop = (e) => {
+    // Check if drop is within a parallel container - if so, ignore it
+    let target = e.target;
+    while (target && target !== e.currentTarget) {
+      if (target.classList && target.classList.contains('parallel-children-list')) {
+        // This drop is for a parallel container, don't handle it here
+        return;
+      }
+      target = target.parentElement;
+    }
+
     e.preventDefault();
     setIsDragOver(false);
     const type = e.dataTransfer.getData('paragraphType');
@@ -128,6 +161,129 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
         return { device: 'Primary Pump', action: 'cycle', duration: 5, interval: 10, cycles: 0, pulses: 3, untilEnabled: false, untilType: 'capacity', untilValue: 50, blockContinue: false };
       case 'mock_pump':
         return { target: 'inflatee1', action: 'cycle', duration: 5000, intensity: 50, untilEnabled: false, untilType: 'capacity', untilValue: 50, blockContinue: false };
+      case 'parallel_container':
+        return { children: [] };
+      case 'popup':
+        return { message: 'Are you sure you want to continue?' };
+      case 'challenge_wheel':
+        return {
+          prompt: 'Spin the wheel!',
+          segments: [
+            { label: 'Prize 1', color: '#ff6b6b', weight: 1, targetPageId: '' },
+            { label: 'Prize 2', color: '#4ecdc4', weight: 1, targetPageId: '' },
+            { label: 'Prize 3', color: '#ffe66d', weight: 1, targetPageId: '' }
+          ],
+          resultVariable: '',
+          autoSpin: false
+        };
+      case 'challenge_dice':
+        return {
+          prompt: 'Roll the dice!',
+          diceType: 6,
+          mode: 'ranges',
+          ranges: [
+            { min: 1, max: 2, label: 'Low', targetPageId: '' },
+            { min: 3, max: 4, label: 'Medium', targetPageId: '' },
+            { min: 5, max: 6, label: 'High', targetPageId: '' }
+          ],
+          directOutcomes: [],
+          resultVariable: '',
+          autoRoll: false
+        };
+      case 'challenge_coin':
+        return {
+          prompt: 'Flip the coin!',
+          headsPageId: '',
+          tailsPageId: '',
+          resultVariable: '',
+          autoFlip: false
+        };
+      case 'challenge_rps':
+        return {
+          prompt: 'Rock, Paper, Scissors!',
+          opponentChoice: 'random',
+          winPageId: '',
+          losePageId: '',
+          tiePageId: '',
+          resultVariable: '',
+          playerChoiceVariable: '',
+          showOpponentChoice: true
+        };
+      case 'challenge_timer':
+        return {
+          prompt: 'Stop the timer!',
+          targetTime: 5.0,
+          tolerance: 0.5,
+          maxTime: 10.0,
+          successPageId: '',
+          failPageId: '',
+          resultVariable: '',
+          showTargetTime: true
+        };
+      case 'challenge_number_guess':
+        return {
+          prompt: 'Guess the number!',
+          minNumber: 1,
+          maxNumber: 10,
+          correctPageId: '',
+          incorrectPageId: '',
+          attempts: 3,
+          resultVariable: '',
+          showHints: true,
+          continueOnFail: true
+        };
+      case 'challenge_slots':
+        return {
+          prompt: 'Pull the lever!',
+          symbols: ['🍒', '🍋', '🍊', '🍇', '⭐', '💎'],
+          reels: 3,
+          winCondition: 'all_match',
+          specificPattern: ['💎', '💎', '💎'],
+          winPageId: '',
+          losePageId: '',
+          resultVariable: '',
+          autoPull: false
+        };
+      case 'challenge_card':
+        return {
+          prompt: 'Draw a card!',
+          deckType: 'standard',
+          mode: 'ranges',
+          ranges: [
+            { min: 1, max: 5, label: 'Low', targetPageId: '' },
+            { min: 6, max: 10, label: 'Mid', targetPageId: '' },
+            { min: 11, max: 13, label: 'Face', targetPageId: '' }
+          ],
+          suitOutcomes: [],
+          resultVariable: '',
+          resultValueVariable: '',
+          resultSuitVariable: '',
+          autoDraw: false
+        };
+      case 'challenge_simon':
+        return {
+          prompt: 'Repeat the pattern!',
+          sequenceLength: 5,
+          colors: ['red', 'blue', 'green', 'yellow'],
+          speed: 'normal',
+          successPageId: '',
+          failPageId: '',
+          resultVariable: '',
+          allowRetry: false,
+          retries: 0
+        };
+      case 'challenge_reflex':
+        return {
+          prompt: 'Click when you see the signal!',
+          targetTime: 500,
+          waitMin: 1000,
+          waitMax: 3000,
+          successPageId: '',
+          failPageId: '',
+          resultVariable: '',
+          showReactionTime: true,
+          penalizeFalseStart: true
+        };
       case 'end':
         return { endingType: 'normal', message: 'The End' };
       default:

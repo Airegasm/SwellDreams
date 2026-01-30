@@ -25,9 +25,16 @@ const activeProcesses = new Set();
 function killAllPythonProcesses() {
   for (const proc of activeProcesses) {
     try {
-      proc.kill('SIGKILL');
+      // Check if process is still running before trying to kill it
+      if (proc && proc.pid && !proc.killed && proc.exitCode === null) {
+        // On Windows, use default signal (SIGTERM) which is handled as process termination
+        proc.kill();
+      }
     } catch (e) {
-      log.error('Failed to kill process:', e.message);
+      // Ignore EPIPE errors (process already dead) and other harmless errors
+      if (e.code !== 'EPIPE' && e.errno !== -4047) {
+        log.error('Failed to kill process:', e.message);
+      }
     }
   }
   activeProcesses.clear();
@@ -55,13 +62,17 @@ function executePython(script, args = [], timeoutMs = 30000) {
     // Set timeout for process
     const timeout = setTimeout(() => {
       killed = true;
-      proc.kill('SIGTERM');
-      // Force kill if SIGTERM doesn't work after 5 seconds
-      setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill('SIGKILL');
+      try {
+        // Check if process is still running before trying to kill it
+        if (proc && proc.pid && !proc.killed && proc.exitCode === null) {
+          proc.kill(); // Use default signal for Windows compatibility
         }
-      }, 5000);
+      } catch (e) {
+        // Ignore EPIPE errors (process already dead)
+        if (e.code !== 'EPIPE' && e.errno !== -4047) {
+          log.error('Failed to kill timed-out process:', e.message);
+        }
+      }
       activeProcesses.delete(proc);
       reject(new Error(`Python script ${script} timed out after ${timeoutMs}ms`));
     }, timeoutMs);
@@ -208,6 +219,26 @@ class DeviceService {
         console.warn(`[DeviceService] Could not emit final runtime for ${stateKey}: missing device or calibrationTime`);
       }
     }
+  }
+
+  /**
+   * Stop ALL pump runtime tracking intervals (for emergency stop)
+   * This ensures all intervals are cleared even if there are key mismatches
+   */
+  stopAllPumpRuntimeTracking() {
+    console.log(`[DeviceService] Stopping ALL pump runtime tracking - ${this.pumpRuntimeIntervals.size} active intervals`);
+
+    // Clear all intervals
+    for (const [stateKey, interval] of this.pumpRuntimeIntervals.entries()) {
+      clearInterval(interval);
+      console.log(`[DeviceService] Cleared interval for ${stateKey}`);
+    }
+
+    // Clear the maps
+    this.pumpRuntimeIntervals.clear();
+    this.pumpStartTimes.clear();
+
+    console.log('[DeviceService] All pump runtime tracking stopped');
   }
 
   /**
@@ -685,6 +716,56 @@ class DeviceService {
       return { success: true, message: 'Cycle stopped' };
     }
     return { success: false, message: 'No active cycle' };
+  }
+
+  /**
+   * Pulse device (quick on/off bursts)
+   * @param {string} ip - Device IP or ID
+   * @param {number} pulses - Number of pulses (default 3)
+   * @param {Object} device - Optional device object with brand info
+   */
+  async pulsePump(ip, pulses = 3, device = null) {
+    console.log(`[DeviceService] pulsePump called: ip=${ip}, pulses=${pulses}, brand=${device?.brand}`);
+
+    let currentPulse = 0;
+    const pulseDuration = 500; // 0.5 seconds on
+    const pulseInterval = 1000; // 1 second total (0.5s on, 0.5s off)
+
+    const runPulse = async () => {
+      if (currentPulse >= pulses) {
+        console.log(`[DeviceService] Pulse complete after ${currentPulse} pulses`);
+        return;
+      }
+
+      currentPulse++;
+      console.log(`[DeviceService] Pulse ${currentPulse}: turning ON device ${ip}`);
+
+      try {
+        await this.turnOn(ip, device);
+        this.emitEvent('pulse_on', { ip, pulse: currentPulse, device });
+
+        // Turn off after pulse duration
+        setTimeout(async () => {
+          try {
+            console.log(`[DeviceService] Pulse ${currentPulse}: turning OFF device ${ip}`);
+            await this.turnOff(ip, device);
+            this.emitEvent('pulse_off', { ip, pulse: currentPulse, device });
+
+            // Schedule next pulse
+            if (currentPulse < pulses) {
+              setTimeout(runPulse, pulseInterval - pulseDuration);
+            }
+          } catch (err) {
+            console.error(`[DeviceService] Pulse ${currentPulse}: error in turnOff:`, err.message);
+          }
+        }, pulseDuration);
+      } catch (err) {
+        console.error(`[DeviceService] Pulse ${currentPulse}: error in turnOn:`, err.message);
+      }
+    };
+
+    await runPulse();
+    return { success: true, message: `Pulsing ${pulses} times` };
   }
 
   /**

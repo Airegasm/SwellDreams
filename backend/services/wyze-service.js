@@ -32,7 +32,16 @@ class WyzeService {
       let stderr = '';
 
       const timeout = setTimeout(() => {
-        proc.kill('SIGTERM');
+        try {
+          if (proc && proc.pid && !proc.killed && proc.exitCode === null) {
+            proc.kill(); // Use default signal for Windows compatibility
+          }
+        } catch (e) {
+          // Ignore EPIPE errors
+          if (e.code !== 'EPIPE' && e.errno !== -4047) {
+            log.error('Failed to kill timed-out Wyze process:', e.message);
+          }
+        }
         reject(new Error(`Wyze API timeout after ${timeoutMs}ms`));
       }, timeoutMs);
 

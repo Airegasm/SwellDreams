@@ -49,7 +49,7 @@ if errorlevel 1 (
     echo Warning: Python not found. Some features may be limited.
 ) else (
     echo Installing Python dependencies...
-    py -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+    python -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
 )
 
 REM Install/update backend dependencies
@@ -62,6 +62,11 @@ if not exist "package.json" (
     exit /b 1
 )
 call npm install
+if errorlevel 1 (
+    echo ERROR: Backend npm install failed!
+    pause
+    exit /b 1
+)
 
 REM Install/update frontend dependencies
 echo.
@@ -73,6 +78,11 @@ if not exist "package.json" (
     exit /b 1
 )
 call npm install
+if errorlevel 1 (
+    echo ERROR: Frontend npm install failed!
+    pause
+    exit /b 1
+)
 
 REM Remove old build and rebuild frontend
 echo.
@@ -80,6 +90,11 @@ echo Removing old frontend build...
 if exist "build" rmdir /s /q "build"
 echo Building frontend for production...
 call npm run build
+if errorlevel 1 (
+    echo ERROR: Frontend build failed!
+    pause
+    exit /b 1
+)
 
 REM Start server in new window
 echo.
