@@ -545,7 +545,7 @@ export function RPSModal({ challengeData, onResult, onCancel, compact = false })
           </div>
           <div className="rps-vs">VS</div>
           <div className="rps-character">
-            <div className="rps-label">Character</div>
+            <div className="rps-label">Opponent</div>
             <div className={`rps-choice ${characterChoice ? 'revealed' : ''}`}>
               {characterChoice ? choices.find(c => c.id === characterChoice)?.emoji : '?'}
             </div>
@@ -553,7 +553,7 @@ export function RPSModal({ challengeData, onResult, onCancel, compact = false })
         </div>
         {roundResult && (
           <div className={`round-result ${roundResult}`}>
-            {roundResult === 'tie' ? "It's a tie!" : roundResult === 'player' ? 'You win this round!' : 'Character wins!'}
+            {roundResult === 'tie' ? '🔄' : roundResult === 'player' ? '✓' : '✗'}
           </div>
         )}
         {!isRevealing && !gameOver && (
@@ -572,7 +572,7 @@ export function RPSModal({ challengeData, onResult, onCancel, compact = false })
         )}
         {gameOver && (
           <div className="challenge-result">
-            🎉 {scores.player > scores.character ? 'You Win!' : 'Character Wins!'}
+            ✓ Complete
           </div>
         )}
       </div>
