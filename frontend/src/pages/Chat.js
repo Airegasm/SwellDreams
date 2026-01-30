@@ -55,6 +55,9 @@ function Chat() {
   const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
 
+  // Challenge result display (for inline challenges)
+  const [challengeResult, setChallengeResult] = useState(null);
+
   // Quick text state
   const [quickTexts, setQuickTexts] = useState([]);
   const [showQuickMenu, setShowQuickMenu] = useState(false);
@@ -160,8 +163,8 @@ function Chat() {
     setPersonaActionPage(0);
   }, [activePersona?.id]);
 
-  // Panel blocking - disable interactions when slide panel is open
-  const isPanelBlocking = !!(playerChoiceData || challengeData);
+  // Panel blocking - disable interactions when slide panel is open (challenges are now inline)
+  const isPanelBlocking = !!(playerChoiceData);
 
   // Flow in progress - disable action buttons and guided buttons while flow is executing
   const flowInProgress = flowExecutions && flowExecutions.length > 0;
@@ -189,6 +192,25 @@ function Chat() {
     characterName: activeCharacter?.name,
     sessionState
   }), [activePersona?.displayName, activeCharacter?.name, sessionState]);
+
+  // Wrapper for challenge result to show inline result before clearing
+  const handleInlineChallengeResult = useCallback((resultData) => {
+    // Extract a display label from the result
+    const label = typeof resultData === 'object'
+      ? (resultData.segmentLabel || resultData.outcome || resultData.outputId || 'Complete')
+      : resultData;
+    setChallengeResult(label);
+    // Clear result after brief display
+    setTimeout(() => setChallengeResult(null), 2000);
+    // Pass to actual handler
+    handleChallengeResult(resultData);
+  }, [handleChallengeResult]);
+
+  const handleInlineChallengeCancel = useCallback(() => {
+    setChallengeResult('Skipped');
+    setTimeout(() => setChallengeResult(null), 1500);
+    handleChallengeCancel();
+  }, [handleChallengeCancel]);
 
   // Helper to get active welcome message
   const getActiveWelcomeMessage = (character) => {
@@ -1004,7 +1026,7 @@ function Chat() {
 
       {/* Blocking overlay for slide panel interactions */}
       <div
-        className={`chat-blocking-overlay ${playerChoiceData || challengeData || inputData ? 'visible' : ''}`}
+        className={`chat-blocking-overlay ${playerChoiceData || inputData ? 'visible' : ''}`}
       />
 
       {/* Mobile Header Badges - StatusBadges in header area on mobile */}
@@ -1180,17 +1202,8 @@ function Chat() {
           </div>
         )}
 
-        {/* Interactive overlay - slides down from top for challenges, choices, etc */}
-        <div className={`challenge-overlay ${(challengeData || playerChoiceData || inputData) ? 'open' : ''}`}>
-          {challengeData && (
-            <ChallengeModal
-              challengeData={challengeData}
-              onResult={handleChallengeResult}
-              onCancel={handleChallengeCancel}
-              onPenalty={handleChallengePenalty}
-              compact={false}
-            />
-          )}
+        {/* Interactive overlay - slides down from top for choices, inputs (challenges now inline) */}
+        <div className={`challenge-overlay ${(playerChoiceData || inputData) ? 'open' : ''}`}>
           {playerChoiceData && (
             <PlayerChoiceModal
               choiceData={playerChoiceData}
@@ -1341,6 +1354,34 @@ function Chat() {
               </div>
             </div>
           )}
+
+          {/* Inline challenge display */}
+          {challengeData && (
+            <div className="message message-challenge">
+              <div className="message-header">
+                <span className="message-sender">Challenge</span>
+              </div>
+              <div className="challenge-inline-container">
+                <ChallengeModal
+                  challengeData={challengeData}
+                  onResult={handleInlineChallengeResult}
+                  onCancel={handleInlineChallengeCancel}
+                  onPenalty={handleChallengePenalty}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Challenge result display */}
+          {challengeResult && !challengeData && (
+            <div className="message message-challenge-result">
+              <div className="challenge-result-display">
+                ✓ {challengeResult}
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
