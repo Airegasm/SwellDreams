@@ -37,11 +37,23 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
   // Get the selected play
   const selectedPlay = plays.find(p => p.id === selectedPlayId);
 
-  // Get player-assignable actor from play's actors
+  // Get player-assignable actor from play's actors (for editing)
   const playerAssignableActor = useMemo(() => {
     if (!editedActors.length) return null;
     return actors.find(a => editedActors.includes(a.id) && a.isPlayerAssignable);
   }, [editedActors, actors]);
+
+  // Get player-assignable actor from new play's actors (for creating)
+  const newPlayPlayerActor = useMemo(() => {
+    if (!newPlayActors.length) return null;
+    return actors.find(a => newPlayActors.includes(a.id) && a.isPlayerAssignable);
+  }, [newPlayActors, actors]);
+
+  // Check if selected play has a player-assignable actor
+  const selectedPlayHasPlayerActor = useMemo(() => {
+    if (!selectedPlay?.actors?.length) return false;
+    return actors.some(a => selectedPlay.actors.includes(a.id) && a.isPlayerAssignable);
+  }, [selectedPlay, actors]);
 
   // Get non-player actors for Inflatee 2 dropdown
   const availableInflatee2Actors = useMemo(() => {
@@ -70,7 +82,7 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
   }, [selectedPlayId]); // Only trigger on play selection change, not on data updates
 
   const handleCreatePlay = async () => {
-    if (!newPlayName.trim()) return;
+    if (!newPlayName.trim() || !newPlayPlayerActor) return;
 
     try {
       const newPlay = {
@@ -79,7 +91,7 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
         location: newPlayLocation.trim(),
         actorRelationships: newPlayRelationships.trim(),
         actors: newPlayActors,
-        playerActorId: null,
+        playerActorId: newPlayPlayerActor.id, // Auto-set to player-assignable actor
         authorMode: '2nd-person',
         startPageId: 'page-1',
         pages: {
@@ -313,11 +325,11 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
               </div>
 
               <div className="form-group">
-                <label>Actors</label>
+                <label>Actors {!newPlayPlayerActor && newPlayActors.length > 0 && <span className="warning-text">(needs player-assignable actor)</span>}</label>
                 <div className="actors-manager">
                   <div className="selected-actors">
                     {newPlayActors.length === 0 ? (
-                      <span className="no-actors">No actors added</span>
+                      <span className="no-actors">Add at least one player-assignable actor</span>
                     ) : (
                       newPlayActors.map(actorId => {
                         const actor = actors.find(a => a.id === actorId);
@@ -361,7 +373,8 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
                 <button
                   className="btn btn-primary"
                   onClick={handleCreatePlay}
-                  disabled={!newPlayName.trim()}
+                  disabled={!newPlayName.trim() || !newPlayPlayerActor}
+                  title={!newPlayPlayerActor ? 'Add at least one player-assignable actor' : ''}
                 >
                   Create Play
                 </button>
@@ -375,6 +388,8 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
                   <button
                     className="btn btn-primary"
                     onClick={() => setPlayingPlayId(selectedPlay.id)}
+                    disabled={!selectedPlayHasPlayerActor}
+                    title={!selectedPlayHasPlayerActor ? 'Add a player-assignable actor to play' : ''}
                   >
                     ▶ Play
                   </button>
@@ -427,11 +442,11 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
               </div>
 
               <div className="form-group">
-                <label>Actors ({editedActors.length})</label>
+                <label>Actors ({editedActors.length}) {!playerAssignableActor && <span className="warning-text">(needs player-assignable actor to play)</span>}</label>
                 <div className="actors-manager">
                   <div className="selected-actors">
                     {editedActors.length === 0 ? (
-                      <span className="no-actors">No actors in this play</span>
+                      <span className="no-actors">Add at least one player-assignable actor</span>
                     ) : (
                       editedActors.map(actorId => {
                         const actor = actors.find(a => a.id === actorId);

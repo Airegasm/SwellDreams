@@ -289,6 +289,12 @@
   font-style: italic;
 }
 
+.warning-text {
+  color: #f59e0b;
+  font-size: 0.85em;
+  font-weight: normal;
+}
+
 .actor-chip {
   display: flex;
   align-items: center;
