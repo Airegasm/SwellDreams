@@ -1733,11 +1733,11 @@ function PlayViewer({ playId, onClose }) {
                 {currentInlineChoice?.data?.continueText || 'Continue'}
               </button>
             </div>
-          ) : !isEnded && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
+          ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
             <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
               {isProcessing ? '...' : 'Continue'}
             </button>
-          ) : !isEnded && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
+          ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
             <div className="page-end-message">
               End of page - add more paragraphs or an ending
             </div>
@@ -2000,7 +2000,7 @@ function PlayViewer({ playId, onClose }) {
                   {currentInlineChoice?.data?.continueText || 'Continue'}
                 </button>
               </div>
-            ) : !isEnded && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
+            ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
               <>
                 <button className="mobile-controls-btn" onClick={() => setMobileControlsOpen(true)}>
                   Controls
@@ -2009,7 +2009,7 @@ function PlayViewer({ playId, onClose }) {
                   {isProcessing ? '...' : 'Continue'}
                 </button>
               </>
-            ) : !isEnded && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
+            ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
               <div className="page-end-message">
                 End of page - add more paragraphs or an ending
               </div>
