@@ -1042,10 +1042,13 @@ function PlayViewer({ playId, onClose }) {
           setDisplayedToasts(prev => prev.filter(t => t.id !== toastId));
         }, toastDuration + 500); // +500ms for fade animation
 
-        // Advance immediately without waiting
+        // Advance to next paragraph immediately (don't wait for toast to fade)
+        // Must increment index and trigger advance in separate ticks for React state to settle
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
-        setAutoAdvancePending(true);
+        requestAnimationFrame(() => {
+          setAutoAdvancePending(true);
+        });
         break;
 
       case 'challenge_wheel':
