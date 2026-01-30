@@ -168,9 +168,9 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
         return {
           prompt: 'Spin the wheel!',
           segments: [
-            { label: 'Prize 1', color: '#ff6b6b', weight: 1, targetPageId: '' },
-            { label: 'Prize 2', color: '#4ecdc4', weight: 1, targetPageId: '' },
-            { label: 'Prize 3', color: '#ffe66d', weight: 1, targetPageId: '' }
+            { label: 'Prize 1', color: '#ff6b6b', weight: 1, segmentType: 'page', targetPageId: '' },
+            { label: 'Prize 2', color: '#4ecdc4', weight: 1, segmentType: 'page', targetPageId: '' },
+            { label: 'Prize 3', color: '#ffe66d', weight: 1, segmentType: 'page', targetPageId: '' }
           ],
           skipTargetPageId: '',
           resultVariable: '',

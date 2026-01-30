@@ -133,15 +133,26 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
         requestAnimationFrame(animate);
       } else {
         setIsSpinning(false);
-        setResult(segments[selectedIndex]);
-        // Auto-submit after showing result - pass extended result object
-        setTimeout(() => {
-          onResult({
-            outputId: segments[selectedIndex].id,
-            segmentLabel: segments[selectedIndex].label,
-            allSegments: segments.map(s => s.label)
-          });
-        }, 1500);
+        const selectedSegment = segments[selectedIndex];
+        setResult(selectedSegment);
+
+        // Check if this is a spin_again segment
+        if (selectedSegment.segmentType === 'spin_again') {
+          // Reset result after brief display and allow another spin
+          setTimeout(() => {
+            setResult(null);
+          }, 1500);
+        } else {
+          // Auto-submit after showing result - pass extended result object
+          setTimeout(() => {
+            onResult({
+              outputId: selectedSegment.id,
+              segmentLabel: selectedSegment.label,
+              targetPageId: selectedSegment.targetPageId,
+              allSegments: segments.map(s => s.label)
+            });
+          }, 1500);
+        }
       }
     };
 
@@ -162,15 +173,15 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
         <div className="wheel-side-panel">
           {result && (
             <div className="challenge-result" style={{ color: result.color }}>
-              🎉 {result.label}!
+              {result.segmentType === 'spin_again' ? '🔄 Spin Again!' : `🎉 ${result.label}!`}
             </div>
           )}
           <button
             className="btn btn-primary btn-large"
             onClick={handleSpin}
-            disabled={isSpinning || result}
+            disabled={isSpinning || (result && result.segmentType !== 'spin_again')}
           >
-            {isSpinning ? 'Spinning...' : result ? 'Complete!' : 'SPIN'}
+            {isSpinning ? 'Spinning...' : (result && result.segmentType !== 'spin_again') ? 'Complete!' : 'SPIN'}
           </button>
           {onCancel && !isSpinning && !result && (
             <button

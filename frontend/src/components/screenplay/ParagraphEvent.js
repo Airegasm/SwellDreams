@@ -1587,72 +1587,90 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', marginBottom: '5px' }}>Wheel Segments:</label>
               {(data.segments || []).map((seg, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center' }}>
-                  <input
-                    type="text"
-                    value={seg.label}
-                    onChange={(e) => {
-                      const newSegments = [...data.segments];
-                      newSegments[idx].label = e.target.value;
-                      handleDataChange('segments', newSegments);
-                    }}
-                    placeholder="Label"
-                    style={{ flex: 1 }}
-                  />
-                  <input
-                    type="color"
-                    value={seg.color || '#ccc'}
-                    onChange={(e) => {
-                      const newSegments = [...data.segments];
-                      newSegments[idx].color = e.target.value;
-                      handleDataChange('segments', newSegments);
-                    }}
-                    style={{ width: '50px' }}
-                  />
-                  <input
-                    type="number"
-                    value={seg.weight || 1}
-                    onChange={(e) => {
-                      const newSegments = [...data.segments];
-                      newSegments[idx].weight = parseInt(e.target.value) || 1;
-                      handleDataChange('segments', newSegments);
-                    }}
-                    placeholder="Weight"
-                    style={{ width: '70px' }}
-                    min="1"
-                  />
-                  <select
-                    value={seg.targetPageId || ''}
-                    onChange={(e) => {
-                      const newSegments = [...data.segments];
-                      newSegments[idx].targetPageId = e.target.value;
-                      handleDataChange('segments', newSegments);
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    <option value="">Continue...</option>
-                    {Object.keys(allPages).map(pageId => (
-                      <option key={pageId} value={pageId}>
-                        {allPages[pageId].title}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      const newSegments = data.segments.filter((_, i) => i !== idx);
-                      handleDataChange('segments', newSegments);
-                    }}
-                    style={{ padding: '4px 8px' }}
-                  >
-                    ×
-                  </button>
+                <div key={idx} style={{ marginBottom: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={seg.label}
+                      onChange={(e) => {
+                        const newSegments = [...data.segments];
+                        newSegments[idx].label = e.target.value;
+                        handleDataChange('segments', newSegments);
+                      }}
+                      placeholder="Label"
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      type="color"
+                      value={seg.color || '#ccc'}
+                      onChange={(e) => {
+                        const newSegments = [...data.segments];
+                        newSegments[idx].color = e.target.value;
+                        handleDataChange('segments', newSegments);
+                      }}
+                      style={{ width: '50px' }}
+                    />
+                    <input
+                      type="number"
+                      value={seg.weight || 1}
+                      onChange={(e) => {
+                        const newSegments = [...data.segments];
+                        newSegments[idx].weight = parseInt(e.target.value) || 1;
+                        handleDataChange('segments', newSegments);
+                      }}
+                      placeholder="Weight"
+                      style={{ width: '70px' }}
+                      min="1"
+                    />
+                    <button
+                      onClick={() => {
+                        const newSegments = data.segments.filter((_, i) => i !== idx);
+                        handleDataChange('segments', newSegments);
+                      }}
+                      style={{ padding: '4px 8px' }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                    <select
+                      value={seg.segmentType || 'page'}
+                      onChange={(e) => {
+                        const newSegments = [...data.segments];
+                        newSegments[idx].segmentType = e.target.value;
+                        handleDataChange('segments', newSegments);
+                      }}
+                      style={{ width: '120px' }}
+                    >
+                      <option value="page">Go to Page</option>
+                      <option value="spin_again">Spin Again</option>
+                    </select>
+                    {(seg.segmentType || 'page') === 'page' && (
+                      <select
+                        value={seg.targetPageId || ''}
+                        onChange={(e) => {
+                          const newSegments = [...data.segments];
+                          newSegments[idx].targetPageId = e.target.value;
+                          handleDataChange('segments', newSegments);
+                        }}
+                        style={{ flex: 1 }}
+                      >
+                        <option value="">Continue...</option>
+                        {Object.keys(allPages).map(pageId => (
+                          <option key={pageId} value={pageId}>
+                            {allPages[pageId].title}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </div>
               ))}
               <button
                 onClick={() => {
                   const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da'];
                   const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                  const newSegments = [...(data.segments || []), { label: '', color: randomColor, weight: 1, targetPageId: '' }];
+                  const newSegments = [...(data.segments || []), { label: '', color: randomColor, weight: 1, segmentType: 'page', targetPageId: '' }];
                   handleDataChange('segments', newSegments);
                 }}
                 style={{ marginTop: '5px' }}
