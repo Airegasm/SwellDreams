@@ -231,9 +231,6 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
 
   return (
     <div className="plays-tab">
-      <div className="alpha-warning">
-        <strong>SCREENPLAY IS IN EARLY ALPHA - EXPECT BUGS</strong>
-      </div>
       <div className="plays-layout">
         {/* Left side - Play list */}
         <div className="plays-list-panel">
