@@ -1010,7 +1010,9 @@
 
 .reflex-game-area {
   width: 100%;
+  max-width: 400px;
   height: 200px;
+  margin: 0 auto;
   background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
   border: 2px solid var(--border-color);
   border-radius: 8px;
@@ -1059,6 +1061,7 @@
 }
 
 .challenge-modal.compact .reflex-game-area {
+  max-width: 300px;
   height: 150px;
 }
 

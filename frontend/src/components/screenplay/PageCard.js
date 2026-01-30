@@ -22,7 +22,6 @@ const PARAGRAPH_TYPES = [
   { type: 'challenge_dice', label: 'Dice Roll', icon: '🎲' },
   { type: 'challenge_coin', label: 'Coin Flip', icon: '🪙' },
   { type: 'challenge_rps', label: 'Rock Paper Scissors', icon: '✊' },
-  { type: 'challenge_timer', label: 'Timer Challenge', icon: '⏱️' },
   { type: 'challenge_number_guess', label: 'Number Guess', icon: '🔢' },
   { type: 'challenge_slots', label: 'Slot Machine', icon: '🎰' },
   { type: 'challenge_card', label: 'Card Draw', icon: '🃏' },
@@ -173,6 +172,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
             { label: 'Prize 2', color: '#4ecdc4', weight: 1, targetPageId: '' },
             { label: 'Prize 3', color: '#ffe66d', weight: 1, targetPageId: '' }
           ],
+          skipTargetPageId: '',
           resultVariable: '',
           autoSpin: false
         };
@@ -187,6 +187,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
             { min: 5, max: 6, label: 'High', targetPageId: '' }
           ],
           directOutcomes: [],
+          skipTargetPageId: '',
           resultVariable: '',
           autoRoll: false
         };
@@ -195,6 +196,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           prompt: 'Flip the coin!',
           headsPageId: '',
           tailsPageId: '',
+          skipTargetPageId: '',
           resultVariable: '',
           autoFlip: false
         };
@@ -205,20 +207,10 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           winPageId: '',
           losePageId: '',
           tiePageId: '',
+          skipTargetPageId: '',
           resultVariable: '',
           playerChoiceVariable: '',
           showOpponentChoice: true
-        };
-      case 'challenge_timer':
-        return {
-          prompt: 'Stop the timer!',
-          targetTime: 5.0,
-          tolerance: 0.5,
-          maxTime: 10.0,
-          successPageId: '',
-          failPageId: '',
-          resultVariable: '',
-          showTargetTime: true
         };
       case 'challenge_number_guess':
         return {
@@ -227,6 +219,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           maxNumber: 10,
           correctPageId: '',
           incorrectPageId: '',
+          skipTargetPageId: '',
           attempts: 3,
           resultVariable: '',
           showHints: true,
@@ -241,6 +234,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           specificPattern: ['💎', '💎', '💎'],
           winPageId: '',
           losePageId: '',
+          skipTargetPageId: '',
           resultVariable: '',
           autoPull: false
         };
@@ -255,6 +249,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
             { min: 11, max: 13, label: 'Face', targetPageId: '' }
           ],
           suitOutcomes: [],
+          skipTargetPageId: '',
           resultVariable: '',
           resultValueVariable: '',
           resultSuitVariable: '',
@@ -268,6 +263,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           speed: 'normal',
           successPageId: '',
           failPageId: '',
+          skipTargetPageId: '',
           resultVariable: '',
           allowRetry: false,
           retries: 0
@@ -280,6 +276,7 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
           waitMax: 3000,
           successPageId: '',
           failPageId: '',
+          skipTargetPageId: '',
           resultVariable: '',
           showReactionTime: true,
           penalizeFalseStart: true

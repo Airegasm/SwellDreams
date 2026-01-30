@@ -21,7 +21,6 @@ const TYPE_ICONS = {
   challenge_dice: '🎲',
   challenge_coin: '🪙',
   challenge_rps: '✊',
-  challenge_timer: '⏱️',
   challenge_number_guess: '🔢',
   challenge_slots: '🎰',
   challenge_card: '🃏',
@@ -1393,6 +1392,22 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
               />
             </div>
 
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Go to page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <label>
               <input
                 type="checkbox"
@@ -1531,6 +1546,22 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
               />
             </div>
 
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Go to page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <label>
               <input
                 type="checkbox"
@@ -1640,6 +1671,22 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
               />
             </div>
 
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Go to page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <label>
               <input
                 type="checkbox"
@@ -1744,6 +1791,22 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
               />
             </div>
 
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Go to page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <label>
               <input
                 type="checkbox"
@@ -1838,6 +1901,22 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                 placeholder="Variable to store guessed number"
                 style={{ width: '100%' }}
               />
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Go to page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>
+                    {allPages[pageId].title}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <label style={{ display: 'block', marginBottom: '5px' }}>

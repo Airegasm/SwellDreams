@@ -8,6 +8,10 @@ import ChallengeDice from './challenges/ChallengeDice';
 import ChallengeWheel from './challenges/ChallengeWheel';
 import ChallengeRPS from './challenges/ChallengeRPS';
 import ChallengeNumberGuess from './challenges/ChallengeNumberGuess';
+import ChallengeSlots from './challenges/ChallengeSlots';
+import ChallengeCard from './challenges/ChallengeCard';
+import ChallengeSimon from './challenges/ChallengeSimon';
+import ChallengeReflex from './challenges/ChallengeReflex';
 
 function PlayViewer({ playId, onClose }) {
   const { plays, actors, settings, devices, sendWsMessage, sessionState } = useApp();
@@ -1048,13 +1052,18 @@ function PlayViewer({ playId, onClose }) {
       case 'challenge_dice':
       case 'challenge_coin':
       case 'challenge_rps':
-      case 'challenge_timer':
       case 'challenge_number_guess':
       case 'challenge_slots':
       case 'challenge_card':
       case 'challenge_simon':
       case 'challenge_reflex':
-        // Show challenge modal
+        // Add challenge as inline bubble (not modal)
+        setDisplayedParagraphs(prev => [...prev, {
+          type: para.type,
+          data: para.data,
+          key: `${currentPageId}-${para.id}-challenge`,
+          paraId: para.id
+        }]);
         setCurrentChallengeType(para.type);
         setCurrentChallengeData(para.data);
         setIsWaitingForChallenge(true);
@@ -1331,7 +1340,21 @@ function PlayViewer({ playId, onClose }) {
 
   // Handle challenge completion
   const handleChallengeComplete = useCallback((result) => {
+    if (!isWaitingForChallenge) return; // Prevent double-trigger
+
     setIsWaitingForChallenge(false);
+
+    // Replace the challenge in displayedParagraphs with a result display
+    setDisplayedParagraphs(prev => prev.map(p =>
+      p.type === currentChallengeType ? {
+        ...p,
+        type: 'challenge_result',
+        data: {
+          challengeType: currentChallengeType,
+          result: result.segmentLabel || result.outcome || result.value || 'Complete'
+        }
+      } : p
+    ));
 
     // Store result in session variables if resultVariable specified
     if (currentChallengeData?.resultVariable && result.value !== undefined) {
@@ -1349,18 +1372,22 @@ function PlayViewer({ playId, onClose }) {
       }));
     }
 
+    setCurrentChallengeType(null);
+    const skipTargetPageId = currentChallengeData?.skipTargetPageId;
+    setCurrentChallengeData(null);
+
     // Navigate to target page or continue
-    if (result.targetPageId) {
+    // If cancelled (skip pressed), use skipTargetPageId if set
+    if (result.cancelled && skipTargetPageId) {
+      goToPage(skipTargetPageId);
+    } else if (result.targetPageId) {
       goToPage(result.targetPageId);
     } else {
       // Continue to next paragraph
       setCurrentParaIndex(prev => prev + 1);
-      processNextParagraph();
+      setAutoAdvancePending(true);
     }
-
-    setCurrentChallengeType(null);
-    setCurrentChallengeData(null);
-  }, [currentChallengeData, processNextParagraph, goToPage]);
+  }, [currentChallengeData, currentChallengeType, isWaitingForChallenge, goToPage]);
 
   // Auto-scroll to bottom when new content appears
   useEffect(() => {
@@ -1458,6 +1485,112 @@ function PlayViewer({ playId, onClose }) {
         return (
           <div key={para.key} className={`para-display pump-action ${para.data.action}`}>
             <p>{para.data.text}</p>
+          </div>
+        );
+
+      case 'challenge_wheel':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeWheel
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_dice':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeDice
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_coin':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeCoin
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_rps':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeRPS
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_number_guess':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeNumberGuess
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_slots':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeSlots
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_card':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeCard
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_simon':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeSimon
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_reflex':
+        return (
+          <div key={para.key} className="para-display challenge-bubble">
+            <ChallengeReflex
+              data={para.data}
+              onComplete={handleChallengeComplete}
+              substituteVariables={substituteVariables}
+            />
+          </div>
+        );
+
+      case 'challenge_result':
+        return (
+          <div key={para.key} className="para-display challenge-result">
+            <p>Result: {para.data.result}</p>
           </div>
         );
 
@@ -1986,46 +2119,6 @@ function PlayViewer({ playId, onClose }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {isWaitingForChallenge && currentChallengeType && (
-        <div className="challenge-overlay">
-          {currentChallengeType === 'challenge_coin' && (
-            <ChallengeCoin
-              data={currentChallengeData}
-              onComplete={handleChallengeComplete}
-              substituteVariables={substituteVariables}
-            />
-          )}
-          {currentChallengeType === 'challenge_dice' && (
-            <ChallengeDice
-              data={currentChallengeData}
-              onComplete={handleChallengeComplete}
-              substituteVariables={substituteVariables}
-            />
-          )}
-          {currentChallengeType === 'challenge_wheel' && (
-            <ChallengeWheel
-              data={currentChallengeData}
-              onComplete={handleChallengeComplete}
-              substituteVariables={substituteVariables}
-            />
-          )}
-          {currentChallengeType === 'challenge_rps' && (
-            <ChallengeRPS
-              data={currentChallengeData}
-              onComplete={handleChallengeComplete}
-              substituteVariables={substituteVariables}
-            />
-          )}
-          {currentChallengeType === 'challenge_number_guess' && (
-            <ChallengeNumberGuess
-              data={currentChallengeData}
-              onComplete={handleChallengeComplete}
-              substituteVariables={substituteVariables}
-            />
-          )}
         </div>
       )}
 
