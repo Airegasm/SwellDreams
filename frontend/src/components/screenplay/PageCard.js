@@ -163,7 +163,16 @@ function PageCard({ page, pageIndex, isStartPage, allPages, actors, mediaImages,
       case 'parallel_container':
         return { children: [] };
       case 'popup':
-        return { message: 'Are you sure you want to continue?' };
+        return {
+          message: 'Are you sure you want to continue?',
+          okLabel: 'Ok',
+          okAction: 'continue', // 'continue', 'jump_to_page', 'exit'
+          okTargetPageId: '',
+          cancelEnabled: false,
+          cancelLabel: 'Cancel',
+          cancelAction: 'exit', // 'exit', 'jump_to_page'
+          cancelTargetPageId: ''
+        };
       case 'challenge_wheel':
         return {
           prompt: 'Spin the wheel!',

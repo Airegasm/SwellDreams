@@ -1301,11 +1301,84 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
               value={data.message || ''}
               onChange={(e) => handleDataChange('message', e.target.value)}
               placeholder="Popup message (supports variables)..."
-              rows="4"
-              style={{ width: '100%', resize: 'vertical' }}
+              rows="3"
+              style={{ width: '100%', resize: 'vertical', marginBottom: '10px' }}
             />
-            <div className="para-hint">
-              OK button proceeds to next paragraph, Cancel button exits play
+
+            {/* OK Button Row */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={data.okLabel || 'Ok'}
+                onChange={(e) => handleDataChange('okLabel', e.target.value)}
+                placeholder="Ok"
+                style={{ width: '100px' }}
+              />
+              <select
+                value={data.okAction || 'continue'}
+                onChange={(e) => handleDataChange('okAction', e.target.value)}
+                style={{ flex: 1 }}
+              >
+                <option value="continue">Continue</option>
+                <option value="jump_to_page">Jump to Page</option>
+                <option value="exit">Exit Play</option>
+              </select>
+              {data.okAction === 'jump_to_page' && (
+                <select
+                  value={data.okTargetPageId || ''}
+                  onChange={(e) => handleDataChange('okTargetPageId', e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">Select page...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>
+                      {allPages[pageId].title}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Cancel Button Row */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '24px' }}>
+                <input
+                  type="checkbox"
+                  checked={data.cancelEnabled || false}
+                  onChange={(e) => handleDataChange('cancelEnabled', e.target.checked)}
+                />
+              </label>
+              <input
+                type="text"
+                value={data.cancelLabel || 'Cancel'}
+                onChange={(e) => handleDataChange('cancelLabel', e.target.value)}
+                placeholder="Cancel"
+                style={{ width: '100px' }}
+                disabled={!data.cancelEnabled}
+              />
+              <select
+                value={data.cancelAction || 'exit'}
+                onChange={(e) => handleDataChange('cancelAction', e.target.value)}
+                style={{ flex: 1 }}
+                disabled={!data.cancelEnabled}
+              >
+                <option value="exit">Exit Play</option>
+                <option value="jump_to_page">Jump to Page</option>
+              </select>
+              {data.cancelEnabled && data.cancelAction === 'jump_to_page' && (
+                <select
+                  value={data.cancelTargetPageId || ''}
+                  onChange={(e) => handleDataChange('cancelTargetPageId', e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">Select page...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>
+                      {allPages[pageId].title}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
         );

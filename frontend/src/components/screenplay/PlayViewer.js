@@ -1326,20 +1326,42 @@ function PlayViewer({ playId, onClose }) {
     }, 500);
   }, [handleEmergencyStop, onClose]);
 
-  // Handle popup OK (proceed/continue)
+  // Handle popup OK button
   const handlePopupOk = useCallback(() => {
-    setIsWaitingForPopup(false);
-    setCurrentPopupData(null);
-    setCurrentParaIndex(prev => prev + 1);
-    processNextParagraph();
-  }, [processNextParagraph]);
+    const action = currentPopupData?.okAction || 'continue';
+    const targetPageId = currentPopupData?.okTargetPageId;
 
-  // Handle popup Cancel (exit play)
-  const handlePopupCancel = useCallback(() => {
     setIsWaitingForPopup(false);
     setCurrentPopupData(null);
-    handleExit();
-  }, [handleExit]);
+
+    if (action === 'exit') {
+      handleExit();
+    } else if (action === 'jump_to_page' && targetPageId) {
+      goToPage(targetPageId);
+    } else {
+      // Default: continue to next paragraph
+      setCurrentParaIndex(prev => prev + 1);
+      requestAnimationFrame(() => {
+        setAutoAdvancePending(true);
+      });
+    }
+  }, [currentPopupData, handleExit, goToPage]);
+
+  // Handle popup Cancel button
+  const handlePopupCancel = useCallback(() => {
+    const action = currentPopupData?.cancelAction || 'exit';
+    const targetPageId = currentPopupData?.cancelTargetPageId;
+
+    setIsWaitingForPopup(false);
+    setCurrentPopupData(null);
+
+    if (action === 'jump_to_page' && targetPageId) {
+      goToPage(targetPageId);
+    } else {
+      // Default: exit play
+      handleExit();
+    }
+  }, [currentPopupData, handleExit, goToPage]);
 
   // Handle challenge completion
   const handleChallengeComplete = useCallback((result) => {
@@ -2114,11 +2136,13 @@ function PlayViewer({ playId, onClose }) {
               {substituteVariables(currentPopupData.message || 'Notification')}
             </div>
             <div className="popup-actions">
-              <button className="popup-btn popup-cancel" onClick={handlePopupCancel}>
-                Cancel - Exit
-              </button>
+              {currentPopupData.cancelEnabled && (
+                <button className="popup-btn popup-cancel" onClick={handlePopupCancel}>
+                  {currentPopupData.cancelLabel || 'Cancel'}
+                </button>
+              )}
               <button className="popup-btn popup-ok" onClick={handlePopupOk}>
-                OK - Proceed
+                {currentPopupData.okLabel || 'Ok'}
               </button>
             </div>
           </div>
