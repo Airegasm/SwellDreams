@@ -47,7 +47,11 @@ function PlayViewer({ playId, onClose }) {
   const [displayedToasts, setDisplayedToasts] = useState([]); // Toast notifications
   const [showPumpDialog, setShowPumpDialog] = useState(null); // 'cycle', 'pulse', 'timed', 'until', or null
   const [pumpDialogValues, setPumpDialogValues] = useState({ duration: 5, interval: 10, cycles: 0, pulses: 3, targetCapacity: 100 });
+  const [countdownValue, setCountdownValue] = useState(null); // null = not counting, number = seconds remaining
+  const [autoContinueTrigger, setAutoContinueTrigger] = useState(0); // increment to trigger auto-continue
+  const [isAutoPaused, setIsAutoPaused] = useState(true); // Auto mode starts paused
   const pumpTimerRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
   const mockPumpIntervalRef = useRef(null); // Interval for continuous inflatee2 capacity tracking
   const mockPumpStartTimeRef = useRef(null); // Track when mock pump started for inflatee2
   const mockPumpTrackingActiveRef = useRef(false); // Guard against concurrent tracking starts
@@ -123,6 +127,9 @@ function PlayViewer({ playId, onClose }) {
       if (mockPumpIntervalRef.current) {
         clearInterval(mockPumpIntervalRef.current);
       }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
       mockPumpTrackingActiveRef.current = false; // Clear guard
       // Emergency stop all pumps when component unmounts
       sendWsMessage('screenplay_pump', {
@@ -140,6 +147,86 @@ function PlayViewer({ playId, onClose }) {
       }));
     }
   }, [sessionState?.capacity]);
+
+  // Auto-continue countdown logic
+  const lastCountdownParaRef = useRef(null); // Track last paragraph that had countdown
+
+  // Start countdown when a new paragraph is displayed and conditions are met
+  useEffect(() => {
+    const isAutoMode = play?.continueMode === 'auto';
+    if (!isAutoMode || !playStarted || isAutoPaused) {
+      setCountdownValue(null);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const currentPage = play?.pages?.[currentPageId];
+    const shouldShowContinue = !isEnded && !autoAdvancePending && !isWaitingForChoice &&
+      !isWaitingForInlineChoice && !isWaitingForPopup && !isWaitingForChallenge &&
+      !isProcessing && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0);
+
+    if (!shouldShowContinue) {
+      setCountdownValue(null);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Check if we already started countdown for this paragraph
+    const paraKey = `${currentPageId}-${displayedParagraphs.length}`;
+    if (lastCountdownParaRef.current === paraKey) {
+      return; // Already counting for this paragraph
+    }
+    lastCountdownParaRef.current = paraKey;
+
+    // Clear any existing interval
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+
+    // Calculate delay - cap values to prevent runaway timers
+    const baseDelay = Math.min(20, Math.max(1, play?.autoContinueDelay || 5));
+    const textAllowance = Math.min(20, Math.max(0, play?.dialogAllowance || 0));
+    const enhanceAllowance = Math.min(20, Math.max(0, play?.enhancementAllowance || 0));
+    let delay = baseDelay;
+
+    const lastDisplayed = displayedParagraphs[displayedParagraphs.length - 1];
+    if (lastDisplayed) {
+      const isTextContent = lastDisplayed.type === 'narration' || lastDisplayed.type === 'dialogue' || lastDisplayed.type === 'player_dialogue';
+      const isEnhanced = lastDisplayed.data?.llmEnhance === true;
+      if (isTextContent) delay += textAllowance;
+      if (isEnhanced) delay += enhanceAllowance;
+    }
+
+    console.log('[AutoContinue] Delay calc:', { baseDelay, textAllowance, enhanceAllowance, delay, type: lastDisplayed?.type, enhanced: lastDisplayed?.data?.llmEnhance });
+    setCountdownValue(delay);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdownValue(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+          setAutoContinueTrigger(t => t + 1);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [play, currentPageId, displayedParagraphs.length, isEnded, autoAdvancePending, isWaitingForChoice,
+      isWaitingForInlineChoice, isWaitingForPopup, isWaitingForChallenge, isProcessing, playStarted, isAutoPaused]);
 
   // Get actor by ID
   const getActor = useCallback((actorId) => {
@@ -1243,6 +1330,15 @@ function PlayViewer({ playId, onClose }) {
     processNextParagraph();
   }, [processNextParagraph]);
 
+  // Auto-continue when countdown finishes
+  const lastTriggerRef = useRef(0);
+  useEffect(() => {
+    if (autoContinueTrigger > 0 && autoContinueTrigger !== lastTriggerRef.current) {
+      lastTriggerRef.current = autoContinueTrigger;
+      processNextParagraph();
+    }
+  }, [autoContinueTrigger, processNextParagraph]);
+
   // Go back in history
   const handleBack = useCallback(() => {
     if (history.length === 0) return;
@@ -1734,9 +1830,27 @@ function PlayViewer({ playId, onClose }) {
               </button>
             </div>
           ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
-            <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
-              {isProcessing ? '...' : 'Continue'}
-            </button>
+            play?.continueMode === 'auto' ? (
+              <div className="auto-continue-bar">
+                <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+                  {isProcessing ? '...' : 'Continue'}
+                </button>
+                <button
+                  className="play-pause-btn"
+                  onClick={() => setIsAutoPaused(!isAutoPaused)}
+                  title={isAutoPaused ? 'Start auto-continue' : 'Pause auto-continue'}
+                >
+                  {isAutoPaused ? '▶' : '⏸'}
+                </button>
+                <div className="countdown-display">
+                  {!isAutoPaused && countdownValue !== null ? countdownValue : '—'}
+                </div>
+              </div>
+            ) : (
+              <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+                {isProcessing ? '...' : 'Continue'}
+              </button>
+            )
           ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
             <div className="page-end-message">
               End of page - add more paragraphs or an ending
@@ -1749,7 +1863,7 @@ function PlayViewer({ playId, onClose }) {
       {createPortal(
         <>
           <div className="filmstrip-column filmstrip-left">
-            <div className={`avatar-frame ${playStarted && !isClosing ? 'visible' : ''}`}>
+            <div className={`avatar-frame has-gauge ${playStarted && !isClosing ? 'visible' : ''}`}>
               <div className="frame-name">{inflatee1Actor?.name || 'Player'}</div>
               <div className="portrait-wrapper">
                 {inflatee1Actor?.avatar ? (
@@ -1792,7 +1906,7 @@ function PlayViewer({ playId, onClose }) {
           </div>
 
           <div className="filmstrip-column filmstrip-right">
-            <div className={`avatar-frame ${playStarted && !isClosing ? 'visible' : ''}`}>
+            <div className={`avatar-frame ${play?.inflatee2Enabled ? 'has-gauge' : ''} ${playStarted && !isClosing ? 'visible' : ''}`}>
               <div className="frame-name">{rightImageName || rightActor?.name || '—'}</div>
               <div className="portrait-wrapper">
                 {rightImageUrl ? (
@@ -2005,9 +2119,27 @@ function PlayViewer({ playId, onClose }) {
                 <button className="mobile-controls-btn" onClick={() => setMobileControlsOpen(true)}>
                   Controls
                 </button>
-                <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
-                  {isProcessing ? '...' : 'Continue'}
-                </button>
+                {play?.continueMode === 'auto' ? (
+                  <div className="auto-continue-bar mobile">
+                    <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+                      {isProcessing ? '...' : 'Continue'}
+                    </button>
+                    <button
+                      className="play-pause-btn"
+                      onClick={() => setIsAutoPaused(!isAutoPaused)}
+                      title={isAutoPaused ? 'Start auto-continue' : 'Pause auto-continue'}
+                    >
+                      {isAutoPaused ? '▶' : '⏸'}
+                    </button>
+                    <div className="countdown-display">
+                      {!isAutoPaused && countdownValue !== null ? countdownValue : '—'}
+                    </div>
+                  </div>
+                ) : (
+                  <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+                    {isProcessing ? '...' : 'Continue'}
+                  </button>
+                )}
               </>
             ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex >= (currentPage.paragraphs?.length || 0) ? (
               <div className="page-end-message">

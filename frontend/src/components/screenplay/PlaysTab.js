@@ -34,6 +34,12 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
   const [inflatee2Capacity, setInflatee2Capacity] = useState(0);
   const [maxPainAtFull, setMaxPainAtFull] = useState(10);
 
+  // Continue mode settings
+  const [continueMode, setContinueMode] = useState('manual');
+  const [autoContinueDelay, setAutoContinueDelay] = useState(5);
+  const [dialogAllowance, setDialogAllowance] = useState(3);
+  const [enhancementAllowance, setEnhancementAllowance] = useState(5);
+
   // Get the selected play
   const selectedPlay = plays.find(p => p.id === selectedPlayId);
 
@@ -77,6 +83,11 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
       setInflatee2ActorId(selectedPlay.inflatee2ActorId || '');
       setInflatee2Capacity(selectedPlay.inflatee2Capacity || 0);
       setMaxPainAtFull(selectedPlay.maxPainAtFull ?? 10);
+      // Load continue mode settings
+      setContinueMode(selectedPlay.continueMode || 'manual');
+      setAutoContinueDelay(selectedPlay.autoContinueDelay || 5);
+      setDialogAllowance(selectedPlay.dialogAllowance ?? 3);
+      setEnhancementAllowance(selectedPlay.enhancementAllowance ?? 5);
       setHasChanges(false);
     }
   }, [selectedPlayId]); // Only trigger on play selection change, not on data updates
@@ -145,7 +156,11 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
         inflatee2Enabled,
         inflatee2ActorId: inflatee2Enabled ? inflatee2ActorId : '',
         inflatee2Capacity: inflatee2Enabled ? inflatee2Capacity : 0,
-        maxPainAtFull
+        maxPainAtFull,
+        continueMode,
+        autoContinueDelay,
+        dialogAllowance,
+        enhancementAllowance
       });
       setHasChanges(false);
     } catch (err) {
@@ -232,12 +247,12 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
   return (
     <div className="plays-tab">
       <div className="plays-layout">
-        {/* Left side - Play list */}
-        <div className="plays-list-panel">
-          <div className="tab-header">
-            <h2>Plays</h2>
+        {/* Play list section */}
+        <div className="play-section">
+          <div className="play-section-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+            <span>Plays ({plays.length})</span>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={() => {
                 setIsCreating(true);
                 setSelectedPlayId(null);
@@ -246,31 +261,37 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
               + New
             </button>
           </div>
-
-          <div className="plays-list">
-            {plays.length === 0 ? (
-              <div className="empty-state">
-                <p>No plays yet</p>
-              </div>
-            ) : (
-              plays.map(play => (
-                <div
-                  key={play.id}
-                  className={`play-list-item ${selectedPlayId === play.id ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedPlayId(play.id);
-                    setIsCreating(false);
-                  }}
-                >
-                  <div className="play-list-info">
-                    <h4>{play.name}</h4>
-                    <span className="play-list-meta">
-                      {play.actors?.length || 0} actors · {play.pages ? Object.keys(play.pages).length : 0} pages
-                    </span>
-                  </div>
+          <div className="play-section-content">
+            <div className="plays-list">
+              {plays.length === 0 ? (
+                <div className="empty-state">
+                  <p>No plays yet</p>
                 </div>
-              ))
-            )}
+              ) : (
+                plays.map(play => {
+                  const pageCount = Object.keys(play.pages || {}).length;
+                  const eventCount = Object.values(play.pages || {}).reduce(
+                    (sum, page) => sum + (page.paragraphs?.length || 0), 0
+                  );
+                  const actorCount = play.actors?.length || 0;
+                  return (
+                    <div
+                      key={play.id}
+                      className={`play-list-item ${selectedPlayId === play.id ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSelectedPlayId(play.id);
+                        setIsCreating(false);
+                      }}
+                    >
+                      <span className="play-list-name">{play.name}</span>
+                      <span className="play-list-stat">{pageCount} pages</span>
+                      <span className="play-list-stat">{eventCount} events</span>
+                      <span className="play-list-stat">{actorCount} actors</span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 
@@ -379,167 +400,190 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
             </div>
           ) : selectedPlay ? (
             <div className="play-detail-form">
-              <div className="play-detail-header">
-                <h3>{selectedPlay.name}</h3>
-                <div className="play-detail-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => setPlayingPlayId(selectedPlay.id)}
-                    disabled={!selectedPlayHasPlayerActor}
-                    title={!selectedPlayHasPlayerActor ? 'Add a player-assignable actor to play' : ''}
-                  >
-                    ▶ Play
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => onEditPlay(selectedPlay.id)}
-                  >
-                    ✎ Storyboard
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => handleDeletePlay(selectedPlay.id)}
-                  >
-                    ✕ Delete
-                  </button>
+              {/* Play Title & Actions Section */}
+              <div className="play-section">
+                <div className="play-section-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px'}}>
+                  <span style={{fontSize: '1.1rem'}}>
+                    {selectedPlay.name} {hasChanges && <span style={{color: '#f59e0b'}}>*</span>}
+                  </span>
+                  <div style={{display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
+                    {hasChanges && (
+                      <>
+                        <button className="btn btn-primary btn-sm" onClick={handleSaveChanges}>
+                          Save
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            setEditedScenario(selectedPlay.description || '');
+                            setEditedLocation(selectedPlay.location || '');
+                            setEditedRelationships(selectedPlay.actorRelationships || '');
+                            setEditedActors(selectedPlay.actors || []);
+                            setInflatee1Capacity(selectedPlay.inflatee1Capacity || 0);
+                            setInflatee2Enabled(selectedPlay.inflatee2Enabled || false);
+                            setInflatee2ActorId(selectedPlay.inflatee2ActorId || '');
+                            setInflatee2Capacity(selectedPlay.inflatee2Capacity || 0);
+                            setMaxPainAtFull(selectedPlay.maxPainAtFull ?? 10);
+                            setContinueMode(selectedPlay.continueMode || 'manual');
+                            setAutoContinueDelay(selectedPlay.autoContinueDelay || 5);
+                            setDialogAllowance(selectedPlay.dialogAllowance ?? 3);
+                            setEnhancementAllowance(selectedPlay.enhancementAllowance ?? 5);
+                            setHasChanges(false);
+                          }}
+                        >
+                          Discard
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setPlayingPlayId(selectedPlay.id)}
+                      disabled={!selectedPlayHasPlayerActor}
+                      title={!selectedPlayHasPlayerActor ? 'Add a player-assignable actor to play' : ''}
+                    >
+                      ▶ Play
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => onEditPlay(selectedPlay.id)}
+                    >
+                      ✎ Storyboard
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDeletePlay(selectedPlay.id)}
+                    >
+                      ✕ Delete
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Scenario</label>
-                <textarea
-                  value={editedScenario}
-                  onChange={(e) => handleScenarioChange(e.target.value)}
-                  placeholder="Overall context and setup for the play..."
-                  rows={4}
-                />
-                <span className="form-hint">
-                  This context is provided to the LLM when enhancing dialogue and narration.
-                </span>
+              {/* Story Section */}
+              <div className="play-section">
+                <div className="play-section-header">Story</div>
+                <div className="play-section-content">
+                  <div className="play-form-row" style={{flexDirection: 'column', alignItems: 'stretch'}}>
+                    <label>Scenario</label>
+                    <textarea
+                      value={editedScenario}
+                      onChange={(e) => handleScenarioChange(e.target.value)}
+                      placeholder="Overall context and setup for the play..."
+                      rows={2}
+                    />
+                  </div>
+                  <div className="play-form-row" style={{flexDirection: 'column', alignItems: 'stretch', marginTop: 'var(--spacing-xs)'}}>
+                    <label>Location</label>
+                    <textarea
+                      value={editedLocation}
+                      onChange={(e) => handleLocationChange(e.target.value)}
+                      placeholder="Where does this play take place?"
+                      rows={1}
+                    />
+                  </div>
+                  <div className="play-form-row" style={{flexDirection: 'column', alignItems: 'stretch', marginTop: 'var(--spacing-xs)'}}>
+                    <label>Relationships</label>
+                    <textarea
+                      value={editedRelationships}
+                      onChange={(e) => handleRelationshipsChange(e.target.value)}
+                      placeholder="Actor relationships (e.g., 'Sophie and Mia are roommates')..."
+                      rows={1}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Location</label>
-                <textarea
-                  value={editedLocation}
-                  onChange={(e) => handleLocationChange(e.target.value)}
-                  placeholder="Where does this play take place? Describe the setting..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Actor Relationships</label>
-                <textarea
-                  value={editedRelationships}
-                  onChange={(e) => handleRelationshipsChange(e.target.value)}
-                  placeholder="Describe relationships between actors (e.g., 'Sophie and Mia are college roommates')..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Actors ({editedActors.length}) {!playerAssignableActor && <span className="warning-text">(needs player-assignable actor to play)</span>}</label>
-                <div className="actors-manager">
-                  <div className="selected-actors">
-                    {editedActors.length === 0 ? (
-                      <span className="no-actors">Add at least one player-assignable actor</span>
-                    ) : (
-                      editedActors.map(actorId => {
-                        const actor = actors.find(a => a.id === actorId);
-                        return (
-                          <div key={actorId} className="actor-chip">
-                            {actor?.avatar && (
-                              <img src={actor.avatar} alt="" className="actor-chip-avatar" />
-                            )}
-                            <span>{actor?.name || 'Unknown'}</span>
-                            <button
-                              className="remove-actor-btn"
-                              onClick={() => handleRemoveActor(actorId)}
-                              title="Remove from play"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        );
-                      })
+              {/* Actors Section */}
+              <div className="play-section">
+                <div className="play-section-header">
+                  Actors ({editedActors.length}) {!playerAssignableActor && <span style={{color: '#f59e0b', fontWeight: 400}}> - needs player actor</span>}
+                </div>
+                <div className="play-section-content">
+                  <div className="actors-manager">
+                    <div className="selected-actors">
+                      {editedActors.length === 0 ? (
+                        <span className="no-actors">Add at least one player-assignable actor</span>
+                      ) : (
+                        editedActors.map(actorId => {
+                          const actor = actors.find(a => a.id === actorId);
+                          return (
+                            <div key={actorId} className="actor-chip">
+                              {actor?.avatar && (
+                                <img src={actor.avatar} alt="" className="actor-chip-avatar" />
+                              )}
+                              <span>{actor?.name || 'Unknown'}</span>
+                              <button
+                                className="remove-actor-btn"
+                                onClick={() => handleRemoveActor(actorId)}
+                                title="Remove from play"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                    {availableActors.length > 0 && (
+                      <select
+                        className="add-actor-select"
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) handleAddActor(e.target.value);
+                        }}
+                      >
+                        <option value="">+ Add actor...</option>
+                        {availableActors.map(actor => (
+                          <option key={actor.id} value={actor.id}>
+                            {actor.name}
+                          </option>
+                        ))}
+                      </select>
                     )}
                   </div>
-                  {availableActors.length > 0 && (
-                    <select
-                      className="add-actor-select"
-                      value=""
-                      onChange={(e) => {
-                        if (e.target.value) handleAddActor(e.target.value);
-                      }}
-                    >
-                      <option value="">+ Add actor...</option>
-                      {availableActors.map(actor => (
-                        <option key={actor.id} value={actor.id}>
-                          {actor.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
                 </div>
               </div>
 
               {/* Inflatees Section */}
-              <div className="form-group">
-                <label>Inflatees</label>
-                <div className="inflatees-section">
-                  {/* Inflatee 1 - Player */}
-                  <div className="inflatee-row">
-                    <div className="inflatee-header">
-                      <span className="inflatee-label">Inflatee 1 (Player):</span>
-                      <span className="inflatee-actor">
-                        {playerAssignableActor?.name || '(No player-assignable actor)'}
-                      </span>
-                    </div>
-                    <div className="inflatee-capacity">
-                      <label>Starting Capacity:</label>
-                      <input
-                        type="number"
-                        value={inflatee1Capacity}
-                        onChange={(e) => handleInflatee1CapacityChange(e.target.value)}
-                        min={0}
-                        max={100}
-                        disabled={!playerAssignableActor}
-                      />
-                      <span className="capacity-unit">%</span>
-                    </div>
+              <div className="play-section">
+                <div className="play-section-header">Inflatees</div>
+                <div className="play-section-content">
+                  <div className="play-form-row">
+                    <label>Inflatee 1 (Player)</label>
+                    <span style={{minWidth: '80px'}}>{playerAssignableActor?.name || '(None)'}</span>
+                    <input
+                      type="number"
+                      value={inflatee1Capacity}
+                      onChange={(e) => handleInflatee1CapacityChange(e.target.value)}
+                      min={0}
+                      max={100}
+                      disabled={!playerAssignableActor}
+                    />
+                    <span className="unit">%</span>
                   </div>
-
-                  {/* Inflatee 2 - Optional NPC */}
-                  <div className="inflatee-row">
-                    <div className="inflatee-header">
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={inflatee2Enabled}
-                          onChange={(e) => handleInflatee2Toggle(e.target.checked)}
-                          disabled={availableInflatee2Actors.length === 0}
-                        />
-                        Inflatee 2 (Optional):
-                      </label>
-                      {inflatee2Enabled && (
+                  <div className="play-form-row">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={inflatee2Enabled}
+                        onChange={(e) => handleInflatee2Toggle(e.target.checked)}
+                        disabled={availableInflatee2Actors.length === 0}
+                      />
+                      Inflatee 2
+                    </label>
+                    {inflatee2Enabled ? (
+                      <>
                         <select
                           value={inflatee2ActorId}
                           onChange={(e) => handleInflatee2ActorChange(e.target.value)}
-                          className="inflatee2-actor-select"
                         >
-                          <option value="">Select actor...</option>
+                          <option value="">Select...</option>
                           {availableInflatee2Actors.map(actor => (
                             <option key={actor.id} value={actor.id}>
                               {actor.name}
                             </option>
                           ))}
                         </select>
-                      )}
-                    </div>
-                    {inflatee2Enabled && (
-                      <div className="inflatee-capacity">
-                        <label>Starting Capacity:</label>
                         <input
                           type="number"
                           value={inflatee2Capacity}
@@ -547,56 +591,104 @@ function PlaysTab({ onEditPlay, triggerCreate }) {
                           min={0}
                           max={100}
                         />
-                        <span className="capacity-unit">%</span>
-                      </div>
+                        <span className="unit">%</span>
+                      </>
+                    ) : (
+                      <span style={{color: '#666'}}>Disabled</span>
                     )}
                   </div>
+                  <div className="play-form-row">
+                    <label>Max Pain at 100%</label>
+                    <input
+                      type="number"
+                      value={maxPainAtFull}
+                      onChange={(e) => {
+                        setMaxPainAtFull(Math.max(0, Math.min(10, parseInt(e.target.value) || 10)));
+                        setHasChanges(true);
+                      }}
+                      min={0}
+                      max={10}
+                    />
+                    <span className="unit">/10</span>
+                    <span style={{color: '#666', fontSize: '0.8em'}}>for [Feeling] vars</span>
+                  </div>
+                </div>
+              </div>
 
-                  {/* Pain Scale Settings */}
-                  <div className="inflatee-row pain-scale-row">
-                    <div className="inflatee-capacity">
-                      <label>Max Pain at 100%:</label>
+              {/* Playback Section */}
+              <div className="play-section">
+                <div className="play-section-header">Playback</div>
+                <div className="play-section-content">
+                  <div className="play-form-row">
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="continueMode"
+                        value="manual"
+                        checked={continueMode === 'manual'}
+                        onChange={() => {
+                          setContinueMode('manual');
+                          setHasChanges(true);
+                        }}
+                      />
+                      Manual
+                    </label>
+                    <label className="radio-label">
+                      <input
+                        type="radio"
+                        name="continueMode"
+                        value="auto"
+                        checked={continueMode === 'auto'}
+                        onChange={() => {
+                          setContinueMode('auto');
+                          setHasChanges(true);
+                        }}
+                      />
+                      Auto
+                    </label>
+                  </div>
+                  {continueMode === 'auto' && (
+                    <div className="play-form-row" style={{marginTop: 'var(--spacing-xs)'}}>
+                      <label>Timing</label>
                       <input
                         type="number"
-                        value={maxPainAtFull}
+                        value={autoContinueDelay}
                         onChange={(e) => {
-                          setMaxPainAtFull(Math.max(0, Math.min(10, parseInt(e.target.value) || 10)));
+                          setAutoContinueDelay(Math.max(1, Math.min(20, parseInt(e.target.value) || 5)));
+                          setHasChanges(true);
+                        }}
+                        min={1}
+                        max={20}
+                      />
+                      <span className="unit">base</span>
+                      <span>+</span>
+                      <input
+                        type="number"
+                        value={dialogAllowance}
+                        onChange={(e) => {
+                          setDialogAllowance(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)));
                           setHasChanges(true);
                         }}
                         min={0}
-                        max={10}
+                        max={20}
                       />
-                      <span className="capacity-unit">(0-10)</span>
+                      <span className="unit">text</span>
+                      <span>+</span>
+                      <input
+                        type="number"
+                        value={enhancementAllowance}
+                        onChange={(e) => {
+                          setEnhancementAllowance(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)));
+                          setHasChanges(true);
+                        }}
+                        min={0}
+                        max={20}
+                      />
+                      <span className="unit">enh.</span>
                     </div>
-                    <div className="pain-scale-hint">
-                      Used for [Feeling] and [Feeling_mock] variables
-                    </div>
-                  </div>
+                  )}
                 </div>
-                <span className="form-hint">
-                  Inflatee 2 can be controlled via mock_pump events in the Storyboard.
-                </span>
               </div>
-
-              {hasChanges && (
-                <div className="form-actions">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setEditedScenario(selectedPlay.description || '');
-                      setEditedLocation(selectedPlay.location || '');
-                      setEditedRelationships(selectedPlay.actorRelationships || '');
-                      setEditedActors(selectedPlay.actors || []);
-                      setHasChanges(false);
-                    }}
-                  >
-                    Discard Changes
-                  </button>
-                  <button className="btn btn-primary" onClick={handleSaveChanges}>
-                    Save Changes
-                  </button>
-                </div>
-              )}
 
               <div className="play-stats">
                 <div className="stat">

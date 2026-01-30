@@ -374,6 +374,54 @@
   cursor: not-allowed;
 }
 
+/* Auto-continue bar - contains continue, play/pause, and countdown */
+.auto-continue-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.auto-continue-bar .continue-btn {
+  flex: 1;
+}
+
+.play-pause-btn {
+  width: 50px;
+  height: 100%;
+  min-height: 44px;
+  background: linear-gradient(180deg, #4a4e54 0%, #2d3036 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--border-radius);
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-pause-btn:hover {
+  background: linear-gradient(180deg, #5a5e64 0%, #3d4046 100%);
+  border-color: var(--accent-color);
+}
+
+.countdown-display {
+  width: 50px;
+  height: 100%;
+  min-height: 44px;
+  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Page End Message */
 .page-end-message {
   text-align: center;
@@ -657,8 +705,12 @@
   margin-right: -169px;
 }
 
-/* Bottom bar behind gauge - matches top name bar */
+/* Bottom bar behind gauge - only show when gauge is present */
 .avatar-frame::after {
+  display: none;
+}
+
+.avatar-frame.has-gauge::after {
   content: '';
   display: block;
   width: 231px;
