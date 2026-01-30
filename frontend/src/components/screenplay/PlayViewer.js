@@ -2136,14 +2136,14 @@ function PlayViewer({ playId, onClose }) {
               {substituteVariables(currentPopupData.message || 'Notification')}
             </div>
             <div className="popup-actions">
+              <button className="popup-btn" onClick={handlePopupOk}>
+                {currentPopupData.okLabel || 'Ok'}
+              </button>
               {currentPopupData.cancelEnabled && (
-                <button className="popup-btn popup-cancel" onClick={handlePopupCancel}>
+                <button className="popup-btn" onClick={handlePopupCancel}>
                   {currentPopupData.cancelLabel || 'Cancel'}
                 </button>
               )}
-              <button className="popup-btn popup-ok" onClick={handlePopupOk}>
-                {currentPopupData.okLabel || 'Ok'}
-              </button>
             </div>
           </div>
         </div>

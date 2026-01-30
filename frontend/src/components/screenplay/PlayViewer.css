@@ -1672,32 +1672,16 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   min-width: 140px;
-}
-
-.popup-ok {
   background: var(--accent-color);
   color: white;
   border: 2px solid var(--accent-color);
 }
 
-.popup-ok:hover {
+.popup-btn:hover {
   background: #cc6600;
   border-color: #cc6600;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
-}
-
-.popup-cancel {
-  background: #666;
-  color: white;
-  border: 2px solid #444;
-}
-
-.popup-cancel:hover {
-  background: #777;
-  border-color: #555;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 102, 102, 0.3);
 }
 
 .popup-btn:active {
