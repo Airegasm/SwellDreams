@@ -2606,7 +2606,7 @@ async function sendWelcomeMessage(character, settings) {
 
       broadcast('generating_stop', {});
     } catch (error) {
-      console.error('Failed to enhance welcome message with LLM:', error);
+      console.error('Failed to enhance welcome message with LLM:', error?.message || error?.code || JSON.stringify(error) || error);
       broadcast('generating_stop', {});
       // Fall back to template message
     }
@@ -7239,14 +7239,20 @@ app.post('/api/screenplay/enhance', llmLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    const settings = loadData(DATA_FILES.settings)?.llm || DEFAULT_SETTINGS.llm;
+    const allSettings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
+    const settings = allSettings?.llm || DEFAULT_SETTINGS.llm;
 
     // Build system prompt with definitions and scenario context
-    let systemPrompt = 'You are a creative writer. Write naturally and conversationally - avoid purple prose and overwriting. Be direct and grounded.\n\n';
+    let systemPrompt = 'You are a creative writing assistant helping to expand story prompts into vivid prose. Write naturally and conversationally - avoid purple prose and overwriting. Be direct, sensory, and grounded.\n\n';
 
     // Include global definitions first (constant context)
     if (definitions) {
-      systemPrompt += `DEFINITIONS:\n${definitions}\n\n`;
+      systemPrompt += `CONTEXT:\n${definitions}\n\n`;
+    }
+
+    // Include screenplay author note (writing style guidance)
+    if (allSettings.screenplayAuthorNote) {
+      systemPrompt += `WRITING STYLE: ${allSettings.screenplayAuthorNote}\n\n`;
     }
 
     // Include play-specific scenario

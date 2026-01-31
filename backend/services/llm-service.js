@@ -567,13 +567,23 @@ async function generate(options) {
   const { prompt, messages, systemPrompt, settings = {} } = options;
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
 
+  console.log('[LLM DEBUG] generate() called');
+  console.log(`[LLM DEBUG] endpointStandard: ${mergedSettings.endpointStandard}`);
+  console.log(`[LLM DEBUG] llmUrl: ${mergedSettings.llmUrl}`);
+  console.log(`[LLM DEBUG] openRouterApiKey present: ${!!mergedSettings.openRouterApiKey}`);
+  console.log(`[LLM DEBUG] openRouterModel: ${mergedSettings.openRouterModel}`);
+
   // Check if using OpenRouter
   if (mergedSettings.endpointStandard === 'openrouter') {
+    console.log('[LLM DEBUG] Taking OpenRouter path');
     if (!mergedSettings.openRouterApiKey) {
+      console.error('[LLM DEBUG] OpenRouter API key is missing!');
       throw new Error('OpenRouter API key not configured');
     }
     return generateOpenRouter({ prompt, messages, systemPrompt, settings: mergedSettings });
   }
+
+  console.log('[LLM DEBUG] Taking standard LLM path');
 
   if (!mergedSettings.llmUrl) {
     throw new Error('LLM URL not configured');
@@ -889,8 +899,22 @@ function buildOpenRouterRequest(messages, settings) {
  */
 function makeOpenRouterRequest(endpoint, apiKey, body) {
   return new Promise((resolve, reject) => {
+    // Debug: Check API key
+    if (!apiKey) {
+      console.error('[OpenRouter DEBUG] API key is missing or undefined!');
+      reject(new Error('OpenRouter API key is not configured'));
+      return;
+    }
+    console.log(`[OpenRouter DEBUG] API key present: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`);
+
     const url = new URL(`${OPENROUTER_API_URL}${endpoint}`);
     const bodyStr = JSON.stringify(body);
+
+    // Debug: Log request details
+    console.log(`[OpenRouter DEBUG] Request URL: ${url.href}`);
+    console.log(`[OpenRouter DEBUG] Model: ${body.model || 'NOT SET'}`);
+    console.log(`[OpenRouter DEBUG] Messages count: ${body.messages?.length || 0}`);
+    console.log(`[OpenRouter DEBUG] Max tokens: ${body.max_tokens || 'default'}`);
 
     const options = {
       hostname: url.hostname,
@@ -909,8 +933,17 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
 
     const req = https.request(options, (res) => {
       let data = '';
+
+      // Debug: Log response status
+      console.log(`[OpenRouter DEBUG] Response status: ${res.statusCode} ${res.statusMessage}`);
+      console.log(`[OpenRouter DEBUG] Response headers:`, JSON.stringify(res.headers).substring(0, 200));
+
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        // Debug: Log raw response
+        console.log(`[OpenRouter DEBUG] Raw response length: ${data.length} chars`);
+        console.log(`[OpenRouter DEBUG] Raw response preview: ${data.substring(0, 500)}`);
+
         try {
           // Use robust JSON extraction that handles SSE and malformed responses
           const parsed = extractJsonFromResponse(data);
@@ -918,13 +951,18 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
           log.debug('OpenRouter response parsed successfully');
 
           if (parsed.error) {
-            reject(new Error(parsed.error.message || 'OpenRouter API error'));
+            console.error(`[OpenRouter DEBUG] API returned error:`, parsed.error);
+            reject(new Error(parsed.error.message || JSON.stringify(parsed.error) || 'OpenRouter API error'));
             return;
           }
+
+          console.log(`[OpenRouter DEBUG] Response parsed successfully, choices: ${parsed.choices?.length || 0}`);
           resolve(parsed);
         } catch (e) {
           log.error('Failed to parse OpenRouter response:', e.message);
           log.debug('Raw response preview:', sanitizeForLog(data, 200));
+          console.error(`[OpenRouter DEBUG] Parse error: ${e.message}`);
+          console.error(`[OpenRouter DEBUG] Full raw response: ${data}`);
           reject(new Error(`Failed to parse OpenRouter response: ${e.message}`));
         }
       });
@@ -932,7 +970,12 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
 
     activeRequests.add(req);
     req.on('close', () => activeRequests.delete(req));
-    req.on('error', reject);
+    req.on('error', (err) => {
+      console.error(`[OpenRouter DEBUG] Request error: ${err.message}`);
+      console.error(`[OpenRouter DEBUG] Error code: ${err.code}`);
+      console.error(`[OpenRouter DEBUG] Error stack: ${err.stack}`);
+      reject(err);
+    });
     req.write(bodyStr);
     req.end();
   });
@@ -946,6 +989,23 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
 async function generateOpenRouter(options) {
   const { prompt, messages, systemPrompt, settings } = options;
 
+  console.log('[OpenRouter DEBUG] generateOpenRouter called');
+  console.log(`[OpenRouter DEBUG] Has prompt: ${!!prompt}`);
+  console.log(`[OpenRouter DEBUG] Has messages: ${!!messages} (${messages?.length || 0})`);
+  console.log(`[OpenRouter DEBUG] Has systemPrompt: ${!!systemPrompt}`);
+  console.log(`[OpenRouter DEBUG] Settings model: ${settings?.openRouterModel || 'NOT SET'}`);
+  console.log(`[OpenRouter DEBUG] Settings API key present: ${!!settings?.openRouterApiKey}`);
+
+  if (!settings?.openRouterApiKey) {
+    console.error('[OpenRouter DEBUG] CRITICAL: No API key in settings!');
+    console.error('[OpenRouter DEBUG] Settings object keys:', Object.keys(settings || {}));
+    throw new Error('OpenRouter API key not found in settings');
+  }
+
+  if (!settings?.openRouterModel) {
+    console.error('[OpenRouter DEBUG] WARNING: No model selected, using default');
+  }
+
   // Build messages array
   let chatMessages = messages;
   if (!chatMessages) {
@@ -958,7 +1018,11 @@ async function generateOpenRouter(options) {
     }
   }
 
+  console.log(`[OpenRouter DEBUG] Final messages count: ${chatMessages.length}`);
+
   const body = buildOpenRouterRequest(chatMessages, settings);
+  console.log(`[OpenRouter DEBUG] Request body model: ${body.model}`);
+
   const response = await makeOpenRouterRequest('/chat/completions', settings.openRouterApiKey, body);
 
   // Extract text from response
