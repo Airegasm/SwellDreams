@@ -315,6 +315,18 @@ function App() {
     };
   }, []);
 
+  // Listen for model unavailable events (OpenRouter model no longer exists)
+  useEffect(() => {
+    const handleModelUnavailable = (event) => {
+      const { modelId, message } = event.detail;
+      console.warn('[App] Model unavailable:', modelId);
+      showError(message || `Model "${modelId}" is no longer available. Please select a new model.`);
+    };
+
+    window.addEventListener('model_unavailable', handleModelUnavailable);
+    return () => window.removeEventListener('model_unavailable', handleModelUnavailable);
+  }, []);
+
   const handleAcceptTOS = () => {
     sessionStorage.setItem('swelldreams_tos_accepted', 'true');
     setShowTOS(false);

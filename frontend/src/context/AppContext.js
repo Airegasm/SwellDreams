@@ -257,6 +257,10 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'pump_runtime':
+        // Informational - actual capacity comes via auto_capacity_update
+        break;
+
       case 'session_reset':
         setSessionState(data);
         setMessages([]);
@@ -1082,20 +1086,52 @@ export function AppProvider({ children }) {
     const autoConnectOpenRouter = async () => {
       if (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) {
         try {
+          let models = [];
+
           // First check if we have cached models
           const cachedData = await apiFetch(`${API_BASE}/api/openrouter/models`);
           if (cachedData.models && cachedData.models.length > 0) {
             console.log('[AppContext] OpenRouter models already cached');
-            return;
+            models = cachedData.models;
+          } else {
+            // If not cached, connect to OpenRouter
+            console.log('[AppContext] Auto-connecting to OpenRouter...');
+            const data = await apiFetch(`${API_BASE}/api/openrouter/connect`, {
+              method: 'POST',
+              body: JSON.stringify({ apiKey: settings.llm.openRouterApiKey })
+            });
+            if (data.success) {
+              console.log(`[AppContext] OpenRouter connected, ${data.models.length} models available`);
+              models = data.models;
+            }
           }
-          // If not cached, connect to OpenRouter
-          console.log('[AppContext] Auto-connecting to OpenRouter...');
-          const data = await apiFetch(`${API_BASE}/api/openrouter/connect`, {
-            method: 'POST',
-            body: JSON.stringify({ apiKey: settings.llm.openRouterApiKey })
-          });
-          if (data.success) {
-            console.log(`[AppContext] OpenRouter connected, ${data.models.length} models available`);
+
+          // Validate that the user's selected model is still available
+          const selectedModel = settings?.llm?.openRouterModel;
+          if (selectedModel && models.length > 0) {
+            const modelExists = models.some(m => m.id === selectedModel);
+            if (!modelExists) {
+              console.warn(`[AppContext] Selected OpenRouter model "${selectedModel}" is no longer available!`);
+
+              // Clear the model from settings
+              try {
+                await apiFetch(`${API_BASE}/api/settings/llm`, {
+                  method: 'PUT',
+                  body: JSON.stringify({ openRouterModel: '' })
+                });
+                console.log('[AppContext] Cleared unavailable model from settings');
+              } catch (clearErr) {
+                console.error('[AppContext] Failed to clear model from settings:', clearErr);
+              }
+
+              // Alert the user
+              window.dispatchEvent(new CustomEvent('model_unavailable', {
+                detail: {
+                  modelId: selectedModel,
+                  message: `The model "${selectedModel}" is no longer available on OpenRouter. Please select a new model in Settings > Model.`
+                }
+              }));
+            }
           }
         } catch (e) {
           console.error('[AppContext] Failed to auto-connect to OpenRouter:', e.message);
@@ -1103,7 +1139,7 @@ export function AppProvider({ children }) {
       }
     };
     autoConnectOpenRouter();
-  }, [settings?.llm?.endpointStandard, settings?.llm?.openRouterApiKey]);
+  }, [settings?.llm?.endpointStandard, settings?.llm?.openRouterApiKey, settings?.llm?.openRouterModel]);
 
   // Wrapper for setControlMode that also notifies backend
   const setControlMode = useCallback((mode) => {
