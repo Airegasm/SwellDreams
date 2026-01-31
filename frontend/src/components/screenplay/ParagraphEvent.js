@@ -8,12 +8,17 @@ const TYPE_ICONS = {
   choice: '❓',
   inline_choice: '💭',
   goto_page: '➡️',
+  weighted_random: '🎲',
   condition: '⚡',
   set_variable: '📝',
   set_npc_actor_avatar: '🎭',
   delay: '⏱️',
   pump: '⛽',
   mock_pump: '🎈',
+  capacity_gate: '🚧',
+  show_image: '🖼️',
+  play_video: '🎬',
+  play_audio: '🔊',
   parallel_container: '⚙️',
   popup: '🔔',
   toast: '📢',
@@ -37,7 +42,7 @@ const PUMP_ACTION_DESCRIPTIONS = {
   off: 'Turn pump off'
 };
 
-function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaImages, onUpdate, onDelete, onMove, onEnhanceText }) {
+function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaImages, mediaVideos, mediaAudio, onUpdate, onDelete, onMove, onEnhanceText }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhancingOptionIdx, setEnhancingOptionIdx] = useState(null);
@@ -550,6 +555,78 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
           </div>
         );
 
+      case 'weighted_random':
+        const outcomes = data.outcomes || [];
+        const totalWeight = outcomes.reduce((sum, o) => sum + (o.weight || 0), 0);
+        return (
+          <div className="para-editor">
+            <div className="weighted-random-outcomes">
+              {outcomes.map((outcome, idx) => {
+                const percentage = totalWeight > 0 ? Math.round((outcome.weight / totalWeight) * 100) : 0;
+                return (
+                  <div key={idx} className="weighted-outcome-row">
+                    <input
+                      type="text"
+                      value={outcome.label || ''}
+                      onChange={(e) => {
+                        const newOutcomes = [...outcomes];
+                        newOutcomes[idx] = { ...newOutcomes[idx], label: e.target.value };
+                        handleDataChange('outcomes', newOutcomes);
+                      }}
+                      placeholder="Label..."
+                      className="outcome-label-input"
+                    />
+                    <input
+                      type="number"
+                      value={outcome.weight || 0}
+                      onChange={(e) => {
+                        const newOutcomes = [...outcomes];
+                        newOutcomes[idx] = { ...newOutcomes[idx], weight: Math.max(1, parseInt(e.target.value) || 1) };
+                        handleDataChange('outcomes', newOutcomes);
+                      }}
+                      min={1}
+                      className="outcome-weight-input"
+                    />
+                    <span className="outcome-percentage">({percentage}%)</span>
+                    <select
+                      value={outcome.targetPageId || ''}
+                      onChange={(e) => {
+                        const newOutcomes = [...outcomes];
+                        newOutcomes[idx] = { ...newOutcomes[idx], targetPageId: e.target.value };
+                        handleDataChange('outcomes', newOutcomes);
+                      }}
+                      className="outcome-page-select"
+                    >
+                      <option value="">Select Page...</option>
+                      {Object.values(allPages).map(page => (
+                        <option key={page.id} value={page.id}>{page.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn btn-danger btn-xs"
+                      onClick={() => {
+                        const newOutcomes = outcomes.filter((_, i) => i !== idx);
+                        handleDataChange('outcomes', newOutcomes);
+                      }}
+                      disabled={outcomes.length <= 2}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                handleDataChange('outcomes', [...outcomes, { weight: 50, targetPageId: '', label: `Outcome ${outcomes.length + 1}` }]);
+              }}
+            >
+              + Add Outcome
+            </button>
+          </div>
+        );
+
       case 'condition':
         return (
           <div className="para-editor">
@@ -684,6 +761,156 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
             )}
             <div className="var-hints">
               Changes the right filmstrip avatar
+            </div>
+          </div>
+        );
+
+      case 'show_image':
+        return (
+          <div className="para-editor">
+            <div className="form-row image-selector">
+              <label>Image:</label>
+              <select
+                value={data.imageTag || ''}
+                onChange={(e) => handleDataChange('imageTag', e.target.value)}
+              >
+                <option value="">Select image...</option>
+                {(mediaImages || []).map(img => (
+                  <option key={img.id} value={img.tag}>{img.tag}{img.description ? ` - ${img.description}` : ''}</option>
+                ))}
+              </select>
+              {data.imageTag && mediaImages?.find(i => i.tag === data.imageTag) && (
+                <div className="image-preview-small">
+                  <img
+                    src={`/api/media/images/${mediaImages.find(i => i.tag === data.imageTag)?.filename}`}
+                    alt={data.imageTag}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="form-row">
+              <label>Caption:</label>
+              <input
+                type="text"
+                value={data.caption || ''}
+                onChange={(e) => handleDataChange('caption', e.target.value)}
+                placeholder="Optional caption..."
+              />
+            </div>
+            <div className="form-row">
+              <label>Display:</label>
+              <select
+                value={data.displayMode || 'inline'}
+                onChange={(e) => handleDataChange('displayMode', e.target.value)}
+              >
+                <option value="inline">Inline (in story)</option>
+                <option value="fullscreen">Fullscreen overlay</option>
+                <option value="popup">Popup modal</option>
+              </select>
+            </div>
+          </div>
+        );
+
+      case 'play_video':
+        return (
+          <div className="para-editor">
+            <div className="form-row">
+              <label>Video:</label>
+              <select
+                value={data.videoTag || ''}
+                onChange={(e) => handleDataChange('videoTag', e.target.value)}
+                style={{flex: 1}}
+              >
+                <option value="">Select video...</option>
+                {(mediaVideos || []).map(vid => (
+                  <option key={vid.id} value={vid.tag}>{vid.tag}{vid.description ? ` - ${vid.description}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row" style={{flexWrap: 'wrap', gap: '12px'}}>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.autoplay !== false}
+                  onChange={(e) => handleDataChange('autoplay', e.target.checked)}
+                />
+                Autoplay
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.loop || false}
+                  onChange={(e) => handleDataChange('loop', e.target.checked)}
+                />
+                Loop
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.muted || false}
+                  onChange={(e) => handleDataChange('muted', e.target.checked)}
+                />
+                Muted
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.blocking || false}
+                  onChange={(e) => handleDataChange('blocking', e.target.checked)}
+                />
+                Blocking (pause story until done)
+              </label>
+            </div>
+            <div className="var-hints">
+              Video will play in the story panel. Blocking mode pauses auto-continue until video ends.
+            </div>
+          </div>
+        );
+
+      case 'play_audio':
+        return (
+          <div className="para-editor">
+            <div className="form-row">
+              <label>Audio:</label>
+              <select
+                value={data.audioTag || ''}
+                onChange={(e) => handleDataChange('audioTag', e.target.value)}
+                style={{flex: 1}}
+              >
+                <option value="">Select audio...</option>
+                {(mediaAudio || []).map(aud => (
+                  <option key={aud.id} value={aud.tag}>{aud.tag}{aud.description ? ` - ${aud.description}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-row" style={{flexWrap: 'wrap', gap: '12px'}}>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.loop || false}
+                  onChange={(e) => handleDataChange('loop', e.target.checked)}
+                />
+                Loop
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.silent || false}
+                  onChange={(e) => handleDataChange('silent', e.target.checked)}
+                />
+                Silent (no player visible)
+              </label>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={data.blocking || false}
+                  onChange={(e) => handleDataChange('blocking', e.target.checked)}
+                />
+                Blocking (pause story until done)
+              </label>
+            </div>
+            <div className="var-hints">
+              Audio plays in background. Silent mode hides the player. Blocking pauses auto-continue until audio ends.
             </div>
           </div>
         );
@@ -953,6 +1180,50 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
           </div>
         );
 
+      case 'capacity_gate':
+        return (
+          <div className="para-editor">
+            <div className="pump-settings">
+              <div className="pump-row">
+                <label>Target:</label>
+                <select
+                  value={data.target || 'inflatee1'}
+                  onChange={(e) => handleDataChange('target', e.target.value)}
+                  className="pump-target-select"
+                >
+                  <option value="inflatee1">Player (Inflatee 1)</option>
+                  <option value="inflatee2">Inflatee 2 (NPC)</option>
+                </select>
+              </div>
+              <div className="pump-row">
+                <label>Threshold:</label>
+                <input
+                  type="number"
+                  value={data.threshold || 50}
+                  onChange={(e) => handleDataChange('threshold', Math.max(1, Math.min(100, parseInt(e.target.value) || 50)))}
+                  min={1}
+                  max={100}
+                  className="pump-value-input"
+                />
+                <span className="pump-unit">%</span>
+              </div>
+              <div className="pump-row">
+                <label>Message (optional):</label>
+              </div>
+              <textarea
+                value={data.message || ''}
+                onChange={(e) => handleDataChange('message', e.target.value)}
+                placeholder="Optional message to display while waiting..."
+                rows={2}
+                className="para-text-input"
+              />
+              <div className="pump-description">
+                Blocks progress until {data.target === 'inflatee2' ? 'Inflatee 2' : 'Player'}'s capacity reaches {data.threshold || 50}%
+              </div>
+            </div>
+          </div>
+        );
+
       case 'parallel_container':
         // Helper to create default data for child types
         const getDefaultChildData = (type) => {
@@ -1059,10 +1330,23 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                         >
                           <option value="on">On</option>
                           <option value="off">Off</option>
+                          <option value="timed">Timed</option>
                           <option value="cycle">Cycle</option>
                           <option value="pulse">Pulse</option>
                           <option value="until">Until</option>
                         </select>
+                        {child.data.action === 'timed' && (
+                          <>
+                            <input
+                              type="text"
+                              value={child.data.timedDuration || '5'}
+                              onChange={(e) => updateChildData('timedDuration', e.target.value)}
+                              placeholder="5 or [Play:var]"
+                              className="short-input"
+                            />
+                            <span>sec</span>
+                          </>
+                        )}
                         {(child.data.action === 'cycle' || child.data.action === 'pulse') && (
                           <>
                             <input
@@ -1119,7 +1403,19 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                           <option value="timed">Timed</option>
                           <option value="until">Until</option>
                         </select>
-                        {child.data.action !== 'off' && child.data.action !== 'on' && child.data.action !== 'until' && (
+                        {child.data.action === 'timed' && (
+                          <>
+                            <input
+                              type="text"
+                              value={child.data.timedDuration || '5'}
+                              onChange={(e) => updateChildData('timedDuration', e.target.value)}
+                              placeholder="5 or [Play:var]"
+                              className="short-input"
+                            />
+                            <span>sec</span>
+                          </>
+                        )}
+                        {(child.data.action === 'cycle' || child.data.action === 'pulse') && (
                           <>
                             <input
                               type="number"
@@ -1659,6 +1955,13 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
 
             <div style={{ marginBottom: '10px' }}>
               <label style={{ display: 'block', marginBottom: '5px' }}>Wheel Segments:</label>
+              <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center', fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: '8px', paddingRight: '8px' }}>
+                <span style={{ flex: 1 }}>Label</span>
+                <span style={{ width: '50px', textAlign: 'center' }}>Color</span>
+                <span style={{ width: '60px', textAlign: 'center' }}>Weight</span>
+                <span style={{ width: '50px', textAlign: 'center' }}>Dupes</span>
+                <span style={{ width: '30px' }}></span>
+              </div>
               {(data.segments || []).map((seg, idx) => (
                 <div key={idx} style={{ marginBottom: '8px', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px' }}>
                   <div style={{ display: 'flex', gap: '5px', marginBottom: '5px', alignItems: 'center' }}>
@@ -1692,8 +1995,23 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
                         handleDataChange('segments', newSegments);
                       }}
                       placeholder="Weight"
-                      style={{ width: '70px' }}
+                      title="Weight (probability)"
+                      style={{ width: '60px' }}
                       min="1"
+                    />
+                    <input
+                      type="number"
+                      value={seg.duplicates || 1}
+                      onChange={(e) => {
+                        const newSegments = [...data.segments];
+                        newSegments[idx].duplicates = parseInt(e.target.value) || 1;
+                        handleDataChange('segments', newSegments);
+                      }}
+                      placeholder="Dupes"
+                      title="Duplicates (visual copies on wheel)"
+                      style={{ width: '50px' }}
+                      min="1"
+                      max="10"
                     />
                     <button
                       onClick={() => {
@@ -2030,6 +2348,368 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
           </div>
         );
 
+      case 'challenge_slots':
+        const defaultSymbols = ['🍒', '🍋', '🍊', '🍇', '⭐', '💎'];
+        const currentSymbols = data.symbols || defaultSymbols;
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Symbols (comma-separated emojis):</label>
+              <input
+                type="text"
+                value={currentSymbols.join(', ')}
+                onChange={(e) => {
+                  const symbols = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                  handleDataChange('symbols', symbols.length > 0 ? symbols : defaultSymbols);
+                }}
+                placeholder="🍒, 🍋, 🍊, 🍇, ⭐, 💎"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Win → Page:</label>
+                <select
+                  value={data.winPageId || ''}
+                  onChange={(e) => handleDataChange('winPageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Lose → Page:</label>
+                <select
+                  value={data.losePageId || ''}
+                  onChange={(e) => handleDataChange('losePageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                ))}
+              </select>
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={data.autoPull || false}
+                onChange={(e) => handleDataChange('autoPull', e.target.checked)}
+              />
+              {' '}Auto-pull (no button press needed)
+            </label>
+          </div>
+        );
+
+      case 'challenge_card':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Deck Type:</label>
+                <select
+                  value={data.deckType || 'standard'}
+                  onChange={(e) => handleDataChange('deckType', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="standard">Standard (52 cards)</option>
+                  <option value="tarot">Tarot (78 cards)</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Output Mode:</label>
+                <select
+                  value={data.mode || 'suit'}
+                  onChange={(e) => handleDataChange('mode', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="suit">By Suit (Hearts/Diamonds/Clubs/Spades)</option>
+                  <option value="color">By Color (Red/Black)</option>
+                  <option value="ranges">By Value Range</option>
+                </select>
+              </div>
+            </div>
+
+            {data.mode === 'suit' && (
+              <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(0,0,0,0.1)', borderRadius: '4px' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.9em' }}>Configure page for each suit:</p>
+                {['hearts', 'diamonds', 'clubs', 'spades'].map(suit => (
+                  <div key={suit} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ width: '80px', textTransform: 'capitalize' }}>{suit}:</span>
+                    <select
+                      value={data[`${suit}PageId`] || ''}
+                      onChange={(e) => handleDataChange(`${suit}PageId`, e.target.value)}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Continue...</option>
+                      {Object.keys(allPages).map(pageId => (
+                        <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {data.mode === 'color' && (
+              <div style={{ marginBottom: '10px', padding: '10px', background: 'rgba(0,0,0,0.1)', borderRadius: '4px' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '0.9em' }}>Configure page for each color:</p>
+                {['red', 'black'].map(color => (
+                  <div key={color} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ width: '80px', textTransform: 'capitalize' }}>{color}:</span>
+                    <select
+                      value={data[`${color}PageId`] || ''}
+                      onChange={(e) => handleDataChange(`${color}PageId`, e.target.value)}
+                      style={{ flex: 1 }}
+                    >
+                      <option value="">Continue...</option>
+                      {Object.keys(allPages).map(pageId => (
+                        <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+
+      case 'challenge_simon':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Starting Length:</label>
+                <input
+                  type="number"
+                  value={data.startingLength || 3}
+                  onChange={(e) => handleDataChange('startingLength', parseInt(e.target.value))}
+                  min="1"
+                  max="10"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Max Length (to win):</label>
+                <input
+                  type="number"
+                  value={data.maxLength || 5}
+                  onChange={(e) => handleDataChange('maxLength', parseInt(e.target.value))}
+                  min="1"
+                  max="20"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Max Misses:</label>
+                <input
+                  type="number"
+                  value={data.maxMisses || 2}
+                  onChange={(e) => handleDataChange('maxMisses', parseInt(e.target.value))}
+                  min="1"
+                  max="10"
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Win → Page:</label>
+                <select
+                  value={data.winPageId || ''}
+                  onChange={(e) => handleDataChange('winPageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Lose → Page:</label>
+                <select
+                  value={data.losePageId || ''}
+                  onChange={(e) => handleDataChange('losePageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+
+      case 'challenge_reflex':
+        return (
+          <div className="para-editor">
+            <input
+              type="text"
+              value={data.prompt || ''}
+              onChange={(e) => handleDataChange('prompt', e.target.value)}
+              placeholder="Prompt text..."
+              style={{ width: '100%', marginBottom: '10px' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Rounds:</label>
+                <input
+                  type="number"
+                  value={data.rounds || 5}
+                  onChange={(e) => handleDataChange('rounds', parseInt(e.target.value))}
+                  min="1"
+                  max="20"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Time per Target (sec):</label>
+                <input
+                  type="number"
+                  value={data.timePerTarget || 3}
+                  onChange={(e) => handleDataChange('timePerTarget', parseFloat(e.target.value))}
+                  min="0.5"
+                  max="10"
+                  step="0.5"
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Target Size:</label>
+                <select
+                  value={data.targetSize || 'medium'}
+                  onChange={(e) => handleDataChange('targetSize', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Win → Page:</label>
+                <select
+                  value={data.winPageId || ''}
+                  onChange={(e) => handleDataChange('winPageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px' }}>Lose → Page:</label>
+                <select
+                  value={data.losePageId || ''}
+                  onChange={(e) => handleDataChange('losePageId', e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Continue...</option>
+                  {Object.keys(allPages).map(pageId => (
+                    <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Skip → Page:</label>
+              <select
+                value={data.skipTargetPageId || ''}
+                onChange={(e) => handleDataChange('skipTargetPageId', e.target.value)}
+                style={{ width: '100%' }}
+              >
+                <option value="">Continue to next paragraph...</option>
+                {Object.keys(allPages).map(pageId => (
+                  <option key={pageId} value={pageId}>{allPages[pageId].title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        );
+
       case 'end':
         return (
           <div className="para-editor">
@@ -2073,6 +2753,9 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
       case 'goto_page':
         const page = allPages[data.targetPageId];
         return `→ ${page?.title || 'Unknown page'}`;
+      case 'weighted_random':
+        const outcomeCount = data.outcomes?.length || 0;
+        return `🎲 ${outcomeCount} weighted outcomes`;
       case 'condition':
         return `${data.variable} ${data.operator} ${data.value}`;
       case 'set_variable':
@@ -2090,6 +2773,15 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
       case 'mock_pump':
         const targetLabel = data.target === 'inflatee2' ? 'Inflatee 2' : 'Player';
         return `${targetLabel}: ${data.action || 'cycle'}${data.duration ? ` (${data.duration}ms)` : ''}`;
+      case 'capacity_gate':
+        const gateTargetLabel = data.target === 'inflatee2' ? 'Inflatee 2' : 'Player';
+        return `Wait for ${gateTargetLabel} ≥ ${data.threshold || 50}%`;
+      case 'show_image':
+        return `🖼️ ${data.imageTag || 'No image'}${data.displayMode === 'fullscreen' ? ' (fullscreen)' : data.displayMode === 'popup' ? ' (popup)' : ''}`;
+      case 'play_video':
+        return `🎬 ${data.videoTag || 'No video'}${data.loop ? ' (loop)' : ''}${data.blocking ? ' (blocking)' : ''}`;
+      case 'play_audio':
+        return `🔊 ${data.audioTag || 'No audio'}${data.silent ? ' (silent)' : ''}${data.blocking ? ' (blocking)' : ''}`;
       case 'parallel_container':
         const childCount = (data.children || []).length;
         return `${childCount} event${childCount !== 1 ? 's' : ''} run simultaneously`;
@@ -2109,6 +2801,14 @@ function ParagraphEvent({ paragraph, index, totalCount, allPages, actors, mediaI
         return `✊ Rock Paper Scissors`;
       case 'challenge_number_guess':
         return `🔢 Guess ${data.minNumber || 1}-${data.maxNumber || 10} (${data.attempts || 3} attempts)`;
+      case 'challenge_slots':
+        return `🎰 Slots: ${data.symbols?.length || 6} symbols`;
+      case 'challenge_card':
+        return `🃏 Card Draw: ${data.deckType || 'standard'} (${data.mode || 'suit'})`;
+      case 'challenge_simon':
+        return `🎮 Simon: ${data.startingLength || 3}-${data.maxLength || 5} sequence`;
+      case 'challenge_reflex':
+        return `⚡ Reflex: ${data.rounds || 5} rounds`;
       case 'end':
         return `${data.endingType} ending`;
       default:

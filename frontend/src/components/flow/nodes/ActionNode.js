@@ -87,17 +87,33 @@ function ActionNode({ data, selected }) {
                     data.onChange?.('untilValue', 5);
                   } else if (e.target.value === 'emotion') {
                     data.onChange?.('untilValue', 'neutral');
+                  } else if (e.target.value === 'timer') {
+                    data.onChange?.('untilValue', 5);
                   }
                 }}
                 className="node-select"
               >
                 <option value="forever">Forever</option>
+                <option value="timer">Timed</option>
                 <option value="capacity">Capacity</option>
                 <option value="pain">Pain</option>
                 <option value="emotion">Emotion</option>
               </select>
             </div>
-            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'emotion' && (
+            {data.untilType === 'timer' && (
+              <div className="config-row">
+                <label>Duration:</label>
+                <NumberInput
+                  value={data.untilValue}
+                  onChange={(val) => data.onChange?.('untilValue', val)}
+                  defaultValue={5}
+                  min={1}
+                  allowFloat={false}
+                />
+                <span>sec</span>
+              </div>
+            )}
+            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'timer' && data.untilType !== 'emotion' && (
               <div className="config-row">
                 <label>When:</label>
                 <select
@@ -248,17 +264,33 @@ function ActionNode({ data, selected }) {
                     data.onChange?.('untilValue', 5);
                   } else if (e.target.value === 'emotion') {
                     data.onChange?.('untilValue', 'neutral');
+                  } else if (e.target.value === 'timer') {
+                    data.onChange?.('untilValue', 5);
                   }
                 }}
                 className="node-select"
               >
                 <option value="forever">Forever</option>
+                <option value="timer">Timed</option>
                 <option value="capacity">Capacity</option>
                 <option value="pain">Pain</option>
                 <option value="emotion">Emotion</option>
               </select>
             </div>
-            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'emotion' && (
+            {data.untilType === 'timer' && (
+              <div className="config-row">
+                <label>Duration:</label>
+                <NumberInput
+                  value={data.untilValue}
+                  onChange={(val) => data.onChange?.('untilValue', val)}
+                  defaultValue={5}
+                  min={1}
+                  allowFloat={false}
+                />
+                <span>sec</span>
+              </div>
+            )}
+            {data.untilType && data.untilType !== 'forever' && data.untilType !== 'timer' && data.untilType !== 'emotion' && (
               <div className="config-row">
                 <label>When:</label>
                 <select

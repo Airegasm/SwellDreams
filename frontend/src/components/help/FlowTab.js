@@ -11,9 +11,9 @@ function FlowTab() {
     patterns: false,
     priority: false,
     flowSettings: false,
+    flowVariables: false,
     mediaTagging: false,
     mediaNodes: false,
-    screenplay: false,
     tips: false
   });
 
@@ -202,7 +202,7 @@ function FlowTab() {
                 <tr>
                   <td><strong>Turn Device On</strong></td>
                   <td>Turn on a device with optional stop condition</td>
-                  <td>Device, Until condition (forever, capacity, time)</td>
+                  <td>Device, Until condition (forever, timed, capacity, pain, emotion)</td>
                 </tr>
                 <tr>
                   <td><strong>Turn Device Off</strong></td>
@@ -644,6 +644,59 @@ function FlowTab() {
         )}
       </div>
 
+      {/* Custom Flow Variables */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('flowVariables')}>
+          Custom Flow Variables
+          <span className="expand-icon">{expanded.flowVariables ? '−' : '+'}</span>
+        </h3>
+        {expanded.flowVariables && (
+          <div className="section-content">
+            <p>
+              Create your own variables using the Flow system. Custom variables persist throughout
+              a session and can be used to track state, counts, or any custom data.
+            </p>
+
+            <h4 className="subsection-header">Syntax</h4>
+            <p>
+              Custom flow variables use the format: <span className="variable-tag">[Flow:variableName]</span>
+            </p>
+
+            <h4 className="subsection-header">Creating Variables</h4>
+            <p>
+              Use an <strong>Action Node</strong> with type <code>declare_variable</code> to create a new variable.
+              Specify the variable name and initial value.
+            </p>
+
+            <h4 className="subsection-header">Setting Values</h4>
+            <p>
+              Use an <strong>Action Node</strong> with type <code>set_variable</code> to update a variable's value.
+              You can set it to a specific value or perform math operations.
+            </p>
+
+            <h4 className="subsection-header">Examples</h4>
+            <div className="code-example">
+              [Flow:visitCount] - Track how many times something occurred<br />
+              [Flow:questPhase] - Track story progression<br />
+              [Flow:intensity] - Store a numeric value for device control<br />
+              [Flow:playerChoice] - Remember a player's decision
+            </div>
+
+            <h4 className="subsection-header">Using in Conditions</h4>
+            <p>
+              Check variable values in <strong>Condition</strong> nodes to create branching logic.
+              Compare against numbers, strings, or other variables.
+            </p>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Initialize variables with <code>declare_variable</code> at the start
+              of your flow (e.g., on <code>new_session</code> trigger) to ensure they have defined values
+              before being checked in conditions.
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Media Tagging */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('mediaTagging')}>
@@ -770,128 +823,6 @@ function FlowTab() {
               <strong>Media Nodes vs Tags:</strong> Use <strong>media nodes</strong> when you want
               precise flow control (blocking, specific timing). Use <strong>media tags</strong>
               in message text when you want media to appear inline with dialogue or narration.
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ScreenPlay */}
-      <div className="help-section">
-        <h3 className="section-header" onClick={() => toggle('screenplay')}>
-          ScreenPlay (Visual Novel System)
-          <span className="expand-icon">{expanded.screenplay ? '−' : '+'}</span>
-        </h3>
-        {expanded.screenplay && (
-          <div className="section-content">
-            <p>
-              <strong>ScreenPlay</strong> is a visual novel-style storytelling system separate from
-              the main chat. Create branching interactive stories with actors, dialogue, choices,
-              and device integration.
-            </p>
-
-            <h4 className="subsection-header">Key Concepts</h4>
-            <ul className="help-list">
-              <li><strong>Plays</strong> - Complete stories containing pages, actors, and scenarios</li>
-              <li><strong>Pages</strong> - Story segments containing paragraphs (think of them as scenes)</li>
-              <li><strong>Paragraphs</strong> - Individual story elements: narration, dialogue, choices, actions</li>
-              <li><strong>Actors</strong> - Characters in your play with avatars and personalities</li>
-            </ul>
-
-            <h4 className="subsection-header">Paragraph Types</h4>
-            <table className="help-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Narration</strong></td>
-                  <td>Descriptive text (2nd or 3rd person based on author mode)</td>
-                </tr>
-                <tr>
-                  <td><strong>Dialogue</strong></td>
-                  <td>Character speech with actor avatar and name</td>
-                </tr>
-                <tr>
-                  <td><strong>Player Dialogue</strong></td>
-                  <td>Speech attributed to the player character</td>
-                </tr>
-                <tr>
-                  <td><strong>Choice</strong></td>
-                  <td>Multiple options that branch to different pages</td>
-                </tr>
-                <tr>
-                  <td><strong>Inline Choice</strong></td>
-                  <td>Questions/options that show responses without changing page</td>
-                </tr>
-                <tr>
-                  <td><strong>Condition</strong></td>
-                  <td>Check a variable and branch to different pages</td>
-                </tr>
-                <tr>
-                  <td><strong>Set Variable</strong></td>
-                  <td>Store or modify a play variable</td>
-                </tr>
-                <tr>
-                  <td><strong>Go to Page</strong></td>
-                  <td>Jump to another page in the play</td>
-                </tr>
-                <tr>
-                  <td><strong>Delay</strong></td>
-                  <td>Pause before continuing to next paragraph</td>
-                </tr>
-                <tr>
-                  <td><strong>Pump</strong></td>
-                  <td>Control real devices (on, off, cycle, pulse, timed)</td>
-                </tr>
-                <tr>
-                  <td><strong>Mock Pump</strong></td>
-                  <td>Simulate pump for NPC/Inflatee 2 (visual only)</td>
-                </tr>
-                <tr>
-                  <td><strong>Set NPC Avatar</strong></td>
-                  <td>Change the right filmstrip avatar dynamically</td>
-                </tr>
-                <tr>
-                  <td><strong>End</strong></td>
-                  <td>End the play with a good/bad/neutral outcome</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <h4 className="subsection-header">Variables</h4>
-            <p>Use variables in text and conditions:</p>
-            <div className="code-example">
-              [Player] - Player character name<br />
-              [Capacity] / [Capacity1] - Inflatee 1 capacity (0-100)<br />
-              [Capacity_mock] / [Capacity2] - Inflatee 2 capacity<br />
-              [Feeling] - Pain description based on capacity<br />
-              [Feeling_mock] - Pain description for Inflatee 2<br />
-              [Play:varname] - Custom play variable
-            </div>
-
-            <h4 className="subsection-header">LLM Enhancement</h4>
-            <p>
-              Enable <strong>LLM Enhancement</strong> on narration or dialogue paragraphs to have
-              the AI expand brief prompts into rich, detailed content. Configure max tokens to
-              control response length. The AI uses the play's scenario and actor personalities.
-            </p>
-
-            <h4 className="subsection-header">Inflatees & Filmstrips</h4>
-            <p>
-              Plays can track two inflatees with capacity gauges shown in the side filmstrips:
-            </p>
-            <ul className="help-list">
-              <li><strong>Inflatee 1 (Left)</strong> - The player, controlled by real pump actions</li>
-              <li><strong>Inflatee 2 (Right)</strong> - Optional NPC, controlled by mock_pump events</li>
-            </ul>
-
-            <div className="info-box">
-              <strong>Getting Started:</strong> Go to <strong>Automation → ScreenPlay</strong>,
-              create a new Play, add actors, write your scenario, then click
-              <strong> Storyboard</strong> to build your pages and paragraphs.
             </div>
           </div>
         )}

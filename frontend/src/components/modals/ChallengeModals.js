@@ -6,10 +6,38 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
+  const [hasAutoSpun, setHasAutoSpun] = useState(false);
   const canvasRef = useRef(null);
+  const handleSpinRef = useRef(null);
 
-  const { segments = [] } = challengeData || {};
+  const { segments: rawSegments = [], autoSpin = false } = challengeData || {};
   const canvasSize = compact ? 180 : 300;
+
+  // Expand segments based on duplicates field, then distribute evenly
+  const segments = React.useMemo(() => {
+    // First, collect all expanded segments grouped by original segment
+    const groups = rawSegments.map((seg, idx) => {
+      const dupes = Math.min(Math.max(seg.duplicates || 1, 1), 10); // Clamp 1-10
+      const items = [];
+      for (let i = 0; i < dupes; i++) {
+        items.push({ ...seg, _originalIndex: idx });
+      }
+      return items;
+    });
+
+    // Interleave segments from each group to distribute them around the wheel
+    // e.g., [A,A,A,A] and [B,B,B,B] becomes [A,B,A,B,A,B,A,B]
+    const distributed = [];
+    const maxLen = Math.max(...groups.map(g => g.length));
+    for (let i = 0; i < maxLen; i++) {
+      for (const group of groups) {
+        if (i < group.length) {
+          distributed.push(group[i]);
+        }
+      }
+    }
+    return distributed;
+  }, [rawSegments]);
 
   // Draw the wheel
   useEffect(() => {
@@ -148,6 +176,7 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
             onResult({
               outputId: selectedSegment.id,
               segmentLabel: selectedSegment.label,
+              value: selectedSegment.label, // For resultVariable assignment
               targetPageId: selectedSegment.targetPageId,
               allSegments: segments.map(s => s.label)
             });
@@ -158,6 +187,23 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
 
     requestAnimationFrame(animate);
   }, [isSpinning, segments, rotation, onResult]);
+
+  // Keep ref updated with latest handleSpin
+  useEffect(() => {
+    handleSpinRef.current = handleSpin;
+  }, [handleSpin]);
+
+  // Auto-spin on mount if enabled
+  useEffect(() => {
+    if (autoSpin && !hasAutoSpun && segments.length > 0 && !isSpinning) {
+      setHasAutoSpun(true);
+      // Small delay to ensure wheel is rendered
+      const timer = setTimeout(() => {
+        handleSpinRef.current?.();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoSpin, hasAutoSpun, segments.length, isSpinning]);
 
   if (!challengeData) return null;
 

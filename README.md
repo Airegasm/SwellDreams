@@ -1,6 +1,6 @@
 # SwellDreams
 
-**v3.0.0b "Stable Beta"**
+**v3.5.1 "Stable Beta"**
 
 An AI-powered interactive roleplay platform with smart device integration, visual flow automation, and interactive visual novel authoring.
 

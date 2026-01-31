@@ -32,6 +32,9 @@ function PlayViewer({ playId, onClose }) {
   const [isWaitingForChallenge, setIsWaitingForChallenge] = useState(false);
   const [currentChallengeType, setCurrentChallengeType] = useState(null);
   const [currentChallengeData, setCurrentChallengeData] = useState(null);
+  const [isWaitingForMedia, setIsWaitingForMedia] = useState(false); // Block auto-continue until media finishes
+  const [isWaitingForCapacityGate, setIsWaitingForCapacityGate] = useState(false); // Block until capacity threshold met
+  const [capacityGateData, setCapacityGateData] = useState(null); // { target, threshold, message }
   const [isEnded, setIsEnded] = useState(false);
   const [endingData, setEndingData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -50,11 +53,17 @@ function PlayViewer({ playId, onClose }) {
   const [countdownValue, setCountdownValue] = useState(null); // null = not counting, number = seconds remaining
   const [autoContinueTrigger, setAutoContinueTrigger] = useState(0); // increment to trigger auto-continue
   const [isAutoPaused, setIsAutoPaused] = useState(true); // Auto mode starts paused
+  const [pendingPageId, setPendingPageId] = useState(null); // Page waiting to be advanced to (requires >> press in auto mode)
   const pumpTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const mockPumpIntervalRef = useRef(null); // Interval for continuous inflatee2 capacity tracking
   const mockPumpStartTimeRef = useRef(null); // Track when mock pump started for inflatee2
   const mockPumpTrackingActiveRef = useRef(false); // Guard against concurrent tracking starts
+  const inflateeCapacityRef = useRef({ inflatee1: 0, inflatee2: 0 }); // Ref for accessing capacity in callbacks without causing recreates
+  const settingsRef = useRef(settings); // Ref for accessing settings in callbacks without causing recreates
+  const sessionStateRef = useRef(sessionState); // Ref for accessing sessionState in callbacks without causing recreates
+  const startMockPumpTrackingRef = useRef(null); // Ref to call startMockPumpTracking without dependency
+  const stopMockPumpTrackingRef = useRef(null); // Ref to call stopMockPumpTracking without dependency
   const contentRef = useRef(null);
   const hasAutoStartedRef = useRef(false); // Track if current page has been auto-started
 
@@ -148,6 +157,19 @@ function PlayViewer({ playId, onClose }) {
     }
   }, [sessionState?.capacity]);
 
+  // Keep refs in sync for use in callbacks (avoids dependency-triggered recreates)
+  useEffect(() => {
+    inflateeCapacityRef.current = inflateeCapacity;
+  }, [inflateeCapacity]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    sessionStateRef.current = sessionState;
+  }, [sessionState]);
+
   // Auto-continue countdown logic
   const lastCountdownParaRef = useRef(null); // Track last paragraph that had countdown
 
@@ -166,7 +188,7 @@ function PlayViewer({ playId, onClose }) {
     const currentPage = play?.pages?.[currentPageId];
     const shouldShowContinue = !isEnded && !autoAdvancePending && !isWaitingForChoice &&
       !isWaitingForInlineChoice && !isWaitingForPopup && !isWaitingForChallenge &&
-      !isProcessing && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0);
+      !isWaitingForMedia && !isWaitingForCapacityGate && !pendingPageId && !isProcessing && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0);
 
     if (!shouldShowContinue) {
       setCountdownValue(null);
@@ -226,7 +248,7 @@ function PlayViewer({ playId, onClose }) {
       }
     };
   }, [play, currentPageId, displayedParagraphs.length, isEnded, autoAdvancePending, isWaitingForChoice,
-      isWaitingForInlineChoice, isWaitingForPopup, isWaitingForChallenge, isProcessing, playStarted, isAutoPaused]);
+      isWaitingForInlineChoice, isWaitingForPopup, isWaitingForChallenge, isWaitingForMedia, isWaitingForCapacityGate, pendingPageId, isProcessing, playStarted, isAutoPaused]);
 
   // Get actor by ID
   const getActor = useCallback((actorId) => {
@@ -447,8 +469,7 @@ function PlayViewer({ playId, onClose }) {
   const startMockPumpTracking = useCallback(() => {
     // Guard: Don't create new interval if tracking already active
     if (mockPumpTrackingActiveRef.current) {
-      console.log('[PlayViewer] Mock tracking already active - ignoring duplicate start');
-      return;
+      return; // Silently ignore - expected defensive behavior
     }
 
     // Clear any existing interval (defensive)
@@ -463,15 +484,15 @@ function PlayViewer({ playId, onClose }) {
     // Get calibration time (in seconds to reach 100%)
     const calibrationTime = getPrimaryPumpCalibrationTime();
 
-    // Get capacity modifier from settings (same as backend calculation)
-    const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
+    // Get capacity modifier from settings (same as backend calculation) - use refs to avoid dependency churn
+    const capacityModifier = settingsRef.current?.globalCharacterControls?.autoCapacityMultiplier || sessionStateRef.current?.capacityModifier || 1.0;
 
     // Record start time and get initial capacity synchronously
     const startTime = Date.now();
     mockPumpStartTimeRef.current = startTime;
 
-    // Get initial capacity immediately (synchronously)
-    const initialCapacity = inflateeCapacity.inflatee2;
+    // Get initial capacity immediately (synchronously) - use ref to avoid dependency churn
+    const initialCapacity = inflateeCapacityRef.current.inflatee2;
 
     // Create interval OUTSIDE of setState to ensure it's created immediately
     // Update every 1 second to match real pump update rate
@@ -493,7 +514,7 @@ function PlayViewer({ playId, onClose }) {
       calibrationTime,
       capacityModifier
     });
-  }, [getPrimaryPumpCalibrationTime, settings, sessionState]);
+  }, [getPrimaryPumpCalibrationTime]);
 
   // Stop continuous capacity tracking for inflatee2
   const stopMockPumpTracking = useCallback(() => {
@@ -506,19 +527,25 @@ function PlayViewer({ playId, onClose }) {
     mockPumpTrackingActiveRef.current = false; // Clear guard
   }, []);
 
+  // Keep function refs in sync (allows calling from processNextParagraph without dependency)
+  useEffect(() => {
+    startMockPumpTrackingRef.current = startMockPumpTracking;
+    stopMockPumpTrackingRef.current = stopMockPumpTracking;
+  }, [startMockPumpTracking, stopMockPumpTracking]);
+
   // Sync mock pump tracking with pumpStatus changes (safety net)
   useEffect(() => {
     // If inflatee2 pump status becomes null but interval is still running, stop it
     if (pumpStatus.inflatee2 === null && mockPumpIntervalRef.current !== null) {
       console.log('[PlayViewer] Auto-stopping orphaned mock tracking');
-      stopMockPumpTracking();
+      stopMockPumpTrackingRef.current?.();
     }
   }, [pumpStatus.inflatee2, stopMockPumpTracking]);
 
   // Emergency stop - stop all pumps (real and mock)
   const handleEmergencyStop = useCallback(() => {
     // Stop mock pump tracking
-    stopMockPumpTracking();
+    stopMockPumpTrackingRef.current?.();
 
     // Clear pump timer
     if (pumpTimerRef.current) {
@@ -617,7 +644,7 @@ function PlayViewer({ playId, onClose }) {
 
   // Process next paragraph
   const processNextParagraph = useCallback(() => {
-    if (!currentPage || isWaitingForChoice || isWaitingForPopup || isEnded || isProcessing) return;
+    if (!currentPage || isWaitingForChoice || isWaitingForPopup || isWaitingForCapacityGate || isEnded || isProcessing) return;
 
     const paragraphs = currentPage.paragraphs || [];
 
@@ -704,6 +731,29 @@ function PlayViewer({ playId, onClose }) {
         // Jump to another page
         if (para.data.targetPageId) {
           goToPage(para.data.targetPageId);
+        }
+        setIsProcessing(false);
+        break;
+
+      case 'weighted_random':
+        // Randomly select an outcome based on weights
+        const weightedOutcomes = para.data.outcomes || [];
+        if (weightedOutcomes.length > 0) {
+          const totalWeight = weightedOutcomes.reduce((sum, o) => sum + (o.weight || 0), 0);
+          let random = Math.random() * totalWeight;
+          let selectedOutcome = weightedOutcomes[0];
+
+          for (const outcome of weightedOutcomes) {
+            random -= (outcome.weight || 0);
+            if (random <= 0) {
+              selectedOutcome = outcome;
+              break;
+            }
+          }
+
+          if (selectedOutcome.targetPageId) {
+            goToPage(selectedOutcome.targetPageId);
+          }
         }
         setIsProcessing(false);
         break;
@@ -865,11 +915,7 @@ function PlayViewer({ playId, onClose }) {
 
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
-        // Auto-advance immediately for pump events
-        setTimeout(() => {
-          setIsProcessing(false);
-          processNextParagraph();
-        }, 10);
+        setAutoAdvancePending(true);
         break;
 
       case 'mock_pump':
@@ -904,66 +950,138 @@ function PlayViewer({ playId, onClose }) {
           // Turn pump off
           setPumpStatus(prev => ({ ...prev, [target]: null }));
           if (target === 'inflatee2') {
-            stopMockPumpTracking();
+            stopMockPumpTrackingRef.current?.();
           }
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
-          // Auto-advance immediately for pump events
-          setTimeout(() => {
-            setIsProcessing(false);
-            processNextParagraph();
-          }, 10);
+          setAutoAdvancePending(true);
         } else if (action === 'on') {
           // Turn pump on indefinitely with continuous capacity tracking
           setPumpStatus(prev => ({ ...prev, [target]: 'on' }));
           if (target === 'inflatee2') {
-            startMockPumpTracking();
+            startMockPumpTrackingRef.current?.();
           }
           setCurrentParaIndex(prev => prev + 1);
           setIsProcessing(false);
-          // Auto-advance immediately for pump events
-          setTimeout(() => {
-            setIsProcessing(false);
-            processNextParagraph();
-          }, 10);
+          setAutoAdvancePending(true);
         } else {
           // Cycle, pulse, or timed - run for duration with continuous tracking then stop
           setPumpStatus(prev => ({ ...prev, [target]: action }));
 
           if (target === 'inflatee2') {
-            startMockPumpTracking();
+            startMockPumpTrackingRef.current?.();
           }
+
+          // For timed operations, advance immediately but pump runs in background
+          setCurrentParaIndex(prev => prev + 1);
+          setIsProcessing(false);
+          setAutoAdvancePending(true);
 
           pumpTimerRef.current = setTimeout(() => {
             // Stop tracking and pump after duration
             if (target === 'inflatee2') {
-              stopMockPumpTracking();
+              stopMockPumpTrackingRef.current?.();
             }
             // Always set status to null when timer expires
             setPumpStatus(prev => ({ ...prev, [target]: null }));
-            setCurrentParaIndex(prev => prev + 1);
-            setIsProcessing(false);
-            // Auto-advance immediately for pump events
-            setTimeout(() => {
-              setIsProcessing(false);
-              processNextParagraph();
-            }, 10);
           }, duration);
         }
+        break;
+
+      case 'capacity_gate':
+        // Block progress until capacity reaches threshold
+        const gateTarget = para.data.target || 'inflatee1';
+        const gateThreshold = para.data.threshold || 50;
+        const currentCap = inflateeCapacityRef.current[gateTarget] || 0;
+
+        // Add visual indicator to displayed content
+        setDisplayedParagraphs(prev => [...prev, {
+          type: 'capacity_gate',
+          data: {
+            target: gateTarget,
+            threshold: gateThreshold,
+            message: para.data.message || '',
+            currentCapacity: currentCap
+          },
+          key: `${currentPageId}-${para.id}-gate`
+        }]);
+
+        if (currentCap >= gateThreshold) {
+          // Already met threshold - continue immediately
+          setCurrentParaIndex(prev => prev + 1);
+          setIsProcessing(false);
+          setTimeout(() => {
+            processNextParagraph();
+          }, 10);
+        } else {
+          // Block until threshold is met
+          setCapacityGateData({ target: gateTarget, threshold: gateThreshold, paraId: para.id });
+          setIsWaitingForCapacityGate(true);
+          setIsProcessing(false);
+        }
+        break;
+
+      case 'show_image':
+        // Display image - blocks auto-continue until dismissed if fullscreen/popup
+        setDisplayedParagraphs(prev => [...prev, { ...para, key: `${para.id}-${Date.now()}` }]);
+        setCurrentParaIndex(prev => prev + 1);
+        if (para.data.displayMode === 'fullscreen' || para.data.displayMode === 'popup') {
+          // Block auto-continue until user dismisses
+          setIsWaitingForMedia(true);
+        }
+        setTimeout(() => {
+          setIsProcessing(false);
+          // Only auto-advance if not blocking
+          if (para.data.displayMode === 'inline') {
+            processNextParagraph();
+          }
+        }, 10);
+        break;
+
+      case 'play_video':
+        // Display video - always blocks auto-continue until video ends (or loops once)
+        setDisplayedParagraphs(prev => [...prev, { ...para, key: `${para.id}-${Date.now()}` }]);
+        setCurrentParaIndex(prev => prev + 1);
+        setIsWaitingForMedia(true);
+        setIsProcessing(false);
+        break;
+
+      case 'play_audio':
+        // Play audio - blocks auto-continue until audio ends (or loops once)
+        setDisplayedParagraphs(prev => [...prev, { ...para, key: `${para.id}-${Date.now()}` }]);
+        setCurrentParaIndex(prev => prev + 1);
+        setIsWaitingForMedia(true);
+        setIsProcessing(false);
         break;
 
       case 'parallel_container':
         // Execute all child events simultaneously and immediately continue
         const children = para.data.children || [];
+        const pumpNotifications = []; // Collect all pump notifications to display at once
 
         // Fire off all child events without waiting
-        children.forEach(child => {
+        children.forEach((child, childIdx) => {
           // Execute child based on its type
           switch (child.type) {
             case 'pump':
               // Real pump event
               const pumpDevice = child.data.device || 'Primary Pump';
               const pumpAction = child.data.action || 'cycle';
+
+              // Add display notification
+              const pumpTimedSecs = evaluateExpression(child.data.timedDuration) || 5;
+              const pumpActionText = pumpAction === 'on' ? 'turns on' :
+                                    pumpAction === 'off' ? 'turns off' :
+                                    pumpAction === 'cycle' ? 'starts cycling' :
+                                    pumpAction === 'pulse' ? 'pulses' :
+                                    pumpAction === 'timed' ? `runs for ${pumpTimedSecs}s` :
+                                    pumpAction === 'until' ? `runs until ${child.data.targetCapacity || 50}%` :
+                                    'activates';
+              pumpNotifications.push({
+                type: 'pump_action',
+                data: { action: pumpAction, text: `*${pumpDevice} ${pumpActionText}*` },
+                key: `${currentPageId}-${para.id}-pump-${childIdx}`
+              });
 
               if (pumpAction === 'cycle') {
                 sendWsMessage('screenplay_pump', {
@@ -983,7 +1101,7 @@ function PlayViewer({ playId, onClose }) {
                 sendWsMessage('screenplay_pump', {
                   type: 'device_on',
                   device: pumpDevice,
-                  duration: child.data.duration || 5
+                  duration: pumpTimedSecs
                 });
               } else if (pumpAction === 'on') {
                 sendWsMessage('screenplay_pump', {
@@ -1009,32 +1127,49 @@ function PlayViewer({ playId, onClose }) {
               // Mock pump event - fire and forget
               const mockTarget = child.data.target || 'inflatee1';
               const mockAction = child.data.action || 'cycle';
-              const mockDuration = child.data.duration || 5000;
+              // For timed action, use timedDuration (seconds), otherwise use duration (ms)
+              const mockTimedSecs = evaluateExpression(child.data.timedDuration) || 5;
+              const mockDuration = mockAction === 'timed'
+                ? mockTimedSecs * 1000
+                : (child.data.duration || 5000);
+
+              // Add display notification
+              const mockActionText = mockAction === 'on' ? 'starts' :
+                                    mockAction === 'off' ? 'stops' :
+                                    mockAction === 'timed' ? `runs for ${mockTimedSecs}s` :
+                                    mockAction === 'until' ? `runs until ${child.data.targetCapacity || 50}%` :
+                                    `begins ${mockAction} mode`;
+              const mockTargetLabel = mockTarget === 'inflatee2' ? 'Inflatee 2' : 'Player';
+              pumpNotifications.push({
+                type: 'pump_action',
+                data: { target: mockTarget, action: mockAction, text: `*The pump ${mockActionText} for ${mockTargetLabel}*` },
+                key: `${currentPageId}-${para.id}-mock-${childIdx}`
+              });
 
               if (mockAction === 'off') {
                 setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
                 if (mockTarget === 'inflatee2') {
-                  stopMockPumpTracking();
+                  stopMockPumpTrackingRef.current?.();
                 }
               } else if (mockAction === 'on') {
                 setPumpStatus(prev => ({ ...prev, [mockTarget]: 'on' }));
                 if (mockTarget === 'inflatee2') {
-                  startMockPumpTracking();
+                  startMockPumpTrackingRef.current?.();
                 }
               } else if (mockAction === 'until') {
                 // Run until target capacity reached
                 setPumpStatus(prev => ({ ...prev, [mockTarget]: 'until' }));
                 if (mockTarget === 'inflatee2') {
-                  startMockPumpTracking();
+                  startMockPumpTrackingRef.current?.();
                 }
 
                 const targetCap = child.data.targetCapacity || 50;
                 const checkInterval = setInterval(() => {
-                  const currentCap = inflateeCapacity[mockTarget] || 0;
+                  const currentCap = inflateeCapacityRef.current[mockTarget] || 0;
                   if (currentCap >= targetCap) {
                     clearInterval(checkInterval);
                     if (mockTarget === 'inflatee2') {
-                      stopMockPumpTracking();
+                      stopMockPumpTrackingRef.current?.();
                     }
                     setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
                   }
@@ -1044,7 +1179,7 @@ function PlayViewer({ playId, onClose }) {
                 setTimeout(() => {
                   clearInterval(checkInterval);
                   if (mockTarget === 'inflatee2') {
-                    stopMockPumpTracking();
+                    stopMockPumpTrackingRef.current?.();
                   }
                   setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
                 }, 600000);
@@ -1052,11 +1187,11 @@ function PlayViewer({ playId, onClose }) {
                 // Cycle, pulse, or timed - run for duration
                 setPumpStatus(prev => ({ ...prev, [mockTarget]: mockAction }));
                 if (mockTarget === 'inflatee2') {
-                  startMockPumpTracking();
+                  startMockPumpTrackingRef.current?.();
                 }
                 setTimeout(() => {
                   if (mockTarget === 'inflatee2') {
-                    stopMockPumpTracking();
+                    stopMockPumpTrackingRef.current?.();
                   }
                   // Always set status to null after timed operations
                   setPumpStatus(prev => ({ ...prev, [mockTarget]: null }));
@@ -1098,6 +1233,11 @@ function PlayViewer({ playId, onClose }) {
               break;
           }
         });
+
+        // Display all pump notifications at once (so they appear simultaneously)
+        if (pumpNotifications.length > 0) {
+          setDisplayedParagraphs(prev => [...prev, ...pumpNotifications]);
+        }
 
         // Immediately advance to next paragraph without waiting
         setCurrentParaIndex(prev => prev + 1);
@@ -1172,11 +1312,17 @@ function PlayViewer({ playId, onClose }) {
         setCurrentParaIndex(prev => prev + 1);
         setIsProcessing(false);
     }
-  }, [currentPage, currentPageId, currentParaIndex, isWaitingForChoice, isWaitingForPopup, isEnded, isProcessing, variables, substituteVariables, enhanceText, sendWsMessage, startMockPumpTracking]);
+  }, [currentPage, currentPageId, currentParaIndex, isWaitingForChoice, isWaitingForPopup, isWaitingForCapacityGate, isEnded, isProcessing, variables, substituteVariables, evaluateExpression, enhanceText, sendWsMessage]);
 
-  // Go to a specific page
-  const goToPage = useCallback((pageId) => {
+  // Go to a specific page - in auto mode, queue the page change for >> button
+  const goToPage = useCallback((pageId, forceImmediate = false) => {
     if (!play?.pages?.[pageId]) return;
+
+    // In auto mode (not paused), queue page change instead of immediate transition
+    if (play?.continueMode === 'auto' && !forceImmediate) {
+      setPendingPageId(pageId);
+      return;
+    }
 
     // Save current state to history
     setHistory(prev => [...prev, {
@@ -1191,8 +1337,16 @@ function PlayViewer({ playId, onClose }) {
     setDisplayedParagraphs([]);
     setIsWaitingForChoice(false);
     setCurrentChoices([]);
+    setPendingPageId(null);
     hasAutoStartedRef.current = false; // Reset auto-start flag for new page
   }, [play, currentPageId, currentParaIndex, displayedParagraphs]);
+
+  // Confirm pending page change (>> button in auto mode)
+  const confirmPageChange = useCallback(() => {
+    if (pendingPageId) {
+      goToPage(pendingPageId, true);
+    }
+  }, [pendingPageId, goToPage]);
 
   // Check if a choice/option passes its condition
   const checkCondition = useCallback((item) => {
@@ -1325,10 +1479,21 @@ function PlayViewer({ playId, onClose }) {
     return used.size >= totalOptions;
   }, [currentInlineChoice, usedInlineOptions]);
 
-  // Handle continue click (advance to next paragraph)
+  // Handle continue/skip click - advances paragraph or confirms page change
   const handleContinue = useCallback(() => {
+    // If there's a pending page change, confirm it
+    if (pendingPageId) {
+      confirmPageChange();
+      return;
+    }
+    // Clear any running countdown (skip timer)
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+      setCountdownValue(null);
+    }
     processNextParagraph();
-  }, [processNextParagraph]);
+  }, [pendingPageId, confirmPageChange, processNextParagraph]);
 
   // Auto-continue when countdown finishes
   const lastTriggerRef = useRef(0);
@@ -1539,6 +1704,29 @@ function PlayViewer({ playId, onClose }) {
     }
   }, [autoAdvancePending, isProcessing, processNextParagraph]);
 
+  // Handle media completion (video/audio ended or image dismissed)
+  const handleMediaComplete = useCallback(() => {
+    if (isWaitingForMedia) {
+      setIsWaitingForMedia(false);
+      // Resume auto-continue by processing next paragraph
+      processNextParagraph();
+    }
+  }, [isWaitingForMedia, processNextParagraph]);
+
+  // Monitor capacity for capacity gate - unblock when threshold is met
+  useEffect(() => {
+    if (isWaitingForCapacityGate && capacityGateData) {
+      const currentCap = inflateeCapacity[capacityGateData.target] || 0;
+      if (currentCap >= capacityGateData.threshold) {
+        // Threshold met - unblock and continue
+        setIsWaitingForCapacityGate(false);
+        setCapacityGateData(null);
+        setCurrentParaIndex(prev => prev + 1);
+        setAutoAdvancePending(true);
+      }
+    }
+  }, [inflateeCapacity, isWaitingForCapacityGate, capacityGateData]);
+
   // Render a single paragraph
   const renderParagraph = (para) => {
     const enhancingClass = para.isEnhancing ? ' enhancing' : '';
@@ -1606,6 +1794,36 @@ function PlayViewer({ playId, onClose }) {
         return (
           <div key={para.key} className={`para-display pump-action ${para.data.action}`}>
             <p>{para.data.text}</p>
+          </div>
+        );
+
+      case 'capacity_gate':
+        const gateTargetName = para.data.target === 'inflatee2' ? 'Inflatee 2' : 'Player';
+        const gateCurrent = inflateeCapacity[para.data.target] || 0;
+        const gateThresholdVal = para.data.threshold || 50;
+        const gateIsMet = gateCurrent >= gateThresholdVal;
+        return (
+          <div key={para.key} className={`para-display capacity-gate ${gateIsMet ? 'met' : 'waiting'}`}>
+            {para.data.message && <p className="gate-message">{para.data.message}</p>}
+            <div className="gate-status">
+              <span className="gate-icon">{gateIsMet ? '🔓' : '🔒'}</span>
+              <span className="gate-label">
+                {gateIsMet ? 'Gate unlocked!' : `Waiting for ${gateTargetName} to reach ${gateThresholdVal}%`}
+              </span>
+            </div>
+            <div className="gate-progress">
+              <div className="gate-progress-bar">
+                <div
+                  className="gate-progress-fill"
+                  style={{ width: `${Math.min(100, (gateCurrent / gateThresholdVal) * 100)}%` }}
+                />
+                <div
+                  className="gate-threshold-marker"
+                  style={{ left: `${gateThresholdVal}%` }}
+                />
+              </div>
+              <span className="gate-capacity">{Math.round(gateCurrent)}% / {gateThresholdVal}%</span>
+            </div>
           </div>
         );
 
@@ -1714,6 +1932,109 @@ function PlayViewer({ playId, onClose }) {
             <p>Result: {para.data.result}</p>
           </div>
         );
+
+      case 'show_image': {
+        const displayMode = para.data.displayMode || 'inline';
+        const imageUrl = para.data.imageTag ? `/api/media/images/${para.data.imageTag}` : '';
+
+        if (displayMode === 'fullscreen') {
+          return createPortal(
+            <div key={para.key} className="media-overlay fullscreen" onClick={handleMediaComplete}>
+              <div className="media-overlay-content">
+                {imageUrl && <img src={imageUrl} alt={para.data.caption || ''} />}
+                {para.data.caption && <p className="media-caption">{substituteVariables(para.data.caption)}</p>}
+                <p className="media-dismiss-hint">Click anywhere to continue</p>
+              </div>
+            </div>,
+            document.body
+          );
+        } else if (displayMode === 'popup') {
+          return createPortal(
+            <div key={para.key} className="media-overlay popup">
+              <div className="media-popup-content" onClick={(e) => e.stopPropagation()}>
+                {imageUrl && <img src={imageUrl} alt={para.data.caption || ''} />}
+                {para.data.caption && <p className="media-caption">{substituteVariables(para.data.caption)}</p>}
+                <button className="btn btn-primary" onClick={handleMediaComplete}>Continue</button>
+              </div>
+            </div>,
+            document.body
+          );
+        } else {
+          // Inline
+          return (
+            <div key={para.key} className="para-display media-inline">
+              {imageUrl && <img src={imageUrl} alt={para.data.caption || ''} className="media-image-inline" />}
+              {para.data.caption && <p className="media-caption">{substituteVariables(para.data.caption)}</p>}
+            </div>
+          );
+        }
+      }
+
+      case 'play_video': {
+        const videoUrl = para.data.videoTag ? `/api/media/videos/${para.data.videoTag}` : '';
+        return (
+          <div key={para.key} className="para-display media-video">
+            {videoUrl && (
+              <video
+                src={videoUrl}
+                autoPlay={para.data.autoplay !== false}
+                loop={para.data.loop || false}
+                muted={para.data.muted || false}
+                controls
+                onEnded={() => {
+                  // Only trigger complete on first play (not on loop)
+                  if (!para.data.loop) {
+                    handleMediaComplete();
+                  }
+                }}
+                onLoadedData={(e) => {
+                  // If looping, complete after one full duration
+                  if (para.data.loop) {
+                    const video = e.target;
+                    setTimeout(() => {
+                      handleMediaComplete();
+                    }, video.duration * 1000);
+                  }
+                }}
+                className="media-video-player"
+              />
+            )}
+          </div>
+        );
+      }
+
+      case 'play_audio': {
+        const audioUrl = para.data.audioTag ? `/api/media/audios/${para.data.audioTag}` : '';
+        return (
+          <div key={para.key} className={`para-display media-audio ${para.data.silent ? 'silent' : ''}`}>
+            {audioUrl && (
+              <>
+                <audio
+                  src={audioUrl}
+                  autoPlay
+                  loop={para.data.loop || false}
+                  onEnded={() => {
+                    if (!para.data.loop) {
+                      handleMediaComplete();
+                    }
+                  }}
+                  onLoadedMetadata={(e) => {
+                    if (para.data.loop) {
+                      const audio = e.target;
+                      setTimeout(() => {
+                        handleMediaComplete();
+                      }, audio.duration * 1000);
+                    }
+                  }}
+                  controls={!para.data.silent}
+                  className="media-audio-player"
+                />
+                {para.data.silent && <p className="audio-playing-indicator">Playing audio...</p>}
+              </>
+            )}
+          </div>
+        );
+      }
 
       default:
         return null;
@@ -1829,12 +2150,9 @@ function PlayViewer({ playId, onClose }) {
                 {currentInlineChoice?.data?.continueText || 'Continue'}
               </button>
             </div>
-          ) : !isEnded && !autoAdvancePending && currentPage && currentParaIndex < (currentPage.paragraphs?.length || 0) ? (
+          ) : !isEnded && !autoAdvancePending && currentPage && (currentParaIndex < (currentPage.paragraphs?.length || 0) || pendingPageId) ? (
             play?.continueMode === 'auto' ? (
               <div className="auto-continue-bar">
-                <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
-                  {isProcessing ? '...' : 'Continue'}
-                </button>
                 <button
                   className="play-pause-btn"
                   onClick={() => setIsAutoPaused(!isAutoPaused)}
@@ -1842,12 +2160,20 @@ function PlayViewer({ playId, onClose }) {
                 >
                   {isAutoPaused ? '▶' : '⏸'}
                 </button>
+                <button
+                  className={`skip-btn ${pendingPageId ? 'page-ready' : ''}`}
+                  onClick={handleContinue}
+                  disabled={isProcessing || isWaitingForCapacityGate}
+                  title={pendingPageId ? 'Advance to next page' : 'Skip timer'}
+                >
+                  »
+                </button>
                 <div className="countdown-display">
-                  {!isAutoPaused && countdownValue !== null ? countdownValue : '—'}
+                  {pendingPageId ? '→' : (!isAutoPaused && countdownValue !== null ? countdownValue : '—')}
                 </div>
               </div>
             ) : (
-              <button className="continue-btn" onClick={handleContinue} disabled={isProcessing}>
+              <button className="continue-btn" onClick={handleContinue} disabled={isProcessing || isWaitingForCapacityGate}>
                 {isProcessing ? '...' : 'Continue'}
               </button>
             )
