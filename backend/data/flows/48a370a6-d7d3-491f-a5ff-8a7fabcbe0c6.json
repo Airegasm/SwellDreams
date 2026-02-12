@@ -59,24 +59,24 @@
       "data": {
         "label": "Send AI Message",
         "actionType": "send_message",
-        "message": "Okay, [Player], I think it's time for me to wrap up our little playdate. But before we call it a day, I just want to make EXTRA sure that tummy is as packed and pressurized as possible, okay? *Scarlett smiles, satisfied.*",
+        "message": "",
         "suppressLlm": true,
-        "preMessageEnabled": false,
-        "preMessage": "",
+        "preMessageEnabled": true,
+        "preMessage": "Okay, [Player], I think it's time for me to wrap up our little playdate. But before we call it a day, I just want to make EXTRA sure that tummy is as packed and pressurized as possible, okay? *Scarlett smiles, satisfied.*",
         "preMessageSuppressLlm": false,
         "preMessageTarget": "character",
-        "preDelay": 0,
+        "preDelay": 5,
         "postMessageEnabled": true,
         "postMessage": "Oh...okay...but I'm already super full and it's starting to cramp pretty bad... *You whimper a bit, not excited for this final stage.* But... as long as it's just a bit more...",
         "postMessageSuppressLlm": true,
         "postMessageTarget": "persona",
-        "postDelay": 3
+        "postDelay": 5
       },
       "measured": {
         "width": 257,
-        "height": 300
+        "height": 399
       },
-      "selected": false,
+      "selected": true,
       "dragging": false
     },
     {
@@ -269,7 +269,7 @@
         "width": 257,
         "height": 399
       },
-      "selected": true
+      "selected": false
     },
     {
       "id": "node_13",
@@ -367,7 +367,7 @@
     }
   ],
   "groups": [],
-  "isActive": true,
+  "isActive": false,
   "createdAt": 1770914454192,
-  "updatedAt": 1770916127632
+  "updatedAt": 1770916703032
 }
