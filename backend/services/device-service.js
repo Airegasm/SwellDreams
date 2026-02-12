@@ -743,18 +743,21 @@ class DeviceService {
 
       try {
         await this.turnOn(ip, device);
-        this.emitEvent('pulse_on', { ip, pulse: currentPulse, device });
+        this.emitEvent('pulse_on', { ip, pulse: currentPulse, totalPulses: pulses, device });
 
         // Turn off after pulse duration
         setTimeout(async () => {
           try {
             console.log(`[DeviceService] Pulse ${currentPulse}: turning OFF device ${ip}`);
             await this.turnOff(ip, device);
-            this.emitEvent('pulse_off', { ip, pulse: currentPulse, device });
+            this.emitEvent('pulse_off', { ip, pulse: currentPulse, totalPulses: pulses, device });
 
             // Schedule next pulse
             if (currentPulse < pulses) {
               setTimeout(runPulse, pulseInterval - pulseDuration);
+            } else {
+              // All pulses complete
+              this.emitEvent('pulse_complete', { ip, totalPulses: pulses, device });
             }
           } catch (err) {
             console.error(`[DeviceService] Pulse ${currentPulse}: error in turnOff:`, err.message);

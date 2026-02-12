@@ -32,27 +32,32 @@ function InputNode({ data, selected }) {
             <select
               value={data.inputType || 'text'}
               onChange={(e) => data.onChange?.('inputType', e.target.value)}
-              className="node-select"
+              className="node-select wider"
             >
               <option value="text">Text</option>
               <option value="number">Number</option>
+              <option value="1button">1Button</option>
             </select>
           </div>
 
-          {/* Variable Name */}
-          <div className="config-row">
-            <label>Variable:</label>
-            <input
-              type="text"
-              value={data.variableName || 'Input'}
-              onChange={(e) => data.onChange?.('variableName', e.target.value)}
-              placeholder="Input"
-              className="node-input"
-            />
-          </div>
-          <div className="config-hint">
-            Access as [Flow:{data.variableName || 'Input'}]
-          </div>
+          {/* Variable Name - Hide for 1Button type */}
+          {data.inputType !== '1button' && (
+            <>
+              <div className="config-row">
+                <label>Variable:</label>
+                <input
+                  type="text"
+                  value={data.variableName || 'Input'}
+                  onChange={(e) => data.onChange?.('variableName', e.target.value)}
+                  placeholder="Input"
+                  className="node-input"
+                />
+              </div>
+              <div className="config-hint">
+                Access as [Flow:{data.variableName || 'Input'}]
+              </div>
+            </>
+          )}
 
           {/* Prompt Message */}
           <div className="form-group">
@@ -66,14 +71,14 @@ function InputNode({ data, selected }) {
             />
           </div>
 
-          {/* Placeholder */}
+          {/* Placeholder (for text/number) OR Button Text (for 1button) */}
           <div className="form-group">
-            <label>Placeholder:</label>
+            <label>{data.inputType === '1button' ? 'Button Text:' : 'Placeholder:'}</label>
             <input
               type="text"
               value={data.placeholder || ''}
               onChange={(e) => data.onChange?.('placeholder', e.target.value)}
-              placeholder="Input placeholder text..."
+              placeholder={data.inputType === '1button' ? 'Continue' : 'Enter value...'}
               className="node-input"
             />
           </div>

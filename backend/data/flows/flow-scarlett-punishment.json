@@ -5,7 +5,7 @@
   "description": "Timer challenge endurance test with device punishment",
   "isActive": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1770911021062,
+  "updatedAt": 1770913266836,
   "nodes": [
     {
       "id": "scarlett-pn-btn",
@@ -197,7 +197,8 @@
         "message": "*disappointed sigh* Pathetic. You couldn't even last 60 seconds. Now you'll experience an extended session as penance.",
         "suppressLlm": true,
         "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "postMessageEnabled": false,
+        "postDelay": 0
       },
       "measured": {
         "width": 257,
@@ -326,7 +327,7 @@
         "width": 257,
         "height": 381
       },
-      "selected": true,
+      "selected": false,
       "dragging": false
     },
     {
@@ -442,6 +443,25 @@
       },
       "selected": false,
       "dragging": false
+    },
+    {
+      "id": "node_9",
+      "type": "delay",
+      "position": {
+        "x": 784.8833598581173,
+        "y": 608.2526926173151
+      },
+      "data": {
+        "label": "Delay",
+        "duration": 5,
+        "unit": "seconds"
+      },
+      "measured": {
+        "width": 258,
+        "height": 86
+      },
+      "selected": true,
+      "dragging": false
     }
   ],
   "edges": [
@@ -478,12 +498,6 @@
       "selected": false
     },
     {
-      "source": "scarlett-pn-fail-msg",
-      "target": "scarlett-pn-fail-extend",
-      "animated": true,
-      "id": "xy-edge__scarlett-pn-fail-msg-scarlett-pn-fail-extend"
-    },
-    {
       "source": "scarlett-pn-timer",
       "sourceHandle": "timeout",
       "target": "node_3",
@@ -495,12 +509,6 @@
       "target": "node_1",
       "animated": true,
       "id": "xy-edge__node_3-node_1"
-    },
-    {
-      "source": "node_1",
-      "target": "scarlett-pn-fail-msg",
-      "animated": true,
-      "id": "xy-edge__node_1-scarlett-pn-fail-msg"
     },
     {
       "source": "scarlett-mercy-btn",
@@ -540,6 +548,24 @@
       "target": "node_8",
       "animated": true,
       "id": "xy-edge__node_7-node_8"
+    },
+    {
+      "source": "node_1",
+      "target": "node_9",
+      "animated": true,
+      "id": "xy-edge__node_1-node_9"
+    },
+    {
+      "source": "node_9",
+      "target": "scarlett-pn-fail-msg",
+      "animated": true,
+      "id": "xy-edge__node_9-scarlett-pn-fail-msg"
+    },
+    {
+      "source": "scarlett-pn-fail-msg",
+      "target": "scarlett-pn-fail-extend",
+      "animated": true,
+      "id": "xy-edge__scarlett-pn-fail-msg-scarlett-pn-fail-extend"
     }
   ],
   "groups": []

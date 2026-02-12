@@ -398,6 +398,13 @@ export function AppProvider({ children }) {
       case 'device_on':
         // Track device turning on (duration-based)
         setPumpStatus(prev => {
+          const existingStatus = prev[data.ip];
+
+          // Don't overwrite if this is part of a cycle - cycle_on will update it
+          if (existingStatus && existingStatus.type === 'cycle') {
+            return prev; // Keep the cycle status
+          }
+
           const statusEntry = {
             type: 'duration',
             startTime: Date.now(),
@@ -418,8 +425,14 @@ export function AppProvider({ children }) {
         break;
 
       case 'device_off':
-        // Clear pump status when device turns off
+        // Clear pump status when device turns off (unless it's part of an active cycle)
         setPumpStatus(prev => {
+          const status = prev[data.ip];
+          // Don't clear if this is part of a cycle - cycle_off will handle it
+          if (status && status.type === 'cycle') {
+            return prev; // Keep the cycle status visible
+          }
+          // For non-cycle operations, clear the status
           const next = { ...prev };
           delete next[data.ip];
           return next;
@@ -470,6 +483,35 @@ export function AppProvider({ children }) {
           return next;
         });
         console.log('[WS] Cycle complete:', data);
+        break;
+
+      case 'pulse_on':
+        // Track pulse start - update currentPulse
+        setPumpStatus(prev => ({
+          ...prev,
+          [data.ip]: {
+            type: 'pulse',
+            currentPulse: data.pulse,
+            totalPulses: data.totalPulses,
+            device: data.device
+          }
+        }));
+        console.log('[WS] Pulse ON:', data);
+        break;
+
+      case 'pulse_off':
+        // Pulse turned off - keep status visible with updated count
+        console.log('[WS] Pulse OFF:', data);
+        break;
+
+      case 'pulse_complete':
+        // Clear pump status when all pulses complete
+        setPumpStatus(prev => {
+          const next = { ...prev };
+          delete next[data.ip];
+          return next;
+        });
+        console.log('[WS] Pulse complete:', data);
         break;
 
       case 'emergency_stop':

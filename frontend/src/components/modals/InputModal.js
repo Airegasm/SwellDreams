@@ -30,6 +30,11 @@ function InputModal({ inputData, onSubmit, subContext, compact = false }) {
   }, [inputData?.nodeId]);
 
   const validateInput = useCallback((val) => {
+    // For 1Button type, no validation needed
+    if (inputType === '1button') {
+      return null;
+    }
+
     if (required && (!val || val.toString().trim() === '')) {
       return 'Value is required';
     }
@@ -51,6 +56,12 @@ function InputModal({ inputData, onSubmit, subContext, compact = false }) {
   }, [inputType, minValue, maxValue, required]);
 
   const handleSubmit = useCallback(() => {
+    // For 1Button type, submit the placeholder text as the value
+    if (inputType === '1button') {
+      onSubmit(placeholder || 'Continue');
+      return;
+    }
+
     const validationError = validateInput(value);
     if (validationError) {
       setError(validationError);
@@ -59,7 +70,7 @@ function InputModal({ inputData, onSubmit, subContext, compact = false }) {
 
     const finalValue = inputType === 'number' ? parseFloat(value) : value;
     onSubmit(finalValue);
-  }, [value, inputType, validateInput, onSubmit]);
+  }, [value, inputType, validateInput, onSubmit, placeholder]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -83,55 +94,58 @@ function InputModal({ inputData, onSubmit, subContext, compact = false }) {
             {substituteVariables(prompt, subContext)}
           </p>
         )}
-        <div className="input-container">
-          {inputType === 'number' ? (
-            <input
-              ref={inputRef}
-              type="number"
-              value={value}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setError(null);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder || 'Enter a number...'}
-              min={minValue}
-              max={maxValue}
-              className="input-field number"
-            />
-          ) : (
-            <input
-              ref={inputRef}
-              type="text"
-              value={value}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setError(null);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder || 'Enter your response...'}
-              className="input-field text"
-            />
-          )}
-          {error && <div className="input-error">{error}</div>}
-          {inputType === 'number' && (minValue !== null || maxValue !== null) && (
-            <div className="input-hint">
-              {minValue !== null && maxValue !== null
-                ? `Range: ${minValue} - ${maxValue}`
-                : minValue !== null
-                ? `Minimum: ${minValue}`
-                : `Maximum: ${maxValue}`
-              }
-            </div>
-          )}
-        </div>
+        {/* Only show input field for text/number types */}
+        {inputType !== '1button' && (
+          <div className="input-container">
+            {inputType === 'number' ? (
+              <input
+                ref={inputRef}
+                type="number"
+                value={value}
+                onChange={(e) => {
+                  setValue(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder || 'Enter a number...'}
+                min={minValue}
+                max={maxValue}
+                className="input-field number"
+              />
+            ) : (
+              <input
+                ref={inputRef}
+                type="text"
+                value={value}
+                onChange={(e) => {
+                  setValue(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder || 'Enter your response...'}
+                className="input-field text"
+              />
+            )}
+            {error && <div className="input-error">{error}</div>}
+            {inputType === 'number' && (minValue !== null || maxValue !== null) && (
+              <div className="input-hint">
+                {minValue !== null && maxValue !== null
+                  ? `Range: ${minValue} - ${maxValue}`
+                  : minValue !== null
+                  ? `Minimum: ${minValue}`
+                  : `Maximum: ${maxValue}`
+                }
+              </div>
+            )}
+          </div>
+        )}
         <div className="input-actions">
           <button
             className="btn btn-primary btn-large"
             onClick={handleSubmit}
             disabled={required && !isValid}
           >
-            OK
+            {inputType === '1button' ? (placeholder || 'Continue') : 'OK'}
           </button>
         </div>
       </div>

@@ -11,7 +11,7 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
   const handleSpinRef = useRef(null);
 
   const { segments: rawSegments = [], autoSpin = false } = challengeData || {};
-  const canvasSize = compact ? 180 : 300;
+  const canvasSize = compact ? 250 : 450;
 
   // Expand segments based on weight field, then distribute evenly
   const segments = React.useMemo(() => {

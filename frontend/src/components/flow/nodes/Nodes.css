@@ -142,7 +142,7 @@
 .node-input,
 .node-select,
 .node-textarea {
-  background-color: var(--bg-input);
+  background-color: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
@@ -164,6 +164,10 @@
 .node-input.tiny {
   width: 55px;
   text-align: center;
+}
+
+.node-select.wider {
+  min-width: 120px;
 }
 
 .node-textarea {
@@ -344,7 +348,7 @@
 .custom-node .react-flow__handle {
   width: 10px;
   height: 10px;
-  background-color: var(--bg-input);
+  background-color: rgba(0, 0, 0, 0.3);
   border: 2px solid var(--border-color);
 }
 

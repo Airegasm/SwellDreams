@@ -1,0 +1,373 @@
+{
+  "id": "48a370a6-d7d3-491f-a5ff-8a7fabcbe0c6",
+  "name": "SCARLETT- END GAME",
+  "category": "character",
+  "nodes": [
+    {
+      "id": "node_0",
+      "type": "button_press",
+      "position": {
+        "x": 955.8833598581173,
+        "y": 447.2526926173151
+      },
+      "data": {
+        "label": "END GAME",
+        "hasPriority": true
+      },
+      "measured": {
+        "width": 277,
+        "height": 246
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1",
+      "type": "action",
+      "position": {
+        "x": 837.8833598581173,
+        "y": 759.252692617315
+      },
+      "data": {
+        "label": "Turn Device Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 160
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_2",
+      "type": "action",
+      "position": {
+        "x": 1019.8833598581173,
+        "y": 991.252692617315
+      },
+      "data": {
+        "label": "Send AI Message",
+        "actionType": "send_message",
+        "message": "Okay, [Player], I think it's time for me to wrap up our little playdate. But before we call it a day, I just want to make EXTRA sure that tummy is as packed and pressurized as possible, okay? *Scarlett smiles, satisfied.*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Oh...okay...but I'm already super full and it's starting to cramp pretty bad... *You whimper a bit, not excited for this final stage.* But... as long as it's just a bit more...",
+        "postMessageSuppressLlm": true,
+        "postMessageTarget": "persona",
+        "postDelay": 3
+      },
+      "measured": {
+        "width": 257,
+        "height": 300
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_3",
+      "type": "simple_ab",
+      "position": {
+        "x": 764.8833598581173,
+        "y": 1368.252692617315
+      },
+      "data": {
+        "label": "Simple A/B",
+        "description": "WARNING: \"BAD END\" will require you to press the E-STOP button to turn off the pump. For safety, have a means of hardware disconnect close by if choosing that option.",
+        "labelA": "GOOD END",
+        "descriptionA": "",
+        "labelB": "BAD END",
+        "descriptionB": ""
+      },
+      "measured": {
+        "width": 390,
+        "height": 318
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_6",
+      "type": "action",
+      "position": {
+        "x": 535.1108111937007,
+        "y": 1835.572938662193
+      },
+      "data": {
+        "label": "Start Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 3,
+        "cycles": 0,
+        "untilType": "forever",
+        "untilValue": null,
+        "preMessageEnabled": true,
+        "preMessage": "Alright, let's get those guts filled to the brim! Just tell me when it gets too much, okay? *Scarlett turns on the cycle pump.*",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 3,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 381
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_7",
+      "type": "input",
+      "position": {
+        "x": 326.55021821080015,
+        "y": 2308.2847591519658
+      },
+      "data": {
+        "label": "User Input",
+        "inputType": "1button",
+        "prompt": "Scarlett: \"How long will you last before tapping out? Let's find out!\"",
+        "placeholder": "Tap Out",
+        "variableName": "Input",
+        "minValue": null,
+        "maxValue": null,
+        "required": true
+      },
+      "measured": {
+        "width": 150,
+        "height": 298
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_8",
+      "type": "action",
+      "position": {
+        "x": 266.81790375095426,
+        "y": 2699.990898205955
+      },
+      "data": {
+        "label": "Turn Device Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Okay! I'm at my limit! I tap out, Mistress, you win! *You scream,*",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "persona",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 259
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_10",
+      "type": "action",
+      "position": {
+        "x": 1083.762339406891,
+        "y": 1947.6191544099258
+      },
+      "data": {
+        "label": "Turn Device On",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "forever",
+        "untilOperator": ">",
+        "untilValue": null,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett puts a remote control with a single button in your hand.* Just press this when you feel yourself hitting your burst limit, and it'll turn the pump off. *She smiles reassuringly.* Here we go!",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 2,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 291
+      },
+      "selected": false
+    },
+    {
+      "id": "node_11",
+      "type": "input",
+      "position": {
+        "x": 983.825582522149,
+        "y": 2369.7657998713357
+      },
+      "data": {
+        "label": "User Input",
+        "inputType": "1button",
+        "prompt": "Scarlett: \"How long will you last before tapping out? Let's find out!\"",
+        "placeholder": "Tap Out",
+        "variableName": "Input",
+        "minValue": null,
+        "maxValue": null,
+        "required": true
+      },
+      "measured": {
+        "width": 150,
+        "height": 298
+      },
+      "selected": false
+    },
+    {
+      "id": "node_12",
+      "type": "action",
+      "position": {
+        "x": 850.5765733424931,
+        "y": 2759.174542215331
+      },
+      "data": {
+        "label": "Send Player Message",
+        "actionType": "send_player_message",
+        "message": "",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "*You press the button, and....nothing. Shocked, you try again, but the pump keeps running,* Mistress, something's wrong! It's not turning off! *You look up at her, belly cramping and horrified.* I give up! I can't take anymore!",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "persona",
+        "preDelay": 2,
+        "postMessageEnabled": true,
+        "postMessage": "Oh no! The pump isn't shutting off, huh? *Scarlett fake pouts, and then immediately grins wickedly, approaching your chair.*\n\n*She places her palm flat on your gravid abdomen.* I guess we'll just have to find out what happens... *She begins slowly and firmly pressing down on your straining gut, intensifying your cramping.* ...when this tummy of yours....POPS! *Scarlett cackles.*",
+        "postMessageSuppressLlm": true,
+        "postMessageTarget": "character",
+        "postDelay": 2
+      },
+      "measured": {
+        "width": 257,
+        "height": 399
+      },
+      "selected": true
+    },
+    {
+      "id": "node_13",
+      "type": "action",
+      "position": {
+        "x": 900.0673776680416,
+        "y": 3275.8287579749986
+      },
+      "data": {
+        "label": "Send Player Message",
+        "actionType": "send_player_message",
+        "message": "*You begin to panic, knowing that she's completely serious.* Mistress! No, please! I don't want to burst! Stop!! AAAAAAAAAA!!!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "node_0",
+      "target": "node_1",
+      "animated": true,
+      "id": "xy-edge__node_0-node_1"
+    },
+    {
+      "source": "node_1",
+      "target": "node_2",
+      "animated": true,
+      "id": "xy-edge__node_1-node_2"
+    },
+    {
+      "source": "node_2",
+      "target": "node_3",
+      "animated": true,
+      "id": "xy-edge__node_2-node_3"
+    },
+    {
+      "source": "node_3",
+      "sourceHandle": "a",
+      "target": "node_6",
+      "animated": true,
+      "id": "xy-edge__node_3a-node_6"
+    },
+    {
+      "source": "node_6",
+      "sourceHandle": "immediate",
+      "target": "node_7",
+      "animated": true,
+      "id": "xy-edge__node_6immediate-node_7"
+    },
+    {
+      "source": "node_7",
+      "target": "node_8",
+      "animated": true,
+      "id": "xy-edge__node_7-node_8"
+    },
+    {
+      "source": "node_3",
+      "sourceHandle": "b",
+      "target": "node_10",
+      "animated": true,
+      "id": "xy-edge__node_3b-node_10"
+    },
+    {
+      "source": "node_10",
+      "sourceHandle": "immediate",
+      "target": "node_11",
+      "animated": true,
+      "id": "xy-edge__node_10immediate-node_11"
+    },
+    {
+      "source": "node_11",
+      "target": "node_12",
+      "animated": true,
+      "id": "xy-edge__node_11-node_12"
+    },
+    {
+      "source": "node_12",
+      "target": "node_13",
+      "animated": true,
+      "id": "xy-edge__node_12-node_13"
+    }
+  ],
+  "groups": [],
+  "isActive": true,
+  "createdAt": 1770914454192,
+  "updatedAt": 1770916127632
+}

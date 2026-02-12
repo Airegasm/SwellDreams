@@ -20,10 +20,14 @@ function PumpStatusItem({ deviceIp, status }) {
   const [timeRemaining, setTimeRemaining] = useState(0);
 
   useEffect(() => {
-    if (status.type === 'cycle' && status.endTime) {
+    if (status.type === 'cycle') {
       const interval = setInterval(() => {
-        const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
-        setTimeRemaining(remaining);
+        if (status.endTime) {
+          const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
+          setTimeRemaining(remaining);
+        } else {
+          setTimeRemaining(0); // Between cycles, show 0
+        }
       }, 100);
       return () => clearInterval(interval);
     } else if (status.type === 'duration') {
@@ -44,14 +48,16 @@ function PumpStatusItem({ deviceIp, status }) {
 
   return (
     <div className="pump-status-item">
-      {status.type === 'cycle' ? (
+      {status.type === 'pulse' ? (
+        <span className="pump-status-label">
+          PULSE {status.currentPulse}/{status.totalPulses}
+        </span>
+      ) : status.type === 'cycle' ? (
         <>
           <span className="pump-status-label">
             Cycle {status.currentCycle}{status.totalCycles > 0 ? `/${status.totalCycles}` : ''}
           </span>
-          {status.endTime && (
-            <span className="pump-status-time">{timeRemaining.toFixed(1)}s</span>
-          )}
+          <span className="pump-status-time">{timeRemaining.toFixed(1)}s</span>
         </>
       ) : (
         <>
