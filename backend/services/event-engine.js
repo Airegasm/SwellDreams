@@ -3457,7 +3457,11 @@ class EventEngine {
         }
 
         try {
-          await this.deviceService.turnOn(resolvedDevice, deviceObj);
+          // Pass duration info if timer-based
+          const durationInfo = (data.untilType && data.untilType !== 'forever')
+            ? { untilType: data.untilType, untilValue: data.untilValue }
+            : null;
+          await this.deviceService.turnOn(resolvedDevice, deviceObj, durationInfo);
         } catch (deviceError) {
           await this.broadcastError(`Failed to turn on "${deviceObj.name || data.device}"`, deviceError.message);
           actionResult = false;

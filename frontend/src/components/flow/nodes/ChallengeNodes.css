@@ -234,6 +234,20 @@
   border-color: #ef4444;
 }
 
+.timer-challenge-node .node-body {
+  color: #f0f0f0;
+}
+
+.timer-challenge-node label {
+  color: #e0e0e0;
+}
+
+.timer-challenge-node .node-input,
+.timer-challenge-node .node-select {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 .timer-labels .handle-label {
   position: absolute;
   transform: translateX(-50%);

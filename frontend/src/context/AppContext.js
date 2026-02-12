@@ -100,6 +100,10 @@ export function AppProvider({ children }) {
   // Each execution: { flowId, flowName, triggerType, triggerLabel, currentNodeLabel, startTime }
   const [flowExecutions, setFlowExecutions] = useState([]);
 
+  // Pump status tracking - tracks active pump operations
+  // { deviceIp: { type: 'cycle'|'duration', currentCycle, totalCycles, duration, startTime, endTime } }
+  const [pumpStatus, setPumpStatus] = useState({});
+
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
     ws.current = new WebSocket(WS_URL);
@@ -392,12 +396,80 @@ export function AppProvider({ children }) {
       }
 
       case 'device_on':
+        // Track device turning on (duration-based)
+        setPumpStatus(prev => {
+          const statusEntry = {
+            type: 'duration',
+            startTime: Date.now(),
+            device: data.device
+          };
+
+          // If timer-based, calculate endTime for countdown
+          if (data.durationInfo?.untilType === 'timer' && data.durationInfo?.untilValue > 0) {
+            statusEntry.endTime = Date.now() + (data.durationInfo.untilValue * 1000);
+          }
+
+          return {
+            ...prev,
+            [data.ip]: statusEntry
+          };
+        });
+        console.log('[WS] Device ON:', data);
+        break;
+
       case 'device_off':
+        // Clear pump status when device turns off
+        setPumpStatus(prev => {
+          const next = { ...prev };
+          delete next[data.ip];
+          return next;
+        });
+        console.log('[WS] Device OFF:', data);
+        break;
+
       case 'cycle_on':
+        // Track cycle start
+        setPumpStatus(prev => ({
+          ...prev,
+          [data.ip]: {
+            type: 'cycle',
+            currentCycle: data.cycle,
+            totalCycles: data.totalCycles,
+            duration: data.duration,
+            startTime: Date.now(),
+            endTime: Date.now() + (data.duration * 1000),
+            device: data.device
+          }
+        }));
+        console.log('[WS] Cycle ON:', data);
+        break;
+
       case 'cycle_off':
+        // Cycle turned off - clear the duration timer but keep cycle info
+        setPumpStatus(prev => {
+          const status = prev[data.ip];
+          if (status) {
+            return {
+              ...prev,
+              [data.ip]: {
+                ...status,
+                endTime: null
+              }
+            };
+          }
+          return prev;
+        });
+        console.log('[WS] Cycle OFF:', data);
+        break;
+
       case 'cycle_complete':
-        // Device events - update UI as needed
-        console.log('[WS] Device event:', type, data);
+        // Clear pump status when cycle completes
+        setPumpStatus(prev => {
+          const next = { ...prev };
+          delete next[data.ip];
+          return next;
+        });
+        console.log('[WS] Cycle complete:', data);
         break;
 
       case 'emergency_stop':
@@ -1281,6 +1353,9 @@ export function AppProvider({ children }) {
 
     // Flow Executions (array of active flows for UI status panel)
     flowExecutions,
+
+    // Pump Status (active pump operations)
+    pumpStatus,
 
     // Actions
     sendChatMessage,

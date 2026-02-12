@@ -3,16 +3,16 @@
   "name": "Punishment Sequence",
   "category": "character",
   "description": "Timer challenge endurance test with device punishment",
-  "isActive": true,
+  "isActive": false,
   "createdAt": 1705000000000,
-  "updatedAt": 1705000000000,
+  "updatedAt": 1770907352300,
   "nodes": [
     {
       "id": "scarlett-pn-btn",
       "type": "button_press",
       "position": {
-        "x": 100,
-        "y": 50
+        "x": 92.59933239797078,
+        "y": -73.69687277677454
       },
       "data": {
         "label": "Endurance Test",
@@ -20,14 +20,20 @@
         "buttonId": "scarlett-endure",
         "unblockable": false,
         "hasPriority": false
-      }
+      },
+      "measured": {
+        "width": 277,
+        "height": 240
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-mercy-btn",
       "type": "button_press",
       "position": {
-        "x": -200,
-        "y": 50
+        "x": -297.2659170552415,
+        "y": -14.491531960540554
       },
       "data": {
         "label": "Beg for Mercy",
@@ -35,7 +41,13 @@
         "buttonId": "scarlett-mercy",
         "unblockable": false,
         "hasPriority": false
-      }
+      },
+      "measured": {
+        "width": 277,
+        "height": 240
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-mercy-decide",
@@ -64,6 +76,10 @@
             "weight": 20
           }
         ]
+      },
+      "measured": {
+        "width": 252,
+        "height": 197
       }
     },
     {
@@ -80,6 +96,10 @@
         "suppressLlm": false,
         "preMessageEnabled": false,
         "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
       }
     },
     {
@@ -96,14 +116,18 @@
         "suppressLlm": false,
         "preMessageEnabled": false,
         "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
       }
     },
     {
       "id": "scarlett-mercy-worse",
       "type": "action",
       "position": {
-        "x": -50,
-        "y": 350
+        "x": -375.00895290967594,
+        "y": 843.8985610057481
       },
       "data": {
         "label": "Made It Worse",
@@ -118,65 +142,90 @@
         "postMessage": "*smirks* That's what happens when you speak out of turn. Remember your place.",
         "postMessageSuppressLlm": false,
         "postDelay": 1
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 388
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-intro",
       "type": "action",
       "position": {
-        "x": 100,
-        "y": 150
+        "x": 484.5704057483052,
+        "y": 3.043886188276531
       },
       "data": {
         "label": "Challenge Setup",
         "actionType": "send_message",
-        "message": "*circling you slowly* You think you've learned discipline? Let's put that to the test. You will endure what I give you for 20 seconds without pressing the escape button. Fail, and the punishment extends. Succeed... and you may impress me.",
-        "suppressLlm": false,
+        "message": "*circling you slowly* You think you've learned discipline? Let's put that to the test. You will endure what I give you for 60 seconds without pressing the escape button. Fail, and the punishment extends. Succeed... and you may impress me.",
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-start-device",
       "type": "action",
       "position": {
-        "x": 100,
-        "y": 280
+        "x": 853.76254130553,
+        "y": -21.190986232011483
       },
       "data": {
         "label": "Start Pressure",
         "actionType": "device_on",
         "device": "primary_pump",
-        "untilType": "forever",
-        "preMessageEnabled": true,
+        "untilType": "timer",
+        "untilValue": 60,
+        "preMessageEnabled": false,
         "preMessage": "*activates device* The challenge begins now.",
         "preMessageSuppressLlm": true,
         "preDelay": 1,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 222
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-timer",
       "type": "timer_challenge",
       "position": {
-        "x": 100,
-        "y": 420
+        "x": 440.7324149088586,
+        "y": 559.4335372162296
       },
       "data": {
         "label": "Endurance Timer",
         "mode": "escape",
-        "duration": 20,
+        "duration": 60,
         "escapeWindow": 500,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 264,
+        "height": 223
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-success-stop",
       "type": "action",
       "position": {
-        "x": 0,
-        "y": 580
+        "x": 442.83342652089914,
+        "y": 882.7292896264319
       },
       "data": {
         "label": "Stop Device",
@@ -184,46 +233,64 @@
         "device": "primary_pump",
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 160
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-success-msg",
       "type": "action",
       "position": {
-        "x": 0,
-        "y": 680
+        "x": 676.0186220521259,
+        "y": 1052.7536309477346
       },
       "data": {
         "label": "Success Message",
         "actionType": "send_message",
-        "message": "*pauses, studies you* ...Impressive. You endured. Perhaps there is potential in you after all. *slight smile* You may rest. You've earned it.",
-        "suppressLlm": false,
+        "message": "*pauses, studies you* ...Impressive. You endured. Perhaps there is potential in you after all. *slight smile* You may rest...for now.",
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-fail-msg",
       "type": "action",
       "position": {
-        "x": 300,
-        "y": 580
+        "x": 1041.809439335109,
+        "y": 616.270889370405
       },
       "data": {
         "label": "Failure Message",
         "actionType": "send_message",
-        "message": "*disappointed sigh* Pathetic. You couldn't even last 20 seconds. Now you'll experience an extended session as penance.",
-        "suppressLlm": false,
+        "message": "*disappointed sigh* Pathetic. You couldn't even last 60 seconds. Now you'll experience an extended session as penance.",
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-pn-fail-extend",
       "type": "action",
       "position": {
-        "x": 300,
-        "y": 700
+        "x": 1036.5335633726534,
+        "y": 895.1204191627647
       },
       "data": {
         "label": "Extended Punishment",
@@ -231,16 +298,100 @@
         "device": "primary_pump",
         "duration": 5,
         "interval": 3,
-        "cycles": 4,
+        "cycles": 10,
         "preMessageEnabled": true,
-        "preMessage": "*activates extended cycle* Count this as a lesson in consequences.",
+        "preMessage": "*activates extended cycle* Count this as a lesson in consequences. 10 cycles of five seconds each. This time, no escape button. *She cackles*",
         "preMessageSuppressLlm": true,
         "preDelay": 0,
-        "postMessageEnabled": true,
+        "postMessageEnabled": false,
         "postMessage": "*regards you coldly* Next time, perhaps you'll try harder. Dismissed.",
-        "postMessageSuppressLlm": false,
+        "postMessageSuppressLlm": true,
         "postDelay": 2
+      },
+      "measured": {
+        "width": 257,
+        "height": 381
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "node_1",
+      "type": "action",
+      "position": {
+        "x": 1056.2866955696286,
+        "y": 357.7704370452225
+      },
+      "data": {
+        "label": "Send Player Message",
+        "actionType": "send_player_message",
+        "message": "I can't take any more!! *I yell as I press the STOP button frantically.*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_2",
+      "type": "action",
+      "position": {
+        "x": 120,
+        "y": 120
+      },
+      "data": {
+        "label": "Stop Device",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      },
+      "measured": {
+        "width": 257,
+        "height": 160
       }
+    },
+    {
+      "id": "node_3",
+      "type": "action",
+      "position": {
+        "x": 750.8864094379923,
+        "y": 340.6976627173444
+      },
+      "data": {
+        "label": "Turn Device Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 160
+      },
+      "selected": false,
+      "dragging": false
     }
   ],
   "edges": [
@@ -270,40 +421,60 @@
     {
       "id": "e1",
       "source": "scarlett-pn-btn",
-      "target": "scarlett-pn-intro"
+      "target": "scarlett-pn-intro",
+      "selected": false
     },
     {
       "id": "e2",
       "source": "scarlett-pn-intro",
-      "target": "scarlett-pn-start-device"
+      "target": "scarlett-pn-start-device",
+      "selected": false
     },
     {
       "id": "e3",
       "source": "scarlett-pn-start-device",
       "sourceHandle": "immediate",
-      "target": "scarlett-pn-timer"
+      "target": "scarlett-pn-timer",
+      "selected": false
     },
     {
       "id": "e4",
       "source": "scarlett-pn-timer",
       "sourceHandle": "success",
-      "target": "scarlett-pn-success-stop"
-    },
-    {
-      "id": "e5",
-      "source": "scarlett-pn-timer",
-      "sourceHandle": "timeout",
-      "target": "scarlett-pn-fail-msg"
+      "target": "scarlett-pn-success-stop",
+      "selected": false
     },
     {
       "id": "e6",
       "source": "scarlett-pn-success-stop",
-      "target": "scarlett-pn-success-msg"
+      "target": "scarlett-pn-success-msg",
+      "selected": false
     },
     {
-      "id": "e7",
       "source": "scarlett-pn-fail-msg",
-      "target": "scarlett-pn-fail-extend"
+      "target": "scarlett-pn-fail-extend",
+      "animated": true,
+      "id": "xy-edge__scarlett-pn-fail-msg-scarlett-pn-fail-extend"
+    },
+    {
+      "source": "scarlett-pn-timer",
+      "sourceHandle": "timeout",
+      "target": "node_3",
+      "animated": true,
+      "id": "xy-edge__scarlett-pn-timertimeout-node_3"
+    },
+    {
+      "source": "node_3",
+      "target": "node_1",
+      "animated": true,
+      "id": "xy-edge__node_3-node_1"
+    },
+    {
+      "source": "node_1",
+      "target": "scarlett-pn-fail-msg",
+      "animated": true,
+      "id": "xy-edge__node_1-scarlett-pn-fail-msg"
     }
-  ]
+  ],
+  "groups": []
 }

@@ -14,12 +14,43 @@
   background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
   border-bottom: 1px solid var(--border-color);
   text-align: center;
+  position: relative;
 }
 
 .challenge-modal-header h3 {
   margin: 0;
   font-size: 1.25rem;
   color: var(--text-primary);
+}
+
+.btn-skip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.btn-skip:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.btn-skip:active {
+  transform: scale(0.95);
 }
 
 .challenge-modal-header .precision-hint {

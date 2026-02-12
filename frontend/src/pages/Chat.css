@@ -3366,3 +3366,61 @@
   font-size: 1.1rem;
   min-width: 120px;
 }
+/* ============================================
+   Pump Status Overlay
+   ============================================ */
+.pump-status-overlay {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid var(--accent-primary);
+  border-radius: 8px;
+  padding: 8px 16px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.pump-status-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.pump-status-label {
+  color: var(--accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+
+.pump-status-time {
+  color: #fff;
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 0 8px var(--accent-primary);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .pump-status-overlay {
+    bottom: 120px;
+    left: 10px;
+    padding: 6px 12px;
+  }
+
+  .pump-status-item {
+    font-size: 12px;
+  }
+
+  .pump-status-time {
+    font-size: 14px;
+  }
+}

@@ -48,10 +48,10 @@
       "data": {
         "label": "Obey or Resist",
         "description": "Mistress Scarlett awaits your response...",
-        "buttonALabel": "Yes, Mistress",
-        "buttonADescription": "Comply immediately",
-        "buttonBLabel": "Resist",
-        "buttonBDescription": "Refuse the command"
+        "labelA": "Yes, Mistress",
+        "descriptionA": "Comply immediately",
+        "labelB": "Resist",
+        "descriptionB": "Refuse the command"
       }
     },
     {

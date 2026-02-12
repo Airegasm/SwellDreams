@@ -15,8 +15,56 @@ import MediaBubble from '../components/chat/MediaBubble';
 import SilentAudioPlayer from '../components/chat/SilentAudioPlayer';
 import './Chat.css';
 
+// Pump Status Item Component - separated to use hooks properly
+function PumpStatusItem({ deviceIp, status }) {
+  const [timeRemaining, setTimeRemaining] = useState(0);
+
+  useEffect(() => {
+    if (status.type === 'cycle' && status.endTime) {
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
+        setTimeRemaining(remaining);
+      }, 100);
+      return () => clearInterval(interval);
+    } else if (status.type === 'duration') {
+      const interval = setInterval(() => {
+        if (status.endTime) {
+          // Timer-based: count down
+          const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
+          setTimeRemaining(remaining);
+        } else if (status.startTime) {
+          // Forever: count up
+          const elapsed = (Date.now() - status.startTime) / 1000;
+          setTimeRemaining(elapsed);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [status]);
+
+  return (
+    <div className="pump-status-item">
+      {status.type === 'cycle' ? (
+        <>
+          <span className="pump-status-label">
+            Cycle {status.currentCycle}{status.totalCycles > 0 ? `/${status.totalCycles}` : ''}
+          </span>
+          {status.endTime && (
+            <span className="pump-status-time">{timeRemaining.toFixed(1)}s</span>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="pump-status-label">Pumping</span>
+          <span className="pump-status-time">{timeRemaining.toFixed(1)}s</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -1851,6 +1899,15 @@ function Chat() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Pump Status Overlay - floats over bottom-left area */}
+      {Object.keys(pumpStatus).length > 0 && (
+        <div className="pump-status-overlay">
+          {Object.entries(pumpStatus).map(([deviceIp, status]) => (
+            <PumpStatusItem key={deviceIp} deviceIp={deviceIp} status={status} />
+          ))}
         </div>
       )}
 

@@ -408,8 +408,9 @@ class DeviceService {
    * Turn device on (routes by brand)
    * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
    * @param {Object} device - Optional device object with brand info (may include childId for power strips)
+   * @param {Object} durationInfo - Optional duration info { untilType, untilValue }
    */
-  async turnOn(ipOrDeviceId, device = null) {
+  async turnOn(ipOrDeviceId, device = null, durationInfo = null) {
     // Try to get device from registered devices if not provided
     if (!device) {
       device = this.devices.get(ipOrDeviceId);
@@ -429,7 +430,7 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
@@ -445,7 +446,7 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
@@ -457,7 +458,7 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: device.deviceId, device });
+        this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
@@ -469,7 +470,7 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: device.ip, device });
+        this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
         return { success: true, state: 'on' };
       }
@@ -486,7 +487,7 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
-        this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
+        this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId), durationInfo });
         this.startPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
       return { success: !result.error, state: 'on', result };
@@ -646,7 +647,7 @@ class DeviceService {
       if (onResult.error) {
         console.error(`[DeviceService] Cycle ${currentCycle}: turnOn failed:`, onResult.error);
       }
-      this.emitEvent('cycle_on', { ip, cycle: currentCycle, duration, device });
+      this.emitEvent('cycle_on', { ip, cycle: currentCycle, totalCycles: cycles, duration, device });
 
       // Schedule turn off
       const offTimer = setTimeout(async () => {

@@ -211,6 +211,9 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
     <div className={`challenge-modal prize-wheel-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎡 Spin the Wheel!</h3>
+        {onCancel && !isSpinning && !result && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className="wheel-container">
@@ -229,14 +232,6 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
           >
             {isSpinning ? 'Spinning...' : (result && result.segmentType !== 'spin_again') ? 'Complete!' : 'SPIN'}
           </button>
-          {onCancel && !isSpinning && !result && (
-            <button
-              className="btn btn-secondary btn-cancel"
-              onClick={onCancel}
-            >
-              Skip
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -328,6 +323,9 @@ export function DiceRollModal({ challengeData, onResult, onCancel, compact = fal
     <div className={`challenge-modal dice-roll-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎲 Roll the Dice!</h3>
+        {onCancel && !isRolling && !result && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className="dice-container">
@@ -367,14 +365,6 @@ export function DiceRollModal({ challengeData, onResult, onCancel, compact = fal
         )}
       </div>
       <div className="challenge-modal-footer">
-        {onCancel && !isRolling && !result && (
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleRoll}
@@ -444,6 +434,9 @@ export function CoinFlipModal({ challengeData, onResult, onCancel, compact = fal
     <div className={`challenge-modal coin-flip-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🪙 Flip the Coin!</h3>
+        {onCancel && !isFlipping && !isGameOver && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className={`coin ${isFlipping ? 'flipping' : ''} ${result || ''}`}>
@@ -465,14 +458,6 @@ export function CoinFlipModal({ challengeData, onResult, onCancel, compact = fal
         )}
       </div>
       <div className="challenge-modal-footer">
-        {onCancel && !isFlipping && !isGameOver && (
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleFlip}
@@ -572,6 +557,9 @@ export function RPSModal({ challengeData, onResult, onCancel, compact = false })
     <div className={`challenge-modal rps-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>✊ Rock Paper Scissors!</h3>
+        {onCancel && !isRevealing && !gameOver && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         {bestOf > 1 && (
@@ -622,16 +610,6 @@ export function RPSModal({ challengeData, onResult, onCancel, compact = false })
           </div>
         )}
       </div>
-      {onCancel && !isRevealing && !gameOver && (
-        <div className="challenge-modal-footer">
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -643,7 +621,8 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
   const [result, setResult] = useState(null);
   const intervalRef = useRef(null);
 
-  const { duration = 10, precisionMode = false, precisionWindow = 1 } = challengeData || {};
+  const { duration = 10, mode = 'normal', precisionMode = false, precisionWindow = 1, escapeWindow = 500 } = challengeData || {};
+  const isEscapeMode = mode === 'escape';
 
   useEffect(() => {
     // Auto-start the timer
@@ -674,7 +653,18 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
     clearInterval(intervalRef.current);
     setIsRunning(false);
 
-    if (precisionMode) {
+    if (isEscapeMode) {
+      // Escape mode: pressing early = failure, letting timer finish = success
+      // Check if within escape window (last X milliseconds)
+      const windowSeconds = escapeWindow / 1000;
+      if (timeLeft <= windowSeconds && timeLeft > 0) {
+        setResult('success');
+        setTimeout(() => onResult('success'), 1000);
+      } else {
+        setResult('timeout');
+        setTimeout(() => onResult('timeout'), 1000);
+      }
+    } else if (precisionMode) {
       // Must press within the precision window at the end
       if (timeLeft <= precisionWindow && timeLeft > 0) {
         setResult('success');
@@ -687,7 +677,7 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
       setResult('success');
       setTimeout(() => onResult('success'), 1000);
     }
-  }, [result, timeLeft, precisionMode, precisionWindow, onResult]);
+  }, [result, timeLeft, isEscapeMode, escapeWindow, precisionMode, precisionWindow, onResult]);
 
   if (!challengeData) return null;
 
@@ -698,7 +688,19 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
   return (
     <div className={`challenge-modal timer-challenge-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
-        <h3>⏱️ Quick! Press the Button!</h3>
+        <h3>{isEscapeMode ? '⏱️ Endure Without Pressing!' : '⏱️ Quick! Press the Button!'}</h3>
+        {onCancel && !result && (
+          <button className="btn-skip" onClick={() => {
+            clearInterval(intervalRef.current);
+            setIsRunning(false);
+            onCancel();
+          }} title="Skip">×</button>
+        )}
+        {isEscapeMode && (
+          <div className="precision-hint">
+            Survive {duration}s without pressing the button!
+          </div>
+        )}
         {precisionMode && (
           <div className="precision-hint">
             Press when the timer is in the last {precisionWindow}s!
@@ -723,29 +725,17 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
         </div>
         {result && (
           <div className={`challenge-result ${result}`}>
-            {result === 'success' ? '✅ Success!' : '❌ Time\'s Up!'}
+            {result === 'success' ? '✅ Success!' : (isEscapeMode ? '❌ Gave Up!' : '❌ Time\'s Up!')}
           </div>
         )}
       </div>
       <div className="challenge-modal-footer">
-        {onCancel && !result && (
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={() => {
-              clearInterval(intervalRef.current);
-              setIsRunning(false);
-              onCancel();
-            }}
-          >
-            Skip
-          </button>
-        )}
         <button
-          className={`btn btn-large ${isPrecisionWindow ? 'btn-success' : 'btn-primary'}`}
+          className={`btn btn-large ${isPrecisionWindow ? 'btn-success' : isEscapeMode ? 'btn-danger' : 'btn-primary'}`}
           onClick={handlePress}
           disabled={!!result}
         >
-          {result ? (result === 'success' ? 'Success!' : 'Too Late!') : 'PRESS NOW!'}
+          {result ? (result === 'success' ? 'Success!' : (isEscapeMode ? 'Failed!' : 'Too Late!')) : (isEscapeMode ? 'ESCAPE (Give Up)' : 'PRESS NOW!')}
         </button>
       </div>
     </div>
@@ -797,6 +787,9 @@ export function NumberGuessModal({ challengeData, onResult, onCancel, compact = 
     <div className={`challenge-modal number-guess-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🔢 Guess the Number!</h3>
+        {onCancel && !result && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className="guess-info">
@@ -837,16 +830,6 @@ export function NumberGuessModal({ challengeData, onResult, onCancel, compact = 
           </div>
         )}
       </div>
-      {onCancel && !result && (
-        <div className="challenge-modal-footer">
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -933,6 +916,9 @@ export function SlotMachineModal({ challengeData, onResult, onCancel, compact = 
     <div className={`challenge-modal slot-machine-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎰 Slot Machine!</h3>
+        {onCancel && !isSpinning && !result && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className="slot-reels">
@@ -949,14 +935,6 @@ export function SlotMachineModal({ challengeData, onResult, onCancel, compact = 
         )}
       </div>
       <div className="challenge-modal-footer">
-        {onCancel && !isSpinning && !result && (
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleSpin}
@@ -1038,6 +1016,9 @@ export function CardDrawModal({ challengeData, onResult, onCancel, compact = fal
     <div className={`challenge-modal card-draw-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🃏 Draw a Card!</h3>
+        {onCancel && !isDrawing && !drawnCard && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
       </div>
       <div className="challenge-modal-body">
         <div className={`card-display ${isDrawing ? 'drawing' : ''} ${drawnCard ? 'revealed' : ''}`}>
@@ -1065,14 +1046,6 @@ export function CardDrawModal({ challengeData, onResult, onCancel, compact = fal
         </div>
       </div>
       <div className="challenge-modal-footer">
-        {onCancel && !isDrawing && !drawnCard && (
-          <button
-            className="btn btn-secondary btn-cancel"
-            onClick={onCancel}
-          >
-            Skip
-          </button>
-        )}
         <button
           className="btn btn-primary btn-large"
           onClick={handleDraw}
@@ -1258,6 +1231,9 @@ export function SimonChallengeModal({ challengeData, onResult, onCancel, onPenal
     <div className={`challenge-modal simon-challenge-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎵 Simon Says</h3>
+        {onCancel && gameState === 'waiting' && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
         <div className="simon-stats">
           <span>Level: {currentLevel}</span>
           <span className="miss-counter">Misses: {missCount}/{maxMisses}</span>
@@ -1300,13 +1276,6 @@ export function SimonChallengeModal({ challengeData, onResult, onCancel, onPenal
           <div className="challenge-result timeout">😢 Game Over!</div>
         )}
       </div>
-      {onCancel && gameState === 'waiting' && (
-        <div className="challenge-modal-footer">
-          <button className="btn btn-secondary btn-cancel" onClick={onCancel}>
-            Skip
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -1413,12 +1382,14 @@ export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPena
   // Continue to next round after miss
   useEffect(() => {
     if (gameState === 'playing' && !showTarget && currentRound < rounds && timeLeft === 0) {
+      // Wait for penalty to complete before starting next round (penalty duration + 500ms buffer)
+      const delay = penaltyDevice ? (penaltyDuration * 1000 + 500) : 800;
       const timer = setTimeout(() => {
         startRound();
-      }, 800);
+      }, delay);
       return () => clearTimeout(timer);
     }
-  }, [gameState, showTarget, currentRound, rounds, timeLeft, startRound]);
+  }, [gameState, showTarget, currentRound, rounds, timeLeft, startRound, penaltyDevice, penaltyDuration]);
 
   // Handle click on game area (miss - clicked outside)
   const handleAreaClick = useCallback((e) => {
@@ -1456,7 +1427,9 @@ export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPena
         setTimeout(() => onResult('win'), 1500);
       }
     } else {
-      setTimeout(() => startRound(), 800);
+      // Wait for penalty to complete before starting next round (penalty duration + 500ms buffer)
+      const delay = penaltyDevice ? (penaltyDuration * 1000 + 500) : 800;
+      setTimeout(() => startRound(), delay);
     }
   }, [gameState, showTarget, currentRound, rounds, hits, misses, penaltyDevice, penaltyDuration, grandPenaltyDevice, grandPenaltyDuration, rewardDevice, rewardDuration, onPenalty, onResult, startRound]);
 
@@ -1517,6 +1490,9 @@ export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPena
     <div className={`challenge-modal reflex-challenge-modal ${compact ? 'compact' : ''}`}>
       <div className="challenge-modal-header">
         <h3>🎯 Reflex Challenge</h3>
+        {onCancel && gameState === 'waiting' && (
+          <button className="btn-skip" onClick={onCancel} title="Skip">×</button>
+        )}
         <div className="reflex-timer">
           {gameState === 'playing' && showTarget && (
             <span className={timeLeft < 1 ? 'urgent' : ''}>{timeLeft.toFixed(1)}s</span>
@@ -1572,13 +1548,6 @@ export function ReflexChallengeModal({ challengeData, onResult, onCancel, onPena
           <div className="challenge-result timeout">😢 You Lost! ({hits} hits, {misses} misses)</div>
         )}
       </div>
-      {onCancel && gameState === 'waiting' && (
-        <div className="challenge-modal-footer">
-          <button className="btn btn-secondary btn-cancel" onClick={onCancel}>
-            Skip
-          </button>
-        </div>
-      )}
     </div>
   );
 }

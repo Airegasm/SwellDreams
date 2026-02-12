@@ -174,10 +174,10 @@
       "data": {
         "label": "Final Phase Decision",
         "description": "Dr. Chen awaits your response regarding the final phase.",
-        "buttonALabel": "Continue to 75%",
-        "buttonADescription": "Proceed to maximum test threshold",
-        "buttonBLabel": "End Protocol",
-        "buttonBDescription": "Terminate testing at current level"
+        "labelA": "Continue to 75%",
+        "descriptionA": "Proceed to maximum test threshold",
+        "labelB": "End Protocol",
+        "descriptionB": "Terminate testing at current level"
       }
     },
     {

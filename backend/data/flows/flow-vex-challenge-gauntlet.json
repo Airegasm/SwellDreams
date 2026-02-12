@@ -397,13 +397,13 @@
     {
       "id": "e17",
       "source": "vex-cg-timer",
-      "sourceHandle": "success",
+      "sourceHandle": "timeout",
       "target": "vex-cg-timer-win-stop"
     },
     {
       "id": "e18",
       "source": "vex-cg-timer",
-      "sourceHandle": "timeout",
+      "sourceHandle": "success",
       "target": "vex-cg-timer-fail"
     },
     {
