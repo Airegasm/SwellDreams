@@ -5072,6 +5072,7 @@ class EventEngine {
     // Update device state tracking
     if (this.sessionState?.executionHistory?.deviceActions?.[deviceIp]) {
       this.sessionState.executionHistory.deviceActions[deviceIp].cycling = false;
+      this.sessionState.executionHistory.deviceActions[deviceIp].state = 'off';
     }
 
     // Find the flow and node
