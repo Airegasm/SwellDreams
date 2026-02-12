@@ -3,7 +3,7 @@
   "name": "Obedience Protocol",
   "category": "character",
   "description": "Simple A/B obedience test with consequences",
-  "isActive": false,
+  "isActive": true,
   "createdAt": 1705000000000,
   "updatedAt": 1770910343379,
   "nodes": [
