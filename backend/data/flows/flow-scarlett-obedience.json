@@ -5,14 +5,14 @@
   "description": "Simple A/B obedience test with consequences",
   "isActive": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1770910343379,
+  "updatedAt": 1770911511997,
   "nodes": [
     {
       "id": "scarlett-ob-btn",
       "type": "button_press",
       "position": {
-        "x": 100,
-        "y": 50
+        "x": 101.61792523119291,
+        "y": 16.023570144948636
       },
       "data": {
         "label": "Obedience Test",
@@ -24,7 +24,9 @@
       "measured": {
         "width": 277,
         "height": 240
-      }
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-ob-intro",
@@ -37,7 +39,7 @@
         "label": "Command",
         "actionType": "send_message",
         "message": "We're going to try something different.... *Scarlett grins wickedly.* I'm going to let you tell me what to do for once! *brushes you cheek* I want you to say... 'Mistress, pump more air into my guts!'",
-        "suppressLlm": false,
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
       },
@@ -45,7 +47,7 @@
         "width": 257,
         "height": 201
       },
-      "selected": false,
+      "selected": true,
       "dragging": false
     },
     {
@@ -171,7 +173,7 @@
         "aiMessageLoseSuppressLlm": false
       },
       "measured": {
-        "width": 362,
+        "width": 338,
         "height": 343
       },
       "selected": false,
@@ -217,7 +219,7 @@
       "data": {
         "label": "Start Cycle",
         "actionType": "start_cycle",
-        "device": "",
+        "device": "primary_pump",
         "duration": 5,
         "interval": 2,
         "cycles": 3,
@@ -238,7 +240,7 @@
         "width": 257,
         "height": 381
       },
-      "selected": true,
+      "selected": false,
       "dragging": false
     },
     {

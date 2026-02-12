@@ -5,14 +5,14 @@
   "description": "Timer challenge endurance test with device punishment",
   "isActive": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1770908357951,
+  "updatedAt": 1770911021062,
   "nodes": [
     {
       "id": "scarlett-pn-btn",
       "type": "button_press",
       "position": {
-        "x": 92.59933239797078,
-        "y": -73.69687277677454
+        "x": 234.59933239797078,
+        "y": -295.6968727767745
       },
       "data": {
         "label": "Endurance Test",
@@ -267,25 +267,6 @@
       "dragging": false
     },
     {
-      "id": "node_2",
-      "type": "action",
-      "position": {
-        "x": 120,
-        "y": 120
-      },
-      "data": {
-        "label": "Stop Device",
-        "actionType": "device_off",
-        "device": "primary_pump",
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      },
-      "measured": {
-        "width": 257,
-        "height": 160
-      }
-    },
-    {
       "id": "node_3",
       "type": "action",
       "position": {
@@ -318,13 +299,13 @@
       "id": "node_4",
       "type": "action",
       "position": {
-        "x": -339.44840238944136,
-        "y": 382.2895594621614
+        "x": -493.4484023894413,
+        "y": 369.2895594621614
       },
       "data": {
         "label": "Start Cycle",
         "actionType": "start_cycle",
-        "device": "",
+        "device": "primary_pump",
         "duration": 10,
         "interval": 2,
         "cycles": 10,
@@ -345,7 +326,7 @@
         "width": 257,
         "height": 381
       },
-      "selected": false,
+      "selected": true,
       "dragging": false
     },
     {
@@ -459,7 +440,7 @@
         "width": 257,
         "height": 289
       },
-      "selected": true,
+      "selected": false,
       "dragging": false
     }
   ],

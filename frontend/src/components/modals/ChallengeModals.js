@@ -13,11 +13,11 @@ export function PrizeWheelModal({ challengeData, onResult, onCancel, compact = f
   const { segments: rawSegments = [], autoSpin = false } = challengeData || {};
   const canvasSize = compact ? 180 : 300;
 
-  // Expand segments based on duplicates field, then distribute evenly
+  // Expand segments based on weight field, then distribute evenly
   const segments = React.useMemo(() => {
     // First, collect all expanded segments grouped by original segment
     const groups = rawSegments.map((seg, idx) => {
-      const dupes = Math.min(Math.max(seg.duplicates || 1, 1), 10); // Clamp 1-10
+      const dupes = Math.min(Math.max(seg.weight || 1, 1), 10); // Clamp 1-10
       const items = [];
       for (let i = 0; i < dupes; i++) {
         items.push({ ...seg, _originalIndex: idx });
