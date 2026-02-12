@@ -162,7 +162,8 @@
 }
 
 .node-input.tiny {
-  width: 40px;
+  width: 55px;
+  text-align: center;
 }
 
 .node-textarea {
@@ -508,7 +509,8 @@
 }
 
 .priority-row .node-input.tiny {
-  width: 40px;
+  width: 55px;
+  text-align: center;
 }
 
 /* Variable Declaration (New Session Node) */

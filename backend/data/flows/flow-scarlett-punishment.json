@@ -5,7 +5,7 @@
   "description": "Timer challenge endurance test with device punishment",
   "isActive": false,
   "createdAt": 1705000000000,
-  "updatedAt": 1770907352300,
+  "updatedAt": 1770908103261,
   "nodes": [
     {
       "id": "scarlett-pn-btn",
@@ -32,8 +32,8 @@
       "id": "scarlett-mercy-btn",
       "type": "button_press",
       "position": {
-        "x": -297.2659170552415,
-        "y": -14.491531960540554
+        "x": -292.2659170552415,
+        "y": -148.61653196054047
       },
       "data": {
         "label": "Beg for Mercy",
@@ -50,102 +50,23 @@
       "dragging": false
     },
     {
-      "id": "scarlett-mercy-decide",
-      "type": "branch",
-      "position": {
-        "x": -200,
-        "y": 180
-      },
-      "data": {
-        "label": "Mistress Decides",
-        "branchType": "random",
-        "branches": [
-          {
-            "id": "granted",
-            "label": "Mercy Granted",
-            "weight": 30
-          },
-          {
-            "id": "denied",
-            "label": "Mercy Denied",
-            "weight": 50
-          },
-          {
-            "id": "worse",
-            "label": "Made It Worse",
-            "weight": 20
-          }
-        ]
-      },
-      "measured": {
-        "width": 252,
-        "height": 197
-      }
-    },
-    {
-      "id": "scarlett-mercy-granted",
-      "type": "action",
-      "position": {
-        "x": -350,
-        "y": 350
-      },
-      "data": {
-        "label": "Mercy Granted",
-        "actionType": "send_message",
-        "message": "*pauses, considering your pleading eyes* ...You beg so prettily. *traces finger along your jaw* Very well. I'm feeling generous today. Consider this a rare gift - don't expect it again.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      },
-      "measured": {
-        "width": 257,
-        "height": 201
-      }
-    },
-    {
       "id": "scarlett-mercy-denied",
       "type": "action",
       "position": {
-        "x": -200,
-        "y": 350
+        "x": -188,
+        "y": 154.00000000000017
       },
       "data": {
         "label": "Mercy Denied",
         "actionType": "send_message",
-        "message": "*laughs coldly* Mercy? *leans close* You think begging will move me? I decide when you've had enough. Your pleas only amuse me. Now... where were we?",
-        "suppressLlm": false,
+        "message": "Now....let's see how well you beg, shall we? *Scarlett presses a button on the control panel.*",
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
       },
       "measured": {
         "width": 257,
         "height": 201
-      }
-    },
-    {
-      "id": "scarlett-mercy-worse",
-      "type": "action",
-      "position": {
-        "x": -375.00895290967594,
-        "y": 843.8985610057481
-      },
-      "data": {
-        "label": "Made It Worse",
-        "actionType": "pulse_pump",
-        "device": "primary_pump",
-        "pulses": 5,
-        "preMessageEnabled": true,
-        "preMessage": "*eyes flash dangerously* Mercy? You DARE ask for mercy without permission? *activates device* I'll teach you the cost of that mistake.",
-        "preMessageSuppressLlm": true,
-        "preDelay": 1,
-        "postMessageEnabled": true,
-        "postMessage": "*smirks* That's what happens when you speak out of turn. Remember your place.",
-        "postMessageSuppressLlm": false,
-        "postDelay": 1
-      },
-      "measured": {
-        "width": 257,
-        "height": 388
       },
       "selected": false,
       "dragging": false
@@ -312,7 +233,7 @@
         "width": 257,
         "height": 381
       },
-      "selected": true,
+      "selected": false,
       "dragging": false
     },
     {
@@ -392,32 +313,157 @@
       },
       "selected": false,
       "dragging": false
+    },
+    {
+      "id": "node_4",
+      "type": "action",
+      "position": {
+        "x": -339.44840238944136,
+        "y": 382.2895594621614
+      },
+      "data": {
+        "label": "Start Cycle",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 10,
+        "interval": 2,
+        "cycles": 10,
+        "untilType": "forever",
+        "untilValue": null,
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett turns off the pump.*  Tell me, [Player], how is that tummy feeling? Starting to hurt yet?",
+        "postMessageSuppressLlm": true,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 381
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_5",
+      "type": "simple_ab",
+      "position": {
+        "x": -438.5896016990795,
+        "y": 824.7169781666541
+      },
+      "data": {
+        "label": "Simple A/B",
+        "description": "How does it feel?",
+        "labelA": "Okay so far...",
+        "descriptionA": "",
+        "labelB": "It hurts!!",
+        "descriptionB": ""
+      },
+      "measured": {
+        "width": 390,
+        "height": 318
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_6",
+      "type": "action",
+      "position": {
+        "x": -631.5709253385812,
+        "y": 1216.423117220643
+      },
+      "data": {
+        "label": "Turn Device On",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilOperator": ">",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "*tsk tsk tsk* That's....unfortunate. *Scarlett grins wickedly.* For you, that is...",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 5,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 321
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_7",
+      "type": "action",
+      "position": {
+        "x": -193.9168520847112,
+        "y": 1201.4900386056813
+      },
+      "data": {
+        "label": "Send AI Message",
+        "actionType": "send_message",
+        "message": "",
+        "suppressLlm": false,
+        "preMessageEnabled": true,
+        "preMessage": "Poor baby... *Scarlett coos.* I suppose I can give you just a little break...",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 5,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 300
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_8",
+      "type": "action",
+      "position": {
+        "x": -102.02098368494846,
+        "y": 1626.508429954584
+      },
+      "data": {
+        "label": "Pulse Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 30,
+        "preMessageEnabled": true,
+        "preMessage": "Break's over! *Scarlett presses a different button.* Let's try something more...sporadic.",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 289
+      },
+      "selected": true,
+      "dragging": false
     }
   ],
   "edges": [
-    {
-      "id": "mercy-e1",
-      "source": "scarlett-mercy-btn",
-      "target": "scarlett-mercy-decide"
-    },
-    {
-      "id": "mercy-e2",
-      "source": "scarlett-mercy-decide",
-      "sourceHandle": "branch-0",
-      "target": "scarlett-mercy-granted"
-    },
-    {
-      "id": "mercy-e3",
-      "source": "scarlett-mercy-decide",
-      "sourceHandle": "branch-1",
-      "target": "scarlett-mercy-denied"
-    },
-    {
-      "id": "mercy-e4",
-      "source": "scarlett-mercy-decide",
-      "sourceHandle": "branch-2",
-      "target": "scarlett-mercy-worse"
-    },
     {
       "id": "e1",
       "source": "scarlett-pn-btn",
@@ -474,6 +520,45 @@
       "target": "scarlett-pn-fail-msg",
       "animated": true,
       "id": "xy-edge__node_1-scarlett-pn-fail-msg"
+    },
+    {
+      "source": "scarlett-mercy-btn",
+      "target": "scarlett-mercy-denied",
+      "animated": true,
+      "id": "xy-edge__scarlett-mercy-btn-scarlett-mercy-denied"
+    },
+    {
+      "source": "scarlett-mercy-denied",
+      "target": "node_4",
+      "animated": true,
+      "id": "xy-edge__scarlett-mercy-denied-node_4"
+    },
+    {
+      "source": "node_4",
+      "sourceHandle": "completion",
+      "target": "node_5",
+      "animated": true,
+      "id": "xy-edge__node_4completion-node_5"
+    },
+    {
+      "source": "node_5",
+      "sourceHandle": "a",
+      "target": "node_6",
+      "animated": true,
+      "id": "xy-edge__node_5a-node_6"
+    },
+    {
+      "source": "node_5",
+      "sourceHandle": "b",
+      "target": "node_7",
+      "animated": true,
+      "id": "xy-edge__node_5b-node_7"
+    },
+    {
+      "source": "node_7",
+      "target": "node_8",
+      "animated": true,
+      "id": "xy-edge__node_7-node_8"
     }
   ],
   "groups": []

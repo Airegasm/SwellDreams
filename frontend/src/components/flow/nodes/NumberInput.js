@@ -34,8 +34,11 @@ function NumberInput({
 
     // Only call onChange with parsed value if it's a valid number
     if (val !== '' && val !== '-') {
-      const parsed = allowFloat ? parseFloat(val) : parseInt(val, 10);
+      let parsed = allowFloat ? parseFloat(val) : parseInt(val, 10);
       if (!isNaN(parsed)) {
+        // Clamp to min/max if specified
+        if (min !== undefined && parsed < min) parsed = min;
+        if (max !== undefined && parsed > max) parsed = max;
         onChange?.(parsed);
       }
     }
@@ -48,8 +51,11 @@ function NumberInput({
       setLocalValue(defaultValue);
       onChange?.(defaultValue);
     } else {
-      // Ensure final value is properly parsed
-      const parsed = allowFloat ? parseFloat(val) : parseInt(val, 10);
+      // Ensure final value is properly parsed and clamped
+      let parsed = allowFloat ? parseFloat(val) : parseInt(val, 10);
+      // Clamp to min/max if specified
+      if (min !== undefined && parsed < min) parsed = min;
+      if (max !== undefined && parsed > max) parsed = max;
       setLocalValue(parsed);
       onChange?.(parsed);
     }
