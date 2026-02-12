@@ -137,6 +137,11 @@ function PrizeWheelNode({ data, selected }) {
           <div className="node-config">
             <div className="form-group">
               <label>Segments ({segments.length}/12):</label>
+              <div className="segments-header">
+                <span className="segment-color-header"></span>
+                <span className="segment-label-header">Prize</span>
+                <span className="segment-weight-header">Duplicates</span>
+              </div>
               <div className="segments-list">
                 {segments.map((segment, index) => (
                   <div key={segment.id} className="segment-item">
@@ -182,7 +187,6 @@ function PrizeWheelNode({ data, selected }) {
               )}
             </div>
           </div>
-          <OutcomeMessages data={data} />
         </ActionWrapper>
       </div>
       {segments.map((segment, index) => (

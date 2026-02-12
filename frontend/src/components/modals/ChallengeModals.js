@@ -636,8 +636,10 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
           if (prev <= 0.1) {
             clearInterval(intervalRef.current);
             setIsRunning(false);
-            setResult('timeout');
-            setTimeout(() => onResult('timeout'), 1000);
+            // In escape mode, reaching 0 = success (endured!), otherwise = timeout
+            const finalResult = isEscapeMode ? 'success' : 'timeout';
+            setResult(finalResult);
+            setTimeout(() => onResult(finalResult), 1000);
             return 0;
           }
           return prev - 0.1;
@@ -645,7 +647,7 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
       }, 100);
     }
     return () => clearInterval(intervalRef.current);
-  }, [isRunning, onResult, timeLeft]);
+  }, [isRunning, onResult, timeLeft, isEscapeMode]);
 
   const handlePress = useCallback(() => {
     if (result) return;
@@ -654,16 +656,9 @@ export function TimerChallengeModal({ challengeData, onResult, onCancel, compact
     setIsRunning(false);
 
     if (isEscapeMode) {
-      // Escape mode: pressing early = failure, letting timer finish = success
-      // Check if within escape window (last X milliseconds)
-      const windowSeconds = escapeWindow / 1000;
-      if (timeLeft <= windowSeconds && timeLeft > 0) {
-        setResult('success');
-        setTimeout(() => onResult('success'), 1000);
-      } else {
-        setResult('timeout');
-        setTimeout(() => onResult('timeout'), 1000);
-      }
+      // Escape mode: pressing button at ANY time = failure (gave up)
+      setResult('timeout');
+      setTimeout(() => onResult('timeout'), 1000);
     } else if (precisionMode) {
       // Must press within the precision window at the end
       if (timeLeft <= precisionWindow && timeLeft > 0) {

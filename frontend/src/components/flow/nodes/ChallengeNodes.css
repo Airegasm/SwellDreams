@@ -25,19 +25,88 @@
   overflow-y: auto;
 }
 
-.segment-item {
+.segments-header {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-bottom: 4px;
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.segment-color-header {
+  width: 10px;
+  flex: 0 0 10px;
+}
+
+.segment-label-header {
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.segment-weight-header {
+  width: 55px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.segment-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segment-item .node-input {
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.segment-item .node-input.tiny {
+  width: 55px;
+}
+
+/* Remove number input spinners */
+.segment-item .node-input.tiny::-webkit-outer-spin-button,
+.segment-item .node-input.tiny::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.segment-item .node-input.tiny[type="number"] {
+  -moz-appearance: textfield;
 }
 
 .segment-color {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  max-width: 10px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 2px;
   cursor: pointer;
+  flex: 0 0 10px !important;
+  overflow: hidden;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.segment-color::-webkit-color-swatch-wrapper {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.segment-color::-webkit-color-swatch {
+  border: none !important;
+  border-radius: 2px;
+}
+
+.segment-color::-moz-color-swatch {
+  border: none !important;
+  border-radius: 2px;
 }
 
 .segment-remove {

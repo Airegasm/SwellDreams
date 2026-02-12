@@ -3,9 +3,9 @@
   "name": "Obedience Protocol",
   "category": "character",
   "description": "Simple A/B obedience test with consequences",
-  "isActive": true,
+  "isActive": false,
   "createdAt": 1705000000000,
-  "updatedAt": 1705000000000,
+  "updatedAt": 1770910343379,
   "nodes": [
     {
       "id": "scarlett-ob-btn",
@@ -20,123 +20,258 @@
         "buttonId": "scarlett-obey",
         "unblockable": false,
         "hasPriority": false
+      },
+      "measured": {
+        "width": 277,
+        "height": 240
       }
     },
     {
       "id": "scarlett-ob-intro",
       "type": "action",
       "position": {
-        "x": 100,
-        "y": 150
+        "x": -236.6280874112564,
+        "y": 188.0291144774223
       },
       "data": {
         "label": "Command",
         "actionType": "send_message",
-        "message": "*stands before you* Time to test your obedience. When I give an order, you will comply immediately. Do you understand?",
+        "message": "We're going to try something different.... *Scarlett grins wickedly.* I'm going to let you tell me what to do for once! *brushes you cheek* I want you to say... 'Mistress, pump more air into my guts!'",
         "suppressLlm": false,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-ob-choice",
       "type": "simple_ab",
       "position": {
-        "x": 100,
-        "y": 280
+        "x": -266.2062875603626,
+        "y": 454.6522294518652
       },
       "data": {
         "label": "Obey or Resist",
         "description": "Mistress Scarlett awaits your response...",
         "labelA": "Yes, Mistress",
-        "descriptionA": "Comply immediately",
+        "descriptionA": "Mistress, pump more air into my guts!",
         "labelB": "Resist",
-        "descriptionB": "Refuse the command"
-      }
-    },
-    {
-      "id": "scarlett-ob-obey-praise",
-      "type": "action",
-      "position": {
-        "x": 0,
-        "y": 420
+        "descriptionB": "Are you crazy? No way!!"
       },
-      "data": {
-        "label": "Obedience Praise",
-        "actionType": "send_message",
-        "message": "*slight approving nod* Good. You're learning. Obedience becomes you. Perhaps you've earned a moment of respite.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      }
-    },
-    {
-      "id": "scarlett-ob-obey-delay",
-      "type": "delay",
-      "position": {
-        "x": 0,
-        "y": 530
+      "measured": {
+        "width": 390,
+        "height": 318
       },
-      "data": {
-        "label": "Rest Period",
-        "duration": 10,
-        "unit": "seconds"
-      }
-    },
-    {
-      "id": "scarlett-ob-obey-end",
-      "type": "action",
-      "position": {
-        "x": 0,
-        "y": 630
-      },
-      "data": {
-        "label": "Rest Complete",
-        "actionType": "send_message",
-        "message": "*watches you* Your rest is over. Be ready for the next test. Remember this feeling - it's what compliance earns you.",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
-      }
+      "selected": false,
+      "dragging": false
     },
     {
       "id": "scarlett-ob-resist-warn",
       "type": "action",
       "position": {
-        "x": 300,
-        "y": 420
+        "x": 61.9659130857643,
+        "y": 868.9548236917908
       },
       "data": {
         "label": "Resistance Warning",
         "actionType": "send_message",
-        "message": "*eyes narrow* Resistance? How... disappointing. You will learn that defiance has consequences.",
-        "suppressLlm": false,
+        "message": "*eyes narrow* Resistance? How... disappointing. You will learn that defiance has consequences. Let's see....what shall the consequences be? Let's play a game...",
+        "suppressLlm": true,
         "preMessageEnabled": false,
         "postMessageEnabled": false
-      }
+      },
+      "measured": {
+        "width": 257,
+        "height": 201
+      },
+      "selected": false,
+      "dragging": false
     },
     {
-      "id": "scarlett-ob-resist-punish",
+      "id": "node_0",
       "type": "action",
       "position": {
-        "x": 300,
-        "y": 530
+        "x": -315.4655042751463,
+        "y": 907.3639157718422
       },
       "data": {
-        "label": "Punishment",
+        "label": "Turn Device On",
         "actionType": "device_on",
         "device": "primary_pump",
         "untilType": "timer",
-        "untilValue": 15,
+        "untilOperator": ">",
+        "untilValue": 10,
         "preMessageEnabled": true,
-        "preMessage": "*activates device* This is what happens when you disobey. Think about your choices.",
-        "preMessageSuppressLlm": false,
+        "preMessage": "Good! You learn quickly....and your reward will be a short 10 second burst of air!",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
         "preDelay": 0,
-        "postMessageEnabled": true,
-        "postMessage": "*watches impassively* Now. Will you reconsider your position?",
+        "postMessageEnabled": false,
+        "postMessage": "",
         "postMessageSuppressLlm": false,
-        "postDelay": 1
-      }
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 321
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1",
+      "type": "prize_wheel",
+      "position": {
+        "x": 103.56800259499212,
+        "y": 1167.1188485699656
+      },
+      "data": {
+        "label": "Prize Wheel",
+        "segments": [
+          {
+            "id": "seg-1",
+            "label": "20 SECONDS",
+            "color": "#fb923c",
+            "weight": 3
+          },
+          {
+            "id": "seg-2",
+            "label": "CYCLE 5s x3",
+            "color": "#3b82f6",
+            "weight": 3
+          },
+          {
+            "id": "seg-1770910090942",
+            "label": "PULSE - 35",
+            "color": "#10b981",
+            "weight": 3
+          }
+        ],
+        "preMessageEnabled": false,
+        "preMessage": "",
+        "preMessageSuppressLlm": false,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0,
+        "aiMessageWinEnabled": false,
+        "aiMessageWin": "",
+        "aiMessageWinSuppressLlm": false,
+        "aiMessageLoseEnabled": false,
+        "aiMessageLose": "",
+        "aiMessageLoseSuppressLlm": false
+      },
+      "measured": {
+        "width": 362,
+        "height": 343
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_2",
+      "type": "action",
+      "position": {
+        "x": 445.9408296817917,
+        "y": 1515.1088048154224
+      },
+      "data": {
+        "label": "Pulse Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 35,
+        "preMessageEnabled": true,
+        "preMessage": "Mmmmm, those little pulses are just lovely, aren't they?",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 289
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_3",
+      "type": "action",
+      "position": {
+        "x": 164.65845309352085,
+        "y": 1644.097489384527
+      },
+      "data": {
+        "label": "Start Cycle",
+        "actionType": "start_cycle",
+        "device": "",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 3,
+        "untilType": "forever",
+        "untilValue": null,
+        "preMessageEnabled": true,
+        "preMessage": "I love a good cycling! Don't you?",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 381
+      },
+      "selected": true,
+      "dragging": false
+    },
+    {
+      "id": "node_4",
+      "type": "action",
+      "position": {
+        "x": -103.90595035140409,
+        "y": 1518.0690119641647
+      },
+      "data": {
+        "label": "Turn Device On",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilOperator": ">",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlet grins.* Steady as she goes!",
+        "preMessageSuppressLlm": true,
+        "preMessageTarget": "character",
+        "preDelay": 0,
+        "postMessageEnabled": false,
+        "postMessage": "",
+        "postMessageSuppressLlm": false,
+        "postMessageTarget": "character",
+        "postDelay": 0
+      },
+      "measured": {
+        "width": 257,
+        "height": 321
+      },
+      "selected": false,
+      "dragging": false
     }
   ],
   "edges": [
@@ -151,31 +286,45 @@
       "target": "scarlett-ob-choice"
     },
     {
-      "id": "e3",
-      "source": "scarlett-ob-choice",
-      "sourceHandle": "a",
-      "target": "scarlett-ob-obey-praise"
-    },
-    {
       "id": "e4",
       "source": "scarlett-ob-choice",
       "sourceHandle": "b",
       "target": "scarlett-ob-resist-warn"
     },
     {
-      "id": "e5",
-      "source": "scarlett-ob-obey-praise",
-      "target": "scarlett-ob-obey-delay"
+      "source": "scarlett-ob-choice",
+      "sourceHandle": "a",
+      "target": "node_0",
+      "animated": true,
+      "id": "xy-edge__scarlett-ob-choicea-node_0"
     },
     {
-      "id": "e6",
-      "source": "scarlett-ob-obey-delay",
-      "target": "scarlett-ob-obey-end"
-    },
-    {
-      "id": "e7",
       "source": "scarlett-ob-resist-warn",
-      "target": "scarlett-ob-resist-punish"
+      "target": "node_1",
+      "animated": true,
+      "id": "xy-edge__scarlett-ob-resist-warn-node_1"
+    },
+    {
+      "source": "node_1",
+      "sourceHandle": "seg-1",
+      "target": "node_4",
+      "animated": true,
+      "id": "xy-edge__node_1seg-1-node_4"
+    },
+    {
+      "source": "node_1",
+      "sourceHandle": "seg-2",
+      "target": "node_3",
+      "animated": true,
+      "id": "xy-edge__node_1seg-2-node_3"
+    },
+    {
+      "source": "node_1",
+      "sourceHandle": "seg-1770910090942",
+      "target": "node_2",
+      "animated": true,
+      "id": "xy-edge__node_1seg-1770910090942-node_2"
     }
-  ]
+  ],
+  "groups": []
 }

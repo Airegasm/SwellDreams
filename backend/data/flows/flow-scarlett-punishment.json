@@ -3,9 +3,9 @@
   "name": "Punishment Sequence",
   "category": "character",
   "description": "Timer challenge endurance test with device punishment",
-  "isActive": false,
+  "isActive": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1770908103261,
+  "updatedAt": 1770908357951,
   "nodes": [
     {
       "id": "scarlett-pn-btn",
