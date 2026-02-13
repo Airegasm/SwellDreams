@@ -1598,7 +1598,7 @@ Write only the scenario description itself, no explanations.`;
                     value={getActiveWelcomeMessage()?.text || ''}
                     onChange={(e) => handleUpdateWelcomeMessageText(e.target.value)}
                     placeholder="The first message the character sends..."
-                    rows={3}
+                    rows={9}
                   />
                 </div>
 
