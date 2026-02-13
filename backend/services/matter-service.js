@@ -1,6 +1,6 @@
 /**
  * Matter Smart Device Service
- * Uses chip-tool (Matter's reference CLI controller) for Matter protocol support
+ * Uses python-matter-server for Matter protocol support
  *
  * Supports any Matter-compatible smart plug (including Tapo P115 as Matter device)
  */
@@ -13,16 +13,17 @@ const log = createLogger('Matter');
 
 const execAsync = promisify(exec);
 
-// Path to chip-tool binary (bundled in repo)
-const CHIP_TOOL_PATH = path.join(__dirname, '..', 'bin', 'chip-tool', 'chip-tool.exe');
+// Path to Python Matter control script
+const PYTHON_PATH = 'python';
+const MATTER_SCRIPT_PATH = path.join(__dirname, '..', 'bin', 'matter-control.py');
 
 /**
- * Check if chip-tool is available
+ * Check if Python Matter controller is available
  */
-function checkChipTool() {
+function checkMatterController() {
   const fs = require('fs');
-  if (!fs.existsSync(CHIP_TOOL_PATH)) {
-    throw new Error(`chip-tool not found at ${CHIP_TOOL_PATH}. Please ensure it's installed in backend/bin/chip-tool/`);
+  if (!fs.existsSync(MATTER_SCRIPT_PATH)) {
+    throw new Error(`Matter control script not found at ${MATTER_SCRIPT_PATH}`);
   }
   return true;
 }
@@ -32,17 +33,21 @@ class MatterService {
     this.devices = new Map(); // nodeId -> device info
     this.ready = false;
     this.nextNodeId = 1; // Track next available node ID for commissioning
+    this.serverProcess = null; // Matter server process
+    this.serverRunning = false;
+    this.autoStart = true; // Auto-start server when needed
+    this.storagePath = path.join(__dirname, '..', 'data', 'matter-storage');
   }
 
   /**
-   * Initialize Matter service (check chip-tool availability)
+   * Initialize Matter service (check Python Matter controller availability)
    */
   async initialize() {
     if (this.ready) return true;
 
     try {
-      checkChipTool();
-      log.info('chip-tool found and ready');
+      checkMatterController();
+      log.info('Python Matter controller found and ready');
       this.ready = true;
       return true;
     } catch (error) {
@@ -59,22 +64,153 @@ class MatterService {
   }
 
   /**
-   * Execute chip-tool command
-   * @param {Array<string>} args - Command arguments
-   * @returns {Promise<string>} - Command output
+   * Start the Matter server
    */
-  async executeChipTool(args) {
+  async startServer() {
+    if (this.serverRunning) {
+      log.info('Matter server already running');
+      return { success: true, message: 'Server already running' };
+    }
+
+    try {
+      const fs = require('fs');
+
+      // Ensure storage directory exists
+      if (!fs.existsSync(this.storagePath)) {
+        fs.mkdirSync(this.storagePath, { recursive: true });
+        log.info(`Created Matter storage directory: ${this.storagePath}`);
+      }
+
+      log.info('Starting Matter server...');
+
+      // Start python-matter-server
+      this.serverProcess = spawn(PYTHON_PATH, [
+        '-m', 'matter_server.server',
+        '--storage-path', this.storagePath
+      ], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      this.serverProcess.stdout.on('data', (data) => {
+        log.info(`[Matter Server] ${data.toString().trim()}`);
+      });
+
+      this.serverProcess.stderr.on('data', (data) => {
+        log.error(`[Matter Server] ${data.toString().trim()}`);
+      });
+
+      this.serverProcess.on('close', (code) => {
+        log.info(`Matter server exited with code ${code}`);
+        this.serverRunning = false;
+        this.serverProcess = null;
+      });
+
+      // Wait a moment for server to start
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      this.serverRunning = true;
+      log.info('Matter server started successfully');
+
+      return { success: true, message: 'Matter server started', running: true };
+    } catch (error) {
+      log.error('Failed to start Matter server:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Stop the Matter server
+   */
+  async stopServer() {
+    if (!this.serverRunning || !this.serverProcess) {
+      log.info('Matter server not running');
+      return { success: true, message: 'Server not running' };
+    }
+
+    try {
+      log.info('Stopping Matter server...');
+      this.serverProcess.kill('SIGTERM');
+
+      // Wait for process to exit
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      this.serverRunning = false;
+      this.serverProcess = null;
+
+      log.info('Matter server stopped');
+      return { success: true, message: 'Matter server stopped', running: false };
+    } catch (error) {
+      log.error('Failed to stop Matter server:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get Matter server status
+   */
+  getServerStatus() {
+    return {
+      running: this.serverRunning,
+      autoStart: this.autoStart,
+      storagePath: this.storagePath,
+      processId: this.serverProcess ? this.serverProcess.pid : null
+    };
+  }
+
+  /**
+   * Set auto-start preference
+   */
+  setAutoStart(enabled) {
+    this.autoStart = enabled;
+    log.info(`Matter server auto-start ${enabled ? 'enabled' : 'disabled'}`);
+    return { success: true, autoStart: this.autoStart };
+  }
+
+  /**
+   * Ensure server is running (auto-start if enabled)
+   */
+  async ensureServerRunning() {
+    if (this.serverRunning) {
+      return true;
+    }
+
+    if (this.autoStart) {
+      log.info('Auto-starting Matter server...');
+      const result = await this.startServer();
+      return result.success;
+    }
+
+    return false;
+  }
+
+  /**
+   * Execute Python Matter control command
+   * @param {Array<string>} args - Command arguments
+   * @returns {Promise<Object>} - Parsed JSON response
+   */
+  async executeMatterCommand(args) {
     return new Promise((resolve, reject) => {
-      const command = `"${CHIP_TOOL_PATH}" ${args.join(' ')}`;
+      const command = `${PYTHON_PATH} "${MATTER_SCRIPT_PATH}" ${args.join(' ')}`;
       log.info(`Executing: ${command}`);
 
       exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
         if (error) {
-          log.error(`chip-tool error: ${stderr}`);
+          log.error(`Matter control error: ${stderr}`);
           reject(new Error(stderr || error.message));
           return;
         }
-        resolve(stdout);
+
+        try {
+          const result = JSON.parse(stdout.trim());
+          if (result.success === false) {
+            reject(new Error(result.error || 'Command failed'));
+          } else {
+            resolve(result);
+          }
+        } catch (parseError) {
+          log.error(`Failed to parse output: ${stdout}`);
+          reject(new Error(`Invalid JSON response: ${parseError.message}`));
+        }
       });
     });
   }
@@ -90,35 +226,29 @@ class MatterService {
       await this.initialize();
     }
 
+    // Ensure Matter server is running
+    await this.ensureServerRunning();
+
     try {
-      const nodeId = this.nextNodeId++;
-      log.info(`Commissioning Matter device with pairing code to node ${nodeId}...`);
+      log.info(`Commissioning Matter device with pairing code...`);
 
-      // Commission using chip-tool: chip-tool pairing code <nodeId> <pairingCode>
-      // Example: chip-tool pairing code 1 34970112332
-      const output = await this.executeChipTool([
-        'pairing',
-        'code',
-        nodeId.toString(),
-        pairingCode
-      ]);
+      // Commission using Python script: python matter-control.py commission <pairingCode> <deviceName>
+      const args = ['commission', pairingCode];
+      if (deviceName) args.push(deviceName);
 
-      // Check if successful
-      if (output.includes('Device commissioning completed') || output.includes('Secure Session')) {
-        const deviceInfo = {
-          deviceId: nodeId.toString(),
-          nodeId: nodeId,
-          name: deviceName || `Matter Device ${nodeId}`,
-          commissioned: true,
-          pairingCode: pairingCode
-        };
+      const result = await this.executeMatterCommand(args);
 
-        this.devices.set(nodeId.toString(), deviceInfo);
-        log.info(`Successfully commissioned device as node ${nodeId}`);
-        return deviceInfo;
-      } else {
-        throw new Error('Commissioning did not complete successfully');
-      }
+      const deviceInfo = {
+        deviceId: result.nodeId.toString(),
+        nodeId: result.nodeId,
+        name: result.name,
+        commissioned: true,
+        pairingCode: pairingCode
+      };
+
+      this.devices.set(result.nodeId.toString(), deviceInfo);
+      log.info(`Successfully commissioned device as node ${result.nodeId}`);
+      return deviceInfo;
     } catch (error) {
       log.error('Commission failed:', error.message);
       throw new Error(`Failed to commission device: ${error.message}`);
@@ -133,21 +263,9 @@ class MatterService {
     log.info(`Turning ON Matter device ${deviceId}`);
 
     try {
-      // chip-tool onoff on <nodeId> <endpoint>
-      // Endpoint 1 is typically the main outlet
-      const output = await this.executeChipTool([
-        'onoff',
-        'on',
-        deviceId,
-        '1'
-      ]);
-
-      if (output.includes('status 0x00') || output.includes('SUCCESS')) {
-        log.info(`Device ${deviceId} turned ON`);
-        return { success: true, state: 'on' };
-      } else {
-        throw new Error('Turn on command did not report success');
-      }
+      const result = await this.executeMatterCommand(['on', deviceId]);
+      log.info(`Device ${deviceId} turned ON`);
+      return { success: true, state: 'on' };
     } catch (error) {
       log.error(`Failed to turn on device ${deviceId}:`, error.message);
       throw error;
@@ -162,20 +280,9 @@ class MatterService {
     log.info(`Turning OFF Matter device ${deviceId}`);
 
     try {
-      // chip-tool onoff off <nodeId> <endpoint>
-      const output = await this.executeChipTool([
-        'onoff',
-        'off',
-        deviceId,
-        '1'
-      ]);
-
-      if (output.includes('status 0x00') || output.includes('SUCCESS')) {
-        log.info(`Device ${deviceId} turned OFF`);
-        return { success: true, state: 'off' };
-      } else {
-        throw new Error('Turn off command did not report success');
-      }
+      const result = await this.executeMatterCommand(['off', deviceId]);
+      log.info(`Device ${deviceId} turned OFF`);
+      return { success: true, state: 'off' };
     } catch (error) {
       log.error(`Failed to turn off device ${deviceId}:`, error.message);
       throw error;
@@ -189,25 +296,8 @@ class MatterService {
    */
   async getPowerState(deviceId) {
     try {
-      // chip-tool onoff read on-off <nodeId> <endpoint>
-      const output = await this.executeChipTool([
-        'onoff',
-        'read',
-        'on-off',
-        deviceId,
-        '1'
-      ]);
-
-      // Parse output for attribute value
-      // Output format: [timestamp] CHIP:DMG: Data = true/false
-      if (output.includes('Data = true') || output.includes('Attribute = 1')) {
-        return 'on';
-      } else if (output.includes('Data = false') || output.includes('Attribute = 0')) {
-        return 'off';
-      } else {
-        log.warn('Could not parse power state, assuming off');
-        return 'off';
-      }
+      const result = await this.executeMatterCommand(['state', deviceId]);
+      return result.state;
     } catch (error) {
       log.error(`Failed to get state for device ${deviceId}:`, error.message);
       throw error;
@@ -238,19 +328,13 @@ class MatterService {
    */
   async removeDevice(deviceId) {
     try {
-      // chip-tool pairing unpair <nodeId>
-      await this.executeChipTool([
-        'pairing',
-        'unpair',
-        deviceId
-      ]);
-
+      // Just remove from our tracking - Matter server handles device removal
       this.devices.delete(deviceId);
       log.info(`Removed device ${deviceId}`);
       return { success: true };
     } catch (error) {
       log.error(`Failed to remove device ${deviceId}:`, error.message);
-      // Even if chip-tool fails, remove from our tracking
+      // Even if removal fails, delete from our tracking
       this.devices.delete(deviceId);
       throw error;
     }
