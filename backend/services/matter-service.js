@@ -15,7 +15,7 @@ const execAsync = promisify(exec);
 
 // Path to Python Matter control script
 const PYTHON_PATH = 'python';
-const MATTER_SCRIPT_PATH = path.join(__dirname, '..', 'bin', 'matter-control.py');
+const MATTER_SCRIPT_PATH = path.resolve(__dirname, '..', 'bin', 'matter-control.py').replace(/\\/g, '/');
 
 /**
  * Check if Python Matter controller is available
@@ -190,6 +190,8 @@ class MatterService {
    */
   async executeMatterCommand(args) {
     return new Promise((resolve, reject) => {
+      log.info(`MATTER_SCRIPT_PATH resolved to: ${MATTER_SCRIPT_PATH}`);
+      log.info(`__dirname is: ${__dirname}`);
       const command = `${PYTHON_PATH} "${MATTER_SCRIPT_PATH}" ${args.join(' ')}`;
       log.info(`Executing: ${command}`);
 
