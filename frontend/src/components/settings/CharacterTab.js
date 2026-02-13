@@ -13,6 +13,7 @@ function CharacterTab() {
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importingV2V3, setImportingV2V3] = useState(false);
+  const [showImportGuidance, setShowImportGuidance] = useState(false);
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
   const v2v3FileInputRef = useRef(null);
@@ -173,18 +174,9 @@ function CharacterTab() {
       const result = await response.json();
       showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
 
-      // Show setup guidance for converted characters
+      // Show setup guidance modal for converted characters
       setTimeout(() => {
-        alert(
-          '✅ Character Imported Successfully!\n\n' +
-          '📝 IMPORTANT SETUP STEPS:\n\n' +
-          '1. Add inflation-specific scenarios and welcome messages in the character editor\n' +
-          '   (Without these, the character will need heavy Flow integration to work properly)\n\n' +
-          '2. If using LLM Device Control, add [pump tags] in dialogue examples\n' +
-          '   Example: "[pump on] Time to get bigger! *inflates*"\n' +
-          '   (Tags trigger device control but are stripped from spoken text)\n\n' +
-          'Open the character editor to configure these settings!'
-        );
+        setShowImportGuidance(true);
       }, 500); // Delay to show after success toast
     } catch (error) {
       console.error('Failed to import V2/V3 character card:', error);
@@ -333,6 +325,73 @@ function CharacterTab() {
         onSave={handleSaveCharacter}
         character={editingCharacter}
       />
+
+      {/* V2/V3 Import Guidance Modal */}
+      {showImportGuidance && (
+        <div className="modal-overlay" onClick={() => setShowImportGuidance(false)}>
+          <div className="modal import-guidance-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>⚠️ V2/V3 Character Import - Important Information</h3>
+            </div>
+            <div className="modal-body import-guidance-content">
+              <p className="guidance-intro">
+                <strong>SwellDreams is built around welcome messages and scenarios that hint at, set up, or mention inflation.</strong>
+              </p>
+
+              <p className="guidance-warning">
+                Your imported welcome message and scenario may not play out the same way as they do in other LLM frontends without tweaking those fields.
+              </p>
+
+              <div className="guidance-section">
+                <h4>📝 Strongly Recommended:</h4>
+                <ul>
+                  <li>
+                    <strong>Add plenty of inflation-specific Constant Reminders</strong> in the Character Editor that mention or relate to inflation.
+                  </li>
+                  <li>
+                    These reminders help the LLM stay on track with inflation-themed content throughout the conversation.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="guidance-section">
+                <h4>🔧 Advanced Options:</h4>
+                <ul>
+                  <li>
+                    If you look into the <strong>Flow Engine Scripting</strong>, these issues can be almost completely circumvented.
+                  </li>
+                  <li>
+                    Flows allow you to script complex interactions and guide the narrative precisely.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="guidance-section">
+                <h4>🔌 LLM Device Access:</h4>
+                <ul>
+                  <li>
+                    If you are using LLM Device Access, add <strong>[pump tags]</strong> into the character's example dialogue where they describe turning on a pump.
+                  </li>
+                  <li>
+                    Example: <code>"[pump on] Time to get bigger! *turns on the pump*"</code>
+                  </li>
+                  <li>
+                    Tags like [pump on], [pump off], [pump cycle], etc. trigger device control but are stripped from the displayed text.
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowImportGuidance(false)}
+              >
+                OK, Got It!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
