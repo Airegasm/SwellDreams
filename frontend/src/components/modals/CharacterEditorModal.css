@@ -521,6 +521,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-xs);
+  width: 100%; /* Ensure full width for alignment */
 }
 
 .story-field-header label {
@@ -531,16 +532,19 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  flex: 1; /* Allow controls to take full width */
+  justify-content: flex-end; /* Align to the right */
 }
 
 .version-select {
-  width: 120px;
+  width: 110px;
   padding: 4px 8px;
   font-size: var(--font-size-sm);
+  margin-left: auto; /* Push to the right, aligning vertically */
 }
 
 .pov-select {
-  width: 120px;
+  width: 110px;
   padding: 4px 8px;
   font-size: var(--font-size-sm);
   background: rgba(255, 255, 255, 0.9);
