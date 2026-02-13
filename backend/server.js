@@ -2203,8 +2203,74 @@ async function processQueuedFlowMessage() {
 // ============================================
 
 /**
+ * Parse pronoun string (e.g., "he/him", "she/her", "they/them") into grammatical forms
+ * @param {string} pronounString - Pronoun string from persona
+ * @returns {object|null} Pronoun set with all grammatical forms
+ */
+function parsePronounSet(pronounString) {
+  if (!pronounString) return null;
+
+  const normalized = pronounString.toLowerCase().trim();
+
+  // Standard pronoun mappings
+  const pronounSets = {
+    'he/him': { subjective: 'he', objective: 'him', possessiveAdj: 'his', possessive: 'his', reflexive: 'himself' },
+    'she/her': { subjective: 'she', objective: 'her', possessiveAdj: 'her', possessive: 'hers', reflexive: 'herself' },
+    'they/them': { subjective: 'they', objective: 'them', possessiveAdj: 'their', possessive: 'theirs', reflexive: 'themselves' },
+    'it/its': { subjective: 'it', objective: 'it', possessiveAdj: 'its', possessive: 'its', reflexive: 'itself' }
+  };
+
+  return pronounSets[normalized] || pronounSets['they/them']; // Default to they/them
+}
+
+/**
+ * Resolve [Gender] variable with context-aware pronoun substitution
+ * Analyzes surrounding text to determine correct grammatical form
+ * @param {string} text - Text containing [Gender] variables
+ * @param {object} pronounSet - Pronoun set from parsePronounSet
+ * @returns {string} Text with [Gender] replaced by appropriate pronouns
+ */
+function resolveGenderPronoun(text, pronounSet) {
+  if (!text || !pronounSet) return text;
+
+  // Replace each [Gender] occurrence based on context
+  return text.replace(/\[Gender\]/gi, (match, offset) => {
+    const before = text.substring(Math.max(0, offset - 30), offset).toLowerCase();
+    const after = text.substring(offset + match.length, offset + match.length + 30).toLowerCase();
+
+    // Possessive adjective: [Gender]'s or [Gender] body/face/etc.
+    if (after.startsWith("'s ") || after.startsWith("'s.") || after.startsWith("'s,") || after.startsWith("'s!") || after.startsWith("'s?")) {
+      return pronounSet.possessiveAdj;
+    }
+
+    // Check for possessive adjective pattern: [Gender] <noun>
+    const afterWords = after.trim().split(/\s+/);
+    const possessiveNouns = ['body', 'face', 'hand', 'hands', 'eyes', 'hair', 'skin', 'chest', 'belly', 'back', 'legs', 'arms', 'head', 'neck', 'feet', 'voice', 'heart', 'mind', 'soul'];
+    if (afterWords[0] && possessiveNouns.includes(afterWords[0])) {
+      return pronounSet.possessiveAdj;
+    }
+
+    // Object position: after prepositions or transitive verbs
+    const objectPatterns = /\b(at|to|with|for|on|in|of|from|about|against|beside|behind|near|touch|see|watch|hold|grab|kiss|hug|embrace|push|pull|love|hate|like|want|need|help|follow|chase|catch)\s+$/i;
+    if (objectPatterns.test(before)) {
+      return pronounSet.objective;
+    }
+
+    // Subject position: before verbs or at sentence start
+    const subjectPatterns = /^\s+(is|are|was|were|has|have|had|can|could|will|would|should|might|must|does|did|looks|seems|feels|appears|stands|sits|walks|runs|moves|speaks|says|thinks)/i;
+    const sentenceStart = /[.!?]\s*$/;
+    if (subjectPatterns.test(after) || sentenceStart.test(before) || offset === 0) {
+      return pronounSet.subjective;
+    }
+
+    // Default to subjective for ambiguous cases
+    return pronounSet.subjective;
+  });
+}
+
+/**
  * Substitute all variable patterns with their actual values
- * Supports: [Player], [Char], [Capacity], [Feeling], [Emotion], [Flow:varname]
+ * Supports: [Player], [Char], [Capacity], [Feeling], [Emotion], [Gender], [Flow:varname]
  */
 function substituteAllVariables(text, context = {}) {
   if (!text) return text;
@@ -2215,6 +2281,19 @@ function substituteAllVariables(text, context = {}) {
   const playerName = context.playerName || sessionState.playerName;
   if (playerName) {
     result = result.replace(/\[Player\]/gi, playerName);
+  }
+
+  // Gender pronouns - context-aware substitution based on PLAYER persona
+  const settings = loadData(DATA_FILES.settings);
+  const activePersonaId = context.activePersonaId || settings?.activePersonaId;
+  if (activePersonaId) {
+    const persona = loadPersona(activePersonaId);
+    if (persona && persona.pronouns) {
+      const pronounSet = parsePronounSet(persona.pronouns);
+      if (pronounSet) {
+        result = resolveGenderPronoun(result, pronounSet);
+      }
+    }
   }
 
   // Character name
@@ -6723,9 +6802,13 @@ app.post('/api/llm/test', llmLimiter, async (req, res) => {
 
 app.post('/api/llm/generate', llmLimiter, async (req, res) => {
   try {
-    const { prompt, messages, systemPrompt } = req.body;
+    const { prompt, messages, systemPrompt, maxTokens } = req.body;
     const settings = loadData(DATA_FILES.settings)?.llm || DEFAULT_SETTINGS.llm;
-    const result = await llmService.generate({ prompt, messages, systemPrompt, settings });
+
+    // Allow optional maxTokens override from request
+    const effectiveSettings = maxTokens ? { ...settings, maxTokens } : settings;
+
+    const result = await llmService.generate({ prompt, messages, systemPrompt, settings: effectiveSettings });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });

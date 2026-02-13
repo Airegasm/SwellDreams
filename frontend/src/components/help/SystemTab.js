@@ -54,6 +54,11 @@ function SystemTab() {
                   <td>Dr. Elena</td>
                 </tr>
                 <tr>
+                  <td><span className="variable-tag">[Gender]</span></td>
+                  <td>Context-aware pronoun based on Persona gender (he/him/his, she/her/hers, they/them/their)</td>
+                  <td>he, she, they</td>
+                </tr>
+                <tr>
                   <td><span className="variable-tag">[Capacity]</span></td>
                   <td>Current physical capacity (0-100)</td>
                   <td>45</td>
@@ -75,6 +80,57 @@ function SystemTab() {
               <p>
                 <strong>Tip:</strong> Variables are case-sensitive. Use exactly as shown: <span className="variable-tag">[Player]</span> not [player] or [PLAYER].
               </p>
+            </div>
+
+            <h4 className="subsection-header">[Gender] Variable - Smart Pronoun System</h4>
+            <p>
+              The <span className="variable-tag">[Gender]</span> variable automatically resolves to the correct pronoun
+              based on your persona's gender setting and the grammatical context. This makes writing character content
+              much easier since you don't need separate versions for different pronouns.
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Persona Gender</th>
+                  <th>Subject Form</th>
+                  <th>Object Form</th>
+                  <th>Possessive Form</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>he/him</strong></td>
+                  <td>he</td>
+                  <td>him</td>
+                  <td>his</td>
+                </tr>
+                <tr>
+                  <td><strong>she/her</strong></td>
+                  <td>she</td>
+                  <td>her</td>
+                  <td>hers</td>
+                </tr>
+                <tr>
+                  <td><strong>they/them</strong></td>
+                  <td>they</td>
+                  <td>them</td>
+                  <td>their</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="code-example">
+              <strong>Example Usage:</strong><br/>
+              "I can see [Gender] is nervous" → "I can see <em>he</em> is nervous" (for he/him persona)<br/>
+              "Tell [Gender] to relax" → "Tell <em>her</em> to relax" (for she/her persona)<br/>
+              "That belongs to [Gender]" → "That belongs to <em>them</em>" (for they/them persona)
+            </div>
+
+            <div className="info-box">
+              <strong>💡 Best Practice:</strong> Use [Gender] in character descriptions, example dialogues, scenarios, and
+              welcome messages. The AI automatically uses the correct form based on context, making your characters
+              work seamlessly with any persona gender.
             </div>
           </div>
         )}

@@ -9,6 +9,7 @@ function ConversationsTab() {
     builtinCharacters: false,
     characters: false,
     characterFields: false,
+    sessionDefaults: false,
     builtinPersonas: false,
     personas: false,
     personaFields: false,
@@ -208,6 +209,20 @@ function ConversationsTab() {
               <li><strong>Actions</strong> - Expandable panel with character-specific action buttons</li>
               <li><strong>Devices</strong> - Quick access to connected device controls and status indicators</li>
             </ul>
+
+            <h4 className="subsection-header">Font Size Controls</h4>
+            <p>
+              In the upper right corner of the chat area, you'll find +/− buttons to adjust text size on the fly.
+            </p>
+            <ul className="help-list">
+              <li><strong>Range:</strong> 10px to 32px</li>
+              <li><strong>Persistent:</strong> Your font size preference saves automatically</li>
+              <li><strong>Accessibility:</strong> Make text larger for easier reading or smaller to see more messages at once</li>
+            </ul>
+            <div className="tip-box">
+              <strong>Tip:</strong> Adjust font size based on your viewing distance. Larger sizes work great
+              when viewing from across the room during a session!
+            </div>
           </div>
         )}
       </div>
@@ -335,8 +350,9 @@ function ConversationsTab() {
             <h4 className="subsection-header">Character Editor Tabs</h4>
             <ul className="help-list">
               <li><strong>Basic</strong> - Core character information (name, description, personality, messages)</li>
-              <li><strong>Constant Reminders</strong> - Instructions the AI always remembers</li>
+              <li><strong>Custom Reminders</strong> - Lorebook-style instructions (constant or keyword-triggered)</li>
               <li><strong>Custom Buttons</strong> - Quick-action buttons for the chat interface</li>
+              <li><strong>Session Defaults</strong> - Starting values for capacity, pain, emotion, and auto-capacity speed</li>
             </ul>
 
             <h4 className="subsection-header">Tips for Good Characters</h4>
@@ -404,12 +420,26 @@ function ConversationsTab() {
             <ul className="help-list">
               <li><strong>+ button</strong> - Add a new welcome message version</li>
               <li><strong>Trash icon</strong> - Delete the current version</li>
-              <li><strong>Robot icon</strong> - Toggle LLM Enhancement (when enabled, AI will expand/enhance your text)</li>
+              <li><strong>🤖 Robot icon (Magic Wand)</strong> - Use LLM to enhance and expand your text</li>
               <li><strong>Dropdown</strong> - Switch between versions</li>
             </ul>
+
+            <div className="help-note info">
+              <strong>🪄 LLM Enhancement Feature:</strong><br/>
+              Click the 🤖 magic wand button to have AI automatically enhance your welcome message!
+              <ul style={{marginTop: '8px', marginBottom: 0}}>
+                <li>Transforms short text into rich, immersive greetings</li>
+                <li>Adds proper roleplay formatting with *actions* and "dialog"</li>
+                <li>Includes sensory details and character voice</li>
+                <li>Automatically uses [Player] and [Gender] variables where appropriate</li>
+                <li>You can enhance blank messages or improve existing ones</li>
+              </ul>
+            </div>
+
             <div className="tip-box">
               <strong>Tip:</strong> Create multiple welcome messages for variety. The active one
-              (shown in dropdown) will be used when starting a new conversation.
+              (shown in dropdown) will be used when starting a new conversation. Use the magic wand
+              to quickly generate professional-quality greetings!
             </div>
 
             <h4 className="subsection-header">Scenario</h4>
@@ -421,7 +451,14 @@ function ConversationsTab() {
               <li>Sets the scene and establishes the starting point</li>
               <li>Included in every AI prompt as context</li>
               <li>Should describe where, when, and what's happening</li>
+              <li><strong>🤖 Magic Wand:</strong> Click the robot icon to use LLM enhancement for richer scenario descriptions</li>
             </ul>
+
+            <div className="tip-box">
+              <strong>Pro Tip:</strong> Use the LLM enhancement feature to transform simple scenario descriptions
+              like "In a medical lab" into detailed, immersive scene-setters with atmosphere, sensory details,
+              and proper context.
+            </div>
 
             <h4 className="subsection-header">Example Dialogues</h4>
             <p>
@@ -459,6 +496,99 @@ function ConversationsTab() {
             <div className="tip-box">
               <strong>Pro Tip:</strong> The <code>[Player]</code> token gets replaced with your persona's
               actual name during conversations. Characters should use it naturally in their responses.
+            </div>
+
+            <h4 className="subsection-header">Using [Gender] Variable for Pronouns</h4>
+            <p>
+              The <code>[Gender]</code> variable is a powerful tool for creating gender-neutral character content.
+              It automatically resolves to the correct pronoun (he/she/they) based on the active persona's gender
+              setting and grammatical context.
+            </p>
+
+            <div className="code-example">
+              <strong>Example in Character Description:</strong><br/>
+              "I notice [Gender] is nervous about this experiment."<br/>
+              <br/>
+              <strong>Resolves to:</strong><br/>
+              • "I notice <em>he</em> is nervous..." (he/him persona)<br/>
+              • "I notice <em>she</em> is nervous..." (she/her persona)<br/>
+              • "I notice <em>they</em> are nervous..." (they/them persona)
+            </div>
+
+            <div className="info-box">
+              <strong>💡 Best Practice:</strong> Use <code>[Gender]</code> in example dialogues, scenarios, and
+              personality descriptions so your character works seamlessly with all persona genders. This is
+              especially helpful when using the LLM enhancement feature, which automatically includes [Gender]
+              where appropriate.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Session Defaults */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('sessionDefaults')}>
+          Session Defaults
+          <span className="expand-icon">{expanded.sessionDefaults ? '−' : '+'}</span>
+        </h3>
+        {expanded.sessionDefaults && (
+          <div className="section-content">
+            <p>
+              The Session Defaults tab in the Character Editor lets you configure the starting state
+              for new conversations with each character. Perfect for scenarios that begin mid-session
+              or with specific conditions already in effect!
+            </p>
+
+            <h4 className="subsection-header">Configurable Settings</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Range</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Starting Capacity</strong></td>
+                  <td>0-100% (5% increments)</td>
+                  <td>Initial capacity gauge value when starting a new session</td>
+                </tr>
+                <tr>
+                  <td><strong>Pain Level</strong></td>
+                  <td>0-10</td>
+                  <td>Initial Wong-Baker pain scale rating</td>
+                </tr>
+                <tr>
+                  <td><strong>Emotion</strong></td>
+                  <td>Dropdown selection</td>
+                  <td>Starting emotional state for the persona</td>
+                </tr>
+                <tr>
+                  <td><strong>Auto-Capacity Speed</strong></td>
+                  <td>0.25x to 2.0x (0.25x increments)</td>
+                  <td>Character-specific multiplier for auto-capacity progression</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Use Cases</h4>
+            <ul className="help-list">
+              <li><strong>In Media Res Scenarios:</strong> Start characters mid-session (e.g., already at 50% capacity)</li>
+              <li><strong>Specific Emotional States:</strong> Begin with the persona nervous, excited, or uncomfortable</li>
+              <li><strong>Custom Progression Rates:</strong> Give some characters faster/slower auto-capacity for variety</li>
+              <li><strong>Testing:</strong> Quickly jump to high capacity levels to test dialogue and flows</li>
+            </ul>
+
+            <div className="info-box">
+              <strong>💡 Example:</strong> Dr. Iris Chen could default to 0% capacity with clinical setup, while
+              Mistress Scarlett might default to 25% capacity with a "submissive" emotion, creating an immediate
+              power dynamic from the first message.
+            </div>
+
+            <div className="tip-box">
+              <strong>Note:</strong> Session defaults only apply when starting a NEW conversation. They don't
+              affect existing saved sessions or mid-conversation reloads.
             </div>
           </div>
         )}

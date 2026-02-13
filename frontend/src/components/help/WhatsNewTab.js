@@ -47,7 +47,7 @@ function WhatsNewTab() {
         <h3>📥 V2/V3 Character Card Import</h3>
         <p>
           Import character cards from other AI chat platforms (SillyTavern, TavernAI, etc.) with full compatibility!
-          Both V2 and V3 formats are supported.
+          Both V2 and V3 formats are supported, with guided setup for SwellDreams-specific features.
         </p>
         <div className="feature-list">
           <div className="feature-item">
@@ -70,20 +70,101 @@ function WhatsNewTab() {
             <strong>Persona Import:</strong>
             <p>Convert V2/V3 cards to SwellDreams personas for role-playing as the character</p>
           </div>
+          <div className="feature-item">
+            <strong>Import Guidance Modal:</strong>
+            <p>After import, an informative modal provides tips for adapting characters to SwellDreams' inflation theme</p>
+          </div>
         </div>
         <div className="help-note info">
-          <strong>💡 How to Use:</strong> Settings → Characters → "Convert V2/V3" button → Select JSON or PNG file
+          <strong>💡 How to Use:</strong> Settings → Characters → "Convert V2/V3" button → Select JSON or PNG file → Follow the setup guidance
+        </div>
+        <div className="help-note warning">
+          <strong>⚠️ Important:</strong> SwellDreams is built around inflation-themed content. The import guidance modal
+          recommends adding inflation-specific reminders and using Flow Engine scripting to adapt imported characters
+          for optimal compatibility.
         </div>
       </div>
 
       <div className="help-section">
+        <h3>🪄 LLM-Powered Content Enhancement</h3>
+        <p>
+          New AI-powered enhancement feature helps you write better welcome messages and scenarios!
+          Click the magic wand (🤖) button to automatically expand and improve your text.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Welcome Message Enhancement:</strong>
+            <p>Transform short greetings into rich, immersive character introductions with proper formatting</p>
+          </div>
+          <div className="feature-item">
+            <strong>Scenario Enhancement:</strong>
+            <p>Expand basic scene descriptions into detailed scenarios with sensory details and context</p>
+          </div>
+          <div className="feature-item">
+            <strong>Smart Formatting:</strong>
+            <p>Automatically applies roleplay formatting with *actions* and "dialog"</p>
+          </div>
+          <div className="feature-item">
+            <strong>Variable Integration:</strong>
+            <p>Uses [Player] and [Gender] variables appropriately in enhanced text</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Character Editor → Basic Tab → Click the 🤖 robot icon next to Welcome Message or Scenario fields.
+          The AI will enhance your text while preserving your intent.
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>⚙️ Session Defaults Tab</h3>
+        <p>
+          New character editor tab allows you to configure starting values for each character.
+          Perfect for scenarios that begin mid-session or with specific emotional states!
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Starting Capacity:</strong>
+            <p>Set initial capacity level (0-100%) when starting a new session</p>
+          </div>
+          <div className="feature-item">
+            <strong>Pain Level Preset:</strong>
+            <p>Configure starting pain level (0-10 scale)</p>
+          </div>
+          <div className="feature-item">
+            <strong>Initial Emotion:</strong>
+            <p>Choose the persona's starting emotional state</p>
+          </div>
+          <div className="feature-item">
+            <strong>Auto-Capacity Speed:</strong>
+            <p>Set character-specific auto-capacity multiplier (0.25x to 2x)</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Character Editor → Session Defaults tab → Configure starting values for this character
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🔤 Chat Font Size Controls</h3>
+        <p>
+          Adjust chat text size on the fly with convenient +/- buttons in the upper right of the chat area.
+        </p>
+        <ul>
+          <li><strong>Range:</strong> 10px to 32px</li>
+          <li><strong>Persistent:</strong> Setting saves automatically and persists across sessions</li>
+          <li><strong>Accessibility:</strong> Improve readability for your preferred viewing distance</li>
+        </ul>
+      </div>
+
+      <div className="help-section">
         <h3>🎨 Enhanced Character Editor</h3>
-        <p>The character editor has been upgraded with powerful new reminder management features.</p>
+        <p>The character editor has been upgraded with powerful new reminder management features and tabs.</p>
         <ul>
           <li><strong>Keyword Input Component:</strong> Tag-based interface for adding trigger keywords</li>
           <li><strong>Priority Badges:</strong> Visual indicators showing reminder priority and keyword count</li>
           <li><strong>Improved Validation:</strong> Ensures keyword-triggered reminders have at least one keyword</li>
           <li><strong>Better Organization:</strong> Reminders sorted by priority for easier management</li>
+          <li><strong>Custom Scrollbars:</strong> Sleek dark-themed scrollbars match the UI aesthetic</li>
         </ul>
       </div>
 
