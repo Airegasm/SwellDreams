@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
+import KeywordInput from '../common/KeywordInput';
 import './CharacterEditorModal.css';
 
 // Migration function to ensure story data has v2 format (welcomeMessages[] and scenarios[] arrays)
@@ -91,13 +92,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       let stories = character.stories || [];
 
       if (stories.length === 0) {
-        // Migrate from legacy format (no stories)
-        const welcomeMessages = character.welcomeMessages || (character.firstMessage ? [
-          { id: 'wm-1', text: character.firstMessage, llmEnhanced: false }
-        ] : [{ id: 'wm-1', text: '', llmEnhanced: false }]);
-        const scenarios = character.scenarios || (character.scenario ? [
-          { id: 'sc-1', text: character.scenario }
-        ] : [{ id: 'sc-1', text: '' }]);
+        // Create default story structure
+        const welcomeMessages = character.welcomeMessages || [{ id: 'wm-1', text: '', llmEnhanced: false }];
+        const scenarios = character.scenarios || [{ id: 'sc-1', text: '' }];
 
         stories = [{
           id: 'story-1',
@@ -231,7 +228,16 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState(null);
-  const [reminderForm, setReminderForm] = useState({ name: '', text: '', target: 'character' });
+  const [reminderForm, setReminderForm] = useState({
+    name: '',
+    text: '',
+    target: 'character',
+    constant: true,
+    keys: [],
+    caseSensitive: false,
+    priority: 100,
+    scanDepth: 10
+  });
   // Dropdown selections for story associations
   const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
   const [selectedButtonToAdd, setSelectedButtonToAdd] = useState('');
@@ -925,13 +931,31 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   // Global reminder functions
   const handleAddReminder = () => {
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character' });
+    setReminderForm({
+      name: '',
+      text: '',
+      target: 'character',
+      constant: true,
+      keys: [],
+      caseSensitive: false,
+      priority: 100,
+      scanDepth: 10
+    });
     setShowReminderForm(true);
   };
 
   const handleEditReminder = (reminder) => {
     setEditingReminderId(reminder.id);
-    setReminderForm({ name: reminder.name, text: reminder.text, target: reminder.target || 'character' });
+    setReminderForm({
+      name: reminder.name,
+      text: reminder.text,
+      target: reminder.target || 'character',
+      constant: reminder.constant !== false, // Default to true for backward compat
+      keys: reminder.keys || [],
+      caseSensitive: reminder.caseSensitive || false,
+      priority: reminder.priority !== undefined ? reminder.priority : 100,
+      scanDepth: reminder.scanDepth !== undefined ? reminder.scanDepth : 10
+    });
     setShowReminderForm(true);
   };
 
@@ -955,9 +979,25 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       return;
     }
 
+    // Validate keywords if not constant
+    if (reminderForm.constant === false && (!reminderForm.keys || reminderForm.keys.length === 0)) {
+      alert('Please add at least one trigger keyword, or enable "Always Active"');
+      return;
+    }
+
     if (editingReminderId) {
       const updated = globalReminders.map(r =>
-        r.id === editingReminderId ? { ...r, name: reminderForm.name, text: reminderForm.text, target: reminderForm.target } : r
+        r.id === editingReminderId ? {
+          ...r,
+          name: reminderForm.name,
+          text: reminderForm.text,
+          target: reminderForm.target,
+          constant: reminderForm.constant,
+          keys: reminderForm.keys || [],
+          caseSensitive: reminderForm.caseSensitive || false,
+          priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
+          scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10
+        } : r
       );
       setFormData({ ...formData, globalReminders: updated });
     } else {
@@ -966,20 +1006,43 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         name: reminderForm.name,
         text: reminderForm.text,
         target: reminderForm.target,
-        enabled: true
+        enabled: true,
+        constant: reminderForm.constant,
+        keys: reminderForm.keys || [],
+        caseSensitive: reminderForm.caseSensitive || false,
+        priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
+        scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10
       };
       setFormData({ ...formData, globalReminders: [...globalReminders, newReminder] });
     }
 
     setShowReminderForm(false);
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character' });
+    setReminderForm({
+      name: '',
+      text: '',
+      target: 'character',
+      constant: true,
+      keys: [],
+      caseSensitive: false,
+      priority: 100,
+      scanDepth: 10
+    });
   };
 
   const handleCancelReminderEdit = () => {
     setShowReminderForm(false);
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character' });
+    setReminderForm({
+      name: '',
+      text: '',
+      target: 'character',
+      constant: true,
+      keys: [],
+      caseSensitive: false,
+      priority: 100,
+      scanDepth: 10
+    });
   };
 
   return (
@@ -1419,30 +1482,69 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                   </div>
                 </div>
 
-                {/* Persona Details */}
-                <div className="story-subsection">
-                  <label className="subsection-label">Persona Details</label>
-                  <div className="story-field">
-                    <label>Starting Persona Emotion</label>
-                    <select
-                      value={activeStory?.startingEmotion || 'neutral'}
-                      onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
-                    >
-                      <option value="neutral">Neutral</option>
-                      <option value="relaxed">Relaxed</option>
-                      <option value="curious">Curious</option>
-                      <option value="nervous">Nervous</option>
-                      <option value="excited">Excited</option>
-                      <option value="aroused">Aroused</option>
-                      <option value="embarrassed">Embarrassed</option>
-                      <option value="anxious">Anxious</option>
-                      <option value="submissive">Submissive</option>
-                      <option value="defiant">Defiant</option>
-                      <option value="overwhelmed">Overwhelmed</option>
-                      <option value="blissful">Blissful</option>
-                    </select>
+                {/* V2/V3 Import Reference - Show original content if imported */}
+                {formData.extensions?.v2v3Import && (
+                  <div className="story-subsection">
+                    <label className="subsection-label">Original Imported Content (Reference)</label>
+                    <p className="section-hint" style={{ marginBottom: '1rem', color: 'var(--warning-color)' }}>
+                      These are the original greetings/scenarios from the imported character card.
+                      They are preserved here for reference only. Please write inflation-appropriate versions above.
+                    </p>
+
+                    {formData.extensions.v2v3Import.originalGreeting && (
+                      <div className="story-field">
+                        <label>Original Welcome Message</label>
+                        <textarea
+                          value={formData.extensions.v2v3Import.originalGreeting}
+                          readOnly
+                          style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
+                          rows={3}
+                        />
+                      </div>
+                    )}
+
+                    {formData.extensions.v2v3Import.originalAlternateGreetings?.length > 0 && (
+                      <div className="story-field">
+                        <label>Original Alternate Greetings ({formData.extensions.v2v3Import.originalAlternateGreetings.length})</label>
+                        {formData.extensions.v2v3Import.originalAlternateGreetings.map((greeting, idx) => (
+                          <textarea
+                            key={idx}
+                            value={greeting}
+                            readOnly
+                            style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed', marginBottom: '0.5rem' }}
+                            rows={2}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {formData.extensions.v2v3Import.originalScenario && (
+                      <div className="story-field">
+                        <label>Original Scenario</label>
+                        <textarea
+                          value={formData.extensions.v2v3Import.originalScenario}
+                          readOnly
+                          style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
+                          rows={2}
+                        />
+                      </div>
+                    )}
+
+                    <div className="story-field">
+                      <label>Import Info</label>
+                      <div style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+                        <div>Format: {formData.extensions.v2v3Import.originalFormat || formData.extensions.v2v3Import.spec || 'Unknown'}</div>
+                        <div>Imported: {new Date(formData.extensions.v2v3Import.importedAt).toLocaleString()}</div>
+                        {formData.extensions.v2v3Import.creator && <div>Creator: {formData.extensions.v2v3Import.creator}</div>}
+                        {formData.extensions.v2v3Import.characterVersion && <div>Version: {formData.extensions.v2v3Import.characterVersion}</div>}
+                      </div>
+                      <p className="section-hint" style={{ marginTop: '0.5rem' }}>
+                        💡 <strong>Tip:</strong> The character's lorebook was imported as Custom Reminders.
+                        Check the "Custom Reminders" tab to see and manage all lorebook entries.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -1457,6 +1559,24 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                     <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Reminder</button>
                   </div>
                   <p className="section-hint">Character-specific reminders. Create them here, then assign them to stories using "Constant Reminders" in the Story section.</p>
+
+                  {/* V2/V3 Import Notice */}
+                  {formData.extensions?.v2v3Import && globalReminders.length > 0 && (
+                    <div style={{
+                      padding: '12px',
+                      marginBottom: '1rem',
+                      backgroundColor: 'var(--info-bg)',
+                      border: '1px solid var(--info-color)',
+                      borderRadius: '4px',
+                      fontSize: '0.9em'
+                    }}>
+                      <strong>📚 Imported Lorebook</strong>
+                      <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)' }}>
+                        These reminders were imported from the character's lorebook (character_book).
+                        Keyword-triggered entries will only activate when their keywords appear in the conversation.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="events-list-editor">
                     {globalReminders.length === 0 ? (
@@ -1478,6 +1598,16 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                               <span className={`target-badge ${reminder.target || 'character'}`}>
                                 {reminder.target === 'player' ? 'Player' : 'Character'}
                               </span>
+                              {reminder.constant === false && (
+                                <span className="keyword-badge" title={`Triggers: ${(reminder.keys || []).join(', ')}`}>
+                                  🔑 {reminder.keys?.length || 0} keys
+                                </span>
+                              )}
+                              {(reminder.priority !== undefined && reminder.priority !== 100) && (
+                                <span className="priority-badge" title="Priority">
+                                  P{reminder.priority}
+                                </span>
+                              )}
                             </div>
                             <div className="event-meta">{reminder.text.substring(0, 60)}{reminder.text.length > 60 ? '...' : ''}</div>
                           </div>
@@ -1542,6 +1672,73 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                       </label>
                     </div>
                   </div>
+
+                  {/* Activation Mode */}
+                  <div className="form-group">
+                    <label className="checkbox-label-block">
+                      <input
+                        type="checkbox"
+                        checked={reminderForm.constant !== false}
+                        onChange={(e) => setReminderForm({ ...reminderForm, constant: e.target.checked })}
+                      />
+                      <div className="checkbox-content">
+                        <span className="checkbox-title">Always Active (Constant)</span>
+                        <span className="checkbox-hint">If unchecked, only activates when keywords are detected in conversation</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Keyword Triggers - only show if not constant */}
+                  {reminderForm.constant === false && (
+                    <div className="form-group">
+                      <label>Trigger Keywords</label>
+                      <KeywordInput
+                        values={reminderForm.keys || []}
+                        onChange={(keys) => setReminderForm({ ...reminderForm, keys })}
+                        placeholder="Type keyword and press Enter..."
+                      />
+                      <span className="field-hint">Reminder activates when any keyword appears in recent messages</span>
+
+                      <div className="inline-options" style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={reminderForm.caseSensitive || false}
+                            onChange={(e) => setReminderForm({ ...reminderForm, caseSensitive: e.target.checked })}
+                          />
+                          <span>Case Sensitive</span>
+                        </label>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <label>Scan Depth:</label>
+                          <input
+                            type="number"
+                            value={reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10}
+                            onChange={(e) => setReminderForm({ ...reminderForm, scanDepth: parseInt(e.target.value) || 0 })}
+                            min="0"
+                            max="100"
+                            style={{ width: '80px' }}
+                          />
+                          <span className="field-hint">(0 = all messages)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Priority */}
+                  <div className="form-group">
+                    <label>Priority (Insertion Order)</label>
+                    <input
+                      type="number"
+                      value={reminderForm.priority !== undefined ? reminderForm.priority : 100}
+                      onChange={(e) => setReminderForm({ ...reminderForm, priority: parseInt(e.target.value) || 100 })}
+                      min="0"
+                      max="1000"
+                      style={{ width: '120px' }}
+                    />
+                    <span className="field-hint">Higher priority reminders appear earlier in prompt (default: 100)</span>
+                  </div>
+
                   <div className="event-form-buttons">
                     <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>
                     <button type="button" className="btn btn-primary" onClick={handleSaveReminder}>{editingReminderId ? 'Update' : 'Create'}</button>

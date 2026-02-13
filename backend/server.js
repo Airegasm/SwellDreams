@@ -17,6 +17,8 @@ const { v4: uuidv4 } = require('uuid');
 const llmService = require('./services/llm-service');
 const { DeviceService, killAllPythonProcesses, activeProcesses } = require('./services/device-service');
 const EventEngine = require('./services/event-engine');
+const reminderEngine = require('./services/reminder-engine');
+const characterConverter = require('./services/character-converter');
 const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
@@ -201,6 +203,22 @@ const mediaUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: mediaStorage.VIDEO_SIZE_LIMIT // Use the larger limit (500MB)
+  }
+});
+
+// Configure multer for character card imports (JSON/PNG)
+const cardUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max for character cards
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/json', 'image/png', 'image/jpeg'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only JSON and PNG files are allowed.'));
+    }
   }
 });
 
@@ -1936,17 +1954,6 @@ function migrateCharacterStories() {
         llmEnhanced: wm.llmEnhanced || false
       }));
       activeWelcomeMessageId = character.activeWelcomeMessageId || welcomeMessages[0]?.id;
-    } else if (character.firstMessage) {
-      welcomeMessages = [{ id: 'wm-1', text: character.firstMessage, llmEnhanced: false }];
-      activeWelcomeMessageId = 'wm-1';
-    } else if (needsV2Migration && character.stories[0].welcomeMessage) {
-      // Migrating from v1 story format
-      welcomeMessages = [{
-        id: 'wm-1',
-        text: character.stories[0].welcomeMessage,
-        llmEnhanced: character.stories[0].llmEnhanced || false
-      }];
-      activeWelcomeMessageId = 'wm-1';
     }
 
     // Get all scenarios (preserve all versions)
@@ -1958,13 +1965,6 @@ function migrateCharacterStories() {
         text: sc.text || ''
       }));
       activeScenarioId = character.activeScenarioId || scenarios[0]?.id;
-    } else if (character.scenario) {
-      scenarios = [{ id: 'sc-1', text: character.scenario }];
-      activeScenarioId = 'sc-1';
-    } else if (needsV2Migration && character.stories[0].scenario) {
-      // Migrating from v1 story format
-      scenarios = [{ id: 'sc-1', text: character.stories[0].scenario }];
-      activeScenarioId = 'sc-1';
     }
 
     // Get example dialogues
@@ -2430,16 +2430,11 @@ function getActiveWelcomeMessage(character) {
     }
   }
 
-  // Fallback to root level welcomeMessages (legacy format)
+  // Fallback to root level welcomeMessages
   if (character.welcomeMessages && character.welcomeMessages.length > 0) {
     const activeId = character.activeWelcomeMessageId || character.welcomeMessages[0].id;
     const activeWelcome = character.welcomeMessages.find(w => w.id === activeId);
     return activeWelcome || character.welcomeMessages[0];
-  }
-
-  // Fallback for old format (shouldn't happen after migration)
-  if (character.firstMessage) {
-    return { id: 'wm-1', text: character.firstMessage, llmEnhanced: false };
   }
 
   return null;
@@ -2461,16 +2456,11 @@ function getActiveScenario(character) {
     }
   }
 
-  // Fallback to root level scenarios (legacy format)
+  // Fallback to root level scenarios
   if (character.scenarios && character.scenarios.length > 0) {
     const activeId = character.activeScenarioId || character.scenarios[0].id;
     const activeScenario = character.scenarios.find(s => s.id === activeId);
     return activeScenario ? activeScenario.text : '';
-  }
-
-  // Fallback for old format (shouldn't happen after migration)
-  if (character.scenario) {
-    return character.scenario;
   }
 
   return '';
@@ -2545,18 +2535,15 @@ async function sendWelcomeMessage(character, settings) {
         systemPrompt += `Scenario: ${scenario}\n\n`;
       }
 
-      // Add constant reminders (character + global, filtered by enabled)
-      const charReminders = (character.constantReminders || []).filter(r => r.enabled !== false);
-      const globalReminders = (settings.globalReminders || []).filter(r => r.enabled !== false);
-      if (charReminders.length > 0 || globalReminders.length > 0) {
-        systemPrompt += 'Constant Reminders:\n';
-        globalReminders.forEach(reminder => {
-          systemPrompt += `- [Global] ${reminder.text}\n`;
-        });
-        charReminders.forEach(reminder => {
-          systemPrompt += `- ${reminder.text}\n`;
-        });
-        systemPrompt += '\n';
+      // Add active reminders (using reminder engine for keyword-based activation)
+      const recentMessages = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+      const activeReminders = reminderEngine.getMergedActiveReminders(
+        character.constantReminders || [],
+        settings.globalReminders || [],
+        recentMessages
+      );
+      if (activeReminders.length > 0) {
+        systemPrompt += reminderEngine.buildReminderPrompt(activeReminders, 'Active Reminders');
       }
 
       // Add belly state instructions (CRITICAL for accurate capacity descriptions)
@@ -5937,18 +5924,15 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
 
-    // Add constant reminders about the character (helps player responses be contextually appropriate)
-    const charRemindersImp = (character.constantReminders || []).filter(r => r.enabled !== false);
-    const globalRemindersImp = (settings.globalReminders || []).filter(r => r.enabled !== false);
-    if (charRemindersImp.length > 0 || globalRemindersImp.length > 0) {
-      systemPrompt += 'Constant Reminders:\n';
-      globalRemindersImp.forEach(reminder => {
-        systemPrompt += `- ${reminder.text}\n`;
-      });
-      charRemindersImp.forEach(reminder => {
-        systemPrompt += `- ${reminder.text}\n`;
-      });
-      systemPrompt += '\n';
+    // Add active reminders (using reminder engine for keyword-based activation)
+    const recentMessagesImp = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+    const activeRemindersImp = reminderEngine.getMergedActiveReminders(
+      character.constantReminders || [],
+      settings.globalReminders || [],
+      recentMessagesImp
+    );
+    if (activeRemindersImp.length > 0) {
+      systemPrompt += reminderEngine.buildReminderPrompt(activeRemindersImp, 'Active Reminders');
     }
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
@@ -5972,18 +5956,15 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
 
-    // Add constant reminders (character + global, filtered by enabled)
-    const charRemindersGuided = (character.constantReminders || []).filter(r => r.enabled !== false);
-    const globalRemindersGuided = (settings.globalReminders || []).filter(r => r.enabled !== false);
-    if (charRemindersGuided.length > 0 || globalRemindersGuided.length > 0) {
-      systemPrompt += 'Constant Reminders:\n';
-      globalRemindersGuided.forEach(reminder => {
-        systemPrompt += `- ${reminder.text}\n`;
-      });
-      charRemindersGuided.forEach(reminder => {
-        systemPrompt += `- ${reminder.text}\n`;
-      });
-      systemPrompt += '\n';
+    // Add active reminders (using reminder engine for keyword-based activation)
+    const recentMessagesGuided = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+    const activeRemindersGuided = reminderEngine.getMergedActiveReminders(
+      character.constantReminders || [],
+      settings.globalReminders || [],
+      recentMessagesGuided
+    );
+    if (activeRemindersGuided.length > 0) {
+      systemPrompt += reminderEngine.buildReminderPrompt(activeRemindersGuided, 'Active Reminders');
     }
 
     // Add global prompt / author note
@@ -6143,17 +6124,15 @@ function buildChatContext(character, settings) {
     }
   }
 
-  // Add constant reminders (character + global, filtered by enabled)
-  const charRemindersChat = (character.constantReminders || []).filter(r => r.enabled !== false);
-  const globalRemindersChat = (settings.globalReminders || []).filter(r => r.enabled !== false);
-  if (charRemindersChat.length > 0 || globalRemindersChat.length > 0) {
-    systemPrompt += '\nConstant Reminders:\n';
-    globalRemindersChat.forEach(reminder => {
-      systemPrompt += `- ${reminder.text}\n`;
-    });
-    charRemindersChat.forEach(reminder => {
-      systemPrompt += `- ${reminder.text}\n`;
-    });
+  // Add active reminders (using reminder engine for keyword-based activation)
+  const recentMessagesChat = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+  const activeRemindersChat = reminderEngine.getMergedActiveReminders(
+    character.constantReminders || [],
+    settings.globalReminders || [],
+    recentMessagesChat
+  );
+  if (activeRemindersChat.length > 0) {
+    systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Reminders');
   }
 
   // Add global prompt / author note (positioned prominently at end of system prompt)
@@ -6781,6 +6760,94 @@ app.delete('/api/personas/:id', (req, res) => {
   broadcast('personas_update', allPersonas);
   res.json({ success: true });
 });
+
+// --- Import Character Card (V2/V3) ---
+app.post('/api/import/character-card', cardUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const fileType = req.file.mimetype;
+    let characterData = null;
+    let avatarData = null;
+
+    // Handle PNG files - extract metadata
+    if (fileType === 'image/png' || fileType === 'image/jpeg') {
+      // Try V3 format first
+      characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v3');
+      if (!characterData) {
+        // Try V2 format
+        characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v2');
+      }
+
+      if (!characterData) {
+        return res.status(400).json({ error: 'No character data found in PNG metadata' });
+      }
+
+      // Use the PNG as avatar
+      avatarData = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+    }
+    // Handle JSON files
+    else if (fileType === 'application/json') {
+      try {
+        characterData = JSON.parse(fileBuffer.toString('utf-8'));
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid JSON file' });
+      }
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type' });
+    }
+
+    // Detect format and convert
+    const format = characterConverter.detectFormat(characterData);
+    let convertedCharacter;
+
+    if (format === 'v3') {
+      convertedCharacter = characterConverter.convertV3ToSwellD(characterData);
+    } else {
+      convertedCharacter = characterConverter.convertV2ToSwellD(characterData);
+    }
+
+    // Set avatar if we have one
+    if (avatarData) {
+      convertedCharacter.avatar = avatarData;
+    }
+
+    // Add timestamps
+    convertedCharacter.createdAt = Date.now();
+    convertedCharacter.updatedAt = Date.now();
+
+    // Save character using the same pattern as POST /api/characters
+    if (isPerCharStorageActive()) {
+      // Use async version to process images
+      await saveCharacterAsync(convertedCharacter, true);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      characters.push(convertedCharacter);
+      saveData(DATA_FILES.characters, characters);
+    }
+
+    // Broadcast update
+    const allCharacters = loadAllCharacters();
+    broadcast('characters_update', allCharacters);
+
+    res.json({
+      success: true,
+      character: convertedCharacter,
+      message: `Successfully imported "${convertedCharacter.name}" from ${format.toUpperCase()} format`
+    });
+
+  } catch (error) {
+    console.error('Character card import error:', error);
+    res.status(500).json({ error: error.message || 'Failed to import character card' });
+  }
+});
+
+// --- Import Persona Card (V2/V3) ---
+// REMOVED: Personas are simple user identity fields, not complex V2/V3 character cards.
+// Users should create personas directly in SwellDreams using the persona editor.
 
 // --- Connection Profiles ---
 
@@ -8124,6 +8191,52 @@ app.get('/api/tapo/devices/:ip/state', async (req, res) => {
 });
 
 // --- Matter Device Control ---
+
+app.get('/api/matter/status', (req, res) => {
+  const fs = require('fs');
+  const matterScriptPath = path.join(__dirname, 'bin', 'matter-control.py');
+  const installed = fs.existsSync(matterScriptPath);
+  const serverStatus = matterService.getServerStatus();
+
+  res.json({
+    matterControllerInstalled: installed,
+    matterScriptPath: matterScriptPath,
+    ready: installed,
+    server: serverStatus
+  });
+});
+
+app.post('/api/matter/server/start', async (req, res) => {
+  try {
+    const result = await matterService.startServer();
+    res.json(result);
+  } catch (error) {
+    console.error('[Matter] Failed to start server:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/matter/server/stop', async (req, res) => {
+  try {
+    const result = await matterService.stopServer();
+    res.json(result);
+  } catch (error) {
+    console.error('[Matter] Failed to stop server:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/matter/server/autostart', async (req, res) => {
+  const { enabled } = req.body;
+
+  try {
+    const result = matterService.setAutoStart(enabled);
+    res.json(result);
+  } catch (error) {
+    console.error('[Matter] Failed to set auto-start:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.post('/api/matter/commission', async (req, res) => {
   const { pairingCode, deviceName } = req.body;

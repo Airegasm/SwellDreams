@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import './SettingsTabs.css';
@@ -82,6 +82,24 @@ function DeviceTab() {
   const [matterCommissioning, setMatterCommissioning] = useState(false);
   const [matterError, setMatterError] = useState(null);
   const [matterSuccess, setMatterSuccess] = useState(null);
+  const [matterServerStatus, setMatterServerStatus] = useState(null);
+  const [matterServerLoading, setMatterServerLoading] = useState(false);
+  const [chipToolInstalled, setChipToolInstalled] = useState(false);
+  const [chipToolInstalling, setChipToolInstalling] = useState(false);
+
+  // Collapsible section states
+  const [expandedSections, setExpandedSections] = useState({
+    discovery: false,
+    tplink: false,
+    govee: false,
+    tuya: false,
+    wyze: false,
+    tapo: false,
+    matter: false
+  });
+
+  // Info popup state
+  const [infoPopupDevice, setInfoPopupDevice] = useState(null);
 
   // Check connection status and stored key status on mount
   useEffect(() => {
@@ -142,6 +160,23 @@ function DeviceTab() {
     checkTapoStatus();
     checkStoredKeys();
   }, [api]);
+
+  // Define fetchMatterServerStatus before the useEffect that uses it
+  const fetchMatterServerStatus = useCallback(async () => {
+    try {
+      const status = await api.getMatterStatus();
+      setMatterServerStatus(status.server);
+    } catch (error) {
+      console.error('Failed to fetch Matter server status:', error);
+    }
+  }, [api]);
+
+  // Fetch Matter server status when Matter section is expanded
+  useEffect(() => {
+    if (expandedSections.matter) {
+      fetchMatterServerStatus();
+    }
+  }, [expandedSections.matter, fetchMatterServerStatus]);
 
   const handleScan = async () => {
     setScanning(true);
@@ -772,6 +807,87 @@ function DeviceTab() {
     }
   };
 
+  const handleCommissionMatterDevice = async (device) => {
+    if (!device.pairingCode) {
+      alert('No pairing code found for this device. Please add the pairing code in device settings.');
+      return;
+    }
+
+    setMatterCommissioning(true);
+    setMatterError(null);
+    setMatterSuccess(null);
+
+    try {
+      const result = await api.commissionMatterDevice(device.pairingCode, device.name);
+      setMatterSuccess(`Device "${result.name}" commissioned successfully! Node ID: ${result.deviceId}`);
+
+      // Update device with new node ID if needed
+      if (result.deviceId !== device.deviceId) {
+        await api.updateDevice(device.id, { deviceId: result.deviceId });
+      }
+    } catch (error) {
+      console.error('Failed to commission Matter device:', error);
+      setMatterError(error.message || 'Failed to commission device');
+    } finally {
+      setMatterCommissioning(false);
+    }
+  };
+
+  const handleStartMatterServer = async () => {
+    setMatterServerLoading(true);
+    try {
+      const result = await api.startMatterServer();
+      if (result.success) {
+        setMatterSuccess('Matter server started successfully');
+        await fetchMatterServerStatus();
+      } else {
+        setMatterError(result.error || 'Failed to start server');
+      }
+    } catch (error) {
+      console.error('Failed to start Matter server:', error);
+      setMatterError(error.message || 'Failed to start server');
+    } finally {
+      setMatterServerLoading(false);
+    }
+  };
+
+  const handleStopMatterServer = async () => {
+    setMatterServerLoading(true);
+    try {
+      const result = await api.stopMatterServer();
+      if (result.success) {
+        setMatterSuccess('Matter server stopped');
+        await fetchMatterServerStatus();
+      } else {
+        setMatterError(result.error || 'Failed to stop server');
+      }
+    } catch (error) {
+      console.error('Failed to stop Matter server:', error);
+      setMatterError(error.message || 'Failed to stop server');
+    } finally {
+      setMatterServerLoading(false);
+    }
+  };
+
+  const handleToggleAutoStart = async () => {
+    setMatterServerLoading(true);
+    try {
+      const newValue = !matterServerStatus?.autoStart;
+      const result = await api.setMatterAutoStart(newValue);
+      if (result.success) {
+        setMatterSuccess(`Auto-start ${newValue ? 'enabled' : 'disabled'}`);
+        await fetchMatterServerStatus();
+      } else {
+        setMatterError(result.error || 'Failed to update auto-start');
+      }
+    } catch (error) {
+      console.error('Failed to toggle auto-start:', error);
+      setMatterError(error.message || 'Failed to update auto-start');
+    } finally {
+      setMatterServerLoading(false);
+    }
+  };
+
   const handleUpdateDevice = async (id, updates) => {
     try {
       await api.updateDevice(id, updates);
@@ -822,20 +938,6 @@ function DeviceTab() {
       console.error('Test failed:', error);
     }
   };
-
-  // Collapsible section states
-  const [expandedSections, setExpandedSections] = useState({
-    discovery: false,
-    tplink: false,
-    govee: false,
-    tuya: false,
-    wyze: false,
-    tapo: false,
-    matter: false
-  });
-
-  // Info popup state
-  const [infoPopupDevice, setInfoPopupDevice] = useState(null);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -922,6 +1024,15 @@ function DeviceTab() {
                     </button>
                   ) : (
                     <button className="btn btn-sm btn-secondary" disabled style={{visibility: 'hidden'}}>☆</button>
+                  )}
+                  {device.brand === 'matter' && (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleCommissionMatterDevice(device)}
+                      title="Commission this Matter device"
+                    >
+                      Commission
+                    </button>
                   )}
                   <button
                     className="btn btn-sm btn-secondary"
@@ -1464,6 +1575,54 @@ function DeviceTab() {
             {expandedSections.matter && (
             <div className="settings-subsection-content">
               <div className="integration-connect-form">
+                {/* Matter Server Status */}
+                {matterServerStatus && (
+                  <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <div>
+                        <strong>Matter Server</strong>
+                        <span style={{ marginLeft: '10px', padding: '3px 8px', borderRadius: '4px', fontSize: '0.85em', background: matterServerStatus.running ? 'var(--success-color)' : 'var(--error-color)', color: 'white' }}>
+                          {matterServerStatus.running ? 'Running' : 'Stopped'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        {!matterServerStatus.running ? (
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={handleStartMatterServer}
+                            disabled={matterServerLoading}
+                          >
+                            {matterServerLoading ? 'Starting...' : 'Start Server'}
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={handleStopMatterServer}
+                            disabled={matterServerLoading}
+                          >
+                            {matterServerLoading ? 'Stopping...' : 'Stop Server'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={matterServerStatus.autoStart || false}
+                          onChange={handleToggleAutoStart}
+                          disabled={matterServerLoading}
+                          style={{ marginRight: '8px' }}
+                        />
+                        Auto-start server when commissioning devices
+                      </label>
+                      {matterServerStatus.processId && (
+                        <div style={{ marginTop: '5px' }}>PID: {matterServerStatus.processId}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <p className="form-hint">
                   Add Matter-compatible devices using their pairing code. This includes some TP-Link Tapo devices that can be added to Matter ecosystems.
                 </p>
