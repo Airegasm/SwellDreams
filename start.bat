@@ -31,6 +31,17 @@ echo   SwellDreams v%VERSION% %CODENAME%
 echo ========================================
 echo.
 
+REM Auto-update from git
+echo Checking for updates...
+cd /d "%SCRIPT_DIR%"
+git pull
+if errorlevel 1 (
+    echo Warning: Could not update from git. Continuing with local version...
+) else (
+    echo Update complete!
+)
+echo.
+
 REM Check if Node.js is installed
 echo Checking for Node.js...
 where node >nul 2>nul
