@@ -102,9 +102,19 @@ class MatterService {
       this.ready = true;
       return true;
     } catch (error) {
-      log.warn('⚠ Matter protocol unavailable:', error.message);
-      log.warn('Matter devices cannot be used. Tapo and Wyze devices will still work.');
-      log.warn('To enable Matter: Install python-matter-server with CHIP SDK support');
+      const isWindows = process.platform === 'win32';
+      log.error('✗ Matter protocol initialization failed:', error.message);
+      log.error('');
+      log.error('⚠ IMPORTANT: Tapo devices REQUIRE Matter (firmware blocks third-party APIs)');
+      if (isWindows) {
+        log.error('Windows users: WSL is required for Matter support');
+        log.error('1. Install WSL: wsl --install');
+        log.error('2. Restart this app - Matter will auto-install in WSL');
+      } else {
+        log.error('Linux/Mac: Install python-matter-server and dependencies');
+        log.error('  pip install python-matter-server cryptography home-assistant-chip-clusters');
+      }
+      log.error('');
       this.ready = false;
       return false;
     }
@@ -149,14 +159,32 @@ class MatterService {
       let serverError = null;
 
       // Start python-matter-server
-      // Note: This requires CHIP SDK Python bindings which aren't available on Windows
-      // Use WSL on Windows (see backend/bin/setup-matter-wsl.sh) or run on Linux/Mac
-      this.serverProcess = spawn(PYTHON_PATH, [
-        '-m', 'matter_server.server',
-        '--storage-path', this.storagePath
-      ], {
-        stdio: ['ignore', 'pipe', 'pipe']
-      });
+      // On Windows: Use WSL because CHIP SDK isn't available natively
+      // On Linux/Mac: Use system Python
+      const isWindows = process.platform === 'win32';
+
+      if (isWindows) {
+        // Windows: Run in WSL Ubuntu
+        const wslPython = '/mnt/c/SwellDreams/backend/venv-wsl/bin/python3';
+        const wslStoragePath = this.storagePath.replace(/\\/g, '/').replace(/^C:/i, '/mnt/c');
+
+        this.serverProcess = spawn('wsl', [
+          '-d', 'Ubuntu',
+          wslPython,
+          '-m', 'matter_server.server',
+          '--storage-path', wslStoragePath
+        ], {
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
+      } else {
+        // Linux/Mac: Use native Python
+        this.serverProcess = spawn(PYTHON_PATH, [
+          '-m', 'matter_server.server',
+          '--storage-path', this.storagePath
+        ], {
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
+      }
 
       this.serverProcess.stdout.on('data', (data) => {
         log.info(`[Matter Server] ${data.toString().trim()}`);

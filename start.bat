@@ -72,6 +72,24 @@ if errorlevel 1 (
     )
 )
 
+REM Setup Matter support in WSL (required for Tapo devices on Windows)
+echo.
+echo Checking Matter support...
+wsl --list >nul 2>nul
+if errorlevel 1 (
+    echo WARNING: WSL not found. Matter support ^(required for Tapo^) unavailable.
+    echo Please enable WSL: https://learn.microsoft.com/en-us/windows/wsl/install
+) else (
+    echo WSL detected. Setting up Matter server...
+    wsl -d Ubuntu test -f /mnt/c/SwellDreams/backend/venv-wsl/bin/python3
+    if errorlevel 1 (
+        echo Installing Matter server in WSL ^(one-time setup, ~2 min^)...
+        wsl -d Ubuntu bash /mnt/c/SwellDreams/backend/bin/setup-matter-wsl.sh
+    ) else (
+        echo Matter server already installed in WSL
+    )
+)
+
 REM Install/update backend dependencies
 echo.
 echo Checking backend dependencies...

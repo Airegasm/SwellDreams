@@ -7,10 +7,9 @@ wyze-sdk>=2.0.0
 # TP-Link Tapo device control (Rust-based, better compatibility)
 tapo
 
-# Matter protocol support for smart devices (OPTIONAL - requires CHIP SDK)
-# Note: Matter support requires additional dependencies that aren't available on Windows
-# Tapo and Wyze devices work without Matter support
-# To enable Matter on Windows: Use WSL or see backend/bin/setup-matter-wsl.sh
-# python-matter-server>=8.1.2
-# cryptography>=41.0.0
-# home-assistant-chip-clusters
+# Matter protocol support (REQUIRED for Tapo devices, firmware blocks third-party APIs)
+# Windows: Installed in WSL automatically by start.bat
+# Linux/Mac: Installed normally via pip
+python-matter-server>=8.1.2
+cryptography>=41.0.0
+home-assistant-chip-clusters>=2024.3.0
