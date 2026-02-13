@@ -287,6 +287,18 @@
   color: white;
 }
 
+.btn-icon.btn-magic {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(75, 0, 130, 0.2));
+  border-color: rgba(138, 43, 226, 0.4);
+  font-size: 1.1rem;
+}
+
+.btn-icon.btn-magic:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.4), rgba(75, 0, 130, 0.4));
+  border-color: rgba(138, 43, 226, 0.6);
+  transform: scale(1.05);
+}
+
 .btn-icon-small {
   width: 28px;
   height: 28px;

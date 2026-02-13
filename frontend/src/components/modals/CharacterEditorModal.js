@@ -399,6 +399,46 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     }));
   };
 
+  // Enhance welcome message with LLM
+  const handleEnhanceWelcomeMessage = async () => {
+    const story = getActiveStory();
+    const activeWm = getActiveWelcomeMessage();
+    const currentText = activeWm?.text || '';
+
+    // Build context for LLM
+    const description = formData.description || '';
+    const personality = formData.personality || '';
+
+    const prompt = `You are a creative writing assistant helping to craft a compelling character greeting message.
+
+Character Name: ${formData.name || 'Character'}
+${description ? `Description: ${description}` : ''}
+${personality ? `Personality: ${personality}` : ''}
+
+${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting to be more engaging, in-character, and vivid. Keep the same general intent but improve the prose, add sensory details, and make it more immersive.` : 'Please write a compelling first greeting message for this character. Make it engaging, in-character, and set the scene vividly.'}
+
+Write only the greeting message itself, no explanations or meta-commentary.`;
+
+    try {
+      const response = await api.generateText({ prompt });
+      if (response && response.text) {
+        // Update the welcome message with enhanced text
+        const currentMessages = story?.welcomeMessages || [];
+        const activeWmId = story?.activeWelcomeMessageId;
+        setFormData(prev => ({
+          ...prev,
+          stories: (prev.stories || []).map(s =>
+            s.id === activeStory?.id
+              ? { ...s, welcomeMessages: currentMessages.map(wm => wm.id === activeWmId ? { ...wm, text: response.text.trim() } : wm) }
+              : s
+          )
+        }));
+      }
+    } catch (error) {
+      alert(`Failed to enhance welcome message: ${error.message}`);
+    }
+  };
+
   // Scenario handlers
   const handleScenarioChange = (scId) => {
     updateStoryField('activeScenarioId', scId);
@@ -451,6 +491,46 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
           : s
       )
     }));
+  };
+
+  // Enhance scenario with LLM
+  const handleEnhanceScenario = async () => {
+    const story = getActiveStory();
+    const activeScId = story?.activeScenarioId;
+    const currentScenarios = story?.scenarios || [];
+    const activeScenario = currentScenarios.find(sc => sc.id === activeScId);
+    const currentText = activeScenario?.text || '';
+
+    // Build context for LLM
+    const description = formData.description || '';
+    const personality = formData.personality || '';
+
+    const prompt = `You are a creative writing assistant helping to craft a compelling scenario description.
+
+Character Name: ${formData.name || 'Character'}
+${description ? `Description: ${description}` : ''}
+${personality ? `Personality: ${personality}` : ''}
+
+${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite and enhance this scenario to be more detailed, atmospheric, and engaging. Keep the same general situation but improve the prose, add environmental details, and make it more immersive.` : 'Please write a compelling scenario description for this character. Set the scene with rich details and atmosphere that complements the character.'}
+
+Write only the scenario description itself, no explanations or meta-commentary.`;
+
+    try {
+      const response = await api.generateText({ prompt });
+      if (response && response.text) {
+        // Update the scenario with enhanced text
+        setFormData(prev => ({
+          ...prev,
+          stories: (prev.stories || []).map(s =>
+            s.id === activeStory?.id
+              ? { ...s, scenarios: currentScenarios.map(sc => sc.id === activeScId ? { ...sc, text: response.text.trim() } : sc) }
+              : s
+          )
+        }));
+      }
+    } catch (error) {
+      alert(`Failed to enhance scenario: ${error.message}`);
+    }
   };
 
   const handleStoryChange = (storyId) => {
@@ -1350,6 +1430,12 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                         onClick={handleToggleWelcomeMessageLlm}
                         title="Toggle LLM Enhancement"
                       >🤖</button>
+                      <button
+                        type="button"
+                        className="btn-icon btn-magic"
+                        onClick={handleEnhanceWelcomeMessage}
+                        title="Enhance with LLM"
+                      >🪄</button>
                     </div>
                   </div>
                   <textarea
@@ -1382,6 +1468,12 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                         disabled={(activeStory?.scenarios || []).length <= 1}
                         title="Delete version"
                       >🗑️</button>
+                      <button
+                        type="button"
+                        className="btn-icon btn-magic"
+                        onClick={handleEnhanceScenario}
+                        title="Enhance with LLM"
+                      >🪄</button>
                     </div>
                   </div>
                   <textarea
