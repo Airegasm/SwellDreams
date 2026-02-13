@@ -98,11 +98,14 @@ class MatterService {
     try {
       checkMatterController();
       await this.checkPythonDependencies();
-      log.info('Python Matter controller found and ready');
+      log.info('✓ Matter protocol support enabled (python-matter-server available)');
       this.ready = true;
       return true;
     } catch (error) {
-      log.error('Failed to initialize Matter service:', error.message);
+      log.warn('⚠ Matter protocol unavailable:', error.message);
+      log.warn('Matter devices cannot be used. Tapo and Wyze devices will still work.');
+      log.warn('To enable Matter: Install python-matter-server with CHIP SDK support');
+      this.ready = false;
       return false;
     }
   }
@@ -145,16 +148,12 @@ class MatterService {
 
       let serverError = null;
 
-      // Start python-matter-server in WSL (Windows Subsystem for Linux)
-      // Using WSL because CHIP SDK Python bindings aren't available for native Windows
-      const wslPython = '/mnt/c/SwellDreams/backend/venv-wsl/bin/python3';
-      const wslStoragePath = this.storagePath.replace(/\\/g, '/').replace('C:', '/mnt/c');
-
-      this.serverProcess = spawn('wsl', [
-        '-d', 'Ubuntu',
-        wslPython,
+      // Start python-matter-server
+      // Note: This requires CHIP SDK Python bindings which aren't available on Windows
+      // Use WSL on Windows (see backend/bin/setup-matter-wsl.sh) or run on Linux/Mac
+      this.serverProcess = spawn(PYTHON_PATH, [
         '-m', 'matter_server.server',
-        '--storage-path', wslStoragePath
+        '--storage-path', this.storagePath
       ], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
