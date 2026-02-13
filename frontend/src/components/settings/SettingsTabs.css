@@ -2666,8 +2666,9 @@
 }
 
 .control-inline-label {
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
+  color: #1a1a1a;
 }
 
 .control-number-input {
@@ -2687,7 +2688,7 @@
 
 .control-inline-hint {
   font-size: 0.85em;
-  color: var(--text-secondary);
+  color: #666;
 }
 
 /* Multiplier Slider */
@@ -2699,8 +2700,8 @@
 }
 
 .multiplier-value {
-  font-weight: 600;
-  color: var(--accent-color);
+  font-weight: 700;
+  color: var(--accent-primary);
   min-width: 40px;
   text-align: center;
 }
@@ -2718,7 +2719,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85em;
-  color: var(--text-secondary);
+  color: #444;
   cursor: pointer;
 }
 
