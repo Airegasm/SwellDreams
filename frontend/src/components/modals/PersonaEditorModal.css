@@ -803,3 +803,29 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 }
+
+/* Custom scrollbar for persona modal */
+.persona-modal-body::-webkit-scrollbar {
+  width: 12px;
+}
+
+.persona-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 8px;
+  margin-right: 2px;
+}
+
+.persona-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+}
+
+.persona-modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.persona-modal-body::-webkit-scrollbar-corner {
+  background: transparent;
+  border-radius: 8px;
+}
