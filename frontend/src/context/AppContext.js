@@ -705,6 +705,12 @@ export function AppProvider({ children }) {
       timeout: CONFIG.LLM_TIMEOUT_MS
     }),
 
+    generateText: (options) => apiFetch(`${API_BASE}/api/llm/generate`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+      timeout: CONFIG.LLM_TIMEOUT_MS
+    }),
+
     // Connection Profiles
     getConnectionProfiles: () => apiFetch(`${API_BASE}/api/connection-profiles`),
 
