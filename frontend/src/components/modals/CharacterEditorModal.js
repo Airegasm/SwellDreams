@@ -154,7 +154,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         stories,
         activeStoryId: character.activeStoryId || stories[0]?.id || 'story-1',
         buttons: character.buttons || character.events || [],
-        globalReminders: character.globalReminders || character.constantReminders || []
+        globalReminders: character.globalReminders || character.constantReminders || [],
+        sessionDefaults: character.sessionDefaults || {
+          capacity: 0,
+          pain: 0,
+          emotion: 'neutral',
+          capacityModifier: 1.0
+        }
       };
     }
 
@@ -183,7 +189,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       stories: [defaultStory],
       activeStoryId: 'story-1',
       buttons: [],
-      globalReminders: []
+      globalReminders: [],
+      sessionDefaults: {
+        capacity: 0,
+        pain: 0,
+        emotion: 'neutral',
+        capacityModifier: 1.0
+      }
     };
   }, [character, filterValidFlows]);
 
@@ -1172,6 +1184,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
           >
             Custom Buttons
           </button>
+          <button
+            type="button"
+            className={`modal-tab ${activeTab === 'session' ? 'active' : ''}`}
+            onClick={() => setActiveTab('session')}
+          >
+            Session Defaults
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -1982,6 +2001,89 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Session Defaults Tab */}
+          <div className="modal-body character-modal-body" style={{ display: activeTab === 'session' ? 'block' : 'none' }}>
+            <div className="session-defaults-editor">
+              <h4>Session Defaults</h4>
+              <p className="section-hint">These values will be used when starting a new session with this character.</p>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Starting Capacity</label>
+                  <span className="form-value">{formData.sessionDefaults?.capacity || 0}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={formData.sessionDefaults?.capacity || 0}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    sessionDefaults: { ...prev.sessionDefaults, capacity: parseInt(e.target.value) }
+                  }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Pain Level</label>
+                  <span className="form-value">{formData.sessionDefaults?.pain || 0}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={formData.sessionDefaults?.pain || 0}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    sessionDefaults: { ...prev.sessionDefaults, pain: parseInt(e.target.value) }
+                  }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Emotion</label>
+                <select
+                  value={formData.sessionDefaults?.emotion || 'neutral'}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    sessionDefaults: { ...prev.sessionDefaults, emotion: e.target.value }
+                  }))}
+                >
+                  <option value="neutral">Neutral</option>
+                  <option value="happy">Happy</option>
+                  <option value="excited">Excited</option>
+                  <option value="nervous">Nervous</option>
+                  <option value="uncomfortable">Uncomfortable</option>
+                  <option value="struggling">Struggling</option>
+                  <option value="distressed">Distressed</option>
+                  <option value="desperate">Desperate</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <div className="form-label-row">
+                  <label>Auto-Capacity Speed</label>
+                  <span className="form-value">{(formData.sessionDefaults?.capacityModifier || 1.0).toFixed(2)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.25"
+                  max="2"
+                  step="0.25"
+                  value={formData.sessionDefaults?.capacityModifier || 1.0}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    sessionDefaults: { ...prev.sessionDefaults, capacityModifier: parseFloat(e.target.value) }
+                  }))}
+                />
+                <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
+              </div>
             </div>
           </div>
 

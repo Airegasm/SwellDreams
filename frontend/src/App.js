@@ -132,8 +132,15 @@ function App() {
 
   // Session handlers
   const handleNewSession = () => {
-    // Reset form data and show popup
-    setNewSessionData({ capacity: 0, pain: 0, emotion: 'neutral', capacityModifier: 1.0 });
+    // Use active character's session defaults, or fallback to hardcoded defaults
+    const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+    const defaults = activeCharacter?.sessionDefaults || {
+      capacity: 0,
+      pain: 0,
+      emotion: 'neutral',
+      capacityModifier: 1.0
+    };
+    setNewSessionData(defaults);
     setShowNewSessionPopup(true);
   };
 
