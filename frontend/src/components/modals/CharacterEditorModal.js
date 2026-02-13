@@ -1610,6 +1610,7 @@ Write only the scenario description itself, no explanations.`;
                       {enhancingScenario && <span className="spinner-inline"> ⏳</span>}
                     </label>
                     <div className="version-controls">
+                      <div className="version-controls-spacer"></div>
                       <select
                         value={activeStory?.activeScenarioId || ''}
                         onChange={(e) => handleScenarioChange(e.target.value)}

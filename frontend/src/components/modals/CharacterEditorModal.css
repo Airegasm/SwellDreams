@@ -521,7 +521,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-xs);
-  width: 100%; /* Ensure full width for alignment */
 }
 
 .story-field-header label {
@@ -532,15 +531,12 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  flex: 1; /* Allow controls to take full width */
-  justify-content: flex-end; /* Align to the right */
 }
 
 .version-select {
   width: 110px;
   padding: 4px 8px;
   font-size: var(--font-size-sm);
-  margin-left: auto; /* Push to the right, aligning vertically */
 }
 
 .pov-select {
@@ -552,6 +548,13 @@
   border-radius: var(--border-radius);
   color: #1a1a1a;
   font-weight: 600;
+}
+
+/* Spacer to align Scenario controls with Welcome Message controls */
+.version-controls-spacer {
+  width: 32px; /* Same width as btn-icon */
+  height: 32px;
+  flex-shrink: 0;
 }
 
 /* Auto Reply Field */
