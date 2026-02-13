@@ -10,3 +10,4 @@ tapo
 # Matter protocol support for smart devices (including Tapo P115 and other Matter devices)
 python-matter-server>=8.1.2
 cryptography>=41.0.0  # Required by python-matter-server for certificate handling
+home-assistant-chip-core>=2024.1.0  # Matter/CHIP SDK core
