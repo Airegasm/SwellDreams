@@ -418,12 +418,24 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     // Build context for LLM
     const description = formData.description || '';
     const personality = formData.personality || '';
+    const exampleDialogues = story?.exampleDialogues || [];
+
+    // Format dialog examples if they exist
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing how this character speaks):\n';
+      exampleDialogues.forEach((dialogue, idx) => {
+        dialogExamplesSection += `\nExample ${idx + 1}:\n`;
+        dialogExamplesSection += `[Player]: ${dialogue.user}\n`;
+        dialogExamplesSection += `${formData.name || 'Character'}: ${dialogue.character}\n`;
+      });
+    }
 
     const prompt = `You are a creative writing assistant helping to craft an immersive character greeting message.
 
 Character Name: ${formData.name || 'Character'}
 ${description ? `Description: ${description}` : ''}
-${personality ? `Personality: ${personality}` : ''}
+${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
 
 IMPORTANT INSTRUCTIONS:
 - Write the greeting AS THE CHARACTER in first-person perspective
@@ -432,6 +444,8 @@ IMPORTANT INSTRUCTIONS:
 - Use [Gender] when using pronouns for the player (will auto-resolve to he/him/his, she/her/hers, or they/them based on context)
 - The greeting should show what the character is doing and saying in the moment
 - Make it engaging, sensory, and in-character
+- Keep language natural and grounded - avoid purple prose or overly flowery descriptions
+${exampleDialogues.length > 0 ? '- Match the speaking style and tone shown in the dialog examples above' : ''}
 
 ${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting following the format above. Keep the same general intent but improve the prose, add sensory details, and ensure proper roleplay formatting.` : 'Write a compelling first greeting message from this character\'s perspective. Use the roleplay format with *actions* and "dialog", include [Player] and [Gender] variables where appropriate.'}
 
@@ -544,12 +558,24 @@ Write only the greeting message itself, no explanations or meta-commentary.`;
     // Build context for LLM
     const description = formData.description || '';
     const personality = formData.personality || '';
+    const exampleDialogues = story?.exampleDialogues || [];
+
+    // Format dialog examples if they exist
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing character context):\n';
+      exampleDialogues.forEach((dialogue, idx) => {
+        dialogExamplesSection += `\nExample ${idx + 1}:\n`;
+        dialogExamplesSection += `[Player]: ${dialogue.user}\n`;
+        dialogExamplesSection += `${formData.name || 'Character'}: ${dialogue.character}\n`;
+      });
+    }
 
     const prompt = `You are a creative writing assistant helping to craft a concise scenario description.
 
 Character Name: ${formData.name || 'Character'}
 ${description ? `Description: ${description}` : ''}
-${personality ? `Personality: ${personality}` : ''}
+${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
 
 IMPORTANT INSTRUCTIONS:
 - Write a simple, descriptive scenario in 1-2 sentences
@@ -558,6 +584,8 @@ IMPORTANT INSTRUCTIONS:
 - Use [Gender] when using pronouns for the player
 - Focus on setting and situation, not actions or dialog
 - Keep it concise and atmospheric
+- Use natural, grounded language - avoid purple prose or excessive flowery descriptions
+${exampleDialogues.length > 0 ? '- Consider the context and relationship shown in the dialog examples' : ''}
 
 ${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite this scenario following the guidelines above. Keep it brief (1-2 sentences) but vivid.` : 'Write a brief scenario description (1-2 sentences) that sets the scene for this character.'}
 
