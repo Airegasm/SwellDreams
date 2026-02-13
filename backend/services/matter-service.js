@@ -40,6 +40,28 @@ class MatterService {
   }
 
   /**
+   * Check if Python and required dependencies are available
+   */
+  async checkPythonDependencies() {
+    try {
+      // Check Python is available
+      const { stdout: pythonVersion } = await execAsync('python --version');
+      log.info(`Python found: ${pythonVersion.trim()}`);
+
+      // Check python-matter-server is installed
+      const { stdout: matterCheck } = await execAsync('python -m matter_server.server --version').catch(() => ({ stdout: '' }));
+      if (!matterCheck) {
+        throw new Error('python-matter-server not installed. Run: pip install python-matter-server>=8.1.2');
+      }
+      log.info('python-matter-server package found');
+
+      return true;
+    } catch (error) {
+      throw new Error(`Python dependency check failed: ${error.message}`);
+    }
+  }
+
+  /**
    * Initialize Matter service (check Python Matter controller availability)
    */
   async initialize() {
@@ -47,6 +69,7 @@ class MatterService {
 
     try {
       checkMatterController();
+      await this.checkPythonDependencies();
       log.info('Python Matter controller found and ready');
       this.ready = true;
       return true;
@@ -197,8 +220,22 @@ class MatterService {
 
       exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
         if (error) {
-          log.error(`Matter control error: ${stderr}`);
-          reject(new Error(stderr || error.message));
+          log.error(`Matter control error:`);
+          log.error(`STDERR: ${stderr}`);
+          log.error(`STDOUT: ${stdout}`);
+          log.error(`Exit code: ${error.code}`);
+
+          // Build comprehensive error message
+          const errorDetails = [];
+          if (stderr) errorDetails.push(`Error output: ${stderr.trim()}`);
+          if (stdout) errorDetails.push(`Standard output: ${stdout.trim()}`);
+          if (error.code) errorDetails.push(`Exit code: ${error.code}`);
+
+          const errorMsg = errorDetails.length > 0
+            ? errorDetails.join('\n')
+            : error.message;
+
+          reject(new Error(`Python Matter script failed:\n${errorMsg}`));
           return;
         }
 
@@ -211,7 +248,7 @@ class MatterService {
           }
         } catch (parseError) {
           log.error(`Failed to parse output: ${stdout}`);
-          reject(new Error(`Invalid JSON response: ${parseError.message}`));
+          reject(new Error(`Invalid JSON response: ${parseError.message}\nOutput: ${stdout}`));
         }
       });
     });
