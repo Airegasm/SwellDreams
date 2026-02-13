@@ -21,6 +21,7 @@ const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
 const tapoService = require('./services/tapo-service');
+const matterService = require('./services/matter-service');
 const aiDeviceControl = require('./services/ai-device-control');
 const imageStorage = require('./services/image-storage');
 const mediaStorage = require('./services/media-storage');
@@ -8122,9 +8123,73 @@ app.get('/api/tapo/devices/:ip/state', async (req, res) => {
   }
 });
 
-// --- Emergency Stop (flow-activated devices, flows, and LLM) ---
+// --- Matter Device Control ---
+
+app.post('/api/matter/commission', async (req, res) => {
+  const { pairingCode, deviceName } = req.body;
+
+  if (!pairingCode) {
+    return res.status(400).json({ error: 'Pairing code is required' });
+  }
+
+  try {
+    const result = await matterService.commission(pairingCode, deviceName);
+    res.json(result);
+  } catch (error) {
+    console.error('[Matter] Failed to commission device:', error);
+    res.status(500).json({ error: error.message || 'Failed to commission device' });
+  }
+});
+
+app.get('/api/matter/devices', async (req, res) => {
+  try {
+    const devices = await matterService.getDevices();
+    res.json(devices);
+  } catch (error) {
+    console.error('[Matter] Failed to get devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/matter/devices/:deviceId/on', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    await matterService.turnOn(deviceId);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Matter] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/matter/devices/:deviceId/off', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    await matterService.turnOff(deviceId);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Matter] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/matter/devices/:deviceId/state', async (req, res) => {
+  const { deviceId } = req.params;
+
+  try {
+    const state = await matterService.getState(deviceId);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Matter] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Emergency Stop (ALL devices, flows, and LLM) ---
 app.post('/api/emergency-stop', async (req, res) => {
-  console.log('[EMERGENCY STOP] Stopping flow-activated devices, flows, and LLM requests!');
+  console.log('[EMERGENCY STOP] Stopping ALL devices, flows, and LLM requests!');
   const results = {
     devices: [],
     flows: null,
@@ -8134,31 +8199,36 @@ app.post('/api/emergency-stop', async (req, res) => {
   // 1. Stop ALL pump runtime tracking intervals immediately
   deviceService.stopAllPumpRuntimeTracking();
 
-  // 2. Halt all flow execution and get list of flow-activated devices
-  let devicesToStop = [];
+  // 2. Halt all flow execution
   if (eventEngine) {
     results.flows = eventEngine.emergencyStop();
-    devicesToStop = results.flows.devicesToStop || [];
   }
 
-  // 3. Stop only flow-activated devices (not all devices)
-  for (const deviceInfo of devicesToStop) {
+  // 3. Stop ALL devices (including cycles)
+  const devices = loadData(DATA_FILES.devices) || [];
+  for (const device of devices) {
     try {
-      const deviceId = deviceInfo.deviceId;
-      const deviceObj = deviceInfo.deviceObj;
-      // Stop any active cycle
-      deviceService.stopCycle(deviceId);
-      // Turn off the device
-      await deviceService.turnOff(deviceId, deviceObj);
-      results.devices.push({ id: deviceId, name: deviceObj?.name || deviceId, success: true });
-      console.log(`[EMERGENCY STOP] Stopped flow-activated device: ${deviceObj?.name || deviceId}`);
+      // Get correct identifier - Tuya/Govee/Wyze use deviceId, TPLink uses ip
+      const deviceIdentifier = (device.brand === 'tuya' || device.brand === 'govee' || device.brand === 'wyze')
+        ? device.deviceId
+        : device.ip;
+
+      if (deviceIdentifier) {
+        // Stop any active cycle first
+        deviceService.stopCycle(deviceIdentifier);
+        // Turn off the device
+        await deviceService.turnOff(deviceIdentifier, device);
+        results.devices.push({ id: deviceIdentifier, name: device.name || device.label || deviceIdentifier, success: true });
+        console.log(`[EMERGENCY STOP] Stopped device: ${device.name || device.label || deviceIdentifier}`);
+      }
     } catch (error) {
-      results.devices.push({ id: deviceInfo.deviceId, name: deviceInfo.deviceObj?.name, success: false, error: error.message });
+      results.devices.push({ id: device.ip || device.deviceId, name: device.name || device.label, success: false, error: error.message });
+      console.error(`[EMERGENCY STOP] Failed to stop device ${device.name || device.ip}:`, error.message);
     }
   }
 
-  if (devicesToStop.length === 0) {
-    console.log('[EMERGENCY STOP] No flow-activated devices to stop');
+  if (devices.length === 0) {
+    console.log('[EMERGENCY STOP] No devices configured to stop');
   }
 
   // 4. Abort all pending LLM requests

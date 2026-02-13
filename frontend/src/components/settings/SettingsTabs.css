@@ -1864,6 +1864,12 @@
   border: 1px solid rgba(78, 205, 196, 0.5);
 }
 
+.brand-matter {
+  background: rgba(147, 51, 234, 0.25);
+  color: #6b21a8;
+  border: 1px solid rgba(147, 51, 234, 0.5);
+}
+
 /* Responsive: stack on mobile */
 @media (max-width: 768px) {
   .configured-device-item {

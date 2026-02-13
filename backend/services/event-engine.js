@@ -682,6 +682,10 @@ class EventEngine {
         if (data.device && this.deviceService) {
           const deviceObj = resolveDeviceObject(data.device);
           const deviceId = deviceObj ? (deviceObj.brand === 'govee' ? deviceObj.deviceId : deviceObj.ip) : data.device;
+
+          // Stop any active cycle first
+          this.deviceService.stopCycle(deviceId, deviceObj);
+
           await this.deviceService.turnOff(deviceId, deviceObj);
 
           this.emitTestStep({
@@ -3586,6 +3590,9 @@ class EventEngine {
         }
 
         try {
+          // Stop any active cycle first
+          this.deviceService.stopCycle(resolvedDevice, deviceObj);
+
           await this.deviceService.turnOff(resolvedDevice, deviceObj);
         } catch (deviceError) {
           await this.broadcastError(`Failed to turn off "${deviceObj.name || data.device}"`, deviceError.message);

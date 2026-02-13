@@ -30,7 +30,7 @@ except ImportError as e:
 async def get_device(ip: str, email: str, password: str):
     """Create authenticated Tapo device connection"""
     client = ApiClient(email, password)
-    # Try P100/P105 first (most common), then P110/P115
+    # Try P100/P105 first (most common), then P110, then P115
     try:
         device = await client.p100(ip)
         return device
@@ -38,8 +38,12 @@ async def get_device(ip: str, email: str, password: str):
         try:
             device = await client.p110(ip)
             return device
-        except Exception as e:
-            raise Exception(f"Could not connect to Tapo device at {ip}: {e}")
+        except:
+            try:
+                device = await client.p115(ip)
+                return device
+            except Exception as e:
+                raise Exception(f"Could not connect to Tapo device at {ip}: {e}")
 
 async def turn_on(ip: str, email: str, password: str):
     """Turn device on"""

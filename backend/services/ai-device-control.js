@@ -2,9 +2,24 @@
  * AI Device Control - Parses device commands from LLM output
  *
  * Allows the AI model to control devices by including simple tags in responses:
+ *
+ * Basic On/Off:
  *   [pump on]  [pump off]
  *   [vibe on]  [vibe off]
  *   [tens on]  [tens off]
+ *
+ * Pulse Mode (quick on/off bursts):
+ *   [pump:pulse:3]   - 3 quick pulses (0.5s on, 0.5s off)
+ *   [vibe:pulse:5]   - 5 quick pulses
+ *
+ * Timed Mode (run for X seconds then auto-off):
+ *   [pump:timed:30]  - Run for 30 seconds then turn off
+ *   [vibe:timed:60]  - Run for 60 seconds then turn off
+ *
+ * Cycle Mode (repeated on/off cycles):
+ *   [pump:cycle:5:10:3]   - 5s on, 10s off, repeat 3 times
+ *   [vibe:cycle:3:8:0]    - 3s on, 8s off, repeat infinitely (0 = infinite)
+ *   Format: [device:cycle:onDuration:interval:cycles]
  *
  * The commands are parsed out, executed, and stripped from the displayed message.
  */
@@ -12,27 +27,34 @@
 const { createLogger } = require('../utils/logger');
 const log = createLogger('AIDeviceControl');
 
-// Command pattern: [device action] where device is pump/vibe/tens and action is on/off
-// Also supports [pump:pulse:#] for pulse mode
+// Command patterns
 // Case-insensitive (i flag), allows flexible whitespace inside brackets
 const DEVICE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens)\s+(on|off)\s*\]/gi;
 const PULSE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):pulse:(\d+)\s*\]/gi;
+const TIMED_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):timed:(\d+)\s*\]/gi;
+const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\]/gi;
 
 // Phrases that indicate the LLM is describing pump activity (used for reinforcement)
 // These patterns use word boundaries and flexible matching with wildcards
 const PUMP_ACTIVITY_PHRASES = [
   // Direct pump references
-  /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*pump/i,
-  /\b(start|starts|started|starting)\s+\w*\s*pump/i,
-  /\b(activate|activates|activated|activating)\s+\w*\s*pump/i,
-  /\b(engage|engages|engaged|engaging)\s+\w*\s*pump/i,
+  /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*(pump|compressor|machine)/i,
+  /\b(start|starts|started|starting)\s+\w*\s*(pump|compressor|machine)/i,
+  /\b(activate|activates|activated|activating)\s+\w*\s*(pump|compressor|machine)/i,
+  /\b(engage|engages|engaged|engaging)\s+\w*\s*(pump|compressor|machine)/i,
+
+  // Pump state/activity (removed "approaches device" patterns - too aggressive)
   /\bpump\s+(begins?|starts?|activates?|continues?|runs?|running|hums?|humming|whirs?|whirring)/i,
   /\bpump\s+is\s+(on|running|active|going)/i,
   /\b(the\s+)?(pump|machine)\s+(kicks|springs?|whirs?|hums?|roars?|comes?)\s*(in|into|to\s+life|alive|on)/i,
 
   // Flow/pressure references (pump-related)
-  /\b(increase|increases|increased|increasing)\s+\w*\s*(flow|pressure)/i,
+  /\b(increase|increases|increased|increasing)\s+\w*\s*(flow|pressure|airflow)/i,
+  /\b(increase|increases|increased|increasing)\s+the\s+(air\s*)?flow\s+(steadily|gradually|slowly|quickly)?\s*(once\s+more|again|further)?/i,
   /\b(adjust|adjusts|adjusted|adjusting)\s+.*?(flow|dial|dials|setting|settings|pressure|knob|knobs)/i,
+  /\b(adjust|adjusts|adjusted|adjusting)\s+(the\s+)?(pump|compressor|machine|motor)\s+settings?/i,
+  /\b(adjust|adjusts|adjusting)\s+(a|the)\s+(dial|knob|valve|control)\s+(with|slowly|carefully|deliberately)?/i,
+  /\b(adjust|adjusts|adjusted|adjusting)\s*.*?\s*(dial|knob|valve|control|setting|lever)/i,
   /\b(turn|turns|turned|turning)\s+up\s+\w*\s*(flow|dial|pressure)/i,
   /\b(crank|cranks|cranked|cranking)\s+\w*\s*(up|higher|max)/i,
   /\b(crank|cranks|cranked|cranking)\s+\w*\s*(pressure|dial|flow|pump)/i,
@@ -46,21 +68,35 @@ const PUMP_ACTIVITY_PHRASES = [
   /\bpulsing\s+(air|fluid|liquid)\s+(into|through)/i,
 
   // Dial/control/button references - flexible article matching
-  /\b(flip|flips|flipped|flipping)\s+\w*\s*switch/i,
-  /\b(press|presses|pressed|pressing)\s+\w*\s*button/i,
+  /\b(flip|flips|flipped|flipping)\s+\w*\s*(switch|lever)/i,
+  /\b(press|presses|pressed|pressing)\s+\w*\s*(button|remote)/i,
   /\b(push|pushes|pushed|pushing)\s+\w*\s*button/i,
   /\b(hit|hits|hitting)\s+\w*\s*button/i,
+
+  // Wrist/hand gestures with controls
+  /\b(flick|twist|turn|movement)\s+of\s+(her|his|their)\s+(wrist|hand).*?(turn|turns|flip|flips|adjust|adjusts|press|presses)/i,
+  /\bwith\s+a\s+(quick|flick|twist|turn)\s+of\s+(her|his|their)\s+(wrist|hand)/i,
+
+  // Switch/button/remote press followed by device activation
+  /\b(press|presses|pressed|push|pushes|pushed|hit|hits|flip|flips|flipping)\s+.*?(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
+  /\b(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
+  /\b(flip|flips|flipped|flipping)\s+(a|the)\s+switch.*?(machine|pump|compressor)\s+(whirs?|kicks?|springs?|comes?|hums?)\s+(to\s+life|on)/i,
   /\b(reach|reaches|reached|reaching)\s+(for|toward)\s+\w*\s*(dial|controls?|switch|button|pump|panel)/i,
   /\b(hand|hands|finger|fingers?)\s+\w*\s*(move|moves|on|to|toward|press|presses|hit|hits)\s+\w*\s*(dial|controls?|button|panel)/i,
   /\b(grasp|grasps|grasped|grasping|grab|grabs|grabbed|grabbing|grip|grips|gripped|gripping)\s+.*?(dial|knob|control|handle|lever|valve)/i,
   /\b(turn|turns|turned|turning)\s+(it|the\s+dial|the\s+knob|the\s+valve)\s*(to|and)?\s*(start|begin|increase|restart)?/i,
   /\b(turn|turns|turned|turning)\s+the\s+(dial|knob|valve)/i,
+  /\b(turn|turns|turned|turning)\s*.*?\s*(dial|knob|valve|control|lever)/i,
   /\b(open|opens|opened|opening)\s+(the\s+)?(valve|release)/i,
 
   // Machine/device coming to life or running
-  /\b(machine|device|pump|compressor)\s+(whirs?|hums?|roars?|buzzes?|comes?|springs?|kicks?)\s*(to\s+life|alive|into\s+action|on)/i,
-  /\b(pump|machine|compressor)\s+(roar|roars|roaring|whir|whirs|whirring|hum|hums|humming)/i,
+  /\b(machine|device|pump|compressor|motor)\s+(whirs?|hums?|roars?|buzzes?|comes?|springs?|kicks?)\s*(to\s+life|alive|into\s+action|on)/i,
+  /\b(pump|machine|compressor|motor)\s+(roar|roars|roaring|whir|whirs|whirring|hum|hums|humming)/i,
+  /\b(motor|pump|compressor)\s+(hum|hums|humming)\s+(loud|louder|loudly)/i,
+  /\b(motor|pump|compressor|machine)\s+(hum|hums|humming)\s+at\s+(a\s+)?(higher|lower|faster|slower|steady|constant)\s+(pitch|speed|rate|pace)/i,
   /\b(air\s+)?pump\s+kicks\s+on/i,
+  /\b(air\s+)?(pump|compressor)\s+springs\s+to\s+life/i,
+  /\b(the\s+)?(machine|pump|compressor|device)\s+whirs\s+to\s+life/i,
   /\bkicks\s+(on|in|into\s+life)/i,
   /\bwhir(s|ring)?\s+to\s+life/i,
   /\bhum(s|ming)?\s+to\s+life/i,
@@ -97,16 +133,52 @@ const PUMP_ACTIVITY_PHRASES = [
   /\bcontrol\s+panel\b.*\b(press|push|hit|flip|activate|adjust)/i,
   /\b(press|push|hit|flip|activate|adjust)\w*.*\bcontrol\s+panel/i,
 
+  // Remote control interactions
+  /\b(press|presses|pressed|push|pushes|pushed|click|clicks|clicked|tap|taps|tapped)\s+.*?\b(on\s+the\s+)?remote/i,
+  /\b(use|uses|used|using|pick|picks|picked|grab|grabs|grabbed)\s+.*?\bremote/i,
+  /\bremote.*?\b(press|push|click|tap|activate)/i,
+
   // Pump cycle/rhythm references
   /\bpump'?s?\s+(cycle|rhythm|pace|speed|rate)/i,
   /\bpump\s+\w+\s+(its|the|a)?\s*\w*\s*(rhythm|cycle|pace)/i,
   /\b(cycle|rhythm|pace)\s+(changes?|shifts?|increases?|decreases?|quickens?|slows?|continues?)/i,
   /\b(merciless|relentless|steady|constant|rhythmic)\s+(rhythm|pace|pumping|cycle)/i,
+
+  // Pitch/speed changes (device working harder or changing state)
+  /\b(motor|pump|compressor|machine)\s+(speed|pitch|tone|rpm)\s+(changes?|shifts?|increases?|rises?)/i,
+  /\b(settl|settling|settled)\s+(into|to)\s+(a|an)?\s*(higher|lower|faster|slower)\s+(pitch|speed|tone|pace)/i,
+  /\b(higher|lower|faster|slower)\s+(pitch|speed|tone|rpm)/i,
   /\bsurge(s|ing)?\s+(of\s+)?(air|fluid|liquid|pressure)/i,
   /\b(air|fluid|pressure)\s+surg(e|es|ing)/i,
   /\bpulse(s|ing)?\s+(of\s+)?(air|fluid|liquid|pressure)/i,
   /\b(air|fluid)\s+puls(e|es|ing)/i,
   /\b(steady|rhythmic|pulsing|constant)\s+(flow|stream|pump|hiss|surge)/i
+];
+
+// Phrases that indicate turning pump OFF (must contain "off" keyword)
+const PUMP_OFF_PHRASES = [
+  // Direct off commands
+  /\b(turn|turns|turned|turning)\s+.*?\s*(pump|compressor|machine|motor)\s+off/i,
+  /\b(turn|turns|turned|turning)\s+off\s+.*?\s*(pump|compressor|machine|motor)/i,
+  /\b(shut|shuts|shutdown|shutting)\s+.*?\s*(down|off)\s+.*?\s*(pump|compressor|machine|motor)/i,
+  /\b(stop|stops|stopped|stopping)\s+.*?\s*(pump|compressor|machine|motor)/i,
+  /\b(disable|disables|disabled|disabling|deactivate|deactivates|deactivated|deactivating)\s+.*?\s*(pump|compressor|machine|motor)/i,
+
+  // Control actions with "off"
+  /\b(flip|flips|flipped|flipping)\s+.*?\s*(switch|lever)\s+off/i,
+  /\b(flip|flips|flipped|flipping)\s+.*?\s*off.*?\s*(switch|lever)/i,
+  /\b(press|presses|pressed|pressing|push|pushes|pushed|pushing)\s+.*?\s*off.*?\s*(button|switch)/i,
+  /\b(press|presses|pressed|pressing|push|pushes|pushed|pushing)\s+.*?\s*(button|switch)\s+.*?\s*off/i,
+  /\b(turn|turns|turned|turning)\s+.*?\s*(dial|knob|valve)\s+off/i,
+  /\b(turn|turns|turned|turning)\s+.*?\s*off.*?\s*(dial|knob|valve)/i,
+
+  // Kill/end/cease
+  /\b(kill|kills|killed|killing|end|ends|ended|ending|cease|ceases|ceased|ceasing)\s+.*?\s*(pump|inflation|flow|pressure)/i,
+  /\b(cut|cuts|cutting)\s+.*?\s*(power|pump|flow|pressure)/i,
+
+  // Machine stopping
+  /\b(pump|compressor|machine|motor)\s+.*?\s*(stop|stops|stopped|stopping|shut|shuts|wind|winds|power|powers)\s+(down|off)/i,
+  /\b(pump|compressor|machine|motor)\s+.*?\s*(dies?|dying|sputters?|sputtering)/i,
 ];
 
 // Track active LLM device timers for auto-off
@@ -143,8 +215,36 @@ function parseDeviceCommands(text) {
     commands.push({
       device: match[1].toLowerCase(),  // pump, vibe, or tens
       action: 'pulse',                 // pulse action
+      pulses: parseInt(match[2]),      // number of pulses
+      match: match[0]                  // full match for stripping
+    });
+  }
+
+  // Reset regex state for timed commands
+  TIMED_COMMAND_PATTERN.lastIndex = 0;
+
+  // Parse timed commands [pump:timed:#]
+  while ((match = TIMED_COMMAND_PATTERN.exec(text)) !== null) {
+    commands.push({
+      device: match[1].toLowerCase(),  // pump, vibe, or tens
+      action: 'timed',                 // timed action
       duration: parseInt(match[2]),    // duration in seconds
       match: match[0]                  // full match for stripping
+    });
+  }
+
+  // Reset regex state for cycle commands
+  CYCLE_COMMAND_PATTERN.lastIndex = 0;
+
+  // Parse cycle commands [pump:cycle:duration:interval:cycles]
+  while ((match = CYCLE_COMMAND_PATTERN.exec(text)) !== null) {
+    commands.push({
+      device: match[1].toLowerCase(),       // pump, vibe, or tens
+      action: 'cycle',                      // cycle action
+      cycleDuration: parseInt(match[2]),    // on duration in seconds
+      cycleInterval: parseInt(match[3]),    // off interval in seconds
+      cycles: parseInt(match[4]),           // number of cycles (0 = infinite)
+      match: match[0]                       // full match for stripping
     });
   }
 
@@ -157,7 +257,11 @@ function parseDeviceCommands(text) {
       if (bracketIndex >= 0) {
         const context = text.substring(Math.max(0, bracketIndex - 5), Math.min(text.length, bracketIndex + 30));
         log.warn(`Near-miss device tag detected but not matched: "...${context}..."`);
-        log.warn(`Check for formatting issues. Expected format: [pump on], [vibe off], [pump:pulse:3], etc.`);
+        log.warn(`Check for formatting issues. Expected formats:`);
+        log.warn(`  [pump on], [vibe off]`);
+        log.warn(`  [pump:pulse:3] - 3 pulses`);
+        log.warn(`  [pump:timed:30] - 30 seconds`);
+        log.warn(`  [pump:cycle:5:10:3] - 5s on, 10s off, 3 cycles`);
       }
     }
   }
@@ -172,9 +276,18 @@ function parseDeviceCommands(text) {
  */
 function stripDeviceCommands(text) {
   if (!text) return text;
+
+  // Reset regex lastIndex to ensure patterns work correctly
+  DEVICE_COMMAND_PATTERN.lastIndex = 0;
+  PULSE_COMMAND_PATTERN.lastIndex = 0;
+  TIMED_COMMAND_PATTERN.lastIndex = 0;
+  CYCLE_COMMAND_PATTERN.lastIndex = 0;
+
   return text
     .replace(DEVICE_COMMAND_PATTERN, '')
     .replace(PULSE_COMMAND_PATTERN, '')
+    .replace(TIMED_COMMAND_PATTERN, '')
+    .replace(CYCLE_COMMAND_PATTERN, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -253,7 +366,7 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
     const timerKey = `${cmd.device}-${deviceId}`;
 
     // Safety check: Block pump activation at 100% capacity (unless allowOverInflation is enabled)
-    if ((cmd.action === 'on' || cmd.action === 'pulse') && cmd.device === 'pump') {
+    if ((cmd.action === 'on' || cmd.action === 'pulse' || cmd.action === 'timed' || cmd.action === 'cycle') && cmd.device === 'pump') {
       const allowOverInflation = settings?.globalCharacterControls?.allowOverInflation;
       const currentCapacity = sessionState?.capacity ?? 0;
 
@@ -313,11 +426,8 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
         llmDeviceTimers.set(timerKey, timer);
 
       } else if (cmd.action === 'pulse') {
-        // Pulse mode: turn on for specified duration then auto-off
-        const pulseDuration = cmd.duration || settings?.globalCharacterControls?.llmDeviceControlPulseDuration || 3;
-
-        result = await deviceService.turnOn(deviceId, device);
-        log.info(`AI PULSE ${device.label || device.name || cmd.device} for ${pulseDuration}s`);
+        // Pulse mode: quick on/off bursts
+        const pulses = cmd.pulses || settings?.globalCharacterControls?.llmDeviceControlPulses || 3;
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {
@@ -325,11 +435,36 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
           log.info(`Cleared existing timer for ${cmd.device}`);
         }
 
-        // Set pulse auto-off timer (shorter duration)
+        result = await deviceService.pulsePump(deviceId, pulses, device);
+        log.info(`AI PULSE ${device.label || device.name || cmd.device} x${pulses}`);
+
+        if (broadcast) {
+          broadcast('ai_device_control', {
+            device: cmd.device,
+            action: 'pulse',
+            pulses: pulses,
+            deviceName: device.label || device.name || cmd.device
+          });
+        }
+
+      } else if (cmd.action === 'timed') {
+        // Timed mode: run for X seconds then auto-off
+        const duration = cmd.duration || maxSeconds;
+
+        result = await deviceService.turnOn(deviceId, device);
+        log.info(`AI TIMED ${device.label || device.name || cmd.device} for ${duration}s`);
+
+        // Clear any existing timer for this device
+        if (llmDeviceTimers.has(timerKey)) {
+          clearTimeout(llmDeviceTimers.get(timerKey));
+          log.info(`Cleared existing timer for ${cmd.device}`);
+        }
+
+        // Set timed auto-off timer
         const timer = setTimeout(async () => {
           try {
             await deviceService.turnOff(deviceId, device);
-            log.info(`AI pulse complete: turned OFF ${device.label || device.name || cmd.device} after ${pulseDuration}s`);
+            log.info(`AI timed complete: turned OFF ${device.label || device.name || cmd.device} after ${duration}s`);
             llmDeviceTimers.delete(timerKey);
 
             if (broadcast) {
@@ -338,21 +473,56 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
                 action: 'off',
                 deviceName: device.label || device.name || cmd.device,
                 autoOff: true,
-                reason: `Pulse complete after ${pulseDuration}s`
+                reason: `Timed mode complete after ${duration}s`
               });
             }
           } catch (err) {
-            log.error(`AI pulse auto-off failed for ${cmd.device}:`, err.message);
+            log.error(`AI timed auto-off failed for ${cmd.device}:`, err.message);
           }
-        }, pulseDuration * 1000);
+        }, duration * 1000);
 
         llmDeviceTimers.set(timerKey, timer);
 
         if (broadcast) {
           broadcast('ai_device_control', {
             device: cmd.device,
-            action: 'pulse',
-            duration: pulseDuration,
+            action: 'timed',
+            duration: duration,
+            deviceName: device.label || device.name || cmd.device
+          });
+        }
+
+      } else if (cmd.action === 'cycle') {
+        // Cycle mode: repeated on/off cycles
+        const cycleDuration = cmd.cycleDuration || 5;
+        const cycleInterval = cmd.cycleInterval || 10;
+        const cycles = cmd.cycles || 0; // 0 = infinite
+
+        // Clear any existing timer/cycle for this device
+        if (llmDeviceTimers.has(timerKey)) {
+          clearTimeout(llmDeviceTimers.get(timerKey));
+          log.info(`Cleared existing timer for ${cmd.device}`);
+        }
+
+        // Stop any existing cycle
+        await deviceService.stopCycle(deviceId, device);
+
+        result = await deviceService.startCycle(deviceId, {
+          duration: cycleDuration,
+          interval: cycleInterval,
+          cycles: cycles,
+          repeat: cycles === 0
+        }, device);
+
+        log.info(`AI CYCLE ${device.label || device.name || cmd.device}: ${cycleDuration}s on, ${cycleInterval}s off, ${cycles || '∞'} cycles`);
+
+        if (broadcast) {
+          broadcast('ai_device_control', {
+            device: cmd.device,
+            action: 'cycle',
+            cycleDuration,
+            cycleInterval,
+            cycles,
             deviceName: device.label || device.name || cmd.device
           });
         }
@@ -446,7 +616,10 @@ function isPumpCurrentlyRunning(sessionState, devices) {
  */
 function hasPumpOnTag(text) {
   if (!text) return false;
-  return /\[\s*pump\s+on\s*\]/i.test(text) || /\[\s*pump:pulse:\d+\s*\]/i.test(text);
+  return /\[\s*pump\s+(on|off)\s*\]/i.test(text)
+    || /\[\s*pump:pulse:\d+\s*\]/i.test(text)
+    || /\[\s*pump:timed:\d+\s*\]/i.test(text)
+    || /\[\s*pump:cycle:\d+:\d+:\d+\s*\]/i.test(text);
 }
 
 /**
@@ -522,7 +695,7 @@ function containsPulsePhrase(text) {
  */
 function reinforcePumpControl(text, devices, sessionState, settings) {
   // Only reinforce if LLM device control is enabled
-  if (!settings?.globalCharacterControls?.llmDeviceControl) {
+  if (!settings?.globalCharacterControls?.allowLlmDeviceControl) {
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
@@ -532,29 +705,68 @@ function reinforcePumpControl(text, devices, sessionState, settings) {
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
+  // Check for OFF phrases first (only trigger if "off" is in the sentence)
+  for (const pattern of PUMP_OFF_PHRASES) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) {
+      const match = text.match(pattern);
+      log.info(`[Reinforce] Detected OFF phrase: "${match[0]}" - auto-appending [pump off]`);
+      const reinforcedText = text.trimEnd() + ' [pump off]';
+      return { text: reinforcedText, reinforced: true, matchedPhrase: match[0], isOff: true };
+    }
+  }
+
   // Check if pump is already running
   if (isPumpCurrentlyRunning(sessionState, devices)) {
     log.info('[Reinforce] Pump is already running - no reinforcement needed');
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
-  // Detect pump activity phrases
+  // Detect pump activity phrases (for turning ON)
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Check if this is a pulse-specific phrase
+    // Check for specific mode indicators in the text
+    const textLower = text.toLowerCase();
     const isPulse = containsPulsePhrase(text);
-    const pulseDuration = settings?.globalCharacterControls?.llmDeviceControlPulseDuration || 3;
+    const isCycle = /\b(cycle|cycles|cycling|rhythm|rhythmic|pattern|patterns|repeat|repeats|repeating|intervals?)\b/i.test(text);
+    const isTimed = /\b(for\s+\d+\s*(seconds?|minutes?|secs?|mins?)|timed|duration|temporary|briefly|momentarily)\b/i.test(text);
 
-    if (isPulse) {
-      log.info(`[Reinforce] Detected PULSE phrase: "${matchedPhrase}" - auto-appending [pump:pulse:${pulseDuration}]`);
-      const reinforcedText = text.trimEnd() + ` [pump:pulse:${pulseDuration}]`;
-      return { text: reinforcedText, reinforced: true, matchedPhrase, isPulse: true };
+    // Weighted random selection if no specific mode indicated
+    // 35% on, ~22% pulse, ~22% cycle, ~21% timed
+    const rand = Math.random();
+    let mode, tag;
+
+    if (isPulse || (!isCycle && !isTimed && rand < 0.22)) {
+      // PULSE mode (22% random, or if pulse keyword detected)
+      // Random pulses between 20-30
+      const pulses = Math.floor(Math.random() * 11) + 20; // 20-30
+      tag = `[pump:pulse:${pulses}]`;
+      mode = 'pulse';
+    } else if (isCycle || (!isPulse && !isTimed && rand >= 0.22 && rand < 0.44)) {
+      // CYCLE mode (22% random, or if "cycle" mentioned)
+      // Duration: 3-10 seconds, Interval: 2-5 seconds, Cycles: 5-10
+      const cycleDuration = Math.floor(Math.random() * 8) + 3; // 3-10 secs
+      const cycleInterval = Math.floor(Math.random() * 4) + 2; // 2-5 secs
+      const cycles = Math.floor(Math.random() * 6) + 5; // 5-10 cycles
+      tag = `[pump:cycle:${cycleDuration}:${cycleInterval}:${cycles}]`;
+      mode = 'cycle';
+    } else if (isTimed || (!isPulse && !isCycle && rand >= 0.44 && rand < 0.65)) {
+      // TIMED mode (21% random, or if duration mentioned)
+      // Min: global setting, Max: 2x global setting
+      const baseDuration = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+      const duration = Math.floor(Math.random() * baseDuration) + baseDuration; // baseDuration to 2x
+      tag = `[pump:timed:${duration}]`;
+      mode = 'timed';
     } else {
-      log.info(`[Reinforce] Detected pump activity phrase: "${matchedPhrase}" - auto-appending [pump on]`);
-      const reinforcedText = text.trimEnd() + ' [pump on]';
-      return { text: reinforcedText, reinforced: true, matchedPhrase, isPulse: false };
+      // Simple ON (35% of the time when no specific mode)
+      tag = '[pump on]';
+      mode = 'on';
     }
+
+    log.info(`[Reinforce] Detected pump activity: "${matchedPhrase}" - using ${mode} mode: ${tag}`);
+    const reinforcedText = text.trimEnd() + ` ${tag}`;
+    return { text: reinforcedText, reinforced: true, matchedPhrase, mode };
   }
 
   return { text, reinforced: false, matchedPhrase: null, isPulse: false };

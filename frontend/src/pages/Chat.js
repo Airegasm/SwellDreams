@@ -505,6 +505,15 @@ function Chat() {
     }
   }, [sessionLoading, messages.length]);
 
+  // Scroll to bottom when modals appear (input, choice, challenge, etc.)
+  useEffect(() => {
+    if (inputData || playerChoiceData || simpleABData || challengeData) {
+      scrollToBottom();
+      // Delayed scroll to ensure modal is rendered
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  }, [inputData, playerChoiceData, simpleABData, challengeData]);
+
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
     if (isNearBottomRef.current) {

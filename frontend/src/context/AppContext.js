@@ -269,11 +269,21 @@ export function AppProvider({ children }) {
         setSessionState(data);
         setMessages([]);
         setSessionLoading(false);
+        // Clear all flow modals/popups on session reset
+        setPlayerChoiceData(null);
+        setSimpleABData(null);
+        setChallengeData(null);
+        setInputData(null);
         break;
 
       case 'session_loaded':
         setSessionState(data);
         setMessages(data.chatHistory || []);
+        // Clear all flow modals/popups on new session
+        setPlayerChoiceData(null);
+        setSimpleABData(null);
+        setChallengeData(null);
+        setInputData(null);
         break;
 
       case 'flow_assignments_update':
@@ -425,14 +435,14 @@ export function AppProvider({ children }) {
         break;
 
       case 'device_off':
-        // Clear pump status when device turns off (unless it's part of an active cycle)
+        // Clear pump status when device turns off (unless it's part of an active cycle or pulse)
         setPumpStatus(prev => {
           const status = prev[data.ip];
-          // Don't clear if this is part of a cycle - cycle_off will handle it
-          if (status && status.type === 'cycle') {
-            return prev; // Keep the cycle status visible
+          // Don't clear if this is part of a cycle or pulse - their _off handlers will handle it
+          if (status && (status.type === 'cycle' || status.type === 'pulse')) {
+            return prev; // Keep the cycle/pulse status visible
           }
-          // For non-cycle operations, clear the status
+          // For non-cycle/pulse operations, clear the status
           const next = { ...prev };
           delete next[data.ip];
           return next;
@@ -1089,6 +1099,31 @@ export function AppProvider({ children }) {
 
     getTapoDeviceInfo: (ip) => apiFetch(
       `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/info`
+    ),
+
+    // Matter devices (universal smart home protocol)
+    commissionMatterDevice: (pairingCode, deviceName = null) => apiFetch(
+      `${API_BASE}/api/matter/commission`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ pairingCode, deviceName })
+      }
+    ),
+
+    getMatterDevices: () => apiFetch(`${API_BASE}/api/matter/devices`),
+
+    matterDeviceOn: (deviceId) => apiFetch(
+      `${API_BASE}/api/matter/devices/${encodeURIComponent(deviceId)}/on`,
+      { method: 'POST' }
+    ),
+
+    matterDeviceOff: (deviceId) => apiFetch(
+      `${API_BASE}/api/matter/devices/${encodeURIComponent(deviceId)}/off`,
+      { method: 'POST' }
+    ),
+
+    getMatterDeviceState: (deviceId) => apiFetch(
+      `${API_BASE}/api/matter/devices/${encodeURIComponent(deviceId)}/state`
     ),
 
     // Simulation status

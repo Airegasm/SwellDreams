@@ -111,7 +111,7 @@ export const WS_MESSAGE_TYPES = {
 export const SENSATIONS = ['normal', 'mild', 'moderate', 'intense', 'overwhelming'];
 
 // Device brands
-export const DEVICE_BRANDS = ['tplink', 'govee', 'tuya', 'simulated'];
+export const DEVICE_BRANDS = ['tplink', 'govee', 'tuya', 'matter', 'simulated'];
 
 // Default session state
 export const DEFAULT_SESSION_STATE = {

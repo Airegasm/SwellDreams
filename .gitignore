@@ -1,1 +1,35 @@
 CHANGELOG.md
+
+# Executrix character and flows (private)
+backend/data/chars/custom/2fb6d520-bce5-4187-9967-61f026243e2e/
+backend/data/flows/436f33a6-de34-428e-9130-2f0b47542d2e.json
+
+# Runtime data files
+backend/data/autosave.json
+backend/data/settings.json
+backend/data/devices.json
+backend/data/characters.json
+backend/data/personas/personas-index.json
+backend/data/chars/chars-index.json
+backend/data/flows.json
+backend/data/calibrations.json
+backend/data/connection-profiles.json
+backend/data/remote-settings.json
+backend/data/screenplay/actors-index.json
+backend/data/screenplay/plays-index.json
+
+# Node modules
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/package-lock.json
+frontend/package-lock.json
+
+# Build output
+frontend/build/
+
+# Test scripts
+tapo-test*.py
+
+# System files
+NUL

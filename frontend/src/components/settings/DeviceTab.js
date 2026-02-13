@@ -76,6 +76,13 @@ function DeviceTab() {
   const [tapoConnecting, setTapoConnecting] = useState(false);
   const [tapoError, setTapoError] = useState(null);
 
+  // Matter state
+  const [matterPairingCode, setMatterPairingCode] = useState('');
+  const [matterDeviceName, setMatterDeviceName] = useState('');
+  const [matterCommissioning, setMatterCommissioning] = useState(false);
+  const [matterError, setMatterError] = useState(null);
+  const [matterSuccess, setMatterSuccess] = useState(null);
+
   // Check connection status and stored key status on mount
   useEffect(() => {
     const checkGoveeStatus = async () => {
@@ -719,6 +726,41 @@ function DeviceTab() {
     }
   };
 
+  const handleMatterCommission = async () => {
+    if (!matterPairingCode.trim()) return;
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    setMatterError(null);
+    setMatterSuccess(null);
+    setMatterCommissioning(true);
+    try {
+      const result = await api.commissionMatterDevice(
+        matterPairingCode.trim(),
+        matterDeviceName.trim() || null
+      );
+
+      // Add the commissioned device to the device list
+      await api.addDevice({
+        deviceId: result.deviceId,
+        name: result.name || `Matter Device ${result.deviceId}`,
+        label: result.name || `Matter Device ${result.deviceId}`,
+        deviceType: 'PUMP',
+        brand: 'matter'
+      });
+
+      setMatterSuccess(`Device "${result.name}" commissioned successfully!`);
+      setMatterPairingCode('');
+      setMatterDeviceName('');
+    } catch (error) {
+      console.error('Failed to commission Matter device:', error);
+      setMatterError(error.message || 'Failed to commission device. Check pairing code and try again.');
+    } finally {
+      setMatterCommissioning(false);
+    }
+  };
+
   const handleTestTapoDevice = async (device) => {
     try {
       await api.tapoDeviceOn(device.ip);
@@ -788,7 +830,8 @@ function DeviceTab() {
     govee: false,
     tuya: false,
     wyze: false,
-    tapo: false
+    tapo: false,
+    matter: false
   });
 
   // Info popup state
@@ -831,7 +874,7 @@ function DeviceTab() {
               <div key={device.id} className="configured-device-item">
                 <div className="device-badges">
                   <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : 'TPLink'}
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'matter' ? 'Matter' : 'TPLink'}
                   </span>
                   {device.childId && (
                     <span className="device-brand-badge brand-strip">Strip</span>
@@ -1336,7 +1379,7 @@ function DeviceTab() {
           {/* Tapo Sub-collapsible */}
           <div className="settings-subsection-collapsible">
             <div className="settings-subsection-header" onClick={() => toggleSection('tapo')}>
-              <span>TP-Link Tapo</span>
+              <span>TP-Link Tapo (Use Matter for Firmware Locked Outlets)</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                 {tapoConnected && <span className="connection-badge connected">Connected</span>}
                 <span className="collapse-icon">{expandedSections.tapo ? '▼' : '▶'}</span>
@@ -1408,6 +1451,57 @@ function DeviceTab() {
                   {tapoError && <div className="discovery-error">{tapoError}</div>}
                 </>
               )}
+            </div>
+            )}
+          </div>
+
+          {/* Matter Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('matter')}>
+              <span>Matter (Universal Smart Home)</span>
+              <span className="collapse-icon">{expandedSections.matter ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.matter && (
+            <div className="settings-subsection-content">
+              <div className="integration-connect-form">
+                <p className="form-hint">
+                  Add Matter-compatible devices using their pairing code. This includes some TP-Link Tapo devices that can be added to Matter ecosystems.
+                </p>
+                <p className="form-hint" style={{ color: 'var(--info-color)', fontSize: '0.85em' }}>
+                  <strong>Note:</strong> Matter support is experimental. Find the pairing code in your device's app or setup guide.
+                </p>
+                <div className="connect-row">
+                  <input
+                    type="text"
+                    value={matterPairingCode || ''}
+                    onChange={(e) => setMatterPairingCode(e.target.value)}
+                    placeholder="Pairing Code (e.g., 12345678)"
+                  />
+                </div>
+                <div className="connect-row">
+                  <input
+                    type="text"
+                    value={matterDeviceName || ''}
+                    onChange={(e) => setMatterDeviceName(e.target.value)}
+                    placeholder="Device Name (optional)"
+                    onKeyDown={(e) => e.key === 'Enter' && handleMatterCommission()}
+                  />
+                </div>
+                <div className="connect-row">
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleMatterCommission}
+                    disabled={matterCommissioning || !matterPairingCode?.trim()}
+                  >
+                    {matterCommissioning ? 'Commissioning...' : 'Commission Device'}
+                  </button>
+                </div>
+                {matterError && <div className="discovery-error">{matterError}</div>}
+                {matterSuccess && <div className="discovery-success">{matterSuccess}</div>}
+                <p className="form-hint">
+                  Commissioned Matter devices will appear in your device list above.
+                </p>
+              </div>
             </div>
             )}
           </div>
