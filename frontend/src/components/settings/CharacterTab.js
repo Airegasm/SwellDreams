@@ -172,6 +172,19 @@ function CharacterTab() {
 
       const result = await response.json();
       showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
+
+      // Show setup guidance for converted characters
+      setTimeout(() => {
+        alert(
+          '✅ Character Imported Successfully!\n\n' +
+          '📝 IMPORTANT SETUP STEPS:\n\n' +
+          '1. Add inflation-specific scenarios and welcome messages in the character editor\n' +
+          '   (Without these, the character will need heavy Flow integration to work properly)\n\n' +
+          '2. If using LLM Device Control, add [pump tags] examples to speech examples\n' +
+          '   Example: "{{char}} says [pump on] as she inflates"\n\n' +
+          'Open the character editor to configure these settings!'
+        );
+      }, 500); // Delay to show after success toast
     } catch (error) {
       console.error('Failed to import V2/V3 character card:', error);
       showError?.(error.message || 'Failed to import character card');
