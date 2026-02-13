@@ -3336,3 +3336,93 @@
   margin-left: 24px;
   font-style: italic;
 }
+
+/* Reminder form checkbox styling */
+.checkbox-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+}
+
+.checkbox-title input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox-title span {
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* Form group spacing for reminder form */
+.reminder-form .form-group {
+  margin-bottom: 20px;
+}
+
+.reminder-form .form-group label:not(.checkbox-title) {
+  display: block;
+  margin-bottom: 6px;
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.reminder-form .form-group input[type="text"],
+.reminder-form .form-group textarea,
+.reminder-form .form-group input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+}
+
+.reminder-form .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* Hint text styling */
+.reminder-form .checkbox-hint {
+  color: #666;
+  font-size: 0.85rem;
+  font-style: normal;
+  margin-top: 4px;
+  margin-left: 28px;
+  line-height: 1.4;
+}
+
+/* Input with prefix styling */
+.input-with-prefix {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.input-prefix {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 10px 12px;
+  color: #666;
+  font-weight: 600;
+  border-right: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-prefix input {
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1;
+}
