@@ -2259,8 +2259,8 @@
 
 /* Global Flows card inner */
 .global-flows-card-inner {
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: var(--border-radius);
   padding: var(--spacing-md);
 }
@@ -2303,8 +2303,8 @@
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: var(--border-radius);
 }
 
@@ -2362,8 +2362,8 @@
   justify-content: space-between;
   gap: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: var(--border-radius);
   margin-bottom: var(--spacing-xs);
 }
@@ -2584,11 +2584,11 @@
 /* Character Control Rows */
 .character-control-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: var(--border-radius);
   margin-bottom: var(--spacing-sm);
 }
@@ -2610,9 +2610,10 @@
 }
 
 .control-hint {
-  color: #666;
+  color: #444;
   font-size: var(--font-size-xs);
   line-height: 1.3;
+  font-weight: 500;
 }
 
 /* Character control row with button */
