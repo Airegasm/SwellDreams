@@ -26,7 +26,16 @@ function GlobalTab() {
 
   // Global Reminders state
   const [globalReminders, setGlobalReminders] = useState([]);
-  const [reminderForm, setReminderForm] = useState({ name: '', text: '' });
+  const [reminderForm, setReminderForm] = useState({
+    name: '',
+    text: '',
+    constant: true,
+    keys: [],
+    caseSensitive: false,
+    priority: 100,
+    scanDepth: 10
+  });
+  const [keyInput, setKeyInput] = useState('');
   const [editingReminder, setEditingReminder] = useState(null);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
   const lorebookFileInputRef = useRef(null);
@@ -679,13 +688,33 @@ function GlobalTab() {
 
   const handleEditReminder = (reminder) => {
     setEditingReminder(reminder);
-    setReminderForm({ name: reminder.name, text: reminder.text });
+    setReminderForm({
+      name: reminder.name,
+      text: reminder.text,
+      constant: reminder.constant !== undefined ? reminder.constant : true,
+      keys: reminder.keys || [],
+      caseSensitive: reminder.caseSensitive || false,
+      priority: reminder.priority !== undefined ? reminder.priority : 100,
+      scanDepth: reminder.scanDepth !== undefined ? reminder.scanDepth : 10
+    });
   };
 
   const handleDeleteReminder = (id) => {
     const updated = globalReminders.filter(r => r.id !== id);
     setGlobalReminders(updated);
     saveReminders(updated);
+  };
+
+  const handleAddKey = () => {
+    if (!keyInput.trim()) return;
+    if (!reminderForm.keys.includes(keyInput.trim())) {
+      setReminderForm(prev => ({ ...prev, keys: [...prev.keys, keyInput.trim()] }));
+    }
+    setKeyInput('');
+  };
+
+  const handleRemoveKey = (key) => {
+    setReminderForm(prev => ({ ...prev, keys: prev.keys.filter(k => k !== key) }));
   };
 
   const handleSaveReminder = () => {
@@ -696,7 +725,16 @@ function GlobalTab() {
       // Update existing
       updated = globalReminders.map(r =>
         r.id === editingReminder.id
-          ? { ...r, name: reminderForm.name, text: reminderForm.text }
+          ? {
+              ...r,
+              name: reminderForm.name,
+              text: reminderForm.text,
+              constant: reminderForm.constant,
+              keys: reminderForm.keys,
+              caseSensitive: reminderForm.caseSensitive,
+              priority: reminderForm.priority,
+              scanDepth: reminderForm.scanDepth
+            }
           : r
       );
     } else {
@@ -705,20 +743,25 @@ function GlobalTab() {
         id: `global-reminder-${Date.now()}`,
         name: reminderForm.name,
         text: reminderForm.text,
-        enabled: true
+        enabled: true,
+        constant: reminderForm.constant,
+        keys: reminderForm.keys,
+        caseSensitive: reminderForm.caseSensitive,
+        priority: reminderForm.priority,
+        scanDepth: reminderForm.scanDepth
       };
       updated = [...globalReminders, newReminder];
     }
 
     setGlobalReminders(updated);
-    setReminderForm({ name: '', text: '' });
+    setReminderForm({ name: '', text: '', constant: true, keys: [], caseSensitive: false, priority: 100, scanDepth: 10 });
     setEditingReminder(null);
     saveReminders(updated);
   };
 
   const handleCancelEdit = () => {
     setEditingReminder(null);
-    setReminderForm({ name: '', text: '' });
+    setReminderForm({ name: '', text: '', constant: true, keys: [], caseSensitive: false, priority: 100, scanDepth: 10 });
   };
 
   const saveReminders = async (reminders) => {
@@ -1213,10 +1256,89 @@ function GlobalTab() {
               <textarea
                 value={reminderForm.text}
                 onChange={(e) => setReminderForm(prev => ({ ...prev, text: e.target.value }))}
-                placeholder="Enter the reminder text that will be included in prompts..."
+                placeholder="Text to include in prompts when active..."
                 rows={3}
               />
             </div>
+
+            <div className="form-group">
+              <label className="checkbox-title">
+                <input
+                  type="checkbox"
+                  checked={reminderForm.constant}
+                  onChange={(e) => setReminderForm(prev => ({ ...prev, constant: e.target.checked }))}
+                />
+                <span>Always Active (ignore keywords)</span>
+              </label>
+              <p className="checkbox-hint">When unchecked, only activates when keywords are found in recent messages</p>
+            </div>
+
+            {!reminderForm.constant && (
+              <>
+                <div className="form-group">
+                  <label>Activation Keywords</label>
+                  <div className="keyword-input-row">
+                    <input
+                      type="text"
+                      value={keyInput}
+                      onChange={(e) => setKeyInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddKey())}
+                      placeholder="Enter keyword and press Enter"
+                    />
+                    <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddKey}>Add</button>
+                  </div>
+                  {reminderForm.keys.length > 0 && (
+                    <div className="keywords-list">
+                      {reminderForm.keys.map((key, idx) => (
+                        <span key={idx} className="keyword-tag">
+                          {key}
+                          <button type="button" onClick={() => handleRemoveKey(key)}>&times;</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="checkbox-hint">Reminder activates when ANY keyword is found</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Scan Depth (messages to check)</label>
+                  <input
+                    type="number"
+                    value={reminderForm.scanDepth}
+                    onChange={(e) => setReminderForm(prev => ({ ...prev, scanDepth: parseInt(e.target.value, 10) || 0 }))}
+                    min="0"
+                    max="100"
+                    style={{ width: '100px' }}
+                  />
+                  <p className="checkbox-hint">0 = scan all messages, 10 = scan last 10 messages</p>
+                </div>
+
+                <div className="form-group">
+                  <label className="checkbox-title">
+                    <input
+                      type="checkbox"
+                      checked={reminderForm.caseSensitive}
+                      onChange={(e) => setReminderForm(prev => ({ ...prev, caseSensitive: e.target.checked }))}
+                    />
+                    <span>Case-Sensitive Matching</span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            <div className="form-group">
+              <label>Priority (higher = injected first)</label>
+              <input
+                type="number"
+                value={reminderForm.priority}
+                onChange={(e) => setReminderForm(prev => ({ ...prev, priority: parseInt(e.target.value, 10) || 100 }))}
+                min="0"
+                max="1000"
+                style={{ width: '100px' }}
+              />
+              <p className="checkbox-hint">Default: 100. Higher priority reminders appear first in prompt.</p>
+            </div>
+
             <div className="reminder-form-actions">
               {editingReminder && (
                 <button className="btn btn-secondary" onClick={handleCancelEdit}>Cancel</button>

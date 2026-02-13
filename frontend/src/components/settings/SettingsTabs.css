@@ -3276,3 +3276,63 @@
   outline: none;
   border-color: var(--accent-primary);
 }
+
+/* Keyword input styles for reminders */
+.keyword-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.keyword-input-row input {
+  flex: 1;
+}
+
+.keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  margin-top: 8px;
+}
+
+.keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(235, 75, 100, 0.15);
+  border: 1px solid rgba(235, 75, 100, 0.4);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.keyword-tag button {
+  background: none;
+  border: none;
+  color: rgba(235, 75, 100, 0.9);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.keyword-tag button:hover {
+  color: rgba(235, 75, 100, 1);
+}
+
+.checkbox-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+  margin-left: 24px;
+  font-style: italic;
+}

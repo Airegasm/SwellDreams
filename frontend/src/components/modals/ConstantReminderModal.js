@@ -4,19 +4,35 @@ import './SessionModals.css';
 function ConstantReminderModal({ isOpen, onClose, onSave, reminder }) {
   const [formData, setFormData] = useState({
     name: '',
-    text: ''
+    text: '',
+    constant: true,
+    keys: [],
+    caseSensitive: false,
+    priority: 100,
+    scanDepth: 10
   });
+  const [keyInput, setKeyInput] = useState('');
 
   useEffect(() => {
     if (isOpen && reminder) {
       setFormData({
         name: reminder.name || '',
-        text: reminder.text || ''
+        text: reminder.text || '',
+        constant: reminder.constant !== undefined ? reminder.constant : true,
+        keys: reminder.keys || [],
+        caseSensitive: reminder.caseSensitive || false,
+        priority: reminder.priority !== undefined ? reminder.priority : 100,
+        scanDepth: reminder.scanDepth !== undefined ? reminder.scanDepth : 10
       });
     } else if (isOpen && !reminder) {
       setFormData({
         name: '',
-        text: ''
+        text: '',
+        constant: true,
+        keys: [],
+        caseSensitive: false,
+        priority: 100,
+        scanDepth: 10
       });
     }
   }, [isOpen, reminder]);
@@ -30,6 +46,18 @@ function ConstantReminderModal({ isOpen, onClose, onSave, reminder }) {
       return;
     }
     onSave(formData);
+  };
+
+  const handleAddKey = () => {
+    if (!keyInput.trim()) return;
+    if (!formData.keys.includes(keyInput.trim())) {
+      setFormData({ ...formData, keys: [...formData.keys, keyInput.trim()] });
+    }
+    setKeyInput('');
+  };
+
+  const handleRemoveKey = (key) => {
+    setFormData({ ...formData, keys: formData.keys.filter(k => k !== key) });
   };
 
   return (
@@ -58,10 +86,84 @@ function ConstantReminderModal({ isOpen, onClose, onSave, reminder }) {
               <textarea
                 value={formData.text}
                 onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                placeholder="Text to include with every prompt..."
-                rows={5}
+                placeholder="Text to include in prompts when active..."
+                rows={4}
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.constant}
+                  onChange={(e) => setFormData({ ...formData, constant: e.target.checked })}
+                />
+                <span>Always Active (ignore keywords)</span>
+              </label>
+              <p className="field-hint">When unchecked, only activates when keywords are found in recent messages</p>
+            </div>
+
+            {!formData.constant && (
+              <>
+                <div className="form-group">
+                  <label>Activation Keywords</label>
+                  <div className="keyword-input-row">
+                    <input
+                      type="text"
+                      value={keyInput}
+                      onChange={(e) => setKeyInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddKey())}
+                      placeholder="Enter keyword and press Enter"
+                    />
+                    <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddKey}>Add</button>
+                  </div>
+                  <div className="keywords-list">
+                    {formData.keys.map((key, idx) => (
+                      <span key={idx} className="keyword-tag">
+                        {key}
+                        <button type="button" onClick={() => handleRemoveKey(key)}>&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                  <p className="field-hint">Reminder activates when ANY keyword is found</p>
+                </div>
+
+                <div className="form-group">
+                  <label>Scan Depth (messages to check)</label>
+                  <input
+                    type="number"
+                    value={formData.scanDepth}
+                    onChange={(e) => setFormData({ ...formData, scanDepth: parseInt(e.target.value, 10) || 0 })}
+                    min="0"
+                    max="100"
+                  />
+                  <p className="field-hint">0 = scan all messages, 10 = scan last 10 messages</p>
+                </div>
+
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={formData.caseSensitive}
+                      onChange={(e) => setFormData({ ...formData, caseSensitive: e.target.checked })}
+                    />
+                    <span>Case-Sensitive Matching</span>
+                  </label>
+                </div>
+              </>
+            )}
+
+            <div className="form-group">
+              <label>Priority (higher = injected first)</label>
+              <input
+                type="number"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value, 10) || 100 })}
+                min="0"
+                max="1000"
+              />
+              <p className="field-hint">Default: 100. Higher priority reminders appear first in prompt.</p>
             </div>
           </div>
 
