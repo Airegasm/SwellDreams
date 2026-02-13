@@ -145,10 +145,16 @@ class MatterService {
 
       let serverError = null;
 
-      // Start python-matter-server
-      this.serverProcess = spawn(PYTHON_PATH, [
+      // Start python-matter-server in WSL (Windows Subsystem for Linux)
+      // Using WSL because CHIP SDK Python bindings aren't available for native Windows
+      const wslPython = '/mnt/c/SwellDreams/backend/venv-wsl/bin/python3';
+      const wslStoragePath = this.storagePath.replace(/\\/g, '/').replace('C:', '/mnt/c');
+
+      this.serverProcess = spawn('wsl', [
+        '-d', 'Ubuntu',
+        wslPython,
         '-m', 'matter_server.server',
-        '--storage-path', this.storagePath
+        '--storage-path', wslStoragePath
       ], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
