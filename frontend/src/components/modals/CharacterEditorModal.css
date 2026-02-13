@@ -1127,3 +1127,76 @@
     justify-content: flex-end;
   }
 }
+
+/* Session Defaults Tab Styling */
+.session-defaults-editor {
+  padding: 20px;
+}
+
+.session-defaults-editor h4 {
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.session-defaults-editor .section-hint {
+  color: #444;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+.session-defaults-editor .form-group {
+  margin-bottom: 24px;
+}
+
+.session-defaults-editor .form-group label {
+  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.session-defaults-editor .form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.session-defaults-editor .form-label-row label {
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+.session-defaults-editor .form-value {
+  color: var(--accent-primary);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.session-defaults-editor select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.session-defaults-editor .form-hint {
+  color: #666;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.session-defaults-editor input[type="range"] {
+  width: 100%;
+  margin: 8px 0;
+}
