@@ -539,6 +539,17 @@
   font-size: var(--font-size-sm);
 }
 
+.pov-select {
+  width: 120px;
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--border-radius);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
 /* Auto Reply Field */
 .auto-reply-field {
   display: flex;
@@ -1184,6 +1195,10 @@
   }
 
   .version-select {
+    flex: 1;
+  }
+
+  .pov-select {
     flex: 1;
   }
 
