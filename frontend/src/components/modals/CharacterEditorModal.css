@@ -1200,3 +1200,59 @@
   width: 100%;
   margin: 8px 0;
 }
+
+/* Character Tab (Basic) - Fix contrast */
+.character-modal-body .form-group label {
+  color: #1a1a1a !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.character-modal-body .form-group input[type="text"],
+.character-modal-body .form-group textarea,
+.character-modal-body .form-group select {
+  color: #1a1a1a !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #ccc;
+}
+
+.character-modal-body .form-group input::placeholder,
+.character-modal-body .form-group textarea::placeholder {
+  color: #999 !important;
+}
+
+.character-modal-body .section-label {
+  color: #1a1a1a !important;
+  font-weight: 600;
+}
+
+.character-modal-body .field-hint,
+.character-modal-body .form-hint {
+  color: #666 !important;
+}
+
+.character-modal-body h4 {
+  color: #1a1a1a !important;
+  font-weight: 600;
+}
+
+/* Story editor elements */
+.story-sidebar .story-item,
+.story-sidebar .add-story-btn {
+  color: #1a1a1a !important;
+}
+
+.story-content h4 {
+  color: #1a1a1a !important;
+}
+
+/* Welcome messages and scenarios */
+.welcome-message-item,
+.scenario-item {
+  color: #1a1a1a !important;
+}
+
+.message-text,
+.scenario-text {
+  color: #1a1a1a !important;
+}
