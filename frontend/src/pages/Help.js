@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import WhatsNewTab from '../components/help/WhatsNewTab';
 import GettingStartedTab from '../components/help/GettingStartedTab';
 import ConversationsTab from '../components/help/ConversationsTab';
 import SystemTab from '../components/help/SystemTab';
@@ -9,6 +10,7 @@ import './Settings.css';
 import './Help.css';
 
 const TABS = [
+  { id: 'whats-new', label: "What's New" },
   { id: 'getting-started', label: 'Getting Started' },
   { id: 'conversations', label: 'Conversations' },
   { id: 'external-apis', label: 'External APIs' },
@@ -19,7 +21,7 @@ const TABS = [
 function Help() {
   const { tab } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState(tab || 'getting-started');
+  const [activeTab, setActiveTab] = useState(tab || 'whats-new');
   const [animationState, setAnimationState] = useState('entering');
   const isExiting = useRef(false);
 
@@ -62,6 +64,8 @@ function Help() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'whats-new':
+        return <WhatsNewTab />;
       case 'getting-started':
         return <GettingStartedTab />;
       case 'conversations':
@@ -73,7 +77,7 @@ function Help() {
       case 'flow':
         return <FlowTab />;
       default:
-        return <GettingStartedTab />;
+        return <WhatsNewTab />;
     }
   };
 

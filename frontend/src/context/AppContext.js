@@ -1126,6 +1126,26 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/matter/devices/${encodeURIComponent(deviceId)}/state`
     ),
 
+    getMatterStatus: () => apiFetch(`${API_BASE}/api/matter/status`),
+
+    startMatterServer: () => apiFetch(
+      `${API_BASE}/api/matter/server/start`,
+      { method: 'POST' }
+    ),
+
+    stopMatterServer: () => apiFetch(
+      `${API_BASE}/api/matter/server/stop`,
+      { method: 'POST' }
+    ),
+
+    setMatterAutoStart: (enabled) => apiFetch(
+      `${API_BASE}/api/matter/server/autostart`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ enabled })
+      }
+    ),
+
     // Simulation status
     getSimulationStatus: () => apiFetch(`${API_BASE}/api/simulation-status`),
 

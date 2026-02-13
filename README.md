@@ -1,8 +1,8 @@
 # SwellDreams
 
-**v3.5.1 "Stable Beta"**
+**v3.6.0 "Lorebook Edition"**
 
-An AI-powered interactive roleplay platform with smart device integration, visual flow automation, and interactive visual novel authoring.
+An AI-powered interactive roleplay platform with smart device integration, visual flow automation, and dynamic lorebook system with V2/V3 character card import.
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -11,6 +11,9 @@ An AI-powered interactive roleplay platform with smart device integration, visua
 ### AI Chat
 - **Multiple LLM Backends**: Connect to KoboldCpp (local), OpenRouter (cloud), or any OpenAI-compatible API
 - **Character System**: Create detailed characters with personalities, scenarios, and custom welcome messages
+- **V2/V3 Card Import** ⭐ NEW: Import character cards from SillyTavern, TavernAI, and other platforms (JSON or PNG)
+- **Dynamic Lorebook** ⭐ NEW: Keyword-triggered reminders that activate based on conversation context
+- **Priority System** ⭐ NEW: Control reminder insertion order for optimal prompt structure
 - **Default Characters**: Luna (nurturing), Mistress Scarlett (dominant), Vex (playful), Dr. Iris Chen (clinical)
 - **Persona System**: Define player personas for immersive roleplay
 - **Default Personas**: Marcus and Zara ready to use out of the box
@@ -47,6 +50,14 @@ An AI-powered interactive roleplay platform with smart device integration, visua
 - **Pump Control**: Real and mock pump events with device integration
 - **Capacity Tracking**: Player and NPC capacity gauges with pain scale
 - **Filmstrip UI**: Cinematic presentation with character portraits
+
+### Custom Reminders & Lorebook
+- **Constant Mode**: Always-active reminders for core character traits
+- **Keyword Triggers** ⭐ NEW: Activate reminders only when keywords appear in conversation
+- **Priority Control**: Set reminder importance (higher priority = earlier in prompt)
+- **Case Sensitivity**: Choose case-sensitive or case-insensitive keyword matching
+- **Scan Depth**: Control how many recent messages to scan for keywords
+- **Token Optimization**: Selective activation saves context space for longer conversations
 
 ### Custom Buttons
 - **Quick Actions**: Add custom buttons to characters for one-click actions
@@ -162,11 +173,38 @@ SwellDreams/
 └── version.json       # Version info
 ```
 
+## What's New in v3.6
+
+### Dynamic Lorebook System
+Transform your characters with context-aware reminders:
+- **Keyword Activation**: Reminders trigger only when relevant keywords appear
+- **Smart Prioritization**: Control which reminders appear first in the AI's context
+- **Flexible Modes**: Choose between always-active or keyword-triggered reminders
+- **Token Efficient**: Only include relevant lore, saving space for conversation
+
+### V2/V3 Character Card Import
+Bring your existing characters to SwellDreams:
+- **Universal Format Support**: Import V2 and V3 character cards
+- **JSON & PNG**: Accept both raw JSON files and PNG cards with embedded metadata
+- **Full Lorebook Conversion**: Character book entries become enhanced reminders with keywords
+- **Persona Import**: Convert character cards to personas for role-reversal scenarios
+- **One-Click Import**: Settings → Characters → "Convert V2/V3" button
+
+### Enhanced Character Editor
+- Tag-based keyword input with visual feedback
+- Priority and keyword count badges in reminder list
+- Improved validation and error handling
+- Better organization with sortable reminders
+
 ## API Endpoints
 
 ### LLM
 - `POST /api/llm/test` - Test LLM connection
 - `POST /api/llm/generate` - Generate text
+
+### Import ⭐ NEW
+- `POST /api/import/character-card` - Import V2/V3 character card (JSON or PNG)
+- `POST /api/import/persona-card` - Import V2/V3 card as persona
 
 ### Devices
 - `GET /api/devices` - List registered devices

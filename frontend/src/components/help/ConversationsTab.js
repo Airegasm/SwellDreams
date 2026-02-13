@@ -737,30 +737,45 @@ function ConversationsTab() {
       {/* Constant Reminders */}
       <div className="help-section">
         <h3 className="section-header" onClick={() => toggle('constantReminders')}>
-          Constant Reminders (Character)
+          Custom Reminders (Lorebook System)
           <span className="expand-icon">{expanded.constantReminders ? '−' : '+'}</span>
         </h3>
         {expanded.constantReminders && (
           <div className="section-content">
             <p>
-              Constant Reminders are instructions that are always included in the AI's context
-              when generating responses. They're specific to a character and help maintain
-              consistency in the roleplay.
+              Custom Reminders are context-aware instructions included in the AI's prompts.
+              They can be <strong>always active</strong> or <strong>keyword-triggered</strong>,
+              mimicking full lorebook functionality from other AI platforms.
             </p>
 
-            <h4 className="subsection-header">When to Use Reminders</h4>
-            <ul className="help-list">
-              <li><strong>Character rules</strong> - Things the character should always do or never do</li>
-              <li><strong>Ongoing state</strong> - "Remember that the player is currently restrained"</li>
-              <li><strong>Tone guidance</strong> - "Always maintain a playful, teasing tone"</li>
-              <li><strong>Plot points</strong> - Important facts that shouldn't be forgotten</li>
-            </ul>
-
-            <h4 className="subsection-header">Managing Reminders</h4>
+            <h4 className="subsection-header">Reminder Modes</h4>
             <table className="help-table">
               <thead>
                 <tr>
-                  <th>Feature</th>
+                  <th>Mode</th>
+                  <th>When It Activates</th>
+                  <th>Best For</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Constant (Always Active)</strong></td>
+                  <td>Every single response</td>
+                  <td>Core character traits, permanent rules, ongoing states</td>
+                </tr>
+                <tr>
+                  <td><strong>Keyword-Triggered</strong></td>
+                  <td>Only when keywords appear in recent messages</td>
+                  <td>Contextual lore, character knowledge, situational rules</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Reminder Fields</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Field</th>
                   <th>Description</th>
                 </tr>
               </thead>
@@ -774,22 +789,63 @@ function ConversationsTab() {
                   <td>The actual instruction sent to the AI</td>
                 </tr>
                 <tr>
+                  <td><strong>Always Active</strong></td>
+                  <td>✓ Checked = Always included | ✗ Unchecked = Keyword-triggered</td>
+                </tr>
+                <tr>
+                  <td><strong>Trigger Keywords</strong></td>
+                  <td>Words that activate the reminder (only if not constant)</td>
+                </tr>
+                <tr>
+                  <td><strong>Case Sensitive</strong></td>
+                  <td>Whether "Dragon" and "dragon" are treated differently</td>
+                </tr>
+                <tr>
+                  <td><strong>Priority</strong></td>
+                  <td>Higher priority = appears earlier in prompt (default: 100)</td>
+                </tr>
+                <tr>
+                  <td><strong>Scan Depth</strong></td>
+                  <td>How many recent messages to scan (0 = all messages)</td>
+                </tr>
+                <tr>
                   <td><strong>Enable/Disable</strong></td>
                   <td>Toggle switch to temporarily disable without deleting</td>
                 </tr>
               </tbody>
             </table>
 
+            <h4 className="subsection-header">Example Reminders</h4>
+
+            <div className="code-example">
+              <strong>Constant Reminder (Always Active):</strong><br/>
+              Name: "Core Personality"<br/>
+              Text: "Dr. Elena is methodical and speaks with clinical precision."<br/>
+              Always Active: ✓ Checked<br/>
+              Priority: 150
+            </div>
+
+            <div className="code-example">
+              <strong>Keyword-Triggered Reminder:</strong><br/>
+              Name: "Dragon Lore"<br/>
+              Text: "Dragons in this world breathe ice instead of fire and live in mountain caves."<br/>
+              Always Active: ✗ Unchecked<br/>
+              Keywords: "dragon", "Dragon", "drake", "wyrm"<br/>
+              Case Sensitive: ✗ Unchecked<br/>
+              Scan Depth: 10 (last 10 messages)<br/>
+              Priority: 100
+            </div>
+
+            <div className="info-box">
+              <strong>💡 Pro Tip:</strong> Use high-priority constant reminders for core traits,
+              and keyword-triggered reminders for world lore that's only relevant in context.
+              This saves tokens for more conversation!
+            </div>
+
             <div className="info-box">
               <strong>Flow Integration:</strong> Flows can enable, disable, or update reminder
               text using the <strong>Toggle Reminder</strong> action. This allows dynamic
               story progression without manual editing.
-            </div>
-
-            <div className="code-example">
-              <strong>Example Reminder:</strong><br/>
-              Name: "Restraint State"<br/>
-              Text: "The player is currently tied to a chair and cannot move freely. Reference this limitation when appropriate."
             </div>
           </div>
         )}

@@ -9,8 +9,8 @@ set SCRIPT_DIR=%~dp0
 echo Script directory: %SCRIPT_DIR%
 
 REM Read version from version.json
-set VERSION=unknown
-set CODENAME=
+set VERSION=3.6.0
+set CODENAME=FinalClosed
 for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"version\""') do (
     set VERSION=%%~a
 )
@@ -53,14 +53,23 @@ if errorlevel 1 (
 echo Node.js found:
 node --version
 
-REM Check Python (optional)
+REM Check Python and install dependencies
+echo.
 echo Checking for Python...
 where python >nul 2>nul
 if errorlevel 1 (
-    echo Warning: Python not found. Some features may be limited.
+    echo Warning: Python not found. Some features ^(Wyze, Tapo, Matter^) will be unavailable.
+    echo Install Python from https://www.python.org/downloads/
 ) else (
-    echo Installing Python dependencies...
-    python -m pip install -q -r "%SCRIPT_DIR%backend\requirements.txt" 2>nul
+    python --version
+    echo Installing/updating Python dependencies ^(Wyze, Tapo, Matter^)...
+    python -m pip install --upgrade pip >nul 2>nul
+    python -m pip install -r "%SCRIPT_DIR%backend\requirements.txt"
+    if errorlevel 1 (
+        echo Warning: Some Python dependencies failed to install. Matter features may be limited.
+    ) else (
+        echo Python dependencies installed successfully!
+    )
 )
 
 REM Install/update backend dependencies

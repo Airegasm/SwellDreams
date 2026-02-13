@@ -12,8 +12,10 @@ function CharacterTab() {
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [importingV2V3, setImportingV2V3] = useState(false);
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
+  const v2v3FileInputRef = useRef(null);
 
   // Sort characters with active one first
   const sortedCharacters = [...characters].sort((a, b) => {
@@ -148,6 +150,44 @@ function CharacterTab() {
     fileInputRef.current?.click();
   };
 
+  const handleV2V3Import = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportingV2V3(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_BASE}/api/import/character-card`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to import character card');
+      }
+
+      const result = await response.json();
+      showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
+    } catch (error) {
+      console.error('Failed to import V2/V3 character card:', error);
+      showError?.(error.message || 'Failed to import character card');
+    } finally {
+      setImportingV2V3(false);
+      // Reset file input
+      if (v2v3FileInputRef.current) {
+        v2v3FileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleV2V3ImportClick = () => {
+    v2v3FileInputRef.current?.click();
+  };
+
   return (
     <div className="settings-tab">
       <div className="tab-header-actions">
@@ -156,6 +196,13 @@ function CharacterTab() {
           ref={fileInputRef}
           onChange={handleImport}
           accept=".json"
+          style={{ display: 'none' }}
+        />
+        <input
+          type="file"
+          ref={v2v3FileInputRef}
+          onChange={handleV2V3Import}
+          accept=".json,.png"
           style={{ display: 'none' }}
         />
         <button
@@ -168,9 +215,17 @@ function CharacterTab() {
           className="btn btn-secondary"
           onClick={handleImportClick}
           disabled={importing}
-          title="Import character from JSON file"
+          title="Import SwellDreams character from JSON file"
         >
           {importing ? 'Importing...' : 'Import'}
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={handleV2V3ImportClick}
+          disabled={importingV2V3}
+          title="Import V2/V3 character card (JSON or PNG)"
+        >
+          {importingV2V3 ? 'Converting...' : 'Convert V2/V3'}
         </button>
       </div>
 

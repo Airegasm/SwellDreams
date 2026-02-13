@@ -274,10 +274,6 @@ function Chat() {
       const activeWelcome = character.welcomeMessages.find(w => w.id === activeId);
       return activeWelcome || character.welcomeMessages[0];
     }
-    // Fallback for old format
-    if (character.firstMessage) {
-      return { text: character.firstMessage, llmEnhanced: false };
-    }
     return null;
   };
 
