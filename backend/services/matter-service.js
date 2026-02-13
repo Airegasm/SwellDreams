@@ -248,16 +248,16 @@ class MatterService {
    */
   async ensureServerRunning() {
     if (this.serverRunning) {
-      return true;
+      return { success: true };
     }
 
     if (this.autoStart) {
       log.info('Auto-starting Matter server...');
       const result = await this.startServer();
-      return result.success;
+      return result;
     }
 
-    return false;
+    return { success: false, error: 'Auto-start is disabled' };
   }
 
   /**
@@ -320,9 +320,10 @@ class MatterService {
     }
 
     // Ensure Matter server is running
-    const serverStarted = await this.ensureServerRunning();
-    if (!serverStarted) {
-      throw new Error('Matter server failed to start. Please check Python dependencies are installed.');
+    const serverResult = await this.ensureServerRunning();
+    if (!serverResult.success) {
+      const errorDetail = serverResult.error || 'Unknown error';
+      throw new Error(`Matter server failed to start: ${errorDetail}`);
     }
 
     // Give server a moment to fully initialize
