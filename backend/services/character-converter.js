@@ -18,19 +18,39 @@ function convertV2ToSwellD(v2Card) {
   // Parse example dialogues if present
   const exampleDialogues = parseExampleDialogues(data.mes_example || '');
 
-  // BLANK welcome messages - user must write inflation-appropriate greetings
-  // Preserve originals in extensions for reference
-  const welcomeMessages = [{
-    id: uuidv4(),
-    text: '',
-    llmEnhanced: false
-  }];
+  // Import welcome messages from first_mes and alternate_greetings
+  const welcomeMessages = [];
+  if (data.first_mes) {
+    welcomeMessages.push({
+      id: uuidv4(),
+      text: data.first_mes,
+      llmEnhanced: false
+    });
+  }
+  if (data.alternate_greetings && Array.isArray(data.alternate_greetings)) {
+    data.alternate_greetings.forEach(greeting => {
+      if (greeting && greeting.trim()) {
+        welcomeMessages.push({
+          id: uuidv4(),
+          text: greeting,
+          llmEnhanced: false
+        });
+      }
+    });
+  }
+  // Fallback to empty if no greetings found
+  if (welcomeMessages.length === 0) {
+    welcomeMessages.push({
+      id: uuidv4(),
+      text: '',
+      llmEnhanced: false
+    });
+  }
 
-  // BLANK scenarios - user must write inflation-appropriate scenario
-  // Preserve original in extensions for reference
+  // Import scenario
   const scenarios = [{
     id: uuidv4(),
-    text: ''
+    text: data.scenario || ''
   }];
 
   // Convert character book to enhanced constant reminders
