@@ -127,6 +127,7 @@ class DeviceService {
     this.devices = new Map(); // ip -> device info
     this.deviceStates = new Map(); // ip -> { state: 'on'|'off', lastUpdate }
     this.activeCycles = new Map(); // ip -> { timer, intervalTimer, settings }
+    this.activePulses = new Map(); // ip -> { timers: [] } to cancel pulses
     this.pumpStartTimes = new Map(); // ip/deviceKey -> startTime for auto-capacity tracking
     this.pumpRuntimeIntervals = new Map(); // ip/deviceKey -> interval for real-time capacity updates
     this.eventEmitter = null;
@@ -539,6 +540,10 @@ class DeviceService {
     // Debug logging
     console.log(`[DeviceService] turnOff called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}`);
 
+    // Cancel any active pulses or cycles for this device
+    this.stopPulse(ipOrDeviceId);
+    this.stopCycle(ipOrDeviceId, device);
+
     try {
       // Route by brand
       if (device?.brand === 'govee') {
@@ -767,13 +772,27 @@ class DeviceService {
   async pulsePump(ip, pulses = 3, device = null) {
     console.log(`[DeviceService] pulsePump called: ip=${ip}, pulses=${pulses}, brand=${device?.brand}`);
 
+    // Cancel any existing pulse for this device
+    this.stopPulse(ip);
+
     let currentPulse = 0;
     const pulseDuration = 500; // 0.5 seconds on
     const pulseInterval = 1000; // 1 second total (0.5s on, 0.5s off)
+    const timers = [];
+
+    // Store pulse info for cancellation
+    this.activePulses.set(ip, { timers, device });
 
     const runPulse = async () => {
+      // Check if pulse was cancelled
+      if (!this.activePulses.has(ip)) {
+        console.log(`[DeviceService] Pulse cancelled for ${ip}`);
+        return;
+      }
+
       if (currentPulse >= pulses) {
         console.log(`[DeviceService] Pulse complete after ${currentPulse} pulses`);
+        this.activePulses.delete(ip);
         return;
       }
 
@@ -785,23 +804,26 @@ class DeviceService {
         this.emitEvent('pulse_on', { ip, pulse: currentPulse, totalPulses: pulses, device });
 
         // Turn off after pulse duration
-        setTimeout(async () => {
+        const offTimer = setTimeout(async () => {
           try {
             console.log(`[DeviceService] Pulse ${currentPulse}: turning OFF device ${ip}`);
             await this.turnOff(ip, device);
             this.emitEvent('pulse_off', { ip, pulse: currentPulse, totalPulses: pulses, device });
 
             // Schedule next pulse
-            if (currentPulse < pulses) {
-              setTimeout(runPulse, pulseInterval - pulseDuration);
-            } else {
+            if (currentPulse < pulses && this.activePulses.has(ip)) {
+              const nextTimer = setTimeout(runPulse, pulseInterval - pulseDuration);
+              timers.push(nextTimer);
+            } else if (currentPulse >= pulses) {
               // All pulses complete
               this.emitEvent('pulse_complete', { ip, totalPulses: pulses, device });
+              this.activePulses.delete(ip);
             }
           } catch (err) {
             console.error(`[DeviceService] Pulse ${currentPulse}: error in turnOff:`, err.message);
           }
         }, pulseDuration);
+        timers.push(offTimer);
       } catch (err) {
         console.error(`[DeviceService] Pulse ${currentPulse}: error in turnOn:`, err.message);
       }
@@ -809,6 +831,22 @@ class DeviceService {
 
     await runPulse();
     return { success: true, message: `Pulsing ${pulses} times` };
+  }
+
+  /**
+   * Stop active pulse for device
+   */
+  stopPulse(ip) {
+    const pulseInfo = this.activePulses.get(ip);
+    if (pulseInfo) {
+      console.log(`[DeviceService] Stopping pulse for ${ip}`);
+      // Cancel all timers
+      if (pulseInfo.timers) {
+        pulseInfo.timers.forEach(timer => clearTimeout(timer));
+      }
+      this.activePulses.delete(ip);
+      this.emitEvent('pulse_cancelled', { ip, device: pulseInfo.device });
+    }
   }
 
   /**
