@@ -111,7 +111,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
           assignedButtons: [],
           constantReminderIds: [],
           globalReminderIds: [],
-          startingEmotion: character.startingEmotion || 'neutral'
+          startingEmotion: character.startingEmotion || 'neutral',
+          intensity: character.intensity || '',
+          spoilers: character.spoilers || []
         }];
       } else {
         // Ensure existing stories have v2 format
@@ -182,7 +184,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       assignedButtons: [],
       constantReminderIds: [],
       globalReminderIds: [],
-      startingEmotion: 'neutral'
+      startingEmotion: 'neutral',
+      intensity: '',
+      spoilers: []
     };
 
     return {
@@ -242,6 +246,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [showButtonForm, setShowButtonForm] = useState(false);
   const [editingButtonId, setEditingButtonId] = useState(null);
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
+  const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState(null);
   const [reminderForm, setReminderForm] = useState({
@@ -675,7 +680,9 @@ Write only the scenario description itself, no explanations.`;
       assignedButtons: [],
       constantReminderIds: [],
       globalReminderIds: [],
-      startingEmotion: 'neutral'
+      startingEmotion: 'neutral',
+      intensity: '',
+      spoilers: []
     };
     setFormData({
       ...formData,
@@ -1417,7 +1424,6 @@ Write only the scenario description itself, no explanations.`;
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Brief character description..."
-                    rows={3}
                   />
                 </div>
 
@@ -1427,7 +1433,6 @@ Write only the scenario description itself, no explanations.`;
                     value={formData.personality}
                     onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
                     placeholder="Detailed personality traits..."
-                    rows={4}
                   />
                 </div>
               </div>
@@ -1470,7 +1475,14 @@ Write only the scenario description itself, no explanations.`;
             {/* Story Section */}
             <div className="story-section">
               <div className="story-header">
-                <label>Story</label>
+                <div className="story-labels-row">
+                  <label>Story</label>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <label className="story-meta-label">Level</label>
+                  <label className="story-meta-label">Spoilers</label>
+                </div>
                 <div className="story-controls">
                   {editingStoryName ? (
                     <div className="story-name-edit">
@@ -1502,6 +1514,52 @@ Write only the scenario description itself, no explanations.`;
                       <button type="button" className="btn-icon btn-add" onClick={handleAddStory} title="Add story">+</button>
                       <button type="button" className="btn-icon btn-edit" onClick={handleRenameStory} title="Rename">✏️</button>
                       <button type="button" className="btn-icon btn-delete" onClick={handleDeleteStory} title="Delete" disabled={stories.length <= 1}>🗑️</button>
+
+                      <select
+                        value={activeStory?.intensity || ''}
+                        onChange={(e) => updateStoryField('intensity', e.target.value)}
+                        className="story-intensity-select"
+                      >
+                        <option value=""></option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                      </select>
+
+                      <div className="story-spoilers-dropdown">
+                        <div
+                          className="story-spoilers-select"
+                          onClick={() => setSpoilersDropdownOpen(!spoilersDropdownOpen)}
+                        >
+                          {/* Blank display */}
+                        </div>
+                        {spoilersDropdownOpen && (
+                          <div className="spoilers-options">
+                            {['GOODEND', 'NOEND', 'BADEND'].map(option => {
+                              const spoilers = activeStory?.spoilers || [];
+                              const isChecked = spoilers.includes(option);
+                              return (
+                                <label key={option} className="spoiler-option">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      const currentSpoilers = activeStory?.spoilers || [];
+                                      const newSpoilers = e.target.checked
+                                        ? [...currentSpoilers, option]
+                                        : currentSpoilers.filter(s => s !== option);
+                                      updateStoryField('spoilers', newSpoilers);
+                                    }}
+                                  />
+                                  <span>{option}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1565,7 +1623,7 @@ Write only the scenario description itself, no explanations.`;
                         className="version-select"
                       >
                         {(activeStory?.welcomeMessages || []).map((wm, idx) => (
-                          <option key={wm.id} value={wm.id}>Version {idx + 1}</option>
+                          <option key={wm.id} value={wm.id}>Ver {idx + 1}</option>
                         ))}
                       </select>
                       <button type="button" className="btn-icon btn-add" onClick={handleAddWelcomeMessage} title="Add version">+</button>
@@ -1617,7 +1675,7 @@ Write only the scenario description itself, no explanations.`;
                         className="version-select"
                       >
                         {(activeStory?.scenarios || []).map((sc, idx) => (
-                          <option key={sc.id} value={sc.id}>Version {idx + 1}</option>
+                          <option key={sc.id} value={sc.id}>Ver {idx + 1}</option>
                         ))}
                       </select>
                       <button type="button" className="btn-icon btn-add" onClick={handleAddScenario} title="Add version">+</button>
