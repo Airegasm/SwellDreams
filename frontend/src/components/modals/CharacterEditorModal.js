@@ -1553,6 +1553,12 @@ Write only the scenario description itself, no explanations.`;
                       {enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}
                     </label>
                     <div className="version-controls">
+                      <button
+                        type="button"
+                        className={`btn-icon btn-llm ${getActiveWelcomeMessage()?.llmEnhanced ? 'active' : ''}`}
+                        onClick={handleToggleWelcomeMessageLlm}
+                        title="Toggle LLM Enhancement"
+                      >🤖</button>
                       <select
                         value={activeStory?.activeWelcomeMessageId || ''}
                         onChange={(e) => handleWelcomeMessageChange(e.target.value)}
@@ -1570,12 +1576,6 @@ Write only the scenario description itself, no explanations.`;
                         disabled={(activeStory?.welcomeMessages || []).length <= 1}
                         title="Delete version"
                       >🗑️</button>
-                      <button
-                        type="button"
-                        className={`btn-icon btn-llm ${getActiveWelcomeMessage()?.llmEnhanced ? 'active' : ''}`}
-                        onClick={handleToggleWelcomeMessageLlm}
-                        title="Toggle LLM Enhancement"
-                      >🤖</button>
                       <button
                         type="button"
                         className={`btn-icon btn-magic ${enhancingWelcomeMessage ? 'active enhancing' : ''}`}
