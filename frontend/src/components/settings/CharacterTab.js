@@ -180,8 +180,9 @@ function CharacterTab() {
           '📝 IMPORTANT SETUP STEPS:\n\n' +
           '1. Add inflation-specific scenarios and welcome messages in the character editor\n' +
           '   (Without these, the character will need heavy Flow integration to work properly)\n\n' +
-          '2. If using LLM Device Control, add [pump tags] examples to speech examples\n' +
-          '   Example: "{{char}} says [pump on] as she inflates"\n\n' +
+          '2. If using LLM Device Control, add [pump tags] in dialogue examples\n' +
+          '   Example: "[pump on] Time to get bigger! *inflates*"\n' +
+          '   (Tags trigger device control but are stripped from spoken text)\n\n' +
           'Open the character editor to configure these settings!'
         );
       }, 500); // Delay to show after success toast
