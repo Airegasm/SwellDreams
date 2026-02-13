@@ -537,6 +537,7 @@
   width: 110px;
   padding: 4px 8px;
   font-size: var(--font-size-sm);
+  margin-left: 0; /* Ensure consistent positioning */
 }
 
 .pov-select {
@@ -552,7 +553,7 @@
 
 /* Spacer to align Scenario controls with Welcome Message controls */
 .version-controls-spacer {
-  width: 32px; /* Same width as btn-icon */
+  width: 40px; /* btn-icon width (32px) + gap (8px) */
   height: 32px;
   flex-shrink: 0;
 }
