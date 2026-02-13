@@ -88,6 +88,12 @@ function Chat() {
   const [actionPage, setActionPage] = useState(0);
   const ACTIONS_PER_PAGE = 8;
 
+  // Chat font size (persisted to localStorage)
+  const [chatFontSize, setChatFontSize] = useState(() => {
+    const saved = localStorage.getItem('swelldreams_chat_font_size');
+    return saved ? parseInt(saved, 10) : 16; // Default 16px
+  });
+
   // Persona button menu pagination
   const [personaActionPage, setPersonaActionPage] = useState(0);
   const PERSONA_ACTIONS_PER_PAGE = 6; // 2 columns x 3 rows
@@ -237,6 +243,23 @@ function Chat() {
       const newValue = !prev;
       localStorage.setItem('swelldreams_character_hidden', String(newValue));
       return newValue;
+    });
+  };
+
+  // Chat font size handlers
+  const increaseFontSize = () => {
+    setChatFontSize(prev => {
+      const newSize = Math.min(prev + 2, 32); // Max 32px
+      localStorage.setItem('swelldreams_chat_font_size', String(newSize));
+      return newSize;
+    });
+  };
+
+  const decreaseFontSize = () => {
+    setChatFontSize(prev => {
+      const newSize = Math.max(prev - 2, 10); // Min 10px
+      localStorage.setItem('swelldreams_chat_font_size', String(newSize));
+      return newSize;
     });
   };
 
@@ -1231,6 +1254,25 @@ function Chat() {
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
 
         <div className="chat-messages" ref={messagesContainerRef}>
+          {/* Font size controls in upper right */}
+          <div className="chat-font-controls">
+            <button
+              className="font-size-btn"
+              onClick={decreaseFontSize}
+              title="Decrease font size"
+              disabled={chatFontSize <= 10}
+            >
+              -
+            </button>
+            <button
+              className="font-size-btn"
+              onClick={increaseFontSize}
+              title="Increase font size"
+              disabled={chatFontSize >= 32}
+            >
+              +
+            </button>
+          </div>
           {sessionLoading ? (
             <div className="chat-loading">
               <div className="loading-spinner"></div>
@@ -1276,6 +1318,7 @@ function Chat() {
                   <div
                     id={`msg-${msg.id}`}
                     className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}`}
+                    style={{ fontSize: `${chatFontSize}px` }}
                   >
                     <div className="message-header">
                       <span className="message-sender">
