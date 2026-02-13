@@ -6,6 +6,7 @@ Interfaces with python-matter-server to control Matter devices
 import sys
 import json
 import asyncio
+import aiohttp
 from typing import Optional
 from matter_server.client.client import MatterClient
 
@@ -14,11 +15,12 @@ from matter_server.client.client import MatterClient
 MATTER_SERVER_URL = "ws://localhost:5580/ws"
 
 
-async def connect_client() -> MatterClient:
+async def connect_client() -> tuple[MatterClient, aiohttp.ClientSession]:
     """Connect to the Matter server"""
-    client = MatterClient(MATTER_SERVER_URL)
+    session = aiohttp.ClientSession()
+    client = MatterClient(MATTER_SERVER_URL, session)
     await client.connect()
-    return client
+    return client, session
 
 
 async def commission_device(pairing_code: str, device_name: str = "Matter Device") -> dict:
@@ -32,7 +34,7 @@ async def commission_device(pairing_code: str, device_name: str = "Matter Device
     Returns:
         Dict with success, nodeId, and name
     """
-    client = await connect_client()
+    client, session = await connect_client()
 
     try:
         # Commission the device
@@ -65,6 +67,7 @@ async def commission_device(pairing_code: str, device_name: str = "Matter Device
         }
     finally:
         await client.disconnect()
+        await session.close()
 
 
 async def send_on_command(node_id: int) -> dict:
@@ -77,7 +80,7 @@ async def send_on_command(node_id: int) -> dict:
     Returns:
         Dict with success and state
     """
-    client = await connect_client()
+    client, session = await connect_client()
 
     try:
         # Send On command to OnOff cluster on endpoint 1
@@ -100,6 +103,7 @@ async def send_on_command(node_id: int) -> dict:
         }
     finally:
         await client.disconnect()
+        await session.close()
 
 
 async def send_off_command(node_id: int) -> dict:
@@ -112,7 +116,7 @@ async def send_off_command(node_id: int) -> dict:
     Returns:
         Dict with success and state
     """
-    client = await connect_client()
+    client, session = await connect_client()
 
     try:
         # Send Off command to OnOff cluster on endpoint 1
@@ -135,6 +139,7 @@ async def send_off_command(node_id: int) -> dict:
         }
     finally:
         await client.disconnect()
+        await session.close()
 
 
 async def get_device_state(node_id: int) -> dict:
@@ -147,7 +152,7 @@ async def get_device_state(node_id: int) -> dict:
     Returns:
         Dict with success and state ("on" or "off")
     """
-    client = await connect_client()
+    client, session = await connect_client()
 
     try:
         # Read the OnOff attribute from the OnOff cluster
@@ -173,6 +178,7 @@ async def get_device_state(node_id: int) -> dict:
         }
     finally:
         await client.disconnect()
+        await session.close()
 
 
 async def list_devices() -> dict:
@@ -182,7 +188,7 @@ async def list_devices() -> dict:
     Returns:
         Dict with success and list of devices
     """
-    client = await connect_client()
+    client, session = await connect_client()
 
     try:
         nodes = await client.get_nodes()
@@ -206,6 +212,7 @@ async def list_devices() -> dict:
         }
     finally:
         await client.disconnect()
+        await session.close()
 
 
 def main():

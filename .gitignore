@@ -33,3 +33,7 @@ tapo-test*.py
 
 # System files
 NUL
+
+# Matter SDK and build artifacts
+connectedhomeip/
+c:SwellDreamsbackendbinchip-tool/
