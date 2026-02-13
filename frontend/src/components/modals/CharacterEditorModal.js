@@ -245,6 +245,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [selectedGlobalReminder, setSelectedGlobalReminder] = useState('');
   const [draggedButtonId, setDraggedButtonId] = useState(null);
   const fileInputRef = React.useRef(null);
+  const lorebookFileInputRef = React.useRef(null);
+  const [importingLorebook, setImportingLorebook] = useState(false);
 
   // Sync selected story ID when formData changes
   useEffect(() => {
@@ -1045,6 +1047,98 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     });
   };
 
+  // Lorebook import handlers
+  const handleLorebookImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportingLorebook(true);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Support multiple formats:
+      // 1. V2/V3 character_book with array entries
+      // 2. SillyTavern world info with object entries
+      // 3. Direct array of entries
+      let entries = [];
+
+      if (data.character_book?.entries && Array.isArray(data.character_book.entries)) {
+        // V2/V3 format with array
+        entries = data.character_book.entries;
+      } else if (data.character_book?.entries && typeof data.character_book.entries === 'object') {
+        // V2/V3 format with object (convert to array)
+        entries = Object.values(data.character_book.entries);
+      } else if (data.data?.character_book?.entries && Array.isArray(data.data.character_book.entries)) {
+        // Nested V2/V3 format with array
+        entries = data.data.character_book.entries;
+      } else if (data.data?.character_book?.entries && typeof data.data.character_book.entries === 'object') {
+        // Nested V2/V3 format with object
+        entries = Object.values(data.data.character_book.entries);
+      } else if (data.entries && Array.isArray(data.entries)) {
+        // Direct array
+        entries = data.entries;
+      } else if (data.entries && typeof data.entries === 'object') {
+        // SillyTavern world info format (object with numeric keys)
+        entries = Object.values(data.entries);
+      } else if (Array.isArray(data)) {
+        // File is just an array
+        entries = data;
+      } else {
+        throw new Error('Invalid lorebook format. Expected character_book.entries or entries object/array.');
+      }
+
+      // Ensure entries is an array
+      if (!Array.isArray(entries)) {
+        throw new Error('Lorebook entries must be an array.');
+      }
+
+      // Convert entries to Custom Reminders format
+      const newReminders = entries
+        .filter(entry => entry.enabled !== false && entry.disable !== true)
+        .map(entry => ({
+          id: `reminder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: entry.name || entry.comment || 'Lorebook Entry',
+          text: entry.content || entry.value || '',
+          target: 'character',
+          enabled: true,
+          // V2/V3: constant field directly, SillyTavern: selective=true means keyword-triggered (!constant)
+          constant: entry.constant === true || (entry.selective !== undefined && !entry.selective),
+          // V2/V3: keys, SillyTavern: key
+          keys: entry.keys || entry.key || [],
+          caseSensitive: entry.caseSensitive || entry.case_sensitive || false,
+          priority: entry.priority !== undefined ? entry.priority : (entry.insertion_order || entry.order || 100),
+          scanDepth: entry.extensions?.scan_depth || entry.scanDepth || entry.depth || 10
+        }));
+
+      if (newReminders.length === 0) {
+        throw new Error('No valid lorebook entries found in file.');
+      }
+
+      // Add to existing reminders
+      setFormData({
+        ...formData,
+        globalReminders: [...globalReminders, ...newReminders]
+      });
+
+      alert(`Successfully imported ${newReminders.length} lorebook entries as Custom Reminders.`);
+    } catch (error) {
+      console.error('Failed to import lorebook:', error);
+      alert(error.message || 'Failed to import lorebook file');
+    } finally {
+      setImportingLorebook(false);
+      // Reset file input
+      if (lorebookFileInputRef.current) {
+        lorebookFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleLorebookImportClick = () => {
+    lorebookFileInputRef.current?.click();
+  };
+
   return (
     <div className="modal-overlay" onClick={handleCancel}>
       <div className="modal character-editor-modal" onClick={e => e.stopPropagation()}>
@@ -1556,7 +1650,19 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
                 <>
                   <div className="events-header">
                     <h4>Custom Reminders</h4>
-                    <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Reminder</button>
+                    <div className="events-header-actions">
+                      <input
+                        type="file"
+                        ref={lorebookFileInputRef}
+                        onChange={handleLorebookImport}
+                        accept=".json"
+                        style={{ display: 'none' }}
+                      />
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={handleLorebookImportClick} disabled={importingLorebook}>
+                        {importingLorebook ? 'Importing...' : '📚 Import Lorebook'}
+                      </button>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Reminder</button>
+                    </div>
                   </div>
                   <p className="section-hint">Character-specific reminders. Create them here, then assign them to stories using "Constant Reminders" in the Story section.</p>
 

@@ -29,6 +29,8 @@ function GlobalTab() {
   const [reminderForm, setReminderForm] = useState({ name: '', text: '' });
   const [editingReminder, setEditingReminder] = useState(null);
   const [isSavingReminders, setIsSavingReminders] = useState(false);
+  const lorebookFileInputRef = useRef(null);
+  const [importingLorebook, setImportingLorebook] = useState(false);
 
   // Remote Settings state
   const [remoteSettings, setRemoteSettings] = useState({ allowRemote: false, whitelistedIps: [], isLocalRequest: false });
@@ -729,6 +731,97 @@ function GlobalTab() {
     setIsSavingReminders(false);
   };
 
+  // Lorebook import handlers for global reminders
+  const handleLorebookImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImportingLorebook(true);
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Support multiple formats:
+      // 1. V2/V3 character_book with array entries
+      // 2. SillyTavern world info with object entries
+      // 3. Direct array of entries
+      let entries = [];
+
+      if (data.character_book?.entries && Array.isArray(data.character_book.entries)) {
+        // V2/V3 format with array
+        entries = data.character_book.entries;
+      } else if (data.character_book?.entries && typeof data.character_book.entries === 'object') {
+        // V2/V3 format with object (convert to array)
+        entries = Object.values(data.character_book.entries);
+      } else if (data.data?.character_book?.entries && Array.isArray(data.data.character_book.entries)) {
+        // Nested V2/V3 format with array
+        entries = data.data.character_book.entries;
+      } else if (data.data?.character_book?.entries && typeof data.data.character_book.entries === 'object') {
+        // Nested V2/V3 format with object
+        entries = Object.values(data.data.character_book.entries);
+      } else if (data.entries && Array.isArray(data.entries)) {
+        // Direct array
+        entries = data.entries;
+      } else if (data.entries && typeof data.entries === 'object') {
+        // SillyTavern world info format (object with numeric keys)
+        entries = Object.values(data.entries);
+      } else if (Array.isArray(data)) {
+        // File is just an array
+        entries = data;
+      } else {
+        throw new Error('Invalid lorebook format. Expected character_book.entries or entries object/array.');
+      }
+
+      // Ensure entries is an array
+      if (!Array.isArray(entries)) {
+        throw new Error('Lorebook entries must be an array.');
+      }
+
+      // Convert entries to Global Reminders format
+      const newReminders = entries
+        .filter(entry => entry.enabled !== false && entry.disable !== true)
+        .map(entry => ({
+          id: `reminder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: entry.name || entry.comment || 'Lorebook Entry',
+          text: entry.content || entry.value || '',
+          enabled: true
+        }));
+
+      if (newReminders.length === 0) {
+        throw new Error('No valid lorebook entries found in file.');
+      }
+
+      // Add to existing global reminders
+      const updatedReminders = [...globalReminders, ...newReminders];
+      setGlobalReminders(updatedReminders);
+
+      // Save to backend
+      setIsSavingReminders(true);
+      try {
+        await api.updateSettings({ globalReminders: updatedReminders });
+        alert(`Successfully imported ${newReminders.length} lorebook entries as Global Reminders.`);
+      } catch (error) {
+        console.error('Failed to save imported reminders:', error);
+        showError?.('Failed to save imported reminders');
+      }
+      setIsSavingReminders(false);
+    } catch (error) {
+      console.error('Failed to import lorebook:', error);
+      alert(error.message || 'Failed to import lorebook file');
+    } finally {
+      setImportingLorebook(false);
+      // Reset file input
+      if (lorebookFileInputRef.current) {
+        lorebookFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleLorebookImportClick = () => {
+    lorebookFileInputRef.current?.click();
+  };
+
   const getGlobalFlows = () => {
     return sessionState.flowAssignments?.global || [];
   };
@@ -1059,6 +1152,24 @@ function GlobalTab() {
             These reminders apply to all characters and are included in every prompt.
             Names are automatically prefixed with "Global-" in the UI.
           </p>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              type="file"
+              ref={lorebookFileInputRef}
+              onChange={handleLorebookImport}
+              accept=".json"
+              style={{ display: 'none' }}
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleLorebookImportClick}
+              disabled={importingLorebook}
+              title="Import lorebook entries as global reminders"
+            >
+              {importingLorebook ? 'Importing...' : '📚 Import Lorebook'}
+            </button>
+          </div>
 
           <div className="reminders-list">
             {globalReminders.length === 0 ? (
