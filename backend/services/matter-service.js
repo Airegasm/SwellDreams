@@ -40,6 +40,28 @@ class MatterService {
   }
 
   /**
+   * Install Python dependencies if missing
+   */
+  async installPythonDependencies() {
+    try {
+      log.info('Installing/updating Python Matter dependencies...');
+
+      // Install python-matter-server and all its dependencies
+      const { stdout, stderr } = await execAsync('pip install --upgrade python-matter-server>=8.1.2 cryptography aiohttp');
+
+      if (stderr && stderr.includes('error')) {
+        throw new Error(`Pip install failed: ${stderr}`);
+      }
+
+      log.info('Python dependencies installed successfully');
+      return true;
+    } catch (error) {
+      log.error('Failed to install Python dependencies:', error.message);
+      throw new Error(`Failed to install Python dependencies: ${error.message}`);
+    }
+  }
+
+  /**
    * Check if Python and required dependencies are available
    */
   async checkPythonDependencies() {
@@ -48,16 +70,22 @@ class MatterService {
       const { stdout: pythonVersion } = await execAsync('python --version');
       log.info(`Python found: ${pythonVersion.trim()}`);
 
-      // Check python-matter-server is installed
-      const { stdout: matterCheck } = await execAsync('python -m matter_server.server --version').catch(() => ({ stdout: '' }));
-      if (!matterCheck) {
-        throw new Error('python-matter-server not installed. Run: pip install python-matter-server>=8.1.2');
-      }
-      log.info('python-matter-server package found');
+      // Check if we can import matter_server (this will catch missing sub-dependencies)
+      try {
+        await execAsync('python -c "from matter_server.server import MatterServer; from cryptography import x509"');
+        log.info('python-matter-server and all dependencies found');
+        return true;
+      } catch (importError) {
+        log.warn('Matter dependencies missing or incomplete, attempting to install...');
+        await this.installPythonDependencies();
 
-      return true;
+        // Verify installation worked
+        await execAsync('python -c "from matter_server.server import MatterServer; from cryptography import x509"');
+        log.info('Matter dependencies verified after installation');
+        return true;
+      }
     } catch (error) {
-      throw new Error(`Python dependency check failed: ${error.message}`);
+      throw new Error(`Python dependency check/install failed: ${error.message}. Please ensure Python 3.8+ is installed.`);
     }
   }
 
@@ -98,6 +126,15 @@ class MatterService {
     try {
       const fs = require('fs');
 
+      // Verify dependencies before starting
+      log.info('Verifying Python dependencies before starting server...');
+      try {
+        await this.checkPythonDependencies();
+      } catch (depError) {
+        log.error('Dependency check failed:', depError.message);
+        return { success: false, error: `Dependency check failed: ${depError.message}` };
+      }
+
       // Ensure storage directory exists
       if (!fs.existsSync(this.storagePath)) {
         fs.mkdirSync(this.storagePath, { recursive: true });
@@ -105,6 +142,8 @@ class MatterService {
       }
 
       log.info('Starting Matter server...');
+
+      let serverError = null;
 
       // Start python-matter-server
       this.serverProcess = spawn(PYTHON_PATH, [
@@ -119,7 +158,13 @@ class MatterService {
       });
 
       this.serverProcess.stderr.on('data', (data) => {
-        log.error(`[Matter Server] ${data.toString().trim()}`);
+        const message = data.toString().trim();
+        log.error(`[Matter Server] ${message}`);
+
+        // Capture errors for better reporting
+        if (message.includes('ModuleNotFoundError') || message.includes('ImportError')) {
+          serverError = `Missing Python dependency: ${message}`;
+        }
       });
 
       this.serverProcess.on('close', (code) => {
@@ -128,8 +173,15 @@ class MatterService {
         this.serverProcess = null;
       });
 
-      // Wait a moment for server to start
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for server to start and check if it failed immediately
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      // Check if process died immediately
+      if (this.serverProcess === null || this.serverProcess.killed) {
+        const errorMsg = serverError || 'Server process terminated unexpectedly. Check Python dependencies.';
+        log.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
 
       this.serverRunning = true;
       log.info('Matter server started successfully');
@@ -137,6 +189,8 @@ class MatterService {
       return { success: true, message: 'Matter server started', running: true };
     } catch (error) {
       log.error('Failed to start Matter server:', error.message);
+      this.serverRunning = false;
+      this.serverProcess = null;
       return { success: false, error: error.message };
     }
   }
@@ -266,7 +320,15 @@ class MatterService {
     }
 
     // Ensure Matter server is running
-    await this.ensureServerRunning();
+    const serverStarted = await this.ensureServerRunning();
+    if (!serverStarted) {
+      throw new Error('Matter server failed to start. Please check Python dependencies are installed.');
+    }
+
+    // Give server a moment to fully initialize
+    if (!this.serverRunning) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
     try {
       log.info(`Commissioning Matter device with pairing code...`);
@@ -290,6 +352,12 @@ class MatterService {
       return deviceInfo;
     } catch (error) {
       log.error('Commission failed:', error.message);
+
+      // Provide more helpful error messages
+      if (error.message.includes('refused') || error.message.includes('Cannot connect')) {
+        throw new Error('Matter server connection failed. The server may not be running properly. Try restarting the backend.');
+      }
+
       throw new Error(`Failed to commission device: ${error.message}`);
     }
   }

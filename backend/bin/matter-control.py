@@ -19,8 +19,17 @@ async def connect_client() -> tuple[MatterClient, aiohttp.ClientSession]:
     """Connect to the Matter server"""
     session = aiohttp.ClientSession()
     client = MatterClient(MATTER_SERVER_URL, session)
-    await client.connect()
-    return client, session
+    try:
+        await client.connect()
+        return client, session
+    except Exception as e:
+        await session.close()
+        if "refused" in str(e).lower() or "cannot connect" in str(e).lower():
+            raise ConnectionError(
+                "Matter server is not running. Please start it via Settings → Smart Devices → Matter, "
+                "or the backend will auto-start it when commissioning."
+            )
+        raise
 
 
 async def commission_device(pairing_code: str, device_name: str = "Matter Device") -> dict:
