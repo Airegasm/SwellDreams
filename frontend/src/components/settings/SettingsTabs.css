@@ -1235,6 +1235,7 @@
   background-image: url('../../assets/card-bg.png');
   background-size: cover;
   background-position: center;
+  color: #1a1a1a; /* Dark text for light background */
 }
 
 /* Connection Grid Layout - CSS Grid for precise alignment */
