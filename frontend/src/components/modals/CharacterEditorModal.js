@@ -259,6 +259,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const fileInputRef = React.useRef(null);
   const lorebookFileInputRef = React.useRef(null);
   const [importingLorebook, setImportingLorebook] = useState(false);
+  const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
+  const [enhancingScenario, setEnhancingScenario] = useState(false);
+  const cancelledRef = React.useRef({ welcomeMessage: false, scenario: false });
 
   // Sync selected story ID when formData changes
   useEffect(() => {
@@ -401,6 +404,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
 
   // Enhance welcome message with LLM
   const handleEnhanceWelcomeMessage = async () => {
+    // If already enhancing, cancel the current generation
+    if (enhancingWelcomeMessage) {
+      cancelledRef.current.welcomeMessage = true;
+      setEnhancingWelcomeMessage(false);
+      return;
+    }
+
     const story = getActiveStory();
     const activeWm = getActiveWelcomeMessage();
     const currentText = activeWm?.text || '';
@@ -409,18 +419,35 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     const description = formData.description || '';
     const personality = formData.personality || '';
 
-    const prompt = `You are a creative writing assistant helping to craft a compelling character greeting message.
+    const prompt = `You are a creative writing assistant helping to craft an immersive character greeting message.
 
 Character Name: ${formData.name || 'Character'}
 ${description ? `Description: ${description}` : ''}
 ${personality ? `Personality: ${personality}` : ''}
 
-${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting to be more engaging, in-character, and vivid. Keep the same general intent but improve the prose, add sensory details, and make it more immersive.` : 'Please write a compelling first greeting message for this character. Make it engaging, in-character, and set the scene vividly.'}
+IMPORTANT INSTRUCTIONS:
+- Write the greeting AS THE CHARACTER in first-person perspective
+- Use roleplay format: *actions in asterisks* mixed with "dialog in quotes"
+- Use [Player] when referring to the player character (this will be replaced with their name)
+- Use [Gender] when using pronouns for the player (will auto-resolve to he/him/his, she/her/hers, or they/them based on context)
+- The greeting should show what the character is doing and saying in the moment
+- Make it engaging, sensory, and in-character
+
+${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting following the format above. Keep the same general intent but improve the prose, add sensory details, and ensure proper roleplay formatting.` : 'Write a compelling first greeting message from this character\'s perspective. Use the roleplay format with *actions* and "dialog", include [Player] and [Gender] variables where appropriate.'}
 
 Write only the greeting message itself, no explanations or meta-commentary.`;
 
     try {
-      const response = await api.generateText({ prompt });
+      cancelledRef.current.welcomeMessage = false;
+      setEnhancingWelcomeMessage(true);
+
+      const response = await api.generateText({ prompt, maxTokens: 500 });
+
+      // Check if user cancelled while we were waiting
+      if (cancelledRef.current.welcomeMessage) {
+        return;
+      }
+
       if (response && response.text) {
         // Update the welcome message with enhanced text
         const currentMessages = story?.welcomeMessages || [];
@@ -435,7 +462,13 @@ Write only the greeting message itself, no explanations or meta-commentary.`;
         }));
       }
     } catch (error) {
+      // Ignore if user cancelled
+      if (cancelledRef.current.welcomeMessage) {
+        return;
+      }
       alert(`Failed to enhance welcome message: ${error.message}`);
+    } finally {
+      setEnhancingWelcomeMessage(false);
     }
   };
 
@@ -495,6 +528,13 @@ Write only the greeting message itself, no explanations or meta-commentary.`;
 
   // Enhance scenario with LLM
   const handleEnhanceScenario = async () => {
+    // If already enhancing, cancel the current generation
+    if (enhancingScenario) {
+      cancelledRef.current.scenario = true;
+      setEnhancingScenario(false);
+      return;
+    }
+
     const story = getActiveStory();
     const activeScId = story?.activeScenarioId;
     const currentScenarios = story?.scenarios || [];
@@ -505,18 +545,38 @@ Write only the greeting message itself, no explanations or meta-commentary.`;
     const description = formData.description || '';
     const personality = formData.personality || '';
 
-    const prompt = `You are a creative writing assistant helping to craft a compelling scenario description.
+    const prompt = `You are a creative writing assistant helping to craft a concise scenario description.
 
 Character Name: ${formData.name || 'Character'}
 ${description ? `Description: ${description}` : ''}
 ${personality ? `Personality: ${personality}` : ''}
 
-${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite and enhance this scenario to be more detailed, atmospheric, and engaging. Keep the same general situation but improve the prose, add environmental details, and make it more immersive.` : 'Please write a compelling scenario description for this character. Set the scene with rich details and atmosphere that complements the character.'}
+IMPORTANT INSTRUCTIONS:
+- Write a simple, descriptive scenario in 1-2 sentences
+- Use third-person perspective (describe the situation objectively)
+- Use [Player] when referring to the player character
+- Use [Gender] when using pronouns for the player
+- Focus on setting and situation, not actions or dialog
+- Keep it concise and atmospheric
 
-Write only the scenario description itself, no explanations or meta-commentary.`;
+${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite this scenario following the guidelines above. Keep it brief (1-2 sentences) but vivid.` : 'Write a brief scenario description (1-2 sentences) that sets the scene for this character.'}
+
+Write only the scenario description itself, no explanations.`;
 
     try {
-      const response = await api.generateText({ prompt });
+      cancelledRef.current.scenario = false;
+      setEnhancingScenario(true);
+
+      const response = await api.generateText({
+        prompt,
+        maxTokens: 100  // Override default for shorter scenario descriptions
+      });
+
+      // Check if user cancelled while we were waiting
+      if (cancelledRef.current.scenario) {
+        return;
+      }
+
       if (response && response.text) {
         // Update the scenario with enhanced text
         setFormData(prev => ({
@@ -529,7 +589,13 @@ Write only the scenario description itself, no explanations or meta-commentary.`
         }));
       }
     } catch (error) {
+      // Ignore if user cancelled
+      if (cancelledRef.current.scenario) {
+        return;
+      }
       alert(`Failed to enhance scenario: ${error.message}`);
+    } finally {
+      setEnhancingScenario(false);
     }
   };
 
@@ -1232,8 +1298,8 @@ Write only the scenario description itself, no explanations or meta-commentary.`
   };
 
   return (
-    <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal character-editor-modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal character-editor-modal">
         <div className="modal-header character-modal-header">
           <h3>{character ? 'Edit Character' : 'New Character'}</h3>
           {hasDraft && (
@@ -1312,7 +1378,7 @@ Write only the scenario description itself, no explanations or meta-commentary.`
 
               <div className="editor-right">
                 <label>Character Avatar</label>
-                <div className="avatar-upload-area" onClick={handleImageClick}>
+                <div className={`avatar-upload-area ${formData.avatar ? 'has-avatar' : ''}`} onClick={handleImageClick}>
                   {formData.avatar ? (
                     <img src={formData.avatar} alt="Avatar" className="avatar-preview" />
                   ) : (
@@ -1405,7 +1471,10 @@ Write only the scenario description itself, no explanations or meta-commentary.`
                 {/* Welcome Message */}
                 <div className="story-field">
                   <div className="story-field-header">
-                    <label>Welcome Message</label>
+                    <label>
+                      Welcome Message
+                      {enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}
+                    </label>
                     <div className="version-controls">
                       <select
                         value={activeStory?.activeWelcomeMessageId || ''}
@@ -1432,9 +1501,9 @@ Write only the scenario description itself, no explanations or meta-commentary.`
                       >🤖</button>
                       <button
                         type="button"
-                        className="btn-icon btn-magic"
+                        className={`btn-icon btn-magic ${enhancingWelcomeMessage ? 'active enhancing' : ''}`}
                         onClick={handleEnhanceWelcomeMessage}
-                        title="Enhance with LLM"
+                        title={enhancingWelcomeMessage ? "Click to abort" : "Enhance with LLM"}
                       >🪄</button>
                     </div>
                   </div>
@@ -1449,7 +1518,10 @@ Write only the scenario description itself, no explanations or meta-commentary.`
                 {/* Scenario */}
                 <div className="story-field">
                   <div className="story-field-header">
-                    <label>Scenario</label>
+                    <label>
+                      Scenario
+                      {enhancingScenario && <span className="spinner-inline"> ⏳</span>}
+                    </label>
                     <div className="version-controls">
                       <select
                         value={activeStory?.activeScenarioId || ''}
@@ -1470,9 +1542,9 @@ Write only the scenario description itself, no explanations or meta-commentary.`
                       >🗑️</button>
                       <button
                         type="button"
-                        className="btn-icon btn-magic"
+                        className={`btn-icon btn-magic ${enhancingScenario ? 'active enhancing' : ''}`}
                         onClick={handleEnhanceScenario}
-                        title="Enhance with LLM"
+                        title={enhancingScenario ? "Click to abort" : "Enhance with LLM"}
                       >🪄</button>
                     </div>
                   </div>
@@ -2188,6 +2260,11 @@ Write only the scenario description itself, no explanations or meta-commentary.`
 
       {showCropModal && (
         <ImageCropModal image={uploadedImage} onSave={handleCropSave} onCancel={handleCropCancel} />
+      )}
+
+      {/* Loading overlay during enhancement */}
+      {(enhancingWelcomeMessage || enhancingScenario) && (
+        <div className="enhancement-overlay" />
       )}
     </div>
   );

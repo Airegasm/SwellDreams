@@ -345,8 +345,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal persona-editor-modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal persona-editor-modal">
         <div className="modal-header persona-modal-header">
           <h3>{persona ? 'Edit Persona' : 'New Persona'}</h3>
           {hasDraft && (
