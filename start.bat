@@ -21,9 +21,17 @@ REM Trim spaces
 set VERSION=%VERSION: =%
 set CODENAME=%CODENAME: =%
 
-REM Stop any existing SERVER instance (not this startup window)
-echo Stopping any existing SwellDreams server...
-taskkill /FI "WINDOWTITLE eq SwellDreams Server*" /F >nul 2>&1
+REM Note: Automatic server stopping disabled to prevent killing other node processes
+REM If you need to stop the server, use stop.bat before running start.bat
+REM Or manually close the "SwellDreams Server" window
+echo Checking for existing SwellDreams server...
+tasklist /FI "WINDOWTITLE eq SwellDreams Server*" /FO LIST 2>nul | findstr /C:"PID:" >nul
+if not errorlevel 1 (
+    echo Warning: A SwellDreams Server window may already be running.
+    echo Close it manually or run stop.bat first to avoid conflicts.
+    echo.
+    timeout /t 3 /nobreak >nul
+)
 
 echo.
 echo ========================================
