@@ -105,21 +105,21 @@
   color: #1a1a1a; /* Override global light text color */
 }
 
-/* Rounded scrollbar - matches chat page style with rounded corners */
+/* Rounded scrollbar with properly rounded top/bottom corners */
 .character-modal-body::-webkit-scrollbar {
   width: 12px;
+  background: transparent;
 }
 
 .character-modal-body::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 10px; /* Round the track corners */
-  margin-top: 4px;
-  margin-bottom: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin: 8px 4px; /* Critical: creates gap at top/bottom for rounded effect */
 }
 
 .character-modal-body::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 10px; /* Match track rounding */
+  border-radius: 10px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -130,7 +130,6 @@
 
 .character-modal-body::-webkit-scrollbar-corner {
   background: transparent;
-  border-radius: 10px;
 }
 
 /* Modal Footer */
