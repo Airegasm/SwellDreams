@@ -1,6 +1,6 @@
 /**
  * Matter Smart Device Service
- * Uses python-matter-server for Matter protocol support
+ * Uses native chip-tool binary for Matter protocol support
  *
  * Supports any Matter-compatible smart plug (including Tapo P115 as Matter device)
  */
@@ -8,24 +8,110 @@
 const { exec, spawn } = require('child_process');
 const path = require('path');
 const { promisify } = require('util');
+const fs = require('fs');
+const https = require('https');
 const { createLogger } = require('../utils/logger');
 const log = createLogger('Matter');
 
 const execAsync = promisify(exec);
 
-// Path to Python Matter control script
-const PYTHON_PATH = 'python';
-const MATTER_SCRIPT_PATH = path.resolve(__dirname, '..', 'bin', 'matter-control.py').replace(/\\/g, '/');
+// Path to chip-tool binary
+const CHIP_TOOL_DIR = path.resolve(__dirname, '..', 'bin', 'chip-tool');
+const CHIP_TOOL_PATH = path.join(CHIP_TOOL_DIR, 'chip-tool.exe');
+
+// Multiple potential download sources
+const CHIP_TOOL_DOWNLOAD_URLS = [
+  'https://github.com/project-chip/connectedhomeip/releases/latest/download/chip-tool-windows.exe',
+  'https://github.com/project-chip/connectedhomeip/releases/latest/download/chip-tool.exe',
+  'https://github.com/project-chip/connectedhomeip/releases/download/v1.3.0.0/chip-tool-windows-x64.exe'
+];
 
 /**
- * Check if Python Matter controller is available
+ * Check if chip-tool binary is available
  */
 function checkMatterController() {
-  const fs = require('fs');
-  if (!fs.existsSync(MATTER_SCRIPT_PATH)) {
-    throw new Error(`Matter control script not found at ${MATTER_SCRIPT_PATH}`);
+  if (!fs.existsSync(CHIP_TOOL_PATH)) {
+    return false;
   }
   return true;
+}
+
+/**
+ * Try downloading from a single URL
+ */
+function tryDownloadFromUrl(url, filePath) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(filePath);
+
+    const handleResponse = (response) => {
+      // Handle redirects
+      if (response.statusCode === 302 || response.statusCode === 301 || response.statusCode === 307 || response.statusCode === 308) {
+        https.get(response.headers.location, handleResponse).on('error', reject);
+        return;
+      }
+
+      // Check for success
+      if (response.statusCode !== 200) {
+        file.close();
+        fs.unlink(filePath, () => {});
+        reject(new Error(`HTTP ${response.statusCode}`));
+        return;
+      }
+
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve(true);
+      });
+    };
+
+    https.get(url, handleResponse).on('error', (err) => {
+      file.close();
+      fs.unlink(filePath, () => {});
+      reject(err);
+    });
+
+    file.on('error', (err) => {
+      file.close();
+      fs.unlink(filePath, () => {});
+      reject(err);
+    });
+  });
+}
+
+/**
+ * Download chip-tool binary automatically
+ */
+async function downloadChipTool() {
+  log.info('Downloading chip-tool binary...');
+
+  // Ensure directory exists
+  if (!fs.existsSync(CHIP_TOOL_DIR)) {
+    fs.mkdirSync(CHIP_TOOL_DIR, { recursive: true });
+  }
+
+  // Try each download URL in sequence
+  const errors = [];
+  for (const url of CHIP_TOOL_DOWNLOAD_URLS) {
+    try {
+      log.info(`Trying download from: ${url}`);
+      await tryDownloadFromUrl(url, CHIP_TOOL_PATH);
+      log.info('✓ chip-tool downloaded successfully');
+      return true;
+    } catch (error) {
+      log.warn(`Download failed from ${url}: ${error.message}`);
+      errors.push(`${url}: ${error.message}`);
+    }
+  }
+
+  // All downloads failed
+  throw new Error(
+    `Failed to download chip-tool from any source.\n` +
+    `Errors:\n${errors.join('\n')}\n\n` +
+    `Please download manually from:\n` +
+    `https://github.com/project-chip/connectedhomeip/releases\n` +
+    `Place the file at: ${CHIP_TOOL_PATH}`
+  );
 }
 
 class MatterService {
@@ -33,87 +119,74 @@ class MatterService {
     this.devices = new Map(); // nodeId -> device info
     this.ready = false;
     this.nextNodeId = 1; // Track next available node ID for commissioning
-    this.serverProcess = null; // Matter server process
-    this.serverRunning = false;
-    this.autoStart = true; // Auto-start server when needed
+    this.installing = false; // Track if chip-tool is being installed
     this.storagePath = path.join(__dirname, '..', 'data', 'matter-storage');
   }
 
   /**
-   * Install Python dependencies if missing
+   * Install chip-tool binary if missing
    */
-  async installPythonDependencies() {
+  async installChipTool() {
+    if (this.installing) {
+      log.info('chip-tool installation already in progress...');
+      // Wait for existing installation
+      while (this.installing) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      return checkMatterController();
+    }
+
     try {
-      log.info('Installing/updating Python Matter dependencies...');
+      this.installing = true;
+      log.info('Setting up Matter support...');
 
-      // Install python-matter-server and all its dependencies
-      const { stdout, stderr } = await execAsync('pip install --upgrade python-matter-server>=8.1.2 cryptography aiohttp');
-
-      if (stderr && stderr.includes('error')) {
-        throw new Error(`Pip install failed: ${stderr}`);
+      // Ensure storage directory exists
+      if (!fs.existsSync(this.storagePath)) {
+        fs.mkdirSync(this.storagePath, { recursive: true });
+        log.info(`Created Matter storage directory: ${this.storagePath}`);
       }
 
-      log.info('Python dependencies installed successfully');
+      // Download chip-tool if missing
+      await downloadChipTool();
+
+      log.info('Matter binary installed successfully');
       return true;
     } catch (error) {
-      log.error('Failed to install Python dependencies:', error.message);
-      throw new Error(`Failed to install Python dependencies: ${error.message}`);
+      log.error('Failed to install Matter binary:', error.message);
+      throw new Error(`Failed to install Matter binary: ${error.message}`);
+    } finally {
+      this.installing = false;
     }
   }
 
   /**
-   * Check if Python and required dependencies are available
-   */
-  async checkPythonDependencies() {
-    try {
-      // Check Python is available
-      const { stdout: pythonVersion } = await execAsync('python --version');
-      log.info(`Python found: ${pythonVersion.trim()}`);
-
-      // Check if we can import matter_server (this will catch missing sub-dependencies)
-      try {
-        await execAsync('python -c "from matter_server.server import MatterServer; from cryptography import x509"');
-        log.info('python-matter-server and all dependencies found');
-        return true;
-      } catch (importError) {
-        log.warn('Matter dependencies missing or incomplete, attempting to install...');
-        await this.installPythonDependencies();
-
-        // Verify installation worked
-        await execAsync('python -c "from matter_server.server import MatterServer; from cryptography import x509"');
-        log.info('Matter dependencies verified after installation');
-        return true;
-      }
-    } catch (error) {
-      throw new Error(`Python dependency check/install failed: ${error.message}. Please ensure Python 3.8+ is installed.`);
-    }
-  }
-
-  /**
-   * Initialize Matter service (check Python Matter controller availability)
+   * Initialize Matter service (check/install chip-tool binary)
    */
   async initialize() {
     if (this.ready) return true;
 
     try {
-      checkMatterController();
-      await this.checkPythonDependencies();
-      log.info('✓ Matter protocol support enabled (python-matter-server available)');
+      // Check if chip-tool exists
+      if (!checkMatterController()) {
+        log.info('Matter binary not found, installing automatically...');
+        await this.installChipTool();
+      }
+
+      // Verify binary exists and is executable
+      if (!fs.existsSync(CHIP_TOOL_PATH)) {
+        throw new Error('chip-tool binary not found after installation');
+      }
+
+      log.info('✓ Matter protocol support enabled (chip-tool available)');
       this.ready = true;
       return true;
     } catch (error) {
-      const isWindows = process.platform === 'win32';
       log.error('✗ Matter protocol initialization failed:', error.message);
       log.error('');
       log.error('⚠ IMPORTANT: Tapo devices REQUIRE Matter (firmware blocks third-party APIs)');
-      if (isWindows) {
-        log.error('Windows users: WSL is required for Matter support');
-        log.error('1. Install WSL: wsl --install');
-        log.error('2. Restart this app - Matter will auto-install in WSL');
-      } else {
-        log.error('Linux/Mac: Install python-matter-server and dependencies');
-        log.error('  pip install python-matter-server cryptography home-assistant-chip-clusters');
-      }
+      log.error('Matter binary installation failed. Please check your internet connection.');
+      log.error('You can manually download chip-tool from: https://github.com/project-chip/connectedhomeip/releases');
+      log.error(`Place it at: ${CHIP_TOOL_PATH}`);
       log.error('');
       this.ready = false;
       return false;
@@ -128,131 +201,20 @@ class MatterService {
   }
 
   /**
-   * Start the Matter server
+   * Start the Matter server (stub for backwards compatibility)
+   * chip-tool doesn't need a persistent server process
    */
   async startServer() {
-    if (this.serverRunning) {
-      log.info('Matter server already running');
-      return { success: true, message: 'Server already running' };
-    }
-
-    try {
-      const fs = require('fs');
-
-      // Verify dependencies before starting
-      log.info('Verifying Python dependencies before starting server...');
-      try {
-        await this.checkPythonDependencies();
-      } catch (depError) {
-        log.error('Dependency check failed:', depError.message);
-        return { success: false, error: `Dependency check failed: ${depError.message}` };
-      }
-
-      // Ensure storage directory exists
-      if (!fs.existsSync(this.storagePath)) {
-        fs.mkdirSync(this.storagePath, { recursive: true });
-        log.info(`Created Matter storage directory: ${this.storagePath}`);
-      }
-
-      log.info('Starting Matter server...');
-
-      let serverError = null;
-
-      // Start python-matter-server
-      // On Windows: Use WSL because CHIP SDK isn't available natively
-      // On Linux/Mac: Use system Python
-      const isWindows = process.platform === 'win32';
-
-      if (isWindows) {
-        // Windows: Run in WSL Ubuntu
-        const wslPython = '/mnt/c/SwellDreams/backend/venv-wsl/bin/python3';
-        const wslStoragePath = this.storagePath.replace(/\\/g, '/').replace(/^C:/i, '/mnt/c');
-
-        this.serverProcess = spawn('wsl', [
-          '-d', 'Ubuntu',
-          wslPython,
-          '-m', 'matter_server.server',
-          '--storage-path', wslStoragePath
-        ], {
-          stdio: ['ignore', 'pipe', 'pipe']
-        });
-      } else {
-        // Linux/Mac: Use native Python
-        this.serverProcess = spawn(PYTHON_PATH, [
-          '-m', 'matter_server.server',
-          '--storage-path', this.storagePath
-        ], {
-          stdio: ['ignore', 'pipe', 'pipe']
-        });
-      }
-
-      this.serverProcess.stdout.on('data', (data) => {
-        log.info(`[Matter Server] ${data.toString().trim()}`);
-      });
-
-      this.serverProcess.stderr.on('data', (data) => {
-        const message = data.toString().trim();
-        log.error(`[Matter Server] ${message}`);
-
-        // Capture errors for better reporting
-        if (message.includes('ModuleNotFoundError') || message.includes('ImportError')) {
-          serverError = `Missing Python dependency: ${message}`;
-        }
-      });
-
-      this.serverProcess.on('close', (code) => {
-        log.info(`Matter server exited with code ${code}`);
-        this.serverRunning = false;
-        this.serverProcess = null;
-      });
-
-      // Wait for server to start and check if it failed immediately
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      // Check if process died immediately
-      if (this.serverProcess === null || this.serverProcess.killed) {
-        const errorMsg = serverError || 'Server process terminated unexpectedly. Check Python dependencies.';
-        log.error(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      this.serverRunning = true;
-      log.info('Matter server started successfully');
-
-      return { success: true, message: 'Matter server started', running: true };
-    } catch (error) {
-      log.error('Failed to start Matter server:', error.message);
-      this.serverRunning = false;
-      this.serverProcess = null;
-      return { success: false, error: error.message };
-    }
+    log.info('Matter binary ready (no server process needed)');
+    return { success: true, message: 'Matter binary ready', running: true };
   }
 
   /**
-   * Stop the Matter server
+   * Stop the Matter server (stub for backwards compatibility)
    */
   async stopServer() {
-    if (!this.serverRunning || !this.serverProcess) {
-      log.info('Matter server not running');
-      return { success: true, message: 'Server not running' };
-    }
-
-    try {
-      log.info('Stopping Matter server...');
-      this.serverProcess.kill('SIGTERM');
-
-      // Wait for process to exit
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      this.serverRunning = false;
-      this.serverProcess = null;
-
-      log.info('Matter server stopped');
-      return { success: true, message: 'Matter server stopped', running: false };
-    } catch (error) {
-      log.error('Failed to stop Matter server:', error.message);
-      return { success: false, error: error.message };
-    }
+    log.info('No server process to stop (using native binary)');
+    return { success: true, message: 'No server process', running: false };
   }
 
   /**
@@ -260,82 +222,158 @@ class MatterService {
    */
   getServerStatus() {
     return {
-      running: this.serverRunning,
-      autoStart: this.autoStart,
+      running: this.ready,
+      autoStart: true, // Always available when ready
       storagePath: this.storagePath,
-      processId: this.serverProcess ? this.serverProcess.pid : null
+      processId: null, // No persistent process
+      binaryPath: CHIP_TOOL_PATH,
+      binaryExists: fs.existsSync(CHIP_TOOL_PATH)
     };
   }
 
   /**
-   * Set auto-start preference
+   * Set auto-start preference (stub for backwards compatibility)
    */
   setAutoStart(enabled) {
-    this.autoStart = enabled;
-    log.info(`Matter server auto-start ${enabled ? 'enabled' : 'disabled'}`);
-    return { success: true, autoStart: this.autoStart };
+    log.info('Matter binary is always available when installed');
+    return { success: true, autoStart: true };
   }
 
   /**
-   * Ensure server is running (auto-start if enabled)
+   * Ensure server is running (stub - just check if binary exists)
    */
   async ensureServerRunning() {
-    if (this.serverRunning) {
-      return { success: true };
+    if (!this.ready) {
+      await this.initialize();
     }
-
-    if (this.autoStart) {
-      log.info('Auto-starting Matter server...');
-      const result = await this.startServer();
-      return result;
-    }
-
-    return { success: false, error: 'Auto-start is disabled' };
+    return { success: this.ready };
   }
 
   /**
-   * Execute Python Matter control command
-   * @param {Array<string>} args - Command arguments
-   * @returns {Promise<Object>} - Parsed JSON response
+   * Execute chip-tool command
+   * @param {string} action - Action: 'commission', 'on', 'off', 'state'
+   * @param {Object} params - Action parameters
+   * @returns {Promise<Object>} - Standardized JSON response
    */
-  async executeMatterCommand(args) {
+  async executeChipTool(action, params) {
     return new Promise((resolve, reject) => {
-      log.info(`MATTER_SCRIPT_PATH resolved to: ${MATTER_SCRIPT_PATH}`);
-      log.info(`__dirname is: ${__dirname}`);
-      const command = `${PYTHON_PATH} "${MATTER_SCRIPT_PATH}" ${args.join(' ')}`;
+      let chipToolArgs = [];
+      let nodeId = params.nodeId;
+
+      // Build chip-tool command based on action
+      switch (action) {
+        case 'commission':
+          // chip-tool pairing code <node-id> <pairing-code>
+          chipToolArgs = ['pairing', 'code', nodeId, params.pairingCode];
+          break;
+
+        case 'on':
+          // chip-tool onoff on <node-id> 1
+          chipToolArgs = ['onoff', 'on', nodeId, '1'];
+          break;
+
+        case 'off':
+          // chip-tool onoff off <node-id> 1
+          chipToolArgs = ['onoff', 'off', nodeId, '1'];
+          break;
+
+        case 'state':
+          // chip-tool onoff read on-off <node-id> 1
+          chipToolArgs = ['onoff', 'read', 'on-off', nodeId, '1'];
+          break;
+
+        default:
+          reject(new Error(`Unknown action: ${action}`));
+          return;
+      }
+
+      const command = `"${CHIP_TOOL_PATH}" ${chipToolArgs.join(' ')}`;
       log.info(`Executing: ${command}`);
 
-      exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
+      exec(command, {
+        timeout: 60000,
+        cwd: CHIP_TOOL_DIR // Run in chip-tool directory for proper storage
+      }, (error, stdout, stderr) => {
         if (error) {
-          log.error(`Matter control error:`);
+          log.error(`chip-tool error:`);
           log.error(`STDERR: ${stderr}`);
           log.error(`STDOUT: ${stdout}`);
           log.error(`Exit code: ${error.code}`);
 
-          // Build comprehensive error message
-          const errorDetails = [];
-          if (stderr) errorDetails.push(`Error output: ${stderr.trim()}`);
-          if (stdout) errorDetails.push(`Standard output: ${stdout.trim()}`);
-          if (error.code) errorDetails.push(`Exit code: ${error.code}`);
+          // Parse chip-tool errors
+          let errorMsg = 'Command failed';
+          if (stderr.includes('Pairing failed') || stdout.includes('Pairing failed')) {
+            errorMsg = 'Device pairing failed. Check pairing code and ensure device is in pairing mode.';
+          } else if (stderr.includes('Timeout') || stdout.includes('Timeout')) {
+            errorMsg = 'Device connection timeout. Ensure device is powered on and on the same network.';
+          } else if (stderr || stdout) {
+            errorMsg = stderr || stdout;
+          }
 
-          const errorMsg = errorDetails.length > 0
-            ? errorDetails.join('\n')
-            : error.message;
-
-          reject(new Error(`Python Matter script failed:\n${errorMsg}`));
+          reject(new Error(errorMsg));
           return;
         }
 
+        // Parse chip-tool output and convert to our JSON format
         try {
-          const result = JSON.parse(stdout.trim());
-          if (result.success === false) {
-            reject(new Error(result.error || 'Command failed'));
-          } else {
-            resolve(result);
+          let result;
+
+          switch (action) {
+            case 'commission':
+              // Check if commissioning succeeded
+              if (stdout.includes('Commissioning complete') || stdout.includes('success')) {
+                result = {
+                  success: true,
+                  nodeId: parseInt(nodeId),
+                  name: params.name || `Matter Device ${nodeId}`
+                };
+              } else {
+                reject(new Error('Commissioning may have failed. Check output.'));
+                return;
+              }
+              break;
+
+            case 'on':
+            case 'off':
+              // Check if command succeeded
+              if (stdout.includes('success') || !error) {
+                result = {
+                  success: true,
+                  nodeId: parseInt(nodeId),
+                  state: action
+                };
+              } else {
+                reject(new Error('Command failed'));
+                return;
+              }
+              break;
+
+            case 'state':
+              // Parse OnOff attribute value
+              // Look for "value: true" or "value: false" in output
+              const onMatch = stdout.match(/value:\s*(true|false|1|0)/i);
+              if (onMatch) {
+                const isOn = onMatch[1] === 'true' || onMatch[1] === '1';
+                result = {
+                  success: true,
+                  nodeId: parseInt(nodeId),
+                  state: isOn ? 'on' : 'off'
+                };
+              } else {
+                reject(new Error('Could not parse device state from output'));
+                return;
+              }
+              break;
+
+            default:
+              reject(new Error(`Unknown action: ${action}`));
+              return;
           }
+
+          resolve(result);
         } catch (parseError) {
-          log.error(`Failed to parse output: ${stdout}`);
-          reject(new Error(`Invalid JSON response: ${parseError.message}\nOutput: ${stdout}`));
+          log.error(`Failed to parse chip-tool output: ${stdout}`);
+          reject(new Error(`Failed to parse output: ${parseError.message}`));
         }
       });
     });
@@ -352,26 +390,18 @@ class MatterService {
       await this.initialize();
     }
 
-    // Ensure Matter server is running
-    const serverResult = await this.ensureServerRunning();
-    if (!serverResult.success) {
-      const errorDetail = serverResult.error || 'Unknown error';
-      throw new Error(`Matter server failed to start: ${errorDetail}`);
-    }
-
-    // Give server a moment to fully initialize
-    if (!this.serverRunning) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
     try {
       log.info(`Commissioning Matter device with pairing code...`);
 
-      // Commission using Python script: python matter-control.py commission <pairingCode> <deviceName>
-      const args = ['commission', pairingCode];
-      if (deviceName) args.push(deviceName);
+      // Use next available node ID
+      const nodeId = this.nextNodeId;
+      this.nextNodeId++;
 
-      const result = await this.executeMatterCommand(args);
+      const result = await this.executeChipTool('commission', {
+        nodeId: nodeId,
+        pairingCode: pairingCode,
+        name: deviceName || `Matter Device ${nodeId}`
+      });
 
       const deviceInfo = {
         deviceId: result.nodeId.toString(),
@@ -386,12 +416,6 @@ class MatterService {
       return deviceInfo;
     } catch (error) {
       log.error('Commission failed:', error.message);
-
-      // Provide more helpful error messages
-      if (error.message.includes('refused') || error.message.includes('Cannot connect')) {
-        throw new Error('Matter server connection failed. The server may not be running properly. Try restarting the backend.');
-      }
-
       throw new Error(`Failed to commission device: ${error.message}`);
     }
   }
@@ -404,7 +428,7 @@ class MatterService {
     log.info(`Turning ON Matter device ${deviceId}`);
 
     try {
-      const result = await this.executeMatterCommand(['on', deviceId]);
+      const result = await this.executeChipTool('on', { nodeId: deviceId });
       log.info(`Device ${deviceId} turned ON`);
       return { success: true, state: 'on' };
     } catch (error) {
@@ -421,7 +445,7 @@ class MatterService {
     log.info(`Turning OFF Matter device ${deviceId}`);
 
     try {
-      const result = await this.executeMatterCommand(['off', deviceId]);
+      const result = await this.executeChipTool('off', { nodeId: deviceId });
       log.info(`Device ${deviceId} turned OFF`);
       return { success: true, state: 'off' };
     } catch (error) {
@@ -437,7 +461,7 @@ class MatterService {
    */
   async getPowerState(deviceId) {
     try {
-      const result = await this.executeMatterCommand(['state', deviceId]);
+      const result = await this.executeChipTool('state', { nodeId: deviceId });
       return result.state;
     } catch (error) {
       log.error(`Failed to get state for device ${deviceId}:`, error.message);

@@ -8383,16 +8383,36 @@ app.get('/api/tapo/devices/:ip/state', async (req, res) => {
 
 app.get('/api/matter/status', (req, res) => {
   const fs = require('fs');
-  const matterScriptPath = path.join(__dirname, 'bin', 'matter-control.py');
-  const installed = fs.existsSync(matterScriptPath);
+  const chipToolPath = path.join(__dirname, 'bin', 'chip-tool', 'chip-tool.exe');
+  const installed = fs.existsSync(chipToolPath);
   const serverStatus = matterService.getServerStatus();
 
   res.json({
     matterControllerInstalled: installed,
-    matterScriptPath: matterScriptPath,
-    ready: installed,
-    server: serverStatus
+    binaryPath: chipToolPath,
+    ready: matterService.isReady(),
+    server: serverStatus,
+    installing: matterService.installing
   });
+});
+
+// Initialize/install Matter binary
+app.post('/api/matter/initialize', async (req, res) => {
+  try {
+    const result = await matterService.initialize();
+    res.json({
+      success: result,
+      ready: matterService.isReady(),
+      message: result ? 'Matter support enabled' : 'Matter initialization failed'
+    });
+  } catch (error) {
+    console.error('[Matter] Failed to initialize:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Failed to initialize Matter support. You may need to download chip-tool manually.'
+    });
+  }
 });
 
 app.post('/api/matter/server/start', async (req, res) => {

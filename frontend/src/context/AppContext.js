@@ -1134,6 +1134,11 @@ export function AppProvider({ children }) {
 
     getMatterStatus: () => apiFetch(`${API_BASE}/api/matter/status`),
 
+    initializeMatter: () => apiFetch(
+      `${API_BASE}/api/matter/initialize`,
+      { method: 'POST' }
+    ),
+
     startMatterServer: () => apiFetch(
       `${API_BASE}/api/matter/server/start`,
       { method: 'POST' }
