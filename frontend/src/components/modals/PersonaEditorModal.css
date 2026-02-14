@@ -195,31 +195,29 @@
    ============================================ */
 
 .persona-modal-body label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #1a1a1a;
+  color: #1a1a1a !important;
   font-weight: 600;
 }
 
 .persona-modal-body h4 {
-  color: #000;
+  color: #000 !important;
   font-weight: 700;
 }
 
 .persona-modal-body p {
-  color: #1a1a1a;
+  color: #1a1a1a !important;
   font-weight: 500;
 }
 
 .persona-modal-body .section-hint {
-  color: #333;
+  color: #333 !important;
   font-weight: 500;
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-md);
 }
 
 .persona-modal-body .empty-message {
-  color: #444;
+  color: #444 !important;
   font-weight: 500;
   font-style: italic;
   text-align: center;
@@ -227,7 +225,7 @@
 }
 
 .persona-modal-body .empty-hint {
-  color: #444;
+  color: #444 !important;
   font-size: var(--font-size-sm);
   font-style: italic;
 }
@@ -242,23 +240,23 @@
 .persona-modal-body select {
   width: 100%;
   padding: 8px 12px;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: var(--border-radius);
-  color: #1a1a1a;
+  color: #1a1a1a !important;
   font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
 .persona-modal-body textarea {
-  resize: vertical;
+  resize: none;
   min-height: 60px;
 }
 
 .persona-modal-body input::placeholder,
 .persona-modal-body textarea::placeholder {
-  color: #444;
+  color: #444 !important;
 }
 
 .persona-modal-body input:focus,
@@ -269,7 +267,20 @@
 }
 
 .persona-modal-body .form-group {
-  margin-bottom: var(--spacing-md);
+  margin: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 6px;
+  min-height: 0;
+}
+
+.persona-modal-body .form-group label {
+  margin: 0;
+}
+
+.persona-modal-body .form-group textarea {
+  height: 100%;
+  min-height: 0;
 }
 
 /* ============================================
@@ -377,6 +388,7 @@
 
 /* Avatar Upload Area */
 .persona-modal-body .avatar-upload-area {
+  position: relative;
   width: 100%;
   aspect-ratio: 3/4;
   background: rgba(255, 255, 255, 0.5);
@@ -394,6 +406,72 @@
 .persona-modal-body .avatar-upload-area:hover {
   border-color: var(--accent-primary);
   background: rgba(255, 255, 255, 0.7);
+}
+
+/* Avatar Loading Overlay */
+.persona-modal-body .avatar-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.persona-modal-body .avatar-loading-overlay .spinner-inline {
+  font-size: 3rem;
+  animation: spin 1s linear infinite;
+  margin: 0;
+}
+
+/* QuickGen Box */
+.persona-modal-body .quickgen-box {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px solid rgba(147, 51, 234, 0.4);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.persona-modal-body .quickgen-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.persona-modal-body .quickgen-title {
+  color: #7c3aed !important;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.persona-modal-body .quickgen-description {
+  color: #1a1a1a !important;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.persona-modal-body .quickgen-note {
+  color: #666 !important;
+  font-size: 0.75rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.persona-modal-body .quickgen-box .btn-primary {
+  position: relative;
+  z-index: 9999; /* Above overlay so it stays clickable during generation */
 }
 
 .persona-modal-body .avatar-placeholder {

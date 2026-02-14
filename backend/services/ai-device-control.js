@@ -37,22 +37,22 @@ const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\
 // Phrases that indicate the LLM is describing pump activity (used for reinforcement)
 // These patterns use word boundaries and flexible matching with wildcards
 const PUMP_ACTIVITY_PHRASES = [
-  // Direct pump references
-  /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*(pump|compressor|machine)/i,
-  /\b(start|starts|started|starting)\s+\w*\s*(pump|compressor|machine)/i,
-  /\b(activate|activates|activated|activating)\s+\w*\s*(pump|compressor|machine)/i,
-  /\b(engage|engages|engaged|engaging)\s+\w*\s*(pump|compressor|machine)/i,
+  // Direct pump references (word boundaries added to prevent "machine" matching "machinery")
+  /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*(pump|compressor|machine)\b/i,
+  /\b(start|starts|started|starting)\s+\w*\s*(pump|compressor|machine)\b/i,
+  /\b(activate|activates|activated|activating)\s+\w*\s*(pump|compressor|machine)\b/i,
+  /\b(engage|engages|engaged|engaging)\s+\w*\s*(pump|compressor|machine)\b/i,
 
   // Pump state/activity (removed "approaches device" patterns - too aggressive)
-  /\bpump\s+(begins?|starts?|activates?|continues?|runs?|running|hums?|humming|whirs?|whirring)/i,
-  /\bpump\s+is\s+(on|running|active|going)/i,
-  /\b(the\s+)?(pump|machine)\s+(kicks|springs?|whirs?|hums?|roars?|comes?)\s*(in|into|to\s+life|alive|on)/i,
+  /\bpump\s+(begins?|starts?|activates?|continues?|runs?|running|hums?|humming|whirs?|whirring)\b/i,
+  /\bpump\s+is\s+(on|running|active|going)\b/i,
+  /\b(the\s+)?(pump|machine)\b\s+(kicks|springs?|whirs?|hums?|roars?|comes?)\s*(in|into|to\s+life|alive|on)/i,
 
   // Flow/pressure references (pump-related)
   /\b(increase|increases|increased|increasing)\s+\w*\s*(flow|pressure|airflow)/i,
   /\b(increase|increases|increased|increasing)\s+the\s+(air\s*)?flow\s+(steadily|gradually|slowly|quickly)?\s*(once\s+more|again|further)?/i,
   /\b(adjust|adjusts|adjusted|adjusting)\s+.*?(flow|dial|dials|setting|settings|pressure|knob|knobs)/i,
-  /\b(adjust|adjusts|adjusted|adjusting)\s+(the\s+)?(pump|compressor|machine|motor)\s+settings?/i,
+  /\b(adjust|adjusts|adjusted|adjusting)\s+(the\s+)?(pump|compressor|machine|motor)\b\s+settings?/i,
   /\b(adjust|adjusts|adjusting)\s+(a|the)\s+(dial|knob|valve|control)\s+(with|slowly|carefully|deliberately)?/i,
   /\b(adjust|adjusts|adjusted|adjusting)\s*.*?\s*(dial|knob|valve|control|setting|lever)/i,
   /\b(turn|turns|turned|turning)\s+up\s+\w*\s*(flow|dial|pressure)/i,
@@ -90,13 +90,13 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(open|opens|opened|opening)\s+(the\s+)?(valve|release)/i,
 
   // Machine/device coming to life or running
-  /\b(machine|device|pump|compressor|motor)\s+(whirs?|hums?|roars?|buzzes?|comes?|springs?|kicks?)\s*(to\s+life|alive|into\s+action|on)/i,
-  /\b(pump|machine|compressor|motor)\s+(roar|roars|roaring|whir|whirs|whirring|hum|hums|humming)/i,
-  /\b(motor|pump|compressor)\s+(hum|hums|humming)\s+(loud|louder|loudly)/i,
-  /\b(motor|pump|compressor|machine)\s+(hum|hums|humming)\s+at\s+(a\s+)?(higher|lower|faster|slower|steady|constant)\s+(pitch|speed|rate|pace)/i,
-  /\b(air\s+)?pump\s+kicks\s+on/i,
-  /\b(air\s+)?(pump|compressor)\s+springs\s+to\s+life/i,
-  /\b(the\s+)?(machine|pump|compressor|device)\s+whirs\s+to\s+life/i,
+  /\b(machine|device|pump|compressor|motor)\b\s+(whirs?|hums?|roars?|buzzes?|comes?|springs?|kicks?)\s*(to\s+life|alive|into\s+action|on)/i,
+  /\b(pump|machine|compressor|motor)\b\s+(roar|roars|roaring|whir|whirs|whirring|hum|hums|humming)/i,
+  /\b(motor|pump|compressor)\b\s+(hum|hums|humming)\s+(loud|louder|loudly)/i,
+  /\b(motor|pump|compressor|machine)\b\s+(hum|hums|humming)\s+at\s+(a\s+)?(higher|lower|faster|slower|steady|constant)\s+(pitch|speed|rate|pace)/i,
+  /\b(air\s+)?pump\b\s+kicks\s+on/i,
+  /\b(air\s+)?(pump|compressor)\b\s+springs\s+to\s+life/i,
+  /\b(the\s+)?(machine|pump|compressor|device)\b\s+whirs\s+to\s+life/i,
   /\bkicks\s+(on|in|into\s+life)/i,
   /\bwhir(s|ring)?\s+to\s+life/i,
   /\bhum(s|ming)?\s+to\s+life/i,
@@ -726,8 +726,46 @@ function reinforcePumpControl(text, devices, sessionState, settings) {
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Check for specific mode indicators in the text
+    // Skip reinforcement if text contains future tense / intention markers
+    // (AI is describing what's ABOUT TO happen, not what IS happening)
     const textLower = text.toLowerCase();
+    const futureIntentionMarkers = [
+      /\b(going\s+to|gonna)\b/i,
+      /\b(will|'ll)\s+(start|begin|turn|activate|pump|inflate)/i,
+      /\b(about\s+to|ready\s+to|preparing\s+to|plan\s+to|intend\s+to)\b/i,
+      /\b(getting\s+ready|preparing|planning|about)\s+(to\s+)?(start|begin|pump|inflate)/i,
+      /\b(let'?s|should\s+we|shall\s+we)\s+(start|begin)/i,
+      /\b(before\s+(we|I)|once\s+(you|we)|when\s+(you|I)|after\s+(you|I))\b.*\b(start|begin|inflate|pump)/i
+    ];
+
+    for (const marker of futureIntentionMarkers) {
+      if (marker.test(text)) {
+        log.info(`[Reinforce] Detected future/intention marker - skipping reinforcement: "${matchedPhrase}"`);
+        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+      }
+    }
+
+    // Skip if text contains narrative/descriptive markers (talking ABOUT pumping, not actually doing it)
+    const narrativeMarkers = [
+      /\b(imagine|picture|think\s+about|remember|recall|describe|talk\s+about|mention|discuss)\b/i,
+      /\b(would|could|might|may)\s+(start|begin|pump|inflate)/i,
+      /\b(if\s+(I|we)|what\s+if)\b.*\b(start|begin|pump|inflate)/i,
+      /\b(option|choice|possibility|scenario)\b/i,
+      // Movement/approach context - character is moving TO the controls, not using them yet
+      /\b(move|moves|moved|moving|walk|walks|walked|walking|approach|approaches|approached|approaching|head|heads|headed|heading|step|steps|stepped|stepping|go|goes|went|going)\s+(to|toward|towards|over\s+to|up\s+to)\b.*\b(console|panel|control|machine|pump|device|switch|button|dial)/i,
+      /\b(move|moves|moved|moving|walk|walks|walked|walking|step|steps|stepped|stepping)\s+(to|toward|towards)\s+(a|the|her|his|their)\s+(nearby|near|close|adjacent)\b/i,
+      // Gerund phrases (flipping switches, activating machinery) without immediate effect
+      /\b(flip|flips|flipping|activate|activates|activating|turn|turns|turning|press|presses|pressing|push|pushes|pushing)\s+(switch|switches|lever|levers|button|buttons|control|controls|dial|dials).*\b(and|,)/i
+    ];
+
+    for (const marker of narrativeMarkers) {
+      if (marker.test(text)) {
+        log.info(`[Reinforce] Detected narrative/descriptive marker - skipping reinforcement: "${matchedPhrase}"`);
+        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+      }
+    }
+
+    // Check for specific mode indicators in the text
     const isPulse = containsPulsePhrase(text);
     const isCycle = /\b(cycle|cycles|cycling|rhythm|rhythmic|pattern|patterns|repeat|repeats|repeating|intervals?)\b/i.test(text);
     const isTimed = /\b(for\s+\d+\s*(seconds?|minutes?|secs?|mins?)|timed|duration|temporary|briefly|momentarily)\b/i.test(text);

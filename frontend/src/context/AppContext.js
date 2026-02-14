@@ -345,6 +345,16 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, isGenerating: false, generatingFor: null, isPlayerVoice: false }));
         break;
 
+      case 'chat_validation_error':
+        // Dispatch event for Chat.js to show error toast
+        window.dispatchEvent(new CustomEvent('chat_validation_error', {
+          detail: {
+            reason: data.reason,
+            message: data.message
+          }
+        }));
+        break;
+
       case 'auto_reply_update':
         setSessionState(prev => ({ ...prev, autoReply: data.enabled }));
         break;

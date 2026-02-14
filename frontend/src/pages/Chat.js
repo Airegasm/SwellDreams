@@ -153,6 +153,7 @@ function Chat() {
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const chatInputRef = useRef(null); // Reference to chat input textarea
   const randomPopThresholdRef = useRef(null); // Stores random pop threshold for session
   const historicalMessageIds = useRef(null); // Track messages that existed on mount (don't autoplay their media)
 
@@ -355,6 +356,20 @@ function Chat() {
 
     window.addEventListener('llm_error', handleLlmError);
     return () => window.removeEventListener('llm_error', handleLlmError);
+  }, [showError]);
+
+  // Listen for chat validation errors
+  useEffect(() => {
+    const handleChatValidationError = (event) => {
+      const { message, reason } = event.detail;
+      showError(message || 'Message validation failed', 6000);
+      if (reason) {
+        console.log('[Chat] Validation error reason:', reason);
+      }
+    };
+
+    window.addEventListener('chat_validation_error', handleChatValidationError);
+    return () => window.removeEventListener('chat_validation_error', handleChatValidationError);
   }, [showError]);
 
   // Listen for flow toast events
@@ -685,6 +700,11 @@ function Chat() {
         setTimeout(() => {
           setInputValue(text);
           setIsGenerating(false);
+          // Focus textarea and set cursor to end
+          if (chatInputRef.current) {
+            chatInputRef.current.focus();
+            chatInputRef.current.setSelectionRange(text.length, text.length);
+          }
         }, 0);
       }
     };
@@ -736,6 +756,16 @@ function Chat() {
   };
 
   const handleInputKeyDown = (e) => {
+    // Enter key ALWAYS sends message - treat as single-line input with wrapping
+    // Prevent newlines entirely (no Shift+Enter or Ctrl+Enter for multiline)
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (inputValue.trim() && !isGenerating && !isPanelBlocking && !sessionLoading && activeCharacter) {
+        handleSubmit(e);
+      }
+      return;
+    }
+
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (messageHistory.length === 0) return;
@@ -1350,7 +1380,8 @@ function Chat() {
                         <textarea
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
-                          rows={4}
+                          rows={Math.max(10, Math.ceil(editText.length / 80))}
+                          autoFocus
                         />
                         <div className="edit-buttons">
                           <button className="btn btn-primary btn-sm" onClick={() => handleSaveEdit(msg.id)}>Save</button>
@@ -1577,10 +1608,27 @@ function Chat() {
               >&#9660;</button>
             </div>
             <textarea
+              ref={chatInputRef}
               className="chat-input-textarea"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleInputKeyDown}
+              onPaste={(e) => {
+                // Strip newlines from pasted content
+                e.preventDefault();
+                const pastedText = e.clipboardData.getData('text').replace(/[\r\n]+/g, ' ');
+                const cursorPos = e.target.selectionStart;
+                const textBefore = inputValue.substring(0, cursorPos);
+                const textAfter = inputValue.substring(e.target.selectionEnd);
+                setInputValue(textBefore + pastedText + textAfter);
+                // Set cursor position after paste
+                setTimeout(() => {
+                  if (chatInputRef.current) {
+                    const newPos = cursorPos + pastedText.length;
+                    chatInputRef.current.setSelectionRange(newPos, newPos);
+                  }
+                }, 0);
+              }}
               placeholder={activeCharacter ? `Message ${activeCharacter.name}...` : 'Select a character to chat...'}
               disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
               rows={3}

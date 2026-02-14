@@ -658,6 +658,59 @@ function isDuplicateMessage(content, recentCount = 5) {
   );
 }
 
+/**
+ * Check if a message contains the wrong speaker in the first sentence
+ * @param {string} content - Message content
+ * @param {string} expectedSpeaker - 'character' or 'player'
+ * @param {string} characterName - Name of the active character
+ * @param {string} personaName - Name of the active persona/player
+ * @returns {{valid: boolean, reason: string|null}} - Validation result
+ */
+function validateSpeaker(content, expectedSpeaker, characterName, personaName) {
+  if (!content) return { valid: true, reason: null };
+
+  // Extract first sentence (up to first . ! or ?)
+  const firstSentence = content.split(/[.!?]/)[0].trim();
+  if (!firstSentence) return { valid: true, reason: null };
+
+  // Common patterns for wrong speaker
+  const characterSpeakingPatterns = [
+    new RegExp(`^${characterName}\\s*:`, 'i'),
+    new RegExp(`^"\\s*${characterName}\\s*:`, 'i'),
+    new RegExp(`^${characterName}\\s+says?\\b`, 'i'),
+    new RegExp(`^${characterName}\\s+speaks?\\b`, 'i')
+  ];
+
+  const playerSpeakingPatterns = [
+    new RegExp(`^${personaName}\\s*:`, 'i'),
+    new RegExp(`^"\\s*${personaName}\\s*:`, 'i'),
+    new RegExp(`^${personaName}\\s+says?\\b`, 'i'),
+    new RegExp(`^${personaName}\\s+speaks?\\b`, 'i'),
+    /^You\s*:/i,
+    /^Player\s*:/i,
+    /^"?\s*You\s+say\b/i,
+    /^You\s+speak\b/i
+  ];
+
+  if (expectedSpeaker === 'character') {
+    // AI should speak as character, not player
+    for (const pattern of playerSpeakingPatterns) {
+      if (pattern.test(firstSentence)) {
+        return { valid: false, reason: `AI incorrectly spoke as player: "${firstSentence}"` };
+      }
+    }
+  } else if (expectedSpeaker === 'player') {
+    // Player should speak as themselves, not character
+    for (const pattern of characterSpeakingPatterns) {
+      if (pattern.test(firstSentence)) {
+        return { valid: false, reason: `Player incorrectly spoke as character: "${firstSentence}"` };
+      }
+    }
+  }
+
+  return { valid: true, reason: null };
+}
+
 // Data file paths
 const DATA_FILES = {
   settings: path.join(DATA_DIR, 'settings.json'),
@@ -5349,6 +5402,32 @@ async function handleChatMessage(data) {
   const { content, sender = 'player' } = data;
   console.log(`[Chat] Message received. autoReply=${sessionState.autoReply}`);
 
+  // Load settings and personas for speaker validation
+  const settings = loadData(DATA_FILES.settings);
+  const personas = loadData(DATA_FILES.personas) || [];
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+  const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // Validate speaker - player should not speak as character
+  if (activeCharacter && activePersona) {
+    const validation = validateSpeaker(
+      content,
+      'player',
+      activeCharacter.name,
+      activePersona.displayName || 'Player'
+    );
+
+    if (!validation.valid) {
+      console.log(`[Chat] Player message failed speaker validation: ${validation.reason}`);
+      broadcast('chat_validation_error', {
+        reason: validation.reason,
+        message: 'Please speak as yourself, not as the character.'
+      });
+      return; // Don't add message to history
+    }
+  }
+
   // Add to chat history
   const playerMessage = {
     id: uuidv4(),
@@ -5385,12 +5464,6 @@ async function handleChatMessage(data) {
     console.log('[Chat] Auto Reply disabled, skipping AI response');
     return;
   }
-
-  // Check if we should generate AI response
-  const settings = loadData(DATA_FILES.settings);
-  // Use per-char storage if active, otherwise fall back to legacy
-  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
   const hasLlmConfig = settings?.llm?.llmUrl ||
@@ -5483,6 +5556,49 @@ async function handleChatMessage(data) {
 
         aiMessage.streaming = false;
 
+        // Validate speaker - AI should speak as character, not player
+        const personas = loadData(DATA_FILES.personas) || [];
+        const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+        if (activePersona) {
+          const validation = validateSpeaker(
+            aiMessage.content,
+            'character',
+            activeCharacter.name,
+            activePersona.displayName || 'Player'
+          );
+
+          if (!validation.valid) {
+            console.log(`[Chat/Stream] AI message failed speaker validation: ${validation.reason} - DELETING AND RETRYING`);
+
+            // Remove message from history
+            const messageIndex = sessionState.chatHistory.findIndex(m => m.id === aiMessage.id);
+            if (messageIndex !== -1) {
+              sessionState.chatHistory.splice(messageIndex, 1);
+            }
+
+            // Broadcast deletion
+            broadcast('message_deleted', { id: aiMessage.id });
+            broadcast('generating_end');
+
+            // Retry generation (recursive call with retry tracking)
+            if (!data._speakerRetryCount || data._speakerRetryCount < 3) {
+              console.log(`[Chat/Stream] Retrying generation (attempt ${(data._speakerRetryCount || 0) + 1}/3)`);
+              await handleChatMessage({
+                ...data,
+                _speakerRetryCount: (data._speakerRetryCount || 0) + 1
+              });
+            } else {
+              console.log('[Chat/Stream] Max speaker validation retries reached - giving up');
+              broadcast('chat_validation_error', {
+                reason: 'AI repeatedly spoke as wrong character',
+                message: 'AI generation failed speaker validation after multiple attempts.'
+              });
+            }
+            return; // Exit this generation attempt
+          }
+        }
+
         // Broadcast final message state
         broadcast('stream_complete', { messageId: aiMessage.id, content: aiMessage.content });
 
@@ -5503,22 +5619,46 @@ async function handleChatMessage(data) {
       }
 
       let retryCount = 0;
-      const maxRetries = 2;
+      const maxRetries = 3;
 
-      // Retry if blank or duplicate (only in non-streaming mode)
-      while (!useStreaming && (isBlankMessage(finalText) || isDuplicateMessage(finalText)) && retryCount < maxRetries) {
+      // Get persona for speaker validation
+      const personas = loadData(DATA_FILES.personas) || [];
+      const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+      // Retry if blank, duplicate, or wrong speaker (only in non-streaming mode)
+      while (!useStreaming && retryCount < maxRetries) {
+        const isBlank = isBlankMessage(finalText);
+        const isDupe = isDuplicateMessage(finalText);
+
+        let speakerValidation = { valid: true };
+        if (activePersona) {
+          speakerValidation = validateSpeaker(
+            finalText,
+            'character',
+            activeCharacter.name,
+            activePersona.displayName || 'Player'
+          );
+        }
+
+        if (!isBlank && !isDupe && speakerValidation.valid) {
+          break; // All validations passed
+        }
+
         retryCount++;
-        console.log(`[Chat] Regenerating (attempt ${retryCount}): blank=${isBlankMessage(finalText)}, duplicate=${isDuplicateMessage(finalText)}`);
+        console.log(`[Chat] Regenerating (attempt ${retryCount}): blank=${isBlank}, duplicate=${isDupe}, wrongSpeaker=${!speakerValidation.valid}`);
+        if (!speakerValidation.valid) {
+          console.log(`[Chat] Speaker validation failed: ${speakerValidation.reason}`);
+        }
 
         const retryContext = buildChatContext(activeCharacter, settings);
-        retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages.';
+        retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages. Speak as the character, not as the player.';
 
         const retryResult = await llmService.generate({
           prompt: retryContext.prompt,
           systemPrompt: retryContext.systemPrompt,
           settings: settings.llm
         });
-        finalText = retryResult.text;
+        finalText = stripCrossRoleContent(retryResult.text, context.stopSequences, true);
       }
 
       console.log('[Chat] Got AI response:', finalText?.substring(0, 50) + '...');
@@ -5527,9 +5667,28 @@ async function handleChatMessage(data) {
       if (!useStreaming) {
         const isBlank = isBlankMessage(finalText);
         const isDupe = isDuplicateMessage(finalText);
-        if (isBlank || isDupe) {
-          console.log('[Chat] Skipping invalid AI response after retries -', isBlank ? 'blank' : 'duplicate');
+
+        let speakerValidation = { valid: true };
+        if (activePersona) {
+          speakerValidation = validateSpeaker(
+            finalText,
+            'character',
+            activeCharacter.name,
+            activePersona.displayName || 'Player'
+          );
+        }
+
+        if (isBlank || isDupe || !speakerValidation.valid) {
+          const reason = isBlank ? 'blank' : (isDupe ? 'duplicate' : 'wrong speaker');
+          console.log(`[Chat] Skipping invalid AI response after retries - ${reason}`);
+          if (!speakerValidation.valid) {
+            console.log(`[Chat] Final speaker validation: ${speakerValidation.reason}`);
+          }
           broadcast('generating_stop', {});
+          broadcast('chat_validation_error', {
+            reason: speakerValidation.reason || `AI generated ${reason} response`,
+            message: 'AI generation failed validation after multiple attempts.'
+          });
           return;
         }
       }
@@ -6891,6 +7050,78 @@ app.get('/api/personas/:id', (req, res) => {
     res.json(persona);
   } else {
     res.status(404).json({ error: 'Persona not found' });
+  }
+});
+
+// Persona QuickGen - AI-generate persona details
+app.post('/api/personas/quickgen', async (req, res) => {
+  try {
+    const { name, pronouns, appearance, personality, relationshipWithInflation } = req.body;
+
+    if (!name || !pronouns) {
+      return res.status(400).json({ error: 'Name and pronouns are required' });
+    }
+
+    const settings = loadSettings();
+
+    // Check if LLM is configured
+    if (!settings.llm || !settings.llm.provider || !hasApiKey(settings.llm)) {
+      return res.status(400).json({ error: 'LLM not configured. Please set up your AI provider in Settings.' });
+    }
+
+    const systemPrompt = `You are a creative character designer for an inflation roleplay story. Generate realistic, detailed persona descriptions.`;
+
+    // Check if there's existing content to reference
+    const hasExistingContent = appearance || personality || relationshipWithInflation;
+
+    let prompt = `Create a persona named "${name}" with pronouns "${pronouns}".`;
+
+    if (hasExistingContent) {
+      prompt += `\n\nExisting information to reference or refine:`;
+      if (appearance) prompt += `\n- Appearance: "${appearance}"`;
+      if (personality) prompt += `\n- Personality: "${personality}"`;
+      if (relationshipWithInflation) prompt += `\n- Inflation familiarity: "${relationshipWithInflation}"`;
+    }
+
+    prompt += `\n\nGenerate the following three fields:
+
+1. Physical Appearance (approximately 100 tokens): A detailed description considering their gender identity (${pronouns} pronouns). Include body type, height, build, clothing style, distinctive features, and overall aesthetic. ${appearance ? 'Refine the existing description or expand on it.' : 'Create from scratch.'}
+
+2. Personality (approximately 100 characters): Core personality traits, mannerisms, and behavioral tendencies. ${personality ? 'Enhance or refine the existing description.' : 'Create a well-rounded personality.'}
+
+3. Relationship with Inflation: Their knowledge and experience with belly inflation. Consider these aspects:
+   - Familiarity level: Complete novice, curious beginner, experienced practitioner, or expert enthusiast
+   - Practice: Do they actively inflate themselves? Have they tried it? Just heard about it?
+   - Role preference: More dominant/controlling, submissive/receptive, or switch/versatile
+   - Attitude: Excited, nervous, indifferent, skeptical, or enthusiastic
+   ${relationshipWithInflation ? 'Build upon the existing description.' : 'Choose an authentic stance for this character.'}
+
+Format your response EXACTLY as:
+APPEARANCE: [description]
+PERSONALITY: [description]
+RELATIONSHIP: [description]`;
+
+    const result = await llmService.generate({
+      prompt,
+      systemPrompt,
+      settings: settings.llm
+    });
+
+    // Parse the LLM response
+    const text = result.text.trim();
+    const appearanceMatch = text.match(/APPEARANCE:\s*(.+?)(?=PERSONALITY:|$)/s);
+    const personalityMatch = text.match(/PERSONALITY:\s*(.+?)(?=RELATIONSHIP:|$)/s);
+    const relationshipMatch = text.match(/RELATIONSHIP:\s*(.+?)$/s);
+
+    res.json({
+      appearance: appearanceMatch ? appearanceMatch[1].trim() : '',
+      personality: personalityMatch ? personalityMatch[1].trim() : '',
+      relationshipWithInflation: relationshipMatch ? relationshipMatch[1].trim() : ''
+    });
+
+  } catch (err) {
+    console.error('Error generating persona:', err);
+    res.status(500).json({ error: err.message || 'Failed to generate persona' });
   }
 });
 

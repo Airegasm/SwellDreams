@@ -2154,6 +2154,11 @@
   margin-top: var(--spacing-sm);
 }
 
+/* Expand message bubble to full width when editing */
+.message:has(.message-edit) {
+  max-width: 95% !important;
+}
+
 .message-edit textarea {
   width: 100%;
   background-color: var(--bg-input);
@@ -2164,6 +2169,7 @@
   font-family: inherit;
   font-size: var(--font-size-base);
   resize: vertical;
+  min-height: 200px;
 }
 
 .message-edit textarea:focus {

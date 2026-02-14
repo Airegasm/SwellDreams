@@ -686,7 +686,8 @@ class EventEngine {
           // Stop any active cycle first
           this.deviceService.stopCycle(deviceId, deviceObj);
 
-          await this.deviceService.turnOff(deviceId, deviceObj);
+          // Use skipCycleStop since we already stopped the cycle above
+          await this.deviceService.turnOff(deviceId, deviceObj, { skipCycleStop: true });
 
           this.emitTestStep({
             type: 'device',
@@ -3593,7 +3594,8 @@ class EventEngine {
           // Stop any active cycle first
           this.deviceService.stopCycle(resolvedDevice, deviceObj);
 
-          await this.deviceService.turnOff(resolvedDevice, deviceObj);
+          // Use skipCycleStop since we already stopped the cycle above
+          await this.deviceService.turnOff(resolvedDevice, deviceObj, { skipCycleStop: true });
         } catch (deviceError) {
           await this.broadcastError(`Failed to turn off "${deviceObj.name || data.device}"`, deviceError.message);
           actionResult = false;

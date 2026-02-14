@@ -181,6 +181,7 @@
   gap: 4px;
   font-size: 11px;
   cursor: pointer;
+  color: var(--text-primary);
 }
 
 .node-checkbox input {
@@ -412,6 +413,8 @@
 
 .player-choice-node .react-flow__handle {
   border-color: #10b981;
+  z-index: 10;
+  pointer-events: all;
 }
 
 .choices-list {
@@ -428,6 +431,13 @@
   background-color: var(--bg-secondary);
   border-radius: 4px;
   border: 1px solid var(--border-color);
+}
+
+.choice-field-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: -2px;
 }
 
 .choice-header {
@@ -477,6 +487,7 @@
   left: 0;
   right: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 .node-textarea.small {

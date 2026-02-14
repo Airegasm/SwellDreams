@@ -132,16 +132,19 @@ function App() {
 
   // Session handlers
   const handleNewSession = () => {
-    // Use active character's session defaults, or fallback to hardcoded defaults
+    // Use active character's active story's session defaults
     const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
-    const defaults = activeCharacter?.sessionDefaults || {
+    const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter?.stories?.[0];
+
+    const defaults = activeStory?.sessionDefaults || activeCharacter?.sessionDefaults || {
       capacity: 0,
       pain: 0,
       emotion: 'neutral',
       capacityModifier: 1.0
     };
-    setNewSessionData(defaults);
-    setShowNewSessionPopup(true);
+
+    // Start new session directly without popup
+    startNewSession(defaults);
   };
 
   const handleConfirmNewSession = async () => {

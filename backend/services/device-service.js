@@ -528,8 +528,9 @@ class DeviceService {
    * Turn device off (routes by brand)
    * @param {string} ipOrDeviceId - IP address for TPLink, deviceId for Govee/Tuya
    * @param {Object} device - Optional device object with brand info (may include childId for power strips)
+   * @param {Object} options - Optional { skipCycleStop: boolean } - if true, don't stop active cycles (used when called from within cycle logic)
    */
-  async turnOff(ipOrDeviceId, device = null) {
+  async turnOff(ipOrDeviceId, device = null, options = {}) {
     // Try to get device from registered devices if not provided
     if (!device) {
       device = this.devices.get(ipOrDeviceId);
@@ -538,11 +539,13 @@ class DeviceService {
     const stateKey = this._getDeviceKey(ipOrDeviceId, device);
 
     // Debug logging
-    console.log(`[DeviceService] turnOff called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}`);
+    console.log(`[DeviceService] turnOff called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}, skipCycleStop=${options.skipCycleStop}`);
 
-    // Cancel any active pulses or cycles for this device
+    // Cancel any active pulses or cycles for this device (unless skipCycleStop is set)
     this.stopPulse(ipOrDeviceId);
-    this.stopCycle(ipOrDeviceId, device);
+    if (!options.skipCycleStop) {
+      this.stopCycle(ipOrDeviceId, device);
+    }
 
     try {
       // Route by brand
@@ -697,7 +700,7 @@ class DeviceService {
       const offTimer = setTimeout(async () => {
         try {
           console.log(`[DeviceService] Cycle ${currentCycle}: turning OFF device ${ip} after ${duration}s (brand: ${device?.brand})`);
-          const offResult = await this.turnOff(ip, device);
+          const offResult = await this.turnOff(ip, device, { skipCycleStop: true });
           if (offResult.error) {
             console.error(`[DeviceService] Cycle ${currentCycle}: turnOff failed:`, offResult.error);
           }
@@ -753,7 +756,8 @@ class DeviceService {
       this.activeCycles.delete(ip);
 
       // Turn off the device first (pass device object for proper brand/childId support)
-      await this.turnOff(ip, deviceObj);
+      // Use skipCycleStop since we're already stopping the cycle here
+      await this.turnOff(ip, deviceObj, { skipCycleStop: true });
 
       // Emit cycle_complete when manually stopped
       this.emitEvent('cycle_complete', { ip, cycles: cycleCount, manual: true, device: deviceObj });

@@ -118,6 +118,7 @@ function PlayerChoiceNode({ data, selected }) {
             <div className="choices-list">
               {choices.map((choice, index) => (
                 <div key={choice.id} className="choice-item">
+                  <label className="choice-field-label">Choice Button Text:</label>
                   <div className="choice-header">
                     <input
                       type="text"
@@ -135,10 +136,11 @@ function PlayerChoiceNode({ data, selected }) {
                       </button>
                     )}
                   </div>
+                  <label className="choice-field-label">Choice Description:</label>
                   <textarea
                     value={choice.description}
                     onChange={(e) => updateChoice(index, 'description', e.target.value)}
-                    placeholder="Choice description..."
+                    placeholder="Explanation shown in the choice modal..."
                     className="node-textarea small"
                     rows={2}
                   />
@@ -182,7 +184,10 @@ function PlayerChoiceNode({ data, selected }) {
           type="source"
           position={Position.Bottom}
           id={choice.id}
-          style={{ left: `${(index + 1) * (100 / (choices.length + 1))}%` }}
+          style={{
+            left: `${(index + 1) * (100 / (choices.length + 1))}%`,
+            transform: 'translateX(-50%)'
+          }}
         />
       ))}
       <div className="handle-labels choice-labels">

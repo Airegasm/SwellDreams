@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
-  const { flows, devices } = useApp();
+  const { flows, devices, settings } = useApp();
 
   // Helper to filter out flow IDs that no longer exist
   const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
@@ -72,6 +72,17 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const [currentStagedRange, setCurrentStagedRange] = useState(null);
   const stagedFileInputRefs = useRef({});
 
+  // QuickGen state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const abortControllerRef = useRef(null);
+
+  // Check if LLM is configured
+  const isLlmConfigured = useMemo(() => {
+    const llm = settings?.llm;
+    if (!llm) return false;
+    return llm.llmUrl || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey);
+  }, [settings?.llm?.llmUrl, settings?.llm?.endpointStandard, settings?.llm?.openRouterApiKey]);
+
   // Memoize computed values
   const buttons = useMemo(() => formData.buttons || [], [formData.buttons]);
 
@@ -86,6 +97,15 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     const assignedButtons = formData.assignedButtons || [];
     return buttons.filter(b => !assignedButtons.includes(b.buttonId));
   }, [buttons, formData.assignedButtons]);
+
+  // Cleanup: Abort generation on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -190,6 +210,69 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       ...formData,
       stagedPortraits: updatedPortraits
     });
+  };
+
+  // QuickGen handlers
+  const handleQuickGen = async () => {
+    if (!formData.displayName.trim()) {
+      alert('Please enter a display name first');
+      return;
+    }
+
+    if (!formData.pronouns) {
+      alert('Please select pronouns first');
+      return;
+    }
+
+    setIsGenerating(true);
+
+    // Create abort controller
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const response = await fetch('/api/personas/quickgen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.displayName,
+          pronouns: formData.pronouns,
+          appearance: formData.appearance || '',
+          personality: formData.personality || '',
+          relationshipWithInflation: formData.relationshipWithInflation || ''
+        }),
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate persona');
+      }
+
+      const generated = await response.json();
+      setFormData({
+        ...formData,
+        appearance: generated.appearance,
+        personality: generated.personality,
+        relationshipWithInflation: generated.relationshipWithInflation
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // User cancelled - don't show error
+        return;
+      }
+      alert(err.message);
+    } finally {
+      setIsGenerating(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleAbortGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setIsGenerating(false);
+    abortControllerRef.current = null;
   };
 
   // Flow assignment handlers
@@ -458,6 +541,11 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                       <span className="upload-text">Click to upload</span>
                     </div>
                   )}
+                  {isGenerating && (
+                    <div className="avatar-loading-overlay">
+                      <span className="spinner-inline">⏳</span>
+                    </div>
+                  )}
                 </div>
                 <input
                   ref={fileInputRef}
@@ -478,6 +566,30 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                   >
                     Remove Avatar
                   </button>
+                )}
+
+                {/* QuickGen Box */}
+                {!persona && (
+                  <div className="quickgen-box">
+                    <div className="quickgen-message">
+                      <div className="quickgen-title">Persona QuickGen</div>
+                      <div className="quickgen-description">
+                        Choose a name, set your pronouns, and press Generate. We'll spin one up for you!
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={isGenerating ? handleAbortGeneration : handleQuickGen}
+                      disabled={!isLlmConfigured || !formData.displayName.trim()}
+                      style={{ width: '100%' }}
+                    >
+                      {isGenerating ? 'Abort' : 'Generate'}
+                    </button>
+                    <div className="quickgen-note">
+                      (LLM Connection Required - Speeds may vary)
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -744,6 +856,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           </div>
         </form>
       </div>
+
+      {/* Enhancement Overlay During Generation */}
+      {isGenerating && <div className="enhancement-overlay" />}
 
       {/* Image Crop Modal */}
       {showCropModal && (
