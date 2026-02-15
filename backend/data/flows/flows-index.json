@@ -1,5 +1,11 @@
 [
   {
+    "id": "48a370a6-d7d3-491f-a5ff-8a7fabcbe0c6",
+    "name": "SCARLETT- END GAME",
+    "characterId": null,
+    "description": ""
+  },
+  {
     "id": "flow-audit-actions",
     "name": "🧪 Audit - Actions",
     "characterId": null,
@@ -210,15 +216,33 @@
     "description": "Spin the prize wheel for varied outcomes"
   },
   {
-    "id": "48a370a6-d7d3-491f-a5ff-8a7fabcbe0c6",
-    "name": "SCARLETT- END GAME",
-    "characterId": null,
-    "description": ""
+    "id": "fa015c16-88d1-484c-881d-365f9ec3b78e",
+    "name": "Data Collection Protocol",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Input nodes for subjective ratings collection"
   },
   {
-    "id": "436f33a6-de34-428e-9130-2f0b47542d2e",
-    "name": "EXECUTRIX - Checkins",
-    "characterId": null,
-    "description": ""
+    "id": "85991918-0979-4922-ab6a-3604fca362dd",
+    "name": "Capacity Study",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Capacity message nodes for clinical observations"
+  },
+  {
+    "id": "3ce5fe26-2009-4622-acd9-685e399dcc64",
+    "name": "Threshold Testing",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Systematic threshold testing with conversational pauses"
+  },
+  {
+    "id": "23de07c6-8a2e-430b-b10b-156582d1293c",
+    "name": "Dr. Chen's Reactions",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Keyword triggers for clinical observations - scientific terms and subject responses"
+  },
+  {
+    "id": "21aa847d-490d-43d8-9374-7ebd90f3507d",
+    "name": "Dr. Chen's Protocol Auto-Start",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "First player message triggers protocol selection"
   }
 ]

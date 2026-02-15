@@ -7,8 +7,10 @@ function ConversationsTab() {
     chatInterface: false,
     mobileInterface: false,
     builtinCharacters: false,
+    multiCharCards: false,
     characters: false,
     characterFields: false,
+    importExport: false,
     sessionDefaults: false,
     builtinPersonas: false,
     personas: false,
@@ -325,10 +327,117 @@ function ConversationsTab() {
               <li><strong>Key Features:</strong> Input nodes for ratings, capacity messages, condition-based phases</li>
             </ul>
 
+            <h4 className="subsection-header">Research Team Alpha - Medical Research Team (Multi-Char)</h4>
+            <p>
+              <strong>Type:</strong> Multi-Character Card — 3-person medical research team
+            </p>
+            <ul className="help-list">
+              <li><strong>Dr. Evelyn Marsh</strong> — Lead researcher, directs the experiment and makes clinical decisions</li>
+              <li><strong>Nurse Priya Vasquez</strong> — Pump operator, handles device control and equipment</li>
+              <li><strong>Nurse Dani Reeves</strong> — Vitals monitor, tracks patient status and reactions</li>
+            </ul>
+            <ul className="help-list">
+              <li><strong>Best For:</strong> Multi-character dynamics, medical/research scenarios, device control demonstrations</li>
+              <li><strong>Key Features:</strong> Multi-char card, pump tag examples in dialogues, role-enforced team dynamics</li>
+            </ul>
+
             <div className="tip-box">
               <strong>Tip:</strong> Each builtin character comes with pre-assigned flows that demonstrate
               different node types. Open them in the Flow Editor to learn how flows work, then modify
               or create your own.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Multi-Character Cards */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('multiCharCards')}>
+          Multi-Character Cards
+          <span className="expand-icon">{expanded.multiCharCards ? '−' : '+'}</span>
+        </h3>
+        {expanded.multiCharCards && (
+          <div className="section-content">
+            <p>
+              Multi-character cards contain <strong>multiple AI characters who share a single scene</strong>.
+              Unlike single-character cards where you chat with one AI persona, multi-char cards create
+              group dynamics — a team, a family, a panel of judges, or any group scenario.
+            </p>
+
+            <h4 className="subsection-header">How Multi-Char Differs from Single-Char</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Single-Char Card</th>
+                  <th>Multi-Char Card</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>One AI character</td>
+                  <td>2+ AI characters (no upper limit)</td>
+                </tr>
+                <tr>
+                  <td>One name, one personality</td>
+                  <td>Group name + individual names, descriptions, and personalities</td>
+                </tr>
+                <tr>
+                  <td>AI always responds as that character</td>
+                  <td>LLM writes for contextually relevant characters each turn</td>
+                </tr>
+                <tr>
+                  <td>Example dialogues use Player/Character format</td>
+                  <td>Example dialogues use a <code>response</code> field with <code>CharName: "dialogue"</code> format</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">How Responses Work</h4>
+            <p>
+              The LLM doesn't write for all characters in every message. Instead, it determines which
+              characters are contextually relevant to the current situation and writes for those.
+              Role enforcement via constant reminders keeps each character's voice distinct.
+            </p>
+
+            <h4 className="subsection-header">Example Dialogue Format</h4>
+            <p>
+              Multi-char example dialogues use a different format than single-char. Each character's
+              lines are prefixed with their name:
+            </p>
+            <div className="code-example">
+              <strong>Example (response field):</strong><br/>
+              Dr. Marsh: *adjusts her clipboard* "Increase the rate by 10%, Priya."<br/>
+              Nurse Priya: *turns the dial carefully* "Rate increased, Doctor. [pump:timed:30]"<br/>
+              Nurse Dani: *checks the monitor* "Vitals are stable, [Player] is doing well."
+            </div>
+
+            <h4 className="subsection-header">Creating a Multi-Char Card</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Characters</strong></li>
+              <li>Click <strong>"+ New Multi-Char"</strong></li>
+              <li>The <strong>MultiCharEditorModal</strong> opens</li>
+              <li>Enter a group name (e.g., "Research Team Alpha")</li>
+              <li>Add at least 2 characters with individual names, descriptions, and personalities</li>
+              <li>Add stories with welcome messages, scenarios, and example dialogues</li>
+              <li>Save the card</li>
+            </ol>
+
+            <h4 className="subsection-header">Editing Multi-Char Cards</h4>
+            <p>
+              Click any multi-char card in the character list — the MultiCharEditorModal opens
+              automatically. Multi-char cards display a <strong>"Multi-Char" badge</strong> in the
+              character list so they're easy to identify.
+            </p>
+
+            <div className="info-box">
+              <strong>Minimum Requirement:</strong> Multi-char cards require at least 2 characters.
+              There is no upper limit, but keep in mind that more characters use more context tokens.
+            </div>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Try the builtin <strong>Research Team Alpha</strong> card to see
+              multi-char in action. It demonstrates team dynamics, pump tag usage in dialogues, and
+              role-enforced character voices.
             </div>
           </div>
         )}
@@ -520,6 +629,133 @@ function ConversationsTab() {
               personality descriptions so your character works seamlessly with all persona genders. This is
               especially helpful when using the LLM enhancement feature, which automatically includes [Gender]
               where appropriate.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Importing & Exporting Characters */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('importExport')}>
+          Importing &amp; Exporting Characters
+          <span className="expand-icon">{expanded.importExport ? '−' : '+'}</span>
+        </h3>
+        {expanded.importExport && (
+          <div className="section-content">
+
+            <h4 className="subsection-header">Importing Characters</h4>
+            <p>
+              SwellDreams can import character cards from other AI chat platforms as well as its own exports.
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Format</th>
+                  <th>Extension</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>V2 Card</strong></td>
+                  <td>.png</td>
+                  <td>SillyTavern, TavernAI, Chub.ai</td>
+                </tr>
+                <tr>
+                  <td><strong>V3 Card</strong></td>
+                  <td>.png</td>
+                  <td>SillyTavern (newer)</td>
+                </tr>
+                <tr>
+                  <td><strong>SwellDreams Card</strong></td>
+                  <td>.png</td>
+                  <td>SwellDreams export</td>
+                </tr>
+                <tr>
+                  <td><strong>SwellDreams JSON</strong></td>
+                  <td>.json</td>
+                  <td>SwellDreams export</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">How to Import</h4>
+            <ul className="help-list">
+              <li><strong>SwellDreams formats:</strong> Settings → Characters → <strong>"Import"</strong> button → select PNG or JSON file</li>
+              <li><strong>V2/V3 cards:</strong> Settings → Characters → <strong>"Convert V2/V3"</strong> button → select PNG or JSON file</li>
+            </ul>
+
+            <h4 className="subsection-header">What Gets Converted (V2/V3)</h4>
+            <p>When importing V2 or V3 cards, the following fields are mapped:</p>
+            <ul className="help-list">
+              <li><strong>name</strong> → character name</li>
+              <li><strong>description</strong> → character description</li>
+              <li><strong>personality</strong> → character personality</li>
+              <li><strong>first_mes</strong> → welcome message</li>
+              <li><strong>alternate_greetings</strong> → additional welcome messages</li>
+              <li><strong>scenario</strong> → scenario</li>
+              <li><strong>mes_example</strong> → example dialogues</li>
+              <li><strong>character_book</strong> → keyword-triggered reminders</li>
+            </ul>
+            <p>
+              PNG avatars are automatically used as the character's avatar. After V2/V3 import, an
+              <strong> Import Guidance Modal</strong> appears with tips for adapting the character to SwellDreams.
+            </p>
+
+            <h4 className="subsection-header">Exporting Characters</h4>
+            <p>
+              Export your characters in three formats, each suited for different purposes:
+            </p>
+
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Format</th>
+                  <th>Description</th>
+                  <th>Best For</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>SwellDreams PNG</strong></td>
+                  <td>Full-fidelity native format. Embeds complete character data + optional flows in PNG metadata. Adds SwellDreams logo overlay.</td>
+                  <td>Sharing between SwellDreams users</td>
+                </tr>
+                <tr>
+                  <td><strong>V3 PNG</strong></td>
+                  <td>SillyTavern-compatible export. Embeds both V2 (chara) and V3 (ccv3) chunks for maximum cross-platform compatibility. Lorebook entries generated from reminders.</td>
+                  <td>Sharing to other platforms</td>
+                </tr>
+                <tr>
+                  <td><strong>JSON</strong></td>
+                  <td>Raw SwellDreams character data with embedded avatar.</td>
+                  <td>Backups</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">How to Export</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Characters</strong></li>
+              <li>Click on the character you want to export</li>
+              <li>Click the <strong>Export</strong> button</li>
+              <li>Choose your export format</li>
+              <li>Optionally select which stories to include</li>
+              <li>For SwellDreams PNG, optionally embed assigned flows</li>
+            </ol>
+
+            <h4 className="subsection-header">Full Backup</h4>
+            <p>
+              For a complete backup of everything, use <strong>Settings → export full backup</strong>.
+              This exports all characters, personas, flows, and settings in a single file. API keys
+              are excluded for security.
+            </p>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Use SwellDreams PNG for the richest exports — it preserves everything
+              including flows, all stories, and multi-char data. Use V3 PNG when sharing to users on
+              other platforms like SillyTavern.
             </div>
           </div>
         )}

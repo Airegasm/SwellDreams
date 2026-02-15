@@ -77,6 +77,13 @@ function GlobalTab() {
     cycleDuration: 5 // 5-30 in 5-second increments, or 'continuous'
   });
 
+  // Manual calibration modal state
+  const [showManualCalibrationModal, setShowManualCalibrationModal] = useState(false);
+  const [manualCalibrationData, setManualCalibrationData] = useState({
+    secondsTo100: '',
+    painLevelAt100: 0
+  });
+
   // Resume calibration popup state
   const [showResumePopup, setShowResumePopup] = useState(false);
   const [resumeData, setResumeData] = useState({
@@ -398,6 +405,84 @@ function GlobalTab() {
       showError('Failed to save calibration data');
     }
   }, [calibrationState, pumpDevices, api, characterControls, showError]);
+
+  // Handle Save Manual Calibration
+  const handleSaveManualCalibration = useCallback(async () => {
+    const pump = pumpDevices.find(p => p.id === calibrationState.selectedPumpId);
+    if (!pump) {
+      showError('Please select a pump first');
+      return;
+    }
+
+    const seconds = parseFloat(manualCalibrationData.secondsTo100);
+    if (!seconds || seconds <= 0) {
+      showError('Please enter a valid number of seconds');
+      return;
+    }
+
+    try {
+      await api.updateDevice(pump.id, {
+        calibrationTime: seconds,
+        calibrationCapacity: 100,
+        calibrationPainAtMax: manualCalibrationData.painLevelAt100,
+        calibratedAt: new Date().toISOString()
+      });
+
+      const updatedControls = { ...characterControls, hasCalibrated: true };
+      await api.updateSettings({ globalCharacterControls: updatedControls });
+      setCharacterControls(updatedControls);
+
+      setShowManualCalibrationModal(false);
+      setManualCalibrationData({ secondsTo100: '', painLevelAt100: 0 });
+
+      // Reset calibration state
+      setCalibrationState({
+        selectedPumpId: null,
+        currentTime: 0,
+        capacity: 0,
+        painLevel: 0,
+        phase: 'setup',
+        isPumpRunning: false,
+        cycleDuration: 5
+      });
+
+      // Close calibration modal with animation
+      setIsClosingModal(true);
+      setTimeout(() => {
+        setShowCalibrationModal(false);
+        setIsClosingModal(false);
+      }, 300);
+    } catch (error) {
+      console.error('Failed to save manual calibration:', error);
+      showError('Failed to save manual calibration data');
+    }
+  }, [calibrationState.selectedPumpId, manualCalibrationData, pumpDevices, api, characterControls, showError]);
+
+  // Handle Recalibrate - clears calibration data for selected pump
+  const handleRecalibrate = useCallback(async () => {
+    const pump = pumpDevices.find(p => p.id === calibrationState.selectedPumpId);
+    if (!pump) return;
+
+    try {
+      await api.updateDevice(pump.id, {
+        calibrationTime: 0,
+        calibrationCapacity: 0,
+        calibrationPainAtMax: 0,
+        calibratedAt: null
+      });
+
+      setCalibrationState(prev => ({
+        ...prev,
+        currentTime: 0,
+        capacity: 0,
+        painLevel: 0,
+        phase: 'setup'
+      }));
+    } catch (error) {
+      console.error('Failed to recalibrate:', error);
+      showError('Failed to clear calibration data');
+    }
+  }, [calibrationState.selectedPumpId, pumpDevices, api, showError]);
 
   // Close modal handler with animation
   const handleCloseCalibrationModal = useCallback(async () => {
@@ -1685,6 +1770,33 @@ function GlobalTab() {
                         {calibrationState.phase === 'setup' ? 'Begin' : (calibrationState.cycleDuration === 'continuous' ? 'Resume' : 'Continue')}
                       </button>
                     )}
+                    {calibrationState.selectedPumpId && (calibrationState.phase === 'setup' || calibrationState.phase === 'paused') && (
+                      <button
+                        className="btn btn-secondary btn-calibration-manual"
+                        onClick={() => {
+                          const pump = pumpDevices.find(p => p.id === calibrationState.selectedPumpId);
+                          setManualCalibrationData({
+                            secondsTo100: pump?.calibrationTime || '',
+                            painLevelAt100: pump?.calibrationPainAtMax || 0
+                          });
+                          setShowManualCalibrationModal(true);
+                        }}
+                      >
+                        Manual
+                      </button>
+                    )}
+                    {calibrationState.selectedPumpId && (() => {
+                      const pump = pumpDevices.find(p => p.id === calibrationState.selectedPumpId);
+                      return pump && pump.calibrationTime > 0;
+                    })() && (
+                      <button
+                        className="btn btn-warning btn-calibration-recalibrate"
+                        onClick={handleRecalibrate}
+                        disabled={calibrationState.phase === 'running'}
+                      >
+                        Recalibrate
+                      </button>
+                    )}
                     <button
                       className="btn btn-secondary btn-calibration-reset"
                       onClick={handleResetCalibration}
@@ -1702,6 +1814,60 @@ function GlobalTab() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Calibration Modal */}
+      {showManualCalibrationModal && (
+        <div className="resume-popup-overlay" onClick={() => setShowManualCalibrationModal(false)}>
+          <div className="resume-popup" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+            <h3>Manual Calibration</h3>
+
+            <div className="resume-field">
+              <label>Seconds to 100%:</label>
+              <input
+                type="number"
+                min="1"
+                max="9999"
+                value={manualCalibrationData.secondsTo100}
+                onChange={(e) => setManualCalibrationData(prev => ({ ...prev, secondsTo100: e.target.value }))}
+                className="resume-pump-dropdown"
+                placeholder="e.g. 120"
+              />
+            </div>
+
+            <div className="resume-field">
+              <div className="resume-slider-label">
+                <span>Pain Level at 100%:</span>
+                <span>{manualCalibrationData.painLevelAt100}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                value={manualCalibrationData.painLevelAt100}
+                onChange={(e) => setManualCalibrationData(prev => ({ ...prev, painLevelAt100: parseInt(e.target.value) }))}
+                className="calibration-slider"
+              />
+            </div>
+
+            <div className="resume-popup-actions">
+              <button className="btn btn-secondary" onClick={() => {
+                setShowManualCalibrationModal(false);
+                setManualCalibrationData({ secondsTo100: '', painLevelAt100: 0 });
+              }}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveManualCalibration}
+                disabled={!manualCalibrationData.secondsTo100 || parseFloat(manualCalibrationData.secondsTo100) <= 0}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>

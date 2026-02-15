@@ -6,6 +6,7 @@ function ExternalApisTab() {
     overview: false,
     security: false,
     koboldcpp: false,
+    llamacpp: false,
     openrouter: false,
     freemodels: false,
     kasa: false,
@@ -38,6 +39,7 @@ function ExternalApisTab() {
             <h4 className="subsection-header">AI/LLM Options</h4>
             <ul className="help-list">
               <li><strong>KoboldCpp</strong> - Run AI models locally on your own hardware (free, private)</li>
+              <li><strong>Llama.cpp</strong> - Lightweight local LLM server for GGUF models (free, private, headless-friendly)</li>
               <li><strong>OpenRouter</strong> - Cloud API with access to many models (some free, some paid)</li>
               <li><strong>Custom Endpoint</strong> - Any OpenAI-compatible API endpoint</li>
             </ul>
@@ -142,6 +144,76 @@ function ExternalApisTab() {
             <div className="info-box">
               <strong>Tip:</strong> For roleplay, look for models with "RP" or "roleplay" in the name,
               or uncensored variants for more creative freedom.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Llama.cpp */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('llamacpp')}>
+          Llama.cpp (Local LLM)
+          <span className="expand-icon">{expanded.llamacpp ? '−' : '+'}</span>
+        </h3>
+        {expanded.llamacpp && (
+          <div className="section-content">
+            <p>
+              Llama.cpp is a lightweight, efficient C++ inference server for running GGUF models locally.
+              It's simpler than KoboldCpp — ideal for headless servers, Docker containers, or minimal setups
+              where you just need a fast local LLM endpoint.
+            </p>
+
+            <h4 className="subsection-header">Installation</h4>
+            <ol className="help-list numbered">
+              <li>
+                Download a release build from{' '}
+                <a href="https://github.com/ggerganov/llama.cpp/releases" target="_blank" rel="noopener noreferrer">
+                  github.com/ggerganov/llama.cpp
+                </a>
+              </li>
+              <li>Download a GGUF model file (e.g., from HuggingFace)</li>
+              <li>
+                Run the server: <code>llama-server -m your-model.gguf</code>
+              </li>
+              <li>Default URL: <code>http://localhost:8080/completion</code></li>
+            </ol>
+
+            <h4 className="subsection-header">SwellDreams Configuration</h4>
+            <ol className="help-list numbered">
+              <li>Go to <strong>Settings → Model</strong></li>
+              <li>Set Endpoint Standard to <strong>Llama.cpp</strong></li>
+              <li>Enter your llama.cpp server URL (e.g., <code>http://localhost:8080/completion</code>)</li>
+              <li>Click <strong>Connect</strong></li>
+            </ol>
+
+            <h4 className="subsection-header">Auto-Detection</h4>
+            <p>
+              When you connect, SwellDreams automatically queries the <code>/props</code> endpoint
+              to detect the model name and context size. No manual configuration needed.
+            </p>
+
+            <h4 className="subsection-header">Prompt Templates</h4>
+            <p>
+              Since llama.cpp doesn't apply chat templates automatically, you need to select the correct
+              prompt template for your model:
+            </p>
+            <ul className="help-list">
+              <li><strong>ChatML</strong> — For models trained with ChatML format (Qwen, OpenHermes, etc.)</li>
+              <li><strong>Llama 3</strong> — For Meta's Llama 3 family</li>
+              <li><strong>Mistral</strong> — For Mistral/Mixtral models</li>
+              <li><strong>Alpaca</strong> — For Alpaca-style instruction-tuned models</li>
+              <li><strong>Vicuna</strong> — For Vicuna-style models</li>
+              <li><strong>None</strong> — Raw completion, no template wrapping</li>
+            </ul>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Llama.cpp is lighter weight than KoboldCpp — it doesn't bundle a UI
+              or extra features. If you just need a fast, headless LLM server, llama.cpp is the way to go.
+            </div>
+
+            <div className="info-box">
+              <strong>Note:</strong> Llama.cpp supports GBNF grammar for structured output. This enables
+              constrained generation for consistent formatting in device tags and other structured responses.
             </div>
           </div>
         )}

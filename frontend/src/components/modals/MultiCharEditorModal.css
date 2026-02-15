@@ -1,0 +1,46 @@
+/* ============================================
+   MULTI-CHAR EDITOR MODAL — Additions
+   ============================================ */
+
+/* Character name rows */
+.multi-char-names {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.multi-char-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.multi-char-name-row input[type="text"] {
+  flex: 1;
+}
+
+.multi-char-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+/* Character dropdown for desc/personality */
+.multi-char-selector {
+  margin-bottom: 6px;
+}
+
+/* Multi-Char badge in CharacterTab list */
+.multi-char-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #7c3aed;
+  color: white;
+  padding: 3px 8px;
+  border-radius: var(--border-radius, 4px);
+  margin-left: 4px;
+  position: relative;
+  top: -1px;
+}

@@ -119,8 +119,17 @@ function ModelTab() {
         } else {
           setModelStatus('No Models Detected');
         }
+
+        // Auto-detect context size if reported by the backend
+        let settingsToSave = llmSettings;
+        if (result.contextSize && result.contextSize > 0) {
+          console.log(`[ModelTab] Auto-detected context size: ${result.contextSize}`);
+          settingsToSave = { ...llmSettings, contextTokens: result.contextSize };
+          setLlmSettings(prev => ({ ...prev, contextTokens: result.contextSize }));
+        }
+
         // Auto-save on successful connection
-        await api.updateLlmSettings(llmSettings);
+        await api.updateLlmSettings(settingsToSave);
       } else {
         setConnectionStatus('offline');
         setModelStatus('Check URL');
@@ -316,8 +325,21 @@ function ModelTab() {
                 handleOpenRouterConnect();
               }
             } else if (activeProfile.llmUrl) {
-              // Test Kobold/OpenAI connection
-              handleTest();
+              // Test Kobold/OpenAI connection — inline to avoid stale closure
+              try {
+                const testResult = await api.testLlm(settings.llm);
+                if (testResult.success) {
+                  setConnectionStatus('online');
+                  setModelStatus(testResult.modelName || 'Connected');
+                  if (testResult.contextSize && testResult.contextSize > 0) {
+                    setLlmSettings(prev => ({ ...prev, contextTokens: testResult.contextSize }));
+                    await api.updateLlmSettings({ ...settings.llm, contextTokens: testResult.contextSize });
+                  }
+                }
+              } catch (e) {
+                setConnectionStatus('offline');
+                setModelStatus('Connection failed');
+              }
             }
           }
         }
@@ -416,6 +438,13 @@ function ModelTab() {
             if (testResult.success) {
               setConnectionStatus('online');
               setModelStatus(testResult.modelName || 'Connected');
+
+              // Auto-detect context size if reported by the backend
+              if (testResult.contextSize && testResult.contextSize > 0) {
+                const updatedSettings = { ...profileSettings, contextTokens: testResult.contextSize };
+                setLlmSettings(updatedSettings);
+                await api.updateLlmSettings(updatedSettings);
+              }
             } else {
               setConnectionStatus('offline');
               setModelStatus('Connection failed');
@@ -596,6 +625,7 @@ function ModelTab() {
                   >
                     <option value="openai">OpenAI Compatible</option>
                     <option value="kobold">KoboldCPP</option>
+                    <option value="llamacpp">Llama.cpp</option>
                     <option value="openrouter">OpenRouter</option>
                   </select>
                   <select
@@ -629,6 +659,7 @@ function ModelTab() {
                 >
                   <option value="openai">OpenAI Compatible</option>
                   <option value="kobold">KoboldCPP</option>
+                  <option value="llamacpp">Llama.cpp</option>
                   <option value="openrouter">OpenRouter</option>
                 </select>
               )}
@@ -706,7 +737,7 @@ function ModelTab() {
                     type="text"
                     value={llmSettings.llmUrl || ''}
                     onChange={(e) => updateSetting('llmUrl', e.target.value)}
-                    placeholder={endpointStandard === 'kobold' ? 'http://localhost:5001/api/v1/generate' : 'http://localhost:1234/v1/chat/completions'}
+                    placeholder={endpointStandard === 'kobold' ? 'http://localhost:5001/api/v1/generate' : endpointStandard === 'llamacpp' ? 'http://localhost:8080/completion' : 'http://localhost:1234/v1/chat/completions'}
                     className="connection-field-twothirds"
                   />
                   <div className="connection-field-onethird-buttons">
@@ -1067,7 +1098,7 @@ function ModelTab() {
       {/* Advanced Control - Parent collapsible for KoboldCpp-specific settings */}
       <div className="settings-section-collapsible">
         <div className="settings-section-header" onClick={() => toggleSection('advancedControl')}>
-          <span>Advanced Control (KoboldCpp Only)</span>
+          <span>Advanced Control (KoboldCpp / Llama.cpp)</span>
           <span className="collapse-icon">{expandedSections.advancedControl ? '▼' : '▶'}</span>
         </div>
         {expandedSections.advancedControl && (

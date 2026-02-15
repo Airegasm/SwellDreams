@@ -19,6 +19,7 @@ const { DeviceService, killAllPythonProcesses, activeProcesses } = require('./se
 const EventEngine = require('./services/event-engine');
 const reminderEngine = require('./services/reminder-engine');
 const characterConverter = require('./services/character-converter');
+const characterExporter = require('./services/character-exporter');
 const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
@@ -2761,11 +2762,17 @@ async function sendWelcomeMessage(character, settings) {
       const playerName = settings?.activePersonaId ?
         (loadAllPersonas() || []).find(p => p.id === settings.activePersonaId)?.displayName || 'the player' :
         'the player';
-      let systemPrompt = `You are ${character.name}. ${character.description}\n`;
-      systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
-      systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
-      if (character.personality) {
-        systemPrompt += `Personality: ${character.personality}\n\n`;
+      const substituteVarsWelcome = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
+      let systemPrompt;
+      if (character.multiChar?.enabled) {
+        systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVarsWelcome);
+      } else {
+        systemPrompt = `You are ${character.name}. ${character.description}\n`;
+        systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+        systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
+        if (character.personality) {
+          systemPrompt += `Personality: ${character.personality}\n\n`;
+        }
       }
 
       const scenario = getActiveScenario(character);
@@ -6290,9 +6297,13 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += `Write ${playerName}'s next response. Stay in character and be descriptive.`;
   } else {
     // Guided response - generate as character
-    systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
-    systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
-    systemPrompt += `Personality: ${substituteVars(character.personality)}\n`;
+    if (character.multiChar?.enabled) {
+      systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
+    } else {
+      systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
+      systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+      systemPrompt += `Personality: ${substituteVars(character.personality)}\n`;
+    }
     const scenario = getActiveScenario(character);
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
@@ -6368,6 +6379,33 @@ Tags are hidden from player. Auto-timeout: ${maxSeconds}s.
   return { systemPrompt, prompt, stopSequences, playerName, characterName: character.name };
 }
 
+// Build system prompt for multi-character cards
+function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
+  const chars = character.multiChar.characters;
+  const names = chars.map(c => c.name).join(', ');
+
+  let prompt = `You are portraying MULTIPLE CHARACTERS in this scene: ${names}.\n\n`;
+  prompt += `CHARACTERS:\n`;
+  for (const c of chars) {
+    prompt += `- ${c.name}: ${substituteVars(c.description)}\n`;
+    if (c.personality) {
+      prompt += `  Personality: ${substituteVars(c.personality)}\n`;
+    }
+  }
+  prompt += `\nMULTI-CHARACTER WRITING RULES:\n`;
+  prompt += `- Write ONLY for the characters listed above. NEVER write dialogue or actions for ${playerName}.\n`;
+  prompt += `- NOT every character needs to respond in every message. Only include characters when contextually relevant.\n`;
+  prompt += `- Clearly attribute dialogue and actions to specific characters by name.\n`;
+  prompt += `- Use third-person names for actions and first-person in dialogue.\n`;
+  prompt += `- Example format:\n`;
+  prompt += `  ${chars[0]?.name || 'Character'} smiles warmly. "Welcome!"\n`;
+  if (chars[1]) {
+    prompt += `  ${chars[1].name} leans against the wall. "About time."\n`;
+  }
+  prompt += `\n`;
+  return prompt;
+}
+
 function buildChatContext(character, settings) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -6422,10 +6460,15 @@ function buildChatContext(character, settings) {
   };
 
   // Build system prompt from character
-  let systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
-  systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
-  systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
-  systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
+  let systemPrompt;
+  if (character.multiChar?.enabled) {
+    systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
+  } else {
+    systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
+    systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+    systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
+    systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
+  }
   const scenario = getActiveScenario(character);
   if (scenario) {
     systemPrompt += `Scenario: ${substituteVars(scenario)}\n\n`;
@@ -6516,9 +6559,15 @@ Devices auto-timeout after ${maxSeconds}s but you should turn them off narrative
 
   if (character.exampleDialogues && character.exampleDialogues.length > 0) {
     prompt += 'Example dialogue:\n';
-    character.exampleDialogues.forEach(ex => {
-      prompt += `User: ${ex.user}\n${character.name}: ${ex.character}\n`;
-    });
+    if (character.multiChar?.enabled) {
+      character.exampleDialogues.forEach(ex => {
+        prompt += `User: ${ex.user}\n${ex.response || ex.character}\n`;
+      });
+    } else {
+      character.exampleDialogues.forEach(ex => {
+        prompt += `User: ${ex.user}\n${character.name}: ${ex.character}\n`;
+      });
+    }
     prompt += '\nCurrent conversation:\n';
   }
 
@@ -6535,16 +6584,22 @@ Devices auto-timeout after ${maxSeconds}s but you should turn them off narrative
     prompt += `\n[DEVICE REMINDER: If you activate a pump/inflator in your response, include [pump on]. If deactivating, include [pump off].]\n`;
   }
 
-  prompt += `${character.name}:`;
+  if (character.multiChar?.enabled) {
+    prompt += `[Characters]:`;
+  } else {
+    prompt += `${character.name}:`;
+  }
 
   // Build stop sequences to prevent role confusion (like SillyTavern's names_as_stop_strings)
   const stopSequences = [
     `\n${playerLabel}:`,
-    `\n${character.name}:`,
     `${playerLabel}:`,
     `[Player]:`,
     `[Char]:`,
   ];
+  if (!character.multiChar?.enabled) {
+    stopSequences.push(`\n${character.name}:`);
+  }
 
   return { systemPrompt, prompt, stopSequences, playerName: playerLabel, characterName: character.name };
 }
@@ -7181,7 +7236,7 @@ app.delete('/api/personas/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// --- Import Character Card (V2/V3) ---
+// --- Import Character Card (V2/V3/SwellD PNG) ---
 app.post('/api/import/character-card', cardUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -7192,22 +7247,34 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
     const fileType = req.file.mimetype;
     let characterData = null;
     let avatarData = null;
+    let isSwellDImport = false;
+    let swelldExportData = null;
 
     // Handle PNG files - extract metadata
     if (fileType === 'image/png' || fileType === 'image/jpeg') {
-      // Try V3 format first
-      characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v3');
-      if (!characterData) {
-        // Try V2 format
-        characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v2');
+      // Try SwellD format first (highest priority)
+      swelldExportData = characterConverter.extractPNGMetadata(fileBuffer, 'swelld');
+
+      if (swelldExportData && swelldExportData.type === 'swelldreams-character') {
+        isSwellDImport = true;
+        characterData = swelldExportData;
+      } else {
+        // Try V3 format
+        characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v3');
+        if (!characterData) {
+          // Try V2 format
+          characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v2');
+        }
       }
 
       if (!characterData) {
         return res.status(400).json({ error: 'No character data found in PNG metadata' });
       }
 
-      // Use the PNG as avatar
-      avatarData = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+      // Use the PNG as avatar (for V2/V3 imports)
+      if (!isSwellDImport) {
+        avatarData = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+      }
     }
     // Handle JSON files
     else if (fileType === 'application/json') {
@@ -7220,19 +7287,211 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       return res.status(400).json({ error: 'Unsupported file type' });
     }
 
-    // Detect format and convert
-    const format = characterConverter.detectFormat(characterData);
     let convertedCharacter;
+    let importedFlowCount = 0;
 
-    if (format === 'v3') {
-      convertedCharacter = characterConverter.convertV3ToSwellD(characterData);
+    if (isSwellDImport) {
+      // --- SwellDreams PNG Import ---
+      const importData = swelldExportData;
+      convertedCharacter = importData.data;
+
+      // Generate a new ID to avoid collisions
+      const oldCharId = convertedCharacter.id;
+      convertedCharacter.id = uuidv4();
+
+      // Use embedded clean avatar (without logo) if available
+      if (convertedCharacter.avatarData) {
+        convertedCharacter.avatar = convertedCharacter.avatarData;
+        delete convertedCharacter.avatarData;
+      } else {
+        // Fallback: use the PNG itself as avatar
+        convertedCharacter.avatar = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+      }
+
+      // Regenerate story IDs to avoid collisions
+      const storyIdMap = {};
+      if (convertedCharacter.stories) {
+        for (const story of convertedCharacter.stories) {
+          const oldId = story.id;
+          story.id = uuidv4();
+          storyIdMap[oldId] = story.id;
+
+          // Regenerate welcome message IDs
+          if (story.welcomeMessages) {
+            const wmIdMap = {};
+            for (const wm of story.welcomeMessages) {
+              const oldWmId = wm.id;
+              wm.id = uuidv4();
+              wmIdMap[oldWmId] = wm.id;
+            }
+            if (story.activeWelcomeMessageId && wmIdMap[story.activeWelcomeMessageId]) {
+              story.activeWelcomeMessageId = wmIdMap[story.activeWelcomeMessageId];
+            }
+          }
+
+          // Regenerate scenario IDs
+          if (story.scenarios) {
+            const scIdMap = {};
+            for (const sc of story.scenarios) {
+              const oldScId = sc.id;
+              sc.id = uuidv4();
+              scIdMap[oldScId] = sc.id;
+            }
+            if (story.activeScenarioId && scIdMap[story.activeScenarioId]) {
+              story.activeScenarioId = scIdMap[story.activeScenarioId];
+            }
+          }
+        }
+        // Update activeStoryId
+        if (convertedCharacter.activeStoryId && storyIdMap[convertedCharacter.activeStoryId]) {
+          convertedCharacter.activeStoryId = storyIdMap[convertedCharacter.activeStoryId];
+        }
+      }
+
+      // Regenerate reminder IDs
+      if (convertedCharacter.constantReminders) {
+        for (const r of convertedCharacter.constantReminders) {
+          r.id = uuidv4();
+        }
+      }
+      if (convertedCharacter.globalReminders) {
+        for (const r of convertedCharacter.globalReminders) {
+          r.id = uuidv4();
+        }
+      }
+
+      // Handle embedded flows
+      if (importData.flows && importData.flows.length > 0) {
+        const flowIdMap = {};
+
+        // Create each flow with new UUID
+        for (const flow of importData.flows) {
+          const oldFlowId = flow.id;
+          flow.id = uuidv4();
+          flowIdMap[oldFlowId] = flow.id;
+
+          // Update characterId reference
+          flow.characterId = convertedCharacter.id;
+
+          // Update node IDs within the flow
+          if (flow.nodes) {
+            const nodeIdMap = {};
+            for (const node of flow.nodes) {
+              const oldNodeId = node.id;
+              node.id = uuidv4();
+              nodeIdMap[oldNodeId] = node.id;
+            }
+
+            // Update edge references
+            if (flow.edges) {
+              for (const edge of flow.edges) {
+                if (nodeIdMap[edge.source]) edge.source = nodeIdMap[edge.source];
+                if (nodeIdMap[edge.target]) edge.target = nodeIdMap[edge.target];
+                edge.id = uuidv4();
+              }
+            }
+
+            // Update sourceFlowId in nodes that reference flows
+            for (const node of flow.nodes) {
+              if (node.data?.sourceFlowId && flowIdMap[node.data.sourceFlowId]) {
+                node.data.sourceFlowId = flowIdMap[node.data.sourceFlowId];
+              }
+            }
+          }
+
+          // Save flow
+          saveFlow(flow);
+          importedFlowCount++;
+        }
+
+        // Update character's assignedFlows references
+        if (convertedCharacter.assignedFlows) {
+          convertedCharacter.assignedFlows = convertedCharacter.assignedFlows
+            .map(id => flowIdMap[id] || id)
+            .filter(id => Object.values(flowIdMap).includes(id));
+        }
+
+        // Update story assignedFlows references
+        if (convertedCharacter.stories) {
+          for (const story of convertedCharacter.stories) {
+            if (story.assignedFlows) {
+              story.assignedFlows = story.assignedFlows
+                .map(id => flowIdMap[id] || id)
+                .filter(id => Object.values(flowIdMap).includes(id));
+            }
+          }
+        }
+
+        // Update button sourceFlowId references
+        if (convertedCharacter.buttons) {
+          for (const button of convertedCharacter.buttons) {
+            if (button.sourceFlowId && flowIdMap[button.sourceFlowId]) {
+              button.sourceFlowId = flowIdMap[button.sourceFlowId];
+            }
+            if (button.actions) {
+              for (const action of button.actions) {
+                if (action.config?.flowId && flowIdMap[action.config.flowId]) {
+                  action.config.flowId = flowIdMap[action.config.flowId];
+                }
+              }
+            }
+          }
+        }
+
+        // Sync auto-generated buttons from imported flows
+        const allFlowIds = new Set(convertedCharacter.assignedFlows || []);
+        if (convertedCharacter.stories) {
+          for (const story of convertedCharacter.stories) {
+            for (const fid of (story.assignedFlows || [])) {
+              allFlowIds.add(fid);
+            }
+          }
+        }
+
+        // Save character first so syncAutoGeneratedButtons can find it
+        convertedCharacter.createdAt = Date.now();
+        convertedCharacter.updatedAt = Date.now();
+
+        if (isPerCharStorageActive()) {
+          await saveCharacterAsync(convertedCharacter, true);
+        } else {
+          const characters = loadData(DATA_FILES.characters) || [];
+          characters.push(convertedCharacter);
+          saveData(DATA_FILES.characters, characters);
+        }
+
+        // Sync buttons from flow nodes
+        if (allFlowIds.size > 0) {
+          syncAutoGeneratedButtons(convertedCharacter.id, [...allFlowIds]);
+        }
+
+        // Broadcast updates
+        const allCharacters = loadAllCharacters();
+        broadcast('characters_update', allCharacters);
+
+        const flowsIndex = loadFlowsIndex();
+        broadcast('flows_update', flowsIndex);
+
+        return res.json({
+          success: true,
+          character: convertedCharacter,
+          message: `Imported "${convertedCharacter.name}" with ${importedFlowCount} flow(s) from SwellDreams PNG`
+        });
+      }
     } else {
-      convertedCharacter = characterConverter.convertV2ToSwellD(characterData);
-    }
+      // --- V2/V3 Import (existing behavior) ---
+      const format = characterConverter.detectFormat(characterData);
 
-    // Set avatar if we have one
-    if (avatarData) {
-      convertedCharacter.avatar = avatarData;
+      if (format === 'v3') {
+        convertedCharacter = characterConverter.convertV3ToSwellD(characterData);
+      } else {
+        convertedCharacter = characterConverter.convertV2ToSwellD(characterData);
+      }
+
+      // Set avatar if we have one
+      if (avatarData) {
+        convertedCharacter.avatar = avatarData;
+      }
     }
 
     // Add timestamps
@@ -7241,7 +7500,6 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
 
     // Save character using the same pattern as POST /api/characters
     if (isPerCharStorageActive()) {
-      // Use async version to process images
       await saveCharacterAsync(convertedCharacter, true);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
@@ -7253,10 +7511,12 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
     const allCharacters = loadAllCharacters();
     broadcast('characters_update', allCharacters);
 
+    const formatLabel = isSwellDImport ? 'SwellDreams PNG' : (characterConverter.detectFormat(characterData) || 'V2').toUpperCase();
+
     res.json({
       success: true,
       character: convertedCharacter,
-      message: `Successfully imported "${convertedCharacter.name}" from ${format.toUpperCase()} format`
+      message: `Successfully imported "${convertedCharacter.name}" from ${formatLabel} format`
     });
 
   } catch (error) {
@@ -8959,6 +9219,74 @@ app.get('/api/export/character/:id', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="${character.name.replace(/[^a-z0-9]/gi, '_')}_character.json"`);
   res.json(exportData);
+});
+
+// Export character as PNG character card (V3 or SwellD format)
+app.post('/api/export/character/:id/png', async (req, res) => {
+  try {
+    const { format = 'swelld', storyMode = 'all', selectedStoryIds = [], embedFlows = false } = req.body;
+
+    // Validate format
+    if (!['v3', 'swelld'].includes(format)) {
+      return res.status(400).json({ error: 'Invalid format. Must be "v3" or "swelld".' });
+    }
+
+    // Load character
+    let character;
+    if (isPerCharStorageActive()) {
+      character = loadCharacter(req.params.id);
+    } else {
+      const characters = loadData(DATA_FILES.characters) || [];
+      character = characters.find(c => c.id === req.params.id);
+    }
+
+    if (!character) {
+      return res.status(404).json({ error: 'Character not found' });
+    }
+
+    // Resolve selected stories
+    let selectedStories;
+    if (storyMode === 'selected' && selectedStoryIds.length > 0) {
+      const selectedSet = new Set(selectedStoryIds);
+      selectedStories = (character.stories || []).filter(s => selectedSet.has(s.id));
+    } else {
+      selectedStories = character.stories || [];
+    }
+
+    // Load flows if embedding
+    let flows = [];
+    if (embedFlows && format === 'swelld') {
+      // Collect all assigned flow IDs from character and selected stories
+      const flowIds = new Set(character.assignedFlows || []);
+      for (const story of selectedStories) {
+        for (const fid of (story.assignedFlows || [])) {
+          flowIds.add(fid);
+        }
+      }
+      if (flowIds.size > 0) {
+        flows = isPerFlowStorageActive()
+          ? loadFlows([...flowIds])
+          : (loadData(DATA_FILES.flows) || []).filter(f => flowIds.has(f.id));
+      }
+    }
+
+    // Generate PNG
+    const pngBuffer = await characterExporter.exportCharacterPNG(character, format, {
+      selectedStories,
+      flows,
+      embedFlows
+    });
+
+    // Send as download
+    const safeName = (character.name || 'Character').replace(/[^a-z0-9]/gi, '_');
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.png"`);
+    res.send(pngBuffer);
+
+  } catch (error) {
+    console.error('[Export PNG] Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to export character as PNG' });
+  }
 });
 
 // Export single persona

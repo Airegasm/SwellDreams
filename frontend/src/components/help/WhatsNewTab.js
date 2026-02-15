@@ -5,8 +5,125 @@ function WhatsNewTab() {
   return (
     <div className="help-tab">
       <div className="help-section">
-        <h2>🎉 What's New in Version 3.6</h2>
+        <h2>🎉 What's New in Version 4.0</h2>
         <p className="version-date">Released: February 2026</p>
+      </div>
+
+      <div className="help-section">
+        <h3>👥 Multi-Character Cards</h3>
+        <p>
+          Create cards with multiple AI characters who share a scene! Each character has independent
+          personality, description, and behavior while the LLM writes for contextually relevant
+          characters each turn.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Group Dynamics:</strong>
+            <p>2+ AI characters in a single card, each with their own name, description, and personality</p>
+          </div>
+          <div className="feature-item">
+            <strong>Contextual Responses:</strong>
+            <p>Characters respond when contextually relevant — not all characters in every message</p>
+          </div>
+          <div className="feature-item">
+            <strong>Full Story Support:</strong>
+            <p>Welcome messages, scenarios, and example dialogues per story — just like single-char cards</p>
+          </div>
+          <div className="feature-item">
+            <strong>Dedicated Editor:</strong>
+            <p>MultiCharEditorModal for creating and editing multi-character cards with per-character fields</p>
+          </div>
+          <div className="feature-item">
+            <strong>Builtin Example:</strong>
+            <p>Research Team Alpha — 3-person medical team demonstrating multi-char dynamics and pump tag usage</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Settings → Characters → "+ New Multi-Char" → fill in group name and individual character details
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>📤 Character Export</h3>
+        <p>
+          Export your characters in multiple formats for sharing and backup! Full-fidelity native export,
+          cross-platform V3 compatibility, and JSON backup options.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>SwellDreams PNG:</strong>
+            <p>Full-fidelity native format with optional embedded flows and SwellDreams logo overlay</p>
+          </div>
+          <div className="feature-item">
+            <strong>V3 PNG:</strong>
+            <p>SillyTavern-compatible export with both V2 (chara) and V3 (ccv3) chunks for maximum compatibility</p>
+          </div>
+          <div className="feature-item">
+            <strong>JSON Backup:</strong>
+            <p>Raw SwellDreams character data with embedded avatar — ideal for backups</p>
+          </div>
+          <div className="feature-item">
+            <strong>Story Selection:</strong>
+            <p>Export all stories or selected stories only</p>
+          </div>
+          <div className="feature-item">
+            <strong>Full Backup:</strong>
+            <p>Export all characters, personas, flows, and settings (minus API keys) from Settings</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Settings → Characters → click character → Export → choose format
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🦙 Llama.cpp Support</h3>
+        <p>
+          Native llama.cpp server endpoint support for running local LLMs with minimal overhead.
+          Lighter than KoboldCpp, ideal for headless and server deployments.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Auto-Detection:</strong>
+            <p>Model name and context size automatically detected from the llama.cpp server</p>
+          </div>
+          <div className="feature-item">
+            <strong>Prompt Templates:</strong>
+            <p>Select from ChatML, Llama 3, Mistral, Alpaca, Vicuna, or None</p>
+          </div>
+          <div className="feature-item">
+            <strong>GBNF Grammar:</strong>
+            <p>Supports GBNF grammar for structured output generation</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Settings → Model → Endpoint = "Llama.cpp" → enter server URL → Connect
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🏷️ Advanced Device Tags</h3>
+        <p>
+          New device command modes give the LLM fine-grained control over pumps, vibrators, and TENS units
+          beyond simple on/off.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Pulse Mode:</strong>
+            <p><code>[pump:pulse:N]</code> — N quick on/off bursts (0.5s each)</p>
+          </div>
+          <div className="feature-item">
+            <strong>Timed Mode:</strong>
+            <p><code>[pump:timed:SECONDS]</code> — run for exact duration then auto-off</p>
+          </div>
+          <div className="feature-item">
+            <strong>Cycle Mode:</strong>
+            <p><code>[pump:cycle:ON:OFF:CYCLES]</code> — repeated on/off pattern (0 = infinite)</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 Works for all devices:</strong> pump, vibe, and tens — e.g. <code>[vibe:pulse:5]</code>, <code>[tens:timed:30]</code>
+        </div>
       </div>
 
       <div className="help-section">
@@ -227,7 +344,6 @@ function WhatsNewTab() {
           <li>Global Reminders management tab in Settings</li>
           <li>Advanced lorebook features (insertion position, cooldowns)</li>
           <li>Regex pattern support for keywords</li>
-          <li>Export to V2/V3 format</li>
         </ul>
       </div>
     </div>

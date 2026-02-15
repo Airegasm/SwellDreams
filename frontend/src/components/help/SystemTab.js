@@ -542,30 +542,74 @@ function SystemTab() {
               <tbody>
                 <tr>
                   <td><code>[pump on]</code></td>
-                  <td>Turns on the primary pump device</td>
+                  <td>Turn on pump (auto-off after max duration)</td>
                 </tr>
                 <tr>
                   <td><code>[pump off]</code></td>
-                  <td>Turns off the primary pump device</td>
+                  <td>Turn off pump immediately</td>
                 </tr>
                 <tr>
-                  <td><code>[vibe on]</code></td>
-                  <td>Turns on the vibrator device</td>
+                  <td><code>[pump:pulse:N]</code></td>
+                  <td>N quick pulses (0.5s each)</td>
                 </tr>
                 <tr>
-                  <td><code>[vibe off]</code></td>
-                  <td>Turns off the vibrator device</td>
+                  <td><code>[pump:timed:SECONDS]</code></td>
+                  <td>Run for SECONDS then auto-off</td>
                 </tr>
                 <tr>
-                  <td><code>[tens on]</code></td>
-                  <td>Turns on the TENS device</td>
+                  <td><code>[pump:cycle:ON:OFF:N]</code></td>
+                  <td>Cycle ON seconds / OFF seconds, N times (0 = infinite)</td>
                 </tr>
                 <tr>
-                  <td><code>[tens off]</code></td>
-                  <td>Turns off the TENS device</td>
+                  <td><code>[vibe on]</code> / <code>[vibe off]</code></td>
+                  <td>Vibrator on/off</td>
+                </tr>
+                <tr>
+                  <td><code>[vibe:pulse:N]</code></td>
+                  <td>N vibration pulses</td>
+                </tr>
+                <tr>
+                  <td><code>[vibe:timed:SECONDS]</code></td>
+                  <td>Timed vibration</td>
+                </tr>
+                <tr>
+                  <td><code>[tens on]</code> / <code>[tens off]</code></td>
+                  <td>TENS unit on/off</td>
+                </tr>
+                <tr>
+                  <td><code>[tens:timed:SECONDS]</code></td>
+                  <td>Timed TENS</td>
                 </tr>
               </tbody>
             </table>
+
+            <h4 className="subsection-header">Advanced Device Modes</h4>
+            <p>
+              Beyond simple on/off, the LLM can use pulse, timed, and cycle modes for fine-grained device control:
+            </p>
+            <ul className="help-list">
+              <li>
+                <strong>Pulse Mode:</strong> Quick on/off bursts. Example: <code>[pump:pulse:5]</code> — 5 rapid
+                pulses (0.5 seconds each)
+              </li>
+              <li>
+                <strong>Timed Mode:</strong> Run for an exact duration then auto-off. Example: <code>[pump:timed:60]</code> — pump runs for 60 seconds
+              </li>
+              <li>
+                <strong>Cycle Mode:</strong> Repeated on/off pattern. Example: <code>[pump:cycle:5:10:3]</code> — 5 seconds on, 10 seconds off, repeated 3 times. Use <code>0</code> for infinite cycling until manually stopped.
+              </li>
+            </ul>
+
+            <div className="warning-box">
+              <strong>Safety:</strong> Capacity limit protection blocks the pump at 100% (unless override is enabled).
+              Only the last command per device per message is executed — if the AI includes both <code>[pump on]</code> and <code>[pump off]</code> in the same response, only the last one runs.
+            </div>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Teach the LLM these patterns via example dialogues in your character card.
+              For example, include sample responses with <code>[pump:pulse:3]</code> or <code>[vibe:timed:30]</code> to
+              show the AI how and when to use advanced modes.
+            </div>
 
             <h4 className="subsection-header">How It Works</h4>
             <ul className="help-list">

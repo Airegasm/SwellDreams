@@ -414,6 +414,11 @@ function makeStreamingRequest(url, body, onToken) {
                     fullText += token;
                     if (onToken) onToken(token, fullText);
                   }
+                  // llama.cpp native format: { content: "...", stop: false }
+                  else if (data.content !== undefined && data.stop !== undefined) {
+                    fullText += data.content;
+                    if (onToken) onToken(data.content, fullText);
+                  }
                 } catch (e) {
                   // Skip malformed JSON
                 }
@@ -583,6 +588,12 @@ async function generate(options) {
     return generateOpenRouter({ prompt, messages, systemPrompt, settings: mergedSettings });
   }
 
+  // Check if using llama.cpp native
+  if (mergedSettings.endpointStandard === 'llamacpp') {
+    console.log('[LLM DEBUG] Taking llama.cpp path');
+    return generateLlamaCpp({ prompt, messages, systemPrompt, settings: mergedSettings });
+  }
+
   console.log('[LLM DEBUG] Taking standard LLM path');
 
   if (!mergedSettings.llmUrl) {
@@ -674,6 +685,37 @@ async function generateStream(options) {
     throw new Error('LLM URL not configured');
   }
 
+  // llama.cpp streaming: same /completion endpoint with stream: true in body
+  if (mergedSettings.endpointStandard === 'llamacpp') {
+    let userPrompt = prompt || '';
+    if (!userPrompt && messages && messages.length > 0) {
+      userPrompt = messages.map(m => {
+        if (m.role === 'system') return m.content;
+        if (m.role === 'user') return `User: ${m.content}`;
+        if (m.role === 'assistant') return `Assistant: ${m.content}`;
+        return m.content;
+      }).join('\n');
+    }
+    const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, mergedSettings.promptTemplate);
+    const requestBody = buildLlamaCppRequest(fullPrompt, mergedSettings);
+    requestBody.stream = true;
+
+    let endpoint = mergedSettings.llmUrl;
+    if (!endpoint.includes('/completion')) {
+      endpoint = endpoint.replace(/\/?$/, '/completion');
+    }
+
+    console.log(`[LLM] Making streaming llama.cpp request to ${endpoint}`);
+
+    let generatedText = await makeStreamingRequest(endpoint, requestBody, onToken);
+
+    if (mergedSettings.trimIncompleteSentences && generatedText) {
+      generatedText = trimIncompleteSentences(generatedText);
+    }
+
+    return { text: generatedText?.trim() || '', apiType: 'llamacpp' };
+  }
+
   const apiType = detectApiType(mergedSettings.llmUrl, mergedSettings.apiType);
   let requestBody;
   let endpoint = mergedSettings.llmUrl;
@@ -729,8 +771,51 @@ async function generateStream(options) {
  */
 async function testConnection(settings) {
   try {
-    // Try to get model info first
+    // llama.cpp: use /health and /props endpoints
+    if (settings.endpointStandard === 'llamacpp') {
+      const baseUrl = settings.llmUrl.replace(/\/completion.*$/, '').replace(/\/?$/, '');
+      let modelName = null;
+      let contextSize = null;
+
+      // Health check
+      const healthUrl = `${baseUrl}/health`;
+      console.log('[LLM] llama.cpp health check:', healthUrl);
+      const healthResult = await makeRequest(healthUrl, 'GET');
+      if (!healthResult || healthResult.status !== 'ok') {
+        return { success: false, error: 'llama.cpp health check failed' };
+      }
+
+      // Get model info and context size from /props
+      try {
+        const propsUrl = `${baseUrl}/props`;
+        console.log('[LLM] llama.cpp props:', propsUrl);
+        const propsResult = await makeRequest(propsUrl, 'GET');
+        if (propsResult) {
+          modelName = propsResult.default_generation_settings?.model
+            || propsResult.model
+            || null;
+          contextSize = propsResult.default_generation_settings?.n_ctx
+            || null;
+          if (contextSize) {
+            console.log(`[LLM] llama.cpp reported context size: ${contextSize}`);
+          }
+        }
+      } catch (e) {
+        console.log('[LLM] Failed to fetch llama.cpp props:', e.message);
+      }
+
+      return {
+        success: true,
+        response: 'Health OK',
+        apiType: 'llamacpp',
+        modelName: modelName,
+        contextSize: contextSize
+      };
+    }
+
+    // Try to get model info and context size first
     let modelName = null;
+    let contextSize = null;
     const apiType = detectApiType(settings.llmUrl, settings.apiType);
 
     if (apiType === 'chat_completion') {
@@ -741,6 +826,10 @@ async function testConnection(settings) {
         const modelsResult = await makeRequest(modelsUrl, 'GET');
         if (modelsResult.data && modelsResult.data.length > 0) {
           modelName = modelsResult.data[0].id;
+          // Some OpenAI-compatible servers report context length in model info
+          if (modelsResult.data[0].context_length) {
+            contextSize = modelsResult.data[0].context_length;
+          }
         }
       } catch (e) {
         // Models endpoint not available, skip
@@ -761,6 +850,18 @@ async function testConnection(settings) {
       } catch (e) {
         console.log('[LLM] Failed to fetch model name:', e.message);
       }
+
+      // KoboldCpp: try to get max context length
+      try {
+        const ctxUrl = `${baseUrl}/api/extra/true_max_context_length`;
+        const ctxResult = await makeRequest(ctxUrl, 'GET');
+        if (ctxResult && ctxResult.value) {
+          contextSize = ctxResult.value;
+          console.log(`[LLM] KoboldCpp reported context size: ${contextSize}`);
+        }
+      } catch (e) {
+        // Endpoint not available, skip
+      }
     }
 
     const result = await generate({
@@ -772,7 +873,8 @@ async function testConnection(settings) {
       success: true,
       response: result.text,
       apiType: result.apiType,
-      modelName: modelName
+      modelName: modelName,
+      contextSize: contextSize
     };
   } catch (error) {
     return { success: false, error: error.message };
@@ -1073,6 +1175,146 @@ async function testOpenRouterConnection(apiKey) {
   }
 }
 
+// ============================================
+// llama.cpp Native Support
+// ============================================
+
+/**
+ * Build request body for llama.cpp native /completion endpoint
+ * Maps internal settings to llama.cpp parameter names
+ * @param {string} prompt - The formatted prompt text
+ * @param {Object} settings - LLM settings
+ * @returns {Object} - Request body for llama.cpp /completion
+ */
+function buildLlamaCppRequest(prompt, settings) {
+  const body = {
+    prompt: prompt,
+    n_predict: settings.maxTokens || 150,
+    temperature: settings.temperature ?? 0.92,
+    top_k: settings.topK ?? 0,
+    top_p: settings.topP ?? 0.92,
+    min_p: settings.minP ?? 0.08,
+    typical_p: settings.typicalP ?? 1,
+    tfs_z: settings.tfs ?? 1,
+    top_a: settings.topA ?? 0,
+    repeat_penalty: settings.repetitionPenalty ?? 1.05,
+    repeat_last_n: settings.repPenRange ?? 2048,
+    frequency_penalty: settings.frequencyPenalty ?? 0,
+    presence_penalty: settings.presencePenalty ?? 0,
+    cache_prompt: true
+  };
+
+  // Mirostat
+  if (settings.mirostat && settings.mirostat > 0) {
+    body.mirostat = settings.mirostat;
+    body.mirostat_tau = settings.mirostatTau || 5;
+    body.mirostat_eta = settings.mirostatEta || 0.1;
+  }
+
+  // Stop sequences
+  if (settings.stopSequences && settings.stopSequences.length > 0) {
+    body.stop = settings.stopSequences;
+  }
+
+  // Grammar (GBNF)
+  if (settings.grammar && settings.grammar.trim()) {
+    body.grammar = settings.grammar.trim();
+  }
+
+  // Dynamic Temperature
+  if (settings.dynaTempRange && settings.dynaTempRange > 0) {
+    body.dynatemp_range = settings.dynaTempRange;
+    body.dynatemp_exponent = settings.dynaTempExponent || 1;
+  }
+
+  // DRY repetition penalty
+  if (settings.dryMultiplier && settings.dryMultiplier > 0) {
+    body.dry_multiplier = settings.dryMultiplier;
+    body.dry_base = settings.dryBase || 1.75;
+    body.dry_allowed_length = settings.dryAllowedLength || 2;
+    body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
+    if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
+      body.dry_sequence_breakers = settings.drySequenceBreakers;
+    }
+  }
+
+  // XTC (Exclude Top Choices)
+  if (settings.xtcProbability && settings.xtcProbability > 0) {
+    body.xtc_probability = settings.xtcProbability;
+    body.xtc_threshold = settings.xtcThreshold || 0.1;
+  }
+
+  // Neutralize samplers if requested
+  if (settings.neutralizeSamplers) {
+    body.temperature = 1;
+    body.top_p = 1;
+    body.top_k = 0;
+    body.typical_p = 1;
+    body.min_p = 0;
+    body.tfs_z = 1;
+    body.top_a = 0;
+    body.repeat_penalty = 1;
+    body.frequency_penalty = 0;
+    body.presence_penalty = 0;
+    delete body.dry_multiplier;
+    delete body.xtc_probability;
+  }
+
+  return body;
+}
+
+/**
+ * Generate text using llama.cpp native /completion endpoint
+ * @param {Object} options - Generation options
+ * @returns {Promise<{text: string, apiType: string}>}
+ */
+async function generateLlamaCpp(options) {
+  const { prompt, messages, systemPrompt, settings } = options;
+
+  if (!settings.llmUrl) {
+    throw new Error('llama.cpp URL not configured');
+  }
+
+  // Build the prompt using template wrapping (same as text completion path)
+  let userPrompt = prompt || '';
+  if (!userPrompt && messages && messages.length > 0) {
+    userPrompt = messages.map(m => {
+      if (m.role === 'system') return m.content;
+      if (m.role === 'user') return `User: ${m.content}`;
+      if (m.role === 'assistant') return `Assistant: ${m.content}`;
+      return m.content;
+    }).join('\n');
+  }
+
+  const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, settings.promptTemplate);
+  const requestBody = buildLlamaCppRequest(fullPrompt, settings);
+
+  // Ensure endpoint points to /completion
+  let endpoint = settings.llmUrl;
+  if (!endpoint.includes('/completion')) {
+    endpoint = endpoint.replace(/\/?$/, '/completion');
+  }
+
+  log.info(`Making llama.cpp request to ${endpoint}`);
+
+  const response = await makeRequest(endpoint, requestBody);
+
+  // llama.cpp returns { content: "generated text", stop: true, ... }
+  let text = '';
+  if (response.content !== undefined) {
+    text = response.content;
+  } else {
+    throw new Error('Could not extract generated text from llama.cpp response');
+  }
+
+  // Apply sentence trimming if enabled
+  if (settings.trimIncompleteSentences !== false && text) {
+    text = trimIncompleteSentences(text);
+  }
+
+  return { text: text.trim(), apiType: 'llamacpp' };
+}
+
 module.exports = {
   DEFAULT_SETTINGS,
   detectApiType,
@@ -1085,5 +1327,8 @@ module.exports = {
   fetchOpenRouterModels,
   buildOpenRouterRequest,
   generateOpenRouter,
-  testOpenRouterConnection
+  testOpenRouterConnection,
+  // llama.cpp
+  buildLlamaCppRequest,
+  generateLlamaCpp
 };

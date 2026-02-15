@@ -239,21 +239,46 @@ function parseExampleDialogues(mesExample) {
 /**
  * Extract character card JSON from PNG metadata
  * @param {Buffer} pngBuffer - PNG file buffer
- * @param {string} format - 'v2' or 'v3'
+ * @param {string} format - 'v2', 'v3', or 'swelld'
  * @returns {Object|null} Extracted character card data
  */
 function extractPNGMetadata(pngBuffer, format = 'v2') {
   try {
-    if (format === 'v2') {
-      return extractV2PNG(pngBuffer);
+    if (format === 'swelld') {
+      return extractSwellDPNG(pngBuffer);
     } else if (format === 'v3') {
       return extractV3PNG(pngBuffer);
+    } else if (format === 'v2') {
+      return extractV2PNG(pngBuffer);
     }
   } catch (error) {
     console.error('Failed to extract PNG metadata:', error);
     return null;
   }
   return null;
+}
+
+/**
+ * Extract SwellDreams character data from PNG (tEXt chunk with key "swelld")
+ * @param {Buffer} pngBuffer - PNG file buffer
+ * @returns {Object|null} SwellDreams export data
+ */
+function extractSwellDPNG(pngBuffer) {
+  try {
+    const chunks = extractPNGChunks(pngBuffer);
+    const swelldChunk = chunks.find(chunk =>
+      chunk.type === 'tEXt' && chunk.key === 'swelld'
+    );
+
+    if (!swelldChunk) return null;
+
+    // Decode base64
+    const jsonString = Buffer.from(swelldChunk.value, 'base64').toString('utf-8');
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error('SwellD PNG extraction failed:', error);
+    return null;
+  }
 }
 
 /**
@@ -365,5 +390,7 @@ module.exports = {
   convertV3ToSwellD,
   parseExampleDialogues,
   extractPNGMetadata,
+  extractSwellDPNG,
+  extractPNGChunks,
   detectFormat
 };

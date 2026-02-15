@@ -1,0 +1,152 @@
+{
+  "id": "85991918-0979-4922-ab6a-3604fca362dd",
+  "name": "Capacity Study",
+  "category": "character",
+  "description": "Capacity message nodes for clinical observations",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "e9380130-76a3-477f-aace-67a3e9ff76a2",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Capacity Observation",
+        "buttonTarget": "character",
+        "buttonId": "iris-observe",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "50f21c8f-53e2-4fb1-950a-707b5e2a89f0",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 150
+      },
+      "data": {
+        "label": "Observation Start",
+        "actionType": "send_message",
+        "message": "*examines monitoring equipment* Initiating capacity observation protocol. I will record my clinical observations at your current level.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "ab9859de-b751-4cb0-b6bf-7b7be78afd6f",
+      "type": "capacity_ai_message",
+      "position": {
+        "x": 200,
+        "y": 280
+      },
+      "data": {
+        "label": "Capacity Observations",
+        "ranges": [
+          {
+            "min": 0,
+            "max": 10,
+            "message": "Subject at baseline capacity. No observable distension. Establishing control readings.",
+            "enableOutput": true
+          },
+          {
+            "min": 11,
+            "max": 20,
+            "message": "Minimal expansion detected. Subject reports early awareness of internal pressure. Beginning data collection.",
+            "enableOutput": true
+          },
+          {
+            "min": 21,
+            "max": 30,
+            "message": "Measurable distension observed. Abdominal circumference increasing. Subject's breathing patterns adjusting.",
+            "enableOutput": true
+          },
+          {
+            "min": 31,
+            "max": 40,
+            "message": "Significant expansion. Subject displaying classic discomfort indicators. *notes* Fascinating response patterns.",
+            "enableOutput": true
+          },
+          {
+            "min": 41,
+            "max": 50,
+            "message": "Approaching 50% capacity. Subject's autonomic responses are... elevated. Perspiration detected. Continue monitoring.",
+            "enableOutput": true
+          },
+          {
+            "min": 51,
+            "max": 60,
+            "message": "Past midpoint. Considerable distension. Subject's vocalization frequency increasing. *adjusts instruments* Optimal data collection range.",
+            "enableOutput": true
+          },
+          {
+            "min": 61,
+            "max": 70,
+            "message": "Substantial capacity achieved. Skin tension visible. Subject showing signs of strain. *records* Approaching interesting thresholds.",
+            "enableOutput": true
+          },
+          {
+            "min": 71,
+            "max": 80,
+            "message": "High capacity zone. Subject's physical responses intensifying. *clinical observation* Body adapting to extreme internal pressure.",
+            "enableOutput": true
+          },
+          {
+            "min": 81,
+            "max": 90,
+            "message": "Critical observation zone. Maximum safe parameters being approached. Subject's distress levels... notable. *checks monitors*",
+            "enableOutput": true
+          },
+          {
+            "min": 91,
+            "max": 100,
+            "message": "Peak capacity. Subject at maximum documented threshold. *leans forward with interest* This is unprecedented data. Every reading is valuable.",
+            "enableOutput": true
+          }
+        ],
+        "suppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "e9df3bd3-72bd-4400-8945-24c5007b0c94",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 500
+      },
+      "data": {
+        "label": "Analysis Complete",
+        "actionType": "send_message",
+        "message": "*reviews tablet* Current capacity: [Capacity]%. Observations recorded. Your body continues to provide valuable data for our research. *slight smile* Science thanks you.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e3eb6f78-f21f-40bc-8fc5-69fb925850c6",
+      "source": "e9380130-76a3-477f-aace-67a3e9ff76a2",
+      "target": "50f21c8f-53e2-4fb1-950a-707b5e2a89f0"
+    },
+    {
+      "id": "a3830f86-0f8f-48cc-ae71-01e7f5904aa8",
+      "source": "50f21c8f-53e2-4fb1-950a-707b5e2a89f0",
+      "target": "ab9859de-b751-4cb0-b6bf-7b7be78afd6f"
+    },
+    {
+      "id": "9945c737-9181-4e81-b99d-ca08876ba5cf",
+      "source": "ab9859de-b751-4cb0-b6bf-7b7be78afd6f",
+      "sourceHandle": "global",
+      "target": "e9df3bd3-72bd-4400-8945-24c5007b0c94"
+    }
+  ],
+  "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1"
+}
