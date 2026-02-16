@@ -762,6 +762,10 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
       }
     }
 
+    // If the matched phrase explicitly names the pump/machine/device or its controls,
+    // it's a direct device action — bypass the descriptive body-state filter
+    const isExplicitDeviceAction = /\b(pump|compressor|machine|motor|device|dial|knob|switch|lever|valve|button|remote|control\s*panel)\b/i.test(matchedPhrase);
+
     // Skip for descriptive/passive inflation state phrases — these describe the EFFECT
     // of inflation (what's happening to the body), not a pump activation command
     const descriptiveMarkers = [
@@ -773,11 +777,15 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
       /\b(belly|stomach|abdomen|gut|tummy)\s+(is|was|gets?|getting|became|becomes?|growing|looking)\s+(bigger|larger|rounder|tighter|fuller|more\s+distended|more\s+swollen)/i,
     ];
 
-    for (const marker of descriptiveMarkers) {
-      if (marker.test(text)) {
-        log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
-        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+    if (!isExplicitDeviceAction) {
+      for (const marker of descriptiveMarkers) {
+        if (marker.test(text)) {
+          log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
+          return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+        }
       }
+    } else {
+      log.info(`[Reinforce] Explicit device action "${matchedPhrase}" - bypassing descriptive filter`);
     }
 
     // Check for specific mode indicators in the text
