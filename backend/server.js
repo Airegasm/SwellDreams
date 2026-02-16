@@ -6671,14 +6671,15 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   }
   prompt += `\nRULES:\n`;
   prompt += `- Write ONLY for ${names}. NEVER write dialogue or actions for ${playerName}.\n`;
-  prompt += `- Not every character needs to speak each turn. Only include those contextually relevant.\n`;
   prompt += `- Attribute dialogue and actions to characters by name.\n`;
   prompt += `- Keep dialogue natural and concise — people speak in short sentences, not paragraphs.\n`;
-  prompt += `- Example:\n`;
-  prompt += `  *${chars[0]?.name || 'Character'} glances up from the clipboard.* "Well, that's interesting."\n`;
-  if (chars[1]) {
-    prompt += `  *${chars[1].name} leans against the wall, arms crossed.* "About time you noticed."\n`;
-  }
+  prompt += `\nCONVERSATION DYNAMICS (important):\n`;
+  prompt += `- Vary which characters speak each turn. 1-2 characters per response is ideal; only use 3+ when genuinely needed.\n`;
+  prompt += `- Characters who just spoke recently can stay silent while others take the lead.\n`;
+  prompt += `- Let conversations shift naturally — a character can initiate a new topic, react to something unexpected, or redirect the scene.\n`;
+  prompt += `- Characters can disagree, interrupt, go off on tangents, or have side conversations.\n`;
+  prompt += `- Sometimes only ONE character responds — the others are busy, distracted, or simply have nothing to add.\n`;
+  prompt += `- Avoid the pattern of every character commenting on the same thing in sequence. Real groups don't take orderly turns.\n`;
   prompt += `\n`;
   return prompt;
 }
@@ -6831,6 +6832,26 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   });
 
   if (character.multiChar?.enabled) {
+    // Analyze recent speaker frequency to encourage diversity
+    const chars = character.multiChar.characters;
+    if (chars?.length > 1 && recentMessages.length >= 3) {
+      const charMessages = recentMessages.filter(m => m.sender === 'character');
+      const last6 = charMessages.slice(-6);
+      const speakerCounts = {};
+      for (const c of chars) speakerCounts[c.name] = 0;
+      for (const msg of last6) {
+        const content = msg.content || '';
+        for (const c of chars) {
+          if (content.includes(c.name)) speakerCounts[c.name]++;
+        }
+      }
+      // Find who's been quiet vs dominant
+      const sorted = Object.entries(speakerCounts).sort((a, b) => a[1] - b[1]);
+      const quietest = sorted.filter(([, count]) => count <= 1).map(([name]) => name);
+      if (quietest.length > 0 && quietest.length < chars.length) {
+        prompt += `\n[Hint: ${quietest.join(' and ')} ${quietest.length === 1 ? 'hasn\'t' : 'haven\'t'} had much to say recently — consider featuring ${quietest.length === 1 ? 'them' : 'one of them'} this turn.]\n`;
+      }
+    }
     prompt += `[Characters]:`;
   } else {
     prompt += `${character.name}:`;
