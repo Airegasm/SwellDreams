@@ -1,6 +1,6 @@
 /**
  * Device Service - Multi-brand smart device management
- * Supports: TP-Link Kasa, Govee, Tuya, Wyze, Tapo, Matter
+ * Supports: TP-Link Kasa, Govee, Tuya, Wyze, Tapo
  */
 
 const { spawn } = require('child_process');
@@ -10,7 +10,6 @@ const tuyaService = require('./tuya-service');
 const kasaService = require('./kasa-service');
 const wyzeService = require('./wyze-service');
 const tapoService = require('./tapo-service');
-const matterService = require('./matter-service');
 const { safeJsonParse } = require('../utils/errors');
 const { createLogger } = require('../utils/logger');
 
@@ -388,20 +387,6 @@ class DeviceService {
         return result;
       }
 
-      if (device?.brand === 'matter') {
-        const state = await matterService.getPowerState(device.deviceId);
-        const result = {
-          state,
-          relay_state: state === 'on' ? 1 : 0
-        };
-        this.deviceStates.set(device.deviceId, {
-          state: result.state,
-          relayState: result.relay_state,
-          lastUpdate: Date.now()
-        });
-        return result;
-      }
-
       // Default: TPLink Kasa (native Node.js implementation)
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
@@ -488,18 +473,6 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
-      }
-
-      if (device?.brand === 'matter') {
-        await matterService.turnOn(device.deviceId);
-        this.deviceStates.set(device.deviceId, {
-          state: 'on',
-          relayState: 1,
-          lastUpdate: Date.now()
-        });
-        this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
-        this.startPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'on' };
       }
 
@@ -600,18 +573,6 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
-      }
-
-      if (device?.brand === 'matter') {
-        await matterService.turnOff(device.deviceId);
-        this.deviceStates.set(device.deviceId, {
-          state: 'off',
-          relayState: 0,
-          lastUpdate: Date.now()
-        });
-        this.emitEvent('device_off', { ip: device.deviceId, device });
-        this.stopPumpRuntimeTracking(device.deviceId, device);
         return { success: true, state: 'off' };
       }
 
@@ -884,7 +845,7 @@ class DeviceService {
   registerDevice(device) {
     // Use deviceId for cloud-based devices (Govee, Tuya, Wyze, Matter)
     // Use ip for local devices (TPLink Kasa, Tapo)
-    const cloudBrands = ['govee', 'tuya', 'wyze', 'matter'];
+    const cloudBrands = ['govee', 'tuya', 'wyze'];
     const key = cloudBrands.includes(device.brand) ? device.deviceId : device.ip;
     this.devices.set(key, device);
   }
