@@ -2841,7 +2841,14 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       console.warn(`[AutoCapacity] Ignoring final event for ${ip} with ${runtimeSeconds.toFixed(1)}s - capacity is 0 (likely post-emergency-stop)`);
       return;
     }
-    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0 };
+    // Seed new tracker with existing capacity so manual slider value is preserved
+    let seedSeconds = 0;
+    if (sessionState.capacity > 0 && calibrationTime) {
+      const seedModifier = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+      seedSeconds = (sessionState.capacity / 100 / seedModifier) * calibrationTime;
+      console.log(`[AutoCapacity] Seeding new tracker for ${ip} with ${seedSeconds.toFixed(1)}s (preserving ${sessionState.capacity}% capacity)`);
+    }
+    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: seedSeconds, baseSeconds: seedSeconds };
   }
 
   if (isRealTime) {
@@ -4515,6 +4522,46 @@ async function handleWsMessage(ws, type, data) {
 
     case 'update_capacity':
       sessionState.capacity = data.capacity;
+
+      // Recalibrate pumpRuntimeTracker so auto-capacity resumes from the manual value
+      // Without this, the next pump_runtime event would overwrite the manual value
+      {
+        const recalSettings = loadData(DATA_FILES.settings) || {};
+        const recalModifier = recalSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+        const recalDevices = loadData(DATA_FILES.devices) || [];
+        const trackerEntries = Object.entries(sessionState.pumpRuntimeTracker);
+
+        if (trackerEntries.length > 0) {
+          // Calculate current auto-capacity total
+          let currentAutoTotal = 0;
+          for (const [key, tracker] of trackerEntries) {
+            const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
+            if (dev?.calibrationTime) {
+              currentAutoTotal += (tracker.totalSeconds / dev.calibrationTime) * 100 * recalModifier;
+            }
+          }
+
+          if (currentAutoTotal > 0) {
+            // Scale all trackers proportionally so they sum to the new manual capacity
+            const scale = data.capacity / currentAutoTotal;
+            for (const [key, tracker] of trackerEntries) {
+              tracker.totalSeconds *= scale;
+              tracker.baseSeconds *= scale;
+            }
+            console.log(`[ManualCapacity] Recalibrated pumpRuntimeTracker: ${Math.round(currentAutoTotal)}% -> ${data.capacity}% (scale: ${scale.toFixed(3)})`);
+          } else if (trackerEntries.length === 1) {
+            // Tracker exists but no auto-capacity yet — seed it with the manual value
+            const [key, tracker] = trackerEntries[0];
+            const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
+            if (dev?.calibrationTime) {
+              const newSeconds = (data.capacity / 100 / recalModifier) * dev.calibrationTime;
+              tracker.totalSeconds = newSeconds;
+              tracker.baseSeconds = newSeconds;
+              console.log(`[ManualCapacity] Seeded tracker ${key}: ${newSeconds.toFixed(1)}s for ${data.capacity}%`);
+            }
+          }
+        }
+      }
 
       // Auto-pop shutoff: Turn off all pumps when capacity reaches the effective pop threshold
       const capacitySettings = loadData(DATA_FILES.settings) || {};

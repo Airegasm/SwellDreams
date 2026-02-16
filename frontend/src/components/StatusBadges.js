@@ -18,6 +18,7 @@ function StatusBadges({
   const [showEmotionPopup, setShowEmotionPopup] = React.useState(false);
   const [showPainPopup, setShowPainPopup] = React.useState(false);
   const [showCapacitySlider, setShowCapacitySlider] = React.useState(false);
+  const [sliderValue, setSliderValue] = React.useState(0);
 
   // Click-outside handlers
   useEffect(() => {
@@ -57,7 +58,11 @@ function StatusBadges({
       <div
         className="badge-capacity-circle"
         ref={capacityRef}
-        onClick={() => onCapacityChange && setShowCapacitySlider(!showCapacitySlider)}
+        onClick={() => {
+          if (!onCapacityChange) return;
+          if (!showCapacitySlider) setSliderValue(Math.max(0, Math.min(100, capacity)));
+          setShowCapacitySlider(!showCapacitySlider);
+        }}
       >
         <div className="capacity-gauge-mini">
           <div className="gauge-background-mini"></div>
@@ -70,7 +75,7 @@ function StatusBadges({
         </div>
         {showCapacitySlider && onCapacityChange && (
           <div className="capacity-slider-popup" onClick={(e) => e.stopPropagation()}>
-            <span className="capacity-slider-label">{Math.max(0, Math.min(100, capacity))}%</span>
+            <span className="capacity-slider-label">{sliderValue}%</span>
             <div
               className="capacity-slider-track"
               onMouseDown={(e) => {
@@ -78,6 +83,7 @@ function StatusBadges({
                 const update = (ev) => {
                   const rect = track.getBoundingClientRect();
                   const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - ev.clientY) / rect.height) * 100)));
+                  setSliderValue(pct);
                   onCapacityChange(pct);
                 };
                 update(e);
@@ -95,6 +101,7 @@ function StatusBadges({
                   const touch = ev.touches[0];
                   const rect = track.getBoundingClientRect();
                   const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)));
+                  setSliderValue(pct);
                   onCapacityChange(pct);
                 };
                 update(e);
@@ -107,8 +114,8 @@ function StatusBadges({
                 document.addEventListener('touchend', onEnd);
               }}
             >
-              <div className="capacity-slider-fill" style={{ height: `${Math.max(0, Math.min(100, capacity))}%` }} />
-              <div className="capacity-slider-thumb" style={{ bottom: `${Math.max(0, Math.min(100, capacity))}%` }} />
+              <div className="capacity-slider-fill" style={{ height: `${sliderValue}%` }} />
+              <div className="capacity-slider-thumb" style={{ bottom: `${sliderValue}%` }} />
             </div>
             <span className="capacity-slider-min">0</span>
           </div>
