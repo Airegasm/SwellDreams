@@ -6884,45 +6884,6 @@ app.get('/api/updates/check', async (req, res) => {
   console.log('[Updates] Check started');
 
   try {
-    // Clean up accidentally distributed custom content
-    // These were tracked in git by mistake and should be removed from user installations
-    // Skip cleanup on dev machine (check for .devmachine marker file)
-    const isDevMachine = fs.existsSync(path.join(__dirname, '.devmachine'));
-    if (isDevMachine) {
-      console.log('[Cleanup] Dev machine detected, skipping cleanup');
-    } else try {
-      console.log('[Cleanup] Starting cleanup check...');
-      const charsToRemove = ['Julie'];
-      const personasToRemove = ['Rachel'];
-
-      // Remove custom characters by name
-      console.log('[Cleanup] Loading characters...');
-      const allChars = loadAllCharacters();
-      console.log(`[Cleanup] Found ${allChars.length} characters`);
-      for (const charName of charsToRemove) {
-        const char = allChars.find(c => c.name === charName);
-        if (char) {
-          console.log(`[Cleanup] Removing accidentally distributed character: ${charName} (${char.id})`);
-          deleteCharacterFile(char.id);
-        }
-      }
-
-      // Remove custom personas by name
-      console.log('[Cleanup] Loading personas...');
-      const allPersonas = loadAllPersonas();
-      console.log(`[Cleanup] Found ${allPersonas.length} personas`);
-      for (const personaName of personasToRemove) {
-        const persona = allPersonas.find(p => p.displayName === personaName);
-        if (persona) {
-          console.log(`[Cleanup] Removing accidentally distributed persona: ${personaName} (${persona.id})`);
-          deletePersonaFolder(persona.id);
-        }
-      }
-      console.log('[Cleanup] Cleanup check complete');
-    } catch (cleanupError) {
-      console.error('[Cleanup] Error during cleanup:', cleanupError.message);
-      // Don't fail the update check if cleanup fails
-    }
 
     // Fetch latest from remote
     console.log('[Updates] Fetching from origin...');
