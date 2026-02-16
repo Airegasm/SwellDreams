@@ -41,6 +41,7 @@ tapo-test*.py
 
 # System files
 NUL
+CLAUDE.md
 
 # Matter SDK and build artifacts
 connectedhomeip/

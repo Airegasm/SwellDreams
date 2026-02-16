@@ -7390,12 +7390,17 @@ app.get('/api/updates/check', async (req, res) => {
     console.log('[Updates] Fetching from origin...');
     execSync('git fetch origin', { cwd: projectRoot, stdio: 'pipe', timeout: 15000 });
 
+    // Detect current branch
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
+    const trackingBranch = (currentBranch === 'master' || currentBranch === 'main') ? 'release' : currentBranch;
+    console.log(`[Updates] Current branch: ${currentBranch}, tracking: origin/${trackingBranch}`);
+
     // Get current and remote commit hashes
     const localCommit = execSync('git rev-parse HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
-    const remoteCommit = execSync('git rev-parse origin/master', { cwd: projectRoot, encoding: 'utf8' }).trim();
+    const remoteCommit = execSync(`git rev-parse origin/${trackingBranch}`, { cwd: projectRoot, encoding: 'utf8' }).trim();
 
     // Get commit count difference
-    const behindCount = parseInt(execSync(`git rev-list --count HEAD..origin/master`, { cwd: projectRoot, encoding: 'utf8' }).trim()) || 0;
+    const behindCount = parseInt(execSync(`git rev-list --count HEAD..origin/${trackingBranch}`, { cwd: projectRoot, encoding: 'utf8' }).trim()) || 0;
 
     // Get current version from package.json (read fresh, don't use cached require)
     const pkgPath = path.join(__dirname, 'package.json');
@@ -7405,7 +7410,7 @@ app.get('/api/updates/check', async (req, res) => {
     // Get commit messages for pending updates
     let pendingChanges = [];
     if (behindCount > 0) {
-      const logOutput = execSync(`git log --oneline HEAD..origin/master`, { cwd: projectRoot, encoding: 'utf8' }).trim();
+      const logOutput = execSync(`git log --oneline HEAD..origin/${trackingBranch}`, { cwd: projectRoot, encoding: 'utf8' }).trim();
       pendingChanges = logOutput.split('\n').filter(line => line.trim());
     }
 
@@ -7440,9 +7445,12 @@ app.post('/api/updates/pull', async (req, res) => {
 
   try {
     console.log('[Updates] Manual pull requested...');
+    // Detect current branch, migrate master/main to release
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
+    const trackingBranch = (currentBranch === 'master' || currentBranch === 'main') ? 'release' : currentBranch;
     // Fetch and reset to remote - no merge needed, ensures exact match with remote
-    execSync('git fetch origin master', { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
-    execSync('git reset --hard origin/master', { cwd: projectRoot, stdio: 'pipe' });
+    execSync(`git fetch origin ${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    execSync(`git reset --hard origin/${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe' });
     console.log('[Updates] Manual pull successful');
     res.json({ success: true, message: 'Pull successful. Please restart the application.' });
   } catch (error) {
@@ -7457,12 +7465,15 @@ app.post('/api/updates/install', async (req, res) => {
   const isWindows = process.platform === 'win32';
 
   try {
+    // Detect current branch, migrate master/main to release
+    const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
+    const trackingBranch = (currentBranch === 'master' || currentBranch === 'main') ? 'release' : currentBranch;
     // Fetch and reset to remote (no merge, no committer identity needed)
     // This ensures local repo always matches remote exactly - users shouldn't modify tracked files
-    console.log('[Updates] Fetching latest changes...');
-    execSync('git fetch origin master', { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    console.log(`[Updates] Fetching latest changes from origin/${trackingBranch}...`);
+    execSync(`git fetch origin ${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
     console.log('[Updates] Resetting to remote...');
-    execSync('git reset --hard origin/master', { cwd: projectRoot, stdio: 'pipe' });
+    execSync(`git reset --hard origin/${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe' });
 
     // Clear Python bytecode cache to ensure fresh script execution
     const pycacheDir = path.join(__dirname, 'scripts', '__pycache__');

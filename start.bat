@@ -9,8 +9,8 @@ set SCRIPT_DIR=%~dp0
 echo Script directory: %SCRIPT_DIR%
 
 REM Read version from version.json
-set VERSION=3.7.0
-set CODENAME=FinalClosed
+set VERSION=3.8.0
+set CODENAME=Open Beta
 for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"version\""') do (
     set VERSION=%%~a
 )
@@ -42,11 +42,52 @@ echo.
 REM Auto-update from git
 echo Checking for updates...
 cd /d "%SCRIPT_DIR%"
-git pull
-if errorlevel 1 (
-    echo Warning: Could not update from git. Continuing with local version...
+if not exist ".git" (
+    echo Git repository not found. Setting up...
+    git init
+    git remote add origin https://github.com/Airegasm/SwellDreams.git
+    git fetch origin release
+    git checkout -b release origin/release
+    echo Repository initialized on release branch.
 ) else (
-    echo Update complete!
+    git remote get-url origin >nul 2>nul
+    if errorlevel 1 (
+        echo No remote configured. Adding origin...
+        git remote add origin https://github.com/Airegasm/SwellDreams.git
+        git pull origin release
+        echo Remote added. Pulled from release branch.
+    ) else (
+        REM Migrate master users to release branch
+        for /f "tokens=*" %%b in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set CURRENT_BRANCH=%%b
+        if "%CURRENT_BRANCH%"=="master" (
+            echo Migrating from master to release branch...
+            git fetch origin release >nul 2>nul
+            git checkout release >nul 2>nul
+            if not errorlevel 1 (
+                git branch -D master >nul 2>nul
+                echo Switched to release branch.
+            ) else (
+                echo Warning: Could not switch to release. Continuing on master...
+            )
+        )
+        if "%CURRENT_BRANCH%"=="main" (
+            echo Migrating from main to release branch...
+            git fetch origin release >nul 2>nul
+            git checkout release >nul 2>nul
+            if not errorlevel 1 (
+                git branch -D main >nul 2>nul
+                echo Switched to release branch.
+            ) else (
+                echo Warning: Could not switch to release. Continuing on main...
+            )
+        )
+        git pull
+        if errorlevel 1 (
+            echo Warning: Could not update from git. Continuing with local version...
+        ) else (
+            echo Update complete!
+        )
+    )
 )
 echo.
 
@@ -66,26 +107,18 @@ echo.
 echo Checking for Python...
 where python >nul 2>nul
 if errorlevel 1 (
-    echo Warning: Python not found. Some features ^(Wyze, Tapo, Matter^) will be unavailable.
+    echo Warning: Python not found. Some features ^(Tapo^) will be unavailable.
     echo Install Python from https://www.python.org/downloads/
 ) else (
     python --version
-    echo Installing/updating Python dependencies ^(Wyze, Tapo, Matter^)...
+    echo Installing/updating Python dependencies ^(Tapo^)...
     python -m pip install --upgrade pip >nul 2>nul
     python -m pip install -r "%SCRIPT_DIR%backend\requirements.txt"
     if errorlevel 1 (
-        echo Warning: Some Python dependencies failed to install. Matter features may be limited.
+        echo Warning: Some Python dependencies failed to install. Some features may be limited.
     ) else (
         echo Python dependencies installed successfully!
     )
-)
-
-REM Check for WSL (Matter support will auto-install on first use)
-wsl --list >nul 2>nul
-if errorlevel 1 (
-    echo Note: WSL not detected. Matter/Tapo support will be unavailable.
-) else (
-    echo WSL detected. Matter support available ^(will auto-install on first use^).
 )
 
 REM Install/update backend dependencies
