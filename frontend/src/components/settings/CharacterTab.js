@@ -8,7 +8,7 @@ import MultiCharEditorModal from '../modals/MultiCharEditorModal';
 import './SettingsTabs.css';
 
 function CharacterTab() {
-  const { characters, settings, api, flows } = useApp();
+  const { characters, setCharacters, settings, api, flows } = useApp();
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
@@ -224,6 +224,8 @@ function CharacterTab() {
 
         const result = await response.json();
         showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
+        // Refresh character list in case WebSocket broadcast was missed
+        api.getCharacters().then(chars => { if (chars) setCharacters(chars); }).catch(() => {});
       } else {
         // JSON file — existing behavior
         const text = await file.text();
@@ -278,6 +280,8 @@ function CharacterTab() {
 
       const result = await response.json();
       showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
+      // Refresh character list in case WebSocket broadcast was missed
+      api.getCharacters().then(chars => { if (chars) setCharacters(chars); }).catch(() => {});
 
       // Show setup guidance modal for converted characters
       setTimeout(() => {

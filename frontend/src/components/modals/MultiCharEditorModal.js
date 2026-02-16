@@ -103,7 +103,9 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
           globalReminderIds: [],
           startingEmotion: character.startingEmotion || 'neutral',
           intensity: character.intensity || '',
-          spoilers: character.spoilers || []
+          spoilers: character.spoilers || [],
+          checkpoints: {},
+          attributes: {}
         }];
       } else {
         stories = stories.map(s => {
@@ -184,7 +186,9 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       globalReminderIds: [],
       startingEmotion: 'neutral',
       intensity: '',
-      spoilers: []
+      spoilers: [],
+      checkpoints: {},
+      attributes: {}
     };
 
     return {
@@ -671,7 +675,9 @@ Write only the scenario description itself, no explanations.`;
       intensity: '',
       spoilers: [],
       storyProgressionEnabled: false,
-      storyProgressionMaxOptions: 3
+      storyProgressionMaxOptions: 3,
+      checkpoints: {},
+      attributes: {}
     };
     setFormData({ ...formData, stories: [...stories, newStory] });
     setSelectedStoryId(newId);
@@ -1182,7 +1188,13 @@ Write only the scenario description itself, no explanations.`;
             Custom Buttons
           </button>
           <button type="button" className={`modal-tab ${activeTab === 'session' ? 'active' : ''}`} onClick={() => setActiveTab('session')}>
-            Session Defaults
+            Session
+          </button>
+          <button type="button" className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`} onClick={() => setActiveTab('checkpoints')}>
+            Checkpoints
+          </button>
+          <button type="button" className={`modal-tab ${activeTab === 'attributes' ? 'active' : ''}`} onClick={() => setActiveTab('attributes')}>
+            Attributes
           </button>
         </div>
 
@@ -1416,6 +1428,33 @@ Write only the scenario description itself, no explanations.`;
                     <span className="auto-reply-hint">Allow AI to control physical devices</span>
                   </div>
                 </div>
+                {activeStory?.allowLlmDeviceAccess && (
+                  <div className="story-field" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                    <label style={{ fontWeight: 'bold', marginBottom: '0.25rem', display: 'block' }}>Device Control Limits</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px', gap: '0.25rem 0.5rem', alignItems: 'center' }}>
+                      <label>Max ON Duration (secs)</label>
+                      <input type="number" min={1} max={300} value={activeStory?.llmMaxOnDuration ?? 5}
+                        onChange={(e) => updateStoryField('llmMaxOnDuration', Math.min(300, Math.max(1, parseInt(e.target.value) || 5)))}
+                        style={{ width: '60px' }} />
+                      <label>Max Cycle ON (secs)</label>
+                      <input type="number" min={1} max={60} value={activeStory?.llmMaxCycleOnDuration ?? 2}
+                        onChange={(e) => updateStoryField('llmMaxCycleOnDuration', Math.min(60, Math.max(1, parseInt(e.target.value) || 2)))}
+                        style={{ width: '60px' }} />
+                      <label>Max Cycle Repetitions</label>
+                      <input type="number" min={1} max={50} value={activeStory?.llmMaxCycleRepetitions ?? 2}
+                        onChange={(e) => updateStoryField('llmMaxCycleRepetitions', Math.min(50, Math.max(1, parseInt(e.target.value) || 2)))}
+                        style={{ width: '60px' }} />
+                      <label>Max Pulse Repetitions</label>
+                      <input type="number" min={1} max={50} value={activeStory?.llmMaxPulseRepetitions ?? 5}
+                        onChange={(e) => updateStoryField('llmMaxPulseRepetitions', Math.min(50, Math.max(1, parseInt(e.target.value) || 5)))}
+                        style={{ width: '60px' }} />
+                      <label>Max Timed Duration (secs)</label>
+                      <input type="number" min={1} max={300} value={activeStory?.llmMaxTimedDuration ?? 10}
+                        onChange={(e) => updateStoryField('llmMaxTimedDuration', Math.min(300, Math.max(1, parseInt(e.target.value) || 10)))}
+                        style={{ width: '60px' }} />
+                    </div>
+                  </div>
+                )}
 
                 {/* Story Progression Mode */}
                 <div className="auto-reply-field" style={{ marginTop: '0.5rem' }}>
@@ -2061,10 +2100,10 @@ Write only the scenario description itself, no explanations.`;
             </div>
           </div>
 
-          {/* Session Defaults Tab */}
+          {/* Session Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'session' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              <h4>Session Defaults</h4>
+              <h4>Session</h4>
               <p className="section-hint">These values will be used when starting a new session with this character group.</p>
 
               <div className="form-group">
@@ -2125,6 +2164,76 @@ Write only the scenario description itself, no explanations.`;
                 />
                 <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
               </div>
+            </div>
+          </div>
+
+          {/* Checkpoints Tab */}
+          <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
+            <div className="session-defaults-editor">
+              <h4>Capacity Checkpoints</h4>
+              <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
+
+              {[
+                { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
+                { key: '1-10', label: '1–10%' },
+                { key: '11-20', label: '11–20%' },
+                { key: '21-30', label: '21–30%' },
+                { key: '31-40', label: '31–40%' },
+                { key: '41-50', label: '41–50%' },
+                { key: '51-60', label: '51–60%' },
+                { key: '61-70', label: '61–70%' },
+                { key: '71-80', label: '71–80%' },
+                { key: '81-90', label: '81–90%' },
+                { key: '91-100', label: '91–100%' },
+                { key: '100+', label: '100%+ — Over-Inflation' }
+              ].map(({ key, label, hint }) => (
+                <div className="form-group" key={key}>
+                  <label>{label}</label>
+                  {hint && <p className="section-hint">{hint}</p>}
+                  <textarea
+                    value={activeStory?.checkpoints?.[key] || ''}
+                    onChange={(e) => updateStoryField('checkpoints', {
+                      ...(activeStory?.checkpoints || {}),
+                      [key]: e.target.value
+                    })}
+                    placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
+                    rows={3}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Attributes Tab */}
+          <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
+            <div className="session-defaults-editor">
+              <h4>Personality Attributes</h4>
+              <p className="section-hint">Each attribute has a chance to activate per message. When active, it injects personality-driving instructions for that response. Multiple attributes can fire simultaneously.</p>
+
+              {[
+                { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
+                { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
+                { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
+                { key: 'sensual', label: 'Sensual', hint: 'Be caring, tender, and amorous. Focus on intimacy and connection.' },
+                { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
+              ].map(({ key, label, hint }) => (
+                <div className="form-group" key={key}>
+                  <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
+                  <p className="section-hint">{hint}</p>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={activeStory?.attributes?.[key] || 0}
+                    onChange={(e) => updateStoryField('attributes', {
+                      ...(activeStory?.attributes || {}),
+                      [key]: parseInt(e.target.value)
+                    })}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
 

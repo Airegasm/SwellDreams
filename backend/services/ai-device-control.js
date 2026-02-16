@@ -340,10 +340,12 @@ function findDeviceByType(devices, deviceType) {
  */
 async function executeDeviceCommands(commands, devices, deviceService, options = {}) {
   const results = [];
-  const { settings, sessionState, broadcast } = options;
+  const { settings, sessionState, broadcast, characterLimits } = options;
 
-  // Get max seconds for LLM device control (default 30)
-  const maxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+  // Get max seconds for LLM device control — per-character limit is the hard ceiling
+  const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+  const charMaxOn = characterLimits?.llmMaxOnDuration ?? 5;
+  const maxSeconds = Math.min(globalMaxSeconds, charMaxOn);
 
   // Deduplicate: if same device has multiple commands, only execute the LAST one
   // This handles cases where LLM outputs both [pump on] and [pump off] in same message
@@ -436,7 +438,8 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
 
       } else if (cmd.action === 'pulse') {
         // Pulse mode: quick on/off bursts
-        const pulses = cmd.pulses || settings?.globalCharacterControls?.llmDeviceControlPulses || 3;
+        const rawPulses = cmd.pulses || settings?.globalCharacterControls?.llmDeviceControlPulses || 3;
+        const pulses = Math.min(rawPulses, characterLimits?.llmMaxPulseRepetitions ?? 5);
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {
@@ -458,7 +461,8 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
 
       } else if (cmd.action === 'timed') {
         // Timed mode: run for X seconds then auto-off
-        const duration = cmd.duration || maxSeconds;
+        const rawDuration = cmd.duration || maxSeconds;
+        const duration = Math.min(rawDuration, characterLimits?.llmMaxTimedDuration ?? 10);
 
         result = await deviceService.turnOn(deviceId, device);
         log.info(`AI TIMED ${device.label || device.name || cmd.device} for ${duration}s`);
@@ -503,9 +507,12 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
 
       } else if (cmd.action === 'cycle') {
         // Cycle mode: repeated on/off cycles
-        const cycleDuration = cmd.cycleDuration || 5;
+        const charMaxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
+        const cycleDuration = Math.min(cmd.cycleDuration || 5, charMaxCycleOn);
         const cycleInterval = cmd.cycleInterval || 10;
-        const cycles = cmd.cycles || 0; // 0 = infinite
+        const charMaxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
+        const rawCycles = cmd.cycles || 0; // 0 = infinite
+        const cycles = (rawCycles === 0 || rawCycles > charMaxCycleReps) ? charMaxCycleReps : rawCycles;
 
         // Clear any existing timer/cycle for this device
         if (llmDeviceTimers.has(timerKey)) {
@@ -708,9 +715,10 @@ function containsPulsePhrase(text) {
  * @param {Array} devices - List of registered devices
  * @param {Object} sessionState - Session state
  * @param {Object} settings - App settings (to check if LLM device control is enabled)
+ * @param {Object} characterLimits - Per-character device control limits (optional)
  * @returns {{text: string, reinforced: boolean, matchedPhrase: string|null, isPulse: boolean}}
  */
-function reinforcePumpControl(text, devices, sessionState, settings) {
+function reinforcePumpControl(text, devices, sessionState, settings, characterLimits) {
   // Only reinforce if LLM device control is enabled
   if (!settings?.globalCharacterControls?.allowLlmDeviceControl) {
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
@@ -782,25 +790,33 @@ function reinforcePumpControl(text, devices, sessionState, settings) {
     const rand = Math.random();
     let mode, tag;
 
+    // Per-character limit caps — safe defaults, never Infinity
+    const maxPulse = characterLimits?.llmMaxPulseRepetitions ?? 5;
+    const maxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
+    const maxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
+    const maxTimed = characterLimits?.llmMaxTimedDuration ?? 10;
+    const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+
     if (isPulse || (!isCycle && !isTimed && rand < 0.22)) {
       // PULSE mode (22% random, or if pulse keyword detected)
-      // Random pulses between 20-30
-      const pulses = Math.floor(Math.random() * 11) + 20; // 20-30
+      const rawPulses = Math.floor(Math.random() * 11) + 20; // 20-30
+      const pulses = Math.min(rawPulses, maxPulse);
       tag = `[pump:pulse:${pulses}]`;
       mode = 'pulse';
     } else if (isCycle || (!isPulse && !isTimed && rand >= 0.22 && rand < 0.44)) {
       // CYCLE mode (22% random, or if "cycle" mentioned)
-      // Duration: 3-10 seconds, Interval: 2-5 seconds, Cycles: 5-10
-      const cycleDuration = Math.floor(Math.random() * 8) + 3; // 3-10 secs
+      const rawCycleDuration = Math.floor(Math.random() * 8) + 3; // 3-10 secs
       const cycleInterval = Math.floor(Math.random() * 4) + 2; // 2-5 secs
-      const cycles = Math.floor(Math.random() * 6) + 5; // 5-10 cycles
+      const rawCycles = Math.floor(Math.random() * 6) + 5; // 5-10 cycles
+      const cycleDuration = Math.min(rawCycleDuration, maxCycleOn);
+      const cycles = Math.min(rawCycles, maxCycleReps);
       tag = `[pump:cycle:${cycleDuration}:${cycleInterval}:${cycles}]`;
       mode = 'cycle';
     } else if (isTimed || (!isPulse && !isCycle && rand >= 0.44 && rand < 0.65)) {
       // TIMED mode (21% random, or if duration mentioned)
-      // Min: global setting, Max: 2x global setting
-      const baseDuration = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-      const duration = Math.floor(Math.random() * baseDuration) + baseDuration; // baseDuration to 2x
+      const baseDuration = globalMaxSeconds;
+      const rawDuration = Math.floor(Math.random() * baseDuration) + baseDuration; // baseDuration to 2x
+      const duration = Math.min(rawDuration, maxTimed, globalMaxSeconds);
       tag = `[pump:timed:${duration}]`;
       mode = 'timed';
     } else {
@@ -835,6 +851,45 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
   }
 
   log.info(`Found ${commands.length} device command(s) in LLM output`);
+
+  // Hard-clamp all parsed command values against per-character limits (defense-in-depth)
+  // This catches disobedient LLM tags before they reach executeDeviceCommands
+  // Safe defaults (not Infinity) ensure limits always apply even if characterLimits is null
+  const { characterLimits, settings } = options;
+  const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+  const limMaxOn = characterLimits?.llmMaxOnDuration ?? 5;
+  const limMaxPulse = characterLimits?.llmMaxPulseRepetitions ?? 5;
+  const limMaxTimed = characterLimits?.llmMaxTimedDuration ?? 10;
+  const limMaxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
+  const limMaxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
+
+  for (const cmd of commands) {
+    if (cmd.action === 'on') {
+      // Nothing to clamp on the command itself — maxSeconds handles the auto-off timer
+      log.info(`[Clamp] ON command: auto-off will fire at ${Math.min(globalMaxSeconds, limMaxOn)}s`);
+    } else if (cmd.action === 'pulse' && cmd.pulses) {
+      const max = Math.min(limMaxPulse, 50);
+      if (cmd.pulses > max) {
+        log.info(`[Clamp] Pulse count ${cmd.pulses} -> ${max} (character limit)`);
+        cmd.pulses = max;
+      }
+    } else if (cmd.action === 'timed' && cmd.duration) {
+      const max = Math.min(limMaxTimed, globalMaxSeconds);
+      if (cmd.duration > max) {
+        log.info(`[Clamp] Timed duration ${cmd.duration}s -> ${max}s (character limit)`);
+        cmd.duration = max;
+      }
+    } else if (cmd.action === 'cycle') {
+      if (cmd.cycleDuration && cmd.cycleDuration > limMaxCycleOn) {
+        log.info(`[Clamp] Cycle ON duration ${cmd.cycleDuration}s -> ${limMaxCycleOn}s (character limit)`);
+        cmd.cycleDuration = limMaxCycleOn;
+      }
+      if (cmd.cycles === 0 || cmd.cycles > limMaxCycleReps) {
+        log.info(`[Clamp] Cycle repetitions ${cmd.cycles} -> ${limMaxCycleReps} (character limit)`);
+        cmd.cycles = limMaxCycleReps;
+      }
+    }
+  }
 
   // Execute commands (with safety checks if options provided)
   const results = await executeDeviceCommands(commands, devices, deviceService, options);
