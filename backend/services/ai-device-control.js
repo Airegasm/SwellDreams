@@ -68,7 +68,7 @@ const PUMP_ACTIVITY_PHRASES = [
   /\bpulsing\s+(air|fluid|liquid)\s+(into|through)/i,
 
   // Dial/control/button references - flexible article matching
-  /\b(flip|flips|flipped|flipping|flick|flicks|flicked|flicking)\s+\w*\s*(switch|lever)/i,
+  /\b(flip|flips|flipped|flipping|flick|flicks|flicked|flicking)\s+.*?\s*(switch|lever|dial|knob|control)/i,
   /\b(press|presses|pressed|pressing)\s+\w*\s*(button|remote)/i,
   /\b(push|pushes|pushed|pushing)\s+\w*\s*button/i,
   /\b(hit|hits|hitting)\s+\w*\s*button/i,

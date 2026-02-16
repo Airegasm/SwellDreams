@@ -1223,6 +1223,24 @@ function ensureCharsIndex() {
     }
   }
 
+  // Check for new default characters not yet in the index (e.g. added via git pull)
+  if (fs.existsSync(CHARS_DEFAULT_DIR)) {
+    const indexedIds = new Set(index.map(c => c.id));
+    for (const dirName of fs.readdirSync(CHARS_DEFAULT_DIR)) {
+      const charPath = path.join(CHARS_DEFAULT_DIR, dirName, 'char.json');
+      if (fs.existsSync(charPath)) {
+        try {
+          const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
+          const charId = char.id || dirName;
+          if (!indexedIds.has(charId)) {
+            console.log(`[Server] New default character '${char.name || dirName}' found on disk - rebuilding index`);
+            return rebuildCharsIndex();
+          }
+        } catch (e) { /* skip unreadable */ }
+      }
+    }
+  }
+
   return index;
 }
 
@@ -1447,6 +1465,24 @@ function ensurePersonasIndex() {
     if (loadPersona(entry.id) === null) {
       console.log(`[Server] Persona '${entry.displayName}' (${entry.id}) in index but not on disk - rebuilding index`);
       return rebuildPersonasIndex();
+    }
+  }
+
+  // Check for new default personas not yet in the index (e.g. added via git pull)
+  if (fs.existsSync(PERSONAS_DEFAULT_DIR)) {
+    const indexedIds = new Set(index.map(p => p.id));
+    for (const dirName of fs.readdirSync(PERSONAS_DEFAULT_DIR)) {
+      const personaPath = path.join(PERSONAS_DEFAULT_DIR, dirName, 'persona.json');
+      if (fs.existsSync(personaPath)) {
+        try {
+          const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+          const personaId = persona.id || dirName;
+          if (!indexedIds.has(personaId)) {
+            console.log(`[Server] New default persona '${persona.displayName || dirName}' found on disk - rebuilding index`);
+            return rebuildPersonasIndex();
+          }
+        } catch (e) { /* skip unreadable */ }
+      }
     }
   }
 
