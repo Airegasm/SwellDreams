@@ -9,7 +9,7 @@ set SCRIPT_DIR=%~dp0
 echo Script directory: %SCRIPT_DIR%
 
 REM Read version from version.json
-set VERSION=3.6.0
+set VERSION=3.7.0
 set CODENAME=FinalClosed
 for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"version\""') do (
     set VERSION=%%~a

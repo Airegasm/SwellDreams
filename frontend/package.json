@@ -1,6 +1,6 @@
 {
   "name": "swelldreams-frontend",
-  "version": "3.6.0",
+  "version": "3.7.0",
   "private": true,
   "dependencies": {
     "@xyflow/react": "^12.0.0",
