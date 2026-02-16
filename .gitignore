@@ -1,8 +1,16 @@
 CHANGELOG.md
 
-# Executrix character and flows (private)
-backend/data/chars/custom/2fb6d520-bce5-4187-9967-61f026243e2e/
-backend/data/flows/436f33a6-de34-428e-9130-2f0b47542d2e.json
+# Custom characters (all)
+backend/data/chars/custom/
+
+# Custom/user flows (UUID-named)
+backend/data/flows/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
+
+# Custom character flows
+backend/data/flows/flow-julie-*
+backend/data/flows/flow-miranda-*
+backend/data/flows/flow-lily-*
+backend/data/flows/flow-SororityHell-*
 
 # Runtime data files
 backend/data/autosave.json
