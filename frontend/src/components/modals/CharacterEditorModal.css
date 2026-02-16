@@ -253,7 +253,7 @@
 }
 
 .character-modal-body textarea {
-  resize: none;
+  resize: vertical;
   min-height: 60px;
 }
 
