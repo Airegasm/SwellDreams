@@ -80,14 +80,24 @@ function ModelTab() {
   };
 
 
+  // Save settings to both global settings AND the active connection profile
+  const persistSettings = async (settingsObj) => {
+    await api.updateLlmSettings(settingsObj);
+    if (selectedProfileId) {
+      const { activeProfileId, ...toProfile } = settingsObj;
+      const profile = connectionProfiles.find(p => p.id === selectedProfileId);
+      await api.updateConnectionProfile(selectedProfileId, {
+        name: profile?.name, ...toProfile, endpointStandard, openRouterApiKey, openRouterModel: selectedOpenRouterModel
+      });
+    }
+  };
+
   const updateSetting = async (key, value) => {
     const newSettings = { ...llmSettings, [key]: value };
     setLlmSettings(newSettings);
     setSaved(false);
-
-    // Auto-save after change
     try {
-      await api.updateLlmSettings(newSettings);
+      await persistSettings(newSettings);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
@@ -98,7 +108,7 @@ function ModelTab() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.updateLlmSettings(llmSettings);
+      await persistSettings(llmSettings);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
@@ -120,16 +130,25 @@ function ModelTab() {
           setModelStatus('No Models Detected');
         }
 
-        // Auto-detect context size if reported by the backend
+        // Auto-detect context size and chat template if reported by the backend
         let settingsToSave = llmSettings;
         if (result.contextSize && result.contextSize > 0) {
           console.log(`[ModelTab] Auto-detected context size: ${result.contextSize}`);
-          settingsToSave = { ...llmSettings, contextTokens: result.contextSize };
+          settingsToSave = { ...settingsToSave, contextTokens: result.contextSize };
           setLlmSettings(prev => ({ ...prev, contextTokens: result.contextSize }));
         }
+        if (result.chatTemplate) {
+          console.log(`[ModelTab] Auto-detected chat template: ${result.chatTemplate}`);
+          settingsToSave = { ...settingsToSave, promptTemplate: result.chatTemplate };
+          setLlmSettings(prev => ({ ...prev, promptTemplate: result.chatTemplate }));
+        }
+        if (result.supportsSystemRole !== undefined) {
+          settingsToSave = { ...settingsToSave, supportsSystemRole: result.supportsSystemRole };
+          setLlmSettings(prev => ({ ...prev, supportsSystemRole: result.supportsSystemRole }));
+        }
 
-        // Auto-save on successful connection
-        await api.updateLlmSettings(settingsToSave);
+        // Auto-save on successful connection (global + profile)
+        await persistSettings(settingsToSave);
       } else {
         setConnectionStatus('offline');
         setModelStatus('Check URL');
@@ -146,6 +165,14 @@ function ModelTab() {
     setModelStatus('Disconnected');
   };
 
+  // Default URLs per endpoint standard
+  const defaultUrls = {
+    openai: 'http://localhost:1234/v1/chat/completions',
+    kobold: 'http://localhost:5001/api/v1/generate',
+    llamacpp: 'http://localhost:8080/completion'
+  };
+  const defaultUrlValues = new Set(Object.values(defaultUrls));
+
   // Handle endpoint standard change
   const handleEndpointStandardChange = async (value) => {
     setEndpointStandard(value);
@@ -154,12 +181,16 @@ function ModelTab() {
     setModelStatus('');
     setOpenRouterError(null);
 
-    const newSettings = { ...llmSettings, endpointStandard: value };
+    // Auto-populate URL if empty or still set to another backend's default
+    const currentUrl = llmSettings.llmUrl || '';
+    const shouldPopulate = !currentUrl || defaultUrlValues.has(currentUrl);
+    const newUrl = shouldPopulate && defaultUrls[value] ? defaultUrls[value] : currentUrl;
+
+    const newSettings = { ...llmSettings, endpointStandard: value, llmUrl: newUrl };
     setLlmSettings(newSettings);
     try {
-      await api.updateLlmSettings(newSettings);
-      // If switching to non-OpenRouter, trigger connection test
-      if (value !== 'openrouter' && llmSettings.llmUrl) {
+      await persistSettings(newSettings);
+      if (value !== 'openrouter' && newUrl) {
         handleTest();
       }
     } catch (error) {
@@ -209,7 +240,7 @@ function ModelTab() {
             openRouterApiKey: openRouterApiKey
           };
           setLlmSettings(newSettings);
-          await api.updateLlmSettings(newSettings);
+          await persistSettings(newSettings);
           setOpenRouterApiKey(''); // Clear the input after saving
         }
       } else {
@@ -236,7 +267,7 @@ function ModelTab() {
     setLlmSettings(newSettings);
     setModelStatus(model.name);
     try {
-      await api.updateLlmSettings(newSettings);
+      await persistSettings(newSettings);
     } catch (error) {
       console.error('Failed to save model selection:', error);
     }
@@ -331,10 +362,20 @@ function ModelTab() {
                 if (testResult.success) {
                   setConnectionStatus('online');
                   setModelStatus(testResult.modelName || 'Connected');
+                  let updated = { ...settings.llm };
                   if (testResult.contextSize && testResult.contextSize > 0) {
+                    updated.contextTokens = testResult.contextSize;
                     setLlmSettings(prev => ({ ...prev, contextTokens: testResult.contextSize }));
-                    await api.updateLlmSettings({ ...settings.llm, contextTokens: testResult.contextSize });
                   }
+                  if (testResult.chatTemplate) {
+                    updated.promptTemplate = testResult.chatTemplate;
+                    setLlmSettings(prev => ({ ...prev, promptTemplate: testResult.chatTemplate }));
+                  }
+                  if (testResult.supportsSystemRole !== undefined) {
+                    updated.supportsSystemRole = testResult.supportsSystemRole;
+                    setLlmSettings(prev => ({ ...prev, supportsSystemRole: testResult.supportsSystemRole }));
+                  }
+                  await persistSettings(updated);
                 }
               } catch (e) {
                 setConnectionStatus('offline');
@@ -439,11 +480,20 @@ function ModelTab() {
               setConnectionStatus('online');
               setModelStatus(testResult.modelName || 'Connected');
 
-              // Auto-detect context size if reported by the backend
+              // Auto-detect context size and chat template if reported by the backend
+              let updatedSettings = profileSettings;
               if (testResult.contextSize && testResult.contextSize > 0) {
-                const updatedSettings = { ...profileSettings, contextTokens: testResult.contextSize };
+                updatedSettings = { ...updatedSettings, contextTokens: testResult.contextSize };
+              }
+              if (testResult.chatTemplate) {
+                updatedSettings = { ...updatedSettings, promptTemplate: testResult.chatTemplate };
+              }
+              if (testResult.supportsSystemRole !== undefined) {
+                updatedSettings = { ...updatedSettings, supportsSystemRole: testResult.supportsSystemRole };
+              }
+              if (updatedSettings !== profileSettings) {
                 setLlmSettings(updatedSettings);
-                await api.updateLlmSettings(updatedSettings);
+                await persistSettings(updatedSettings);
               }
             } else {
               setConnectionStatus('offline');
@@ -649,6 +699,9 @@ function ModelTab() {
                     <option value="mistral">Mistral</option>
                     <option value="alpaca">Alpaca</option>
                     <option value="vicuna">Vicuna</option>
+                    <option value="gemma2">Gemma 2</option>
+                    <option value="gemma3">Gemma 3</option>
+                    <option value="jinja">Jinja (Server)</option>
                   </select>
                 </>
               ) : (
@@ -719,6 +772,16 @@ function ModelTab() {
                   </label>
                 </div>
                 <div className="connection-row token-row">
+                  <label>Impersonate</label>
+                  <input
+                    type="number"
+                    value={llmSettings.impersonateMaxTokens || llmSettings.maxTokens || 150}
+                    onChange={(e) => updateSetting('impersonateMaxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={32768}
+                  />
+                </div>
+                <div className="connection-row token-row">
                   <label>Context</label>
                   <input
                     type="number"
@@ -768,6 +831,16 @@ function ModelTab() {
                     />
                     <span>Streaming</span>
                   </label>
+                </div>
+                <div className="connection-row token-row">
+                  <label>Impersonate</label>
+                  <input
+                    type="number"
+                    value={llmSettings.impersonateMaxTokens || llmSettings.maxTokens || 150}
+                    onChange={(e) => updateSetting('impersonateMaxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={4096}
+                  />
                 </div>
                 <div className="connection-row token-row">
                   <label>Context</label>

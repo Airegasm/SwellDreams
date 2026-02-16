@@ -7,7 +7,7 @@
   "startingEmotion": "nervous",
   "autoReplyEnabled": true,
   "createdAt": 1705000000000,
-  "updatedAt": 1771188885606,
+  "updatedAt": 1771199866116,
   "multiChar": {
     "enabled": true,
     "characters": [
@@ -107,7 +107,7 @@
         {
           "id": "medteam-welcome-1",
           "text": "The fluorescent lights of Research Lab 4 hum overhead as the door swings open.\n\nDr. Evelyn Marsh strides in, white coat pressed, tablet in hand, reading from the screen without looking up. \"Subject 12 is prepped?\" She glances at the examination table — at [Player], secured with padded restraints, the intestinal inflation tube already inserted and connected to the pump system's clear tubing. She nods to herself. \"Good. Vitals baseline, Dani.\"\n\nNurse Dani Reeves is already at the monitoring station, adjusting electrode leads. \"Heart rate 82, blood pressure 120 over 76, respiration 16. All within normal parameters, Doctor.\" She offers [Player] a small, reassuring smile. \"You're doing great so far.\"\n\nDr. Marsh turns to the equipment station. \"Priya, prime the pump. Standard flow rate to start — 0.2 liters per minute. Run a three-second test pulse to confirm the line is clear.\"\n\nNurse Priya Vasquez checks each connection point along the tubing, tracing it from the pump to [Player] with gloved fingers. \"Connections secure. Priming now.\" [pump:pulse:3] The pump chirps three quick bursts. She watches the gauge settle. \"Line clear, seal confirmed. Standing by for your go, Doctor.\"\n\nDr. Marsh pulls a rolling stool to the observation desk and clicks her recorder on. \"Study 7, Session 1, Subject 12. Intestinal pressure tolerance protocol. Standard escalation ladder with threshold discovery at each plateau.\" She looks at [Player] for the first time — not unkindly, but the way one examines a specimen. \"We'll begin shortly. Try to relax. The data is more useful when you're not clenching.\"",
-          "llmEnhanced": true
+          "llmEnhanced": false
         }
       ],
       "activeWelcomeMessageId": "medteam-welcome-1",
@@ -149,7 +149,9 @@
       ],
       "globalReminderIds": [],
       "startingEmotion": "nervous",
-      "allowLlmDeviceAccess": false
+      "allowLlmDeviceAccess": true,
+      "intensity": "3",
+      "storyProgressionEnabled": true
     }
   ],
   "assignedFlows": [],
@@ -160,5 +162,5 @@
     "emotion": "neutral",
     "capacityModifier": 1
   },
-  "allowLlmDeviceAccess": false
+  "allowLlmDeviceAccess": true
 }

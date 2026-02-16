@@ -541,8 +541,10 @@ class DeviceService {
     // Debug logging
     console.log(`[DeviceService] turnOff called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}, skipCycleStop=${options.skipCycleStop}`);
 
-    // Cancel any active pulses or cycles for this device (unless skipCycleStop is set)
-    this.stopPulse(ipOrDeviceId);
+    // Cancel any active pulses or cycles for this device (unless skip flags are set)
+    if (!options.skipPulseStop) {
+      this.stopPulse(ipOrDeviceId);
+    }
     if (!options.skipCycleStop) {
       this.stopCycle(ipOrDeviceId, device);
     }
@@ -811,7 +813,7 @@ class DeviceService {
         const offTimer = setTimeout(async () => {
           try {
             console.log(`[DeviceService] Pulse ${currentPulse}: turning OFF device ${ip}`);
-            await this.turnOff(ip, device);
+            await this.turnOff(ip, device, { skipPulseStop: true });
             this.emitEvent('pulse_off', { ip, pulse: currentPulse, totalPulses: pulses, device });
 
             // Schedule next pulse

@@ -48,6 +48,32 @@ const {
 
 const log = createLogger('Server');
 
+// Emotion adjacency map for story progression suggestions
+const EMOTION_ADJACENCY = {
+  neutral:      ['curious', 'questioning', 'shy', 'anxious'],
+  happy:        ['excited', 'loving', 'curious'],
+  excited:      ['happy', 'aroused', 'curious'],
+  aroused:      ['horny', 'shy', 'dominant', 'submissive'],
+  horny:        ['aroused', 'dominant', 'blissful'],
+  loving:       ['happy', 'shy', 'blissful'],
+  submissive:   ['shy', 'fearful', 'embarrassed', 'aroused'],
+  dominant:     ['angry', 'aroused', 'excited'],
+  shy:          ['embarrassed', 'fearful', 'submissive', 'curious'],
+  embarrassed:  ['shy', 'anxious', 'angry'],
+  confused:     ['questioning', 'curious', 'anxious', 'neutral'],
+  curious:      ['questioning', 'excited', 'confused', 'happy'],
+  frightened:   ['fearful', 'anxious', 'angry', 'submissive'],
+  anxious:      ['fearful', 'frightened', 'shy', 'questioning'],
+  sad:          ['exhausted', 'anxious', 'angry'],
+  angry:        ['dominant', 'sad', 'anxious'],
+  drunk:        ['happy', 'aroused', 'dazed'],
+  dazed:        ['confused', 'questioning', 'drunk', 'exhausted'],
+  exhausted:    ['dazed', 'sad', 'neutral'],
+  blissful:     ['aroused', 'loving', 'happy'],
+  fearful:      ['frightened', 'anxious', 'submissive', 'questioning'],
+  questioning:  ['curious', 'confused', 'anxious', 'neutral']
+};
+
 // Generate a unique session ID on each server boot - used to clear stale drafts
 const SERVER_SESSION_ID = uuidv4();
 
@@ -2152,7 +2178,9 @@ function migrateCharacterStories() {
       assignedButtons: existingStory.assignedButtons || [],
       constantReminderIds: existingStory.constantReminderIds || [],
       globalReminderIds: existingStory.globalReminderIds || [],
-      startingEmotion: existingStory.startingEmotion || character.startingEmotion || 'neutral'
+      startingEmotion: existingStory.startingEmotion || character.startingEmotion || 'neutral',
+      storyProgressionEnabled: existingStory.storyProgressionEnabled ?? false,
+      storyProgressionMaxOptions: existingStory.storyProgressionMaxOptions ?? 3
     }];
     character.activeStoryId = character.stories[0].id;
 
@@ -2888,6 +2916,18 @@ async function sendWelcomeMessage(character, settings) {
   broadcast('chat_message', placeholderMessage);
   autosaveSession();
 
+  // Story Progression: generate player reply suggestions after welcome message
+  try {
+    const activeStoryId = character.activeStoryId || character.stories?.[0]?.id;
+    const activeStory = character.stories?.find(s => s.id === activeStoryId) || character.stories?.[0];
+    console.log(`[StoryProgression] Welcome check: enabled=${activeStory?.storyProgressionEnabled}, activeExecutions=${eventEngine.activeExecutions.size}, storyId=${activeStoryId}`);
+    if (activeStory?.storyProgressionEnabled && eventEngine.activeExecutions.size === 0) {
+      generateStoryProgressionSuggestions(character, settings);
+    }
+  } catch (spErr) {
+    console.error('[StoryProgression] Error after welcome message:', spErr.message);
+  }
+
   // Release lock
   sendingWelcomeMessage = false;
 }
@@ -3350,10 +3390,15 @@ STRICT RULES:
 === END CRITICAL INSTRUCTION ===`;
         context.prompt += `\n\n[${playerName} (FIRST PERSON ONLY): ${data.content}]\n${playerName}:`;
 
+        const impersonateSettings = { ...settings.llm };
+        if (settings.llm?.impersonateMaxTokens) {
+          impersonateSettings.maxTokens = settings.llm.impersonateMaxTokens;
+        }
+
         const result = await llmService.generate({
           prompt: context.prompt,
           systemPrompt: context.systemPrompt,
-          settings: settings.llm
+          settings: impersonateSettings
         });
 
         // Check if generation was aborted (user navigated away OR emergency stop)
@@ -5760,11 +5805,242 @@ async function handleChatMessage(data) {
       const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
       await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
 
+      // Story Progression: generate player reply suggestions if enabled
+      try {
+        const activeStoryId = activeCharacter.activeStoryId || activeCharacter.stories?.[0]?.id;
+        const activeStory = activeCharacter.stories?.find(s => s.id === activeStoryId) || activeCharacter.stories?.[0];
+        if (activeStory?.storyProgressionEnabled && eventEngine.activeExecutions.size === 0) {
+          generateStoryProgressionSuggestions(activeCharacter, settings);
+        }
+      } catch (spErr) {
+        console.error('[StoryProgression] Error checking/triggering:', spErr.message);
+      }
+
     } catch (error) {
       console.error('[Chat] LLM error:', error.message);
       broadcast('generating_stop', {});
       broadcast('error', { message: 'Failed to generate AI response', error: error.message });
     }
+  }
+}
+
+/**
+ * Generate story progression suggestions - player reply options with different emotional angles
+ */
+async function generateStoryProgressionSuggestions(activeCharacter, settings) {
+  try {
+    if (eventEngine.activeExecutions.size > 0) {
+      console.log('[StoryProgression] Skipping — flow in progress');
+      return;
+    }
+
+    const personas = loadAllPersonas() || [];
+    const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+    const playerName = activePersona?.displayName || 'The player';
+
+    const activeStoryId = activeCharacter.activeStoryId || activeCharacter.stories?.[0]?.id;
+    const activeStory = activeCharacter.stories?.find(s => s.id === activeStoryId) || activeCharacter.stories?.[0];
+    const maxOptions = Math.min(activeStory?.storyProgressionMaxOptions || 3, 5);
+
+    // Get current emotion and adjacent emotions
+    const currentEmotion = sessionState.emotion || 'neutral';
+    const adjacent = EMOTION_ADJACENCY[currentEmotion] || ['curious', 'shy', 'anxious'];
+
+    // Pick emotions: current + enough adjacent to fill maxOptions
+    const emotions = [currentEmotion, ...adjacent.slice(0, maxOptions - 1)];
+
+    // Build context using impersonate mode
+    const context = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
+
+    // Build the suggestion generation prompt
+    const recentMessages = sessionState.chatHistory.slice(-4).map(m => {
+      const name = m.sender === 'character' ? (m.characterName || activeCharacter.name) : playerName;
+      return `${name}: ${m.content}`;
+    }).join('\n');
+
+    // Build physical state context for the task section
+    const capacity = Math.round(sessionState.capacity || 0);
+    const painLevel = sessionState.pain || 0;
+    const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+    const painLabel = painLabels[painLevel] || 'None';
+    let physicalStateNote = '';
+    if (capacity > 0 || painLevel > 0) {
+      physicalStateNote = `\n${playerName}'s current physical state: belly at ${capacity}% capacity, pain level "${painLabel}" (${painLevel}/10).
+Each reply option MUST reflect this physical state — responses should include appropriate physical reactions, discomfort, or awareness of their belly's condition.\n`;
+    }
+
+    const suggestionPrompt = `${context.systemPrompt}
+
+${context.prompt}
+
+=== TASK ===
+Based on the recent conversation:
+${recentMessages}
+${physicalStateNote}
+Generate exactly ${maxOptions} different short reply options for ${playerName} responding to what just happened.
+Each option should reflect a different emotional approach.
+Emotions to use: ${emotions.join(', ')}
+
+Format EACH option exactly as:
+OPTION 1 (${emotions[0]}): Short label describing the approach
+"The actual dialogue and *actions* for the reply"
+
+OPTION 2 (${emotions[1] || emotions[0]}): Short label describing the approach
+"The actual dialogue and *actions* for the reply"
+
+${emotions.slice(2).map((e, i) => `OPTION ${i + 3} (${e}): Short label describing the approach\n"The actual dialogue and *actions* for the reply"\n`).join('\n')}
+Keep each reply SHORT (1-3 sentences). Include both dialogue and brief *action* descriptions where appropriate.`;
+
+    const suggestionSettings = {
+      ...settings.llm,
+      stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+    };
+    // Cap tokens: enough for all options
+    const perOptionTokens = settings.llm?.impersonateMaxTokens || 100;
+    suggestionSettings.maxTokens = perOptionTokens * maxOptions + 100;
+
+    console.log(`[StoryProgression] Generating ${maxOptions} suggestions for ${playerName} (emotions: ${emotions.join(', ')})`);
+    broadcast('story_progression_generating', { count: maxOptions });
+
+    const result = await llmService.generate({
+      prompt: suggestionPrompt,
+      systemPrompt: '',
+      settings: suggestionSettings
+    });
+
+    console.log(`[StoryProgression] Raw LLM response (first 2000 chars): ${result.text?.substring(0, 2000)}`);
+
+    // Parse the response into structured options
+    let suggestions = [];
+    const responseText = result.text || '';
+
+    // Split into option blocks by looking for OPTION headers or numbered items
+    // Pattern handles: OPTION N (emotion): label, N. (emotion): label, N) emotion - label
+    // Allows optional markdown bold (**), spaces before separators, multi-word emotions with underscores
+    const optionHeaderPattern = /(?:^|\n)\s*\*{0,2}(?:OPTION\s+\d+\s*\((\w+)\)\s*[:\-]\s*(.+)|(\d+)[\.\)]\s*\*{0,2}\(?(\w+)\)?\s*[:\-]\s*(.+))/gi;
+    const headers = [];
+    let headerMatch;
+    while ((headerMatch = optionHeaderPattern.exec(responseText)) !== null) {
+      headers.push({
+        index: headerMatch.index,
+        emotion: (headerMatch[1] || headerMatch[4] || '').toLowerCase().replace(/\*+/g, ''),
+        label: (headerMatch[2] || headerMatch[5] || '').trim().replace(/\*+/g, ''),
+        fullMatch: headerMatch[0]
+      });
+    }
+
+    // Fallback: if primary pattern found nothing, try a simpler line-by-line parse
+    // Looks for lines starting with a number followed by text containing an emotion keyword
+    if (headers.length === 0 && emotions.length > 0) {
+      const lines = responseText.split('\n');
+      let currentHeader = null;
+      let currentBody = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim().replace(/\*+/g, '');
+        // Check if line starts with a number (option header)
+        const numMatch = trimmed.match(/^(\d+)[\.\)\-:]\s*(.*)/);
+        if (numMatch) {
+          // Save previous option
+          if (currentHeader) {
+            const bodyText = currentBody.join(' ').trim();
+            if (bodyText) headers.push({ ...currentHeader, bodyText });
+          }
+          // Detect emotion from the header text
+          const headerText = numMatch[2].toLowerCase();
+          let detectedEmotion = '';
+          for (const em of emotions) {
+            if (headerText.includes(em)) { detectedEmotion = em; break; }
+          }
+          // Extract label: everything after the emotion keyword or the whole header
+          let label = numMatch[2].replace(/[""\u201C\u201D\(\)]/g, '').trim();
+          if (detectedEmotion) {
+            const emIdx = label.toLowerCase().indexOf(detectedEmotion);
+            if (emIdx >= 0) label = label.substring(emIdx + detectedEmotion.length).replace(/^[\s:\-]+/, '').trim();
+          }
+          currentHeader = {
+            index: 0,
+            emotion: detectedEmotion || emotions[headers.length] || emotions[0],
+            label: label || `(${detectedEmotion || 'option'})`,
+            fullMatch: line
+          };
+          currentBody = [];
+        } else if (currentHeader && trimmed) {
+          currentBody.push(trimmed);
+        }
+      }
+      // Save last option
+      if (currentHeader) {
+        const bodyText = currentBody.join(' ').trim();
+        if (bodyText) headers.push({ ...currentHeader, bodyText });
+      }
+      if (headers.length > 0) {
+        console.log(`[StoryProgression] Fallback parser found ${headers.length} options`);
+      }
+    }
+
+    // Extract text for each option (everything between this header and the next)
+    for (let i = 0; i < headers.length; i++) {
+      // If fallback parser already extracted body text, use it
+      if (headers[i].bodyText) {
+        let text = headers[i].bodyText.replace(/^[""\u201C]+|[""\u201D]+$/g, '').trim();
+        if (text && headers[i].emotion) {
+          suggestions.push({
+            emotion: headers[i].emotion,
+            label: headers[i].label.replace(/[""\u201C\u201D]/g, '').trim() || `(${headers[i].emotion})`,
+            text
+          });
+        }
+        continue;
+      }
+
+      const startIdx = headers[i].index + headers[i].fullMatch.length;
+      const endIdx = i + 1 < headers.length ? headers[i + 1].index : responseText.length;
+      const bodyText = responseText.substring(startIdx, endIdx).trim();
+
+      // Clean up: strip quotes, collapse whitespace
+      let text = bodyText.replace(/^[""\u201C]+|[""\u201D]+$/g, '').trim();
+      // If multi-line, join
+      text = text.split('\n').map(l => l.trim()).filter(l => l).join(' ');
+      // Strip outer quotes again after joining
+      text = text.replace(/^[""\u201C]+|[""\u201D]+$/g, '').trim();
+
+      if (text && headers[i].emotion) {
+        suggestions.push({
+          emotion: headers[i].emotion,
+          label: headers[i].label.replace(/[""\u201C\u201D]/g, '').trim() || `(${headers[i].emotion})`,
+          text
+        });
+      }
+    }
+
+    console.log(`[StoryProgression] Parsed ${suggestions.length}/${maxOptions} suggestions`);
+
+    // Filter out any without text
+    suggestions = suggestions.filter(s => s.text && s.text.length > 0);
+
+    // Pad to maxOptions if we got fewer than expected
+    while (suggestions.length < maxOptions && suggestions.length > 0) {
+      const padEmotion = emotions[suggestions.length] || emotions[0];
+      suggestions.push({
+        emotion: padEmotion,
+        label: `(${padEmotion} response)`,
+        text: suggestions[0].text
+      });
+    }
+
+    if (suggestions.length > 0) {
+      // Trim to maxOptions in case we parsed extra
+      const finalSuggestions = suggestions.slice(0, maxOptions);
+      console.log(`[StoryProgression] Generated ${finalSuggestions.length} suggestions`);
+      broadcast('story_progression_suggestions', { suggestions: finalSuggestions });
+    } else {
+      console.log('[StoryProgression] Failed to parse suggestions from LLM response');
+      broadcast('story_progression_generating_done', {});
+    }
+  } catch (error) {
+    console.error('[StoryProgression] Error generating suggestions:', error.message);
+    broadcast('story_progression_generating_done', {});
   }
 }
 
@@ -6114,14 +6390,23 @@ async function handleImpersonateRequest(data) {
     const mode = guidedText ? 'guided_impersonate' : 'impersonate';
     const context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
 
+    const impersonateSettings = {
+      ...settings.llm,
+      stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+    };
+    if (settings.llm?.impersonateMaxTokens) {
+      impersonateSettings.maxTokens = settings.llm.impersonateMaxTokens;
+    }
+
     const result = await llmService.generate({
       prompt: context.prompt,
       systemPrompt: context.systemPrompt,
-      settings: settings.llm
+      settings: impersonateSettings
     });
 
-    // Apply variable substitution and send result
-    const substitutedText = substituteAllVariables(result.text);
+    // Strip any cross-role content and apply variable substitution
+    let finalText = stripCrossRoleContent(result.text, context.stopSequences, false);
+    const substitutedText = substituteAllVariables(finalText);
     llmState.isGenerating = false;
     broadcast('generating_stop', {});
     broadcast('impersonate_result', { text: substitutedText });
@@ -6225,42 +6510,35 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     return 'beyond full, dangerously over-inflated';
   };
 
-  // Build strict belly state instructions
+  // Build belly state instructions — scaled by capacity to save prompt space
   const buildBellyStateInstructions = (capacity, painLevel, subjectName, isFirstPerson = false) => {
     const bellyDesc = getCapacityDescription(capacity);
     const subject = isFirstPerson ? 'Your' : `${subjectName}'s`;
     const verb = isFirstPerson ? 'are' : 'is';
-
-    // Convert pain number to descriptive label
     const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
     const painLabel = painLabels[painLevel] || 'None';
 
-    let instructions = `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
-    instructions += `${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-    instructions += `${subject} pain/discomfort level ${verb} EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
-    instructions += `STRICT RULES:\n`;
-    instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-    instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
-    instructions += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
-    instructions += `- NEVER invent, estimate, or guess capacity numbers - ONLY use ${capacity}%\n`;
-    instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
-    instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
-    instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
-    instructions += `- The belly state is FIXED and STATIC until the system updates it\n`;
-    instructions += `- Treat the current state as having always been this way in this moment\n`;
-    // Add exaggeration prevention for low capacity
-    if (capacity <= 50) {
-      instructions += `- FORBIDDEN at ${capacity}%: "beachball", "basketball", "about to burst", "enormous", "massive", "huge", "ready to pop"\n`;
-      instructions += `- These terms are ONLY appropriate above 85% capacity - using them now would be WRONG\n`;
+    // At 0% with no pain, minimal instruction needed
+    if (capacity <= 0 && painLevel <= 0) {
+      return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
-    instructions += `=== END MANDATORY BELLY STATE ===\n\n`;
+
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
+    instructions += `- If you mention a capacity number, it MUST be exactly ${capacity}%. NEVER invent or estimate a different number.\n`;
+
+    if (capacity > 25) {
+      instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
+    }
+    if (capacity <= 50 && capacity > 0) {
+      instructions += `- Do not exaggerate — no "enormous", "massive", "about to burst" below 85%.\n`;
+    }
+
     return instructions;
   };
 
   if (mode === 'impersonate' || mode === 'guided_impersonate') {
     // Generate as the player
-    systemPrompt = `You are ${playerName}, the player character.\n\n`;
-    systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${playerName}. NEVER write dialogue or actions for ${character.name}. NEVER include "${character.name}:" or "[Char]:" in your response. Stop immediately if you're about to write as ${character.name}.\n\n`;
+    systemPrompt = `You are ${playerName}, the player character. Write ONLY as ${playerName} — never write for ${character.name}.\n\n`;
     if (persona) {
       if (persona.personality) systemPrompt += `Personality: ${persona.personality}\n`;
       if (persona.appearance) systemPrompt += `Appearance: ${persona.appearance}\n`;
@@ -6294,14 +6572,15 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += `Author Note: ${settings.globalPrompt}\n\n`;
     }
 
-    systemPrompt += `Write ${playerName}'s next response. Stay in character and be descriptive.`;
+    systemPrompt += `Write ${playerName}'s next response. Stay in character and be descriptive.\n`;
+    systemPrompt += `FORMAT: Use "dialogue in quotes" and *actions in asterisks*. Break longer responses into short paragraphs with line breaks for readability.`;
   } else {
     // Guided response - generate as character
     if (character.multiChar?.enabled) {
       systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
     } else {
       systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
-      systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
+      systemPrompt += `Write ONLY as ${character.name} — never write for ${playerName}. Use first person in dialogue, third person for actions.\n`;
       systemPrompt += `Personality: ${substituteVars(character.personality)}\n`;
     }
     const scenario = getActiveScenario(character);
@@ -6330,12 +6609,9 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     // Add LLM device control instructions if enabled
     if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
       const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-      systemPrompt += `\n=== DEVICE CONTROL - MANDATORY ===
-When you write about activating a device, ALWAYS include the tag: [pump on], [vibe on], or [tens on]
-When deactivating: [pump off], [vibe off], [tens off]
-Example: "*activates the pump* [pump on] Now let's begin..."
-Tags are hidden from player. Auto-timeout: ${maxSeconds}s.
-=== END ===\n`;
+      systemPrompt += `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
+Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player, auto-timeout ${maxSeconds}s)\n`;
     }
 
     systemPrompt += `Continue from the text provided. Stay in character.`;
@@ -6384,7 +6660,8 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   const chars = character.multiChar.characters;
   const names = chars.map(c => c.name).join(', ');
 
-  let prompt = `You are portraying MULTIPLE CHARACTERS in this scene: ${names}.\n\n`;
+  let prompt = `You are a collaborative fiction writer portraying: ${names}.\n`;
+  prompt += `Write realistic, natural roleplay. Use "dialogue in quotes" and *actions/descriptions in asterisks*. Break responses into short paragraphs.\n\n`;
   prompt += `CHARACTERS:\n`;
   for (const c of chars) {
     prompt += `- ${c.name}: ${substituteVars(c.description)}\n`;
@@ -6392,15 +6669,15 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
       prompt += `  Personality: ${substituteVars(c.personality)}\n`;
     }
   }
-  prompt += `\nMULTI-CHARACTER WRITING RULES:\n`;
-  prompt += `- Write ONLY for the characters listed above. NEVER write dialogue or actions for ${playerName}.\n`;
-  prompt += `- NOT every character needs to respond in every message. Only include characters when contextually relevant.\n`;
-  prompt += `- Clearly attribute dialogue and actions to specific characters by name.\n`;
-  prompt += `- Use third-person names for actions and first-person in dialogue.\n`;
-  prompt += `- Example format:\n`;
-  prompt += `  ${chars[0]?.name || 'Character'} smiles warmly. "Welcome!"\n`;
+  prompt += `\nRULES:\n`;
+  prompt += `- Write ONLY for ${names}. NEVER write dialogue or actions for ${playerName}.\n`;
+  prompt += `- Not every character needs to speak each turn. Only include those contextually relevant.\n`;
+  prompt += `- Attribute dialogue and actions to characters by name.\n`;
+  prompt += `- Keep dialogue natural and concise — people speak in short sentences, not paragraphs.\n`;
+  prompt += `- Example:\n`;
+  prompt += `  *${chars[0]?.name || 'Character'} glances up from the clipboard.* "Well, that's interesting."\n`;
   if (chars[1]) {
-    prompt += `  ${chars[1].name} leans against the wall. "About time."\n`;
+    prompt += `  *${chars[1].name} leans against the wall, arms crossed.* "About time you noticed."\n`;
   }
   prompt += `\n`;
   return prompt;
@@ -6427,35 +6704,29 @@ function buildChatContext(character, settings) {
     return 'beyond full, dangerously over-inflated';
   };
 
-  // Build strict belly state instructions
+  // Build belly state instructions — scaled by capacity to save prompt space
   const buildBellyStateInstructions = (capacity, painLevel, subjectName, isFirstPerson = false) => {
     const bellyDesc = getCapacityDescription(capacity);
     const subject = isFirstPerson ? 'Your' : `${subjectName}'s`;
     const verb = isFirstPerson ? 'are' : 'is';
-
-    // Convert pain number to descriptive label
     const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
     const painLabel = painLabels[painLevel] || 'None';
 
-    let instructions = `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
-    instructions += `${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-    instructions += `${subject} pain/discomfort level ${verb} EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
-    instructions += `STRICT RULES:\n`;
-    instructions += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-    instructions += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
-    instructions += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
-    instructions += `- NEVER invent, estimate, or guess capacity numbers - ONLY use ${capacity}%\n`;
-    instructions += `- DO NOT describe inflation increasing, decreasing, or changing in any way\n`;
-    instructions += `- DO NOT mention flow rate, speed, pumping faster/slower, or rate changes\n`;
-    instructions += `- DO NOT describe growing, swelling, expanding, or deflating\n`;
-    instructions += `- The belly state is FIXED and STATIC until the system updates it\n`;
-    instructions += `- Treat the current state as having always been this way in this moment\n`;
-    // Add exaggeration prevention for low capacity
-    if (capacity <= 50) {
-      instructions += `- FORBIDDEN at ${capacity}%: "beachball", "basketball", "about to burst", "enormous", "massive", "huge", "ready to pop"\n`;
-      instructions += `- These terms are ONLY appropriate above 85% capacity - using them now would be WRONG\n`;
+    // At 0% with no pain, minimal instruction needed
+    if (capacity <= 0 && painLevel <= 0) {
+      return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
-    instructions += `=== END MANDATORY BELLY STATE ===\n\n`;
+
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
+    instructions += `- If you mention a capacity number, it MUST be exactly ${capacity}%. NEVER invent or estimate a different number.\n`;
+
+    if (capacity > 25) {
+      instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
+    }
+    if (capacity <= 50 && capacity > 0) {
+      instructions += `- Do not exaggerate — no "enormous", "massive", "about to burst" below 85%.\n`;
+    }
+
     return instructions;
   };
 
@@ -6465,8 +6736,7 @@ function buildChatContext(character, settings) {
     systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
   } else {
     systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
-    systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
-    systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
+    systemPrompt += `Write ONLY as ${character.name} — never write for ${playerName}. Use first person in dialogue, third person for actions.\n`;
     systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
   }
   const scenario = getActiveScenario(character);
@@ -6498,16 +6768,12 @@ function buildChatContext(character, settings) {
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
 
-  // Add recent challenge result if available (helps AI know the outcome)
+  // Add recent challenge result if available
   if (sessionState.lastChallengeResult) {
     const cr = sessionState.lastChallengeResult;
-    // Only include if the challenge happened recently (within 60 seconds)
     const isRecent = (Date.now() - cr.timestamp) < 60000;
     if (isRecent) {
-      systemPrompt += `\n=== RECENT CHALLENGE RESULT ===\n`;
-      systemPrompt += `A ${cr.typeName} challenge just occurred. Result: ${playerLabel} ${cr.description}.\n`;
-      systemPrompt += `IMPORTANT: Base your response on this ACTUAL result. Do NOT make up a different outcome.\n`;
-      systemPrompt += `=== END CHALLENGE RESULT ===\n\n`;
+      systemPrompt += `\nChallenge just occurred: ${cr.typeName} — ${playerLabel} ${cr.description}. React to this outcome.\n`;
     }
   }
 
@@ -6530,28 +6796,13 @@ function buildChatContext(character, settings) {
   // Add LLM device control instructions if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
     const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-    systemPrompt += `\n=== PHYSICAL DEVICE CONTROL - MANDATORY ===
-You control REAL physical devices. When your character activates equipment in the story, you MUST include the matching tag.
-
-TAGS (include EXACTLY as shown):
-[pump on] / [pump off] - Air pump/inflation device
-[vibe on] / [vibe off] - Vibrator
-[tens on] / [tens off] - Electrical stimulation
-
-*** CRITICAL RULE ***
-WHENEVER you write about turning on, activating, starting, or engaging a pump/inflator/compressor:
-→ You MUST include [pump on] somewhere in your response
-WHENEVER you write about stopping, turning off, or deactivating:
-→ You MUST include [pump off] somewhere in your response
-
-EXAMPLE:
-WRONG: "*flips the switch on the pump* Let's see how much you can take..."
-CORRECT: "*flips the switch on the pump* [pump on] Let's see how much you can take..."
-
-The tag can go anywhere in your response - it will be hidden from the player.
-Devices auto-timeout after ${maxSeconds}s but you should turn them off narratively when appropriate.
-=== END DEVICE CONTROL ===\n`;
+    systemPrompt += `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
+Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from player, auto-timeout ${maxSeconds}s)\n`;
   }
+
+  // Final style anchor
+  systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
 
   // Build prompt from recent chat history
   const recentMessages = sessionState.chatHistory.slice(-20);
@@ -6578,11 +6829,6 @@ Devices auto-timeout after ${maxSeconds}s but you should turn them off narrative
       prompt += `${character.name}: ${msg.content}\n`;
     }
   });
-
-  // Add device control reminder at end of prompt if enabled
-  if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
-    prompt += `\n[DEVICE REMINDER: If you activate a pump/inflator in your response, include [pump on]. If deactivating, include [pump off].]\n`;
-  }
 
   if (character.multiChar?.enabled) {
     prompt += `[Characters]:`;

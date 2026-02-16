@@ -68,7 +68,7 @@ const PUMP_ACTIVITY_PHRASES = [
   /\bpulsing\s+(air|fluid|liquid)\s+(into|through)/i,
 
   // Dial/control/button references - flexible article matching
-  /\b(flip|flips|flipped|flipping)\s+\w*\s*(switch|lever)/i,
+  /\b(flip|flips|flipped|flipping|flick|flicks|flicked|flicking)\s+\w*\s*(switch|lever)/i,
   /\b(press|presses|pressed|pressing)\s+\w*\s*(button|remote)/i,
   /\b(push|pushes|pushed|pushing)\s+\w*\s*button/i,
   /\b(hit|hits|hitting)\s+\w*\s*button/i,
@@ -288,7 +288,7 @@ function stripDeviceCommands(text) {
     .replace(PULSE_COMMAND_PATTERN, '')
     .replace(TIMED_COMMAND_PATTERN, '')
     .replace(CYCLE_COMMAND_PATTERN, '')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
 
@@ -668,7 +668,15 @@ const PULSE_SPECIFIC_PHRASES = [
   /\brandom\s+pulse/i,
   /\berratic\s*(,|\s)?\s*(pulsing|rhythm|pattern|pumping)/i,
   /\b(rhythm|pattern)\s+(becoming|turns?|goes?)\s+(erratic|random|irregular)/i,
-  /\birregular\s+(pulse|burst|rhythm|pattern)/i
+  /\birregular\s+(pulse|burst|rhythm|pattern)/i,
+
+  // Squeeze patterns (manual pump / bulb pump)
+  /\bsqueeze(s|d)?\b/i,
+  /\bsqueezing\b/i,
+  /\bsqueeze\s+interval/i,
+  /\b(steady|rhythmic|slow|quick)\s+squeeze/i,
+  /\bgrip.*\bbulb\b/i,
+  /\b(pump|squeeze)\s+bulb\b/i
 ];
 
 /**
@@ -716,51 +724,20 @@ function reinforcePumpControl(text, devices, sessionState, settings) {
     }
   }
 
-  // Check if pump is already running
-  if (isPumpCurrentlyRunning(sessionState, devices)) {
-    log.info('[Reinforce] Pump is already running - no reinforcement needed');
-    return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-  }
-
-  // Detect pump activity phrases (for turning ON)
+  // Detect pump activity phrases
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Skip reinforcement if text contains future tense / intention markers
-    // (AI is describing what's ABOUT TO happen, not what IS happening)
-    const textLower = text.toLowerCase();
-    const futureIntentionMarkers = [
-      /\b(going\s+to|gonna)\b/i,
-      /\b(will|'ll)\s+(start|begin|turn|activate|pump|inflate)/i,
-      /\b(about\s+to|ready\s+to|preparing\s+to|plan\s+to|intend\s+to)\b/i,
-      /\b(getting\s+ready|preparing|planning|about)\s+(to\s+)?(start|begin|pump|inflate)/i,
-      /\b(let'?s|should\s+we|shall\s+we)\s+(start|begin)/i,
-      /\b(before\s+(we|I)|once\s+(you|we)|when\s+(you|I)|after\s+(you|I))\b.*\b(start|begin|inflate|pump)/i
+    // Only skip for clearly hypothetical/imaginary text — minimal guard
+    const hypotheticalMarkers = [
+      /\b(imagine|picture|think\s+about|remember\s+when|describe|talk\s+about|discuss)\b/i,
+      /\b(would|could|might)\s+(start|begin|pump|inflate)/i,
+      /\b(if\s+(I|we)\s+(were|could)|what\s+if)\b.*\b(pump|inflate)/i,
     ];
 
-    for (const marker of futureIntentionMarkers) {
+    for (const marker of hypotheticalMarkers) {
       if (marker.test(text)) {
-        log.info(`[Reinforce] Detected future/intention marker - skipping reinforcement: "${matchedPhrase}"`);
-        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-      }
-    }
-
-    // Skip if text contains narrative/descriptive markers (talking ABOUT pumping, not actually doing it)
-    const narrativeMarkers = [
-      /\b(imagine|picture|think\s+about|remember|recall|describe|talk\s+about|mention|discuss)\b/i,
-      /\b(would|could|might|may)\s+(start|begin|pump|inflate)/i,
-      /\b(if\s+(I|we)|what\s+if)\b.*\b(start|begin|pump|inflate)/i,
-      /\b(option|choice|possibility|scenario)\b/i,
-      // Movement/approach context - character is moving TO the controls, not using them yet
-      /\b(move|moves|moved|moving|walk|walks|walked|walking|approach|approaches|approached|approaching|head|heads|headed|heading|step|steps|stepped|stepping|go|goes|went|going)\s+(to|toward|towards|over\s+to|up\s+to)\b.*\b(console|panel|control|machine|pump|device|switch|button|dial)/i,
-      /\b(move|moves|moved|moving|walk|walks|walked|walking|step|steps|stepped|stepping)\s+(to|toward|towards)\s+(a|the|her|his|their)\s+(nearby|near|close|adjacent)\b/i,
-      // Gerund phrases (flipping switches, activating machinery) without immediate effect
-      /\b(flip|flips|flipping|activate|activates|activating|turn|turns|turning|press|presses|pressing|push|pushes|pushing)\s+(switch|switches|lever|levers|button|buttons|control|controls|dial|dials).*\b(and|,)/i
-    ];
-
-    for (const marker of narrativeMarkers) {
-      if (marker.test(text)) {
-        log.info(`[Reinforce] Detected narrative/descriptive marker - skipping reinforcement: "${matchedPhrase}"`);
+        log.info(`[Reinforce] Hypothetical marker - skipping: "${matchedPhrase}"`);
         return { text, reinforced: false, matchedPhrase: null, isPulse: false };
       }
     }

@@ -11,6 +11,7 @@ import { substituteVariables } from '../utils/variableSubstitution';
 import { parseMediaVariables } from '../utils/mediaVariables';
 import { getPortraitForCapacity } from '../utils/stagedPortraits';
 import StatusBadges from '../components/StatusBadges';
+import { EMOTIONS } from '../constants/stateValues';
 import MediaBubble from '../components/chat/MediaBubble';
 import SilentAudioPlayer from '../components/chat/SilentAudioPlayer';
 import './Chat.css';
@@ -94,9 +95,21 @@ function Chat() {
     return saved ? parseInt(saved, 10) : 16; // Default 16px
   });
 
+  // Story Progression suggestions
+  const [storyProgressionSuggestions, setStoryProgressionSuggestions] = useState([]);
+  const [storyProgressionVisible, setStoryProgressionVisible] = useState(false);
+  const [storyProgressionGenerating, setStoryProgressionGenerating] = useState(false);
+
   // Persona button menu pagination
   const [personaActionPage, setPersonaActionPage] = useState(0);
   const PERSONA_ACTIONS_PER_PAGE = 6; // 2 columns x 3 rows
+
+  // Chat input textarea height (persisted to localStorage)
+  const [inputHeight, setInputHeight] = useState(() => {
+    const saved = localStorage.getItem('swelldreams_input_height');
+    return saved ? parseInt(saved, 10) : 80;
+  });
+  const dragRef = useRef(null);
 
   // Mobile drawer state
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
@@ -713,6 +726,83 @@ function Chat() {
     return () => window.removeEventListener('impersonate_result', handleImpersonateResult);
   }, []);
 
+  // Listen for story progression events
+  useEffect(() => {
+    const handleGenerating = () => {
+      setStoryProgressionGenerating(true);
+      setStoryProgressionVisible(true);
+    };
+
+    const handleGeneratingDone = () => {
+      setStoryProgressionGenerating(false);
+    };
+
+    const handleSuggestions = (event) => {
+      const { suggestions } = event.detail;
+      setStoryProgressionGenerating(false);
+      if (suggestions && suggestions.length > 0) {
+        setStoryProgressionSuggestions(suggestions);
+        setStoryProgressionVisible(true);
+      }
+    };
+
+    window.addEventListener('story_progression_generating', handleGenerating);
+    window.addEventListener('story_progression_generating_done', handleGeneratingDone);
+    window.addEventListener('story_progression_suggestions', handleSuggestions);
+    return () => {
+      window.removeEventListener('story_progression_generating', handleGenerating);
+      window.removeEventListener('story_progression_generating_done', handleGeneratingDone);
+      window.removeEventListener('story_progression_suggestions', handleSuggestions);
+    };
+  }, []);
+
+  // Select a story progression suggestion
+  const selectSuggestion = useCallback((suggestion) => {
+    setInputValue('');
+    setTimeout(() => {
+      setInputValue(suggestion.text);
+      setStoryProgressionVisible(false);
+      setStoryProgressionSuggestions([]);
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+        chatInputRef.current.setSelectionRange(suggestion.text.length, suggestion.text.length);
+      }
+    }, 0);
+  }, []);
+
+  // Drag-to-resize input textarea
+  const handleInputDragStart = useCallback((e) => {
+    e.preventDefault();
+    const startY = e.clientY || e.touches?.[0]?.clientY;
+    const startHeight = inputHeight;
+    dragRef.current = true;
+
+    const onMove = (moveEvent) => {
+      if (!dragRef.current) return;
+      const currentY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY;
+      const delta = startY - currentY; // dragging up = bigger
+      const newHeight = Math.min(400, Math.max(40, startHeight + delta));
+      setInputHeight(newHeight);
+    };
+
+    const onEnd = () => {
+      dragRef.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      setInputHeight(h => {
+        localStorage.setItem('swelldreams_input_height', h);
+        return h;
+      });
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove);
+    document.addEventListener('touchend', onEnd);
+  }, [inputHeight]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!inputValue.trim() || isGenerating) return;
@@ -724,6 +814,10 @@ function Chat() {
     }
 
     const messageText = inputValue.trim();
+
+    // Dismiss story progression panel on send
+    setStoryProgressionVisible(false);
+    setStoryProgressionSuggestions([]);
 
     setIsGenerating(true);
     sendChatMessage(messageText);
@@ -1258,6 +1352,30 @@ function Chat() {
 
         {/* Simple A/B and other interactive elements now displayed inline in chat */}
 
+        {/* Story Progression - Generating Overlay */}
+        {storyProgressionGenerating && (
+          <div className="sp-generating-overlay">
+            <div className="sp-spinner-large"></div>
+            <span>Generating responses...</span>
+          </div>
+        )}
+
+        {/* Story Progression Suggestions */}
+        {storyProgressionVisible && storyProgressionSuggestions.length > 0 && !storyProgressionGenerating && (
+          <div className="story-progression-panel">
+            <div className="story-progression-header">Choose your reply:</div>
+            {storyProgressionSuggestions.map((s, i) => {
+              const emotionData = EMOTIONS.find(e => e.key === s.emotion);
+              return (
+                <button key={i} className="story-progression-btn" onClick={() => selectSuggestion(s)}>
+                  <span className="sp-emotion">{emotionData?.emoji || '💬'}</span>
+                  <span className="sp-label">{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
       </div>
 
       {/* Main Chat Area */}
@@ -1535,6 +1653,12 @@ function Chat() {
           <div ref={messagesEndRef} />
         </div>
 
+        <div
+          className="chat-input-resize-handle"
+          onMouseDown={handleInputDragStart}
+          onTouchStart={handleInputDragStart}
+          title="Drag to resize"
+        />
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <div className="input-buttons-row">
             <div className="chat-buttons">
@@ -1610,8 +1734,15 @@ function Chat() {
             <textarea
               ref={chatInputRef}
               className="chat-input-textarea"
+              style={{ height: `${inputHeight}px` }}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (e.target.value && storyProgressionVisible) {
+                  setStoryProgressionVisible(false);
+                  setStoryProgressionSuggestions([]);
+                }
+              }}
               onKeyDown={handleInputKeyDown}
               onPaste={(e) => {
                 // Strip newlines from pasted content

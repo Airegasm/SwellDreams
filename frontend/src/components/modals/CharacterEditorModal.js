@@ -74,7 +74,7 @@ function migrateStoryToV2(story, character) {
 }
 
 function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
-  const { flows, devices, settings, api } = useApp();
+  const { flows, devices, settings, personas, api } = useApp();
 
   // System-level global reminders from settings
   const systemGlobalReminders = settings?.globalReminders || [];
@@ -270,9 +270,20 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [importingLorebook, setImportingLorebook] = useState(false);
   const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
   const [enhancingScenario, setEnhancingScenario] = useState(false);
-  const [welcomeMessagePOV, setWelcomeMessagePOV] = useState('ANYPOV');
-  const [scenarioPOV, setScenarioPOV] = useState('ANYPOV');
   const cancelledRef = React.useRef({ welcomeMessage: false, scenario: false });
+
+  // Derive POV from active persona's pronouns
+  const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
+  const playerName = activePersona?.displayName || 'The player';
+  const personaPronouns = activePersona?.pronouns || 'they/them';
+  const activePOV = personaPronouns === 'she/her' ? 'FEMPOV' : personaPronouns === 'he/him' ? 'MALEPOV' : 'ANYPOV';
+
+  const getPovInstruction = () => {
+    const genderNote = activePOV === 'FEMPOV' ? `${playerName} is female (she/her).`
+      : activePOV === 'MALEPOV' ? `${playerName} is male (he/him).`
+      : `${playerName} is unspecified gender (they/them).`;
+    return `- ${genderNote} When referring to the player with pronouns, ALWAYS use the [Gender] variable instead of writing literal pronouns. Examples: "looks at [Gender]", "[Gender] eyes", "[Gender] smiles". The [Gender] tag auto-resolves to the correct pronoun form at runtime.`;
+  };
 
   // Sync selected story ID when formData changes
   useEffect(() => {
@@ -442,15 +453,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       });
     }
 
-    // Build POV-specific instructions
-    let povInstructions = '';
-    if (welcomeMessagePOV === 'FEMPOV') {
-      povInstructions = '- The player is FEMALE. Use she/her pronouns when referring to the player.';
-    } else if (welcomeMessagePOV === 'MALEPOV') {
-      povInstructions = '- The player is MALE. Use he/him pronouns when referring to the player.';
-    } else { // ANYPOV
-      povInstructions = '- Write gender-neutral content. Avoid using gendered pronouns for the player. Use "you" or the player\'s name instead of he/she/they.';
-    }
+    // Build POV-specific instructions from active persona
+    const povInstructions = getPovInstruction();
 
     const prompt = `You are a creative writing assistant helping to craft an immersive character greeting message.
 
@@ -461,7 +465,7 @@ ${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
 IMPORTANT INSTRUCTIONS:
 - Write the greeting AS THE CHARACTER in first-person perspective
 - Use roleplay format: *actions in asterisks* mixed with "dialog in quotes"
-- Use [Player] when referring to the player character (this will be replaced with their name)
+- Use [Player] for the player's name and [Gender] for their pronouns (both auto-resolve at runtime)
 ${povInstructions}
 - The greeting should show what the character is doing and saying in the moment
 - Make it engaging, sensory, and in-character
@@ -592,15 +596,8 @@ Write only the greeting message itself, no explanations or meta-commentary.`;
       });
     }
 
-    // Build POV-specific instructions
-    let povInstructions = '';
-    if (scenarioPOV === 'FEMPOV') {
-      povInstructions = '- The player is FEMALE. Use she/her pronouns when referring to the player.';
-    } else if (scenarioPOV === 'MALEPOV') {
-      povInstructions = '- The player is MALE. Use he/him pronouns when referring to the player.';
-    } else { // ANYPOV
-      povInstructions = '- Write gender-neutral content. Avoid using gendered pronouns for the player. Use "you" or the player\'s name instead of he/she/they.';
-    }
+    // Build POV-specific instructions from active persona
+    const povInstructions = getPovInstruction();
 
     const prompt = `You are a creative writing assistant helping to craft a concise scenario description.
 
@@ -611,7 +608,7 @@ ${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
 IMPORTANT INSTRUCTIONS:
 - Write a simple, descriptive scenario in 1-2 sentences
 - Use third-person perspective (describe the situation objectively)
-- Use [Player] when referring to the player character
+- Use [Player] for the player's name and [Gender] for their pronouns
 ${povInstructions}
 - Focus on setting and situation, not actions or dialog
 - Keep it concise and atmospheric
@@ -1603,6 +1600,35 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
 
+                {/* Story Progression Mode */}
+                <div className="story-field auto-reply-field">
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={activeStory?.storyProgressionEnabled || false}
+                      onChange={(e) => updateStoryField('storyProgressionEnabled', e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Story Progression</span>
+                    <span className="auto-reply-hint">Auto-generate player reply suggestions after each AI response</span>
+                  </div>
+                </div>
+                {activeStory?.storyProgressionEnabled && (
+                  <div className="story-field" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                    <label>Max Suggestions</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={5}
+                      value={activeStory?.storyProgressionMaxOptions || 3}
+                      onChange={(e) => updateStoryField('storyProgressionMaxOptions', Math.min(5, Math.max(2, parseInt(e.target.value) || 3)))}
+                      style={{ width: '60px' }}
+                    />
+                  </div>
+                )}
+
                 {/* Welcome Message */}
                 <div className="story-field">
                   <div className="story-field-header">
@@ -1640,16 +1666,7 @@ Write only the scenario description itself, no explanations.`;
                         onClick={handleEnhanceWelcomeMessage}
                         title={enhancingWelcomeMessage ? "Click to abort" : "Enhance with LLM"}
                       >🪄</button>
-                      <select
-                        className="pov-select"
-                        value={welcomeMessagePOV}
-                        onChange={(e) => setWelcomeMessagePOV(e.target.value)}
-                        title="Point of View for LLM enhancement"
-                      >
-                        <option value="ANYPOV">ANYPOV</option>
-                        <option value="MALEPOV">MALEPOV</option>
-                        <option value="FEMPOV">FEMPOV</option>
-                      </select>
+                      <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                     </div>
                   </div>
                   <textarea
@@ -1692,16 +1709,7 @@ Write only the scenario description itself, no explanations.`;
                         onClick={handleEnhanceScenario}
                         title={enhancingScenario ? "Click to abort" : "Enhance with LLM"}
                       >🪄</button>
-                      <select
-                        className="pov-select"
-                        value={scenarioPOV}
-                        onChange={(e) => setScenarioPOV(e.target.value)}
-                        title="Point of View for LLM enhancement"
-                      >
-                        <option value="ANYPOV">ANYPOV</option>
-                        <option value="MALEPOV">MALEPOV</option>
-                        <option value="FEMPOV">FEMPOV</option>
-                      </select>
+                      <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                     </div>
                   </div>
                   <textarea

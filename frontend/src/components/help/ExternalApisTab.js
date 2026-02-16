@@ -203,6 +203,9 @@ function ExternalApisTab() {
               <li><strong>Mistral</strong> — For Mistral/Mixtral models</li>
               <li><strong>Alpaca</strong> — For Alpaca-style instruction-tuned models</li>
               <li><strong>Vicuna</strong> — For Vicuna-style models</li>
+              <li><strong>Gemma 2</strong> — For Google's Gemma 2 family</li>
+              <li><strong>Gemma 3</strong> — For Google's Gemma 3 family (supports system role)</li>
+              <li><strong>Jinja (Server)</strong> — Let llama.cpp apply the model's built-in chat template via <code>/v1/chat/completions</code></li>
               <li><strong>None</strong> — Raw completion, no template wrapping</li>
             </ul>
 

@@ -12,11 +12,15 @@ const log = createLogger('LLM');
 // Track active requests for abort capability
 const activeRequests = new Set();
 
+// Cache llama.cpp server capabilities (fetched once from /props)
+let llamaCppCapsCache = null;
+let llamaCppCapsCacheUrl = null;
+
 // Default sampler settings
 const DEFAULT_SETTINGS = {
   llmUrl: '',
   apiType: 'auto',  // 'auto', 'text_completion', 'chat_completion'
-  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'llama3', 'mistral', 'alpaca', 'vicuna'
+  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'llama3', 'mistral', 'alpaca', 'vicuna', 'gemma2', 'gemma3', 'jinja'
   maxTokens: 150,
   contextTokens: 8192,
   streaming: false,
@@ -155,8 +159,50 @@ function wrapWithTemplate(systemPrompt, prompt, template) {
       llama3 += `<|start_header_id|>assistant<|end_header_id|>\n\n`;
       return llama3;
 
+    case 'gemma2':
+      // Gemma 2 format — no system role, system prompt prepended to first user turn
+      let gemma2 = '<start_of_turn>user\n';
+      if (systemPrompt) {
+        gemma2 += `${systemPrompt}\n\n`;
+      }
+      gemma2 += `${prompt}<end_of_turn>\n`;
+      gemma2 += `<start_of_turn>model\n`;
+      return gemma2;
+
+    case 'gemma3':
+      // Gemma 3 format — system role is supported via API but the actual Jinja template
+      // prepends system content to the first user turn (no <start_of_turn>system exists).
+      // For text completion, use same format as gemma2.
+      let gemma3 = '<start_of_turn>user\n';
+      if (systemPrompt) {
+        gemma3 += `${systemPrompt}\n\n`;
+      }
+      gemma3 += `${prompt}<end_of_turn>\n`;
+      gemma3 += `<start_of_turn>model\n`;
+      return gemma3;
+
     default:
       return systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+  }
+}
+
+/**
+ * Get template-specific stop tokens that signal end of generation
+ */
+function getTemplateStopTokens(template) {
+  switch (template) {
+    case 'gemma2':
+    case 'gemma3':
+      return ['<end_of_turn>'];
+    case 'chatml':
+      return ['<|im_end|>'];
+    case 'llama3':
+      return ['<|eot_id|>'];
+    case 'llama':
+    case 'mistral':
+      return ['</s>'];
+    default:
+      return [];
   }
 }
 
@@ -572,17 +618,9 @@ async function generate(options) {
   const { prompt, messages, systemPrompt, settings = {} } = options;
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
 
-  console.log('[LLM DEBUG] generate() called');
-  console.log(`[LLM DEBUG] endpointStandard: ${mergedSettings.endpointStandard}`);
-  console.log(`[LLM DEBUG] llmUrl: ${mergedSettings.llmUrl}`);
-  console.log(`[LLM DEBUG] openRouterApiKey present: ${!!mergedSettings.openRouterApiKey}`);
-  console.log(`[LLM DEBUG] openRouterModel: ${mergedSettings.openRouterModel}`);
-
   // Check if using OpenRouter
   if (mergedSettings.endpointStandard === 'openrouter') {
-    console.log('[LLM DEBUG] Taking OpenRouter path');
     if (!mergedSettings.openRouterApiKey) {
-      console.error('[LLM DEBUG] OpenRouter API key is missing!');
       throw new Error('OpenRouter API key not configured');
     }
     return generateOpenRouter({ prompt, messages, systemPrompt, settings: mergedSettings });
@@ -590,11 +628,8 @@ async function generate(options) {
 
   // Check if using llama.cpp native
   if (mergedSettings.endpointStandard === 'llamacpp') {
-    console.log('[LLM DEBUG] Taking llama.cpp path');
     return generateLlamaCpp({ prompt, messages, systemPrompt, settings: mergedSettings });
   }
-
-  console.log('[LLM DEBUG] Taking standard LLM path');
 
   if (!mergedSettings.llmUrl) {
     throw new Error('LLM URL not configured');
@@ -685,27 +720,64 @@ async function generateStream(options) {
     throw new Error('LLM URL not configured');
   }
 
-  // llama.cpp streaming: same /completion endpoint with stream: true in body
+  // llama.cpp streaming
   if (mergedSettings.endpointStandard === 'llamacpp') {
-    let userPrompt = prompt || '';
-    if (!userPrompt && messages && messages.length > 0) {
-      userPrompt = messages.map(m => {
-        if (m.role === 'system') return m.content;
-        if (m.role === 'user') return `User: ${m.content}`;
-        if (m.role === 'assistant') return `Assistant: ${m.content}`;
-        return m.content;
-      }).join('\n');
-    }
-    const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, mergedSettings.promptTemplate);
-    const requestBody = buildLlamaCppRequest(fullPrompt, mergedSettings);
-    requestBody.stream = true;
+    const baseUrl = getLlamaCppBaseUrl(mergedSettings.llmUrl);
+    let requestBody;
+    let endpoint;
 
-    let endpoint = mergedSettings.llmUrl;
-    if (!endpoint.includes('/completion')) {
-      endpoint = endpoint.replace(/\/?$/, '/completion');
+    if (useLlamaCppChat(mergedSettings)) {
+      // Jinja mode: stream via /v1/chat/completions
+      let effectiveSettings = mergedSettings;
+      if (mergedSettings.supportsSystemRole === undefined) {
+        const caps = await getLlamaCppCaps(baseUrl);
+        effectiveSettings = { ...mergedSettings, supportsSystemRole: caps.supportsSystemRole };
+      }
+      const chatMessages = buildChatMessages(systemPrompt, prompt, messages, effectiveSettings);
+      requestBody = buildChatCompletionRequest(chatMessages, effectiveSettings);
+      requestBody.stream = true;
+      endpoint = `${baseUrl}/v1/chat/completions`;
+    } else {
+      // Text completion mode: stream via /completion
+      let userPrompt = prompt || '';
+      if (!userPrompt && messages && messages.length > 0) {
+        userPrompt = messages.map(m => {
+          if (m.role === 'system') return m.content;
+          if (m.role === 'user') return `User: ${m.content}`;
+          if (m.role === 'assistant') return `Assistant: ${m.content}`;
+          return m.content;
+        }).join('\n');
+      }
+      // Resolve template — if 'jinja' or 'none', auto-detect from server
+      let template = mergedSettings.promptTemplate;
+      if (!template || template === 'none' || template === 'jinja') {
+        const caps = await getLlamaCppCaps(baseUrl);
+        const tmplLower = (caps.chatTemplate || '').toLowerCase();
+        if (tmplLower === 'gemma' || caps.chatTemplate.includes('<start_of_turn>')) {
+          template = caps.supportsSystemRole ? 'gemma3' : 'gemma2';
+        } else if (tmplLower === 'chatml' || caps.chatTemplate.includes('<|im_start|>')) {
+          template = 'chatml';
+        } else if (tmplLower === 'llama3' || caps.chatTemplate.includes('<|start_header_id|>')) {
+          template = 'llama3';
+        } else if (tmplLower === 'llama2') {
+          template = 'llama';
+        } else if (tmplLower === 'mistral' || caps.chatTemplate.includes('[INST]')) {
+          template = 'mistral';
+        } else if (tmplLower) {
+          template = 'chatml';
+        }
+        if (template !== mergedSettings.promptTemplate) {
+          console.log(`[LLM] Stream: Resolved template '${mergedSettings.promptTemplate}' → '${template}'`);
+        }
+      }
+      const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, template);
+      requestBody = buildLlamaCppRequest(fullPrompt, { ...mergedSettings, promptTemplate: template });
+      requestBody.stream = true;
+      endpoint = `${baseUrl}/completion`;
     }
 
-    console.log(`[LLM] Making streaming llama.cpp request to ${endpoint}`);
+    console.log(`[LLM] Making streaming llama.cpp request to ${endpoint} (template: ${mergedSettings.promptTemplate || 'none'})`);
+    console.log(`[LLM] Stop tokens: ${JSON.stringify(requestBody.stop || [])}`);
 
     let generatedText = await makeStreamingRequest(endpoint, requestBody, onToken);
 
@@ -773,9 +845,15 @@ async function testConnection(settings) {
   try {
     // llama.cpp: use /health and /props endpoints
     if (settings.endpointStandard === 'llamacpp') {
-      const baseUrl = settings.llmUrl.replace(/\/completion.*$/, '').replace(/\/?$/, '');
+      const baseUrl = settings.llmUrl
+        .replace(/\/v1\/chat\/completions.*$/, '')
+        .replace(/\/v1\/completions.*$/, '')
+        .replace(/\/completion.*$/, '')
+        .replace(/\/?$/, '');
       let modelName = null;
       let contextSize = null;
+      let chatTemplate = null;
+      let supportsSystemRole = true;
 
       // Health check
       const healthUrl = `${baseUrl}/health`;
@@ -785,19 +863,48 @@ async function testConnection(settings) {
         return { success: false, error: 'llama.cpp health check failed' };
       }
 
-      // Get model info and context size from /props
+      // Get model info, context size, and chat template from /props
       try {
         const propsUrl = `${baseUrl}/props`;
         console.log('[LLM] llama.cpp props:', propsUrl);
         const propsResult = await makeRequest(propsUrl, 'GET');
         if (propsResult) {
-          modelName = propsResult.default_generation_settings?.model
+          // Model name: try model_alias (display name) → model_path basename → legacy fields
+          modelName = propsResult.model_alias
+            || (propsResult.model_path ? propsResult.model_path.split('/').pop().replace(/\.gguf$/i, '') : null)
+            || propsResult.default_generation_settings?.model
             || propsResult.model
             || null;
           contextSize = propsResult.default_generation_settings?.n_ctx
             || null;
           if (contextSize) {
             console.log(`[LLM] llama.cpp reported context size: ${contextSize}`);
+          }
+
+          // Auto-detect chat template from model props
+          const tmpl = propsResult.chat_template || propsResult.chatTemplate || '';
+          supportsSystemRole = propsResult.chat_template_caps?.supports_system_role ?? false;
+          if (tmpl) {
+            console.log(`[LLM] llama.cpp chat_template: "${tmpl}" (${tmpl.length} chars), supports_system_role: ${supportsSystemRole}`);
+            const tmplLower = tmpl.toLowerCase();
+            if (tmplLower === 'gemma' || tmpl.includes('<start_of_turn>')) {
+              chatTemplate = supportsSystemRole ? 'gemma3' : 'gemma2';
+            } else if (tmplLower === 'chatml' || tmpl.includes('<|im_start|>')) {
+              chatTemplate = 'chatml';
+            } else if (tmplLower === 'llama2' || (tmpl.includes('[INST]') && tmpl.includes('<<SYS>>'))) {
+              chatTemplate = 'llama';
+            } else if (tmplLower === 'llama3' || tmpl.includes('<|start_header_id|>')) {
+              chatTemplate = 'llama3';
+            } else if (tmplLower === 'mistral' || tmplLower === 'mistral-v1' || tmpl.includes('[INST]')) {
+              chatTemplate = 'mistral';
+            } else if (tmplLower === 'vicuna') {
+              chatTemplate = 'vicuna';
+            } else if (tmplLower === 'alpaca') {
+              chatTemplate = 'alpaca';
+            } else {
+              chatTemplate = 'chatml'; // safe fallback
+            }
+            console.log(`[LLM] Auto-detected chat template: ${chatTemplate}`);
           }
         }
       } catch (e) {
@@ -809,7 +916,9 @@ async function testConnection(settings) {
         response: 'Health OK',
         apiType: 'llamacpp',
         modelName: modelName,
-        contextSize: contextSize
+        contextSize: contextSize,
+        chatTemplate: chatTemplate,
+        supportsSystemRole: supportsSystemRole
       };
     }
 
@@ -1201,7 +1310,8 @@ function buildLlamaCppRequest(prompt, settings) {
     repeat_last_n: settings.repPenRange ?? 2048,
     frequency_penalty: settings.frequencyPenalty ?? 0,
     presence_penalty: settings.presencePenalty ?? 0,
-    cache_prompt: true
+    cache_prompt: true,
+    special: true  // Parse special tokens (e.g. <start_of_turn>) in template-wrapped prompts
   };
 
   // Mirostat
@@ -1211,9 +1321,12 @@ function buildLlamaCppRequest(prompt, settings) {
     body.mirostat_eta = settings.mirostatEta || 0.1;
   }
 
-  // Stop sequences
-  if (settings.stopSequences && settings.stopSequences.length > 0) {
-    body.stop = settings.stopSequences;
+  // Stop sequences — merge user-defined + template-specific stop tokens
+  const templateStops = getTemplateStopTokens(settings.promptTemplate);
+  const userStops = settings.stopSequences || [];
+  const allStops = [...new Set([...userStops, ...templateStops])];
+  if (allStops.length > 0) {
+    body.stop = allStops;
   }
 
   // Grammar (GBNF)
@@ -1264,7 +1377,79 @@ function buildLlamaCppRequest(prompt, settings) {
 }
 
 /**
- * Generate text using llama.cpp native /completion endpoint
+ * Check if llama.cpp should use chat completion mode (Jinja server-side templating)
+ */
+function useLlamaCppChat(settings) {
+  // Only use /v1/chat/completions if the user explicitly put it in their URL
+  return settings.llmUrl && settings.llmUrl.includes('/v1/chat/completions');
+}
+
+/**
+ * Build chat messages array, handling models that don't support system role
+ * (e.g. Gemma 2) by merging system content into the first user message.
+ */
+function buildChatMessages(systemPrompt, prompt, messages, settings) {
+  const supportsSystem = settings.supportsSystemRole === true;
+  let chatMessages = [];
+
+  if (systemPrompt) {
+    if (supportsSystem) {
+      chatMessages.push({ role: 'system', content: systemPrompt });
+    } else {
+      // Models without system role (e.g. Gemma): send instructions as a user turn
+      // with a model acknowledgment, so the model treats them as established context
+      chatMessages.push({ role: 'user', content: systemPrompt });
+      chatMessages.push({ role: 'assistant', content: 'Understood. I will follow these instructions.' });
+    }
+  }
+
+  if (messages && messages.length > 0) {
+    chatMessages = chatMessages.concat(messages);
+  } else if (prompt) {
+    chatMessages.push({ role: 'user', content: prompt });
+  }
+
+  return chatMessages;
+}
+
+/**
+ * Get the llama.cpp base URL (strips any endpoint path)
+ */
+function getLlamaCppBaseUrl(url) {
+  return url
+    .replace(/\/v1\/chat\/completions.*$/, '')
+    .replace(/\/v1\/completions.*$/, '')
+    .replace(/\/completion.*$/, '')
+    .replace(/\/?$/, '');
+}
+
+/**
+ * Fetch llama.cpp server capabilities from /props (cached per base URL)
+ */
+async function getLlamaCppCaps(baseUrl) {
+  if (llamaCppCapsCache && llamaCppCapsCacheUrl === baseUrl) {
+    return llamaCppCapsCache;
+  }
+  try {
+    const propsResult = await makeRequest(`${baseUrl}/props`, 'GET');
+    if (propsResult) {
+      llamaCppCapsCache = {
+        supportsSystemRole: propsResult.chat_template_caps?.supports_system_role ?? false,
+        chatTemplate: propsResult.chat_template || '',
+        modelAlias: propsResult.model_alias || '',
+      };
+      llamaCppCapsCacheUrl = baseUrl;
+      console.log(`[LLM] Cached llama.cpp caps: supportsSystemRole=${llamaCppCapsCache.supportsSystemRole}, template=${llamaCppCapsCache.chatTemplate}`);
+      return llamaCppCapsCache;
+    }
+  } catch (e) {
+    console.log(`[LLM] Failed to fetch llama.cpp caps: ${e.message}`);
+  }
+  return { supportsSystemRole: false, chatTemplate: '', modelAlias: '' };
+}
+
+/**
+ * Generate text using llama.cpp — routes to /v1/chat/completions (Jinja) or /completion (manual template)
  * @param {Object} options - Generation options
  * @returns {Promise<{text: string, apiType: string}>}
  */
@@ -1275,7 +1460,33 @@ async function generateLlamaCpp(options) {
     throw new Error('llama.cpp URL not configured');
   }
 
-  // Build the prompt using template wrapping (same as text completion path)
+  const baseUrl = getLlamaCppBaseUrl(settings.llmUrl);
+
+  // Jinja mode: use /v1/chat/completions — llama.cpp applies the model's chat template
+  if (useLlamaCppChat(settings)) {
+    // Auto-detect system role support if not explicitly set
+    let effectiveSettings = settings;
+    if (settings.supportsSystemRole === undefined) {
+      const caps = await getLlamaCppCaps(baseUrl);
+      effectiveSettings = { ...settings, supportsSystemRole: caps.supportsSystemRole };
+    }
+    const chatMessages = buildChatMessages(systemPrompt, prompt, messages, effectiveSettings);
+
+    const requestBody = buildChatCompletionRequest(chatMessages, effectiveSettings);
+    const endpoint = `${baseUrl}/v1/chat/completions`;
+    log.info(`Making llama.cpp chat request to ${endpoint}`);
+
+    const response = await makeRequest(endpoint, requestBody);
+    let text = extractGeneratedText(response, 'chat_completion');
+
+    if (settings.trimIncompleteSentences !== false && text) {
+      text = trimIncompleteSentences(text);
+    }
+
+    return { text: text?.trim() || '', apiType: 'llamacpp' };
+  }
+
+  // Text completion mode: use /completion with manual template wrapping
   let userPrompt = prompt || '';
   if (!userPrompt && messages && messages.length > 0) {
     userPrompt = messages.map(m => {
@@ -1286,16 +1497,35 @@ async function generateLlamaCpp(options) {
     }).join('\n');
   }
 
-  const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, settings.promptTemplate);
-  const requestBody = buildLlamaCppRequest(fullPrompt, settings);
-
-  // Ensure endpoint points to /completion
-  let endpoint = settings.llmUrl;
-  if (!endpoint.includes('/completion')) {
-    endpoint = endpoint.replace(/\/?$/, '/completion');
+  // Resolve template — if 'jinja' or 'none', auto-detect from server
+  let template = settings.promptTemplate;
+  if (!template || template === 'none' || template === 'jinja') {
+    const caps = await getLlamaCppCaps(baseUrl);
+    const tmplLower = (caps.chatTemplate || '').toLowerCase();
+    if (tmplLower === 'gemma' || caps.chatTemplate.includes('<start_of_turn>')) {
+      template = caps.supportsSystemRole ? 'gemma3' : 'gemma2';
+    } else if (tmplLower === 'chatml' || caps.chatTemplate.includes('<|im_start|>')) {
+      template = 'chatml';
+    } else if (tmplLower === 'llama3' || caps.chatTemplate.includes('<|start_header_id|>')) {
+      template = 'llama3';
+    } else if (tmplLower === 'llama2') {
+      template = 'llama';
+    } else if (tmplLower === 'mistral' || caps.chatTemplate.includes('[INST]')) {
+      template = 'mistral';
+    } else if (tmplLower) {
+      template = 'chatml'; // safe fallback
+    }
+    if (template !== settings.promptTemplate) {
+      console.log(`[LLM] Resolved template '${settings.promptTemplate}' → '${template}' from server props`);
+    }
   }
 
-  log.info(`Making llama.cpp request to ${endpoint}`);
+  const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, template);
+  const requestBody = buildLlamaCppRequest(fullPrompt, { ...settings, promptTemplate: template });
+
+  const endpoint = `${baseUrl}/completion`;
+  log.info(`Making llama.cpp text request to ${endpoint} (template: ${template || 'none'})`);
+  console.log(`[LLM] Stop tokens: ${JSON.stringify(requestBody.stop || [])}`);
 
   const response = await makeRequest(endpoint, requestBody);
 
@@ -1307,7 +1537,6 @@ async function generateLlamaCpp(options) {
     throw new Error('Could not extract generated text from llama.cpp response');
   }
 
-  // Apply sentence trimming if enabled
   if (settings.trimIncompleteSentences !== false && text) {
     text = trimIncompleteSentences(text);
   }

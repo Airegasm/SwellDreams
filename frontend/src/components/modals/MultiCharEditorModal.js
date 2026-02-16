@@ -68,7 +68,7 @@ function migrateStoryToV2(story, character) {
 }
 
 function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
-  const { flows, devices, settings, api } = useApp();
+  const { flows, devices, settings, personas, api } = useApp();
 
   const systemGlobalReminders = settings?.globalReminders || [];
 
@@ -265,6 +265,17 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
   const lorebookFileInputRef = React.useRef(null);
   const [importingLorebook, setImportingLorebook] = useState(false);
 
+  // LLM enhancement state
+  const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
+  const [enhancingScenario, setEnhancingScenario] = useState(false);
+  const cancelledRef = React.useRef({ welcomeMessage: false, scenario: false });
+
+  // Derive POV from active persona's pronouns
+  const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
+  const playerName = activePersona?.displayName || 'The player';
+  const personaPronouns = activePersona?.pronouns || 'they/them';
+  const activePOV = personaPronouns === 'she/her' ? 'FEMPOV' : personaPronouns === 'he/him' ? 'MALEPOV' : 'ANYPOV';
+
   // Multi-char specific state
   const [selectedCharIndex, setSelectedCharIndex] = useState(0);
 
@@ -428,6 +439,160 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
         s.id === story.id ? { ...s, scenarios: updatedSCs, activeScenarioId: newActiveId } : s
       )
     }));
+  };
+
+  // Build POV instruction string from active persona
+  const getPovInstruction = () => {
+    const genderNote = activePOV === 'FEMPOV' ? `${playerName} is female (she/her).`
+      : activePOV === 'MALEPOV' ? `${playerName} is male (he/him).`
+      : `${playerName} is unspecified gender (they/them).`;
+    return `${genderNote} When referring to the player with pronouns, ALWAYS use the [Gender] variable instead of writing literal pronouns. Examples: "looks at [Gender]", "[Gender] eyes", "[Gender] smiles". The [Gender] tag auto-resolves to the correct pronoun form at runtime.`;
+  };
+
+  // Build multi-char context summary for LLM prompts
+  const getCharacterContext = () => {
+    const chars = formData.multiChar?.characters || [];
+    return chars.map(c =>
+      `${c.name || 'Unnamed'}${c.description ? ': ' + c.description : ''}${c.personality ? ' (Personality: ' + c.personality + ')' : ''}`
+    ).join('\n');
+  };
+
+  // Enhance welcome message with LLM
+  const handleEnhanceWelcomeMessage = async () => {
+    if (enhancingWelcomeMessage) {
+      cancelledRef.current.welcomeMessage = true;
+      setEnhancingWelcomeMessage(false);
+      return;
+    }
+
+    const story = getActiveStory();
+    const activeWm = getActiveWelcomeMessage();
+    const currentText = activeWm?.text || '';
+    const exampleDialogues = story?.exampleDialogues || [];
+
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing how these characters speak):\n';
+      exampleDialogues.forEach((dialogue, idx) => {
+        dialogExamplesSection += `\nExample ${idx + 1}:\n`;
+        dialogExamplesSection += `[Player]: ${dialogue.user}\n`;
+        dialogExamplesSection += `Response: ${dialogue.response || dialogue.character}\n`;
+      });
+    }
+
+    const prompt = `You are a creative writing assistant helping to craft an immersive greeting message for a multi-character card.
+
+Card Name: ${formData.name || 'Character Card'}
+${formData.description ? `Description: ${formData.description}` : ''}
+
+Characters in this card:
+${getCharacterContext()}
+${dialogExamplesSection}
+
+IMPORTANT INSTRUCTIONS:
+- Write the greeting featuring ALL characters in the card
+- Use roleplay format: *actions in asterisks* mixed with "dialog in quotes"
+- Use [Player] for the player's name and [Gender] for their pronouns (both auto-resolve at runtime)
+- ${getPovInstruction()}
+- The greeting should show what the characters are doing and saying in the moment
+- Make it engaging, sensory, and in-character
+- Keep language natural and grounded - avoid purple prose or overly flowery descriptions
+${exampleDialogues.length > 0 ? '- Match the speaking style and tone shown in the dialog examples above' : ''}
+
+${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting following the format above. Keep the same general intent but improve the prose, add sensory details, and ensure proper roleplay formatting.` : 'Write a compelling first greeting message featuring these characters. Use the roleplay format with *actions* and "dialog", include [Player] variable where appropriate.'}
+
+Write only the greeting message itself, no explanations or meta-commentary.`;
+
+    try {
+      cancelledRef.current.welcomeMessage = false;
+      setEnhancingWelcomeMessage(true);
+
+      const response = await api.generateText({ prompt, maxTokens: 500 });
+
+      if (cancelledRef.current.welcomeMessage) return;
+
+      if (response && response.text) {
+        const wmId = story?.activeWelcomeMessageId || story?.welcomeMessages?.[0]?.id;
+        const updatedWMs = (story.welcomeMessages || []).map(wm =>
+          wm.id === wmId ? { ...wm, text: response.text.trim() } : wm
+        );
+        updateStoryField('welcomeMessages', updatedWMs);
+      }
+    } catch (error) {
+      if (cancelledRef.current.welcomeMessage) return;
+      alert(`Failed to enhance welcome message: ${error.message}`);
+    } finally {
+      setEnhancingWelcomeMessage(false);
+    }
+  };
+
+  // Enhance scenario with LLM
+  const handleEnhanceScenario = async () => {
+    if (enhancingScenario) {
+      cancelledRef.current.scenario = true;
+      setEnhancingScenario(false);
+      return;
+    }
+
+    const story = getActiveStory();
+    const activeScId = story?.activeScenarioId;
+    const activeScenario = (story?.scenarios || []).find(sc => sc.id === activeScId);
+    const currentText = activeScenario?.text || '';
+    const exampleDialogues = story?.exampleDialogues || [];
+
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing character context):\n';
+      exampleDialogues.forEach((dialogue, idx) => {
+        dialogExamplesSection += `\nExample ${idx + 1}:\n`;
+        dialogExamplesSection += `[Player]: ${dialogue.user}\n`;
+        dialogExamplesSection += `Response: ${dialogue.response || dialogue.character}\n`;
+      });
+    }
+
+    const prompt = `You are a creative writing assistant helping to craft a concise scenario description for a multi-character card.
+
+Card Name: ${formData.name || 'Character Card'}
+${formData.description ? `Description: ${formData.description}` : ''}
+
+Characters in this card:
+${getCharacterContext()}
+${dialogExamplesSection}
+
+IMPORTANT INSTRUCTIONS:
+- Write a simple, descriptive scenario in 1-2 sentences
+- Use third-person perspective (describe the situation objectively)
+- Use [Player] for the player's name and [Gender] for their pronouns (both auto-resolve at runtime)
+- ${getPovInstruction()}
+- Focus on setting and situation, not actions or dialog
+- Keep it concise and atmospheric
+- Use natural, grounded language - avoid purple prose or excessive flowery descriptions
+${exampleDialogues.length > 0 ? '- Consider the context and relationship shown in the dialog examples' : ''}
+
+${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite this scenario following the guidelines above. Keep it brief (1-2 sentences) but vivid.` : 'Write a brief scenario description (1-2 sentences) that sets the scene for these characters.'}
+
+Write only the scenario description itself, no explanations.`;
+
+    try {
+      cancelledRef.current.scenario = false;
+      setEnhancingScenario(true);
+
+      const response = await api.generateText({ prompt, maxTokens: 100 });
+
+      if (cancelledRef.current.scenario) return;
+
+      if (response && response.text) {
+        const updatedSCs = (story.scenarios || []).map(sc =>
+          sc.id === activeScId ? { ...sc, text: response.text.trim() } : sc
+        );
+        updateStoryField('scenarios', updatedSCs);
+      }
+    } catch (error) {
+      if (cancelledRef.current.scenario) return;
+      alert(`Failed to enhance scenario: ${error.message}`);
+    } finally {
+      setEnhancingScenario(false);
+    }
   };
 
   // Multi-char character management
@@ -1250,6 +1415,35 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                   </div>
                 </div>
 
+                {/* Story Progression Mode */}
+                <div className="auto-reply-field" style={{ marginTop: '0.5rem' }}>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={activeStory?.storyProgressionEnabled || false}
+                      onChange={(e) => updateStoryField('storyProgressionEnabled', e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Story Progression</span>
+                    <span className="auto-reply-hint">Auto-generate player reply suggestions</span>
+                  </div>
+                </div>
+                {activeStory?.storyProgressionEnabled && (
+                  <div className="story-field" style={{ marginTop: '0.25rem' }}>
+                    <label>Max Suggestions</label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={5}
+                      value={activeStory?.storyProgressionMaxOptions || 3}
+                      onChange={(e) => updateStoryField('storyProgressionMaxOptions', Math.min(5, Math.max(2, parseInt(e.target.value) || 3)))}
+                      style={{ width: '60px' }}
+                    />
+                  </div>
+                )}
+
                 {/* Starting Emotion */}
                 <div className="story-field" style={{ marginTop: '1rem' }}>
                   <label>Starting Emotion</label>
@@ -1271,7 +1465,10 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                 {/* Welcome Message */}
                 <div className="story-field">
                   <div className="story-field-header">
-                    <label>Welcome Message</label>
+                    <label>
+                      Welcome Message
+                      {enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}
+                    </label>
                     <div className="version-controls">
                       <select
                         value={getActiveWelcomeMessage()?.id || ''}
@@ -1300,6 +1497,13 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                       >
                         🗑️
                       </button>
+                      <button
+                        type="button"
+                        className={`btn-icon btn-magic ${enhancingWelcomeMessage ? 'active enhancing' : ''}`}
+                        onClick={handleEnhanceWelcomeMessage}
+                        title={enhancingWelcomeMessage ? "Click to abort" : "Enhance with LLM"}
+                      >🪄</button>
+                      <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                     </div>
                   </div>
                   <textarea
@@ -1313,7 +1517,10 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                 {/* Scenario */}
                 <div className="story-field">
                   <div className="story-field-header">
-                    <label>Scenario</label>
+                    <label>
+                      Scenario
+                      {enhancingScenario && <span className="spinner-inline"> ⏳</span>}
+                    </label>
                     <div className="version-controls">
                       <select
                         value={getActiveScenario()?.id || ''}
@@ -1325,7 +1532,6 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                         ))}
                       </select>
                       <button type="button" className="btn-icon btn-add" onClick={handleAddScenario} title="Add version">+</button>
-                      <div className="version-controls-spacer"></div>
                       <button
                         type="button"
                         className="btn-icon btn-delete"
@@ -1335,6 +1541,13 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
                       >
                         🗑️
                       </button>
+                      <button
+                        type="button"
+                        className={`btn-icon btn-magic ${enhancingScenario ? 'active enhancing' : ''}`}
+                        onClick={handleEnhanceScenario}
+                        title={enhancingScenario ? "Click to abort" : "Enhance with LLM"}
+                      >🪄</button>
+                      <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                     </div>
                   </div>
                   <textarea

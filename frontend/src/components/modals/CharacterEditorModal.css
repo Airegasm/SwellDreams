@@ -655,6 +655,21 @@
   flex-shrink: 0;
 }
 
+.pov-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #555;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--border-radius);
+  flex-shrink: 0;
+  cursor: default;
+}
+
 /* Spacer to align Scenario controls with Welcome Message controls */
 .version-controls-spacer {
   width: 42px; /* btn-icon width (34px) + gap (8px) */

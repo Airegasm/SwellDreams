@@ -70,7 +70,9 @@ function convertV2ToSwellD(v2Card) {
     assignedButtons: [],
     constantReminderIds: [],
     globalReminderIds: [],
-    startingEmotion: 'neutral'
+    startingEmotion: 'neutral',
+    storyProgressionEnabled: false,
+    storyProgressionMaxOptions: 3
   };
 
   // Build character object

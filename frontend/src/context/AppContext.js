@@ -376,6 +376,18 @@ export function AppProvider({ children }) {
         window.dispatchEvent(new CustomEvent('impersonate_result', { detail: data }));
         break;
 
+      case 'story_progression_generating':
+        window.dispatchEvent(new CustomEvent('story_progression_generating', { detail: data }));
+        break;
+
+      case 'story_progression_generating_done':
+        window.dispatchEvent(new CustomEvent('story_progression_generating_done', {}));
+        break;
+
+      case 'story_progression_suggestions':
+        window.dispatchEvent(new CustomEvent('story_progression_suggestions', { detail: data }));
+        break;
+
       case 'error':
         console.error('[WS] Server error:', data.message, data.error);
         // Dispatch event for UI to display the error

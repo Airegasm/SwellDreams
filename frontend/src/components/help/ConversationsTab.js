@@ -12,6 +12,7 @@ function ConversationsTab() {
     characterFields: false,
     importExport: false,
     sessionDefaults: false,
+    storyProgression: false,
     builtinPersonas: false,
     personas: false,
     personaFields: false,
@@ -825,6 +826,103 @@ function ConversationsTab() {
             <div className="tip-box">
               <strong>Note:</strong> Session defaults only apply when starting a NEW conversation. They don't
               affect existing saved sessions or mid-conversation reloads.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Story Progression Mode */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('storyProgression')}>
+          Story Progression Mode
+          <span className="expand-icon">{expanded.storyProgression ? '−' : '+'}</span>
+        </h3>
+        {expanded.storyProgression && (
+          <div className="section-content">
+            <p>
+              Story Progression Mode automatically generates player reply suggestions after each AI
+              response. Instead of typing from scratch, you choose from several emotionally-varied
+              options that reflect your persona's current state.
+            </p>
+
+            <h4 className="subsection-header">How It Works</h4>
+            <ol className="help-list numbered">
+              <li>The AI character sends a message</li>
+              <li>A "Generating responses..." overlay appears briefly</li>
+              <li>A panel of reply options appears, each with a different emotional angle</li>
+              <li>Click an option to load it into your text input</li>
+              <li>Edit it if you want, then send</li>
+            </ol>
+
+            <h4 className="subsection-header">Enabling Story Progression</h4>
+            <ol className="help-list numbered">
+              <li>Open the <strong>Character Editor</strong></li>
+              <li>Select a story from the <strong>Story</strong> dropdown</li>
+              <li>Toggle the <strong>Story Progression</strong> switch on</li>
+              <li>Set the <strong>Max Suggestions</strong> count (2-5, default 3)</li>
+              <li>Save the character</li>
+            </ol>
+
+            <div className="info-box">
+              <strong>Per-Story Setting:</strong> Story Progression is configured per-story, not
+              per-character. Different stories on the same character can have it enabled or disabled.
+            </div>
+
+            <h4 className="subsection-header">What Influences the Suggestions</h4>
+            <p>
+              Each suggestion is generated using your persona's full context, so the options
+              feel authentic and situationally appropriate:
+            </p>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th>Effect on Suggestions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Current Emotion</strong></td>
+                  <td>The first option uses your current emotion. Remaining options draw from adjacent emotions on the emotion wheel (e.g., "shy" produces options for shy, embarrassed, fearful, submissive).</td>
+                </tr>
+                <tr>
+                  <td><strong>Capacity (%)</strong></td>
+                  <td>Replies reflect the persona's physical state. At high capacity, options include physical reactions like strain, discomfort, or awareness of fullness.</td>
+                </tr>
+                <tr>
+                  <td><strong>Pain Level</strong></td>
+                  <td>Options incorporate pain/discomfort language matching the current pain rating, from no mention at 0 to intense reactions at higher levels.</td>
+                </tr>
+                <tr>
+                  <td><strong>Recent Conversation</strong></td>
+                  <td>The last 4 messages provide context so replies are relevant to what just happened.</td>
+                </tr>
+                <tr>
+                  <td><strong>Persona Profile</strong></td>
+                  <td>Your persona's personality, appearance, and relationship with inflation shape the voice and reactions.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Panel Behavior</h4>
+            <ul className="help-list">
+              <li><strong>Clicking an option</strong> loads the text into your input for review and editing before sending</li>
+              <li><strong>Typing in the input</strong> dismisses the panel (you're writing your own reply)</li>
+              <li><strong>Sending a message</strong> dismisses the panel</li>
+              <li><strong>Next AI response</strong> generates a fresh set of options</li>
+            </ul>
+
+            <h4 className="subsection-header">Flow Interaction</h4>
+            <p>
+              Story Progression is automatically suppressed when a flow is actively running
+              (e.g., during a player choice node, device cycle, or challenge). This prevents
+              conflicting UI elements from appearing simultaneously.
+            </p>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Story Progression works best when your persona has a detailed
+              personality and "Relationship with Inflation" field filled in. The more context the
+              AI has about your character, the more distinct and in-character the options will be.
             </div>
           </div>
         )}
