@@ -2543,6 +2543,7 @@ const sessionState = {
   playerName: null, // Active persona's display name
   characterName: null, // Active character's name
   pumpRuntimeTracker: {}, // deviceKey -> { totalSeconds } for auto-capacity tracking
+  capacityOffset: 0, // Manual slider offset applied on top of auto-capacity
   runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
   activeAttributes: null // Transient: rolled personality attributes for current LLM call
 };
@@ -2747,6 +2748,7 @@ function loadAutosave() {
       sessionState.flowVariables = autosaveData.flowVariables || {};
       // DO NOT restore pumpRuntimeTracker - prevents pumps from auto-starting on refresh
       sessionState.pumpRuntimeTracker = {};
+      sessionState.capacityOffset = 0;
       console.log('[Autosave] Loaded previous session with', sessionState.chatHistory.length, 'messages, capacity:', sessionState.capacity);
       console.log('[Autosave] Pump runtime tracker NOT restored - pumps will not auto-start');
       return true;
@@ -2841,14 +2843,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       console.warn(`[AutoCapacity] Ignoring final event for ${ip} with ${runtimeSeconds.toFixed(1)}s - capacity is 0 (likely post-emergency-stop)`);
       return;
     }
-    // Seed new tracker with existing capacity so manual slider value is preserved
-    let seedSeconds = 0;
-    if (sessionState.capacity > 0 && calibrationTime) {
-      const seedModifier = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-      seedSeconds = (sessionState.capacity / 100 / seedModifier) * calibrationTime;
-      console.log(`[AutoCapacity] Seeding new tracker for ${ip} with ${seedSeconds.toFixed(1)}s (preserving ${sessionState.capacity}% capacity)`);
-    }
-    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: seedSeconds, baseSeconds: seedSeconds };
+    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0 };
   }
 
   if (isRealTime) {
@@ -2891,8 +2886,11 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     console.log(`[AutoCapacity] Device ${deviceKey}: ${tracker.totalSeconds.toFixed(1)}s / ${deviceData.calibrationTime}s = ${deviceCapacity.toFixed(1)}%`);
   }
 
-  // Round to nearest integer
-  totalCapacity = Math.round(totalCapacity);
+  // Apply manual capacity offset (set by slider) so auto-capacity continues from the manual value
+  totalCapacity += (sessionState.capacityOffset || 0);
+
+  // Round to nearest integer, floor at 0
+  totalCapacity = Math.max(0, Math.round(totalCapacity));
 
   // Calculate pain (scale linearly based on capacity, using max calibrated pain)
   const calibratedPains = devices
@@ -4523,44 +4521,21 @@ async function handleWsMessage(ws, type, data) {
     case 'update_capacity':
       sessionState.capacity = data.capacity;
 
-      // Recalibrate pumpRuntimeTracker so auto-capacity resumes from the manual value
-      // Without this, the next pump_runtime event would overwrite the manual value
+      // Store offset between manual value and auto-calculated value so
+      // auto-capacity continues increasing FROM the manual value
       {
         const recalSettings = loadData(DATA_FILES.settings) || {};
         const recalModifier = recalSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
         const recalDevices = loadData(DATA_FILES.devices) || [];
-        const trackerEntries = Object.entries(sessionState.pumpRuntimeTracker);
-
-        if (trackerEntries.length > 0) {
-          // Calculate current auto-capacity total
-          let currentAutoTotal = 0;
-          for (const [key, tracker] of trackerEntries) {
-            const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
-            if (dev?.calibrationTime) {
-              currentAutoTotal += (tracker.totalSeconds / dev.calibrationTime) * 100 * recalModifier;
-            }
-          }
-
-          if (currentAutoTotal > 0) {
-            // Scale all trackers proportionally so they sum to the new manual capacity
-            const scale = data.capacity / currentAutoTotal;
-            for (const [key, tracker] of trackerEntries) {
-              tracker.totalSeconds *= scale;
-              tracker.baseSeconds *= scale;
-            }
-            console.log(`[ManualCapacity] Recalibrated pumpRuntimeTracker: ${Math.round(currentAutoTotal)}% -> ${data.capacity}% (scale: ${scale.toFixed(3)})`);
-          } else if (trackerEntries.length === 1) {
-            // Tracker exists but no auto-capacity yet — seed it with the manual value
-            const [key, tracker] = trackerEntries[0];
-            const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
-            if (dev?.calibrationTime) {
-              const newSeconds = (data.capacity / 100 / recalModifier) * dev.calibrationTime;
-              tracker.totalSeconds = newSeconds;
-              tracker.baseSeconds = newSeconds;
-              console.log(`[ManualCapacity] Seeded tracker ${key}: ${newSeconds.toFixed(1)}s for ${data.capacity}%`);
-            }
+        let autoCapacity = 0;
+        for (const [key, tracker] of Object.entries(sessionState.pumpRuntimeTracker)) {
+          const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
+          if (dev?.calibrationTime) {
+            autoCapacity += (tracker.totalSeconds / dev.calibrationTime) * 100 * recalModifier;
           }
         }
+        sessionState.capacityOffset = data.capacity - Math.round(autoCapacity);
+        console.log(`[ManualCapacity] Set offset: ${sessionState.capacityOffset} (manual=${data.capacity}%, auto=${Math.round(autoCapacity)}%)`);
       }
 
       // Auto-pop shutoff: Turn off all pumps when capacity reaches the effective pop threshold
@@ -5129,6 +5104,7 @@ async function handleWsMessage(ws, type, data) {
           console.log('[ScreenPlay] Clearing pump runtime tracker - capacity reset to 0');
           sessionState.pumpRuntimeTracker = {};
           sessionState.capacity = 0;
+          sessionState.capacityOffset = 0;
           sessionState.pain = 0;
 
           // Broadcast capacity update to zero the gauge
@@ -10486,6 +10462,7 @@ app.post('/api/session/reset', async (req, res) => {
     deviceActions: {}
   };
   sessionState.pumpRuntimeTracker = {}; // Reset auto-capacity tracking
+  sessionState.capacityOffset = 0; // Clear manual capacity offset
 
   console.log(`[Session Reset] Initial values - capacity: ${sessionState.capacity}, pain: ${sessionState.pain}, emotion: ${sessionState.emotion}, capacityModifier: ${sessionState.capacityModifier}`);
 
