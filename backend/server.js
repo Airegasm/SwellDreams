@@ -2060,6 +2060,77 @@ function isLocalRequest(req) {
 
 initializeDataFiles();
 
+// Inject default connection profiles if not already present
+function ensureDefaultConnectionProfiles() {
+  const DEFAULT_PROFILES = [
+    {
+      id: 'default-llamacpp-gemma27b',
+      name: 'LlamaCPP - Gemma 27B',
+      llmUrl: 'http://localhost:8080/',
+      apiType: 'auto',
+      endpointStandard: 'llamacpp',
+      promptTemplate: 'gemma3',
+      supportsSystemRole: true,
+      maxTokens: 320,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 150,
+      temperature: 1,
+      topK: 64,
+      topP: 0.95,
+      typicalP: 1,
+      minP: 0.05,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.05,
+      repPenRange: 1024,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 0,
+      drySequenceBreakers: [],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      openRouterApiKey: '',
+      openRouterModel: '',
+      isDefault: true
+    }
+  ];
+
+  const profiles = loadData(DATA_FILES.connectionProfiles) || [];
+  let added = false;
+
+  for (const defaultProfile of DEFAULT_PROFILES) {
+    if (!profiles.some(p => p.id === defaultProfile.id)) {
+      profiles.push({ ...defaultProfile, createdAt: Date.now(), updatedAt: Date.now() });
+      added = true;
+      console.log(`[Startup] Added default connection profile: ${defaultProfile.name}`);
+    }
+  }
+
+  if (added) {
+    saveData(DATA_FILES.connectionProfiles, profiles);
+  }
+}
+ensureDefaultConnectionProfiles();
+
 // ============================================
 // API Key Encryption Migration
 // ============================================
