@@ -138,6 +138,15 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(use|uses|used|using|pick|picks|picked|grab|grabs|grabbed)\s+.*?\bremote/i,
   /\bremote.*?\b(press|push|click|tap|activate)/i,
 
+  // Squeeze/bulb pump references
+  /\bsqueeze(s|d|ing)?\s+(the\s+)?(bulb|pump|handle)/i,
+  /\b(grip|grips|gripped|gripping)\s+.*?\bbulb\b/i,
+  /\b(pump|squeeze)\s+bulb\b/i,
+
+  // Gauge/dial movement (pump running indicators)
+  /\b(dial|gauge|needle|meter)\s+(creep|creeps|crept|creeping|climb|climbs|climbing|rise|rises|rising|move|moves|moving)\s*(up|upward|higher)?/i,
+  /\b(analog|pressure|psi)\s+(dial|gauge|needle|meter)\b/i,
+
   // Pump cycle/rhythm references
   /\bpump'?s?\s+(cycle|rhythm|pace|speed|rate)/i,
   /\bpump\s+\w+\s+(its|the|a)?\s*\w*\s*(rhythm|cycle|pace)/i,

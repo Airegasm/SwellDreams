@@ -304,16 +304,6 @@ function Chat() {
   }, [handleChallengeCancel]);
 
   // Helper to get active welcome message
-  const getActiveWelcomeMessage = (character) => {
-    if (!character) return null;
-    if (character.welcomeMessages && character.welcomeMessages.length > 0) {
-      const activeId = character.activeWelcomeMessageId || character.welcomeMessages[0].id;
-      const activeWelcome = character.welcomeMessages.find(w => w.id === activeId);
-      return activeWelcome || character.welcomeMessages[0];
-    }
-    return null;
-  };
-
   // Notify context that we're on the Chat page (for flow pause/resume)
   useEffect(() => {
     setOnChatPage(true);
@@ -1429,21 +1419,7 @@ function Chat() {
           ) : messages.length === 0 ? (
             <div className="chat-empty">
               {activeCharacter ? (
-                <>
-                  <p>Start a conversation with {activeCharacter.name}!</p>
-                  {(() => {
-                    const welcomeMsg = getActiveWelcomeMessage(activeCharacter);
-                    const welcomeText = welcomeMsg?.text ? substituteVariables(welcomeMsg.text, subContext) : '';
-                    return welcomeText && (
-                      <div className="first-message-hint">
-                        <em>
-                          {welcomeMsg.llmEnhanced && '🤖 '}
-                          First message: "{welcomeText.substring(0, 100)}{welcomeText.length > 100 ? '...' : ''}"
-                        </em>
-                      </div>
-                    );
-                  })()}
-                </>
+                <p>Start a conversation with {activeCharacter.name}!</p>
               ) : (
                 <p>Select a character in Settings to start chatting.</p>
               )}

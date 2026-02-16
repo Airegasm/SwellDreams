@@ -1516,15 +1516,6 @@
   gap: var(--spacing-md);
 }
 
-.first-message-hint {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  background-color: var(--bg-card);
-  padding: var(--spacing-md);
-  border-radius: var(--border-radius);
-  max-width: 400px;
-}
-
 /* Messages */
 .message {
   max-width: 70%;
