@@ -679,7 +679,9 @@ Write only the scenario description itself, no explanations.`;
       globalReminderIds: [],
       startingEmotion: 'neutral',
       intensity: '',
-      spoilers: []
+      spoilers: [],
+      storyProgressionEnabled: false,
+      storyProgressionMaxOptions: 3
     };
     setFormData({
       ...formData,

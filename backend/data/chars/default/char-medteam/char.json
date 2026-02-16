@@ -151,7 +151,8 @@
       "startingEmotion": "nervous",
       "allowLlmDeviceAccess": true,
       "intensity": "3",
-      "storyProgressionEnabled": true
+      "storyProgressionEnabled": true,
+      "storyProgressionMaxOptions": 3
     }
   ],
   "assignedFlows": [],

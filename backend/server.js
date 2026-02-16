@@ -7608,6 +7608,10 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
               story.activeScenarioId = scIdMap[story.activeScenarioId];
             }
           }
+
+          // Normalize story progression fields
+          story.storyProgressionEnabled = story.storyProgressionEnabled ?? false;
+          story.storyProgressionMaxOptions = story.storyProgressionMaxOptions ?? 3;
         }
         // Update activeStoryId
         if (convertedCharacter.activeStoryId && storyIdMap[convertedCharacter.activeStoryId]) {
@@ -9667,6 +9671,14 @@ app.post('/api/import/character', async (req, res) => {
       importedAt: Date.now(),
       updatedAt: Date.now()
     };
+
+    // Normalize story progression fields on all imported stories
+    if (newCharacter.stories) {
+      for (const story of newCharacter.stories) {
+        story.storyProgressionEnabled = story.storyProgressionEnabled ?? false;
+        story.storyProgressionMaxOptions = story.storyProgressionMaxOptions ?? 3;
+      }
+    }
 
     // Handle embedded avatar image
     if (newCharacter.avatarData && imageStorage.isBase64DataUri(newCharacter.avatarData)) {
