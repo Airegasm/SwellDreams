@@ -336,6 +336,59 @@
         "preDelay": 0,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "vex-wf-emo-spin",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "vex-wf-emo-punish",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 380
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-wf-emo-double",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 347
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-wf-attr-double",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 413
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 90
+      }
     }
   ],
   "edges": [
@@ -343,11 +396,6 @@
       "id": "e1",
       "source": "vex-wf-btn",
       "target": "vex-wf-intro"
-    },
-    {
-      "id": "e2",
-      "source": "vex-wf-intro",
-      "target": "vex-wf-wheel"
     },
     {
       "id": "e3",
@@ -366,18 +414,6 @@
       "source": "vex-wf-wheel",
       "sourceHandle": "small-prize",
       "target": "vex-wf-small-prize"
-    },
-    {
-      "id": "e6",
-      "source": "vex-wf-wheel",
-      "sourceHandle": "punishment",
-      "target": "vex-wf-punishment"
-    },
-    {
-      "id": "e7",
-      "source": "vex-wf-wheel",
-      "sourceHandle": "double",
-      "target": "vex-wf-double"
     },
     {
       "id": "e8",
@@ -412,6 +448,43 @@
       "id": "e13",
       "source": "vex-wf-pumpoff-btn",
       "target": "vex-wf-pumpoff-action"
+    },
+    {
+      "id": "e-vex-wf-intro-to-vex-wf-emo-spin",
+      "source": "vex-wf-intro",
+      "target": "vex-wf-emo-spin"
+    },
+    {
+      "id": "e-vex-wf-emo-spin-to-vex-wf-wheel",
+      "source": "vex-wf-emo-spin",
+      "target": "vex-wf-wheel"
+    },
+    {
+      "id": "e-vex-wf-wheel-to-vex-wf-emo-punish",
+      "source": "vex-wf-wheel",
+      "target": "vex-wf-emo-punish",
+      "sourceHandle": "punishment"
+    },
+    {
+      "id": "e-vex-wf-emo-punish-to-vex-wf-punishment",
+      "source": "vex-wf-emo-punish",
+      "target": "vex-wf-punishment"
+    },
+    {
+      "id": "e-vex-wf-wheel-to-vex-wf-emo-double",
+      "source": "vex-wf-wheel",
+      "target": "vex-wf-emo-double",
+      "sourceHandle": "double"
+    },
+    {
+      "id": "e-vex-wf-emo-double-to-vex-wf-attr-double",
+      "source": "vex-wf-emo-double",
+      "target": "vex-wf-attr-double"
+    },
+    {
+      "id": "e-vex-wf-attr-double-to-vex-wf-double",
+      "source": "vex-wf-attr-double",
+      "target": "vex-wf-double"
     }
   ]
 }

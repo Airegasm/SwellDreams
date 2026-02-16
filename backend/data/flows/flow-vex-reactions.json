@@ -512,14 +512,62 @@
         "preMessageEnabled": false,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "vex-rx-emo-bet",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "vex-rx-emo-mercy",
+      "type": "action",
+      "position": {
+        "x": 825,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "vex-rx-emo-brag",
+      "type": "action",
+      "position": {
+        "x": 575,
+        "y": 93
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "vex-rx-attr-brag",
+      "type": "action",
+      "position": {
+        "x": 575,
+        "y": 137
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 90
+      }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "vex-rx-bet",
-      "target": "vex-rx-bet-branch"
-    },
     {
       "id": "e2",
       "source": "vex-rx-bet-branch",
@@ -536,16 +584,6 @@
       "id": "e4",
       "source": "vex-rx-double",
       "target": "vex-rx-double-action"
-    },
-    {
-      "id": "e5",
-      "source": "vex-rx-brag",
-      "target": "vex-rx-brag-action"
-    },
-    {
-      "id": "e6",
-      "source": "vex-rx-mercy",
-      "target": "vex-rx-mercy-branch"
     },
     {
       "id": "e7",
@@ -609,6 +647,41 @@
       "source": "vex-rx-random-chaos",
       "sourceHandle": "branch-2",
       "target": "vex-rx-chaos-drama"
+    },
+    {
+      "id": "e-vex-rx-bet-to-vex-rx-emo-bet",
+      "source": "vex-rx-bet",
+      "target": "vex-rx-emo-bet"
+    },
+    {
+      "id": "e-vex-rx-emo-bet-to-vex-rx-bet-branch",
+      "source": "vex-rx-emo-bet",
+      "target": "vex-rx-bet-branch"
+    },
+    {
+      "id": "e-vex-rx-mercy-to-vex-rx-emo-mercy",
+      "source": "vex-rx-mercy",
+      "target": "vex-rx-emo-mercy"
+    },
+    {
+      "id": "e-vex-rx-emo-mercy-to-vex-rx-mercy-branch",
+      "source": "vex-rx-emo-mercy",
+      "target": "vex-rx-mercy-branch"
+    },
+    {
+      "id": "e-vex-rx-brag-to-vex-rx-emo-brag",
+      "source": "vex-rx-brag",
+      "target": "vex-rx-emo-brag"
+    },
+    {
+      "id": "e-vex-rx-emo-brag-to-vex-rx-attr-brag",
+      "source": "vex-rx-emo-brag",
+      "target": "vex-rx-attr-brag"
+    },
+    {
+      "id": "e-vex-rx-attr-brag-to-vex-rx-brag-action",
+      "source": "vex-rx-attr-brag",
+      "target": "vex-rx-brag-action"
     }
   ]
 }

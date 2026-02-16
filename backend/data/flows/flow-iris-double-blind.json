@@ -1,0 +1,380 @@
+{
+  "id": "flow-iris-double-blind",
+  "name": "Double-Blind Protocol",
+  "category": "character",
+  "description": "Randomized double-blind treatment assignment with endurance test and protocol reveal",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-db-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Blind Test",
+        "buttonTarget": "character",
+        "buttonId": "iris-blind",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-db-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "Protocol Introduction",
+        "actionType": "send_message",
+        "message": "*adjusts randomization device* Double-blind protocol initiated. The system will assign either Protocol A or Protocol B. Even I won't know which treatment you receive until the reveal phase. *pushes glasses up* This eliminates observer bias from my recordings. The science demands it.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": 200,
+        "y": 530
+      },
+      "data": {
+        "label": "Protocol Randomizer",
+        "headsLabel": "Protocol A",
+        "tailsLabel": "Protocol B",
+        "headsWeight": 50,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*activates randomizer* Assigning treatment protocol...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "iris-db-set-a",
+      "type": "set_variable",
+      "position": {
+        "x": -150,
+        "y": 760
+      },
+      "data": {
+        "label": "Assign Protocol A",
+        "variable": "protocolAssigned",
+        "variableName": "protocolAssigned",
+        "value": "A",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-db-a-msg",
+      "type": "action",
+      "position": {
+        "x": -150,
+        "y": 940
+      },
+      "data": {
+        "label": "Protocol A Narration",
+        "actionType": "send_message",
+        "message": "*checks blinded indicator light* Protocol assigned. Initiating sustained-output treatment. *makes note without looking at assignment code* Twelve seconds continuous stimulus.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-a-device",
+      "type": "action",
+      "position": {
+        "x": -150,
+        "y": 1160
+      },
+      "data": {
+        "label": "Protocol A: Sustained",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "*activates device* Treatment commencing. Remain still, Subject #47.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*marks treatment completion timestamp* Treatment phase concluded. Proceeding to endurance assessment.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-db-set-b",
+      "type": "set_variable",
+      "position": {
+        "x": 550,
+        "y": 760
+      },
+      "data": {
+        "label": "Assign Protocol B",
+        "variable": "protocolAssigned",
+        "variableName": "protocolAssigned",
+        "value": "B",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-db-b-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 940
+      },
+      "data": {
+        "label": "Protocol B Narration",
+        "actionType": "send_message",
+        "message": "*checks blinded indicator light* Protocol assigned. Initiating cyclic-pattern treatment. *records start time without checking assignment* Four cycles, three seconds active, two seconds rest.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-b-cycle",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1160
+      },
+      "data": {
+        "label": "Protocol B: Cyclic",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*activates device* Treatment commencing. Hold position, Subject #47.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*marks treatment completion timestamp* Treatment phase concluded. Proceeding to endurance assessment.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-db-timer",
+      "type": "timer_challenge",
+      "position": {
+        "x": 200,
+        "y": 1420
+      },
+      "data": {
+        "label": "Endurance Assessment",
+        "mode": "escape",
+        "duration": 20,
+        "escapeWindow": 500,
+        "precisionMode": false
+      }
+    },
+    {
+      "id": "iris-db-success-msg",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 1680
+      },
+      "data": {
+        "label": "Endurance Passed",
+        "actionType": "send_message",
+        "message": "*stops timer and records result* Endurance test: passed. Twenty seconds sustained without triggering the escape mechanism. *makes approving note* Commendable restraint, Subject #47.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-success-reveal",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 1900
+      },
+      "data": {
+        "label": "Reveal (Success)",
+        "actionType": "send_message",
+        "message": "*breaks the blind seal on the assignment envelope* Now for the reveal. Protocol [Flow:protocolAssigned] was administered. *adjusts glasses and reviews full data set* Your response data has been catalogued. The combination of treatment response and endurance metrics provides excellent material for my longitudinal study.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-fail-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1680
+      },
+      "data": {
+        "label": "Endurance Failed",
+        "actionType": "send_message",
+        "message": "*notes the escape trigger time* Endurance test: escape mechanism activated. *clicks pen* You couldn't withstand twenty seconds of passive observation? *sighs* The data is still usable, though the truncated sample is... less than ideal.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-fail-reveal",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1900
+      },
+      "data": {
+        "label": "Reveal (Failed)",
+        "actionType": "send_message",
+        "message": "*opens assignment envelope regardless* Protocol [Flow:protocolAssigned] was administered. *makes final notes* Your early termination is itself a data point, Subject #47. The escape latency will be cross-referenced with your treatment assignment. Even failure contributes to science.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-db-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 415
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-db-emo-win",
+      "type": "action",
+      "position": {
+        "x": -75,
+        "y": 1790
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "iris-db-emo-fail",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 1790
+      },
+      "data": {
+        "label": "Set Embarrassed",
+        "actionType": "set_emotion",
+        "emotion": "embarrassed"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-db-btn",
+      "target": "iris-db-intro"
+    },
+    {
+      "id": "e3",
+      "source": "iris-db-coin",
+      "sourceHandle": "heads",
+      "target": "iris-db-set-a"
+    },
+    {
+      "id": "e4",
+      "source": "iris-db-coin",
+      "sourceHandle": "tails",
+      "target": "iris-db-set-b"
+    },
+    {
+      "id": "e5",
+      "source": "iris-db-set-a",
+      "target": "iris-db-a-msg"
+    },
+    {
+      "id": "e6",
+      "source": "iris-db-a-msg",
+      "target": "iris-db-a-device"
+    },
+    {
+      "id": "e7",
+      "source": "iris-db-a-device",
+      "sourceHandle": "completion",
+      "target": "iris-db-timer"
+    },
+    {
+      "id": "e8",
+      "source": "iris-db-set-b",
+      "target": "iris-db-b-msg"
+    },
+    {
+      "id": "e9",
+      "source": "iris-db-b-msg",
+      "target": "iris-db-b-cycle"
+    },
+    {
+      "id": "e10",
+      "source": "iris-db-b-cycle",
+      "sourceHandle": "completion",
+      "target": "iris-db-timer"
+    },
+    {
+      "id": "e11",
+      "source": "iris-db-timer",
+      "sourceHandle": "success",
+      "target": "iris-db-success-msg"
+    },
+    {
+      "id": "e12",
+      "source": "iris-db-timer",
+      "sourceHandle": "timeout",
+      "target": "iris-db-fail-msg"
+    },
+    {
+      "id": "e-iris-db-intro-to-iris-db-emo-start",
+      "source": "iris-db-intro",
+      "target": "iris-db-emo-start"
+    },
+    {
+      "id": "e-iris-db-emo-start-to-iris-db-coin",
+      "source": "iris-db-emo-start",
+      "target": "iris-db-coin"
+    },
+    {
+      "id": "e-iris-db-success-msg-to-iris-db-emo-win",
+      "source": "iris-db-success-msg",
+      "target": "iris-db-emo-win"
+    },
+    {
+      "id": "e-iris-db-emo-win-to-iris-db-success-reveal",
+      "source": "iris-db-emo-win",
+      "target": "iris-db-success-reveal"
+    },
+    {
+      "id": "e-iris-db-fail-msg-to-iris-db-emo-fail",
+      "source": "iris-db-fail-msg",
+      "target": "iris-db-emo-fail"
+    },
+    {
+      "id": "e-iris-db-emo-fail-to-iris-db-fail-reveal",
+      "source": "iris-db-emo-fail",
+      "target": "iris-db-fail-reveal"
+    }
+  ]
+}

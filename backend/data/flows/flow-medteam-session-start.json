@@ -1,0 +1,147 @@
+{
+  "id": "flow-medteam-session-start",
+  "name": "MedTeam Session Start",
+  "category": "character",
+  "description": "First message triggers randomized session opening - protocol, data collection, or timed burst approach",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1739750400000,
+  "nodes": [
+    {
+      "id": "mt-ss-trigger",
+      "type": "trigger",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "First Player Message",
+        "triggerType": "first_message",
+        "keywords": [],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-ss-branch",
+      "type": "branch",
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "data": {
+        "label": "Session Type",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "protocol",
+            "label": "Protocol",
+            "weight": 33
+          },
+          {
+            "id": "data",
+            "label": "Data",
+            "weight": 33
+          },
+          {
+            "id": "timed",
+            "label": "Timed",
+            "weight": 34
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-ss-protocol",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "Protocol Opening",
+        "actionType": "send_message",
+        "message": "Dr. Marsh strides into the lab, reviewing her tablet. 'Good. Subject 12 is prepped. Today we run the full escalation protocol.' *clicks recorder* 'Priya, prime the system. Dani, baseline vitals.' She turns to [Player]. 'Let's begin.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ss-data",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 380
+      },
+      "data": {
+        "label": "Data Opening",
+        "actionType": "send_message",
+        "message": "Dr. Marsh checks the morning's calibration logs. 'All equipment within spec. Excellent.' *to the nurses* 'Today's focus: comprehensive data collection. I want subjective and objective measurements at every increment.' She pulls up [Player]'s file. 'Subject 12, your previous session data was... promising. Let's see if today surpasses it.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ss-timed",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 380
+      },
+      "data": {
+        "label": "Timed Opening",
+        "actionType": "send_message",
+        "message": "Dr. Marsh enters carrying a fresh protocol binder. 'Change of approach today. Timed burst methodology — short, intense intervals with measured recovery.' *hands assignments to each nurse* 'Priya, the timing sequences are outlined. Dani, I need heart rate variability tracking between each burst.' She glances at [Player]. 'Brace yourself, Subject 12. Today we work efficiently.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ss-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 125
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e2",
+      "source": "mt-ss-branch",
+      "sourceHandle": "branch-0",
+      "target": "mt-ss-protocol"
+    },
+    {
+      "id": "e3",
+      "source": "mt-ss-branch",
+      "sourceHandle": "branch-1",
+      "target": "mt-ss-data"
+    },
+    {
+      "id": "e4",
+      "source": "mt-ss-branch",
+      "sourceHandle": "branch-2",
+      "target": "mt-ss-timed"
+    },
+    {
+      "id": "e-mt-ss-trigger-to-mt-ss-emo-start",
+      "source": "mt-ss-trigger",
+      "target": "mt-ss-emo-start"
+    },
+    {
+      "id": "e-mt-ss-emo-start-to-mt-ss-branch",
+      "source": "mt-ss-emo-start",
+      "target": "mt-ss-branch"
+    }
+  ]
+}

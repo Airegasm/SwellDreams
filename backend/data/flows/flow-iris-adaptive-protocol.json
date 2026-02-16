@@ -1,0 +1,521 @@
+{
+  "id": "flow-iris-adaptive-protocol",
+  "name": "Adaptive Protocol",
+  "category": "character",
+  "description": "Calibration randomizer with capacity-based tier assignment and adaptive stimulus delivery",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-ap-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Adapt Test",
+        "buttonTarget": "character",
+        "buttonId": "iris-adapt",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-ap-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "Protocol Introduction",
+        "actionType": "send_message",
+        "message": "*powers up calibration array* Engaging adaptive protocol for Subject #47. The system will first calibrate instrument alignment, then assess your current capacity to determine the appropriate intervention tier. *adjusts glasses* The protocol adapts to you. Not the other way around.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-slot",
+      "type": "slot_machine",
+      "position": {
+        "x": 200,
+        "y": 530
+      },
+      "data": {
+        "label": "Calibration Randomizer",
+        "symbols": [
+          "data:image/svg+xml,🧪",
+          "data:image/svg+xml,🔬",
+          "data:image/svg+xml,💊",
+          "data:image/svg+xml,📊",
+          "data:image/svg+xml,⚗️"
+        ],
+        "matches": [
+          {
+            "id": "jackpot",
+            "pattern": "three-of-a-kind",
+            "label": "Perfect Calibration"
+          },
+          {
+            "id": "partial",
+            "pattern": "two-of-a-kind",
+            "label": "Partial Match"
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-ap-slot-jackpot",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 780
+      },
+      "data": {
+        "label": "Perfect Calibration",
+        "actionType": "send_message",
+        "message": "*adjusts glasses with visible satisfaction* Perfect calibration. All instruments aligned to within 0.01% tolerance. *makes approving note* The randomizer favors you today, Subject #47. Optimal conditions for data collection.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-slot-partial",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 780
+      },
+      "data": {
+        "label": "Partial Match",
+        "actionType": "send_message",
+        "message": "*checks readouts* Partial instrument match. Acceptable parameters for testing, though not ideal. *makes minor adjustment to a dial* Compensating for calibration drift. We proceed.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-slot-other",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 780
+      },
+      "data": {
+        "label": "No Match",
+        "actionType": "send_message",
+        "message": "*frowns at readout* No calibration match. Instruments are misaligned. *taps clipboard impatiently* Recalibrating manually... this will add noise to the data but the protocol must proceed regardless. *mutters* Inferior equipment.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-condition",
+      "type": "condition",
+      "position": {
+        "x": 200,
+        "y": 1020
+      },
+      "data": {
+        "label": "Capacity Assessment",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 60
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-ap-tier1-set",
+      "type": "set_variable",
+      "position": {
+        "x": -200,
+        "y": 1250
+      },
+      "data": {
+        "label": "Set Tier 1",
+        "variable": "protocolTier",
+        "variableName": "protocolTier",
+        "value": "1",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-ap-tier1-msg",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1430
+      },
+      "data": {
+        "label": "Tier 1 Announce",
+        "actionType": "send_message",
+        "message": "*reviews capacity data* Current capacity well above threshold. Assigning Tier 1 -- minimal intervention required. *makes note* Your elevated readings suggest high tolerance. A light touch will suffice for meaningful data extraction.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-tier2-set",
+      "type": "set_variable",
+      "position": {
+        "x": 200,
+        "y": 1250
+      },
+      "data": {
+        "label": "Set Tier 2",
+        "variable": "protocolTier",
+        "variableName": "protocolTier",
+        "value": "2",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-ap-tier2-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1430
+      },
+      "data": {
+        "label": "Tier 2 Announce",
+        "actionType": "send_message",
+        "message": "*analyzes capacity readings* Moderate capacity detected. Assigning Tier 2 -- standard exploration parameters. *flips to appropriate protocol page* This is the most common assignment. You are, in this respect, thoroughly average, Subject #47.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-tier3-set",
+      "type": "set_variable",
+      "position": {
+        "x": 600,
+        "y": 1250
+      },
+      "data": {
+        "label": "Set Tier 3",
+        "variable": "protocolTier",
+        "variableName": "protocolTier",
+        "value": "3",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-ap-tier3-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1430
+      },
+      "data": {
+        "label": "Tier 3 Announce",
+        "actionType": "send_message",
+        "message": "*raises eyebrow at low capacity readings* Below threshold. Assigning Tier 3 -- maximum stimulus protocol. *turns dial to highest setting* When capacity is this depleted, only aggressive intervention produces statistically significant response data. Brace yourself.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-switch",
+      "type": "switch",
+      "position": {
+        "x": 200,
+        "y": 1680
+      },
+      "data": {
+        "label": "Route by Tier",
+        "variable": "custom",
+        "customVariable": "protocolTier",
+        "includeDefault": true,
+        "cases": [
+          {
+            "value": "1",
+            "label": "Tier 1"
+          },
+          {
+            "value": "2",
+            "label": "Tier 2"
+          },
+          {
+            "value": "3",
+            "label": "Tier 3"
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-ap-t1-pulse",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1940
+      },
+      "data": {
+        "label": "Tier 1: Pulse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*activates minimal stimulus* Three diagnostic pulses. Light and precise, matching your elevated capacity.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*records pulse response data* Tier 1 protocol complete. Minimal stimulus applied. Response metrics captured. *adjusts glasses* Clean data from a high-capacity subject. Exactly what the study needs.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ap-t2-cycle",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1940
+      },
+      "data": {
+        "label": "Tier 2: Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*configures standard parameters* Three cycles, four seconds active, two seconds rest. Standard Tier 2 delivery.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*marks cycle completion* Tier 2 protocol complete. Standard stimulus administered. *reviews data stream* Response curve falls within predicted parameters. Adequate data for the moderate-capacity cohort.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ap-t3-device",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1940
+      },
+      "data": {
+        "label": "Tier 3: Sustained",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "*engages maximum output* Twenty seconds sustained. Maximum stimulus for depleted capacity. *clicks pen* This is where the interesting data lives.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*powers down device and immediately checks instruments* Tier 3 protocol complete. Maximum sustained stimulus delivered for twenty seconds. *makes extensive notes* The response amplitude at low capacity consistently exceeds predictions. Your data continues to challenge my models, Subject #47. *the faintest hint of a smile* Good.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ap-default",
+      "type": "action",
+      "position": {
+        "x": 950,
+        "y": 1940
+      },
+      "data": {
+        "label": "Default Fallback",
+        "actionType": "send_message",
+        "message": "*frowns at instruments* Tier assignment error. The variable did not resolve to an expected value. *taps clipboard* Logging anomaly. Session data may be compromised. We'll need to repeat this, Subject #47.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ap-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 415
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-ap-emo-tier3",
+      "type": "action",
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      },
+      "position": {
+        "x": 358,
+        "y": 1097
+      }
+    },
+    {
+      "id": "iris-ap-attr-tier3",
+      "type": "action",
+      "data": {
+        "label": "Lower Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 15
+      },
+      "position": {
+        "x": 492,
+        "y": 1173
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-ap-btn",
+      "target": "iris-ap-intro"
+    },
+    {
+      "id": "e3",
+      "source": "iris-ap-slot",
+      "sourceHandle": "jackpot",
+      "target": "iris-ap-slot-jackpot"
+    },
+    {
+      "id": "e4",
+      "source": "iris-ap-slot",
+      "sourceHandle": "partial",
+      "target": "iris-ap-slot-partial"
+    },
+    {
+      "id": "e5",
+      "source": "iris-ap-slot",
+      "sourceHandle": "other",
+      "target": "iris-ap-slot-other"
+    },
+    {
+      "id": "e6",
+      "source": "iris-ap-slot-jackpot",
+      "target": "iris-ap-condition"
+    },
+    {
+      "id": "e7",
+      "source": "iris-ap-slot-partial",
+      "target": "iris-ap-condition"
+    },
+    {
+      "id": "e8",
+      "source": "iris-ap-slot-other",
+      "target": "iris-ap-condition"
+    },
+    {
+      "id": "e9",
+      "source": "iris-ap-condition",
+      "sourceHandle": "true-0",
+      "target": "iris-ap-tier1-set"
+    },
+    {
+      "id": "e10",
+      "source": "iris-ap-condition",
+      "sourceHandle": "true-1",
+      "target": "iris-ap-tier2-set"
+    },
+    {
+      "id": "e12",
+      "source": "iris-ap-tier1-set",
+      "target": "iris-ap-tier1-msg"
+    },
+    {
+      "id": "e13",
+      "source": "iris-ap-tier2-set",
+      "target": "iris-ap-tier2-msg"
+    },
+    {
+      "id": "e14",
+      "source": "iris-ap-tier3-set",
+      "target": "iris-ap-tier3-msg"
+    },
+    {
+      "id": "e15",
+      "source": "iris-ap-tier1-msg",
+      "target": "iris-ap-switch"
+    },
+    {
+      "id": "e16",
+      "source": "iris-ap-tier2-msg",
+      "target": "iris-ap-switch"
+    },
+    {
+      "id": "e17",
+      "source": "iris-ap-tier3-msg",
+      "target": "iris-ap-switch"
+    },
+    {
+      "id": "e18",
+      "source": "iris-ap-switch",
+      "sourceHandle": "case-0",
+      "target": "iris-ap-t1-pulse"
+    },
+    {
+      "id": "e19",
+      "source": "iris-ap-switch",
+      "sourceHandle": "case-1",
+      "target": "iris-ap-t2-cycle"
+    },
+    {
+      "id": "e20",
+      "source": "iris-ap-switch",
+      "sourceHandle": "case-2",
+      "target": "iris-ap-t3-device"
+    },
+    {
+      "id": "e21",
+      "source": "iris-ap-switch",
+      "sourceHandle": "default",
+      "target": "iris-ap-default"
+    },
+    {
+      "id": "e-iris-ap-intro-to-iris-ap-emo-start",
+      "source": "iris-ap-intro",
+      "target": "iris-ap-emo-start"
+    },
+    {
+      "id": "e-iris-ap-emo-start-to-iris-ap-slot",
+      "source": "iris-ap-emo-start",
+      "target": "iris-ap-slot"
+    },
+    {
+      "id": "e-iris-ap-condition-to-iris-ap-emo-tier3",
+      "source": "iris-ap-condition",
+      "target": "iris-ap-emo-tier3",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-iris-ap-emo-tier3-to-iris-ap-attr-tier3",
+      "source": "iris-ap-emo-tier3",
+      "target": "iris-ap-attr-tier3"
+    },
+    {
+      "id": "e-iris-ap-attr-tier3-to-iris-ap-tier3-set",
+      "source": "iris-ap-attr-tier3",
+      "target": "iris-ap-tier3-set"
+    }
+  ]
+}

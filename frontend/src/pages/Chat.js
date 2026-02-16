@@ -418,6 +418,8 @@ function Chat() {
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
 
+
+
   // Check device reachability on startup
   useEffect(() => {
     const checkDevices = async () => {
@@ -1236,6 +1238,10 @@ function Chat() {
             sendWsMessage('update_pain', { pain: level });
           }}
           capacity={sessionState.capacity || 0}
+          onCapacityChange={(cap) => {
+            setSessionState(prev => ({ ...prev, capacity: cap }));
+            sendWsMessage('update_capacity', { capacity: cap });
+          }}
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
         />
@@ -1271,6 +1277,10 @@ function Chat() {
               sendWsMessage('update_pain', { pain: level });
             }}
             capacity={sessionState.capacity || 0}
+            onCapacityChange={(cap) => {
+              setSessionState(prev => ({ ...prev, capacity: cap }));
+              sendWsMessage('update_capacity', { capacity: cap });
+            }}
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
           />
@@ -1812,9 +1822,10 @@ function Chat() {
               <ul className="session-info-list">
                 <li>{controlMode === 'interactive' ? 'Interactive Mode' : 'Simulated Mode'}</li>
                 {isLlmConfigured() && (() => {
+                  const detectedModel = settings?.llm?.detectedModelName;
                   const activeProfile = connectionProfiles?.find(p => p.id === settings?.llm?.activeProfileId);
                   const profileName = activeProfile?.name || (settings?.llm?.endpointStandard === 'openrouter' ? 'OpenRouter' : 'Connected');
-                  return <li>LLM: {profileName}</li>;
+                  return <li>LLM: {detectedModel || profileName}</li>;
                 })()}
                 {!activeCharacter?.autoReplyEnabled && <li>Auto-Reply Off</li>}
                 {(() => {

@@ -252,6 +252,59 @@
         "postMessageSuppressLlm": false,
         "postDelay": 1
       }
+    },
+    {
+      "id": "luna-ic-emo-gentle",
+      "type": "action",
+      "position": {
+        "x": 75,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Loving",
+        "actionType": "set_emotion",
+        "emotion": "loving"
+      }
+    },
+    {
+      "id": "luna-ic-emo-passion",
+      "type": "action",
+      "position": {
+        "x": 158,
+        "y": 247
+      },
+      "data": {
+        "label": "Set Horny",
+        "actionType": "set_emotion",
+        "emotion": "horny"
+      }
+    },
+    {
+      "id": "luna-ic-attr-passion",
+      "type": "action",
+      "position": {
+        "x": 192,
+        "y": 313
+      },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 95
+      }
+    },
+    {
+      "id": "luna-ic-emo-tease",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
     }
   ],
   "edges": [
@@ -259,24 +312,6 @@
       "id": "e1",
       "source": "luna-ic-btn",
       "target": "luna-ic-choice"
-    },
-    {
-      "id": "e2",
-      "source": "luna-ic-choice",
-      "sourceHandle": "gentle",
-      "target": "luna-ic-gentle-msg"
-    },
-    {
-      "id": "e3",
-      "source": "luna-ic-choice",
-      "sourceHandle": "passionate",
-      "target": "luna-ic-passionate-msg"
-    },
-    {
-      "id": "e4",
-      "source": "luna-ic-choice",
-      "sourceHandle": "tease",
-      "target": "luna-ic-tease-msg"
     },
     {
       "id": "e5",
@@ -315,6 +350,44 @@
       "source": "luna-ic-tease-branch",
       "sourceHandle": "branch-2",
       "target": "luna-ic-tease-surprise"
+    },
+    {
+      "id": "e-luna-ic-choice-to-luna-ic-emo-gentle",
+      "source": "luna-ic-choice",
+      "target": "luna-ic-emo-gentle",
+      "sourceHandle": "gentle"
+    },
+    {
+      "id": "e-luna-ic-emo-gentle-to-luna-ic-gentle-msg",
+      "source": "luna-ic-emo-gentle",
+      "target": "luna-ic-gentle-msg"
+    },
+    {
+      "id": "e-luna-ic-choice-to-luna-ic-emo-passion",
+      "source": "luna-ic-choice",
+      "target": "luna-ic-emo-passion",
+      "sourceHandle": "passionate"
+    },
+    {
+      "id": "e-luna-ic-emo-passion-to-luna-ic-attr-passion",
+      "source": "luna-ic-emo-passion",
+      "target": "luna-ic-attr-passion"
+    },
+    {
+      "id": "e-luna-ic-attr-passion-to-luna-ic-passionate-msg",
+      "source": "luna-ic-attr-passion",
+      "target": "luna-ic-passionate-msg"
+    },
+    {
+      "id": "e-luna-ic-choice-to-luna-ic-emo-tease",
+      "source": "luna-ic-choice",
+      "target": "luna-ic-emo-tease",
+      "sourceHandle": "tease"
+    },
+    {
+      "id": "e-luna-ic-emo-tease-to-luna-ic-tease-msg",
+      "source": "luna-ic-emo-tease",
+      "target": "luna-ic-tease-msg"
     }
   ]
 }

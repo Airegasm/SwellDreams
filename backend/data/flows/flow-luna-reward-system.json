@@ -131,6 +131,33 @@
         "postMessageSuppressLlm": false,
         "postDelay": 1
       }
+    },
+    {
+      "id": "luna-rw-emo-reward",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "luna-rw-attr-special",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 350
+      },
+      "data": {
+        "label": "Raise Sensual",
+        "actionType": "set_attribute",
+        "attribute": "sensual",
+        "attributeValue": 85
+      }
     }
   ],
   "edges": [
@@ -138,11 +165,6 @@
       "id": "e1",
       "source": "luna-rw-btn",
       "target": "luna-rw-intro"
-    },
-    {
-      "id": "e2",
-      "source": "luna-rw-intro",
-      "target": "luna-rw-branch"
     },
     {
       "id": "e3",
@@ -157,9 +179,24 @@
       "target": "luna-rw-words"
     },
     {
-      "id": "e5",
+      "id": "e-luna-rw-intro-to-luna-rw-emo-reward",
+      "source": "luna-rw-intro",
+      "target": "luna-rw-emo-reward"
+    },
+    {
+      "id": "e-luna-rw-emo-reward-to-luna-rw-branch",
+      "source": "luna-rw-emo-reward",
+      "target": "luna-rw-branch"
+    },
+    {
+      "id": "e-luna-rw-branch-to-luna-rw-attr-special",
       "source": "luna-rw-branch",
-      "sourceHandle": "branch-2",
+      "target": "luna-rw-attr-special",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e-luna-rw-attr-special-to-luna-rw-special",
+      "source": "luna-rw-attr-special",
       "target": "luna-rw-special"
     }
   ]

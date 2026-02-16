@@ -152,14 +152,36 @@
         "preDelay": 1,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "vex-gs-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 93
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-gs-attr-dom",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 137
+      },
+      "data": {
+        "label": "Lower Dominant",
+        "actionType": "set_attribute",
+        "attribute": "dominant",
+        "attributeValue": 30
+      }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "vex-gs-trigger",
-      "target": "vex-gs-selection"
-    },
     {
       "id": "e2",
       "source": "vex-gs-selection",
@@ -188,6 +210,21 @@
       "source": "vex-gs-random",
       "sourceHandle": "branch-3",
       "target": "vex-gs-bonus"
+    },
+    {
+      "id": "e-vex-gs-trigger-to-vex-gs-emo-start",
+      "source": "vex-gs-trigger",
+      "target": "vex-gs-emo-start"
+    },
+    {
+      "id": "e-vex-gs-emo-start-to-vex-gs-attr-dom",
+      "source": "vex-gs-emo-start",
+      "target": "vex-gs-attr-dom"
+    },
+    {
+      "id": "e-vex-gs-attr-dom-to-vex-gs-selection",
+      "source": "vex-gs-attr-dom",
+      "target": "vex-gs-selection"
     }
   ]
 }

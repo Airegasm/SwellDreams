@@ -246,6 +246,46 @@
         "postMessageSuppressLlm": false,
         "postDelay": 2
       }
+    },
+    {
+      "id": "vex-br-emo-guess",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 665
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-br-emo-lose",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 780
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-br-attr-lose",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 830
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 90
+      }
     }
   ],
   "edges": [
@@ -293,21 +333,10 @@
       "target": "vex-br-guess-intro"
     },
     {
-      "id": "e9",
-      "source": "vex-br-guess-intro",
-      "target": "vex-br-guess"
-    },
-    {
       "id": "e10",
       "source": "vex-br-guess",
       "sourceHandle": "win",
       "target": "vex-br-guess-win"
-    },
-    {
-      "id": "e11",
-      "source": "vex-br-guess",
-      "sourceHandle": "lose",
-      "target": "vex-br-guess-lose"
     },
     {
       "id": "e12",
@@ -318,6 +347,32 @@
       "id": "e13",
       "source": "vex-br-guess-lose",
       "target": "vex-br-punish"
+    },
+    {
+      "id": "e-vex-br-guess-intro-to-vex-br-emo-guess",
+      "source": "vex-br-guess-intro",
+      "target": "vex-br-emo-guess"
+    },
+    {
+      "id": "e-vex-br-emo-guess-to-vex-br-guess",
+      "source": "vex-br-emo-guess",
+      "target": "vex-br-guess"
+    },
+    {
+      "id": "e-vex-br-guess-to-vex-br-emo-lose",
+      "source": "vex-br-guess",
+      "target": "vex-br-emo-lose",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-vex-br-emo-lose-to-vex-br-attr-lose",
+      "source": "vex-br-emo-lose",
+      "target": "vex-br-attr-lose"
+    },
+    {
+      "id": "e-vex-br-attr-lose-to-vex-br-guess-lose",
+      "source": "vex-br-attr-lose",
+      "target": "vex-br-guess-lose"
     }
   ]
 }

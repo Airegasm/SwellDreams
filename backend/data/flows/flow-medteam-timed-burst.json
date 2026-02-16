@@ -1,0 +1,136 @@
+{
+  "id": "flow-medteam-timed-burst",
+  "name": "MedTeam Timed Burst",
+  "category": "character",
+  "description": "Subject selects burst duration, team executes timed sustained inflation with full monitoring",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1739750400000,
+  "nodes": [
+    {
+      "id": "mt-tb-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Timed Burst",
+        "buttonTarget": "character",
+        "buttonId": "medteam-timed",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-tb-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 150
+      },
+      "data": {
+        "label": "Marsh Requests Duration",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: 'Timed burst protocol. Subject 12, I need a duration — how many seconds of sustained inflation are you prepared for?' *pen poised over clipboard* 'Minimum five, maximum thirty.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tb-input",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 280
+      },
+      "data": {
+        "label": "Burst Duration",
+        "inputType": "number",
+        "variableName": "burstDuration",
+        "prompt": "Enter burst duration in seconds",
+        "placeholder": "Enter 5-30",
+        "min": 5,
+        "max": 30,
+        "required": true
+      }
+    },
+    {
+      "id": "mt-tb-execute",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 420
+      },
+      "data": {
+        "label": "Execute Timed Burst",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: 'Duration received — [Flow:burstDuration] seconds. Priming the line.' *checks connections* 'Initiating timed burst now.'\n\nDr. Marsh: *starts stopwatch* 'Clock is running. Dani, continuous vitals.'",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Dani: *monitors carefully throughout* 'Heart rate peaking... holding... settling. Burst complete.'\n\nDr. Marsh: 'Excellent. The timed burst produced a clean data spike.' *reviews readings* 'Subject 12 continues to exceed median tolerances. Priya, log the peak pressure reading for comparison.'\n\nNurse Priya: 'Logged. Peak was above previous session baseline.'",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-tb-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "mt-tb-emo-done",
+      "type": "action",
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      },
+      "position": {
+        "x": 225,
+        "y": 360
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-tb-btn",
+      "target": "mt-tb-intro"
+    },
+    {
+      "id": "e-mt-tb-input-to-mt-tb-emo-done",
+      "source": "mt-tb-input",
+      "target": "mt-tb-emo-done"
+    },
+    {
+      "id": "e-mt-tb-intro-to-mt-tb-emo-start",
+      "source": "mt-tb-intro",
+      "target": "mt-tb-emo-start"
+    },
+    {
+      "id": "e-mt-tb-emo-start-to-mt-tb-input",
+      "source": "mt-tb-emo-start",
+      "target": "mt-tb-input"
+    },
+    {
+      "id": "e-mt-tb-emo-done-to-mt-tb-execute",
+      "source": "mt-tb-emo-done",
+      "target": "mt-tb-execute"
+    }
+  ]
+}

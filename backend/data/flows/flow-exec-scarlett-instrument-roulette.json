@@ -1,0 +1,432 @@
+{
+  "id": "flow-exec-scarlett-instrument-roulette",
+  "name": "Executress Scarlett: Instrument Roulette",
+  "category": "character",
+  "description": "Prize wheel selects torture instrument. Six implements with unique device actions. Double Application triggers a coin flip for combined punishment.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-ir-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Instrument Roulette",
+        "buttonTarget": "character",
+        "buttonId": "exec-roulette",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-ir-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Instrument Counter",
+        "variable": "instrumentCount",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "exec-ir-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Roulette Introduction",
+        "actionType": "send_message",
+        "message": "*wheels the instrument cart closer, the steel implements catching the overhead light* Application number [Flow:instrumentCount]. The roulette selects which implement will be applied to your inflated abdomen. Each instrument produces a distinct form of abdominal trauma — compression, electrical stimulation, constriction, percussive vibration, or direct navel penetration. *rests her hand on the selector* The condemned does not choose. The wheel chooses for them.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ir-wheel",
+      "type": "prize_wheel",
+      "position": {
+        "x": 300,
+        "y": 530
+      },
+      "data": {
+        "label": "Instrument Selector",
+        "segments": [
+          {
+            "id": "vice",
+            "label": "Pneumatic Vice",
+            "color": "#dc2626",
+            "weight": 17
+          },
+          {
+            "id": "electrodes",
+            "label": "Electrodes",
+            "color": "#eab308",
+            "weight": 17
+          },
+          {
+            "id": "strap",
+            "label": "Constriction Strap",
+            "color": "#22c55e",
+            "weight": 17
+          },
+          {
+            "id": "vibrator",
+            "label": "Hammering Vibrator",
+            "color": "#8b5cf6",
+            "weight": 17
+          },
+          {
+            "id": "probe",
+            "label": "Navel Probe",
+            "color": "#f97316",
+            "weight": 16
+          },
+          {
+            "id": "double",
+            "label": "Double Application",
+            "color": "#ef4444",
+            "weight": 16
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*spins the instrument selector with a precise flick* The wheel determines your implement. Watch it settle.",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "exec-ir-vice",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 800
+      },
+      "data": {
+        "label": "Pneumatic Vice (cycle 3s/3s x3)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 3,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "The pneumatic vice. *lifts the compression apparatus — two flat steel plates connected by hydraulic pistons — and positions them on either side of [Player]'s distended belly* This compresses your pressurized intestines between two surfaces while simultaneously inflating. The internal pressure has nowhere to redistribute during compression. *tightens the mounting clamps* Three compression cycles. Watch the distortion pattern as the plates engage.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*removes the vice plates and examines the compression marks on [Player]'s abdomen* Three cycles of simultaneous compression and inflation. Note the temporary deformation pattern — the tissue bulged laterally between the plates during each compression, then slowly returned to its inflated shape during release. *traces the marks* The collagen fibers are showing stress reorganization. Useful data for the execution log.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-electrodes",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 800
+      },
+      "data": {
+        "label": "Electrodes (pulse x6)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 6,
+        "preMessageEnabled": true,
+        "preMessage": "Electrodes. *peels adhesive electrode pads from their backing and places them methodically across [Player]'s swollen belly* The electrical stimulation forces involuntary abdominal muscle contraction against the internal pressure. Six applications — each timed to coincide with a pump pulse, so your muscles clench around a fresh volume of air. *connects the leads* The conflicting pressure vectors are what make this instrument so effective.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*removes the electrode pads with deliberate care* Six contractions against simultaneous inflation pressure. Each one forced your abdominal wall to compress your inflated intestines from the outside while the pump pressed outward from within. *studies [Player]'s exhausted abdominal muscles* The muscle fatigue will reduce resistance to subsequent inflation phases. That is by design.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-strap",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 800
+      },
+      "data": {
+        "label": "Constriction Strap (12s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "The constriction strap. *wraps the reinforced band around [Player]'s midsection and cinches it tight, compressing the already-distended abdomen* This restricts outward expansion while the pressure continues building internally. The intestines have nowhere to expand — the strap forces all additional volume deeper into the peritoneal cavity. *checks the tension* Twelve seconds of inflation against constriction. The internal pressure will be considerably higher than the gauge suggests.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*unbuckles the constriction strap and observes [Player]'s belly spring outward as the external compression releases* Twelve seconds of constrained inflation. The belly expanded noticeably the moment the strap was removed — all that pressure was being held internally, compressed against the peritoneal wall. *notes the measurement differential* The actual internal pressure exceeded the gauge reading by an estimated 40 percent. Your intestines felt every bit of it.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-vibrator",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 800
+      },
+      "data": {
+        "label": "Hammering Vibrator (cycle 2s/1s x6)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 2,
+        "interval": 1,
+        "cycles": 6,
+        "preMessageEnabled": true,
+        "preMessage": "The hammering vibrator. *presses the heavy percussive device against [Player]'s distended navel* Rapid percussive stimulation on the most vulnerable point of your abdomen — directly over the thinnest section of the abdominal wall. Combined with rapid inflation cycling. *activates the vibrator* Six cycles. Two seconds on, one second off. The vibration disrupts the tissue's ability to accommodate pressure incrementally.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*withdraws the vibrator and examines the reddened area around [Player]'s navel* Six rapid cycles with simultaneous percussive stimulation. The hammering vibrator disrupts the abdominal wall's natural bracing response — the tissue cannot tense against the vibration and the inflation pressure simultaneously. *presses gently on the affected area* The navel tissue is notably more compliant now. Softened. Vulnerable to the next phase.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-probe",
+      "type": "action",
+      "position": {
+        "x": 700,
+        "y": 800
+      },
+      "data": {
+        "label": "Navel Probe (10s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "The navel probe. *picks up the slender metal instrument with its rounded tip* Your navel is the thinnest point of your abdominal wall — the place where internal pressure is most directly transmitted through the skin. *inserts the probe into [Player]'s stretched navel and applies steady downward pressure* Ten seconds of sustained inflation with direct probe stimulation. You will feel the pressure building against the probe tip from inside. The opposing forces meet at the weakest point of your anatomy.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*withdraws the probe and examines the deep impression left in [Player]'s navel* Ten seconds of opposing forces — the probe pressing inward, the inflation pressing outward, with nothing but the thinnest layer of abdominal tissue between them. *measures the navel depth with a caliper* Your navel has inverted several millimeters during the inflation. A few more sessions and it will protrude outward entirely. *returns the probe to the cart* That particular sensation stays with subjects long after the execution concludes.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-double-msg",
+      "type": "action",
+      "position": {
+        "x": 900,
+        "y": 800
+      },
+      "data": {
+        "label": "Double Application",
+        "actionType": "send_message",
+        "message": "Double application. *a cold, measured smile crosses her face* Two implements will be used in sequence. The wheel has determined that you receive compound punishment — one instrument to soften the tissue, a second to exploit the vulnerability. *selects two implements from the cart* How unfortunate for you.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ir-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": 900,
+        "y": 980
+      },
+      "data": {
+        "label": "Double Method",
+        "headsLabel": "Compression",
+        "tailsLabel": "Sustained",
+        "headsWeight": 50,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*produces a coin* The coin determines the sequence. *flips it with clinical indifference*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "exec-ir-double-compress",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 1180
+      },
+      "data": {
+        "label": "Double: Compression (cycle 4s/2s x4)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "Compression sequence. *positions the pneumatic vice and the constriction strap simultaneously* Four cycles of dual compression — external plates and circumferential constriction applied together during inflation. *secures both instruments* The intestines will be compressed from three directions at once.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*removes both instruments and observes the deep compression marks crisscrossing [Player]'s abdomen* Four cycles of compound compression. The tissue deformation is significantly more pronounced than single-instrument application — the overlapping compression zones created areas of extreme localized pressure. *documents the pattern* Double application complete. The execution log will note your... resilience.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-double-sustain",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 1180
+      },
+      "data": {
+        "label": "Double: Sustained (15s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Sustained pressure. *attaches electrodes across the abdomen and inserts the navel probe simultaneously* Fifteen seconds of continuous inflation with dual stimulation — electrical contraction of the abdominal muscles while the probe transmits every internal pressure change directly. *activates both instruments* This is the most intensive combination in the roulette.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*removes the electrodes and withdraws the probe, examining [Player]'s trembling abdomen* Fifteen seconds of triple stimulus — inflation, electrical contraction, and probe penetration simultaneously. The abdominal muscles are exhausted from fighting the electrical impulses while the internal pressure built unchecked. *reviews the readings* Double application complete. Your body's defenses have been comprehensively degraded.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ir-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 440
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-ir-emo-double",
+      "type": "action",
+      "position": {
+        "x": 925,
+        "y": 860
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "exec-ir-attr-double",
+      "type": "action",
+      "position": {
+        "x": 925,
+        "y": 920
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-ir-btn",
+      "target": "exec-ir-counter"
+    },
+    {
+      "id": "e2",
+      "source": "exec-ir-counter",
+      "target": "exec-ir-intro"
+    },
+    {
+      "id": "e4",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "vice",
+      "target": "exec-ir-vice"
+    },
+    {
+      "id": "e5",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "electrodes",
+      "target": "exec-ir-electrodes"
+    },
+    {
+      "id": "e6",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "strap",
+      "target": "exec-ir-strap"
+    },
+    {
+      "id": "e7",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "vibrator",
+      "target": "exec-ir-vibrator"
+    },
+    {
+      "id": "e8",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "probe",
+      "target": "exec-ir-probe"
+    },
+    {
+      "id": "e9",
+      "source": "exec-ir-wheel",
+      "sourceHandle": "double",
+      "target": "exec-ir-double-msg"
+    },
+    {
+      "id": "e11",
+      "source": "exec-ir-coin",
+      "sourceHandle": "heads",
+      "target": "exec-ir-double-compress"
+    },
+    {
+      "id": "e12",
+      "source": "exec-ir-coin",
+      "sourceHandle": "tails",
+      "target": "exec-ir-double-sustain"
+    },
+    {
+      "id": "e-exec-ir-intro-to-exec-ir-emo-start",
+      "source": "exec-ir-intro",
+      "target": "exec-ir-emo-start"
+    },
+    {
+      "id": "e-exec-ir-emo-start-to-exec-ir-wheel",
+      "source": "exec-ir-emo-start",
+      "target": "exec-ir-wheel"
+    },
+    {
+      "id": "e-exec-ir-double-msg-to-exec-ir-emo-double",
+      "source": "exec-ir-double-msg",
+      "target": "exec-ir-emo-double"
+    },
+    {
+      "id": "e-exec-ir-emo-double-to-exec-ir-attr-double",
+      "source": "exec-ir-emo-double",
+      "target": "exec-ir-attr-double"
+    },
+    {
+      "id": "e-exec-ir-attr-double-to-exec-ir-coin",
+      "source": "exec-ir-attr-double",
+      "target": "exec-ir-coin"
+    }
+  ]
+}

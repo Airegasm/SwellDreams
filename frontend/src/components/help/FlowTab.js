@@ -252,6 +252,16 @@ function FlowTab() {
                   <td>Enable or disable a character button</td>
                   <td>Button selector, Action (enable/disable)</td>
                 </tr>
+                <tr>
+                  <td><strong>Set Emotion</strong></td>
+                  <td>Change the persona's current emotional state</td>
+                  <td>Emotion selector (blissful, aroused, submissive, etc.)</td>
+                </tr>
+                <tr>
+                  <td><strong>Set Attribute</strong></td>
+                  <td>Change a character's personality attribute probability</td>
+                  <td>Attribute (dominant, sadistic, psychopathic, sensual, sexual), Value (0-100%)</td>
+                </tr>
               </tbody>
             </table>
 

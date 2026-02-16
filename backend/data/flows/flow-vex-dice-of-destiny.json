@@ -190,19 +190,43 @@
       }
     },
     {
-      "id": "vex-dd-other",
+      "id": "vex-dod-emo-roll",
       "type": "action",
       "position": {
-        "x": 700,
-        "y": 480
+        "x": 225,
+        "y": 215
       },
       "data": {
-        "label": "Mystery Roll",
-        "actionType": "send_message",
-        "message": "*confused* Wait, that roll doesn't match any category? *checks dice* Eh, let's call it a MYSTERY RESULT! Anything could happen!",
-        "suppressLlm": false,
-        "preMessageEnabled": false,
-        "postMessageEnabled": false
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-dod-emo-max",
+      "type": "action",
+      "position": {
+        "x": 333,
+        "y": 347
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-dod-attr-max",
+      "type": "action",
+      "position": {
+        "x": 442,
+        "y": 413
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 95
       }
     }
   ],
@@ -211,11 +235,6 @@
       "id": "e1",
       "source": "vex-dd-btn",
       "target": "vex-dd-intro"
-    },
-    {
-      "id": "e2",
-      "source": "vex-dd-intro",
-      "target": "vex-dd-dice"
     },
     {
       "id": "e3",
@@ -236,21 +255,35 @@
       "target": "vex-dd-high"
     },
     {
-      "id": "e6",
-      "source": "vex-dd-dice",
-      "sourceHandle": "max",
-      "target": "vex-dd-max"
-    },
-    {
       "id": "e7",
       "source": "vex-dd-max",
       "target": "vex-dd-max-action"
     },
     {
-      "id": "e8",
+      "id": "e-vex-dd-intro-to-vex-dod-emo-roll",
+      "source": "vex-dd-intro",
+      "target": "vex-dod-emo-roll"
+    },
+    {
+      "id": "e-vex-dod-emo-roll-to-vex-dd-dice",
+      "source": "vex-dod-emo-roll",
+      "target": "vex-dd-dice"
+    },
+    {
+      "id": "e-vex-dd-dice-to-vex-dod-emo-max",
       "source": "vex-dd-dice",
-      "sourceHandle": "other",
-      "target": "vex-dd-other"
+      "target": "vex-dod-emo-max",
+      "sourceHandle": "max"
+    },
+    {
+      "id": "e-vex-dod-emo-max-to-vex-dod-attr-max",
+      "source": "vex-dod-emo-max",
+      "target": "vex-dod-attr-max"
+    },
+    {
+      "id": "e-vex-dod-attr-max-to-vex-dd-max",
+      "source": "vex-dod-attr-max",
+      "target": "vex-dd-max"
     }
   ]
 }

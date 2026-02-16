@@ -1,0 +1,171 @@
+{
+  "id": "flow-miranda-comparison-check",
+  "name": "Miranda's Comparison Check",
+  "category": "character",
+  "description": "Random comparison — student behind, matching, or ahead of Miranda. Different reactions for each.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "miranda-cc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Comparison Check",
+        "buttonTarget": "character",
+        "buttonId": "miranda-compare",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "miranda-cc-branch",
+      "type": "branch",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Comparison Result",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "behind",
+            "label": "Student Behind",
+            "weight": 34
+          },
+          {
+            "id": "matching",
+            "label": "Matching",
+            "weight": 33
+          },
+          {
+            "id": "ahead",
+            "label": "Student Ahead",
+            "weight": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "miranda-cc-behind",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "Student Behind (8s catch-up)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*Miranda stands up and walks over to compare bellies side by side*\n\n\"Hmm — let me see...\" *looks back and forth between them* \"Oh! You're a little bit behind me! See?\" *turns sideways so [Player] can compare* \"My belly is about an inch further out than yours. That's okay — totally normal for your first time!\"\n\n*walks back to the controls* \"Let's do a little catch-up! Eight seconds of extra pump time to get you up to my level. We should be matching — that's how this works! I inflate, you inflate. Same pace!\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Miranda compares again, tilting her head* \"Better! You're much closer now! See how your belly has that nice round shape? That's what we're going for — even, all-around distension!\" *pats her own matching belly* \"Now we're back in sync! The lesson works best when we're at the same level — I can show you exactly what to expect because I'm feeling the same thing you are!\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "miranda-cc-matching",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Matching (celebration)",
+        "actionType": "send_message",
+        "message": "*Miranda practically bounces over to compare, standing sideways next to [Player]*\n\n\"Oh, look at THAT! We're perfectly matched!\" *beams, placing one hand on her own belly and gesturing at [Player]'s* \"Same roundness, same firmness, same level of distension! You're keeping up with me perfectly!\"\n\n*she stares at the two bellies side by side for a moment longer than strictly necessary, her cheeks flushing slightly*\n\n\"It's... really something, seeing two inflated bellies side by side like this. Just — from a teaching perspective, obviously!\" *clears her throat and adjusts her posture* \"This means your accommodation rate is matching mine, which is EXCELLENT for a beginner. You should be really proud!\"\n\n*quickly returns to her seat, fidgeting with her pump controls* \"Right! Moving on! Great work!\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-cc-ahead",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 380
+      },
+      "data": {
+        "label": "Student Ahead (amazed)",
+        "actionType": "send_message",
+        "message": "*Miranda walks over to compare and stops mid-step, eyes widening*\n\n\"Wait — hold on.\" *looks at [Player]'s belly, then down at her own, then back again* \"You're... you're BIGGER than me?! How are you bigger than me?!\"\n\n*she circles [Player], studying the distension from multiple angles* \"I have YEARS of experience and you're outpacing me on your FIRST lesson?! Your natural capacity must be way above average!\"\n\n*she runs both hands through her hair, flustered* \"That's — I mean — that's incredibly impressive! I don't think I've ever had a student who was ahead of ME this early!\" *she stares at [Player]'s belly for a long, quiet moment, face reddening*\n\n\"I need to... I need to catch up to you!\" *hurries back to her pump and gives herself several quick squeezes* \"This is — from a pedagogical standpoint — very unusual! And very... very...\" *trails off, pumping furiously* \"...interesting! From a TEACHING perspective!\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-cc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "miranda-cc-emo-ahead",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e2",
+      "source": "miranda-cc-branch",
+      "sourceHandle": "branch-0",
+      "target": "miranda-cc-behind"
+    },
+    {
+      "id": "e3",
+      "source": "miranda-cc-branch",
+      "sourceHandle": "branch-1",
+      "target": "miranda-cc-matching"
+    },
+    {
+      "id": "e-miranda-cc-btn-to-miranda-cc-emo-start",
+      "source": "miranda-cc-btn",
+      "target": "miranda-cc-emo-start"
+    },
+    {
+      "id": "e-miranda-cc-emo-start-to-miranda-cc-branch",
+      "source": "miranda-cc-emo-start",
+      "target": "miranda-cc-branch"
+    },
+    {
+      "id": "e-miranda-cc-branch-to-miranda-cc-emo-ahead",
+      "source": "miranda-cc-branch",
+      "target": "miranda-cc-emo-ahead",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e-miranda-cc-emo-ahead-to-miranda-cc-ahead",
+      "source": "miranda-cc-emo-ahead",
+      "target": "miranda-cc-ahead"
+    }
+  ]
+}

@@ -8,6 +8,19 @@ const { v4: uuidv4 } = require('uuid');
  */
 
 /**
+ * Replace V2/V3 template variables with SwellDreams equivalents
+ * {{char}} → [Char], {{user}} → [Player]
+ * @param {string} text
+ * @returns {string}
+ */
+function replaceCardVars(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text
+    .replace(/\{\{char\}\}/gi, '[Char]')
+    .replace(/\{\{user\}\}/gi, '[Player]');
+}
+
+/**
  * Convert V2 format to SwellDreams Character
  * @param {Object} v2Card - V2 format character card
  * @returns {Object} SwellDreams character object
@@ -110,6 +123,26 @@ function convertV2ToSwellD(v2Card) {
       }
     }
   };
+
+  // Replace {{char}} → [Char] and {{user}} → [Player] in all text fields
+  character.description = replaceCardVars(character.description);
+  character.personality = replaceCardVars(character.personality);
+  for (const story of character.stories) {
+    for (const wm of story.welcomeMessages) wm.text = replaceCardVars(wm.text);
+    for (const sc of story.scenarios) sc.text = replaceCardVars(sc.text);
+    for (const ed of story.exampleDialogues) {
+      ed.user = replaceCardVars(ed.user);
+      ed.character = replaceCardVars(ed.character);
+    }
+  }
+  for (const rem of character.constantReminders) {
+    rem.text = replaceCardVars(rem.text);
+  }
+  if (character.extensions?.v2v3Import?.preservedData) {
+    const pd = character.extensions.v2v3Import.preservedData;
+    pd.system_prompt = replaceCardVars(pd.system_prompt);
+    pd.post_history_instructions = replaceCardVars(pd.post_history_instructions);
+  }
 
   return character;
 }

@@ -309,19 +309,48 @@
         "width": 251,
         "height": 199
       }
+    },
+    {
+      "id": "sc-rl-emo-rules",
+      "type": "action",
+      "position": {
+        "x": -175,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "sc-rl-emo-refuse",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Angry",
+        "actionType": "set_emotion",
+        "emotion": "angry"
+      }
+    },
+    {
+      "id": "sc-rl-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 1031,
+        "y": 191
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
     }
   ],
   "edges": [
-    {
-      "id": "e0",
-      "source": "scarlett-rl-btn",
-      "target": "scarlett-rl-recite"
-    },
-    {
-      "id": "e1",
-      "source": "scarlett-rl-trigger-no",
-      "target": "scarlett-rl-no-response"
-    },
     {
       "id": "e2",
       "source": "scarlett-rl-no-response",
@@ -338,11 +367,6 @@
       "target": "scarlett-rl-please-response"
     },
     {
-      "id": "e6",
-      "source": "scarlett-rl-pumpoff-btn",
-      "target": "scarlett-rl-pumpoff-action"
-    },
-    {
       "source": "node_0",
       "target": "scarlett-rl-stop-punishment",
       "animated": true,
@@ -353,6 +377,36 @@
       "target": "node_0",
       "animated": true,
       "id": "xy-edge__scarlett-rl-stop-response-node_0"
+    },
+    {
+      "id": "e-scarlett-rl-btn-to-sc-rl-emo-rules",
+      "source": "scarlett-rl-btn",
+      "target": "sc-rl-emo-rules"
+    },
+    {
+      "id": "e-sc-rl-emo-rules-to-scarlett-rl-recite",
+      "source": "sc-rl-emo-rules",
+      "target": "scarlett-rl-recite"
+    },
+    {
+      "id": "e-scarlett-rl-trigger-no-to-sc-rl-emo-refuse",
+      "source": "scarlett-rl-trigger-no",
+      "target": "sc-rl-emo-refuse"
+    },
+    {
+      "id": "e-sc-rl-emo-refuse-to-scarlett-rl-no-response",
+      "source": "sc-rl-emo-refuse",
+      "target": "scarlett-rl-no-response"
+    },
+    {
+      "id": "e-scarlett-rl-pumpoff-btn-to-sc-rl-emo-stop",
+      "source": "scarlett-rl-pumpoff-btn",
+      "target": "sc-rl-emo-stop"
+    },
+    {
+      "id": "e-sc-rl-emo-stop-to-scarlett-rl-pumpoff-action",
+      "source": "sc-rl-emo-stop",
+      "target": "scarlett-rl-pumpoff-action"
     }
   ]
 }

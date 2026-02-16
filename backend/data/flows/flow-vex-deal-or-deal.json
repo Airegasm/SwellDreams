@@ -1,0 +1,571 @@
+{
+  "id": "flow-vex-deal-or-deal",
+  "name": "Deal or No Deal",
+  "category": "character",
+  "description": "Random deal offer with choice to accept or gamble for better/worse on dice and slots",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-dd-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Make a Deal",
+        "buttonTarget": "character",
+        "buttonId": "vex-deal",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-dd-random",
+      "type": "random_number",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Generate Offer",
+        "minValue": 3,
+        "maxValue": 8,
+        "variableName": "dealOffer"
+      }
+    },
+    {
+      "id": "vex-dd-offer",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 370
+      },
+      "data": {
+        "label": "Present the Deal",
+        "actionType": "send_message",
+        "message": "*briefcase opens under spotlight* LADIES AND GENTLEMEN! The BANKER has made an offer! *dramatic pause* The DEAL is... [Flow:dealOffer] PULSES! *audience murmurs* That's [Flow:dealOffer] quick blasts and you walk away! DEAL... or NO DEAL?! *holds out two buttons*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-choice",
+      "type": "simple_ab",
+      "position": {
+        "x": 300,
+        "y": 550
+      },
+      "data": {
+        "label": "Deal or No Deal",
+        "description": "Take the banker's offer or gamble?",
+        "labelA": "DEAL!",
+        "descriptionA": "Accept the offer",
+        "labelB": "NO DEAL!",
+        "descriptionB": "Gamble for something better... or worse"
+      }
+    },
+    {
+      "id": "vex-dd-deal-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 780
+      },
+      "data": {
+        "label": "Took the Deal",
+        "actionType": "send_message",
+        "message": "*handshake gesture* DEAL! The contestant takes the offer! *audience applauds politely* A SAFE choice... some would say a BORING choice... but let's honor the deal!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-deal-pulse",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 960
+      },
+      "data": {
+        "label": "Deal Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*presses button* Delivering the deal! Here come your pulses!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*nods approvingly* And THAT was the deal! Fair and square. But I wonder... what was BEHIND the curtain? *winks* Guess you'll never know!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-nodeal-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 780
+      },
+      "data": {
+        "label": "No Deal!",
+        "actionType": "send_message",
+        "message": "*slams briefcase shut* NO DEAL! *audience ROARS* THE CONTESTANT IS A GAMBLER! They've rejected [Flow:dealOffer] pulses! Let's see what was BEHIND! THE! CURTAIN! *curtain rises dramatically*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-dice",
+      "type": "dice_roll",
+      "position": {
+        "x": 550,
+        "y": 960
+      },
+      "data": {
+        "label": "Fate Dice",
+        "diceCount": 2,
+        "mode": "ranges",
+        "ranges": [
+          {
+            "id": "lucky",
+            "label": "Lucky! (2-4)",
+            "min": 2,
+            "max": 4
+          },
+          {
+            "id": "neutral",
+            "label": "Neutral (5-8)",
+            "min": 5,
+            "max": 8
+          },
+          {
+            "id": "unlucky",
+            "label": "Unlucky (9-12)",
+            "min": 9,
+            "max": 12
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*rolls the Fate Dice across the table* THE DICE WILL DECIDE YOUR DESTINY!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-dd-lucky",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1200
+      },
+      "data": {
+        "label": "Lucky Roll!",
+        "actionType": "send_message",
+        "message": "*confetti EXPLODES* LUCKY ROLL! *audience goes WILD* FREEDOM! You beat the HOUSE! The deal was [Flow:dealOffer] pulses and you got NOTHING! *tears up fake contract* The gamble PAID OFF! Get out of here before I change my mind!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-neutral-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1200
+      },
+      "data": {
+        "label": "Neutral Roll",
+        "actionType": "send_message",
+        "message": "*shrugs* NEUTRAL ZONE! Not the worst, not the best! *audience murmurs* You get a MODERATE experience... probably WORSE than the deal, honestly! *cackles*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-neutral-device",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1400
+      },
+      "data": {
+        "label": "Neutral Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*flips switch* Three cycles of the neutral zone! Could have just taken the deal!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*golf clap* Not terrible, not great. The deal was [Flow:dealOffer] pulses... was this better? *shrugs* Only YOU can answer that!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-unlucky-msg",
+      "type": "action",
+      "position": {
+        "x": 800,
+        "y": 1200
+      },
+      "data": {
+        "label": "Unlucky Roll!",
+        "actionType": "send_message",
+        "message": "*ALARM SOUNDS* UNLUCKY! THE WORST POSSIBLE OUTCOME! *audience screams* You rejected [Flow:dealOffer] measly pulses and NOW... *dramatic pause* ...we go to the BONUS ROUND! *slot machine descends from ceiling*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-slots",
+      "type": "slot_machine",
+      "position": {
+        "x": 800,
+        "y": 1400
+      },
+      "data": {
+        "label": "Penalty Slots",
+        "reels": [
+          {
+            "id": "reel1",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          },
+          {
+            "id": "reel2",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          },
+          {
+            "id": "reel3",
+            "symbols": [
+              "7",
+              "BAR",
+              "Cherry",
+              "Lemon",
+              "Star"
+            ]
+          }
+        ],
+        "matchRequirement": "any2",
+        "preMessageEnabled": true,
+        "preMessage": "*pulls the lever* THE PENALTY SLOTS WILL DECIDE YOUR FATE!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-dd-slots-jackpot-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1620
+      },
+      "data": {
+        "label": "Slots Jackpot",
+        "actionType": "send_message",
+        "message": "*SIRENS BLARE* THREE OF A KIND! PENALTY JACKPOT! *audience covers their eyes* This is the WORST jackpot in game show HISTORY! THIRTY SECONDS of full power! *maniacal laughter*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-slots-jackpot-device",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1820
+      },
+      "data": {
+        "label": "Jackpot Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "*slams the BIG button* JACKPOT PUNISHMENT ACTIVATED! Should have taken the DEAL!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*takes several bows* AND THAT is why you NEVER say No Deal on MY show! *audience gives standing ovation to the chaos*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-slots-partial-msg",
+      "type": "action",
+      "position": {
+        "x": 800,
+        "y": 1620
+      },
+      "data": {
+        "label": "Slots Partial",
+        "actionType": "send_message",
+        "message": "*ding ding* Two matching! A PARTIAL penalty! *audience winces* Not the WORST outcome... but definitely worse than the deal!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-slots-partial-device",
+      "type": "action",
+      "position": {
+        "x": 800,
+        "y": 1820
+      },
+      "data": {
+        "label": "Partial Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*flips switch* Five cycles for the partial match! The slots have spoken!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*sympathetic head shake* The deal was RIGHT THERE. [Flow:dealOffer] little pulses. But nooooo... *audience laughs*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-slots-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 1000,
+        "y": 1620
+      },
+      "data": {
+        "label": "Slots No Match",
+        "actionType": "send_message",
+        "message": "*sad slot sounds* No matches on the slots! *audience relief murmur* But don't get TOO excited... you still owe the house for the unlucky roll!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-dd-slots-lose-device",
+      "type": "action",
+      "position": {
+        "x": 1000,
+        "y": 1820
+      },
+      "data": {
+        "label": "No Match Penalty",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 6,
+        "preMessageEnabled": true,
+        "preMessage": "*presses button six times* Six pulses! Still more than the deal! *cackles*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*counts on fingers* The deal was [Flow:dealOffer]... you got six... *shrugs* Math is NOT your friend today, contestant!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-dd-emo-offer",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 460
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "vex-dd-emo-gamble",
+      "type": "action",
+      "position": {
+        "x": 575,
+        "y": 870
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "vex-dd-emo-unlucky",
+      "type": "action",
+      "position": {
+        "x": 825,
+        "y": 1267
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-dd-attr-unlucky",
+      "type": "action",
+      "position": {
+        "x": 825,
+        "y": 1333
+      },
+      "data": {
+        "label": "Raise Psychopathic",
+        "actionType": "set_attribute",
+        "attribute": "psychopathic",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "vex-dd-btn",
+      "target": "vex-dd-random"
+    },
+    {
+      "id": "e2",
+      "source": "vex-dd-random",
+      "target": "vex-dd-offer"
+    },
+    {
+      "id": "e4",
+      "source": "vex-dd-choice",
+      "sourceHandle": "a",
+      "target": "vex-dd-deal-msg"
+    },
+    {
+      "id": "e5",
+      "source": "vex-dd-choice",
+      "sourceHandle": "b",
+      "target": "vex-dd-nodeal-msg"
+    },
+    {
+      "id": "e6",
+      "source": "vex-dd-deal-msg",
+      "target": "vex-dd-deal-pulse"
+    },
+    {
+      "id": "e8",
+      "source": "vex-dd-dice",
+      "sourceHandle": "lucky",
+      "target": "vex-dd-lucky"
+    },
+    {
+      "id": "e9",
+      "source": "vex-dd-dice",
+      "sourceHandle": "neutral",
+      "target": "vex-dd-neutral-msg"
+    },
+    {
+      "id": "e10",
+      "source": "vex-dd-dice",
+      "sourceHandle": "unlucky",
+      "target": "vex-dd-unlucky-msg"
+    },
+    {
+      "id": "e11",
+      "source": "vex-dd-neutral-msg",
+      "target": "vex-dd-neutral-device"
+    },
+    {
+      "id": "e13",
+      "source": "vex-dd-slots",
+      "sourceHandle": "jackpot",
+      "target": "vex-dd-slots-jackpot-msg"
+    },
+    {
+      "id": "e14",
+      "source": "vex-dd-slots",
+      "sourceHandle": "partial-win",
+      "target": "vex-dd-slots-partial-msg"
+    },
+    {
+      "id": "e15",
+      "source": "vex-dd-slots",
+      "sourceHandle": "lose",
+      "target": "vex-dd-slots-lose-msg"
+    },
+    {
+      "id": "e16",
+      "source": "vex-dd-slots-jackpot-msg",
+      "target": "vex-dd-slots-jackpot-device"
+    },
+    {
+      "id": "e17",
+      "source": "vex-dd-slots-partial-msg",
+      "target": "vex-dd-slots-partial-device"
+    },
+    {
+      "id": "e18",
+      "source": "vex-dd-slots-lose-msg",
+      "target": "vex-dd-slots-lose-device"
+    },
+    {
+      "id": "e-vex-dd-offer-to-vex-dd-emo-offer",
+      "source": "vex-dd-offer",
+      "target": "vex-dd-emo-offer"
+    },
+    {
+      "id": "e-vex-dd-emo-offer-to-vex-dd-choice",
+      "source": "vex-dd-emo-offer",
+      "target": "vex-dd-choice"
+    },
+    {
+      "id": "e-vex-dd-nodeal-msg-to-vex-dd-emo-gamble",
+      "source": "vex-dd-nodeal-msg",
+      "target": "vex-dd-emo-gamble"
+    },
+    {
+      "id": "e-vex-dd-emo-gamble-to-vex-dd-dice",
+      "source": "vex-dd-emo-gamble",
+      "target": "vex-dd-dice"
+    },
+    {
+      "id": "e-vex-dd-unlucky-msg-to-vex-dd-emo-unlucky",
+      "source": "vex-dd-unlucky-msg",
+      "target": "vex-dd-emo-unlucky"
+    },
+    {
+      "id": "e-vex-dd-emo-unlucky-to-vex-dd-attr-unlucky",
+      "source": "vex-dd-emo-unlucky",
+      "target": "vex-dd-attr-unlucky"
+    },
+    {
+      "id": "e-vex-dd-attr-unlucky-to-vex-dd-slots",
+      "source": "vex-dd-attr-unlucky",
+      "target": "vex-dd-slots"
+    }
+  ]
+}

@@ -8,13 +8,16 @@ function StatusBadges({
   selectedPainLevel,
   onPainLevelChange,
   capacity,
+  onCapacityChange,
   personaName,
   useAutoCapacity,
 }) {
   const emotionRef = useRef(null);
   const painRef = useRef(null);
+  const capacityRef = useRef(null);
   const [showEmotionPopup, setShowEmotionPopup] = React.useState(false);
   const [showPainPopup, setShowPainPopup] = React.useState(false);
+  const [showCapacitySlider, setShowCapacitySlider] = React.useState(false);
 
   // Click-outside handlers
   useEffect(() => {
@@ -25,10 +28,13 @@ function StatusBadges({
       if (showPainPopup && painRef.current && !painRef.current.contains(e.target)) {
         setShowPainPopup(false);
       }
+      if (showCapacitySlider && capacityRef.current && !capacityRef.current.contains(e.target)) {
+        setShowCapacitySlider(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmotionPopup, showPainPopup]);
+  }, [showEmotionPopup, showPainPopup, showCapacitySlider]);
 
   const currentEmotion = EMOTIONS.find(e => e.key === selectedEmotion) || EMOTIONS[0];
   const currentPain = PAIN_SCALE[selectedPainLevel] || PAIN_SCALE[0];
@@ -48,7 +54,11 @@ function StatusBadges({
       <div className="faces-background-bar"></div>
 
       {/* Capacity Gauge Circle */}
-      <div className="badge-capacity-circle">
+      <div
+        className="badge-capacity-circle"
+        ref={capacityRef}
+        onClick={() => onCapacityChange && setShowCapacitySlider(!showCapacitySlider)}
+      >
         <div className="capacity-gauge-mini">
           <div className="gauge-background-mini"></div>
           <div
@@ -58,6 +68,51 @@ function StatusBadges({
           <div className="gauge-center-mini"></div>
           <span className="gauge-value-mini">{capacity}%</span>
         </div>
+        {showCapacitySlider && onCapacityChange && (
+          <div className="capacity-slider-popup" onClick={(e) => e.stopPropagation()}>
+            <span className="capacity-slider-label">{Math.max(0, Math.min(100, capacity))}%</span>
+            <div
+              className="capacity-slider-track"
+              onMouseDown={(e) => {
+                const track = e.currentTarget;
+                const update = (ev) => {
+                  const rect = track.getBoundingClientRect();
+                  const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - ev.clientY) / rect.height) * 100)));
+                  onCapacityChange(pct);
+                };
+                update(e);
+                const onMove = (ev) => update(ev);
+                const onUp = () => {
+                  document.removeEventListener('mousemove', onMove);
+                  document.removeEventListener('mouseup', onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+              }}
+              onTouchStart={(e) => {
+                const track = e.currentTarget;
+                const update = (ev) => {
+                  const touch = ev.touches[0];
+                  const rect = track.getBoundingClientRect();
+                  const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)));
+                  onCapacityChange(pct);
+                };
+                update(e);
+                const onMove = (ev) => { ev.preventDefault(); update(ev); };
+                const onEnd = () => {
+                  document.removeEventListener('touchmove', onMove);
+                  document.removeEventListener('touchend', onEnd);
+                };
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+              }}
+            >
+              <div className="capacity-slider-fill" style={{ height: `${Math.max(0, Math.min(100, capacity))}%` }} />
+              <div className="capacity-slider-thumb" style={{ bottom: `${Math.max(0, Math.min(100, capacity))}%` }} />
+            </div>
+            <span className="capacity-slider-min">0</span>
+          </div>
+        )}
       </div>
 
       {/* Emotion + Pain badges and mode indicator */}

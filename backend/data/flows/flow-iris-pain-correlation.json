@@ -1,0 +1,440 @@
+{
+  "id": "flow-iris-pain-correlation",
+  "name": "Pain Correlation Study",
+  "category": "character",
+  "description": "Maps pain-response correlation with adaptive stimulus based on self-reported pain levels",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-pc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Pain Study",
+        "buttonTarget": "character",
+        "buttonId": "iris-pain",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-pc-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "Study Introduction",
+        "actionType": "send_message",
+        "message": "*prepares clipboard and calibrates instruments* We're mapping your pain-response correlation today, Subject #47. I'll need precise self-reported data at two intervals. Your honesty directly impacts the validity of this study. *adjusts glasses* And I will know if you're exaggerating.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-input-pre",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 530
+      },
+      "data": {
+        "label": "Pre-Stimulus Rating",
+        "inputType": "number",
+        "variableName": "prePainRating",
+        "prompt": "Rate your current pain level (0 = none, 10 = maximum):",
+        "placeholder": "0-10",
+        "min": 0,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-pc-condition",
+      "type": "condition",
+      "position": {
+        "x": 200,
+        "y": 750
+      },
+      "data": {
+        "label": "Pain Threshold Check",
+        "conditions": [
+          {
+            "variable": "prePainRating",
+            "operator": ">=",
+            "value": 7
+          },
+          {
+            "variable": "prePainRating",
+            "operator": ">=",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-pc-high-msg",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 980
+      },
+      "data": {
+        "label": "High Pain Protocol",
+        "actionType": "send_message",
+        "message": "*reviews rating and makes note* A [Flow:prePainRating] out of 10. High baseline pain detected. *adjusts parameters on control panel* Reducing stimulus intensity to avoid data contamination from ceiling effects. Minimal pulse protocol engaged.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-high-pulse",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1200
+      },
+      "data": {
+        "label": "Minimal Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*activates minimal stimulus* Two diagnostic pulses only. Monitoring carefully...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*records instrument readings* Stimulus delivered. Preparing post-assessment.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-pc-high-input",
+      "type": "input",
+      "position": {
+        "x": -200,
+        "y": 1450
+      },
+      "data": {
+        "label": "Post Rating (High)",
+        "inputType": "number",
+        "variableName": "postPainRating",
+        "prompt": "Post-stimulus pain rating (0-10):",
+        "placeholder": "0-10",
+        "min": 0,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-pc-high-analysis",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1680
+      },
+      "data": {
+        "label": "High Path Analysis",
+        "actionType": "send_message",
+        "message": "*compares data points* Pre-stimulus: [Flow:prePainRating]. Post-stimulus: [Flow:postPainRating]. *adjusts glasses* Fascinating correlation. Even minimal stimulus produces measurable variance in subjects with elevated baselines. The delta suggests your pain processing pathways are... atypical. *makes extensive notes* This warrants further investigation.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-mid-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 980
+      },
+      "data": {
+        "label": "Moderate Pain Protocol",
+        "actionType": "send_message",
+        "message": "*notes the rating* [Flow:prePainRating] out of 10. Moderate baseline. *flips to standard protocol page* This falls within normal parameters. Applying standard cyclic stimulus to establish response curve.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-mid-cycle",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1200
+      },
+      "data": {
+        "label": "Standard Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*initiates standard protocol* Two cycles. Three seconds on, two seconds rest. Textbook parameters.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*marks completion on timeline* Standard stimulus delivered within expected parameters.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-pc-mid-input",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 1450
+      },
+      "data": {
+        "label": "Post Rating (Mid)",
+        "inputType": "number",
+        "variableName": "postPainRating",
+        "prompt": "Post-stimulus pain rating (0-10):",
+        "placeholder": "0-10",
+        "min": 0,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-pc-mid-analysis",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1680
+      },
+      "data": {
+        "label": "Mid Path Analysis",
+        "actionType": "send_message",
+        "message": "*reviews both data points* Pre: [Flow:prePainRating]. Post: [Flow:postPainRating]. *taps pen against clipboard* The response curve is consistent with standard models. Your pain-stimulus correlation falls within two standard deviations of the mean for Subject #47's historical data. *makes note* Unremarkable, but useful for the longitudinal study.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-low-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 980
+      },
+      "data": {
+        "label": "Low Pain Escalation",
+        "actionType": "send_message",
+        "message": "*raises eyebrow at the reading* Only [Flow:prePainRating] out of 10? Your pain threshold hasn't been located yet. *turns dial on control panel* Escalating to sustained stimulus. We need to find where your curve inflects, Subject #47.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-low-device",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1200
+      },
+      "data": {
+        "label": "Sustained Stimulus",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*activates sustained output* Fifteen seconds continuous. Let's see where your threshold actually is...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*stops device and immediately checks readings* Sustained stimulus complete. Now for the critical measurement.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-pc-low-input",
+      "type": "input",
+      "position": {
+        "x": 600,
+        "y": 1450
+      },
+      "data": {
+        "label": "Post Rating (Low)",
+        "inputType": "number",
+        "variableName": "postPainRating",
+        "prompt": "Post-stimulus pain rating (0-10):",
+        "placeholder": "0-10",
+        "min": 0,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-pc-low-analysis",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1680
+      },
+      "data": {
+        "label": "Low Path Analysis",
+        "actionType": "send_message",
+        "message": "*studies the data intently* Pre: [Flow:prePainRating]. Post: [Flow:postPainRating]. Sustained stimulus applied for threshold detection. *adjusts glasses* The delta of this magnitude under escalated conditions suggests either remarkable tolerance or... unreliable self-reporting. *eyes you over clipboard* I'll note both possibilities. Further sessions required to disambiguate.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-pc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 415
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-pc-emo-escalate",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 1053
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "iris-pc-attr-sadistic",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 1127
+      },
+      "data": {
+        "label": "Lower Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 12
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-pc-btn",
+      "target": "iris-pc-intro"
+    },
+    {
+      "id": "e3",
+      "source": "iris-pc-input-pre",
+      "target": "iris-pc-condition"
+    },
+    {
+      "id": "e4",
+      "source": "iris-pc-condition",
+      "sourceHandle": "true-0",
+      "target": "iris-pc-high-msg"
+    },
+    {
+      "id": "e5",
+      "source": "iris-pc-condition",
+      "sourceHandle": "true-1",
+      "target": "iris-pc-mid-msg"
+    },
+    {
+      "id": "e6",
+      "source": "iris-pc-condition",
+      "sourceHandle": "false",
+      "target": "iris-pc-low-msg"
+    },
+    {
+      "id": "e7",
+      "source": "iris-pc-high-msg",
+      "target": "iris-pc-high-pulse"
+    },
+    {
+      "id": "e8",
+      "source": "iris-pc-high-pulse",
+      "sourceHandle": "completion",
+      "target": "iris-pc-high-input"
+    },
+    {
+      "id": "e9",
+      "source": "iris-pc-high-input",
+      "target": "iris-pc-high-analysis"
+    },
+    {
+      "id": "e10",
+      "source": "iris-pc-mid-msg",
+      "target": "iris-pc-mid-cycle"
+    },
+    {
+      "id": "e11",
+      "source": "iris-pc-mid-cycle",
+      "sourceHandle": "completion",
+      "target": "iris-pc-mid-input"
+    },
+    {
+      "id": "e12",
+      "source": "iris-pc-mid-input",
+      "target": "iris-pc-mid-analysis"
+    },
+    {
+      "id": "e14",
+      "source": "iris-pc-low-device",
+      "sourceHandle": "completion",
+      "target": "iris-pc-low-input"
+    },
+    {
+      "id": "e15",
+      "source": "iris-pc-low-input",
+      "target": "iris-pc-low-analysis"
+    },
+    {
+      "id": "e-iris-pc-intro-to-iris-pc-emo-start",
+      "source": "iris-pc-intro",
+      "target": "iris-pc-emo-start"
+    },
+    {
+      "id": "e-iris-pc-emo-start-to-iris-pc-input-pre",
+      "source": "iris-pc-emo-start",
+      "target": "iris-pc-input-pre"
+    },
+    {
+      "id": "e-iris-pc-low-msg-to-iris-pc-emo-escalate",
+      "source": "iris-pc-low-msg",
+      "target": "iris-pc-emo-escalate"
+    },
+    {
+      "id": "e-iris-pc-emo-escalate-to-iris-pc-attr-sadistic",
+      "source": "iris-pc-emo-escalate",
+      "target": "iris-pc-attr-sadistic"
+    },
+    {
+      "id": "e-iris-pc-attr-sadistic-to-iris-pc-low-device",
+      "source": "iris-pc-attr-sadistic",
+      "target": "iris-pc-low-device"
+    }
+  ]
+}

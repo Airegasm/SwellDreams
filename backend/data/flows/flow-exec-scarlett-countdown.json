@@ -1,0 +1,382 @@
+{
+  "id": "flow-exec-scarlett-countdown",
+  "name": "Executress Scarlett: Countdown",
+  "category": "character",
+  "description": "Three phases of sustained inflation with timer challenge escape attempts. Loop-based countdown protocol with device control.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-cd-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Countdown",
+        "buttonTarget": "character",
+        "buttonId": "exec-countdown",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-cd-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Init Phase Counter",
+        "variable": "countdownPhase",
+        "variableName": "countdownPhase",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "exec-cd-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Countdown Introduction",
+        "actionType": "send_message",
+        "message": "The countdown protocol. *stands beside the inflation apparatus, hands clasped behind her back* Three phases of sustained inflation. During each phase, the pump will engage indefinitely — it will not stop on its own. You will be presented with an escape mechanism: a brief window in which pressing the release valve will terminate that phase's inflation. *regards [Player] with clinical detachment* Failure to find the escape window means the machine decides when it stops — not you. Succeed or fail, the execution proceeds through all three phases. The countdown is a measure of your reflexes, not your mercy. *moves to the controls* We begin.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-loop",
+      "type": "loop",
+      "position": {
+        "x": 300,
+        "y": 540
+      },
+      "data": {
+        "label": "Three Phases",
+        "mode": "fixed",
+        "iterations": 3,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "exec-cd-phase-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 690
+      },
+      "data": {
+        "label": "Advance Phase",
+        "variable": "countdownPhase",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "exec-cd-phase-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 840
+      },
+      "data": {
+        "label": "Phase Announcement",
+        "actionType": "send_message",
+        "message": "Phase [Flow:countdownPhase] of 3. *activates the inflation apparatus* The pump engages now. Sustained, continuous inflation — your intestines will expand until you find the escape window or the machine determines you've had enough. *watches the pressure gauge begin to climb* Find the window... if you can.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-inflate",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1010
+      },
+      "data": {
+        "label": "Sustained Inflation",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "indefinite",
+        "preMessageEnabled": true,
+        "preMessage": "*the pump hums to life, a steady flow of air entering [Player]'s intestines* The machine is running. Your belly is expanding. The escape window will appear once during this phase.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-timer",
+      "type": "timer_challenge",
+      "position": {
+        "x": 300,
+        "y": 1200
+      },
+      "data": {
+        "label": "Escape Challenge",
+        "mode": "escape",
+        "duration": 12,
+        "escapeWindow": 500,
+        "precisionMode": false
+      }
+    },
+    {
+      "id": "exec-cd-success-off",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1400
+      },
+      "data": {
+        "label": "Escape: Device Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-success-msg",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1550
+      },
+      "data": {
+        "label": "Escape Success",
+        "actionType": "send_message",
+        "message": "*observes as the pump shuts down and the pressure stabilizes* You found the escape window. Phase [Flow:countdownPhase] survived — the inflation terminated at your command rather than the machine's. *makes a notation in the execution log* Your reflexes are noted. Whether they'll serve you as well in the next phase remains to be seen. *the pressure in [Player]'s belly holds at its current level* The air already inside you, of course, stays where it is.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-success-delay",
+      "type": "delay",
+      "position": {
+        "x": 100,
+        "y": 1720
+      },
+      "data": {
+        "label": "Recovery Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "exec-cd-fail-off",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1400
+      },
+      "data": {
+        "label": "Timeout: Device Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-fail-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1550
+      },
+      "data": {
+        "label": "Escape Failed",
+        "actionType": "send_message",
+        "message": "*tilts her head slightly as the machine stops on its own timer* You failed to find the escape window. The machine stopped on its own terms — twelve full seconds of uncontrolled inflation. Phase [Flow:countdownPhase] noted as a failure. *examines the additional distension in [Player]'s belly* Your intestines absorbed the full duration. The peritoneal wall was under sustained tension for the entire period with no relief. *writes in the log* The next phase will build on this volume. The pressure is cumulative.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-fail-delay",
+      "type": "delay",
+      "position": {
+        "x": 500,
+        "y": 1720
+      },
+      "data": {
+        "label": "Recovery Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "exec-cd-conclusion",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1950
+      },
+      "data": {
+        "label": "Countdown Complete",
+        "actionType": "send_message",
+        "message": "All three phases of the countdown complete. *reviews the execution log, running her finger down the entries* Your escape success rate has been documented — each phase, each outcome, each additional second of inflation your intestines absorbed. *closes the log* Whether you survived or failed each phase is, ultimately, irrelevant to the final outcome. The execution proceeds regardless of your performance in the countdown. These challenges measure your responses for the record. They do not alter your sentence. *adjusts the equipment, preparing for the next protocol* The pressure in your belly from all three phases has accumulated. You are carrying the volume of every phase — escaped or not. *meets [Player]'s eyes* Consider that as we proceed.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cd-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 445
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-cd-emo-escape",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 1300
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "exec-cd-emo-fail",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 1300
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-cd-btn",
+      "target": "exec-cd-init"
+    },
+    {
+      "id": "e2",
+      "source": "exec-cd-init",
+      "target": "exec-cd-intro"
+    },
+    {
+      "id": "e4",
+      "source": "exec-cd-loop",
+      "sourceHandle": "loop",
+      "target": "exec-cd-phase-counter"
+    },
+    {
+      "id": "e5",
+      "source": "exec-cd-phase-counter",
+      "target": "exec-cd-phase-msg"
+    },
+    {
+      "id": "e6",
+      "source": "exec-cd-phase-msg",
+      "target": "exec-cd-inflate"
+    },
+    {
+      "id": "e7",
+      "source": "exec-cd-inflate",
+      "sourceHandle": "immediate",
+      "target": "exec-cd-timer"
+    },
+    {
+      "id": "e9",
+      "source": "exec-cd-success-off",
+      "target": "exec-cd-success-msg"
+    },
+    {
+      "id": "e10",
+      "source": "exec-cd-success-msg",
+      "target": "exec-cd-success-delay"
+    },
+    {
+      "id": "e11",
+      "source": "exec-cd-success-delay",
+      "target": "exec-cd-loop"
+    },
+    {
+      "id": "e13",
+      "source": "exec-cd-fail-off",
+      "target": "exec-cd-fail-msg"
+    },
+    {
+      "id": "e14",
+      "source": "exec-cd-fail-msg",
+      "target": "exec-cd-fail-delay"
+    },
+    {
+      "id": "e15",
+      "source": "exec-cd-fail-delay",
+      "target": "exec-cd-loop"
+    },
+    {
+      "id": "e16",
+      "source": "exec-cd-loop",
+      "sourceHandle": "done",
+      "target": "exec-cd-conclusion"
+    },
+    {
+      "id": "e-exec-cd-intro-to-exec-cd-emo-start",
+      "source": "exec-cd-intro",
+      "target": "exec-cd-emo-start"
+    },
+    {
+      "id": "e-exec-cd-emo-start-to-exec-cd-loop",
+      "source": "exec-cd-emo-start",
+      "target": "exec-cd-loop"
+    },
+    {
+      "id": "e-exec-cd-timer-to-exec-cd-emo-escape",
+      "source": "exec-cd-timer",
+      "target": "exec-cd-emo-escape",
+      "sourceHandle": "success"
+    },
+    {
+      "id": "e-exec-cd-emo-escape-to-exec-cd-success-off",
+      "source": "exec-cd-emo-escape",
+      "target": "exec-cd-success-off"
+    },
+    {
+      "id": "e-exec-cd-timer-to-exec-cd-emo-fail",
+      "source": "exec-cd-timer",
+      "target": "exec-cd-emo-fail",
+      "sourceHandle": "timeout"
+    },
+    {
+      "id": "e-exec-cd-emo-fail-to-exec-cd-fail-off",
+      "source": "exec-cd-emo-fail",
+      "target": "exec-cd-fail-off"
+    }
+  ]
+}

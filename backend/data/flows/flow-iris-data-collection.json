@@ -226,6 +226,45 @@
         "preDelay": 0,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "iris-dc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-dc-emo-high",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 875
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-dc-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
     }
   ],
   "edges": [
@@ -233,11 +272,6 @@
       "id": "e1",
       "source": "iris-dc-btn",
       "target": "iris-dc-intro"
-    },
-    {
-      "id": "e2",
-      "source": "iris-dc-intro",
-      "target": "iris-dc-pressure"
     },
     {
       "id": "e3",
@@ -258,12 +292,6 @@
       "id": "e6",
       "source": "iris-dc-discomfort-log",
       "target": "iris-dc-condition"
-    },
-    {
-      "id": "e7",
-      "source": "iris-dc-condition",
-      "sourceHandle": "true-0",
-      "target": "iris-dc-high-response"
     },
     {
       "id": "e8",
@@ -293,8 +321,34 @@
       "target": "iris-dc-complete"
     },
     {
-      "id": "e13",
+      "id": "e-iris-dc-intro-to-iris-dc-emo-start",
+      "source": "iris-dc-intro",
+      "target": "iris-dc-emo-start"
+    },
+    {
+      "id": "e-iris-dc-emo-start-to-iris-dc-pressure",
+      "source": "iris-dc-emo-start",
+      "target": "iris-dc-pressure"
+    },
+    {
+      "id": "e-iris-dc-condition-to-iris-dc-emo-high",
+      "source": "iris-dc-condition",
+      "target": "iris-dc-emo-high",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-iris-dc-emo-high-to-iris-dc-high-response",
+      "source": "iris-dc-emo-high",
+      "target": "iris-dc-high-response"
+    },
+    {
+      "id": "e-iris-dc-pumpoff-btn-to-iris-dc-emo-stop",
       "source": "iris-dc-pumpoff-btn",
+      "target": "iris-dc-emo-stop"
+    },
+    {
+      "id": "e-iris-dc-emo-stop-to-iris-dc-pumpoff-action",
+      "source": "iris-dc-emo-stop",
       "target": "iris-dc-pumpoff-action"
     }
   ]

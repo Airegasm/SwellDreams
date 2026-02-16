@@ -1,0 +1,377 @@
+{
+  "id": "flow-julie-reflex-calibration",
+  "name": "Julie's Reflex Calibration",
+  "category": "character",
+  "description": "Two rounds of reflex testing to map neural response time. Win earns reward pulses, lose triggers recalibration inflation.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "julie-rc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Reflex Test",
+        "buttonTarget": "character",
+        "buttonId": "julie-reflex",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rc-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 170
+      },
+      "data": {
+        "label": "Calibration Intro",
+        "actionType": "send_message",
+        "message": "*adjusts an array of sensors mounted on a flexible arm* Reflex calibration protocol! *taps her clipboard* Two rounds of neural response testing to map your reaction time under pressure conditions! Each round has three targets — hit them before the timer expires! *leans in with gleaming eyes* Your reflex data is the MISSING PIECE in my neuro-pressure response model!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rc-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 250,
+        "y": 310
+      },
+      "data": {
+        "label": "Init Round",
+        "variable": "reflexRound",
+        "variableName": "reflexRound",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "julie-rc-loop",
+      "type": "loop",
+      "position": {
+        "x": 250,
+        "y": 440
+      },
+      "data": {
+        "label": "Calibration Loop",
+        "mode": "fixed",
+        "iterations": 2,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "julie-rc-counter",
+      "type": "counter",
+      "position": {
+        "x": 250,
+        "y": 570
+      },
+      "data": {
+        "label": "Round Counter",
+        "variable": "reflexRound",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "julie-rc-round-msg",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 700
+      },
+      "data": {
+        "label": "Round Announce",
+        "actionType": "send_message",
+        "message": "*holds up [Flow:reflexRound] finger(s)* Round [Flow:reflexRound]! *positions her tablet to record* Hit the targets as fast as you can — I'm measuring response latency down to the MILLISECOND! Your neural pathways are about to be QUANTIFIED!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rc-reflex",
+      "type": "reflex_challenge",
+      "position": {
+        "x": 250,
+        "y": 850
+      },
+      "data": {
+        "label": "Reflex Challenge",
+        "timePerTarget": 3,
+        "rounds": 3,
+        "targetSize": "medium",
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "*activates the reflex calibration array* Sensors hot — targets deploying NOW!",
+        "aiMessageWinSuppressLlm": true,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "*activates the reflex calibration array* Sensors hot — targets deploying NOW!",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "julie-rc-win-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1030
+      },
+      "data": {
+        "label": "Win Announce",
+        "actionType": "send_message",
+        "message": "*checks the data stream, jaw dropping* EXCELLENT reflexes! *taps furiously on her tablet* Sub-threshold response times across all three targets! Your neural conduction velocity is in the top percentile! Four reward pulses to mark the successful calibration!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rc-win-pump",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1180
+      },
+      "data": {
+        "label": "Reward (pulse x4)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*queues up the reward protocol* Four precision pulses — each one time-locked to your measured response latency!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*records the pulse-response correlation* FOUR reward pulses perfectly captured! *overlays reflex data with pressure response* The timing correlation is STUNNING — your neural response literally ANTICIPATES the pressure change! Round [Flow:reflexRound] data: PRISTINE!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "julie-rc-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1030
+      },
+      "data": {
+        "label": "Lose Announce",
+        "actionType": "send_message",
+        "message": "*taps her tablet thoughtfully* Below threshold response time. *adjusts her glasses* INTERESTING! Slow reflexes under these conditions suggest neural pathway saturation — which means your system is ALREADY processing a heavy sensory load! Ten seconds of recalibration inflation to reset the baseline!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rc-lose-pump",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1180
+      },
+      "data": {
+        "label": "Recalibration (10s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*configures the recalibration protocol* Ten seconds of sustained pressure to reset your neural baseline! This will FLUSH the sensory buffer!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*monitors the post-recalibration readings* TEN SECONDS of recalibration complete! *compares before and after data* The neural baseline has SHIFTED — look at how the recalibration changed the sensory threshold! Round [Flow:reflexRound] data shows the recalibration effect PERFECTLY!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "julie-rc-delay",
+      "type": "delay",
+      "position": {
+        "x": 250,
+        "y": 1340
+      },
+      "data": {
+        "label": "Recovery Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "julie-rc-done",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1520
+      },
+      "data": {
+        "label": "Calibration Complete",
+        "actionType": "send_message",
+        "message": "*spreads both rounds of data across her desk, comparing them side by side* Reflex calibration COMPLETE! Two full rounds of neural response data collected! *scrolls through graphs with visible euphoria* The neural-pressure response correlation is BEAUTIFUL! The way your reaction time varies with internal pressure follows a PERFECT logarithmic curve! *starts drafting an abstract* I could write a PAPER on this — 'Pressure-Dependent Neural Conduction Dynamics in Human Subjects' — it practically WRITES itself! *hugs her clipboard*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 240
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "julie-rc-emo-win",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 940
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "julie-rc-emo-lose",
+      "type": "action",
+      "position": {
+        "x": 375,
+        "y": 940
+      },
+      "data": {
+        "label": "Set Confused",
+        "actionType": "set_emotion",
+        "emotion": "confused"
+      }
+    },
+    {
+      "id": "julie-rc-emo-done",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 980
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "julie-rc-btn",
+      "target": "julie-rc-intro"
+    },
+    {
+      "id": "e3",
+      "source": "julie-rc-setvar",
+      "target": "julie-rc-loop"
+    },
+    {
+      "id": "e4",
+      "source": "julie-rc-loop",
+      "sourceHandle": "loop",
+      "target": "julie-rc-counter"
+    },
+    {
+      "id": "e5",
+      "source": "julie-rc-counter",
+      "target": "julie-rc-round-msg"
+    },
+    {
+      "id": "e6",
+      "source": "julie-rc-round-msg",
+      "target": "julie-rc-reflex"
+    },
+    {
+      "id": "e9",
+      "source": "julie-rc-win-msg",
+      "target": "julie-rc-win-pump"
+    },
+    {
+      "id": "e10",
+      "source": "julie-rc-lose-msg",
+      "target": "julie-rc-lose-pump"
+    },
+    {
+      "id": "e11",
+      "source": "julie-rc-win-pump",
+      "target": "julie-rc-delay"
+    },
+    {
+      "id": "e12",
+      "source": "julie-rc-lose-pump",
+      "target": "julie-rc-delay"
+    },
+    {
+      "id": "e13",
+      "source": "julie-rc-delay",
+      "target": "julie-rc-loop"
+    },
+    {
+      "id": "e-julie-rc-intro-to-julie-rc-emo-start",
+      "source": "julie-rc-intro",
+      "target": "julie-rc-emo-start"
+    },
+    {
+      "id": "e-julie-rc-emo-start-to-julie-rc-setvar",
+      "source": "julie-rc-emo-start",
+      "target": "julie-rc-setvar"
+    },
+    {
+      "id": "e-julie-rc-reflex-to-julie-rc-emo-win",
+      "source": "julie-rc-reflex",
+      "target": "julie-rc-emo-win",
+      "sourceHandle": "win"
+    },
+    {
+      "id": "e-julie-rc-emo-win-to-julie-rc-win-msg",
+      "source": "julie-rc-emo-win",
+      "target": "julie-rc-win-msg"
+    },
+    {
+      "id": "e-julie-rc-reflex-to-julie-rc-emo-lose",
+      "source": "julie-rc-reflex",
+      "target": "julie-rc-emo-lose",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-julie-rc-emo-lose-to-julie-rc-lose-msg",
+      "source": "julie-rc-emo-lose",
+      "target": "julie-rc-lose-msg"
+    },
+    {
+      "id": "e-julie-rc-loop-to-julie-rc-emo-done",
+      "source": "julie-rc-loop",
+      "target": "julie-rc-emo-done",
+      "sourceHandle": "done"
+    },
+    {
+      "id": "e-julie-rc-emo-done-to-julie-rc-done",
+      "source": "julie-rc-emo-done",
+      "target": "julie-rc-done"
+    }
+  ]
+}

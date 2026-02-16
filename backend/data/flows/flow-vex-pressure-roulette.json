@@ -1,0 +1,459 @@
+{
+  "id": "flow-vex-pressure-roulette",
+  "name": "Pressure Roulette",
+  "category": "character",
+  "description": "Russian roulette with 6 chambers - survive them all or get hit with full punishment",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-pr-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Roulette!",
+        "buttonTarget": "character",
+        "buttonId": "vex-roulette",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-pr-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Load the Chamber",
+        "actionType": "send_message",
+        "message": "*spins the cylinder dramatically* LADIES AND GENTLEMEN! Welcome to PRESSURE ROULETTE! *audience hushes* SIX chambers... ONE is loaded... *snaps cylinder shut* Will our contestant survive all six pulls? Or will they hear the BANG?! *audience leans forward*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-init-survived",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 380
+      },
+      "data": {
+        "label": "Init Survived",
+        "variable": "rouletteSurvived",
+        "variableName": "rouletteSurvived",
+        "value": "true",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "vex-pr-init-round",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 520
+      },
+      "data": {
+        "label": "Init Round",
+        "variable": "rouletteRound",
+        "variableName": "rouletteRound",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "vex-pr-loop",
+      "type": "loop",
+      "position": {
+        "x": 300,
+        "y": 680
+      },
+      "data": {
+        "label": "6 Chambers",
+        "mode": "fixed",
+        "iterations": 6,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "vex-pr-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 870
+      },
+      "data": {
+        "label": "Round Counter",
+        "variable": "rouletteRound",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "vex-pr-random",
+      "type": "random_number",
+      "position": {
+        "x": 300,
+        "y": 1040
+      },
+      "data": {
+        "label": "Chamber Roll",
+        "minValue": 1,
+        "maxValue": 6,
+        "variableName": "chamberResult"
+      }
+    },
+    {
+      "id": "vex-pr-check",
+      "type": "condition",
+      "position": {
+        "x": 300,
+        "y": 1210
+      },
+      "data": {
+        "label": "Loaded?",
+        "conditions": [
+          {
+            "variable": "custom",
+            "customVariable": "chamberResult",
+            "operator": "==",
+            "value": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vex-pr-bang",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1400
+      },
+      "data": {
+        "label": "BANG!!!",
+        "actionType": "send_message",
+        "message": "*EXPLOSION SOUND* BANG!!! *audience SCREAMS* OH NO! ROUND [Flow:rouletteRound] AND THE CHAMBER WAS LOADED! *sirens wail* Our contestant has been HIT! Time for the PUNISHMENT SEQUENCE!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-bang-device",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1580
+      },
+      "data": {
+        "label": "Roulette Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 25,
+        "preMessageEnabled": true,
+        "preMessage": "*slams the big red button* TWENTY-FIVE SECONDS! That's the price of a LOADED CHAMBER!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes brow* And the roulette punishment is COMPLETE!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-pr-set-failed",
+      "type": "set_variable",
+      "position": {
+        "x": 600,
+        "y": 1800
+      },
+      "data": {
+        "label": "Mark Failed",
+        "variable": "rouletteSurvived",
+        "variableName": "rouletteSurvived",
+        "value": "false",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "vex-pr-safe-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1400
+      },
+      "data": {
+        "label": "Safe Click",
+        "actionType": "send_message",
+        "message": "*click* ...SAFE! *audience exhales* Round [Flow:rouletteRound] and our contestant LIVES! *nervous laughter* But there are still more chambers to go...",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-safe-pulse",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1580
+      },
+      "data": {
+        "label": "Safe Pulse",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*taps button* Just a little reminder that you're still IN the game!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-safe-delay",
+      "type": "delay",
+      "position": {
+        "x": 50,
+        "y": 1760
+      },
+      "data": {
+        "label": "Tension Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "vex-pr-end-check",
+      "type": "condition",
+      "position": {
+        "x": 300,
+        "y": 2050
+      },
+      "data": {
+        "label": "Did They Survive?",
+        "conditions": [
+          {
+            "variable": "custom",
+            "customVariable": "rouletteSurvived",
+            "operator": "==",
+            "value": "true"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vex-pr-champion",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 2250
+      },
+      "data": {
+        "label": "Champion!",
+        "actionType": "send_message",
+        "message": "*drops microphone* ALL! SIX! CHAMBERS! *audience ERUPTS* LADIES AND GENTLEMEN, WE HAVE A CHAMPION! *fireworks explode* SIX pulls of the trigger and NOT A SINGLE HIT! UNBELIEVABLE! UNPRECEDENTED! *standing ovation* Take a bow, contestant... you've EARNED it!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-loser",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 2250
+      },
+      "data": {
+        "label": "Better Luck",
+        "actionType": "send_message",
+        "message": "*shrugs theatrically* Better luck next time, contestant! *audience claps politely* The roulette wheel shows NO mercy... but hey, at least you put on a GREAT show! *winks at camera*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-pr-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-pr-emo-bang",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 1273
+      },
+      "data": {
+        "label": "Set Dazed",
+        "actionType": "set_emotion",
+        "emotion": "dazed"
+      }
+    },
+    {
+      "id": "vex-pr-attr-bang",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 1337
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 95
+      }
+    },
+    {
+      "id": "vex-pr-emo-champion",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 2150
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "vex-pr-btn",
+      "target": "vex-pr-intro"
+    },
+    {
+      "id": "e3",
+      "source": "vex-pr-init-survived",
+      "target": "vex-pr-init-round"
+    },
+    {
+      "id": "e4",
+      "source": "vex-pr-init-round",
+      "target": "vex-pr-loop"
+    },
+    {
+      "id": "e5",
+      "source": "vex-pr-loop",
+      "sourceHandle": "loop",
+      "target": "vex-pr-counter"
+    },
+    {
+      "id": "e6",
+      "source": "vex-pr-counter",
+      "target": "vex-pr-random"
+    },
+    {
+      "id": "e7",
+      "source": "vex-pr-random",
+      "target": "vex-pr-check"
+    },
+    {
+      "id": "e9",
+      "source": "vex-pr-check",
+      "sourceHandle": "false",
+      "target": "vex-pr-safe-msg"
+    },
+    {
+      "id": "e10",
+      "source": "vex-pr-bang",
+      "target": "vex-pr-bang-device"
+    },
+    {
+      "id": "e11",
+      "source": "vex-pr-bang-device",
+      "target": "vex-pr-set-failed"
+    },
+    {
+      "id": "e12",
+      "source": "vex-pr-set-failed",
+      "target": "vex-pr-end-check"
+    },
+    {
+      "id": "e13",
+      "source": "vex-pr-safe-msg",
+      "target": "vex-pr-safe-pulse"
+    },
+    {
+      "id": "e14",
+      "source": "vex-pr-safe-pulse",
+      "target": "vex-pr-safe-delay"
+    },
+    {
+      "id": "e15",
+      "source": "vex-pr-safe-delay",
+      "target": "vex-pr-loop"
+    },
+    {
+      "id": "e16",
+      "source": "vex-pr-loop",
+      "sourceHandle": "done",
+      "target": "vex-pr-end-check"
+    },
+    {
+      "id": "e18",
+      "source": "vex-pr-end-check",
+      "sourceHandle": "false",
+      "target": "vex-pr-loser"
+    },
+    {
+      "id": "e-vex-pr-intro-to-vex-pr-emo-start",
+      "source": "vex-pr-intro",
+      "target": "vex-pr-emo-start"
+    },
+    {
+      "id": "e-vex-pr-emo-start-to-vex-pr-init-survived",
+      "source": "vex-pr-emo-start",
+      "target": "vex-pr-init-survived"
+    },
+    {
+      "id": "e-vex-pr-check-to-vex-pr-emo-bang",
+      "source": "vex-pr-check",
+      "target": "vex-pr-emo-bang",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-vex-pr-emo-bang-to-vex-pr-attr-bang",
+      "source": "vex-pr-emo-bang",
+      "target": "vex-pr-attr-bang"
+    },
+    {
+      "id": "e-vex-pr-attr-bang-to-vex-pr-bang",
+      "source": "vex-pr-attr-bang",
+      "target": "vex-pr-bang"
+    },
+    {
+      "id": "e-vex-pr-end-check-to-vex-pr-emo-champion",
+      "source": "vex-pr-end-check",
+      "target": "vex-pr-emo-champion",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-vex-pr-emo-champion-to-vex-pr-champion",
+      "source": "vex-pr-emo-champion",
+      "target": "vex-pr-champion"
+    }
+  ]
+}

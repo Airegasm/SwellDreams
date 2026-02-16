@@ -1,0 +1,512 @@
+{
+  "id": "flow-iris-comparative-analysis",
+  "name": "Comparative Analysis",
+  "category": "character",
+  "description": "Randomized AB/BA crossover design comparing sustained vs pulsed stimulus with self-reported ratings",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-ca-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Compare Data",
+        "buttonTarget": "character",
+        "buttonId": "iris-compare",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-ca-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "Analysis Introduction",
+        "actionType": "send_message",
+        "message": "*opens fresh page on clipboard* Comparative analysis protocol, Subject #47. You will receive two distinct stimulus modalities -- sustained and pulsed -- and provide subjective ratings for each. *adjusts glasses* The order will be randomized to control for sequence effects. Your ratings must be honest. I have ways of detecting fabricated data.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-dice",
+      "type": "dice_roll",
+      "position": {
+        "x": 200,
+        "y": 540
+      },
+      "data": {
+        "label": "Order Randomizer",
+        "diceCount": 1,
+        "mode": "ranges",
+        "ranges": [
+          {
+            "id": "ab",
+            "label": "Sustained First (AB)",
+            "min": 1,
+            "max": 3
+          },
+          {
+            "id": "ba",
+            "label": "Pulsed First (BA)",
+            "min": 4,
+            "max": 6
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*rolls randomization die* Determining stimulus order...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "iris-ca-ab-msg",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 780
+      },
+      "data": {
+        "label": "AB Order Announce",
+        "actionType": "send_message",
+        "message": "*checks result* Order assigned: Sustained stimulus first, followed by Pulsed. *prepares instruments* Beginning with ten seconds of continuous output.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-ab-sustained",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1000
+      },
+      "data": {
+        "label": "AB: Sustained (First)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*activates sustained output* Stimulus A: continuous, ten seconds. Observe your own response carefully.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*records completion* Stimulus A delivered. Collecting subjective data.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ca-ab-input1",
+      "type": "input",
+      "position": {
+        "x": -200,
+        "y": 1260
+      },
+      "data": {
+        "label": "Rate Sustained (AB)",
+        "inputType": "number",
+        "variableName": "ratingA",
+        "prompt": "Rate the sustained stimulus intensity (1-10):",
+        "placeholder": "1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-ca-ab-delay",
+      "type": "delay",
+      "position": {
+        "x": -200,
+        "y": 1460
+      },
+      "data": {
+        "label": "Washout Period",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "iris-ca-ab-pulsed-msg",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1600
+      },
+      "data": {
+        "label": "AB: Pulsed Announce",
+        "actionType": "send_message",
+        "message": "*switches modality* Washout period complete. Now administering Stimulus B: pulsed pattern. Three cycles, three seconds active, two seconds rest.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-ab-pulsed",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 1800
+      },
+      "data": {
+        "label": "AB: Pulsed (Second)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*activates cyclic pattern* Stimulus B engaged. Monitor your subjective experience.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*stops device* Stimulus B complete. Final rating required.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ca-ab-input2",
+      "type": "input",
+      "position": {
+        "x": -200,
+        "y": 2060
+      },
+      "data": {
+        "label": "Rate Pulsed (AB)",
+        "inputType": "number",
+        "variableName": "ratingB",
+        "prompt": "Rate the pulsed stimulus intensity (1-10):",
+        "placeholder": "1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-ca-ab-analysis",
+      "type": "action",
+      "position": {
+        "x": -200,
+        "y": 2270
+      },
+      "data": {
+        "label": "AB Analysis",
+        "actionType": "send_message",
+        "message": "*compiles comparative data* Results for Subject #47, AB order. Sustained stimulus rating: [Flow:ratingA]. Pulsed stimulus rating: [Flow:ratingB]. *adjusts glasses and studies the numbers* The differential between modalities is noted. *taps pen against clipboard* Your subjective perception of continuous versus intermittent stimulus provides valuable data for the sensory adaptation model. Session logged.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-ba-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 780
+      },
+      "data": {
+        "label": "BA Order Announce",
+        "actionType": "send_message",
+        "message": "*checks result* Order assigned: Pulsed stimulus first, followed by Sustained. *adjusts instrument settings* Beginning with cyclic pattern: three cycles.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-ba-pulsed",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1000
+      },
+      "data": {
+        "label": "BA: Pulsed (First)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*activates cyclic pattern* Stimulus A: pulsed, three cycles. Pay close attention to your response.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*records data* Stimulus A delivered. Collecting subjective rating.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ca-ba-input1",
+      "type": "input",
+      "position": {
+        "x": 600,
+        "y": 1260
+      },
+      "data": {
+        "label": "Rate Pulsed (BA)",
+        "inputType": "number",
+        "variableName": "ratingA",
+        "prompt": "Rate the pulsed stimulus intensity (1-10):",
+        "placeholder": "1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-ca-ba-delay",
+      "type": "delay",
+      "position": {
+        "x": 600,
+        "y": 1460
+      },
+      "data": {
+        "label": "Washout Period",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "iris-ca-ba-sustained-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1600
+      },
+      "data": {
+        "label": "BA: Sustained Announce",
+        "actionType": "send_message",
+        "message": "*switches modality* Washout complete. Administering Stimulus B: sustained continuous output for ten seconds.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-ba-sustained",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1800
+      },
+      "data": {
+        "label": "BA: Sustained (Second)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*activates sustained output* Stimulus B engaged. Ten seconds continuous.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*stops device* Stimulus B complete. Provide your final rating.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-ca-ba-input2",
+      "type": "input",
+      "position": {
+        "x": 600,
+        "y": 2060
+      },
+      "data": {
+        "label": "Rate Sustained (BA)",
+        "inputType": "number",
+        "variableName": "ratingB",
+        "prompt": "Rate the sustained stimulus intensity (1-10):",
+        "placeholder": "1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "iris-ca-ba-analysis",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 2270
+      },
+      "data": {
+        "label": "BA Analysis",
+        "actionType": "send_message",
+        "message": "*compiles comparative data* Results for Subject #47, BA order. Pulsed stimulus rating: [Flow:ratingA]. Sustained stimulus rating: [Flow:ratingB]. *reviews numbers carefully* Interesting. The reversed presentation order may reveal order-dependent sensitization effects. *makes extensive notes* Cross-referencing with your AB-order cohort data. This is precisely the kind of controlled comparison my research requires.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-ca-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 420
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "iris-ca-emo-end-ab",
+      "type": "action",
+      "data": {
+        "label": "Set Dazed",
+        "actionType": "set_emotion",
+        "emotion": "dazed"
+      },
+      "position": {
+        "x": -175,
+        "y": 2210
+      }
+    },
+    {
+      "id": "iris-ca-emo-end-ba",
+      "type": "action",
+      "data": {
+        "label": "Set Dazed",
+        "actionType": "set_emotion",
+        "emotion": "dazed"
+      },
+      "position": {
+        "x": 625,
+        "y": 2210
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-ca-btn",
+      "target": "iris-ca-intro"
+    },
+    {
+      "id": "e3",
+      "source": "iris-ca-dice",
+      "sourceHandle": "ab",
+      "target": "iris-ca-ab-msg"
+    },
+    {
+      "id": "e4",
+      "source": "iris-ca-dice",
+      "sourceHandle": "ba",
+      "target": "iris-ca-ba-msg"
+    },
+    {
+      "id": "e5",
+      "source": "iris-ca-ab-msg",
+      "target": "iris-ca-ab-sustained"
+    },
+    {
+      "id": "e6",
+      "source": "iris-ca-ab-sustained",
+      "sourceHandle": "completion",
+      "target": "iris-ca-ab-input1"
+    },
+    {
+      "id": "e7",
+      "source": "iris-ca-ab-input1",
+      "target": "iris-ca-ab-delay"
+    },
+    {
+      "id": "e8",
+      "source": "iris-ca-ab-delay",
+      "target": "iris-ca-ab-pulsed-msg"
+    },
+    {
+      "id": "e9",
+      "source": "iris-ca-ab-pulsed-msg",
+      "target": "iris-ca-ab-pulsed"
+    },
+    {
+      "id": "e10",
+      "source": "iris-ca-ab-pulsed",
+      "sourceHandle": "completion",
+      "target": "iris-ca-ab-input2"
+    },
+    {
+      "id": "e-iris-ca-ab-input2-to-iris-ca-emo-end-ab",
+      "source": "iris-ca-ab-input2",
+      "target": "iris-ca-emo-end-ab"
+    },
+    {
+      "id": "e12",
+      "source": "iris-ca-ba-msg",
+      "target": "iris-ca-ba-pulsed"
+    },
+    {
+      "id": "e13",
+      "source": "iris-ca-ba-pulsed",
+      "sourceHandle": "completion",
+      "target": "iris-ca-ba-input1"
+    },
+    {
+      "id": "e14",
+      "source": "iris-ca-ba-input1",
+      "target": "iris-ca-ba-delay"
+    },
+    {
+      "id": "e15",
+      "source": "iris-ca-ba-delay",
+      "target": "iris-ca-ba-sustained-msg"
+    },
+    {
+      "id": "e16",
+      "source": "iris-ca-ba-sustained-msg",
+      "target": "iris-ca-ba-sustained"
+    },
+    {
+      "id": "e17",
+      "source": "iris-ca-ba-sustained",
+      "sourceHandle": "completion",
+      "target": "iris-ca-ba-input2"
+    },
+    {
+      "id": "e-iris-ca-ba-input2-to-iris-ca-emo-end-ba",
+      "source": "iris-ca-ba-input2",
+      "target": "iris-ca-emo-end-ba"
+    },
+    {
+      "id": "e-iris-ca-intro-to-iris-ca-emo-start",
+      "source": "iris-ca-intro",
+      "target": "iris-ca-emo-start"
+    },
+    {
+      "id": "e-iris-ca-emo-start-to-iris-ca-dice",
+      "source": "iris-ca-emo-start",
+      "target": "iris-ca-dice"
+    },
+    {
+      "id": "e-iris-ca-emo-end-ab-to-iris-ca-ab-analysis",
+      "source": "iris-ca-emo-end-ab",
+      "target": "iris-ca-ab-analysis"
+    },
+    {
+      "id": "e-iris-ca-emo-end-ba-to-iris-ca-ba-analysis",
+      "source": "iris-ca-emo-end-ba",
+      "target": "iris-ca-ba-analysis"
+    }
+  ]
+}

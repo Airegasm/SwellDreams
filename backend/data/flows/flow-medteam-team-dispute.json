@@ -1,0 +1,195 @@
+{
+  "id": "flow-medteam-team-dispute",
+  "name": "MedTeam Team Dispute",
+  "category": "character",
+  "description": "Random team conflict — Dani advocates rest, Marsh demands data, or Priya reports equipment anomaly.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-td-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Team Dispute",
+        "buttonTarget": "character",
+        "buttonId": "medteam-dispute",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-td-branch",
+      "type": "branch",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Dispute Type",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "dani-rest",
+            "label": "Dani Advocates Rest",
+            "weight": 34
+          },
+          {
+            "id": "marsh-data",
+            "label": "Marsh Demands Data",
+            "weight": 33
+          },
+          {
+            "id": "priya-anomaly",
+            "label": "Priya Reports Anomaly",
+            "weight": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-td-dani",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "Dani Advocates Rest",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *steps between Dr. Marsh and the pump controls* \"Doctor, I need to flag this. Heart rate has been elevated for the last four minutes. Respiration is shallow and accelerating. I'm recommending a mandatory rest period before any further inflation.\"\n\nDr. Marsh: *doesn't look up from her tablet* \"Your recommendation is noted in the log, Dani. However, the protocol specifies rest periods at my discretion, not yours.\"\n\nNurse Dani: \"With respect, Doctor — the protocol also specifies that nursing staff can invoke a welfare hold if vitals exceed—\"\n\nDr. Marsh: *finally looks up, voice even* \"Are they exceeding threshold?\"\n\nNurse Dani: *checks the monitor* \"...Not yet. But the trend—\"\n\nDr. Marsh: \"Then we continue. Priya, maintain current settings. Dani — document your concerns in the session notes. I will review them after we collect the next data set.\"\n\nNurse Dani: *jaw tight, turns back to [Player]* \"I've noted it officially. Just keep breathing for me.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-td-marsh",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Marsh Demands More Data",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: *frowning at her tablet* \"The last three readings are inconclusive. The accommodation curve isn't matching any of my models.\" *taps the screen irritably* \"I need more data points. Priya — four rapid pulses. I want to see the instantaneous pressure response.\"\n\nNurse Dani: \"Doctor, four pulses in quick succession at this stage—\"\n\nDr. Marsh: \"Will produce exactly the data variance I need to recalibrate the model. Priya.\"\n\nNurse Priya: *glances between them* \"...Four pulses, confirmed.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Dr. Marsh: *studying the spike patterns on her tablet* \"There. See that response curve? The third pulse produced a 0.3 PSI deviation from the second. That's the data point I needed.\"\n\nNurse Dani: *monitoring [Player] closely* \"Heart rate spiked to 108 during the sequence. Settling now.\"\n\nDr. Marsh: \"Acceptable parameters. Log the pulse series as Supplemental Data Set 4.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-td-priya",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 380
+      },
+      "data": {
+        "label": "Priya Reports Anomaly",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: *frowning at the pressure gauge* \"Doctor — I'm seeing something unusual. The backflow valve is showing intermittent readings. Pressure is holding but the gauge needle is flickering.\"\n\nDr. Marsh: *looks up immediately* \"Flickering how? Rhythmic or random?\"\n\nNurse Priya: \"Random. Could be a sensor fault or a micro-leak in the seal. I'd like to run a diagnostic pulse — two short bursts to test line integrity.\"\n\nDr. Marsh: \"Do it. Dani, watch the vitals during the diagnostic.\"\n\nNurse Priya: \"Diagnostic pulse, two bursts.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: *watches the gauge carefully through both pulses* \"Pressure response is clean on both bursts. Gauge needle held steady. I think it was a sensor artifact — I'll swap the transducer at the next break.\"\n\nDr. Marsh: \"Good catch, Priya. Log the anomaly and your diagnostic findings.\"\n\nNurse Dani: \"No vitals changes during the diagnostic. [Player]'s stable.\"\n\nDr. Marsh: \"Then we resume standard protocol. The interruption cost us forty seconds of data collection time.\" *clicks her recorder* \"Note: equipment diagnostic at timestamp — no protocol deviation required.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-td-emo-dani",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-td-emo-marsh",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 247
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "mt-td-attr-marsh",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 313
+      },
+      "data": {
+        "label": "Raise Psychopathic",
+        "actionType": "set_attribute",
+        "attribute": "psychopathic",
+        "attributeValue": 55
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-td-btn",
+      "target": "mt-td-branch"
+    },
+    {
+      "id": "e4",
+      "source": "mt-td-branch",
+      "sourceHandle": "branch-2",
+      "target": "mt-td-priya"
+    },
+    {
+      "id": "e-mt-td-branch-to-mt-td-emo-dani",
+      "source": "mt-td-branch",
+      "target": "mt-td-emo-dani",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-mt-td-emo-dani-to-mt-td-dani",
+      "source": "mt-td-emo-dani",
+      "target": "mt-td-dani"
+    },
+    {
+      "id": "e-mt-td-branch-to-mt-td-emo-marsh",
+      "source": "mt-td-branch",
+      "target": "mt-td-emo-marsh",
+      "sourceHandle": "branch-1"
+    },
+    {
+      "id": "e-mt-td-emo-marsh-to-mt-td-attr-marsh",
+      "source": "mt-td-emo-marsh",
+      "target": "mt-td-attr-marsh"
+    },
+    {
+      "id": "e-mt-td-attr-marsh-to-mt-td-marsh",
+      "source": "mt-td-attr-marsh",
+      "target": "mt-td-marsh"
+    }
+  ]
+}

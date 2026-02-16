@@ -462,6 +462,59 @@
       },
       "selected": true,
       "dragging": false
+    },
+    {
+      "id": "sc-pn-emo-start",
+      "type": "action",
+      "position": {
+        "x": 694,
+        "y": -9
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sc-pn-emo-win",
+      "type": "action",
+      "position": {
+        "x": 467,
+        "y": 721
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "sc-pn-emo-mercy",
+      "type": "action",
+      "position": {
+        "x": -233,
+        "y": -48
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "sc-pn-attr-mercy",
+      "type": "action",
+      "position": {
+        "x": -198,
+        "y": 53
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 85
+      }
     }
   ],
   "edges": [
@@ -472,23 +525,10 @@
       "selected": false
     },
     {
-      "id": "e2",
-      "source": "scarlett-pn-intro",
-      "target": "scarlett-pn-start-device",
-      "selected": false
-    },
-    {
       "id": "e3",
       "source": "scarlett-pn-start-device",
       "sourceHandle": "immediate",
       "target": "scarlett-pn-timer",
-      "selected": false
-    },
-    {
-      "id": "e4",
-      "source": "scarlett-pn-timer",
-      "sourceHandle": "success",
-      "target": "scarlett-pn-success-stop",
       "selected": false
     },
     {
@@ -509,12 +549,6 @@
       "target": "node_1",
       "animated": true,
       "id": "xy-edge__node_3-node_1"
-    },
-    {
-      "source": "scarlett-mercy-btn",
-      "target": "scarlett-mercy-denied",
-      "animated": true,
-      "id": "xy-edge__scarlett-mercy-btn-scarlett-mercy-denied"
     },
     {
       "source": "scarlett-mercy-denied",
@@ -566,6 +600,42 @@
       "target": "scarlett-pn-fail-extend",
       "animated": true,
       "id": "xy-edge__scarlett-pn-fail-msg-scarlett-pn-fail-extend"
+    },
+    {
+      "id": "e-scarlett-pn-intro-to-sc-pn-emo-start",
+      "source": "scarlett-pn-intro",
+      "target": "sc-pn-emo-start"
+    },
+    {
+      "id": "e-sc-pn-emo-start-to-scarlett-pn-start-device",
+      "source": "sc-pn-emo-start",
+      "target": "scarlett-pn-start-device"
+    },
+    {
+      "id": "e-scarlett-pn-timer-to-sc-pn-emo-win",
+      "source": "scarlett-pn-timer",
+      "target": "sc-pn-emo-win",
+      "sourceHandle": "success"
+    },
+    {
+      "id": "e-sc-pn-emo-win-to-scarlett-pn-success-stop",
+      "source": "sc-pn-emo-win",
+      "target": "scarlett-pn-success-stop"
+    },
+    {
+      "id": "e-scarlett-mercy-btn-to-sc-pn-emo-mercy",
+      "source": "scarlett-mercy-btn",
+      "target": "sc-pn-emo-mercy"
+    },
+    {
+      "id": "e-sc-pn-emo-mercy-to-sc-pn-attr-mercy",
+      "source": "sc-pn-emo-mercy",
+      "target": "sc-pn-attr-mercy"
+    },
+    {
+      "id": "e-sc-pn-attr-mercy-to-scarlett-mercy-denied",
+      "source": "sc-pn-attr-mercy",
+      "target": "scarlett-mercy-denied"
     }
   ],
   "groups": []

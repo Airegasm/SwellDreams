@@ -1,0 +1,472 @@
+{
+  "id": "flow-scarlett-dice-of-fate",
+  "name": "Dice of Fate",
+  "category": "character",
+  "description": "Three rounds of dice rolls accumulate demerits. Final tally determines punishment severity.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "sc-df-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Roll the Dice",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-dice",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sc-df-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Dice Intro",
+        "actionType": "send_message",
+        "message": "*picks up a pair of dice from the table, turning them slowly between her fingers* Your fate rests on these rolls, [Player]. Three rounds. Each roll determines how many demerits you accumulate. And demerits... *sets the dice down with a precise click* ...have consequences.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-df-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 340
+      },
+      "data": {
+        "label": "Init Demerits",
+        "variable": "demerits",
+        "variableName": "demerits",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "sc-df-loop",
+      "type": "loop",
+      "position": {
+        "x": 300,
+        "y": 470
+      },
+      "data": {
+        "label": "Three Rounds",
+        "mode": "fixed",
+        "iterations": 3,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "sc-df-dice",
+      "type": "dice_roll",
+      "position": {
+        "x": 300,
+        "y": 620
+      },
+      "data": {
+        "label": "Roll 2d6",
+        "diceCount": 2,
+        "mode": "ranges",
+        "ranges": [
+          {
+            "id": "low",
+            "label": "Low (2-5)",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "mid",
+            "label": "Mid (6-9)",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "high",
+            "label": "High (10-12)",
+            "min": 10,
+            "max": 12
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*slides the dice across the table toward you* Roll.",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "sc-df-low-counter",
+      "type": "counter",
+      "position": {
+        "x": 50,
+        "y": 830
+      },
+      "data": {
+        "label": "+3 Demerits",
+        "variable": "demerits",
+        "operation": "increment",
+        "amount": 3,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "sc-df-low-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 970
+      },
+      "data": {
+        "label": "Low Roll Msg",
+        "actionType": "send_message",
+        "message": "*a cold smile crosses her lips* A low roll. Three demerits. You're making this rather easy for me, [Player].",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-df-low-delay",
+      "type": "delay",
+      "position": {
+        "x": 50,
+        "y": 1110
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-df-mid-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 830
+      },
+      "data": {
+        "label": "+1 Demerit",
+        "variable": "demerits",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "sc-df-mid-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 970
+      },
+      "data": {
+        "label": "Mid Roll Msg",
+        "actionType": "send_message",
+        "message": "*glances at the dice without expression* Mediocre. One demerit. You could do better... but then again, that's rather the pattern with you.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-df-mid-delay",
+      "type": "delay",
+      "position": {
+        "x": 300,
+        "y": 1110
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-df-high-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 830
+      },
+      "data": {
+        "label": "High Roll Msg",
+        "actionType": "send_message",
+        "message": "*the faintest flicker of acknowledgment* An acceptable roll. No demerits... this time. Don't let it go to your head.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-df-high-delay",
+      "type": "delay",
+      "position": {
+        "x": 550,
+        "y": 970
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-df-switch",
+      "type": "switch",
+      "position": {
+        "x": 300,
+        "y": 1350
+      },
+      "data": {
+        "label": "Demerit Tally",
+        "variable": "custom",
+        "customVariable": "demerits",
+        "includeDefault": true,
+        "cases": [
+          {
+            "value": "0",
+            "label": "Zero Demerits"
+          },
+          {
+            "value": "3",
+            "label": "Three Demerits"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sc-df-respite",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1550
+      },
+      "data": {
+        "label": "Respite",
+        "actionType": "send_message",
+        "message": "*sets the dice down and regards you with something almost resembling approval* Zero demerits. You've earned a reprieve. *turns away* Don't waste it. I will not be this generous again.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-df-moderate",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1550
+      },
+      "data": {
+        "label": "Moderate Correction",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 3,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*collects the dice with quiet finality* Three demerits. A measured correction is in order. Four cycles. You will count each one.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches as the last cycle ends* Let that settle. Remember this feeling the next time you think about rolling poorly.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-df-severe",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1550
+      },
+      "data": {
+        "label": "Severe Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "*sweeps the dice off the table with the back of her hand* [Flow:demerits] demerits. Unacceptable. Thirty seconds. You will endure every one of them. And you will learn.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*regards your state with cold satisfaction* Perhaps next time the dice will favor you. Or perhaps not. Either way... you will remember this.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-df-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "sc-df-emo-severe",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1450
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sc-df-emo-respite",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1450
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sc-df-btn",
+      "target": "sc-df-intro"
+    },
+    {
+      "id": "e3",
+      "source": "sc-df-init",
+      "target": "sc-df-loop"
+    },
+    {
+      "id": "e4",
+      "source": "sc-df-loop",
+      "sourceHandle": "loop",
+      "target": "sc-df-dice"
+    },
+    {
+      "id": "e5",
+      "source": "sc-df-dice",
+      "sourceHandle": "low",
+      "target": "sc-df-low-counter"
+    },
+    {
+      "id": "e6",
+      "source": "sc-df-low-counter",
+      "target": "sc-df-low-msg"
+    },
+    {
+      "id": "e7",
+      "source": "sc-df-low-msg",
+      "target": "sc-df-low-delay"
+    },
+    {
+      "id": "e8",
+      "source": "sc-df-low-delay",
+      "target": "sc-df-loop"
+    },
+    {
+      "id": "e9",
+      "source": "sc-df-dice",
+      "sourceHandle": "mid",
+      "target": "sc-df-mid-counter"
+    },
+    {
+      "id": "e10",
+      "source": "sc-df-mid-counter",
+      "target": "sc-df-mid-msg"
+    },
+    {
+      "id": "e11",
+      "source": "sc-df-mid-msg",
+      "target": "sc-df-mid-delay"
+    },
+    {
+      "id": "e12",
+      "source": "sc-df-mid-delay",
+      "target": "sc-df-loop"
+    },
+    {
+      "id": "e13",
+      "source": "sc-df-dice",
+      "sourceHandle": "high",
+      "target": "sc-df-high-msg"
+    },
+    {
+      "id": "e14",
+      "source": "sc-df-high-msg",
+      "target": "sc-df-high-delay"
+    },
+    {
+      "id": "e15",
+      "source": "sc-df-high-delay",
+      "target": "sc-df-loop"
+    },
+    {
+      "id": "e16",
+      "source": "sc-df-loop",
+      "sourceHandle": "done",
+      "target": "sc-df-switch"
+    },
+    {
+      "id": "e18",
+      "source": "sc-df-switch",
+      "sourceHandle": "case-1",
+      "target": "sc-df-moderate"
+    },
+    {
+      "id": "e-sc-df-intro-to-sc-df-emo-start",
+      "source": "sc-df-intro",
+      "target": "sc-df-emo-start"
+    },
+    {
+      "id": "e-sc-df-emo-start-to-sc-df-init",
+      "source": "sc-df-emo-start",
+      "target": "sc-df-init"
+    },
+    {
+      "id": "e-sc-df-switch-to-sc-df-emo-severe",
+      "source": "sc-df-switch",
+      "target": "sc-df-emo-severe",
+      "sourceHandle": "default"
+    },
+    {
+      "id": "e-sc-df-emo-severe-to-sc-df-severe",
+      "source": "sc-df-emo-severe",
+      "target": "sc-df-severe"
+    },
+    {
+      "id": "e-sc-df-switch-to-sc-df-emo-respite",
+      "source": "sc-df-switch",
+      "target": "sc-df-emo-respite",
+      "sourceHandle": "case-0"
+    },
+    {
+      "id": "e-sc-df-emo-respite-to-sc-df-respite",
+      "source": "sc-df-emo-respite",
+      "target": "sc-df-respite"
+    }
+  ]
+}

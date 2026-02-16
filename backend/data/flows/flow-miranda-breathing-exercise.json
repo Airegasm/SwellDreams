@@ -1,0 +1,112 @@
+{
+  "id": "flow-miranda-breathing-exercise",
+  "name": "Miranda's Breathing Exercise",
+  "category": "character",
+  "description": "Miranda teaches proper breathing technique during inflation. Teaching intro, gentle pulses, encouragement.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "miranda-be-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Breathing Exercise",
+        "buttonTarget": "character",
+        "buttonId": "miranda-breathing",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "miranda-be-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Teaching Intro",
+        "actionType": "send_message",
+        "message": "*Miranda sits up straighter and puts on her teaching voice*\n\n\"Okay! Breathing lesson time! This is one of the MOST important skills in belly inflation — if you breathe wrong, everything feels ten times worse. If you breathe RIGHT, you can handle way more than you'd think!\"\n\n*places one hand on her own rounded belly* \"Watch me. I'm going to breathe in through my nose — slowly — and out through my mouth. See how my belly rises and falls? That's diaphragmatic breathing. Your belly is full of air from the pump, but your LUNGS need to work independently.\"\n\n*demonstrates, her inflated belly rising and falling gently* \"In... and out. In... and out. Now — I'm going to give us both three gentle pulses. Your job is to keep breathing through each one. Don't hold your breath! That's the number one mistake beginners make.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-be-pulse",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Gentle Pulses (x3)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*Miranda pumps air into herself at the same pace* \"Here we go — three pulses! Breathe through each one! In through the nose, out through the mouth!\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 2,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-be-encourage",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 540
+      },
+      "data": {
+        "label": "Encouragement",
+        "actionType": "send_message",
+        "message": "*Miranda beams at [Player]* \"See?! Did you feel the difference?! When you breathe through the pulses instead of clenching up, your body accepts the air so much more smoothly!\"\n\n*pats her own belly proudly* \"I've been doing this for years and breathing technique is STILL the thing that makes the biggest difference. Some students try to tough it out by holding their breath and clenching — that's the worst thing you can do! It traps the pressure and makes everything hurt more.\"\n\n*leans closer, eyes bright* \"You did really well with those three pulses. Your breathing pattern was almost perfect — just a tiny hitch on the second one, but that's totally normal for a beginner!\" *pumps a small amount of air into herself* \"Practice makes perfect. We'll do that exercise again later — and I bet you'll nail all three next time!\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-be-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "miranda-be-btn",
+      "target": "miranda-be-intro"
+    },
+    {
+      "id": "e3",
+      "source": "miranda-be-pulse",
+      "target": "miranda-be-encourage"
+    },
+    {
+      "id": "e-miranda-be-intro-to-miranda-be-emo-start",
+      "source": "miranda-be-intro",
+      "target": "miranda-be-emo-start"
+    },
+    {
+      "id": "e-miranda-be-emo-start-to-miranda-be-pulse",
+      "source": "miranda-be-emo-start",
+      "target": "miranda-be-pulse"
+    }
+  ]
+}

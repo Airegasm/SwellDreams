@@ -1,0 +1,721 @@
+{
+  "id": "flow-vex-lightning-round",
+  "name": "Lightning Round",
+  "category": "character",
+  "description": "Three sequential challenges - reflex, simon, RPS - with score-based punishment",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-lr-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Lightning!",
+        "buttonTarget": "character",
+        "buttonId": "vex-lightning",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-lr-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Init Score",
+        "variable": "lightningScore",
+        "variableName": "lightningScore",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "vex-lr-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Lightning Intro",
+        "actionType": "send_message",
+        "message": "*lightning bolt graphics flash across screens* LADIES AND GENTLEMEN! It's the LIGHTNING ROUND! *thunder crashes* THREE challenges! THREE chances to prove yourself! Win them ALL and walk away FREE! Lose and... *evil grin* ...well, the punishment SCALES with your failures! *audience chants LIGHTNING! LIGHTNING!*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-reflex",
+      "type": "reflex_challenge",
+      "position": {
+        "x": 300,
+        "y": 550
+      },
+      "data": {
+        "label": "Challenge 1: Reflexes",
+        "timePerTarget": 3,
+        "rounds": 3,
+        "targetSize": "medium",
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "*buzzer sounds* CHALLENGE ONE: REFLEXES! Tap those targets FAST!",
+        "aiMessageWinSuppressLlm": true,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "*buzzer sounds* CHALLENGE ONE: REFLEXES! Tap those targets FAST!",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-lr-reflex-win",
+      "type": "counter",
+      "position": {
+        "x": 100,
+        "y": 780
+      },
+      "data": {
+        "label": "Reflex Win",
+        "variable": "lightningScore",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "vex-lr-reflex-win-msg",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 940
+      },
+      "data": {
+        "label": "Reflex Win Msg",
+        "actionType": "send_message",
+        "message": "*ding ding ding!* REFLEXES ON POINT! *audience cheers* One point on the board! Challenge one CLEARED!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-reflex-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 780
+      },
+      "data": {
+        "label": "Reflex Lose Msg",
+        "actionType": "send_message",
+        "message": "*sad trombone* TOO SLOW! *audience groans* Zero points for the reflex round! That's gonna cost you later, contestant!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-simon-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1120
+      },
+      "data": {
+        "label": "Simon Intro",
+        "actionType": "send_message",
+        "message": "*lights change to pulsing colors* CHALLENGE TWO: SIMON SAYS! Follow the pattern... IF you can keep up! *audience drums on seats*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-simon",
+      "type": "simon_challenge",
+      "position": {
+        "x": 300,
+        "y": 1300
+      },
+      "data": {
+        "label": "Challenge 2: Simon",
+        "startingLength": 3,
+        "maxLength": 5,
+        "maxMisses": 2,
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "Watch the sequence carefully...",
+        "aiMessageWinSuppressLlm": true,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "Watch the sequence carefully...",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-lr-simon-win",
+      "type": "counter",
+      "position": {
+        "x": 100,
+        "y": 1520
+      },
+      "data": {
+        "label": "Simon Win",
+        "variable": "lightningScore",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "vex-lr-simon-win-msg",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1680
+      },
+      "data": {
+        "label": "Simon Win Msg",
+        "actionType": "send_message",
+        "message": "*pattern complete jingle* NAILED IT! *audience erupts* The pattern was NO match for this contestant! Another point!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-simon-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1520
+      },
+      "data": {
+        "label": "Simon Lose Msg",
+        "actionType": "send_message",
+        "message": "*error buzzer* WRONG PATTERN! *audience gasps* Memory isn't your strong suit, is it? No point for Simon Says!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-rps-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1870
+      },
+      "data": {
+        "label": "RPS Intro",
+        "actionType": "send_message",
+        "message": "*fists raised* THE FINAL CHALLENGE! Rock! Paper! Scissors! One throw to determine your FATE! *audience holds breath*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-rps",
+      "type": "rps",
+      "position": {
+        "x": 300,
+        "y": 2050
+      },
+      "data": {
+        "label": "Challenge 3: RPS",
+        "bestOf": 1,
+        "characterBias": null,
+        "preMessageEnabled": true,
+        "preMessage": "*pounds fist in palm* Rock... Paper... Scissors... SHOOT!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-lr-rps-win",
+      "type": "counter",
+      "position": {
+        "x": 50,
+        "y": 2270
+      },
+      "data": {
+        "label": "RPS Win",
+        "variable": "lightningScore",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "vex-lr-rps-win-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 2430
+      },
+      "data": {
+        "label": "RPS Win Msg",
+        "actionType": "send_message",
+        "message": "*jaw drops* YOU BEAT ME?! *audience goes crazy* Fine, FINE, take your point! *grumbles theatrically*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-rps-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 2270
+      },
+      "data": {
+        "label": "RPS Lose Msg",
+        "actionType": "send_message",
+        "message": "*victory dance* I WIN! *cackles* The host ALWAYS has the last laugh! No point for you!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-rps-tie-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 2270
+      },
+      "data": {
+        "label": "RPS Tie Msg",
+        "actionType": "send_message",
+        "message": "*stares* A TIE?! In the FINAL challenge?! *audience boos* Ties go to the HOST! No point!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-tally",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 2620
+      },
+      "data": {
+        "label": "Score Tally",
+        "actionType": "send_message",
+        "message": "*drumroll intensifies* And the FINAL SCORE IS... [Flow:lightningScore] out of THREE! *spotlight on scoreboard* Let's see what that MEANS for our contestant!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-switch",
+      "type": "switch",
+      "position": {
+        "x": 300,
+        "y": 2800
+      },
+      "data": {
+        "label": "Score Result",
+        "variable": "custom",
+        "customVariable": "lightningScore",
+        "includeDefault": false,
+        "cases": [
+          {
+            "value": "0",
+            "label": "Zero"
+          },
+          {
+            "value": "1",
+            "label": "One"
+          },
+          {
+            "value": "2",
+            "label": "Two"
+          },
+          {
+            "value": "3",
+            "label": "Three"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vex-lr-score0-msg",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 3020
+      },
+      "data": {
+        "label": "ZERO!",
+        "actionType": "send_message",
+        "message": "*alarm bells* ZERO?! ZERO OUT OF THREE?! *audience in shock* LADIES AND GENTLEMEN, this is HISTORICALLY bad! And you know what that means... MAXIMUM! PUNISHMENT! *evil laugh echoes*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-score0-device",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 3200
+      },
+      "data": {
+        "label": "Max Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "*slams button* THIRTY SECONDS of MAXIMUM intensity! This is what ZERO gets you!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*slow clap* And THAT is the price of total failure! Maybe practice before the next Lightning Round, hmm?",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-lr-score1-msg",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 3020
+      },
+      "data": {
+        "label": "One Point",
+        "actionType": "send_message",
+        "message": "ONE out of three! *audience winces* Pathetic! One measly point! *shakes head* You barely even TRIED! Here comes your punishment!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-score1-device",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 3200
+      },
+      "data": {
+        "label": "Heavy Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*presses button* Four cycles for the NEAR-TOTAL failure! *audience counts along*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes hands* One point earns you ONE less cycle than zero. Barely any mercy! *audience laughs*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-lr-score2-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 3020
+      },
+      "data": {
+        "label": "Two Points",
+        "actionType": "send_message",
+        "message": "TWO out of three! *audience murmurs* SO close to freedom! ONE challenge away from walking out of here! But close doesn't COUNT on this show!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-score2-device",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 3200
+      },
+      "data": {
+        "label": "Light Punishment",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*gentle tap on button* Just four little pulses... a MERCY punishment for almost making it!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "See? That wasn't SO bad! Almost a winner's reward! *winks* Almost.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-lr-score3",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 3020
+      },
+      "data": {
+        "label": "PERFECT SCORE!",
+        "actionType": "send_message",
+        "message": "*FIREWORKS EXPLODE* THREE! FOR! THREE! *confetti rains from ceiling* LADIES AND GENTLEMEN, A PERFECT LIGHTNING ROUND! *audience gives standing ovation* FREEDOM! GLORIOUS FREEDOM! You've EARNED it, champion! Take a bow! *golden spotlight*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-lr-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 450
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "vex-lr-emo-tally",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 2710
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-lr-emo-zero",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 2910
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-lr-emo-perfect",
+      "type": "action",
+      "position": {
+        "x": 488,
+        "y": 2910
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "vex-lr-btn",
+      "target": "vex-lr-init"
+    },
+    {
+      "id": "e2",
+      "source": "vex-lr-init",
+      "target": "vex-lr-intro"
+    },
+    {
+      "id": "e4",
+      "source": "vex-lr-reflex",
+      "sourceHandle": "win",
+      "target": "vex-lr-reflex-win"
+    },
+    {
+      "id": "e5",
+      "source": "vex-lr-reflex",
+      "sourceHandle": "lose",
+      "target": "vex-lr-reflex-lose-msg"
+    },
+    {
+      "id": "e6",
+      "source": "vex-lr-reflex-win",
+      "target": "vex-lr-reflex-win-msg"
+    },
+    {
+      "id": "e7",
+      "source": "vex-lr-reflex-win-msg",
+      "target": "vex-lr-simon-intro"
+    },
+    {
+      "id": "e8",
+      "source": "vex-lr-reflex-lose-msg",
+      "target": "vex-lr-simon-intro"
+    },
+    {
+      "id": "e9",
+      "source": "vex-lr-simon-intro",
+      "target": "vex-lr-simon"
+    },
+    {
+      "id": "e10",
+      "source": "vex-lr-simon",
+      "sourceHandle": "win",
+      "target": "vex-lr-simon-win"
+    },
+    {
+      "id": "e11",
+      "source": "vex-lr-simon",
+      "sourceHandle": "lose",
+      "target": "vex-lr-simon-lose-msg"
+    },
+    {
+      "id": "e12",
+      "source": "vex-lr-simon-win",
+      "target": "vex-lr-simon-win-msg"
+    },
+    {
+      "id": "e13",
+      "source": "vex-lr-simon-win-msg",
+      "target": "vex-lr-rps-intro"
+    },
+    {
+      "id": "e14",
+      "source": "vex-lr-simon-lose-msg",
+      "target": "vex-lr-rps-intro"
+    },
+    {
+      "id": "e15",
+      "source": "vex-lr-rps-intro",
+      "target": "vex-lr-rps"
+    },
+    {
+      "id": "e16",
+      "source": "vex-lr-rps",
+      "sourceHandle": "player-wins",
+      "target": "vex-lr-rps-win"
+    },
+    {
+      "id": "e17",
+      "source": "vex-lr-rps",
+      "sourceHandle": "character-wins",
+      "target": "vex-lr-rps-lose-msg"
+    },
+    {
+      "id": "e18",
+      "source": "vex-lr-rps",
+      "sourceHandle": "tie",
+      "target": "vex-lr-rps-tie-msg"
+    },
+    {
+      "id": "e19",
+      "source": "vex-lr-rps-win",
+      "target": "vex-lr-rps-win-msg"
+    },
+    {
+      "id": "e20",
+      "source": "vex-lr-rps-win-msg",
+      "target": "vex-lr-tally"
+    },
+    {
+      "id": "e21",
+      "source": "vex-lr-rps-lose-msg",
+      "target": "vex-lr-tally"
+    },
+    {
+      "id": "e22",
+      "source": "vex-lr-rps-tie-msg",
+      "target": "vex-lr-tally"
+    },
+    {
+      "id": "e25",
+      "source": "vex-lr-switch",
+      "sourceHandle": "case-1",
+      "target": "vex-lr-score1-msg"
+    },
+    {
+      "id": "e26",
+      "source": "vex-lr-switch",
+      "sourceHandle": "case-2",
+      "target": "vex-lr-score2-msg"
+    },
+    {
+      "id": "e28",
+      "source": "vex-lr-score0-msg",
+      "target": "vex-lr-score0-device"
+    },
+    {
+      "id": "e29",
+      "source": "vex-lr-score1-msg",
+      "target": "vex-lr-score1-device"
+    },
+    {
+      "id": "e30",
+      "source": "vex-lr-score2-msg",
+      "target": "vex-lr-score2-device"
+    },
+    {
+      "id": "e-vex-lr-intro-to-vex-lr-emo-start",
+      "source": "vex-lr-intro",
+      "target": "vex-lr-emo-start"
+    },
+    {
+      "id": "e-vex-lr-emo-start-to-vex-lr-reflex",
+      "source": "vex-lr-emo-start",
+      "target": "vex-lr-reflex"
+    },
+    {
+      "id": "e-vex-lr-tally-to-vex-lr-emo-tally",
+      "source": "vex-lr-tally",
+      "target": "vex-lr-emo-tally"
+    },
+    {
+      "id": "e-vex-lr-emo-tally-to-vex-lr-switch",
+      "source": "vex-lr-emo-tally",
+      "target": "vex-lr-switch"
+    },
+    {
+      "id": "e-vex-lr-switch-to-vex-lr-emo-zero",
+      "source": "vex-lr-switch",
+      "target": "vex-lr-emo-zero",
+      "sourceHandle": "case-0"
+    },
+    {
+      "id": "e-vex-lr-emo-zero-to-vex-lr-score0-msg",
+      "source": "vex-lr-emo-zero",
+      "target": "vex-lr-score0-msg"
+    },
+    {
+      "id": "e-vex-lr-switch-to-vex-lr-emo-perfect",
+      "source": "vex-lr-switch",
+      "target": "vex-lr-emo-perfect",
+      "sourceHandle": "case-3"
+    },
+    {
+      "id": "e-vex-lr-emo-perfect-to-vex-lr-score3",
+      "source": "vex-lr-emo-perfect",
+      "target": "vex-lr-score3"
+    }
+  ]
+}

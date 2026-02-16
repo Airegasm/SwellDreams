@@ -1,0 +1,370 @@
+{
+  "id": "flow-luna-trust-game",
+  "name": "Luna's Trust Game",
+  "category": "character",
+  "description": "A coin flip trust game. Heads lets the player choose their reward; tails means Luna picks the intensity with a random number.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-tg-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Trust Me",
+        "buttonTarget": "character",
+        "buttonId": "luna-trust",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-tg-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 170
+      },
+      "data": {
+        "label": "Trust Intro",
+        "actionType": "send_message",
+        "message": "*takes your hands and laces her fingers with yours* Let's play a little trust game, baby... I'm going to flip a coin. Heads, you get to choose. Tails... *smiles mischievously* ...you trust me completely. Deal?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-tg-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": 250,
+        "y": 310
+      },
+      "data": {
+        "label": "Trust Flip",
+        "headsLabel": "Your Choice",
+        "tailsLabel": "Trust Luna",
+        "headsWeight": 50,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*kisses the coin for luck and flips it into the air* Here we go, sweetheart...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "luna-tg-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 50,
+        "y": 470
+      },
+      "data": {
+        "label": "Pick Your Reward",
+        "description": "Luna lets you choose how she shows her love...",
+        "introMessageEnabled": true,
+        "introMessage": "*smiles softly* Heads! Lucky you, baby... you get to pick. What sounds good right now?",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "soft-kisses",
+            "label": "Soft Kisses",
+            "description": "Gentle and sweet"
+          },
+          {
+            "id": "warm-embrace",
+            "label": "Warm Embrace",
+            "description": "Hold me close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-tg-soft",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 650
+      },
+      "data": {
+        "label": "Soft Kisses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*cups your face gently* Soft kisses it is, darling...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*presses her lips to yours, slow and tender* There... every one of those was just for you, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-tg-embrace",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 650
+      },
+      "data": {
+        "label": "Warm Embrace",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*wraps her arms around you tightly* Come here, love... let me hold you...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*sighs contentedly against your chest* I could stay like this forever. You feel so good in my arms, baby.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-tg-random-intro",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 470
+      },
+      "data": {
+        "label": "Luna Decides",
+        "actionType": "send_message",
+        "message": "*catches the coin and grins* Tails! That means you trust me, baby... and I'm going to make it worth it. Let me roll something special for you...",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-tg-random",
+      "type": "random_number",
+      "position": {
+        "x": 450,
+        "y": 610
+      },
+      "data": {
+        "label": "Intensity Roll",
+        "minValue": 1,
+        "maxValue": 5,
+        "variableName": "trustIntensity"
+      }
+    },
+    {
+      "id": "luna-tg-cycle",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 740
+      },
+      "data": {
+        "label": "Trust Cycles",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*whispers in your ear* I rolled a [Flow:trustIntensity]... now just relax and let me take care of you, love...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*strokes your hair* See? That's what happens when you trust me, baby. I've got you. I always will.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-tg-aftercare-heads",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 850
+      },
+      "data": {
+        "label": "Aftercare (Heads)",
+        "actionType": "send_message",
+        "message": "*pulls a soft blanket around both of you* That was lovely, sweetheart... I hope it felt as good for you as it looked. Just breathe with me for a moment, okay? I'm right here.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-tg-aftercare-tails",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 880
+      },
+      "data": {
+        "label": "Aftercare (Tails)",
+        "actionType": "send_message",
+        "message": "*nestles against you* Thank you for trusting me with that, baby. You were so brave, and so beautiful. Let's just be together for a little while... I'm not going anywhere.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-tg-pause-heads",
+      "type": "pause_resume",
+      "position": {
+        "x": 50,
+        "y": 990
+      },
+      "data": {
+        "label": "Rest Together",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
+      }
+    },
+    {
+      "id": "luna-tg-pause-tails",
+      "type": "pause_resume",
+      "position": {
+        "x": 450,
+        "y": 1020
+      },
+      "data": {
+        "label": "Rest Together",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 2
+      }
+    },
+    {
+      "id": "luna-tg-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 240
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "luna-tg-emo-tails",
+      "type": "action",
+      "position": {
+        "x": 342,
+        "y": 363
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "luna-tg-attr-dom",
+      "type": "action",
+      "position": {
+        "x": 408,
+        "y": 417
+      },
+      "data": {
+        "label": "Raise Sensual",
+        "actionType": "set_attribute",
+        "attribute": "sensual",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-tg-btn",
+      "target": "luna-tg-intro"
+    },
+    {
+      "id": "e3",
+      "source": "luna-tg-coin",
+      "sourceHandle": "heads",
+      "target": "luna-tg-choice"
+    },
+    {
+      "id": "e5",
+      "source": "luna-tg-choice",
+      "sourceHandle": "soft-kisses",
+      "target": "luna-tg-soft"
+    },
+    {
+      "id": "e6",
+      "source": "luna-tg-choice",
+      "sourceHandle": "warm-embrace",
+      "target": "luna-tg-embrace"
+    },
+    {
+      "id": "e7",
+      "source": "luna-tg-soft",
+      "target": "luna-tg-aftercare-heads"
+    },
+    {
+      "id": "e8",
+      "source": "luna-tg-embrace",
+      "target": "luna-tg-aftercare-heads"
+    },
+    {
+      "id": "e9",
+      "source": "luna-tg-random-intro",
+      "target": "luna-tg-random"
+    },
+    {
+      "id": "e10",
+      "source": "luna-tg-random",
+      "target": "luna-tg-cycle"
+    },
+    {
+      "id": "e11",
+      "source": "luna-tg-cycle",
+      "target": "luna-tg-aftercare-tails"
+    },
+    {
+      "id": "e12",
+      "source": "luna-tg-aftercare-heads",
+      "target": "luna-tg-pause-heads"
+    },
+    {
+      "id": "e13",
+      "source": "luna-tg-aftercare-tails",
+      "target": "luna-tg-pause-tails"
+    },
+    {
+      "id": "e-luna-tg-intro-to-luna-tg-emo-start",
+      "source": "luna-tg-intro",
+      "target": "luna-tg-emo-start"
+    },
+    {
+      "id": "e-luna-tg-emo-start-to-luna-tg-coin",
+      "source": "luna-tg-emo-start",
+      "target": "luna-tg-coin"
+    },
+    {
+      "id": "e-luna-tg-coin-to-luna-tg-emo-tails",
+      "source": "luna-tg-coin",
+      "target": "luna-tg-emo-tails",
+      "sourceHandle": "tails"
+    },
+    {
+      "id": "e-luna-tg-emo-tails-to-luna-tg-attr-dom",
+      "source": "luna-tg-emo-tails",
+      "target": "luna-tg-attr-dom"
+    },
+    {
+      "id": "e-luna-tg-attr-dom-to-luna-tg-random-intro",
+      "source": "luna-tg-attr-dom",
+      "target": "luna-tg-random-intro"
+    }
+  ]
+}

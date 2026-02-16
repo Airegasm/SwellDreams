@@ -1,0 +1,198 @@
+{
+  "id": "flow-medteam-emergency-assessment",
+  "name": "MedTeam Emergency Assessment",
+  "category": "character",
+  "description": "Dani-led vitals check. Player reports their condition — team reacts based on response.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-ea-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Emergency Assessment",
+        "buttonTarget": "character",
+        "buttonId": "medteam-assessment",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-ea-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "How are you feeling?",
+        "description": "Nurse Dani is checking on you — how do you respond?",
+        "introMessageEnabled": true,
+        "introMessage": "Nurse Dani: *leans close to [Player], voice low and direct* \"Subject 12 — I need an honest answer right now. Dr. Marsh is reviewing the last data set and I have about thirty seconds before she orders the next phase.\" *checks the pulse oximeter* \"Tell me straight: how are you feeling?\"",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "fine",
+            "label": "I'm fine",
+            "description": "Convince them you can handle more"
+          },
+          {
+            "id": "hurts",
+            "label": "It hurts",
+            "description": "Admit the pain honestly"
+          },
+          {
+            "id": "cant-take",
+            "label": "I can't take more",
+            "description": "Tell them you've reached your limit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-ea-fine",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 400
+      },
+      "data": {
+        "label": "Patient Says Fine (15s burst)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Dani: *studies [Player]'s face carefully* \"...Alright. Vitals support that — heart rate is elevated but stable.\"\n\nDr. Marsh: *overhearing* \"The subject reports no distress? Good. Then we can push the next threshold.\" *turns to Priya* \"Fifteen-second burst, increased flow rate. Let's see how 'fine' holds up under load.\"\n\nNurse Priya: \"Fifteen seconds, increased flow. Initiating.\"\n\nNurse Dani: *quietly to [Player]* \"You said you were fine. Let's see if that's true.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Fifteen seconds complete.\"\n\nDr. Marsh: *reviewing the data with satisfaction* \"Interesting. The subject's self-report of 'fine' was either accurate or aspirational. Either way — the data is clean.\"\n\nNurse Dani: *checking vitals* \"Heart rate 112, coming down. No distress markers.\" *meets [Player]'s eyes* \"Next time I ask, give me the real answer.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-ea-hurts",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 400
+      },
+      "data": {
+        "label": "Patient Says It Hurts",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *nods, documenting* \"Pain reported. Thank you for being honest.\" *checks the monitors* \"Can you describe it? Sharp or dull? Constant or intermittent?\"\n\nDr. Marsh: *looks up from her tablet* \"Pain onset at this pressure level is expected. Dani, log the self-report alongside the current PSI reading. It's a useful correlation data point.\"\n\nNurse Dani: \"Logged. Heart rate 98, BP 130 over 82.\"\n\nDr. Marsh: *dictates into recorder* \"Subject 12 reports pain at current pressure level. Self-report correlates with predicted discomfort threshold within 8% margin. No protocol modification indicated.\" *to [Player]* \"Your pain is noted in the record, Subject 12. It is, however, within expected parameters.\"\n\nNurse Dani: *quietly* \"I'll keep monitoring you closely. The data helps — even when it doesn't change anything.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ea-cant",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 400
+      },
+      "data": {
+        "label": "Patient At Limit (Marsh overrides)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Dani: *immediately turns to Dr. Marsh* \"Doctor — Subject 12 is reporting they've reached capacity. I'm recommending we hold at current pressure and allow a recovery period.\"\n\nDr. Marsh: *reviews the vitals readout, expression unchanged* \"Heart rate 106, blood pressure 136 over 86. Elevated but within safe operating parameters.\" *sets down her tablet* \"The subject's perception of their limit and their actual physiological limit are two different things. We've discussed this, Dani.\"\n\nNurse Dani: \"Doctor, the self-report—\"\n\nDr. Marsh: \"Is a psychological data point, not a stopping criterion. Priya — two diagnostic pulses. I want to verify the accommodation response is still within normal range.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Two pulses complete. Accommodation response is normal.\"\n\nDr. Marsh: \"As I suspected. The subject's tissue tolerance exceeds their psychological tolerance. That gap is itself a data point worth studying.\"\n\nNurse Dani: *jaw tight, turning back to [Player]* \"I heard you. It's in the record.\" *lowers her voice* \"Your vitals are stable — your body can handle more than you think right now. But I'm watching every number.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-ea-emo-fine",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "mt-ea-emo-hurts",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-ea-emo-cant",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-ea-btn",
+      "target": "mt-ea-choice"
+    },
+    {
+      "id": "e-mt-ea-choice-to-mt-ea-emo-fine",
+      "source": "mt-ea-choice",
+      "target": "mt-ea-emo-fine",
+      "sourceHandle": "fine"
+    },
+    {
+      "id": "e-mt-ea-emo-fine-to-mt-ea-fine",
+      "source": "mt-ea-emo-fine",
+      "target": "mt-ea-fine"
+    },
+    {
+      "id": "e-mt-ea-choice-to-mt-ea-emo-hurts",
+      "source": "mt-ea-choice",
+      "target": "mt-ea-emo-hurts",
+      "sourceHandle": "hurts"
+    },
+    {
+      "id": "e-mt-ea-emo-hurts-to-mt-ea-hurts",
+      "source": "mt-ea-emo-hurts",
+      "target": "mt-ea-hurts"
+    },
+    {
+      "id": "e-mt-ea-choice-to-mt-ea-emo-cant",
+      "source": "mt-ea-choice",
+      "target": "mt-ea-emo-cant",
+      "sourceHandle": "cant-take"
+    },
+    {
+      "id": "e-mt-ea-emo-cant-to-mt-ea-cant",
+      "source": "mt-ea-emo-cant",
+      "target": "mt-ea-cant"
+    }
+  ]
+}

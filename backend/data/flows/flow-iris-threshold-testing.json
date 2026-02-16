@@ -244,6 +244,58 @@
         "message": "*closes tablet* Protocol complete. All target thresholds achieved. *rare hint of approval* Your contribution today has been... exceptional, Subject #47. You may recover while I analyze the results.",
         "suppressLlm": false
       }
+    },
+    {
+      "id": "iris-tt-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-tt-emo-brave",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 1400
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "iris-tt-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1400
+      },
+      "data": {
+        "label": "Set Sad",
+        "actionType": "set_emotion",
+        "emotion": "sad"
+      }
+    },
+    {
+      "id": "iris-tt-emo-done",
+      "type": "action",
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      },
+      "position": {
+        "x": 75,
+        "y": 1680
+      }
     }
   ],
   "edges": [
@@ -251,11 +303,6 @@
       "id": "e1",
       "source": "iris-tt-btn",
       "target": "iris-tt-intro"
-    },
-    {
-      "id": "e2",
-      "source": "iris-tt-intro",
-      "target": "iris-tt-pause1"
     },
     {
       "id": "e3",
@@ -304,27 +351,52 @@
       "target": "iris-tt-phase3-choice"
     },
     {
-      "id": "e11",
-      "source": "iris-tt-phase3-choice",
-      "sourceHandle": "a",
-      "target": "iris-tt-phase3-start"
-    },
-    {
-      "id": "e12",
-      "source": "iris-tt-phase3-choice",
-      "sourceHandle": "b",
-      "target": "iris-tt-end-early"
-    },
-    {
       "id": "e13",
       "source": "iris-tt-phase3-start",
       "sourceHandle": "completion",
       "target": "iris-tt-pause5"
     },
     {
-      "id": "e14",
+      "id": "e-iris-tt-pause5-to-iris-tt-emo-done",
       "source": "iris-tt-pause5",
       "sourceHandle": "source-resume",
+      "target": "iris-tt-emo-done"
+    },
+    {
+      "id": "e-iris-tt-intro-to-iris-tt-emo-start",
+      "source": "iris-tt-intro",
+      "target": "iris-tt-emo-start"
+    },
+    {
+      "id": "e-iris-tt-emo-start-to-iris-tt-pause1",
+      "source": "iris-tt-emo-start",
+      "target": "iris-tt-pause1"
+    },
+    {
+      "id": "e-iris-tt-phase3-choice-to-iris-tt-emo-brave",
+      "source": "iris-tt-phase3-choice",
+      "target": "iris-tt-emo-brave",
+      "sourceHandle": "a"
+    },
+    {
+      "id": "e-iris-tt-emo-brave-to-iris-tt-phase3-start",
+      "source": "iris-tt-emo-brave",
+      "target": "iris-tt-phase3-start"
+    },
+    {
+      "id": "e-iris-tt-phase3-choice-to-iris-tt-emo-stop",
+      "source": "iris-tt-phase3-choice",
+      "target": "iris-tt-emo-stop",
+      "sourceHandle": "b"
+    },
+    {
+      "id": "e-iris-tt-emo-stop-to-iris-tt-end-early",
+      "source": "iris-tt-emo-stop",
+      "target": "iris-tt-end-early"
+    },
+    {
+      "id": "e-iris-tt-emo-done-to-iris-tt-complete",
+      "source": "iris-tt-emo-done",
       "target": "iris-tt-complete"
     }
   ]

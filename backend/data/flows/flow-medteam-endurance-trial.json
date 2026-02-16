@@ -1,0 +1,297 @@
+{
+  "id": "flow-medteam-endurance-trial",
+  "name": "MedTeam Endurance Trial",
+  "category": "character",
+  "description": "Dani advocates a 30-second trial while Marsh pushes for 45 seconds. The subject chooses which duration to endure, followed by a cooldown cycle. Team dynamics play out based on the choice.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-et-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Endurance Trial",
+        "buttonTarget": "character",
+        "buttonId": "medteam-endurance",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-et-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 180
+      },
+      "data": {
+        "label": "Trial Intro",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *pulls up the endurance protocol and studies it for a moment before speaking* \"Endurance trial. We need a sustained-duration data point for Subject 12's profile.\" *sets her tablet down decisively* \"I'm recommending forty-five seconds sustained at standard flow. That gives us a complete accommodation curve from onset through plateau.\"\n\nNurse Dani: *immediately looks up from the monitors* \"Doctor — forty-five seconds is aggressive for a single sustained burst at this point in the session. Thirty seconds would provide more than sufficient baseline data and keeps us well within the safety margin.\"\n\nDr. Marsh: *meets Dani's gaze evenly* \"Thirty seconds gives us an incomplete curve. Forty-five gives us the inflection point.\"\n\nNurse Dani: \"Thirty gives us clean data without pushing unnecessary risk.\"\n\nDr. Marsh: *a thin smile* \"The subject will decide.\" *turns to Subject 12* \"Forty-five seconds, or thirty. Your choice, Subject 12.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-et-choice",
+      "type": "simple_ab",
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "data": {
+        "label": "Duration Choice",
+        "description": "Dr. Marsh wants 45 seconds. Nurse Dani recommends 30 seconds. Which duration do you endure?",
+        "labelA": "45 Seconds (Marsh)",
+        "descriptionA": "Full endurance trial — complete accommodation curve",
+        "labelB": "30 Seconds (Dani)",
+        "descriptionB": "Conservative trial — safe and sufficient baseline"
+      }
+    },
+    {
+      "id": "mt-et-45-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 580
+      },
+      "data": {
+        "label": "45s Choice Reaction",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *a look of unmistakable satisfaction crosses her face* \"Excellent choice, Subject 12. Forty-five seconds will give us the definitive data point.\" *turns to Priya* \"Priya, forty-five seconds sustained. Standard flow.\"\n\nNurse Dani: *jaw tightens, but she moves closer to the monitors* \"...Noted.\" *quietly positions herself where she can watch both the readings and Subject 12* \"I'll be right here.\"\n\nNurse Priya: \"Forty-five seconds, standard flow. Pump configured and ready.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-et-45-device",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 760
+      },
+      "data": {
+        "label": "45-Second Sustained",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 45,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Initiating. Forty-five seconds starting now.\"\n\nNurse Dani: *grips her pen tightly, eyes locked on the monitors* \"Counting...\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Forty-five seconds. Pump disengaged.\"\n\nNurse Dani: *exhales audibly, immediately checking every readout* \"Heart rate 122, settling. BP 144 over 94 — elevated but within safe parameters. Respiration 26, coming down.\" *touches Subject 12's shoulder* \"It's done. You made it through all forty-five.\"\n\nDr. Marsh: *studying the data with visible intensity* \"The accommodation curve is textbook. The inflection point occurred at thirty-two seconds — exactly where I predicted.\" *dictates into recorder* \"Subject 12 sustained the full forty-five-second endurance trial. Data quality: exceptional.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-et-30-msg",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 580
+      },
+      "data": {
+        "label": "30s Choice Reaction",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *visible relief crosses her face* \"Thank you, Subject 12.\" *gives a small, grateful nod*\n\nDr. Marsh: *expression remains neutral, but she makes a note on her tablet* \"Thirty seconds. Noted.\" *her tone is precisely controlled* \"Priya, thirty seconds sustained. Standard flow.\"\n\nNurse Priya: \"Thirty seconds, standard flow. Pump configured.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-et-30-device",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 760
+      },
+      "data": {
+        "label": "30-Second Sustained",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Initiating. Thirty seconds starting now.\"\n\nNurse Dani: *positions herself beside the monitors with practiced focus* \"Thirty seconds. I'm counting with you.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Thirty seconds. Pump disengaged.\"\n\nNurse Dani: *checks vitals with steady hands* \"Heart rate 104, BP 132 over 84. Well within parameters.\" *meets Subject 12's eyes* \"Clean and safe. Exactly as planned.\"\n\nDr. Marsh: *reviews the data, her expression analytically neutral* \"The thirty-second curve is clean, if truncated. We captured the onset and the early accommodation phase.\" *dictates* \"Subject 12 completed thirty-second endurance trial. Data quality: adequate. Note: the extended curve remains uncaptured for future protocol consideration.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-et-cooldown-msg",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 960
+      },
+      "data": {
+        "label": "Cooldown Announcement",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *sets down her tablet* \"Endurance phase complete. Initiating cooldown cycle — three recovery cycles to normalize the pressure response. Priya, two seconds active, eight seconds recovery, three cycles.\"\n\nNurse Priya: \"Cooldown cycle programmed. Two-eight timing, three cycles.\" *configures the pump* \"Ready to initiate.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-et-cooldown",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1120
+      },
+      "data": {
+        "label": "Cooldown Cycle (2s/8s x3)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 2,
+        "interval": 8,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Cooldown cycle initiating.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Cooldown sequence complete. Pump in standby.\"\n\nNurse Dani: *watches the vitals settle with satisfaction* \"Subject 12 stabilizing. Heart rate trending back to baseline. Good recovery profile across all three cycles.\" *makes a final note* \"Good data across the board.\"\n\nDr. Marsh: *reviewing the complete trial dataset* \"Indeed. The endurance phase and cooldown together give us a complete stimulus-and-recovery profile for Subject 12.\" *the faintest hint of approval in her voice* \"Excellent trial.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-et-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-et-emo-marsh",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 490
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "mt-et-emo-dani",
+      "type": "action",
+      "position": {
+        "x": 375,
+        "y": 490
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "mt-et-emo-done",
+      "type": "action",
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      },
+      "position": {
+        "x": 275,
+        "y": 1060
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "et-e1",
+      "source": "mt-et-btn",
+      "target": "mt-et-intro"
+    },
+    {
+      "id": "et-e5",
+      "source": "mt-et-45-msg",
+      "target": "mt-et-45-device"
+    },
+    {
+      "id": "et-e6",
+      "source": "mt-et-30-msg",
+      "target": "mt-et-30-device"
+    },
+    {
+      "id": "et-e7",
+      "source": "mt-et-45-device",
+      "target": "mt-et-cooldown-msg"
+    },
+    {
+      "id": "et-e8",
+      "source": "mt-et-30-device",
+      "target": "mt-et-cooldown-msg"
+    },
+    {
+      "id": "e-mt-et-cooldown-msg-to-mt-et-emo-done",
+      "source": "mt-et-cooldown-msg",
+      "target": "mt-et-emo-done"
+    },
+    {
+      "id": "e-mt-et-intro-to-mt-et-emo-start",
+      "source": "mt-et-intro",
+      "target": "mt-et-emo-start"
+    },
+    {
+      "id": "e-mt-et-emo-start-to-mt-et-choice",
+      "source": "mt-et-emo-start",
+      "target": "mt-et-choice"
+    },
+    {
+      "id": "e-mt-et-choice-to-mt-et-emo-marsh",
+      "source": "mt-et-choice",
+      "target": "mt-et-emo-marsh",
+      "sourceHandle": "a"
+    },
+    {
+      "id": "e-mt-et-emo-marsh-to-mt-et-45-msg",
+      "source": "mt-et-emo-marsh",
+      "target": "mt-et-45-msg"
+    },
+    {
+      "id": "e-mt-et-choice-to-mt-et-emo-dani",
+      "source": "mt-et-choice",
+      "target": "mt-et-emo-dani",
+      "sourceHandle": "b"
+    },
+    {
+      "id": "e-mt-et-emo-dani-to-mt-et-30-msg",
+      "source": "mt-et-emo-dani",
+      "target": "mt-et-30-msg"
+    },
+    {
+      "id": "e-mt-et-emo-done-to-mt-et-cooldown",
+      "source": "mt-et-emo-done",
+      "target": "mt-et-cooldown"
+    }
+  ]
+}

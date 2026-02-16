@@ -1,0 +1,472 @@
+{
+  "id": "flow-medteam-blind-protocol",
+  "name": "MedTeam Blind Protocol",
+  "category": "character",
+  "description": "The subject is not told which procedure is administered. A dice roll determines gentle, standard, or intensive protocol. Afterward, Subject 12 must guess which protocol was used — testing proprioceptive awareness.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-bp-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Blind Protocol",
+        "buttonTarget": "character",
+        "buttonId": "medteam-blind",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-bp-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 180
+      },
+      "data": {
+        "label": "Blind Protocol Intro",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *closes her tablet and sets it face-down on the desk* \"Blind protocol. Subject 12 will not be informed which procedure is being administered. This tests proprioceptive discrimination — can the subject identify the stimulus type based solely on physical sensation?\" *turns to Priya* \"Priya, randomize the protocol assignment. I want a clean blind — no verbal cues, no timing tells.\"\n\nNurse Priya: *nods professionally* \"Randomizing now, Doctor. I'll administer whichever protocol is selected without announcing parameters.\"\n\nNurse Dani: *to Subject 12* \"Just focus on what you feel. Don't try to overthink it — just experience it. We'll ask you what you think happened afterward.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-dice",
+      "type": "dice_roll",
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "data": {
+        "label": "Protocol Randomizer",
+        "diceCount": 2,
+        "mode": "ranges",
+        "ranges": [
+          {
+            "id": "gentle",
+            "label": "Gentle (2-5)",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "standard",
+            "label": "Standard (6-9)",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "intensive",
+            "label": "Intensive (10-12)",
+            "min": 10,
+            "max": 12
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: *rolls the randomization dice behind her station, shielding the result from Subject 12* \"Protocol assigned.\"",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "mt-bp-set-gentle",
+      "type": "set_variable",
+      "position": {
+        "x": 0,
+        "y": 600
+      },
+      "data": {
+        "label": "Set Protocol: Gentle",
+        "variable": "protocolType",
+        "variableName": "protocolType",
+        "value": "Gentle",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "mt-bp-gentle-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 740
+      },
+      "data": {
+        "label": "Gentle Narration",
+        "actionType": "send_message",
+        "message": "Nurse Priya: *maintains a neutral expression as she configures the pump* \"Protocol selected. Engaging now.\"\n\nDr. Marsh: *deliberately looks away from Priya's configuration, maintaining the blind* \"Administering. Dani, vitals only — no commentary on what you observe about the stimulus type.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-gentle-device",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "data": {
+        "label": "Gentle: 5 Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: *engages the pump with practiced calm*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Procedure complete.\" *her face reveals nothing*\n\nNurse Dani: \"Vitals recorded. Minimal deviation from baseline.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-bp-set-standard",
+      "type": "set_variable",
+      "position": {
+        "x": 250,
+        "y": 600
+      },
+      "data": {
+        "label": "Set Protocol: Standard",
+        "variable": "protocolType",
+        "variableName": "protocolType",
+        "value": "Standard",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "mt-bp-standard-msg",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 740
+      },
+      "data": {
+        "label": "Standard Narration",
+        "actionType": "send_message",
+        "message": "Nurse Priya: *configures the pump without any change in expression* \"Protocol selected. Engaging now.\"\n\nDr. Marsh: *keeping her eyes on her recorder* \"Administering. Dani, vitals monitoring only. No procedural commentary.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-standard-device",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 900
+      },
+      "data": {
+        "label": "Standard: Cycle (5s/3s x4)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 3,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: *engages the pump without verbal cues*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Procedure complete.\" *expression unchanged*\n\nNurse Dani: \"Vitals recorded. Moderate fluctuation noted.\" *carefully avoids specifics*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-bp-set-intensive",
+      "type": "set_variable",
+      "position": {
+        "x": 500,
+        "y": 600
+      },
+      "data": {
+        "label": "Set Protocol: Intensive",
+        "variable": "protocolType",
+        "variableName": "protocolType",
+        "value": "Intensive",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "mt-bp-intensive-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 740
+      },
+      "data": {
+        "label": "Intensive Narration",
+        "actionType": "send_message",
+        "message": "Nurse Priya: *her hands move across the pump controls with the same measured pace as any other protocol* \"Protocol selected. Engaging now.\"\n\nDr. Marsh: \"Administering. Dani, vitals only.\" *maintains the blind by studying her recorder*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-intensive-device",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 900
+      },
+      "data": {
+        "label": "Intensive: 25s Sustained",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 25,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: *engages the pump, maintaining her neutral composure*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Procedure complete.\" *same flat tone as always*\n\nNurse Dani: \"Vitals recorded. Significant response observed.\" *catches herself* \"...Noted for the record.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-bp-guess-prompt",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1100
+      },
+      "data": {
+        "label": "Identification Prompt",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *turns back to face Subject 12, her expression giving nothing away* \"Now for the assessment phase. Subject 12 — based solely on what you felt, which protocol do you believe was administered?\" *holds up three fingers* \"One: Gentle — brief, discrete stimulus. Two: Standard — cyclical pattern with intervals. Three: Intensive — prolonged, sustained stimulus.\"\n\nNurse Dani: *encouragingly* \"There's no wrong answer here. Just tell us what you felt.\"\n\nDr. Marsh: \"There is very much a wrong answer, Dani. That's the point of the test.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-guess",
+      "type": "number_guess",
+      "position": {
+        "x": 250,
+        "y": 1300
+      },
+      "data": {
+        "label": "Protocol Identification",
+        "min": 1,
+        "max": 3,
+        "maxAttempts": 1,
+        "closeThreshold": 0
+      }
+    },
+    {
+      "id": "mt-bp-correct",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 1500
+      },
+      "data": {
+        "label": "Correct Identification",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *both eyebrows rise — a rare expression of genuine surprise* \"...Correct identification.\" *pauses, studying Subject 12 with renewed interest* \"That's a notable demonstration of proprioceptive awareness. Most subjects in the blind protocol misidentify the stimulus type by at least one category.\"\n\nNurse Dani: *beams* \"Good job, Subject 12! That's impressive.\"\n\nDr. Marsh: *regaining her composure* \"The administered protocol was [Flow:protocolType]. Subject 12's ability to accurately discriminate stimulus type under blind conditions is... significant.\" *dictates into recorder* \"Blind protocol result: correct identification. Proprioceptive discrimination rated exceptional. Flagging for the review committee.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-close",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1500
+      },
+      "data": {
+        "label": "Close Guess",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *tilts her head slightly* \"Close, but incorrect. The administered protocol was [Flow:protocolType].\" *makes a note* \"One category off. Your proprioceptive discrimination is in the normal range — you sensed the general intensity but couldn't pinpoint the exact modality.\"\n\nNurse Dani: \"That was a tough one. The difference between those protocols isn't always obvious from the inside.\"\n\nDr. Marsh: \"Which is precisely why we run the blind protocol — to quantify the discrimination threshold.\" *records the result* \"Blind protocol result: near-miss identification. Subject 12's sensory calibration requires additional data points to fully characterize.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-wrong",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1500
+      },
+      "data": {
+        "label": "Wrong Identification",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *expression doesn't change, but there's a gleam of scientific interest in her eyes* \"Incorrect. The administered protocol was [Flow:protocolType].\" *leans forward slightly* \"Your perception does not match reality, Subject 12. Fascinating.\" *dictates rapidly* \"Blind protocol result: misidentification. Subject 12's subjective experience diverged significantly from the objective stimulus parameters. This perceptual gap is itself a valuable data point.\"\n\nNurse Dani: *gently* \"Don't feel bad about it. The blind protocol is designed to be difficult. Most people can't tell the difference.\"\n\nDr. Marsh: \"Indeed. The mismatch between sensation and reality tells us more about your nervous system's processing than a correct answer ever could.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-bp-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "mt-bp-emo-correct",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 1400
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "mt-bp-emo-wrong",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 1400
+      },
+      "data": {
+        "label": "Set Confused",
+        "actionType": "set_emotion",
+        "emotion": "confused"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "bp-e1",
+      "source": "mt-bp-btn",
+      "target": "mt-bp-intro"
+    },
+    {
+      "id": "bp-e3",
+      "source": "mt-bp-dice",
+      "sourceHandle": "gentle",
+      "target": "mt-bp-set-gentle"
+    },
+    {
+      "id": "bp-e4",
+      "source": "mt-bp-dice",
+      "sourceHandle": "standard",
+      "target": "mt-bp-set-standard"
+    },
+    {
+      "id": "bp-e5",
+      "source": "mt-bp-dice",
+      "sourceHandle": "intensive",
+      "target": "mt-bp-set-intensive"
+    },
+    {
+      "id": "bp-e6",
+      "source": "mt-bp-set-gentle",
+      "target": "mt-bp-gentle-msg"
+    },
+    {
+      "id": "bp-e7",
+      "source": "mt-bp-gentle-msg",
+      "target": "mt-bp-gentle-device"
+    },
+    {
+      "id": "bp-e8",
+      "source": "mt-bp-set-standard",
+      "target": "mt-bp-standard-msg"
+    },
+    {
+      "id": "bp-e9",
+      "source": "mt-bp-standard-msg",
+      "target": "mt-bp-standard-device"
+    },
+    {
+      "id": "bp-e10",
+      "source": "mt-bp-set-intensive",
+      "target": "mt-bp-intensive-msg"
+    },
+    {
+      "id": "bp-e11",
+      "source": "mt-bp-intensive-msg",
+      "target": "mt-bp-intensive-device"
+    },
+    {
+      "id": "bp-e12",
+      "source": "mt-bp-gentle-device",
+      "target": "mt-bp-guess-prompt"
+    },
+    {
+      "id": "bp-e13",
+      "source": "mt-bp-standard-device",
+      "sourceHandle": "completion",
+      "target": "mt-bp-guess-prompt"
+    },
+    {
+      "id": "bp-e14",
+      "source": "mt-bp-intensive-device",
+      "target": "mt-bp-guess-prompt"
+    },
+    {
+      "id": "bp-e15",
+      "source": "mt-bp-guess-prompt",
+      "target": "mt-bp-guess"
+    },
+    {
+      "id": "bp-e17",
+      "source": "mt-bp-guess",
+      "sourceHandle": "close",
+      "target": "mt-bp-close"
+    },
+    {
+      "id": "e-mt-bp-intro-to-mt-bp-emo-start",
+      "source": "mt-bp-intro",
+      "target": "mt-bp-emo-start"
+    },
+    {
+      "id": "e-mt-bp-emo-start-to-mt-bp-dice",
+      "source": "mt-bp-emo-start",
+      "target": "mt-bp-dice"
+    },
+    {
+      "id": "e-mt-bp-guess-to-mt-bp-emo-correct",
+      "source": "mt-bp-guess",
+      "target": "mt-bp-emo-correct",
+      "sourceHandle": "correct"
+    },
+    {
+      "id": "e-mt-bp-emo-correct-to-mt-bp-correct",
+      "source": "mt-bp-emo-correct",
+      "target": "mt-bp-correct"
+    },
+    {
+      "id": "e-mt-bp-guess-to-mt-bp-emo-wrong",
+      "source": "mt-bp-guess",
+      "target": "mt-bp-emo-wrong",
+      "sourceHandle": "wrong"
+    },
+    {
+      "id": "e-mt-bp-emo-wrong-to-mt-bp-wrong",
+      "source": "mt-bp-emo-wrong",
+      "target": "mt-bp-wrong"
+    }
+  ]
+}

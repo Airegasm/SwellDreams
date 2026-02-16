@@ -1,0 +1,291 @@
+{
+  "id": "flow-luna-love-counter",
+  "name": "Luna's Love Counter",
+  "category": "character",
+  "description": "Luna tracks affection with a kiss counter. Different rewards unlock at 3, 5, and 7 kisses, then the counter resets.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-lc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Count Kisses",
+        "buttonTarget": "character",
+        "buttonId": "luna-kisses",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-lc-counter",
+      "type": "counter",
+      "position": {
+        "x": 200,
+        "y": 170
+      },
+      "data": {
+        "label": "Kiss Counter",
+        "variable": "kissCount",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "luna-lc-switch",
+      "type": "switch",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "How Many Kisses?",
+        "variable": "custom",
+        "customVariable": "kissCount",
+        "includeDefault": true,
+        "cases": [
+          {
+            "value": "3",
+            "label": "Three Kisses"
+          },
+          {
+            "value": "5",
+            "label": "Five Kisses"
+          },
+          {
+            "value": "7",
+            "label": "Seven Kisses"
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-lc-default",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 480
+      },
+      "data": {
+        "label": "Default Kiss",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*leans in and kisses you softly*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Every kiss counts, baby... that's [Flow:kissCount] so far. Keep them coming, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-lc-three",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 480
+      },
+      "data": {
+        "label": "Three Kisses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*cups your face in both hands* Three kisses, baby...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Three kisses! Getting warmer, sweetheart... *nuzzles against you* I can feel something building between us.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-lc-five",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 480
+      },
+      "data": {
+        "label": "Five Kisses",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*bites lip* Five kisses... you're spoiling me, love...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Five kisses! Mmm, you're earning something special... *traces a finger down your chest* Two more and the magic happens, darling.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-lc-seven",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 480
+      },
+      "data": {
+        "label": "Seven Kisses!",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*eyes go wide, pulls you close* Seven... that's the magic number, love...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Seven! That's the magic number, love... *breathes softly against your neck* You earned every second of that. Now we start all over again... *resets the count*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-lc-reset",
+      "type": "counter",
+      "position": {
+        "x": 550,
+        "y": 650
+      },
+      "data": {
+        "label": "Reset Kisses",
+        "variable": "kissCount",
+        "operation": "set",
+        "amount": 0,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "luna-lc-emo-three",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 390
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "luna-lc-emo-five",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 390
+      },
+      "data": {
+        "label": "Set Aroused",
+        "actionType": "set_emotion",
+        "emotion": "aroused"
+      }
+    },
+    {
+      "id": "luna-lc-emo-seven",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 390
+      },
+      "data": {
+        "label": "Set Horny",
+        "actionType": "set_emotion",
+        "emotion": "horny"
+      }
+    },
+    {
+      "id": "luna-lc-attr-peak",
+      "type": "action",
+      "position": {
+        "x": 575,
+        "y": 565
+      },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 95
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-lc-btn",
+      "target": "luna-lc-counter"
+    },
+    {
+      "id": "e2",
+      "source": "luna-lc-counter",
+      "target": "luna-lc-switch"
+    },
+    {
+      "id": "e3",
+      "source": "luna-lc-switch",
+      "sourceHandle": "default",
+      "target": "luna-lc-default"
+    },
+    {
+      "id": "e-luna-lc-switch-to-luna-lc-emo-three",
+      "source": "luna-lc-switch",
+      "target": "luna-lc-emo-three",
+      "sourceHandle": "case-0"
+    },
+    {
+      "id": "e-luna-lc-emo-three-to-luna-lc-three",
+      "source": "luna-lc-emo-three",
+      "target": "luna-lc-three"
+    },
+    {
+      "id": "e-luna-lc-switch-to-luna-lc-emo-five",
+      "source": "luna-lc-switch",
+      "target": "luna-lc-emo-five",
+      "sourceHandle": "case-1"
+    },
+    {
+      "id": "e-luna-lc-emo-five-to-luna-lc-five",
+      "source": "luna-lc-emo-five",
+      "target": "luna-lc-five"
+    },
+    {
+      "id": "e-luna-lc-switch-to-luna-lc-emo-seven",
+      "source": "luna-lc-switch",
+      "target": "luna-lc-emo-seven",
+      "sourceHandle": "case-2"
+    },
+    {
+      "id": "e-luna-lc-emo-seven-to-luna-lc-seven",
+      "source": "luna-lc-emo-seven",
+      "target": "luna-lc-seven"
+    },
+    {
+      "id": "e-luna-lc-seven-to-luna-lc-attr-peak",
+      "source": "luna-lc-seven",
+      "target": "luna-lc-attr-peak"
+    },
+    {
+      "id": "e-luna-lc-attr-peak-to-luna-lc-reset",
+      "source": "luna-lc-attr-peak",
+      "target": "luna-lc-reset"
+    }
+  ]
+}

@@ -127,24 +127,40 @@
         "preDelay": 1,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "luna-es-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "luna-es-attr-intimate",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 400
+      },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 80
+      }
     }
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "luna-es-trigger",
-      "target": "luna-es-mood"
-    },
-    {
       "id": "e2",
       "source": "luna-es-mood",
       "target": "luna-es-random"
-    },
-    {
-      "id": "e3",
-      "source": "luna-es-random",
-      "sourceHandle": "branch-0",
-      "target": "luna-es-intimate"
     },
     {
       "id": "e4",
@@ -157,6 +173,27 @@
       "source": "luna-es-random",
       "sourceHandle": "branch-2",
       "target": "luna-es-reward"
+    },
+    {
+      "id": "e-luna-es-trigger-to-luna-es-emo-start",
+      "source": "luna-es-trigger",
+      "target": "luna-es-emo-start"
+    },
+    {
+      "id": "e-luna-es-emo-start-to-luna-es-mood",
+      "source": "luna-es-emo-start",
+      "target": "luna-es-mood"
+    },
+    {
+      "id": "e-luna-es-random-to-luna-es-attr-intimate",
+      "source": "luna-es-random",
+      "target": "luna-es-attr-intimate",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-luna-es-attr-intimate-to-luna-es-intimate",
+      "source": "luna-es-attr-intimate",
+      "target": "luna-es-intimate"
     }
   ]
 }

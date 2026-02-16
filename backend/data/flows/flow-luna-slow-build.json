@@ -1,0 +1,297 @@
+{
+  "id": "flow-luna-slow-build",
+  "name": "Luna's Slow Build",
+  "category": "character",
+  "description": "A gradual buildup loop with 4 pulse iterations and a delay, then a condition check determines the grand finale.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-sb-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Slow Build",
+        "buttonTarget": "character",
+        "buttonId": "luna-build",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-sb-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 250,
+        "y": 170
+      },
+      "data": {
+        "label": "Set Phase",
+        "variable": "buildPhase",
+        "variableName": "buildPhase",
+        "value": "starting",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "luna-sb-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 290
+      },
+      "data": {
+        "label": "Build Intro",
+        "actionType": "send_message",
+        "message": "*settles in beside you, her hand resting on your stomach* We're going to take this slow, baby... nice and easy. Four little rounds, each one building on the last. Just relax and let it happen... I've got you.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-sb-loop",
+      "type": "loop",
+      "position": {
+        "x": 250,
+        "y": 420
+      },
+      "data": {
+        "label": "Build Loop",
+        "mode": "fixed",
+        "iterations": 4,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "luna-sb-pulse",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 560
+      },
+      "data": {
+        "label": "Build Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*whispers* Here comes the next one, love... breathe for me...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "That's it, sweetheart... you're doing so well. Round [Flow:buildCount] down... *kisses your forehead*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-sb-counter",
+      "type": "counter",
+      "position": {
+        "x": 250,
+        "y": 700
+      },
+      "data": {
+        "label": "Build Counter",
+        "variable": "buildCount",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "luna-sb-delay",
+      "type": "delay",
+      "position": {
+        "x": 250,
+        "y": 820
+      },
+      "data": {
+        "label": "Breathe",
+        "duration": 5,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "luna-sb-condition",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 1020
+      },
+      "data": {
+        "label": "Check Capacity",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-sb-high",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1180
+      },
+      "data": {
+        "label": "High Finale",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*eyes sparkling* Oh baby, look how far you've come... you're more than ready for this...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "You've been so good, baby... *runs her fingers through your hair* So patient, so trusting. That was beautiful. I'm so proud of you, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-sb-low",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 1180
+      },
+      "data": {
+        "label": "Low Finale",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "*smiles warmly* Let me fill you up nice and slow, darling... no rush, just us...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Let me fill you up nice and slow... *holds you close as it finishes* There we go, love. You took that so beautifully. Every bit of you is perfect.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-sb-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 355
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "luna-sb-emo-high",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1100
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "luna-sb-emo-low",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1100
+      },
+      "data": {
+        "label": "Set Loving",
+        "actionType": "set_emotion",
+        "emotion": "loving"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-sb-btn",
+      "target": "luna-sb-setvar"
+    },
+    {
+      "id": "e2",
+      "source": "luna-sb-setvar",
+      "target": "luna-sb-intro"
+    },
+    {
+      "id": "e4",
+      "source": "luna-sb-loop",
+      "sourceHandle": "loop",
+      "target": "luna-sb-pulse"
+    },
+    {
+      "id": "e5",
+      "source": "luna-sb-pulse",
+      "target": "luna-sb-counter"
+    },
+    {
+      "id": "e6",
+      "source": "luna-sb-counter",
+      "target": "luna-sb-delay"
+    },
+    {
+      "id": "e7",
+      "source": "luna-sb-delay",
+      "target": "luna-sb-loop"
+    },
+    {
+      "id": "e8",
+      "source": "luna-sb-loop",
+      "sourceHandle": "done",
+      "target": "luna-sb-condition"
+    },
+    {
+      "id": "e-luna-sb-intro-to-luna-sb-emo-start",
+      "source": "luna-sb-intro",
+      "target": "luna-sb-emo-start"
+    },
+    {
+      "id": "e-luna-sb-emo-start-to-luna-sb-loop",
+      "source": "luna-sb-emo-start",
+      "target": "luna-sb-loop"
+    },
+    {
+      "id": "e-luna-sb-condition-to-luna-sb-emo-high",
+      "source": "luna-sb-condition",
+      "target": "luna-sb-emo-high",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-luna-sb-emo-high-to-luna-sb-high",
+      "source": "luna-sb-emo-high",
+      "target": "luna-sb-high"
+    },
+    {
+      "id": "e-luna-sb-condition-to-luna-sb-emo-low",
+      "source": "luna-sb-condition",
+      "target": "luna-sb-emo-low",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-luna-sb-emo-low-to-luna-sb-low",
+      "source": "luna-sb-emo-low",
+      "target": "luna-sb-low"
+    }
+  ]
+}

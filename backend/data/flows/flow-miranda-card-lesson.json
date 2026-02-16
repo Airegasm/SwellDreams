@@ -1,0 +1,295 @@
+{
+  "id": "flow-miranda-card-lesson",
+  "name": "Miranda's Card Lesson",
+  "category": "character",
+  "description": "Draw a card to determine which inflation technique Miranda teaches. Each suit maps to a different method, and a random intensity level is drawn first. Miranda demonstrates alongside.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "miranda-cl-btn",
+      "type": "button_press",
+      "position": {
+        "x": 400,
+        "y": 50
+      },
+      "data": {
+        "label": "Card Lesson",
+        "buttonTarget": "character",
+        "buttonId": "miranda-cards",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "miranda-cl-intro",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 180
+      },
+      "data": {
+        "label": "Lesson Introduction",
+        "actionType": "send_message",
+        "message": "Today's technique is chosen by the cards! Each suit represents a different inflation method I've developed over years of practice. *shuffles deck with surprising dexterity* Hearts, Diamonds, Clubs, or Spades — each one teaches your belly something different!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-cl-random",
+      "type": "random_number",
+      "position": {
+        "x": 400,
+        "y": 340
+      },
+      "data": {
+        "label": "Draw Intensity Level",
+        "minValue": 1,
+        "maxValue": 3,
+        "variableName": "intensityLevel"
+      }
+    },
+    {
+      "id": "miranda-cl-intensity-msg",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 480
+      },
+      "data": {
+        "label": "Announce Intensity",
+        "actionType": "send_message",
+        "message": "Intensity level drawn: [Flow:intensityLevel] out of 3! *nods approvingly* Now let's see which technique the cards choose for us... *fans the deck out face-down*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-cl-draw",
+      "type": "card_draw",
+      "position": {
+        "x": 400,
+        "y": 620
+      },
+      "data": {
+        "label": "Draw Technique Card",
+        "deckType": "standard",
+        "outputMode": "suit"
+      }
+    },
+    {
+      "id": "miranda-cl-hearts",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 820
+      },
+      "data": {
+        "label": "Hearts: Heartbeat Method (pulse x5)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "Hearts! The Heartbeat Method — gentle, rhythmic pulses that mimic a heartbeat. *pumps herself in sync* Feel the rhythm! Each pulse teaches your belly to relax between beats. This is the foundation of everything I teach!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*places a hand on her chest, then on her belly* See how the rhythm creates a natural breathing pattern? The Heartbeat Method is my favorite for beginners — it builds trust between you and your belly!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-cl-diamonds",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 820
+      },
+      "data": {
+        "label": "Diamonds: Diamond Stretch (10s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "Diamonds! The Diamond Stretch — sustained, steady inflation to test elasticity. *starts her own pump* Watch how the belly rounds out evenly! Ten seconds of constant, smooth pressure. Breathe and let it happen!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*runs her hands along the curve of her own belly* The Diamond Stretch gives that perfect round shape — see how smooth and even the expansion is? That's what sustained pressure does versus pulsing!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-cl-clubs",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 820
+      },
+      "data": {
+        "label": "Clubs: Club Rhythm (cycle 3s/2s x4)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "Clubs! The Club Rhythm — alternating bursts that build capacity faster! *excitedly programs her own pump* This is one of my favorites! Three seconds on, two seconds rest, four rounds! The intervals let your belly catch up between stretches!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*bounces excitedly, belly wobbling* The Club Rhythm is AMAZING for capacity building! Each rest period lets the body partially reset, but not completely — so you gain a little more each cycle! I could talk about this technique ALL day!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-cl-spades",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 820
+      },
+      "data": {
+        "label": "Spades: Deep Dig (15s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Spades! The Spade Deep Dig — a longer sustained fill to really push boundaries! *takes a deep breath and starts her own pump* This one's intense but SO worth it! Fifteen seconds! Stay with me — in through the nose, out through the mouth!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*exhales hard, both hands on her very round belly* WOW! The Deep Dig really pushes the limits! *glances between both bellies with flushed cheeks* That kind of sustained pressure teaches your body that it CAN hold more than it thinks!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-cl-review",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 1050
+      },
+      "data": {
+        "label": "Technique Review",
+        "actionType": "send_message",
+        "message": "Great lesson! *compares bellies side by side* See how each technique creates a slightly different shape? The Heartbeat makes it softer, the Diamond Stretch gives that perfect round shape, the Club Rhythm builds layers, and the Deep Dig just goes all in! *beams* I could talk about this all day! How are you feeling?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-cl-emo-start",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "miranda-cl-emo-spades",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 720
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "miranda-cl-btn",
+      "target": "miranda-cl-intro"
+    },
+    {
+      "id": "e3",
+      "source": "miranda-cl-random",
+      "target": "miranda-cl-intensity-msg"
+    },
+    {
+      "id": "e4",
+      "source": "miranda-cl-intensity-msg",
+      "target": "miranda-cl-draw"
+    },
+    {
+      "id": "e5",
+      "source": "miranda-cl-draw",
+      "sourceHandle": "hearts",
+      "target": "miranda-cl-hearts"
+    },
+    {
+      "id": "e6",
+      "source": "miranda-cl-draw",
+      "sourceHandle": "diamonds",
+      "target": "miranda-cl-diamonds"
+    },
+    {
+      "id": "e7",
+      "source": "miranda-cl-draw",
+      "sourceHandle": "clubs",
+      "target": "miranda-cl-clubs"
+    },
+    {
+      "id": "e9",
+      "source": "miranda-cl-hearts",
+      "target": "miranda-cl-review"
+    },
+    {
+      "id": "e10",
+      "source": "miranda-cl-diamonds",
+      "target": "miranda-cl-review"
+    },
+    {
+      "id": "e11",
+      "source": "miranda-cl-clubs",
+      "target": "miranda-cl-review"
+    },
+    {
+      "id": "e12",
+      "source": "miranda-cl-spades",
+      "target": "miranda-cl-review"
+    },
+    {
+      "id": "e-miranda-cl-intro-to-miranda-cl-emo-start",
+      "source": "miranda-cl-intro",
+      "target": "miranda-cl-emo-start"
+    },
+    {
+      "id": "e-miranda-cl-emo-start-to-miranda-cl-random",
+      "source": "miranda-cl-emo-start",
+      "target": "miranda-cl-random"
+    },
+    {
+      "id": "e-miranda-cl-draw-to-miranda-cl-emo-spades",
+      "source": "miranda-cl-draw",
+      "target": "miranda-cl-emo-spades",
+      "sourceHandle": "spades"
+    },
+    {
+      "id": "e-miranda-cl-emo-spades-to-miranda-cl-spades",
+      "source": "miranda-cl-emo-spades",
+      "target": "miranda-cl-spades"
+    }
+  ]
+}

@@ -305,6 +305,59 @@
         "postMessageSuppressLlm": false,
         "postDelay": 1
       }
+    },
+    {
+      "id": "vex-cg-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-cg-emo-coinwin",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 610
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "vex-cg-emo-timerfail",
+      "type": "action",
+      "position": {
+        "x": 242,
+        "y": 1200
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    },
+    {
+      "id": "vex-cg-attr-timerfail",
+      "type": "action",
+      "position": {
+        "x": 308,
+        "y": 950
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 92
+      }
     }
   ],
   "edges": [
@@ -312,11 +365,6 @@
       "id": "e1",
       "source": "vex-cg-btn",
       "target": "vex-cg-intro"
-    },
-    {
-      "id": "e2",
-      "source": "vex-cg-intro",
-      "target": "vex-cg-coin-intro"
     },
     {
       "id": "e3",
@@ -334,11 +382,6 @@
       "source": "vex-cg-coin",
       "sourceHandle": "tails",
       "target": "vex-cg-coin-lose"
-    },
-    {
-      "id": "e6",
-      "source": "vex-cg-coin-win",
-      "target": "vex-cg-rps-intro"
     },
     {
       "id": "e7",
@@ -412,8 +455,38 @@
       "target": "vex-cg-victory"
     },
     {
-      "id": "e20",
+      "id": "e-vex-cg-intro-to-vex-cg-emo-start",
+      "source": "vex-cg-intro",
+      "target": "vex-cg-emo-start"
+    },
+    {
+      "id": "e-vex-cg-emo-start-to-vex-cg-coin-intro",
+      "source": "vex-cg-emo-start",
+      "target": "vex-cg-coin-intro"
+    },
+    {
+      "id": "e-vex-cg-coin-win-to-vex-cg-emo-coinwin",
+      "source": "vex-cg-coin-win",
+      "target": "vex-cg-emo-coinwin"
+    },
+    {
+      "id": "e-vex-cg-emo-coinwin-to-vex-cg-rps-intro",
+      "source": "vex-cg-emo-coinwin",
+      "target": "vex-cg-rps-intro"
+    },
+    {
+      "id": "e-vex-cg-timer-fail-to-vex-cg-emo-timerfail",
       "source": "vex-cg-timer-fail",
+      "target": "vex-cg-emo-timerfail"
+    },
+    {
+      "id": "e-vex-cg-emo-timerfail-to-vex-cg-attr-timerfail",
+      "source": "vex-cg-emo-timerfail",
+      "target": "vex-cg-attr-timerfail"
+    },
+    {
+      "id": "e-vex-cg-attr-timerfail-to-vex-cg-punish",
+      "source": "vex-cg-attr-timerfail",
       "target": "vex-cg-punish"
     }
   ]

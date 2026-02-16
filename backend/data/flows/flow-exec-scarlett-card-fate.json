@@ -1,0 +1,406 @@
+{
+  "id": "flow-exec-scarlett-card-fate",
+  "name": "Executress Scarlett: Card of Fate",
+  "category": "character",
+  "description": "Card suit determines inflation method. Counter tracks cards drawn. Random number sets card rank. Condition checks capacity for face card amplification bonus.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-cf-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Card of Fate",
+        "buttonTarget": "character",
+        "buttonId": "exec-card",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-cf-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Cards Drawn",
+        "variable": "cardsDrawn",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "exec-cf-rank",
+      "type": "random_number",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Card Rank",
+        "minValue": 1,
+        "maxValue": 13,
+        "variableName": "cardRank"
+      }
+    },
+    {
+      "id": "exec-cf-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 500
+      },
+      "data": {
+        "label": "Card Introduction",
+        "actionType": "send_message",
+        "message": "*draws a card from the execution deck, holding it face down* Card number [Flow:cardsDrawn]. Rank: [Flow:cardRank]. *turns the card slowly, revealing the suit* In the execution deck, each suit determines a different method of abdominal inflation. Hearts deliver rhythmic compression. Diamonds deliver targeted pulses. Clubs deliver sustained unrelenting pressure. Spades deliver deep pressurization at maximum flow rate. *reveals the card fully* The rank determines how the data is logged — nothing more. The suit is what your intestines will feel.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cf-draw",
+      "type": "card_draw",
+      "position": {
+        "x": 300,
+        "y": 700
+      },
+      "data": {
+        "label": "Draw Suit",
+        "deckType": "standard",
+        "outputMode": "suit"
+      }
+    },
+    {
+      "id": "exec-cf-hearts",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "data": {
+        "label": "Hearts: Rhythmic (cycle 3s/2s x3)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Hearts. The rhythmic compression protocol. *sets the card down, suit facing [Player]* Your intestines will experience alternating pressure in a pattern designed to maximize discomfort — three seconds of inflation followed by two seconds of partial relief, repeated three times. The rhythmic loading and unloading fatigues the abdominal wall more efficiently than sustained pressure alone. *activates the cycle program* Watch your belly pulse.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*observes the final cycle's conclusion, studying the way [Player]'s belly settles* Three rhythmic cycles complete. The alternating pressure pattern has fatigued the abdominal wall's elastic response — note how the belly no longer retracts as far during the relief intervals. *makes a notation* The tissue is losing its ability to spring back. Hearts is deceptively effective. The damage is cumulative across cycles.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-cf-diamonds",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 900
+      },
+      "data": {
+        "label": "Diamonds: Pulses (x6)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 6,
+        "preMessageEnabled": true,
+        "preMessage": "Diamonds. Six targeted pressure pulses to the most sensitive regions of your distended abdomen. *positions her hand on the pump control* Each pulse delivers a sharp burst of air — brief but forceful. The intestinal wall experiences a rapid stretch-and-hold with each pulse, testing the tissue's instantaneous elastic response rather than its sustained compliance. *engages the pulse sequence* Six. Count them.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches [Player]'s belly absorb the final pulse* Six pulses delivered. Each one added a discrete bolus of air that the intestines must accommodate individually. *presses her fingers against the taut abdomen* The rapid loading pattern creates micro-stress points in the tissue — small areas where the collagen fibers have been stretched beyond their immediate recovery capacity. *notes the card rank* Card [Flow:cardsDrawn], rank [Flow:cardRank]. Diamonds. Documented.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-cf-clubs",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 900
+      },
+      "data": {
+        "label": "Clubs: Sustained (12s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "Clubs. Twelve seconds of unrelenting sustained inflation. *adjusts the flow valve to maximum* No cycling. No pulses. No relief intervals. The pump runs continuously for twelve seconds and your intestines receive every cubic centimeter of air the machine produces during that time. *activates the machine* Watch your belly grow. The expansion will be visible and continuous.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*observes the significant increase in [Player]'s abdominal distension* Twelve seconds of continuous inflation. The belly has expanded measurably — the skin is visibly tighter, the curvature more pronounced. *palpates the distended abdomen* The tissue is under sustained tension now. The intestinal walls absorbed twelve seconds of uninterrupted pressure without any relief cycling. Clubs is the most straightforward suit — and often the most punishing for precisely that reason.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-cf-spades",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 900
+      },
+      "data": {
+        "label": "Spades: Deep Pressure (10s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "Spades. The deep pressure protocol. *adjusts the valve to maximum flow rate and checks the line pressure* Ten seconds at the highest flow rate the machine can produce. The air enters faster than the intestines can redistribute it — you'll feel localized pressure spikes as the volume concentrates in specific sections of the bowel before equalizing. *engages the pump* Your intestinal wall will remember this card.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*studies [Player]'s reaction as the pump shuts off* Ten seconds at maximum flow. The deep pressure protocol delivers more volume per second than any other suit — the intestines were forced to accommodate a rapid influx that exceeded their normal redistribution rate. *examines the distension pattern* You can see the uneven expansion — areas where the air concentrated before equalizing. The peritoneal wall experienced localized stress peaks. *documents the result* Spades. Card [Flow:cardsDrawn]. The deck still holds many cards.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-cf-delay",
+      "type": "delay",
+      "position": {
+        "x": 375,
+        "y": 1120
+      },
+      "data": {
+        "label": "Assessment Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "exec-cf-condition",
+      "type": "condition",
+      "position": {
+        "x": 375,
+        "y": 1260
+      },
+      "data": {
+        "label": "Amplification Check",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">",
+            "value": 70
+          }
+        ]
+      }
+    },
+    {
+      "id": "exec-cf-amplify-msg",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 1440
+      },
+      "data": {
+        "label": "Face Card Amplification",
+        "actionType": "send_message",
+        "message": "*checks the pressure readings and nods once* Above 70% capacity. At this level, a face card amplification is warranted under execution protocol. *moves to the controls* When the condemned's intestinal pressure exceeds the 70% threshold, each card draw triggers a supplementary inflation — fifteen additional seconds. Consider it the house bonus. *adjusts the flow valve* The amplification is not optional. It is built into the protocol for a reason: at higher pressures, the tissue requires sustained loading to produce meaningful additional stretch. Brief interventions become insufficient.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cf-amplify-device",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 1640
+      },
+      "data": {
+        "label": "Amplification (15s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the machine* Fifteen seconds. Face card amplification in progress. Your intestines are already under significant tension — this additional volume will test the remaining compliance of the peritoneal wall.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*examines the extreme distension with clinical interest* Amplification complete. Fifteen additional seconds on top of the card's primary inflation. *runs her hand across the taut, dome-shaped belly* The cumulative volume is substantial. Your abdominal wall is approaching the limits of its accommodation capacity. *makes a final notation* Card [Flow:cardsDrawn], rank [Flow:cardRank], with face card amplification applied. The deck grows shorter. Your belly grows larger. The execution proceeds.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-cf-no-amplify",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1440
+      },
+      "data": {
+        "label": "Standard Continuation",
+        "actionType": "send_message",
+        "message": "*makes a notation on her clipboard* Card [Flow:cardsDrawn] documented. Rank [Flow:cardRank]. The deck still holds many cards, and your belly still holds capacity for each of them. *studies the current level of distension* You are below the amplification threshold — the face card bonus does not yet apply. Enjoy that while it lasts. Once you cross 70% capacity, every card draw will carry a fifteen-second supplementary inflation. *returns the clipboard to its hook* The mathematics of the deck work against you. Four suits, thirteen ranks, and every single one of them adds pressure that cannot be removed.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-cf-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 600
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-cf-emo-amp",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 1320
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "exec-cf-attr-amp",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1380
+      },
+      "data": {
+        "label": "Raise Psychopathic",
+        "actionType": "set_attribute",
+        "attribute": "psychopathic",
+        "attributeValue": 60
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-cf-btn",
+      "target": "exec-cf-counter"
+    },
+    {
+      "id": "e2",
+      "source": "exec-cf-counter",
+      "target": "exec-cf-rank"
+    },
+    {
+      "id": "e3",
+      "source": "exec-cf-rank",
+      "target": "exec-cf-intro"
+    },
+    {
+      "id": "e5",
+      "source": "exec-cf-draw",
+      "sourceHandle": "hearts",
+      "target": "exec-cf-hearts"
+    },
+    {
+      "id": "e6",
+      "source": "exec-cf-draw",
+      "sourceHandle": "diamonds",
+      "target": "exec-cf-diamonds"
+    },
+    {
+      "id": "e7",
+      "source": "exec-cf-draw",
+      "sourceHandle": "clubs",
+      "target": "exec-cf-clubs"
+    },
+    {
+      "id": "e8",
+      "source": "exec-cf-draw",
+      "sourceHandle": "spades",
+      "target": "exec-cf-spades"
+    },
+    {
+      "id": "e9",
+      "source": "exec-cf-hearts",
+      "target": "exec-cf-delay"
+    },
+    {
+      "id": "e10",
+      "source": "exec-cf-diamonds",
+      "target": "exec-cf-delay"
+    },
+    {
+      "id": "e11",
+      "source": "exec-cf-clubs",
+      "target": "exec-cf-delay"
+    },
+    {
+      "id": "e12",
+      "source": "exec-cf-spades",
+      "target": "exec-cf-delay"
+    },
+    {
+      "id": "e13",
+      "source": "exec-cf-delay",
+      "target": "exec-cf-condition"
+    },
+    {
+      "id": "e15",
+      "source": "exec-cf-amplify-msg",
+      "target": "exec-cf-amplify-device"
+    },
+    {
+      "id": "e16",
+      "source": "exec-cf-condition",
+      "sourceHandle": "false",
+      "target": "exec-cf-no-amplify"
+    },
+    {
+      "id": "e-exec-cf-intro-to-exec-cf-emo-start",
+      "source": "exec-cf-intro",
+      "target": "exec-cf-emo-start"
+    },
+    {
+      "id": "e-exec-cf-emo-start-to-exec-cf-draw",
+      "source": "exec-cf-emo-start",
+      "target": "exec-cf-draw"
+    },
+    {
+      "id": "e-exec-cf-condition-to-exec-cf-emo-amp",
+      "source": "exec-cf-condition",
+      "target": "exec-cf-emo-amp",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-exec-cf-emo-amp-to-exec-cf-attr-amp",
+      "source": "exec-cf-emo-amp",
+      "target": "exec-cf-attr-amp"
+    },
+    {
+      "id": "e-exec-cf-attr-amp-to-exec-cf-amplify-msg",
+      "source": "exec-cf-attr-amp",
+      "target": "exec-cf-amplify-msg"
+    }
+  ]
+}

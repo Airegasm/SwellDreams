@@ -668,6 +668,59 @@ function ActionNode({ data, selected }) {
           </div>
         );
 
+      case 'set_emotion':
+        return (
+          <div className="node-config">
+            <select
+              value={data.emotion || ''}
+              onChange={(e) => data.onChange?.('emotion', e.target.value)}
+              className="node-select"
+            >
+              <option value="">Select Emotion</option>
+              {EMOTIONS.map(em => (
+                <option key={em.key} value={em.key}>{em.emoji} {em.label}</option>
+              ))}
+            </select>
+          </div>
+        );
+
+      case 'set_attribute': {
+        const ATTRIBUTE_OPTIONS = [
+          { key: 'dominant', label: 'Dominant' },
+          { key: 'sadistic', label: 'Sadistic' },
+          { key: 'psychopathic', label: 'Psychopathic' },
+          { key: 'sensual', label: 'Sensual' },
+          { key: 'sexual', label: 'Sexual' }
+        ];
+
+        return (
+          <div className="node-config">
+            <select
+              value={data.attribute || ''}
+              onChange={(e) => data.onChange?.('attribute', e.target.value)}
+              className="node-select"
+            >
+              <option value="">Select Attribute</option>
+              {ATTRIBUTE_OPTIONS.map(a => (
+                <option key={a.key} value={a.key}>{a.label}</option>
+              ))}
+            </select>
+            <div className="config-row">
+              <label>Value: {data.attributeValue ?? 50}%</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={data.attributeValue ?? 50}
+                onChange={(e) => data.onChange?.('attributeValue', parseInt(e.target.value))}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        );
+      }
+
       default:
         return null;
     }

@@ -1,0 +1,151 @@
+{
+  "id": "flow-exec-scarlett-forced-climax",
+  "name": "Executress Scarlett: Forced Climax",
+  "category": "character",
+  "description": "Prep message, rhythmic inflation cycle, clinical aftermath observation. Linear flow.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-fc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Forced Climax",
+        "buttonTarget": "character",
+        "buttonId": "exec-climax",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-fc-prep",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Preparation",
+        "actionType": "send_message",
+        "message": "*Scarlett pauses the inflation and consults her execution log*\n\n\"We've reached the appropriate stage for a forced climax. This is standard protocol — the combination of internal pressure, involuntary nerve stimulation, and rhythmic inflation at this volume produces orgasm in approximately 90% of subjects.\"\n\n*adjusts [Player]'s restraints, ensuring they're secure*\n\n\"I'm going to run a rhythmic cycle — two seconds of inflation, one second of rest, eight repetitions. The pattern mimics certain... biological rhythms. Your body will respond whether you want it to or not.\" *meets [Player]'s eyes with calm certainty* \"You will not be able to prevent this. That is the point.\"\n\n*positions herself where she can observe [Player]'s face and belly simultaneously*\n\n\"Watch your belly during the cycles. Watch how it pulses. I find the visual component accelerates the response.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-fc-cycle",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Rhythmic Cycle (2s/1s x8)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 2,
+        "interval": 1,
+        "cycles": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett's hand moves to the pump controls with unhurried precision*\n\n\"Beginning the cycle now. Two on, one off, eight repetitions. Breathe if you can. Or don't — the result is the same.\"\n\n*activates the rhythmic pattern*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-fc-aftermath",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 540
+      },
+      "data": {
+        "label": "Clinical Aftermath",
+        "actionType": "send_message",
+        "message": "*Scarlett observes [Player]'s response with clinical detachment, making notes in the execution log*\n\n\"Eight cycles complete. Physiological response...\" *studies [Player]'s breathing, skin flush, muscle tension* \"...as predicted.\"\n\n*writes something in the log* \"The forced climax serves multiple purposes in the execution protocol. It exhausts the abdominal muscles, making them less resistant to further inflation. It produces a brief endorphin release that temporarily raises the pain threshold. And —\" *looks at [Player]* \"— it demonstrates that I control every response your body produces. Not just the pain.\"\n\n*closes the log* \"Rest period: sixty seconds. Then we resume the inflation. Your muscles will offer approximately 15% less resistance now. The next phase will feel... different.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-fc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Aroused",
+        "actionType": "set_emotion",
+        "emotion": "aroused"
+      }
+    },
+    {
+      "id": "exec-fc-emo-after",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 433
+      },
+      "data": {
+        "label": "Set Dazed",
+        "actionType": "set_emotion",
+        "emotion": "dazed"
+      }
+    },
+    {
+      "id": "exec-fc-attr-sexual",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 487
+      },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 70
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-fc-btn",
+      "target": "exec-fc-prep"
+    },
+    {
+      "id": "e-exec-fc-prep-to-exec-fc-emo-start",
+      "source": "exec-fc-prep",
+      "target": "exec-fc-emo-start"
+    },
+    {
+      "id": "e-exec-fc-emo-start-to-exec-fc-cycle",
+      "source": "exec-fc-emo-start",
+      "target": "exec-fc-cycle"
+    },
+    {
+      "id": "e-exec-fc-cycle-to-exec-fc-emo-after",
+      "source": "exec-fc-cycle",
+      "target": "exec-fc-emo-after"
+    },
+    {
+      "id": "e-exec-fc-emo-after-to-exec-fc-attr-sexual",
+      "source": "exec-fc-emo-after",
+      "target": "exec-fc-attr-sexual"
+    },
+    {
+      "id": "e-exec-fc-attr-sexual-to-exec-fc-aftermath",
+      "source": "exec-fc-attr-sexual",
+      "target": "exec-fc-aftermath"
+    }
+  ]
+}

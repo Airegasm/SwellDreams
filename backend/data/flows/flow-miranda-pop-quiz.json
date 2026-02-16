@@ -1,0 +1,324 @@
+{
+  "id": "flow-miranda-pop-quiz",
+  "name": "Miranda's Pop Quiz",
+  "category": "character",
+  "description": "Guess Miranda's number for a reward. Correct gets gentle pulses, close gets a sustained stretch, wrong gets a cycling drill. Capacity check triggers Miranda's flustered reaction.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "miranda-pq-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Pop Quiz",
+        "buttonTarget": "character",
+        "buttonId": "miranda-quiz",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "miranda-pq-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Quiz Introduction",
+        "actionType": "send_message",
+        "message": "Pop quiz time! I'm going to test your instincts. *adjusts her own tube* I'm thinking of a number between 1 and 10... and I'm pumping myself at the same time! *starts her pump with a confident smile* Let's see if you can guess while we both fill up!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-pq-guess",
+      "type": "number_guess",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Guess Miranda's Number",
+        "min": 1,
+        "max": 10,
+        "maxAttempts": 3,
+        "closeThreshold": 2
+      }
+    },
+    {
+      "id": "miranda-pq-correct-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 530
+      },
+      "data": {
+        "label": "Correct! Reward Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "You got it! Great instincts! *claps excitedly, belly jiggling from her own inflation* Here's your reward — just a couple of gentle pulses. Think of it as a gold star for your belly!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*beams proudly* See? Your body KNOWS things your brain hasn't caught up to yet. That's what good inflation instincts look like!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-pq-close-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 530
+      },
+      "data": {
+        "label": "Close! Extra Practice",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 8,
+        "preMessageEnabled": true,
+        "preMessage": "Ooh, so close! That's worth a little extra practice... *starts her own pump alongside yours* Eight seconds of sustained stretch — your belly will thank you later! Breathe through it!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pats her own rounded belly* There! A good stretch for both of us. You were SO close to getting it right — that kind of near-miss means your instincts are developing nicely!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-pq-wrong-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 530
+      },
+      "data": {
+        "label": "Wrong! Drill Time",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Not quite! Looks like we need more hands-on learning! *increases her own pump speed* Three rounds of cycling — this is how we build that belly intuition! I'm doing it too, so you're not alone!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*exhales* Whew! That was a workout for both of us! *rubs her belly* But THAT is how you train your instincts — through repetition and pressure! You'll get it next time!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "miranda-pq-check",
+      "type": "condition",
+      "position": {
+        "x": 300,
+        "y": 750
+      },
+      "data": {
+        "label": "Check Capacity",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">",
+            "value": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "miranda-pq-flustered",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 930
+      },
+      "data": {
+        "label": "Miranda Flustered",
+        "actionType": "send_message",
+        "message": "*glances at your belly and bites her lip* W-wow, look at that roundness! That's... really good progress! *fans herself* From a purely educational standpoint, your belly is exhibiting excellent accommodation! *clears throat* A-anyway! Moving on to the next lesson!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-pq-encourage",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 930
+      },
+      "data": {
+        "label": "Miranda Encouragement",
+        "actionType": "send_message",
+        "message": "Great job! Your belly is coming along nicely. Keep practicing and you'll be at my level in no time! *pats her own rounded belly proudly* Remember — every quiz, every stretch, every pump brings you closer to mastery!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "miranda-pq-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 265
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "miranda-pq-emo-correct",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 440
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "miranda-pq-emo-wrong",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 440
+      },
+      "data": {
+        "label": "Set Confused",
+        "actionType": "set_emotion",
+        "emotion": "confused"
+      }
+    },
+    {
+      "id": "miranda-pq-emo-flustered",
+      "type": "action",
+      "position": {
+        "x": 258,
+        "y": 810
+      },
+      "data": {
+        "label": "Set Embarrassed",
+        "actionType": "set_emotion",
+        "emotion": "embarrassed"
+      }
+    },
+    {
+      "id": "miranda-pq-attr-flustered",
+      "type": "action",
+      "position": {
+        "x": 192,
+        "y": 870
+      },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "miranda-pq-btn",
+      "target": "miranda-pq-intro"
+    },
+    {
+      "id": "e4",
+      "source": "miranda-pq-guess",
+      "sourceHandle": "close",
+      "target": "miranda-pq-close-msg"
+    },
+    {
+      "id": "e6",
+      "source": "miranda-pq-correct-msg",
+      "target": "miranda-pq-check"
+    },
+    {
+      "id": "e7",
+      "source": "miranda-pq-close-msg",
+      "target": "miranda-pq-check"
+    },
+    {
+      "id": "e8",
+      "source": "miranda-pq-wrong-msg",
+      "target": "miranda-pq-check"
+    },
+    {
+      "id": "e10",
+      "source": "miranda-pq-check",
+      "sourceHandle": "false",
+      "target": "miranda-pq-encourage"
+    },
+    {
+      "id": "e-miranda-pq-intro-to-miranda-pq-emo-start",
+      "source": "miranda-pq-intro",
+      "target": "miranda-pq-emo-start"
+    },
+    {
+      "id": "e-miranda-pq-emo-start-to-miranda-pq-guess",
+      "source": "miranda-pq-emo-start",
+      "target": "miranda-pq-guess"
+    },
+    {
+      "id": "e-miranda-pq-guess-to-miranda-pq-emo-correct",
+      "source": "miranda-pq-guess",
+      "target": "miranda-pq-emo-correct",
+      "sourceHandle": "correct"
+    },
+    {
+      "id": "e-miranda-pq-emo-correct-to-miranda-pq-correct-msg",
+      "source": "miranda-pq-emo-correct",
+      "target": "miranda-pq-correct-msg"
+    },
+    {
+      "id": "e-miranda-pq-guess-to-miranda-pq-emo-wrong",
+      "source": "miranda-pq-guess",
+      "target": "miranda-pq-emo-wrong",
+      "sourceHandle": "wrong"
+    },
+    {
+      "id": "e-miranda-pq-emo-wrong-to-miranda-pq-wrong-msg",
+      "source": "miranda-pq-emo-wrong",
+      "target": "miranda-pq-wrong-msg"
+    },
+    {
+      "id": "e-miranda-pq-check-to-miranda-pq-emo-flustered",
+      "source": "miranda-pq-check",
+      "target": "miranda-pq-emo-flustered",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-miranda-pq-emo-flustered-to-miranda-pq-attr-flustered",
+      "source": "miranda-pq-emo-flustered",
+      "target": "miranda-pq-attr-flustered"
+    },
+    {
+      "id": "e-miranda-pq-attr-flustered-to-miranda-pq-flustered",
+      "source": "miranda-pq-attr-flustered",
+      "target": "miranda-pq-flustered"
+    }
+  ]
+}

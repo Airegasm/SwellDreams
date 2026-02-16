@@ -1,0 +1,538 @@
+{
+  "id": "flow-scarlett-card-game",
+  "name": "Scarlett's Card Game",
+  "category": "character",
+  "description": "Three rounds of high-low card draws. Wins are tracked; losses are punished with pulses. Final tally determines the outcome.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "sc-cg-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Deal Cards",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-cards",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sc-cg-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Game Intro",
+        "actionType": "send_message",
+        "message": "*shuffles a deck with practiced precision, the cards barely whispering against one another* Three rounds, [Player]. Win them... and perhaps I'll show clemency. *sets the deck down with a sharp tap* Perhaps. Lose, and each round extracts its price. The house takes ties. *meets your eyes* Do you understand the stakes?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cg-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 340
+      },
+      "data": {
+        "label": "Init Wins",
+        "variable": "cardWins",
+        "variableName": "cardWins",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "sc-cg-loop",
+      "type": "loop",
+      "position": {
+        "x": 300,
+        "y": 470
+      },
+      "data": {
+        "label": "Three Rounds",
+        "mode": "fixed",
+        "iterations": 3,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "sc-cg-draw",
+      "type": "card_draw",
+      "position": {
+        "x": 300,
+        "y": 620
+      },
+      "data": {
+        "label": "Draw Cards",
+        "deckType": "standard",
+        "outputMode": "high_low"
+      }
+    },
+    {
+      "id": "sc-cg-win-counter",
+      "type": "counter",
+      "position": {
+        "x": 50,
+        "y": 820
+      },
+      "data": {
+        "label": "Track Win",
+        "variable": "cardWins",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "sc-cg-win-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 960
+      },
+      "data": {
+        "label": "Win Message",
+        "actionType": "send_message",
+        "message": "*glances at the cards without expression* A win. *makes a small mark on the table* Noted.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cg-win-delay",
+      "type": "delay",
+      "position": {
+        "x": 50,
+        "y": 1100
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-cg-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 820
+      },
+      "data": {
+        "label": "Lose Message",
+        "actionType": "send_message",
+        "message": "*turns the card face up* The house wins. Eight pulses. *reaches for the controls without hesitation*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cg-lose-pulse",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 960
+      },
+      "data": {
+        "label": "Loss Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*engages the device*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*collects the cards and reshuffles* Eight delivered. The debt for this round is paid.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cg-lose-delay",
+      "type": "delay",
+      "position": {
+        "x": 300,
+        "y": 1100
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-cg-tie-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 820
+      },
+      "data": {
+        "label": "Tie Message",
+        "actionType": "send_message",
+        "message": "*examines the matching cards* A tie. The dealer takes it. *a cold smile* You know the rules. Eight pulses.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cg-tie-pulse",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 960
+      },
+      "data": {
+        "label": "Tie Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the device*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*sweeps the cards aside* A tie is still a loss in my house.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cg-tie-delay",
+      "type": "delay",
+      "position": {
+        "x": 550,
+        "y": 1100
+      },
+      "data": {
+        "label": "Pause",
+        "duration": 2,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-cg-switch",
+      "type": "switch",
+      "position": {
+        "x": 300,
+        "y": 1320
+      },
+      "data": {
+        "label": "Final Tally",
+        "variable": "custom",
+        "customVariable": "cardWins",
+        "includeDefault": false,
+        "cases": [
+          {
+            "value": "3",
+            "label": "Three Wins"
+          },
+          {
+            "value": "2",
+            "label": "Two Wins"
+          },
+          {
+            "value": "1",
+            "label": "One Win"
+          },
+          {
+            "value": "0",
+            "label": "Zero Wins"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sc-cg-three-wins",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 1530
+      },
+      "data": {
+        "label": "Perfect Victory",
+        "actionType": "send_message",
+        "message": "*sets the deck down slowly, regarding you with an expression you've never seen before — something approaching genuine respect* Three wins. Impressive. *a long pause* You've earned my respect... and your freedom. For now. *turns away* Do not squander it, [Player]. I rarely offer such things twice.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cg-two-wins",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1530
+      },
+      "data": {
+        "label": "Two Wins",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 4,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*taps the deck once* Two wins. Close... but not enough. *a measured pause* You came within reach of clemency and fell short. Three cycles to remind you how close you were.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*studies your reaction* Almost, [Player]. Almost is not enough in my world. Remember that.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cg-one-win",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 1530
+      },
+      "data": {
+        "label": "One Win",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "*pushes the cards aside with visible displeasure* One win out of three. Disappointing. Twenty seconds. *activates the device* You had every opportunity.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*lets the silence settle* One win. You should aspire to more, [Player]. I certainly expect more.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cg-zero-wins",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1530
+      },
+      "data": {
+        "label": "Total Defeat",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "*stands, sweeping the cards off the table in a single, controlled motion* Zero wins. Pathetic. *her voice drops to barely above a whisper* Thirty seconds. You will endure this in full. And you will think about every card you failed to draw.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches the timer expire, then turns away without a word, letting the silence speak louder than any reprimand*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cg-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "sc-cg-emo-perfect",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 1425
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "sc-cg-emo-zero",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 1390
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sc-cg-attr-zero",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 1460
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sc-cg-btn",
+      "target": "sc-cg-intro"
+    },
+    {
+      "id": "e3",
+      "source": "sc-cg-init",
+      "target": "sc-cg-loop"
+    },
+    {
+      "id": "e4",
+      "source": "sc-cg-loop",
+      "sourceHandle": "loop",
+      "target": "sc-cg-draw"
+    },
+    {
+      "id": "e5",
+      "source": "sc-cg-draw",
+      "sourceHandle": "player-wins",
+      "target": "sc-cg-win-counter"
+    },
+    {
+      "id": "e6",
+      "source": "sc-cg-win-counter",
+      "target": "sc-cg-win-msg"
+    },
+    {
+      "id": "e7",
+      "source": "sc-cg-win-msg",
+      "target": "sc-cg-win-delay"
+    },
+    {
+      "id": "e8",
+      "source": "sc-cg-win-delay",
+      "target": "sc-cg-loop"
+    },
+    {
+      "id": "e9",
+      "source": "sc-cg-draw",
+      "sourceHandle": "dealer-wins",
+      "target": "sc-cg-lose-msg"
+    },
+    {
+      "id": "e10",
+      "source": "sc-cg-lose-msg",
+      "target": "sc-cg-lose-pulse"
+    },
+    {
+      "id": "e11",
+      "source": "sc-cg-lose-pulse",
+      "target": "sc-cg-lose-delay"
+    },
+    {
+      "id": "e12",
+      "source": "sc-cg-lose-delay",
+      "target": "sc-cg-loop"
+    },
+    {
+      "id": "e13",
+      "source": "sc-cg-draw",
+      "sourceHandle": "tie",
+      "target": "sc-cg-tie-msg"
+    },
+    {
+      "id": "e14",
+      "source": "sc-cg-tie-msg",
+      "target": "sc-cg-tie-pulse"
+    },
+    {
+      "id": "e15",
+      "source": "sc-cg-tie-pulse",
+      "target": "sc-cg-tie-delay"
+    },
+    {
+      "id": "e16",
+      "source": "sc-cg-tie-delay",
+      "target": "sc-cg-loop"
+    },
+    {
+      "id": "e17",
+      "source": "sc-cg-loop",
+      "sourceHandle": "done",
+      "target": "sc-cg-switch"
+    },
+    {
+      "id": "e19",
+      "source": "sc-cg-switch",
+      "sourceHandle": "case-1",
+      "target": "sc-cg-two-wins"
+    },
+    {
+      "id": "e20",
+      "source": "sc-cg-switch",
+      "sourceHandle": "case-2",
+      "target": "sc-cg-one-win"
+    },
+    {
+      "id": "e-sc-cg-intro-to-sc-cg-emo-start",
+      "source": "sc-cg-intro",
+      "target": "sc-cg-emo-start"
+    },
+    {
+      "id": "e-sc-cg-emo-start-to-sc-cg-init",
+      "source": "sc-cg-emo-start",
+      "target": "sc-cg-init"
+    },
+    {
+      "id": "e-sc-cg-switch-to-sc-cg-emo-perfect",
+      "source": "sc-cg-switch",
+      "target": "sc-cg-emo-perfect",
+      "sourceHandle": "case-0"
+    },
+    {
+      "id": "e-sc-cg-emo-perfect-to-sc-cg-three-wins",
+      "source": "sc-cg-emo-perfect",
+      "target": "sc-cg-three-wins"
+    },
+    {
+      "id": "e-sc-cg-switch-to-sc-cg-emo-zero",
+      "source": "sc-cg-switch",
+      "target": "sc-cg-emo-zero",
+      "sourceHandle": "case-3"
+    },
+    {
+      "id": "e-sc-cg-emo-zero-to-sc-cg-attr-zero",
+      "source": "sc-cg-emo-zero",
+      "target": "sc-cg-attr-zero"
+    },
+    {
+      "id": "e-sc-cg-attr-zero-to-sc-cg-zero-wins",
+      "source": "sc-cg-attr-zero",
+      "target": "sc-cg-zero-wins"
+    }
+  ]
+}

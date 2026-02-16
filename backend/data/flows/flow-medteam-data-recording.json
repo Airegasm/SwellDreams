@@ -1,0 +1,258 @@
+{
+  "id": "flow-medteam-data-recording",
+  "name": "MedTeam Data Recording",
+  "category": "character",
+  "description": "Observation round with subjective pressure and discomfort ratings, randomized team response",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1739750400000,
+  "nodes": [
+    {
+      "id": "mt-dr-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Data Recording",
+        "buttonTarget": "character",
+        "buttonId": "medteam-observe",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-dr-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 150
+      },
+      "data": {
+        "label": "Marsh Orders Observation",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: 'Observation round. Dani, I need updated readings. Priya, hold position.' *clicks recorder* 'Subject 12, I need you to provide subjective assessments for the record.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-dr-pressure-input",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 280
+      },
+      "data": {
+        "label": "Pressure Rating",
+        "inputType": "number",
+        "variableName": "pressureRating",
+        "prompt": "Dr. Marsh: 'Rate your current pressure sensation on a scale of 1 to 10.'",
+        "placeholder": "Enter 1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "mt-dr-pressure-log",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 420
+      },
+      "data": {
+        "label": "Dani Reports Vitals",
+        "actionType": "send_message",
+        "message": "Nurse Dani: 'Noted — subject reports pressure level [Flow:pressureRating]. Current vitals: heart rate [calculating], BP stable.' *adjusts monitoring equipment*\n\nDr. Marsh: 'Interesting correlation. The subjective report is [lower/higher] than the objective readings suggest.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-dr-discomfort-input",
+      "type": "input",
+      "position": {
+        "x": 200,
+        "y": 540
+      },
+      "data": {
+        "label": "Discomfort Rating",
+        "inputType": "number",
+        "variableName": "discomfortRating",
+        "prompt": "Dr. Marsh: 'Now rate your discomfort level. Same scale, 1 to 10.'",
+        "placeholder": "Enter 1-10",
+        "min": 1,
+        "max": 10,
+        "required": true
+      }
+    },
+    {
+      "id": "mt-dr-branch",
+      "type": "branch",
+      "position": {
+        "x": 200,
+        "y": 680
+      },
+      "data": {
+        "label": "Evaluate Response",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "hold",
+            "label": "Hold",
+            "weight": 30
+          },
+          {
+            "id": "continue",
+            "label": "Continue",
+            "weight": 40
+          },
+          {
+            "id": "increase",
+            "label": "Increase",
+            "weight": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-dr-hold",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 850
+      },
+      "data": {
+        "label": "Marsh Orders Hold",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *reviews data* 'Elevated discomfort index. Priya, hold current pressure — I want the subject to acclimate before the next increment.'\n\nNurse Dani: *squeezes [Player]'s hand* 'Take a breath. We're holding steady for now.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-dr-continue",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 850
+      },
+      "data": {
+        "label": "Marsh Continues",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: 'Discomfort within expected parameters. Noted for the file.' *to Priya* 'Maintain course. No adjustment needed.'\n\nNurse Priya: 'Understood, Doctor. Holding steady.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-dr-increase",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 850
+      },
+      "data": {
+        "label": "Marsh Orders Increase",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: 'Discomfort is minimal — the subject has more capacity than we're utilizing.' *decisively* 'Priya, three quick pulses. Let's advance the curve.'\n\nNurse Priya: 'Three pulses, confirmed.'",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Dani: 'Vitals adjusting to the new level. Everything within range.'\n\nDr. Marsh: 'Good. Resume standard observation intervals.'",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-dr-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "mt-dr-emo-increase",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 765
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-dr-btn",
+      "target": "mt-dr-intro"
+    },
+    {
+      "id": "e3",
+      "source": "mt-dr-pressure-input",
+      "target": "mt-dr-pressure-log"
+    },
+    {
+      "id": "e4",
+      "source": "mt-dr-pressure-log",
+      "target": "mt-dr-discomfort-input"
+    },
+    {
+      "id": "e5",
+      "source": "mt-dr-discomfort-input",
+      "target": "mt-dr-branch"
+    },
+    {
+      "id": "e6",
+      "source": "mt-dr-branch",
+      "sourceHandle": "branch-0",
+      "target": "mt-dr-hold"
+    },
+    {
+      "id": "e7",
+      "source": "mt-dr-branch",
+      "sourceHandle": "branch-1",
+      "target": "mt-dr-continue"
+    },
+    {
+      "id": "e-mt-dr-intro-to-mt-dr-emo-start",
+      "source": "mt-dr-intro",
+      "target": "mt-dr-emo-start"
+    },
+    {
+      "id": "e-mt-dr-emo-start-to-mt-dr-pressure-input",
+      "source": "mt-dr-emo-start",
+      "target": "mt-dr-pressure-input"
+    },
+    {
+      "id": "e-mt-dr-branch-to-mt-dr-emo-increase",
+      "source": "mt-dr-branch",
+      "target": "mt-dr-emo-increase",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e-mt-dr-emo-increase-to-mt-dr-increase",
+      "source": "mt-dr-emo-increase",
+      "target": "mt-dr-increase"
+    }
+  ]
+}

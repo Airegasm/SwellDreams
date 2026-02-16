@@ -375,6 +375,46 @@
         "preMessageEnabled": false,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "iris-rx-emo-pain",
+      "type": "action",
+      "position": {
+        "x": 775,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-rx-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 1025,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "id": "iris-rx-attr-fasc",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 465
+      },
+      "data": {
+        "label": "Lower Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 12
+      }
     }
   ],
   "edges": [
@@ -394,24 +434,9 @@
       "target": "iris-rx-hypothesis-action"
     },
     {
-      "id": "e4",
-      "source": "iris-rx-pain",
-      "target": "iris-rx-pain-action"
-    },
-    {
-      "id": "e5",
-      "source": "iris-rx-stop",
-      "target": "iris-rx-stop-action"
-    },
-    {
       "id": "e6",
       "source": "iris-rx-ai-threshold",
       "target": "iris-rx-ai-threshold-action"
-    },
-    {
-      "id": "e7",
-      "source": "iris-rx-ai-fascinating",
-      "target": "iris-rx-ai-fascinating-action"
     },
     {
       "id": "e8",
@@ -422,6 +447,36 @@
       "id": "e9",
       "source": "iris-rx-question",
       "target": "iris-rx-question-action"
+    },
+    {
+      "id": "e-iris-rx-pain-to-iris-rx-emo-pain",
+      "source": "iris-rx-pain",
+      "target": "iris-rx-emo-pain"
+    },
+    {
+      "id": "e-iris-rx-emo-pain-to-iris-rx-pain-action",
+      "source": "iris-rx-emo-pain",
+      "target": "iris-rx-pain-action"
+    },
+    {
+      "id": "e-iris-rx-stop-to-iris-rx-emo-stop",
+      "source": "iris-rx-stop",
+      "target": "iris-rx-emo-stop"
+    },
+    {
+      "id": "e-iris-rx-emo-stop-to-iris-rx-stop-action",
+      "source": "iris-rx-emo-stop",
+      "target": "iris-rx-stop-action"
+    },
+    {
+      "id": "e-iris-rx-ai-fascinating-to-iris-rx-attr-fasc",
+      "source": "iris-rx-ai-fascinating",
+      "target": "iris-rx-attr-fasc"
+    },
+    {
+      "id": "e-iris-rx-attr-fasc-to-iris-rx-ai-fascinating-action",
+      "source": "iris-rx-attr-fasc",
+      "target": "iris-rx-ai-fascinating-action"
     }
   ]
 }

@@ -1,9 +1,63 @@
 [
   {
+    "id": "21aa847d-490d-43d8-9374-7ebd90f3507d",
+    "name": "Dr. Chen's Protocol Auto-Start",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "First player message triggers protocol selection"
+  },
+  {
+    "id": "23de07c6-8a2e-430b-b10b-156582d1293c",
+    "name": "Dr. Chen's Reactions",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Keyword triggers for clinical observations - scientific terms and subject responses"
+  },
+  {
+    "id": "3ce5fe26-2009-4622-acd9-685e399dcc64",
+    "name": "Threshold Testing",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Systematic threshold testing with conversational pauses"
+  },
+  {
     "id": "48a370a6-d7d3-491f-a5ff-8a7fabcbe0c6",
     "name": "SCARLETT- END GAME",
     "characterId": null,
     "description": ""
+  },
+  {
+    "id": "5ba3e10d-b58c-4089-8cc0-2f95c74cf2fe",
+    "name": "belimg",
+    "characterId": null,
+    "description": ""
+  },
+  {
+    "id": "5e15c48b-4765-4651-97a0-84a7ed82ef88",
+    "name": "Basic Pump Controls",
+    "characterId": null,
+    "description": "Simple pump controls with configurable parameters for on, cycle, and pulse actions"
+  },
+  {
+    "id": "85991918-0979-4922-ab6a-3604fca362dd",
+    "name": "Capacity Study",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Capacity message nodes for clinical observations"
+  },
+  {
+    "id": "efce727e-3309-4d48-a23d-d197d2c7a390",
+    "name": "Status Report",
+    "characterId": null,
+    "description": "Report player capacity status via persona button"
+  },
+  {
+    "id": "fa015c16-88d1-484c-881d-365f9ec3b78e",
+    "name": "Data Collection Protocol",
+    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
+    "description": "Input nodes for subjective ratings collection"
+  },
+  {
+    "id": "flow-SororityHell-hazing-night",
+    "name": "Sorority Hell: Hazing Night",
+    "characterId": null,
+    "description": "10-chain flow for the Sorority Hell hazing scenario — button triggers, capacity reactions, keyword responses, and ambient banter"
   },
   {
     "id": "flow-audit-actions",
@@ -42,6 +96,66 @@
     "description": "Tests all 9 trigger node types"
   },
   {
+    "id": "flow-exec-scarlett-card-fate",
+    "name": "Executress Scarlett: Card of Fate",
+    "characterId": null,
+    "description": "Card suit determines inflation method. Counter tracks cards drawn. Random number sets card rank. Condition checks capacity for face card amplification bonus."
+  },
+  {
+    "id": "flow-exec-scarlett-countdown",
+    "name": "Executress Scarlett: Countdown",
+    "characterId": null,
+    "description": "Three phases of sustained inflation with timer challenge escape attempts. Loop-based countdown protocol with device control."
+  },
+  {
+    "id": "flow-exec-scarlett-dice-suffering",
+    "name": "Executress Scarlett: Dice of Suffering",
+    "characterId": null,
+    "description": "Dice roll determines intensity of abdominal inflation. Counter tracks execution sessions. Condition checks terminal pressure zone."
+  },
+  {
+    "id": "flow-exec-scarlett-forced-climax",
+    "name": "Executress Scarlett: Forced Climax",
+    "characterId": null,
+    "description": "Prep message, rhythmic inflation cycle, clinical aftermath observation. Linear flow."
+  },
+  {
+    "id": "flow-exec-scarlett-instrument-roulette",
+    "name": "Executress Scarlett: Instrument Roulette",
+    "characterId": null,
+    "description": "Prize wheel selects torture instrument. Six implements with unique device actions. Double Application triggers a coin flip for combined punishment."
+  },
+  {
+    "id": "flow-exec-scarlett-instrument",
+    "name": "Executress Scarlett: Apply Instrument",
+    "characterId": null,
+    "description": "Player chooses a torture instrument — Pneumatic Vice, Electrodes, or Navel Probe. Each with clinical description."
+  },
+  {
+    "id": "flow-exec-scarlett-number-game",
+    "name": "Executress Scarlett: Number Game",
+    "characterId": null,
+    "description": "Guess a number to earn reprieve. Correct guess grants respite. Close guess triggers sustained inflation. Wrong guess triggers punishment cycles. Condition checks critical terminal zone."
+  },
+  {
+    "id": "flow-exec-scarlett-progress-report",
+    "name": "Executress Scarlett: Progress Report",
+    "characterId": null,
+    "description": "Random stage assessment — early, mid, or terminal phase with appropriate device actions."
+  },
+  {
+    "id": "flow-exec-scarlett-reactions",
+    "name": "Executress Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for Executress Scarlett - clinical cruelty, professional detachment, and execution protocol"
+  },
+  {
+    "id": "flow-exec-scarlett-session-start",
+    "name": "Execution Session Start",
+    "characterId": null,
+    "description": "First message triggers random execution chamber introduction"
+  },
+  {
     "id": "flow-global-001",
     "name": "Ambient Pressure Sensations",
     "characterId": null,
@@ -60,16 +174,40 @@
     "description": "Celebrates reaching capacity milestones"
   },
   {
+    "id": "flow-iris-adaptive-protocol",
+    "name": "Adaptive Protocol",
+    "characterId": null,
+    "description": "Calibration randomizer with capacity-based tier assignment and adaptive stimulus delivery"
+  },
+  {
     "id": "flow-iris-capacity-study",
     "name": "Capacity Study",
     "characterId": null,
     "description": "Capacity message nodes for clinical observations"
   },
   {
+    "id": "flow-iris-comparative-analysis",
+    "name": "Comparative Analysis",
+    "characterId": null,
+    "description": "Randomized AB/BA crossover design comparing sustained vs pulsed stimulus with self-reported ratings"
+  },
+  {
     "id": "flow-iris-data-collection",
     "name": "Data Collection Protocol",
     "characterId": null,
     "description": "Input nodes for subjective ratings collection"
+  },
+  {
+    "id": "flow-iris-double-blind",
+    "name": "Double-Blind Protocol",
+    "characterId": null,
+    "description": "Randomized double-blind treatment assignment with endurance test and protocol reveal"
+  },
+  {
+    "id": "flow-iris-pain-correlation",
+    "name": "Pain Correlation Study",
+    "characterId": null,
+    "description": "Maps pain-response correlation with adaptive stimulus based on self-reported pain levels"
   },
   {
     "id": "flow-iris-protocol-start",
@@ -84,10 +222,136 @@
     "description": "Keyword triggers for clinical observations - scientific terms and subject responses"
   },
   {
+    "id": "flow-iris-stress-test",
+    "name": "Stress Test",
+    "characterId": null,
+    "description": "Multi-phase stress test with looped stimulus cycles and capacity-based evaluation"
+  },
+  {
     "id": "flow-iris-threshold-testing",
     "name": "Threshold Testing",
     "characterId": null,
     "description": "Systematic threshold testing with conversational pauses"
+  },
+  {
+    "id": "flow-julie-calibration-tests",
+    "name": "Julie's Calibration Tests",
+    "characterId": null,
+    "description": "Timer challenges and reflex tests to gather calibration data"
+  },
+  {
+    "id": "flow-julie-data-cascade",
+    "name": "Julie's Data Cascade",
+    "characterId": null,
+    "description": "Capacity-adaptive protocol with random data seed. High capacity triggers micro-cycles, mid-range gets sustained, low gets exploratory pulses."
+  },
+  {
+    "id": "flow-julie-eureka-moment",
+    "name": "Julie's Eureka Moment",
+    "characterId": null,
+    "description": "Random scientific breakthrough — elasticity discovery, recalibration, or new Staccato Swell technique."
+  },
+  {
+    "id": "flow-julie-experiment-protocols",
+    "name": "Julie's Experiment Protocols",
+    "characterId": null,
+    "description": "Scientific inflation procedures - standard, intensity testing, or endurance study"
+  },
+  {
+    "id": "flow-julie-hypothesis-tester",
+    "name": "Julie's Hypothesis Tester",
+    "characterId": null,
+    "description": "Guess Julie's target number to validate her pressure model. Results determine the experimental protocol, then capacity analysis follows."
+  },
+  {
+    "id": "flow-julie-innovation-lab",
+    "name": "Julie's Innovation Lab",
+    "characterId": null,
+    "description": "Spin the wheel to determine which experimental technique Julie will try"
+  },
+  {
+    "id": "flow-julie-lab-monitoring",
+    "name": "Julie's Lab Monitoring",
+    "characterId": null,
+    "description": "Scientific observations at different capacity thresholds"
+  },
+  {
+    "id": "flow-julie-live-demo",
+    "name": "Julie's Live Demonstration",
+    "characterId": null,
+    "description": "Julie presents her work to an imaginary audience. Intro speech, 12s demo inflation, triumphant conclusion."
+  },
+  {
+    "id": "flow-julie-pressure-roulette",
+    "name": "Julie's Pressure Roulette",
+    "characterId": null,
+    "description": "Spin the pressure randomizer for a random protocol — micro-burst, sustained flow, oscillation, staircase, or a bonus dice roll for extra data."
+  },
+  {
+    "id": "flow-julie-reactions",
+    "name": "Julie's Lab Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for Julie's eccentric scientist reactions - enthusiasm, obsession, and scientific glee"
+  },
+  {
+    "id": "flow-julie-reflex-calibration",
+    "name": "Julie's Reflex Calibration",
+    "characterId": null,
+    "description": "Two rounds of reflex testing to map neural response time. Win earns reward pulses, lose triggers recalibration inflation."
+  },
+  {
+    "id": "flow-julie-slot-machine",
+    "name": "Julie's Lab Slots",
+    "characterId": null,
+    "description": "Pull the laboratory slot machine lever for science-themed combinations. Jackpot triggers a timer escape challenge, pair gives oscillation, no match gives sustained pressure."
+  },
+  {
+    "id": "flow-julie-subject-interview",
+    "name": "Julie's Subject Interview",
+    "characterId": null,
+    "description": "Julie collects sensation data from the subject. Player describes how they feel — Julie reacts scientifically."
+  },
+  {
+    "id": "flow-lily-dare-me",
+    "name": "Lily's Dare Me",
+    "characterId": null,
+    "description": "Lily volunteers to be inflated herself to show it's 'no big deal.' A dice roll determines how intense it gets, and she reacts with escalating arousal."
+  },
+  {
+    "id": "flow-lily-how-much",
+    "name": "Lily's How Much?",
+    "characterId": null,
+    "description": "Lily gets increasingly obsessed with seeing how big her best friend can get. Each round she gets bolder and less filtered."
+  },
+  {
+    "id": "flow-lily-just-try-it",
+    "name": "Lily's Just Try It",
+    "characterId": null,
+    "description": "Lily nervously tries to convince her best friend to let her use the pump. Escalating from timid suggestion to desperate pleading."
+  },
+  {
+    "id": "flow-lily-one-more",
+    "name": "Lily's One More",
+    "characterId": null,
+    "description": "Lily keeps begging for 'just one more' round. A coin flip each time determines if she stays shy or finally snaps and goes all in."
+  },
+  {
+    "id": "flow-lily-truth-or-dare",
+    "name": "Lily's Truth or Dare",
+    "characterId": null,
+    "description": "Classic sleepover game that Lily steers toward increasingly revealing territory. Truths expose her secret desires; dares involve the pump."
+  },
+  {
+    "id": "flow-lily-watch-this",
+    "name": "Lily's Watch This",
+    "characterId": null,
+    "description": "Lily 'accidentally' pulls up inflation content on her phone and gauges her best friend's reaction. A coin flip determines if she gets brave enough to suggest trying it for real."
+  },
+  {
+    "id": "flow-luna-bedtime-ritual",
+    "name": "Luna's Bedtime Ritual",
+    "characterId": null,
+    "description": "A cozy bedtime flow. Session timer determines the intro, player picks a wind-down style, then a card draw decides a bonus before goodnight."
   },
   {
     "id": "flow-luna-comfort-check",
@@ -102,10 +366,22 @@
     "description": "First player message triggers intimate activity selection"
   },
   {
+    "id": "flow-luna-guessing-game",
+    "name": "Luna's Guessing Game",
+    "characterId": null,
+    "description": "Guess Luna's secret number for a reward. Get it right for pulses, get it wrong for a dice-rolled surprise."
+  },
+  {
     "id": "flow-luna-intimate-choices",
     "name": "Luna's Intimate Choices",
     "characterId": null,
     "description": "Romantic pacing choices - gentle, passionate, or teasing"
+  },
+  {
+    "id": "flow-luna-love-counter",
+    "name": "Luna's Love Counter",
+    "characterId": null,
+    "description": "Luna tracks affection with a kiss counter. Different rewards unlock at 3, 5, and 7 kisses, then the counter resets."
   },
   {
     "id": "flow-luna-reactions",
@@ -120,10 +396,160 @@
     "description": "Random rewards for being good"
   },
   {
+    "id": "flow-luna-slow-build",
+    "name": "Luna's Slow Build",
+    "characterId": null,
+    "description": "A gradual buildup loop with 4 pulse iterations and a delay, then a condition check determines the grand finale."
+  },
+  {
+    "id": "flow-luna-trust-game",
+    "name": "Luna's Trust Game",
+    "characterId": null,
+    "description": "A coin flip trust game. Heads lets the player choose their reward; tails means Luna picks the intensity with a random number."
+  },
+  {
     "id": "flow-main-63e36694",
     "name": "Main Flow",
     "characterId": null,
     "description": ""
+  },
+  {
+    "id": "flow-medteam-adaptive-escalation",
+    "name": "MedTeam Adaptive Escalation",
+    "characterId": null,
+    "description": "Up to five escalation levels. Each level applies a 10-second stimulus and checks the pain threshold. If pain triggers review, Dani and Marsh clash over whether to continue — resolved by a coin flip. Completing all five levels puts Subject 12 in the top 5% cohort."
+  },
+  {
+    "id": "flow-medteam-blind-protocol",
+    "name": "MedTeam Blind Protocol",
+    "characterId": null,
+    "description": "The subject is not told which procedure is administered. A dice roll determines gentle, standard, or intensive protocol. Afterward, Subject 12 must guess which protocol was used — testing proprioceptive awareness."
+  },
+  {
+    "id": "flow-medteam-compliance-lottery",
+    "name": "MedTeam Compliance Lottery",
+    "characterId": null,
+    "description": "Dr. Marsh's randomized compliance selection. A prize wheel determines the procedure: sustained burst, cyclical pattern, rapid pulses, or a rest period. Post-procedure capacity check determines follow-up monitoring."
+  },
+  {
+    "id": "flow-medteam-data-recording",
+    "name": "MedTeam Data Recording",
+    "characterId": null,
+    "description": "Observation round with subjective pressure and discomfort ratings, randomized team response"
+  },
+  {
+    "id": "flow-medteam-emergency-assessment",
+    "name": "MedTeam Emergency Assessment",
+    "characterId": null,
+    "description": "Dani-led vitals check. Player reports their condition — team reacts based on response."
+  },
+  {
+    "id": "flow-medteam-endurance-trial",
+    "name": "MedTeam Endurance Trial",
+    "characterId": null,
+    "description": "Dani advocates a 30-second trial while Marsh pushes for 45 seconds. The subject chooses which duration to endure, followed by a cooldown cycle. Team dynamics play out based on the choice."
+  },
+  {
+    "id": "flow-medteam-pressure-threshold",
+    "name": "MedTeam Pressure Threshold",
+    "characterId": null,
+    "description": "Marsh orders escalating pressure threshold test. Player chooses intensity level — team reacts per role."
+  },
+  {
+    "id": "flow-medteam-protocol-escalation",
+    "name": "MedTeam Protocol Escalation",
+    "characterId": null,
+    "description": "Three-protocol selection - pressure test, sustained load, or cyclical pattern with full team coordination"
+  },
+  {
+    "id": "flow-medteam-reactions",
+    "name": "MedTeam Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for team responses - patient requests, pain reports, escalation, and AI-driven observations"
+  },
+  {
+    "id": "flow-medteam-session-start",
+    "name": "MedTeam Session Start",
+    "characterId": null,
+    "description": "First message triggers randomized session opening - protocol, data collection, or timed burst approach"
+  },
+  {
+    "id": "flow-medteam-team-dispute",
+    "name": "MedTeam Team Dispute",
+    "characterId": null,
+    "description": "Random team conflict — Dani advocates rest, Marsh demands data, or Priya reports equipment anomaly."
+  },
+  {
+    "id": "flow-medteam-timed-burst",
+    "name": "MedTeam Timed Burst",
+    "characterId": null,
+    "description": "Subject selects burst duration, team executes timed sustained inflation with full monitoring"
+  },
+  {
+    "id": "flow-medteam-tolerance-calibration",
+    "name": "MedTeam Tolerance Calibration",
+    "characterId": null,
+    "description": "Dr. Marsh orders a four-phase calibration protocol. Each phase runs a timed inflation while the team monitors responses. Post-calibration pain assessment determines if the subject needs recalibration or can handle upper-range probing."
+  },
+  {
+    "id": "flow-miranda-breathing-exercise",
+    "name": "Miranda's Breathing Exercise",
+    "characterId": null,
+    "description": "Miranda teaches proper breathing technique during inflation. Teaching intro, gentle pulses, encouragement."
+  },
+  {
+    "id": "flow-miranda-capacity-challenge",
+    "name": "Miranda's Capacity Challenge",
+    "characterId": null,
+    "description": "Player chooses stretch intensity — small, medium, or maximum. Miranda matches, with increasing enthusiasm."
+  },
+  {
+    "id": "flow-miranda-card-lesson",
+    "name": "Miranda's Card Lesson",
+    "characterId": null,
+    "description": "Draw a card to determine which inflation technique Miranda teaches. Each suit maps to a different method, and a random intensity level is drawn first. Miranda demonstrates alongside."
+  },
+  {
+    "id": "flow-miranda-coin-toss-demo",
+    "name": "Miranda's Coin Toss Demo",
+    "characterId": null,
+    "description": "Coin flip determines who gets pumped — heads inflates the student, tails has Miranda demonstrate on herself. Capacity check triggers Miranda's fascination or an educational wrap-up."
+  },
+  {
+    "id": "flow-miranda-comparison-check",
+    "name": "Miranda's Comparison Check",
+    "characterId": null,
+    "description": "Random comparison — student behind, matching, or ahead of Miranda. Different reactions for each."
+  },
+  {
+    "id": "flow-miranda-endurance-ladder",
+    "name": "Miranda's Endurance Ladder",
+    "characterId": null,
+    "description": "Three rungs of sustained inflation with pauses for conversation between each. Miranda climbs the ladder alongside her student, comparing bellies at the end."
+  },
+  {
+    "id": "flow-miranda-pop-quiz",
+    "name": "Miranda's Pop Quiz",
+    "characterId": null,
+    "description": "Guess Miranda's number for a reward. Correct gets gentle pulses, close gets a sustained stretch, wrong gets a cycling drill. Capacity check triggers Miranda's flustered reaction."
+  },
+  {
+    "id": "flow-miranda-reactions",
+    "name": "Miranda's Teaching Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for Miranda's teaching style - firm instruction, dismissal of complaints, and hidden arousal"
+  },
+  {
+    "id": "flow-miranda-session-start",
+    "name": "Miranda's Lesson Start",
+    "characterId": null,
+    "description": "First message triggers random lesson introduction"
+  },
+  {
+    "id": "flow-miranda-simon-says",
+    "name": "Miranda's Simon Says",
+    "characterId": null,
+    "description": "Simon challenge memory game. Win earns celebratory pulses; lose means remedial inflation. Session stats track cumulative wins and losses across plays."
   },
   {
     "id": "flow-persona-001",
@@ -156,6 +582,30 @@
     "description": "Capacity-based bratty/resistant player messages"
   },
   {
+    "id": "flow-scarlett-auction",
+    "name": "The Auction",
+    "characterId": null,
+    "description": "A rigged coin flip determines the initial lot, then a slot machine bonus round adds further consequences."
+  },
+  {
+    "id": "flow-scarlett-card-game",
+    "name": "Scarlett's Card Game",
+    "characterId": null,
+    "description": "Three rounds of high-low card draws. Wins are tracked; losses are punished with pulses. Final tally determines the outcome."
+  },
+  {
+    "id": "flow-scarlett-conditioning",
+    "name": "Conditioning Protocol",
+    "characterId": null,
+    "description": "Five rounds of physical conditioning with device stimulus, followed by a Simon memory challenge to test mental resilience."
+  },
+  {
+    "id": "flow-scarlett-dice-of-fate",
+    "name": "Dice of Fate",
+    "characterId": null,
+    "description": "Three rounds of dice rolls accumulate demerits. Final tally determines punishment severity."
+  },
+  {
     "id": "flow-scarlett-obedience",
     "name": "Obedience Protocol",
     "characterId": null,
@@ -174,6 +624,12 @@
     "description": "Keyword triggers for dominance play - obedience, defiance, and proper protocol"
   },
   {
+    "id": "flow-scarlett-reflex-gauntlet",
+    "name": "Reflex Gauntlet",
+    "characterId": null,
+    "description": "A reflex challenge test followed by a pain-level condition check that determines recovery or additional punishment."
+  },
+  {
     "id": "flow-scarlett-rules",
     "name": "Rule Enforcement",
     "characterId": null,
@@ -186,10 +642,22 @@
     "description": "Slot machine + number guess for high stakes"
   },
   {
+    "id": "flow-vex-card-shark",
+    "name": "Card Shark",
+    "characterId": null,
+    "description": "High-low card draw with prize wheel rewards and device punishments"
+  },
+  {
     "id": "flow-vex-challenge-gauntlet",
     "name": "Challenge Gauntlet",
     "characterId": null,
     "description": "Sequential challenges - coin flip, RPS, timer challenge"
+  },
+  {
+    "id": "flow-vex-deal-or-deal",
+    "name": "Deal or No Deal",
+    "characterId": null,
+    "description": "Random deal offer with choice to accept or gamble for better/worse on dice and slots"
   },
   {
     "id": "flow-vex-dice-of-destiny",
@@ -204,45 +672,33 @@
     "description": "First player message triggers random game selection"
   },
   {
+    "id": "flow-vex-lightning-round",
+    "name": "Lightning Round",
+    "characterId": null,
+    "description": "Three sequential challenges - reflex, simon, RPS - with score-based punishment"
+  },
+  {
+    "id": "flow-vex-pressure-roulette",
+    "name": "Pressure Roulette",
+    "characterId": null,
+    "description": "Russian roulette with 6 chambers - survive them all or get hit with full punishment"
+  },
+  {
     "id": "flow-vex-reactions",
     "name": "Vex's Reactions",
     "characterId": null,
     "description": "Keyword triggers for gameshow moments - betting, gambling, and risk-taking"
   },
   {
+    "id": "flow-vex-survival-gauntlet",
+    "name": "Survival Gauntlet",
+    "characterId": null,
+    "description": "Three-stage gauntlet: timer escape, coin flip, and number guess with escalating stakes"
+  },
+  {
     "id": "flow-vex-wheel-of-fate",
     "name": "Wheel of Fate",
     "characterId": null,
     "description": "Spin the prize wheel for varied outcomes"
-  },
-  {
-    "id": "fa015c16-88d1-484c-881d-365f9ec3b78e",
-    "name": "Data Collection Protocol",
-    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
-    "description": "Input nodes for subjective ratings collection"
-  },
-  {
-    "id": "85991918-0979-4922-ab6a-3604fca362dd",
-    "name": "Capacity Study",
-    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
-    "description": "Capacity message nodes for clinical observations"
-  },
-  {
-    "id": "3ce5fe26-2009-4622-acd9-685e399dcc64",
-    "name": "Threshold Testing",
-    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
-    "description": "Systematic threshold testing with conversational pauses"
-  },
-  {
-    "id": "23de07c6-8a2e-430b-b10b-156582d1293c",
-    "name": "Dr. Chen's Reactions",
-    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
-    "description": "Keyword triggers for clinical observations - scientific terms and subject responses"
-  },
-  {
-    "id": "21aa847d-490d-43d8-9374-7ebd90f3507d",
-    "name": "Dr. Chen's Protocol Auto-Start",
-    "characterId": "a5b646e5-956d-498e-860c-3821b2a550f1",
-    "description": "First player message triggers protocol selection"
   }
 ]

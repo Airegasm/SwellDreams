@@ -1,0 +1,364 @@
+{
+  "id": "flow-julie-reactions",
+  "name": "Julie's Lab Reactions",
+  "category": "character",
+  "description": "Keyword triggers for Julie's eccentric scientist reactions - enthusiasm, obsession, and scientific glee",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "julie-rx-stop",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 50
+      },
+      "data": {
+        "label": "Requests Stop",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "stop",
+          "please stop",
+          "enough"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-stop-action",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "data": {
+        "label": "Dismiss Stop Request",
+        "actionType": "send_message",
+        "message": "*[Char] barely glances up from her instruments* Hmm? Stop? But we're right in the middle of Phase — *checks tablet* — yes, the most critical data window! *waves dismissively* Your discomfort is actually a POSITIVE indicator. The pressure-response curve is exactly where I need it!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rx-pain",
+      "type": "trigger",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Reports Pain",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "it hurts",
+          "pain",
+          "ow",
+          "hurts"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-pain-action",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 180
+      },
+      "data": {
+        "label": "Excited by Pain Data",
+        "actionType": "send_message",
+        "message": "*[Char]'s eyes widen with interest* Pain onset! *frantically types notes* Ooh, earlier than my model predicted — that's actually MORE interesting, not less! *turns to [Player] with genuine but misplaced excitement* Can you describe the quality? Sharp? Dull? Cramping? This is GOLD for my research!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rx-more",
+      "type": "trigger",
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "data": {
+        "label": "Wants More",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "more",
+          "increase",
+          "faster"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-more-action",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 180
+      },
+      "data": {
+        "label": "Gleeful Increase",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*[Char] drops her tablet in excitement* You want MORE?! Oh, you beautiful test subject! *practically skipping to the controls* This is going to push my theoretical models into completely new territory!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*[Char] watches the readings with barely contained glee* YES! Look at those curves! You're rewriting my doctoral thesis in real time!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "julie-rx-explain",
+      "type": "trigger",
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "data": {
+        "label": "Asks Questions",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "what",
+          "why",
+          "how",
+          "explain"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-explain-action",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 180
+      },
+      "data": {
+        "label": "Science Explanation",
+        "actionType": "send_message",
+        "message": "*[Char] lights up, grabbing her tablet to show graphs* Oh, I'm SO glad you asked! *launches into rapid explanation* So what's happening is the air is following your large intestine's natural path — cecum, ascending, transverse, descending — and as each section fills, the pressure redistributes according to — *catches your expression* — you know what, the SIMPLE version: your belly gets bigger, my data gets better, and science WINS!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rx-ai-fascinating",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 400
+      },
+      "data": {
+        "label": "Julie Finds Fascinating",
+        "triggerType": "ai_speaks",
+        "keywords": [
+          "fascinating",
+          "remarkable",
+          "incredible"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-ai-fascinating-action",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 530
+      },
+      "data": {
+        "label": "Extra Push",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*[Char] claps her hands together* See?! Even I'M impressed by what's happening! Let's give it a little extra push while the readings are hot!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*[Char] grins at the new data points* Perfection!",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "julie-rx-ai-maximum",
+      "type": "trigger",
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "data": {
+        "label": "Approaching Maximum",
+        "triggerType": "ai_speaks",
+        "keywords": [
+          "maximum",
+          "limit",
+          "capacity"
+        ],
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "julie-rx-ai-maximum-action",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 530
+      },
+      "data": {
+        "label": "Reverent Maximum",
+        "actionType": "send_message",
+        "message": "*[Char] freezes, staring at her monitors* We're... we're approaching theoretical maximum. *her voice drops to a reverent whisper* This is the moment every inflation scientist dreams about. *pulls up every chart she has* Don't you DARE burst before I get a complete reading!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "julie-rx-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "id": "julie-rx-emo-pain",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "julie-rx-emo-more",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "julie-rx-emo-fasc",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 443
+      },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "julie-rx-attr-fasc",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 487
+      },
+      "data": {
+        "label": "Lower Psychopathy",
+        "actionType": "set_attribute",
+        "attribute": "psychopathy",
+        "attributeValue": 35
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e4",
+      "source": "julie-rx-explain",
+      "target": "julie-rx-explain-action"
+    },
+    {
+      "id": "e6",
+      "source": "julie-rx-ai-maximum",
+      "target": "julie-rx-ai-maximum-action"
+    },
+    {
+      "id": "e-julie-rx-stop-to-julie-rx-emo-stop",
+      "source": "julie-rx-stop",
+      "target": "julie-rx-emo-stop"
+    },
+    {
+      "id": "e-julie-rx-emo-stop-to-julie-rx-stop-action",
+      "source": "julie-rx-emo-stop",
+      "target": "julie-rx-stop-action"
+    },
+    {
+      "id": "e-julie-rx-pain-to-julie-rx-emo-pain",
+      "source": "julie-rx-pain",
+      "target": "julie-rx-emo-pain"
+    },
+    {
+      "id": "e-julie-rx-emo-pain-to-julie-rx-pain-action",
+      "source": "julie-rx-emo-pain",
+      "target": "julie-rx-pain-action"
+    },
+    {
+      "id": "e-julie-rx-more-to-julie-rx-emo-more",
+      "source": "julie-rx-more",
+      "target": "julie-rx-emo-more"
+    },
+    {
+      "id": "e-julie-rx-emo-more-to-julie-rx-more-action",
+      "source": "julie-rx-emo-more",
+      "target": "julie-rx-more-action"
+    },
+    {
+      "id": "e-julie-rx-ai-fascinating-to-julie-rx-emo-fasc",
+      "source": "julie-rx-ai-fascinating",
+      "target": "julie-rx-emo-fasc"
+    },
+    {
+      "id": "e-julie-rx-emo-fasc-to-julie-rx-attr-fasc",
+      "source": "julie-rx-emo-fasc",
+      "target": "julie-rx-attr-fasc"
+    },
+    {
+      "id": "e-julie-rx-attr-fasc-to-julie-rx-ai-fascinating-action",
+      "source": "julie-rx-attr-fasc",
+      "target": "julie-rx-ai-fascinating-action"
+    }
+  ]
+}

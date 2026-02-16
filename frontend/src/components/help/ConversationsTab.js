@@ -12,6 +12,8 @@ function ConversationsTab() {
     characterFields: false,
     importExport: false,
     sessionDefaults: false,
+    characterAttributes: false,
+    capacityCheckpoints: false,
     storyProgression: false,
     builtinPersonas: false,
     personas: false,
@@ -826,6 +828,205 @@ function ConversationsTab() {
             <div className="tip-box">
               <strong>Note:</strong> Session defaults only apply when starting a NEW conversation. They don't
               affect existing saved sessions or mid-conversation reloads.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Character Attributes */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('characterAttributes')}>
+          Character Attributes (Personality Drives)
+          <span className="expand-icon">{expanded.characterAttributes ? '−' : '+'}</span>
+        </h3>
+        {expanded.characterAttributes && (
+          <div className="section-content">
+            <p>
+              Character Attributes are personality traits with <strong>probability-based activation</strong>.
+              Each attribute has a percentage chance (0-100%) of firing on every AI message. When an attribute
+              activates, it injects personality-driving instructions into the AI's response, making each
+              message feel dynamic and varied.
+            </p>
+
+            <h4 className="subsection-header">The Five Attributes</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Attribute</th>
+                  <th>When Active</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Dominant</strong></td>
+                  <td>Take control of the situation. Be assertive, commanding, and decisive.</td>
+                </tr>
+                <tr>
+                  <td><strong>Sadistic</strong></td>
+                  <td>Be cruel, teasing, and take pleasure in discomfort. Push boundaries.</td>
+                </tr>
+                <tr>
+                  <td><strong>Psychopathic</strong></td>
+                  <td>Be unhinged, unpredictable, and unsettling. Disregard normal boundaries.</td>
+                </tr>
+                <tr>
+                  <td><strong>Sensual</strong></td>
+                  <td>Be caring, tender, and amorous. Focus on intimacy and emotional connection.</td>
+                </tr>
+                <tr>
+                  <td><strong>Sexual</strong></td>
+                  <td>Be overtly aroused and flirtatious. Express desire and attraction openly.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">How Rolls Work</h4>
+            <p>
+              Before each AI response, the system rolls for every attribute with a chance above 0%.
+              A random number (0-100) is generated — if it's below the attribute's percentage, the
+              attribute activates for that message. Multiple attributes can activate simultaneously.
+            </p>
+            <div className="code-example">
+              <strong>Example:</strong> Dominant at 90%, Sadistic at 60%, Psychopathic at 15%<br/>
+              → Roll: Dominant 23 {'<'} 90 (active), Sadistic 72 {'>'} 60 (inactive), Psychopathic 8 {'<'} 15 (active)<br/>
+              → This message will be driven by Dominant + Psychopathic traits
+            </div>
+
+            <h4 className="subsection-header">Configuring Attributes</h4>
+            <ol className="help-list numbered">
+              <li>Open the <strong>Character Editor</strong></li>
+              <li>Select the story you want to configure</li>
+              <li>Go to the <strong>Attributes</strong> tab</li>
+              <li>Adjust each slider (0-100% in 5% increments)</li>
+              <li>Save the character</li>
+            </ol>
+
+            <div className="info-box">
+              <strong>Per-Story Setting:</strong> Attributes are configured per-story, so the same
+              character can have very different personality dynamics across different scenarios.
+            </div>
+
+            <h4 className="subsection-header">Dynamic Attribute Changes</h4>
+            <p>
+              Attributes can be changed mid-session using the <strong>Set Attribute</strong> flow action
+              node. This lets you create flows that shift a character's personality as the story progresses
+              — for example, gradually increasing a character's sadistic trait as tension escalates.
+            </p>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> Set attributes to 0% to disable them entirely, or 100% for traits
+              that should always be present. Values in between create natural variation — a character
+              at 60% dominant won't be commanding in every single message, which feels more realistic.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Capacity Checkpoints */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('capacityCheckpoints')}>
+          Capacity Checkpoints
+          <span className="expand-icon">{expanded.capacityCheckpoints ? '−' : '+'}</span>
+        </h3>
+        {expanded.capacityCheckpoints && (
+          <div className="section-content">
+            <p>
+              Capacity Checkpoints are <strong>author instructions injected into the AI prompt at different
+              capacity ranges</strong>. They guide the character's behavior as the session progresses through
+              different intensity levels, ensuring the AI's tone and actions evolve naturally with capacity.
+            </p>
+
+            <h4 className="subsection-header">How They Work</h4>
+            <p>
+              Each checkpoint is tied to a capacity range (e.g., 1-10%, 21-30%). When the player's
+              capacity falls within a range that has a checkpoint, that text is included in the AI's
+              system prompt as a <code>CHARACTER CHECKPOINT</code> instruction. The AI uses it to shape
+              its next response.
+            </p>
+
+            <h4 className="subsection-header">Capacity Ranges</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Range</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>0% — Pre-Inflation</strong></td>
+                  <td>Special range: requirements that must be met <em>before</em> inflation begins. The AI is told not to activate the pump until these conditions are satisfied.</td>
+                </tr>
+                <tr>
+                  <td><strong>1-10%</strong></td>
+                  <td>Early stage guidance</td>
+                </tr>
+                <tr>
+                  <td><strong>11-20%</strong></td>
+                  <td>Low capacity guidance</td>
+                </tr>
+                <tr>
+                  <td><strong>21-30%</strong></td>
+                  <td>Building intensity</td>
+                </tr>
+                <tr>
+                  <td><strong>31-40%</strong></td>
+                  <td>Mid-low range</td>
+                </tr>
+                <tr>
+                  <td><strong>41-50%</strong></td>
+                  <td>Midpoint guidance</td>
+                </tr>
+                <tr>
+                  <td><strong>51-60%</strong></td>
+                  <td>Past halfway</td>
+                </tr>
+                <tr>
+                  <td><strong>61-70%</strong></td>
+                  <td>High intensity</td>
+                </tr>
+                <tr>
+                  <td><strong>71-80%</strong></td>
+                  <td>Critical range</td>
+                </tr>
+                <tr>
+                  <td><strong>81-90%</strong></td>
+                  <td>Near limit</td>
+                </tr>
+                <tr>
+                  <td><strong>91-100%</strong></td>
+                  <td>Maximum / endgame</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Configuring Checkpoints</h4>
+            <ol className="help-list numbered">
+              <li>Open the <strong>Character Editor</strong></li>
+              <li>Select the story you want to configure</li>
+              <li>Go to the <strong>Checkpoints</strong> tab</li>
+              <li>Fill in guidance text for the ranges you want — blank ranges are ignored</li>
+              <li>Save the character</li>
+            </ol>
+
+            <h4 className="subsection-header">Example</h4>
+            <div className="code-example">
+              <strong>Dr. Iris Chen checkpoints:</strong><br/>
+              0%: "Pre-inflation baseline readings. Calibrate instruments. Explain the protocol."<br/>
+              1-10%: "Note initial responses. 'Minimal distension. Subject responsive.'"<br/>
+              41-50%: "Genuinely fascinated by the data. 'Remarkable accommodation.'"<br/>
+              91-100%: "Pure scientific euphoria. 'Unprecedented! We must document everything!'"
+            </div>
+
+            <div className="info-box">
+              <strong>Per-Story Setting:</strong> Checkpoints are configured per-story, so the same
+              character can have different progression guidance for different scenarios.
+            </div>
+
+            <div className="tip-box">
+              <strong>Tip:</strong> You don't need to fill in every range. Only fill the ones where you
+              want the AI to shift its behavior. The 0% pre-inflation checkpoint is especially useful
+              for characters that should establish a scene before anything physical begins.
             </div>
           </div>
         )}

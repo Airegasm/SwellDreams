@@ -1,0 +1,190 @@
+{
+  "id": "flow-medteam-protocol-escalation",
+  "name": "MedTeam Protocol Escalation",
+  "category": "character",
+  "description": "Three-protocol selection - pressure test, sustained load, or cyclical pattern with full team coordination",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1739750400000,
+  "nodes": [
+    {
+      "id": "mt-pe-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Protocol Escalation",
+        "buttonTarget": "character",
+        "buttonId": "medteam-protocol",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-pe-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 150
+      },
+      "data": {
+        "label": "Marsh Announces Protocol",
+        "actionType": "send_message",
+        "message": "Dr. Marsh clicks her recorder. 'Initiating next protocol phase. Priya, stand by on the pump. Dani, I want continuous vitals monitoring.' She reviews her tablet. 'Subject 12, we have three approaches available. Select your protocol.'",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-pe-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 200,
+        "y": 310
+      },
+      "data": {
+        "label": "Select Protocol",
+        "description": "Dr. Marsh waits with pen poised...",
+        "introMessageEnabled": false,
+        "choices": [
+          {
+            "id": "pressure",
+            "label": "Pressure Test",
+            "description": "Timed burst at standard flow rate"
+          },
+          {
+            "id": "sustained",
+            "label": "Sustained Load",
+            "description": "Continuous flow to observe plateau response"
+          },
+          {
+            "id": "cyclical",
+            "label": "Cyclical Pattern",
+            "description": "Repeating on/off intervals to map accommodation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-pe-pressure-action",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 480
+      },
+      "data": {
+        "label": "Pressure Test",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh nods decisively. 'Pressure test protocol. Priya, fifteen-second timed burst at standard flow rate.'\n\nNurse Priya: 'Fifteen seconds, confirmed. Initiating now.'",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Dani: 'Vitals stabilizing. Heart rate elevated but within parameters.'\n\nDr. Marsh: 'Excellent response curve. Note the accommodation rate for the file.'",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pe-sustained-action",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 480
+      },
+      "data": {
+        "label": "Sustained Load",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: 'Sustained load protocol. Priya, twenty seconds continuous flow. I want to observe the plateau response.'\n\nNurse Priya: 'Twenty-second sustained, engaging now.'",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Dr. Marsh: 'Remarkable. The distension plateau held longer than projected.' *scribbles notes* 'Dani, how are the vitals?'\n\nNurse Dani: 'Elevated across the board but stable. Subject is handling it.'",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pe-cyclical-action",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 480
+      },
+      "data": {
+        "label": "Cyclical Pattern",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 8,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: 'Cyclical pattern. Five seconds on, eight seconds recovery, four repetitions. I want to map the accommodation curve between cycles.'\n\nNurse Priya: 'Programming cycle now. Ready.'\n\nDr. Marsh: 'Begin.'",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Dr. Marsh: 'The recovery intervals show diminishing return to baseline — exactly as hypothesized.' *satisfied tone* 'Subject 12 is providing exceptional data today.'\n\nNurse Dani: *touches the subject's arm* 'You did well through that. Vitals are settling.'",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pe-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 230
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-pe-btn",
+      "target": "mt-pe-intro"
+    },
+    {
+      "id": "e3",
+      "source": "mt-pe-choice",
+      "sourceHandle": "pressure",
+      "target": "mt-pe-pressure-action"
+    },
+    {
+      "id": "e4",
+      "source": "mt-pe-choice",
+      "sourceHandle": "sustained",
+      "target": "mt-pe-sustained-action"
+    },
+    {
+      "id": "e5",
+      "source": "mt-pe-choice",
+      "sourceHandle": "cyclical",
+      "target": "mt-pe-cyclical-action"
+    },
+    {
+      "id": "e-mt-pe-intro-to-mt-pe-emo-start",
+      "source": "mt-pe-intro",
+      "target": "mt-pe-emo-start"
+    },
+    {
+      "id": "e-mt-pe-emo-start-to-mt-pe-choice",
+      "source": "mt-pe-emo-start",
+      "target": "mt-pe-choice"
+    }
+  ]
+}

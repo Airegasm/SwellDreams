@@ -1,0 +1,445 @@
+{
+  "id": "flow-medteam-adaptive-escalation",
+  "name": "MedTeam Adaptive Escalation",
+  "category": "character",
+  "description": "Up to five escalation levels. Each level applies a 10-second stimulus and checks the pain threshold. If pain triggers review, Dani and Marsh clash over whether to continue — resolved by a coin flip. Completing all five levels puts Subject 12 in the top 5% cohort.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-ae-btn",
+      "type": "button_press",
+      "position": {
+        "x": 250,
+        "y": 50
+      },
+      "data": {
+        "label": "Adaptive Test",
+        "buttonTarget": "character",
+        "buttonId": "medteam-adaptive",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-ae-intro",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 180
+      },
+      "data": {
+        "label": "Escalation Intro",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *pulls up the adaptive protocol and studies the parameters before addressing the room* \"Adaptive escalation protocol. Up to five levels of increasing stimulus. We proceed until Subject 12's pain threshold triggers a welfare review — or until all five levels are complete.\" *sets her jaw* \"Very few subjects complete all five.\"\n\nNurse Dani: *moves to her position beside the monitors, expression serious* \"I'll be monitoring every level. The moment pain crosses threshold, I invoke the welfare review. That's non-negotiable, Doctor.\"\n\nDr. Marsh: \"I am aware of the protocol requirements, Dani.\"\n\nNurse Priya: \"Pump configured for level-by-level operation. Ready on your word, Doctor.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 250,
+        "y": 360
+      },
+      "data": {
+        "label": "Init Level Counter",
+        "variable": "escLevel",
+        "variableName": "escLevel",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "mt-ae-loop",
+      "type": "loop",
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "data": {
+        "label": "Escalation Loop (5 Levels)",
+        "mode": "fixed",
+        "iterations": 5,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "mt-ae-counter",
+      "type": "counter",
+      "position": {
+        "x": 250,
+        "y": 640
+      },
+      "data": {
+        "label": "Increment Level",
+        "variable": "escLevel",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "mt-ae-level-msg",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 780
+      },
+      "data": {
+        "label": "Level Announcement",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *checks her tablet* \"Level [Flow:escLevel] of five. Each level builds on the cumulative stress load.\" *nods to Priya* \"Engage the pump. Ten seconds sustained.\"\n\nNurse Priya: \"Level [Flow:escLevel]. Pump active.\"\n\nNurse Dani: *eyes on the monitors* \"Vitals tracking. Starting level [Flow:escLevel] now.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-device",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 940
+      },
+      "data": {
+        "label": "Level Stimulus (10s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Ten seconds, engaging.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Ten seconds complete. Level [Flow:escLevel] delivered.\"\n\nNurse Dani: *reviewing the readout carefully* \"Level [Flow:escLevel] vitals captured. Assessing pain response...\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-ae-delay",
+      "type": "delay",
+      "position": {
+        "x": 250,
+        "y": 1100
+      },
+      "data": {
+        "label": "Assessment Interval",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "mt-ae-condition",
+      "type": "condition",
+      "position": {
+        "x": 250,
+        "y": 1260
+      },
+      "data": {
+        "label": "Pain Threshold Check",
+        "conditions": [
+          {
+            "variable": "pain",
+            "operator": ">=",
+            "value": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-ae-welfare",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 1460
+      },
+      "data": {
+        "label": "Welfare Review Triggered",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *steps forward decisively, positioning herself between Dr. Marsh and the pump controls* \"Doctor! Pain readings have crossed threshold at level [Flow:escLevel]. I'm invoking the welfare review. Protocol requires a joint assessment before any further stimulus.\"\n\nDr. Marsh: *eyes narrowing* \"Overruled —\"\n\nNurse Dani: *firmly* \"Protocol requires it, Doctor. The welfare review clause is binding regardless of your clinical judgment. Priya, confirm the hold.\"\n\nNurse Priya: *looks between them, then nods* \"Pump is on hold pending review outcome.\"\n\nDr. Marsh: *a dangerous pause, then a controlled exhale* \"Fine. We'll resolve this by review protocol — joint assessment, single determination.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": -100,
+        "y": 1660
+      },
+      "data": {
+        "label": "Welfare Review Outcome",
+        "headsLabel": "Marsh Prevails",
+        "tailsLabel": "Dani Prevails",
+        "headsWeight": 50,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: \"The review protocol calls for clinical assessment weighed against welfare assessment. One outcome.\" *exchanges a long look with Dani*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "mt-ae-marsh-wins",
+      "type": "action",
+      "position": {
+        "x": -300,
+        "y": 1860
+      },
+      "data": {
+        "label": "Marsh: One More Set",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *reviews the assessment data and straightens* \"Review concludes: the clinical data supports one additional stimulus set. The pain response is elevated but the physiological markers remain within safe operating parameters.\" *turns to Priya* \"One set of eight probe pulses, then we conclude the escalation.\"\n\nNurse Dani: *jaw tight, but she nods once* \"I've recorded my dissent in the session log.\" *moves closer to Subject 12, voice dropping* \"Eight pulses. I'm right here.\"\n\nNurse Priya: \"Eight pulses, confirmed.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-marsh-pulse",
+      "type": "action",
+      "position": {
+        "x": -300,
+        "y": 2040
+      },
+      "data": {
+        "label": "Final Stimulus (8 pulses)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 8,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Eight pulses. Engaging.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Eight pulses complete. Pump disengaged and powered down.\"\n\nDr. Marsh: *studying the final data set* \"The post-threshold response data is exactly what I needed. Subject 12 tolerated the additional stimulus set within acceptable parameters.\" *dictates* \"Adaptive escalation: terminated at level [Flow:escLevel] following welfare review. One additional stimulus set administered post-review.\"\n\nNurse Dani: *checking vitals thoroughly* \"Heart rate is coming down. Subject 12 is stable.\" *quietly* \"You're done now. It's over.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-ae-dani-wins",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1860
+      },
+      "data": {
+        "label": "Dani: Cessation",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *reads the assessment result and exhales with relief* \"Review concludes: cessation recommended. The pain response at level [Flow:escLevel] exceeds the risk-benefit threshold for continued escalation.\"\n\nDr. Marsh: *a muscle tightens in her jaw, but she nods once — precisely, controlled* \"...Fine. Protocol paused.\" *dictates into her recorder with clipped precision* \"Adaptive escalation: terminated at level [Flow:escLevel] following welfare review. Cessation recommendation accepted.\" *sets down the recorder* \"The data through level [Flow:escLevel] is still usable.\"\n\nNurse Priya: \"Pump powered down, Doctor.\"\n\nNurse Dani: *turns to Subject 12 with a gentle expression* \"That's it. Escalation is done.\" *squeezes Subject 12's hand* \"You pushed hard. Your body told us what it needed to.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-complete",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1460
+      },
+      "data": {
+        "label": "All 5 Levels Complete",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *stares at her tablet for a long moment, then slowly sets it down* \"All five levels completed.\" *removes her glasses and cleans them — a rare gesture that reveals a flicker of genuine respect* \"Subject 12 is in the top five percent cohort. In my entire career, I can count the number of subjects who've completed all five adaptive escalation levels on one hand.\"\n\nNurse Priya: *allows herself a small, impressed nod* \"Pump powered down. Final data set captured across all five levels. That's a complete escalation profile, Doctor.\"\n\nNurse Dani: *eyes glistening, she reaches over and squeezes Subject 12's hand firmly* \"You did amazing. All five levels — do you understand what that means?\" *voice breaks slightly* \"You're incredible.\"\n\nDr. Marsh: *replaces her glasses, her voice carrying an uncharacteristic warmth* \"...The data is remarkable, Subject 12. Truly remarkable.\" *dictates into recorder* \"Adaptive escalation: complete. All five levels sustained. Subject 12 classified for the top five percent cohort. Full dataset captured. Exceptional.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-ae-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 270
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-ae-emo-welfare",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1360
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "mt-ae-emo-marsh",
+      "type": "action",
+      "position": {
+        "x": -175,
+        "y": 1760
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-ae-emo-dani",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 1760
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "mt-ae-emo-done",
+      "type": "action",
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      },
+      "position": {
+        "x": 525,
+        "y": 1400
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "ae-e1",
+      "source": "mt-ae-btn",
+      "target": "mt-ae-intro"
+    },
+    {
+      "id": "ae-e3",
+      "source": "mt-ae-setvar",
+      "target": "mt-ae-loop"
+    },
+    {
+      "id": "ae-e4",
+      "source": "mt-ae-loop",
+      "sourceHandle": "loop",
+      "target": "mt-ae-counter"
+    },
+    {
+      "id": "ae-e5",
+      "source": "mt-ae-counter",
+      "target": "mt-ae-level-msg"
+    },
+    {
+      "id": "ae-e6",
+      "source": "mt-ae-level-msg",
+      "target": "mt-ae-device"
+    },
+    {
+      "id": "ae-e7",
+      "source": "mt-ae-device",
+      "sourceHandle": "completion",
+      "target": "mt-ae-delay"
+    },
+    {
+      "id": "ae-e8",
+      "source": "mt-ae-delay",
+      "target": "mt-ae-condition"
+    },
+    {
+      "id": "ae-e10",
+      "source": "mt-ae-condition",
+      "sourceHandle": "false",
+      "target": "mt-ae-loop"
+    },
+    {
+      "id": "ae-e11",
+      "source": "mt-ae-welfare",
+      "target": "mt-ae-coin"
+    },
+    {
+      "id": "ae-e14",
+      "source": "mt-ae-marsh-wins",
+      "target": "mt-ae-marsh-pulse"
+    },
+    {
+      "id": "e-mt-ae-marsh-pulse-to-mt-ae-emo-done",
+      "source": "mt-ae-marsh-pulse",
+      "target": "mt-ae-emo-done"
+    },
+    {
+      "id": "e-mt-ae-dani-wins-to-mt-ae-emo-done",
+      "source": "mt-ae-dani-wins",
+      "target": "mt-ae-emo-done"
+    },
+    {
+      "id": "e-mt-ae-loop-to-mt-ae-emo-done",
+      "source": "mt-ae-loop",
+      "sourceHandle": "done",
+      "target": "mt-ae-emo-done"
+    },
+    {
+      "id": "e-mt-ae-intro-to-mt-ae-emo-start",
+      "source": "mt-ae-intro",
+      "target": "mt-ae-emo-start"
+    },
+    {
+      "id": "e-mt-ae-emo-start-to-mt-ae-setvar",
+      "source": "mt-ae-emo-start",
+      "target": "mt-ae-setvar"
+    },
+    {
+      "id": "e-mt-ae-condition-to-mt-ae-emo-welfare",
+      "source": "mt-ae-condition",
+      "target": "mt-ae-emo-welfare",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-mt-ae-emo-welfare-to-mt-ae-welfare",
+      "source": "mt-ae-emo-welfare",
+      "target": "mt-ae-welfare"
+    },
+    {
+      "id": "e-mt-ae-coin-to-mt-ae-emo-marsh",
+      "source": "mt-ae-coin",
+      "target": "mt-ae-emo-marsh",
+      "sourceHandle": "heads"
+    },
+    {
+      "id": "e-mt-ae-emo-marsh-to-mt-ae-marsh-wins",
+      "source": "mt-ae-emo-marsh",
+      "target": "mt-ae-marsh-wins"
+    },
+    {
+      "id": "e-mt-ae-coin-to-mt-ae-emo-dani",
+      "source": "mt-ae-coin",
+      "target": "mt-ae-emo-dani",
+      "sourceHandle": "tails"
+    },
+    {
+      "id": "e-mt-ae-emo-dani-to-mt-ae-dani-wins",
+      "source": "mt-ae-emo-dani",
+      "target": "mt-ae-dani-wins"
+    },
+    {
+      "id": "e-mt-ae-emo-done-to-mt-ae-complete",
+      "source": "mt-ae-emo-done",
+      "target": "mt-ae-complete"
+    }
+  ]
+}

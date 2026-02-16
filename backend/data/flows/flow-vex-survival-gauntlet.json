@@ -1,0 +1,617 @@
+{
+  "id": "flow-vex-survival-gauntlet",
+  "name": "Survival Gauntlet",
+  "category": "character",
+  "description": "Three-stage gauntlet: timer escape, coin flip, and number guess with escalating stakes",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-sg-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Survive This",
+        "buttonTarget": "character",
+        "buttonId": "vex-survive",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-sg-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Init Stage",
+        "variable": "gauntletStage",
+        "variableName": "gauntletStage",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "vex-sg-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Gauntlet Intro",
+        "actionType": "send_message",
+        "message": "*arena lights blaze to life* LADIES! AND! GENTLEMEN! *audience roars* Welcome to THE SURVIVAL GAUNTLET! *flames shoot from the floor* THREE stages stand between our contestant and FREEDOM! Escape the timer! Flip the coin! Guess the number! Survive them ALL... or face the CONSEQUENCES! *evil laughter echoes through the arena*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 550
+      },
+      "data": {
+        "label": "Stage 1 Announce",
+        "actionType": "send_message",
+        "message": "*spotlight snaps to stage one* STAGE ONE: THE ESCAPE! *audience drums on seats* The device activates NOW and you must hit the escape button at EXACTLY the right moment! Miss your window and you FAIL! *buzzer readies*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-device",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 730
+      },
+      "data": {
+        "label": "Stage 1 Device On",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "indefinite",
+        "preMessageEnabled": true,
+        "preMessage": "*slams activation switch* DEVICE ON! The clock is TICKING!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-timer",
+      "type": "timer_challenge",
+      "position": {
+        "x": 300,
+        "y": 930
+      },
+      "data": {
+        "label": "Escape Timer",
+        "mode": "escape",
+        "duration": 15,
+        "escapeWindow": 500,
+        "precisionMode": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-success-off",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1150
+      },
+      "data": {
+        "label": "S1 Success Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-success-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1320
+      },
+      "data": {
+        "label": "S1 Success!",
+        "actionType": "send_message",
+        "message": "*DING!* ESCAPED! *audience cheers* Stage one CLEARED! The device goes dark and our contestant moves on UNSCATHED! *impressed slow nod*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-fail-off",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1150
+      },
+      "data": {
+        "label": "S1 Fail Off",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": false,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-fail-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1320
+      },
+      "data": {
+        "label": "S1 Failed!",
+        "actionType": "send_message",
+        "message": "*BUZZER* FAILED! *audience gasps* Missed the escape window! And now... the PENALTY for Stage One failure! *rubs hands together gleefully*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s1-punishment",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1500
+      },
+      "data": {
+        "label": "S1 Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*activates punishment protocol* Five cycles! That's the PRICE of failure in the Gauntlet!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes tear of joy* Beautiful suffering! But the Gauntlet CONTINUES!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-sg-s2-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1750
+      },
+      "data": {
+        "label": "Stage 2 Announce",
+        "actionType": "send_message",
+        "message": "*spotlight shifts to stage two* STAGE TWO: THE FLIP! *giant coin descends from ceiling* One flip. Heads you're SAFE. Tails you PAY! *audience leans forward* And the coin is weighted... 40% heads, 60% tails! *evil grin* The house ALWAYS has an edge!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s2-flip",
+      "type": "coin_flip",
+      "position": {
+        "x": 300,
+        "y": 1930
+      },
+      "data": {
+        "label": "Fate Flip",
+        "headsLabel": "Heads - Safe!",
+        "tailsLabel": "Tails - Punish!",
+        "headsWeight": 40,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*flips the GIANT coin into the air* UP it goes! *audience watches in silence* And it's...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-sg-s2-heads",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 2150
+      },
+      "data": {
+        "label": "S2 Heads!",
+        "actionType": "send_message",
+        "message": "*coin clatters* HEADS! *audience ERUPTS* AGAINST THE ODDS! Only 40% chance and our contestant NAILED it! *slow clap* Stage two CLEARED! Moving on!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s2-tails-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 2150
+      },
+      "data": {
+        "label": "S2 Tails!",
+        "actionType": "send_message",
+        "message": "*coin clatters* TAILS! *audience groans* The weighted coin strikes AGAIN! *cackles* Time for the Stage Two penalty!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s2-punishment",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 2340
+      },
+      "data": {
+        "label": "S2 Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*flips switch* Five more cycles! The coin has SPOKEN!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pats you on the head* There there... one more stage to go!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-sg-s3-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 2570
+      },
+      "data": {
+        "label": "Stage 3 Announce",
+        "actionType": "send_message",
+        "message": "*all lights converge on final stage* THE FINAL STAGE! *fireworks* THE NUMBER GUESS! *audience chants* I'm thinking of a number between 1 and 5. You get TWO guesses! Get it RIGHT and you're CHAMPION! Get it WRONG and... *draws finger across throat*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s3-guess",
+      "type": "number_guess",
+      "position": {
+        "x": 300,
+        "y": 2750
+      },
+      "data": {
+        "label": "Final Guess",
+        "min": 1,
+        "max": 5,
+        "maxAttempts": 2,
+        "closeThreshold": 1
+      }
+    },
+    {
+      "id": "vex-sg-s3-correct",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 2970
+      },
+      "data": {
+        "label": "Correct!",
+        "actionType": "send_message",
+        "message": "*EXPLOSION OF CONFETTI AND FIREWORKS* CHAMPION!!! *drops to knees* LADIES AND GENTLEMEN, THEY DID IT! THEY SURVIVED! THE! GAUNTLET! *audience gives thunderous standing ovation* THREE stages! The escape, the flip, the guess! And our contestant CONQUERED THEM ALL! *golden spotlight* TAKE! A! BOW!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s3-close-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 2970
+      },
+      "data": {
+        "label": "So Close!",
+        "actionType": "send_message",
+        "message": "*agonized expression* SO CLOSE! *audience groans* You were ONE number away! ONE! The cruelest fate of ALL! *shakes head* Close... but close doesn't WIN the Gauntlet!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s3-close-punishment",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 3160
+      },
+      "data": {
+        "label": "Close Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*winces* Five cycles for being SO close yet SO far! This one HURTS the soul!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*moment of silence* That was the Gauntlet. You almost had it. ALMOST. Come back stronger next time, contestant.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-sg-s3-wrong-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 2970
+      },
+      "data": {
+        "label": "Wrong!",
+        "actionType": "send_message",
+        "message": "*BUZZER BLARES* WRONG! *audience gasps* NOT EVEN CLOSE! The final stage claims ANOTHER victim! *maniacal laughter* The Gauntlet is UNDEFEATED!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-sg-s3-wrong-punishment",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 3160
+      },
+      "data": {
+        "label": "Wrong Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*SLAMS the punishment button* FIVE cycles for the FINAL FAILURE! The Gauntlet shows NO mercy!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*bows to the audience* And THAT, ladies and gentlemen, is THE SURVIVAL GAUNTLET! Our contestant fought bravely... but the Gauntlet ALWAYS wins! *winks* ...mostly.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-sg-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 450
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-sg-emo-victory",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 2860
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    },
+    {
+      "id": "vex-sg-emo-close",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 2823
+      },
+      "data": {
+        "label": "Set Sad",
+        "actionType": "set_emotion",
+        "emotion": "sad"
+      }
+    },
+    {
+      "id": "vex-sg-attr-close",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 2897
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 90
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "vex-sg-btn",
+      "target": "vex-sg-init"
+    },
+    {
+      "id": "e2",
+      "source": "vex-sg-init",
+      "target": "vex-sg-intro"
+    },
+    {
+      "id": "e4",
+      "source": "vex-sg-s1-msg",
+      "target": "vex-sg-s1-device"
+    },
+    {
+      "id": "e5",
+      "source": "vex-sg-s1-device",
+      "sourceHandle": "immediate",
+      "target": "vex-sg-s1-timer"
+    },
+    {
+      "id": "e6",
+      "source": "vex-sg-s1-timer",
+      "sourceHandle": "success",
+      "target": "vex-sg-s1-success-off"
+    },
+    {
+      "id": "e7",
+      "source": "vex-sg-s1-timer",
+      "sourceHandle": "timeout",
+      "target": "vex-sg-s1-fail-off"
+    },
+    {
+      "id": "e8",
+      "source": "vex-sg-s1-success-off",
+      "target": "vex-sg-s1-success-msg"
+    },
+    {
+      "id": "e9",
+      "source": "vex-sg-s1-fail-off",
+      "target": "vex-sg-s1-fail-msg"
+    },
+    {
+      "id": "e10",
+      "source": "vex-sg-s1-fail-msg",
+      "target": "vex-sg-s1-punishment"
+    },
+    {
+      "id": "e11",
+      "source": "vex-sg-s1-success-msg",
+      "target": "vex-sg-s2-msg"
+    },
+    {
+      "id": "e12",
+      "source": "vex-sg-s1-punishment",
+      "sourceHandle": "completion",
+      "target": "vex-sg-s2-msg"
+    },
+    {
+      "id": "e13",
+      "source": "vex-sg-s2-msg",
+      "target": "vex-sg-s2-flip"
+    },
+    {
+      "id": "e14",
+      "source": "vex-sg-s2-flip",
+      "sourceHandle": "heads",
+      "target": "vex-sg-s2-heads"
+    },
+    {
+      "id": "e15",
+      "source": "vex-sg-s2-flip",
+      "sourceHandle": "tails",
+      "target": "vex-sg-s2-tails-msg"
+    },
+    {
+      "id": "e16",
+      "source": "vex-sg-s2-tails-msg",
+      "target": "vex-sg-s2-punishment"
+    },
+    {
+      "id": "e17",
+      "source": "vex-sg-s2-heads",
+      "target": "vex-sg-s3-msg"
+    },
+    {
+      "id": "e18",
+      "source": "vex-sg-s2-punishment",
+      "sourceHandle": "completion",
+      "target": "vex-sg-s3-msg"
+    },
+    {
+      "id": "e19",
+      "source": "vex-sg-s3-msg",
+      "target": "vex-sg-s3-guess"
+    },
+    {
+      "id": "e22",
+      "source": "vex-sg-s3-guess",
+      "sourceHandle": "wrong",
+      "target": "vex-sg-s3-wrong-msg"
+    },
+    {
+      "id": "e23",
+      "source": "vex-sg-s3-close-msg",
+      "target": "vex-sg-s3-close-punishment"
+    },
+    {
+      "id": "e24",
+      "source": "vex-sg-s3-wrong-msg",
+      "target": "vex-sg-s3-wrong-punishment"
+    },
+    {
+      "id": "e-vex-sg-intro-to-vex-sg-emo-start",
+      "source": "vex-sg-intro",
+      "target": "vex-sg-emo-start"
+    },
+    {
+      "id": "e-vex-sg-emo-start-to-vex-sg-s1-msg",
+      "source": "vex-sg-emo-start",
+      "target": "vex-sg-s1-msg"
+    },
+    {
+      "id": "e-vex-sg-s3-guess-to-vex-sg-emo-victory",
+      "source": "vex-sg-s3-guess",
+      "target": "vex-sg-emo-victory",
+      "sourceHandle": "correct"
+    },
+    {
+      "id": "e-vex-sg-emo-victory-to-vex-sg-s3-correct",
+      "source": "vex-sg-emo-victory",
+      "target": "vex-sg-s3-correct"
+    },
+    {
+      "id": "e-vex-sg-s3-guess-to-vex-sg-emo-close",
+      "source": "vex-sg-s3-guess",
+      "target": "vex-sg-emo-close",
+      "sourceHandle": "close"
+    },
+    {
+      "id": "e-vex-sg-emo-close-to-vex-sg-attr-close",
+      "source": "vex-sg-emo-close",
+      "target": "vex-sg-attr-close"
+    },
+    {
+      "id": "e-vex-sg-attr-close-to-vex-sg-s3-close-msg",
+      "source": "vex-sg-attr-close",
+      "target": "vex-sg-s3-close-msg"
+    }
+  ]
+}

@@ -337,19 +337,62 @@
         "postMessageSuppressLlm": false,
         "postDelay": 2
       }
+    },
+    {
+      "id": "luna-rx-emo-more",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Aroused",
+        "actionType": "set_emotion",
+        "emotion": "aroused"
+      }
+    },
+    {
+      "id": "luna-rx-emo-love",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Loving",
+        "actionType": "set_emotion",
+        "emotion": "loving"
+      }
+    },
+    {
+      "id": "luna-rx-emo-slow",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 493
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "id": "luna-rx-attr-slow",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 537
+      },
+      "data": {
+        "label": "Lower Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 30
+      }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "luna-rx-more",
-      "target": "luna-rx-more-action"
-    },
-    {
-      "id": "e2",
-      "source": "luna-rx-love",
-      "target": "luna-rx-love-action"
-    },
     {
       "id": "e3",
       "source": "luna-rx-please",
@@ -383,8 +426,38 @@
       "target": "luna-rx-ai-affection-action"
     },
     {
-      "id": "e9",
+      "id": "e-luna-rx-more-to-luna-rx-emo-more",
+      "source": "luna-rx-more",
+      "target": "luna-rx-emo-more"
+    },
+    {
+      "id": "e-luna-rx-emo-more-to-luna-rx-more-action",
+      "source": "luna-rx-emo-more",
+      "target": "luna-rx-more-action"
+    },
+    {
+      "id": "e-luna-rx-love-to-luna-rx-emo-love",
+      "source": "luna-rx-love",
+      "target": "luna-rx-emo-love"
+    },
+    {
+      "id": "e-luna-rx-emo-love-to-luna-rx-love-action",
+      "source": "luna-rx-emo-love",
+      "target": "luna-rx-love-action"
+    },
+    {
+      "id": "e-luna-rx-slow-to-luna-rx-emo-slow",
       "source": "luna-rx-slow",
+      "target": "luna-rx-emo-slow"
+    },
+    {
+      "id": "e-luna-rx-emo-slow-to-luna-rx-attr-slow",
+      "source": "luna-rx-emo-slow",
+      "target": "luna-rx-attr-slow"
+    },
+    {
+      "id": "e-luna-rx-attr-slow-to-luna-rx-slow-action",
+      "source": "luna-rx-attr-slow",
       "target": "luna-rx-slow-action"
     }
   ]

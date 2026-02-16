@@ -4155,6 +4155,80 @@ class EventEngine {
         break;
       }
 
+      case 'set_emotion': {
+        const emotion = data.emotion?.trim();
+        if (!emotion) {
+          console.log('[EventEngine] set_emotion: No emotion specified');
+          actionResult = false;
+          break;
+        }
+        if (this.sessionState) {
+          this.sessionState.emotion = emotion;
+          this.broadcast('emotion_update', { emotion });
+          console.log(`[EventEngine] set_emotion: Set emotion to "${emotion}"`);
+        }
+        actionResult = true;
+        break;
+      }
+
+      case 'set_attribute': {
+        const attrKey = data.attribute?.trim();
+        const attrValue = parseInt(data.attributeValue) ?? 50;
+        if (!attrKey) {
+          console.log('[EventEngine] set_attribute: No attribute specified');
+          actionResult = false;
+          break;
+        }
+        const validAttributes = ['dominant', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
+        if (!validAttributes.includes(attrKey)) {
+          console.log(`[EventEngine] set_attribute: Invalid attribute "${attrKey}"`);
+          actionResult = false;
+          break;
+        }
+        const clampedAttrValue = Math.max(0, Math.min(100, attrValue));
+
+        // Load character and update the active story's attributes
+        const attrCharacters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters);
+        const attrSettings = loadData(DATA_FILES.settings);
+        const attrActiveCharId = attrSettings?.activeCharacterId;
+
+        if (!attrCharacters || !attrActiveCharId) {
+          console.log('[EventEngine] set_attribute: No characters or active character');
+          actionResult = false;
+          break;
+        }
+
+        const attrCharacter = attrCharacters.find(c => c.id === attrActiveCharId);
+        if (!attrCharacter) {
+          console.log(`[EventEngine] set_attribute: Character ${attrActiveCharId} not found`);
+          actionResult = false;
+          break;
+        }
+
+        const attrStory = attrCharacter.stories?.find(s => s.id === attrCharacter.activeStoryId) || attrCharacter.stories?.[0];
+        if (!attrStory) {
+          console.log('[EventEngine] set_attribute: No active story found');
+          actionResult = false;
+          break;
+        }
+
+        attrStory.attributes = attrStory.attributes || {};
+        const oldValue = attrStory.attributes[attrKey] || 0;
+        attrStory.attributes[attrKey] = clampedAttrValue;
+
+        if (this.storageHelpers?.saveCharacter) {
+          this.storageHelpers.saveCharacter(attrCharacter);
+        } else {
+          saveData(DATA_FILES.characters, attrCharacters);
+        }
+
+        const updatedAttrChars = this.storageHelpers?.loadCharacters() || attrCharacters;
+        this.broadcast('characters_update', updatedAttrChars);
+        console.log(`[EventEngine] set_attribute: ${attrKey} ${oldValue} → ${clampedAttrValue} for ${attrActiveCharId}`);
+        actionResult = true;
+        break;
+      }
+
       case 'show_image': {
         const tag = data.tag?.trim();
         if (!tag) {

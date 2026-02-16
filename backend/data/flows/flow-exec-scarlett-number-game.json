@@ -1,0 +1,399 @@
+{
+  "id": "flow-exec-scarlett-number-game",
+  "name": "Executress Scarlett: Number Game",
+  "category": "character",
+  "description": "Guess a number to earn reprieve. Correct guess grants respite. Close guess triggers sustained inflation. Wrong guess triggers punishment cycles. Condition checks critical terminal zone.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-ng-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Number Game",
+        "buttonTarget": "character",
+        "buttonId": "exec-numbers",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-ng-random",
+      "type": "random_number",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Pick Secret Number",
+        "minValue": 1,
+        "maxValue": 10,
+        "variableName": "scarlettNumber"
+      }
+    },
+    {
+      "id": "exec-ng-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Games Played",
+        "variable": "numberGamesPlayed",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "exec-ng-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 500
+      },
+      "data": {
+        "label": "Game Introduction",
+        "actionType": "send_message",
+        "message": "*holds up a card, face down, between two fingers* Game number [Flow:numberGamesPlayed]. I've selected a number between 1 and 10. The card is written. You have three attempts to guess correctly. *sets the card on the instrument tray, still face down* A correct guess earns a sixty-second reprieve from all inflation protocols. Your intestines get sixty seconds of rest — no pressure, no expansion, no tissue stress. *meets [Player]'s eyes* An incorrect guess, however, does not earn a reprieve. It earns the opposite. *rests her hand on the pump controls* Choose your first number.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-guess",
+      "type": "number_guess",
+      "position": {
+        "x": 300,
+        "y": 700
+      },
+      "data": {
+        "label": "Guess the Number",
+        "min": 1,
+        "max": 10,
+        "maxAttempts": 3,
+        "closeThreshold": 2
+      }
+    },
+    {
+      "id": "exec-ng-correct",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "data": {
+        "label": "Correct Guess",
+        "actionType": "send_message",
+        "message": "*a slight pause — the first break in her composure* Correct. *turns the card face up, confirming the number* You've earned sixty seconds of reprieve. *steps back from the controls* Your intestines will receive no additional pressure for one minute. The tissue can partially recover — the collagen fibers will realign slightly, the peritoneal wall will redistribute the existing volume more comfortably. *sets a timer* Use them wisely. They may be among your last comfortable moments. Sixty seconds is not long. And when it ends, the execution resumes at full protocol.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-close-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 900
+      },
+      "data": {
+        "label": "Close Guess",
+        "actionType": "send_message",
+        "message": "Close. *turns the card over, revealing the number* Within two of the correct answer — but precision matters in this line of work. A near miss is still a miss. *returns the card to the tray* Ten seconds of sustained inflation as a reminder that approximation does not earn reprieve in an execution chamber.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-close-device",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1070
+      },
+      "data": {
+        "label": "Close Punishment (10s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the pump* Ten seconds. Watch your belly expand and remember: close is not correct.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*observes the additional distension* Ten seconds of sustained inflation for a near miss. The volume has been added to your cumulative total — it does not leave. *presses her palm against the firmer belly* Your intestines are measurably tighter than before the game began.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-ng-wrong-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 900
+      },
+      "data": {
+        "label": "Wrong Guess",
+        "actionType": "send_message",
+        "message": "Incorrect on all three attempts. *turns the card over with a flick, revealing the number* Not even close. *returns the card to the tray and moves to the pump controls* Your intestines will pay for each wrong answer. Four cycles of the inflation program — five seconds of pressurization, two seconds of partial relief, repeated four times. The cumulative volume is considerable.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-wrong-cycle",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1070
+      },
+      "data": {
+        "label": "Wrong Punishment (cycle 5s/2s x4)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 5,
+        "interval": 2,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the cycle program* Four cycles. Count them. Each one adds volume your intestines cannot expel.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches [Player]'s belly settle after the final cycle, visibly more distended than before* Four cycles complete. Twenty seconds of active inflation distributed across the four intervals. *measures the visible distension change* The penalty for failure is cumulative and permanent within this session. Your belly will not return to its pre-game state.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "exec-ng-delay",
+      "type": "delay",
+      "position": {
+        "x": 300,
+        "y": 1280
+      },
+      "data": {
+        "label": "Assessment Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "exec-ng-condition",
+      "type": "condition",
+      "position": {
+        "x": 300,
+        "y": 1420
+      },
+      "data": {
+        "label": "Critical Zone Check",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">",
+            "value": 85
+          }
+        ]
+      }
+    },
+    {
+      "id": "exec-ng-critical",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1600
+      },
+      "data": {
+        "label": "Critical Terminal Zone",
+        "actionType": "send_message",
+        "message": "*checks the pressure gauge and her expression becomes more focused — not alarmed, but attentive* You've crossed the 85% threshold. *turns to face [Player]* At this level, the peritoneal wall is approaching critical stress. The intestinal tissue has been stretched beyond its designed elastic range — the collagen matrix is undergoing permanent deformation. Each additional inflation increases the probability of catastrophic rupture exponentially, not linearly. *makes a final notation in the execution log, her handwriting precise* The execution enters its terminal phase. The number game may be offered again, but understand: at this pressure, even a reprieve provides minimal recovery. The tissue damage is progressive and irreversible. *closes the log* Your sentence approaches its conclusion.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-continues",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1600
+      },
+      "data": {
+        "label": "Execution Proceeds",
+        "actionType": "send_message",
+        "message": "*reviews the pressure readings on her clipboard* Pressure levels remain within the execution envelope. We have considerable capacity remaining before the terminal phase — your intestines still possess measurable compliance, and the peritoneal wall has not yet reached its critical stress threshold. *returns the clipboard* The number game will be offered again. Your odds do not improve with repetition — the number is re-selected each time. *a thin smile* But the stakes increase with each game, because every wrong answer adds volume that cannot be removed. The mathematics work against you progressively.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "exec-ng-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 600
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-ng-emo-correct",
+      "type": "action",
+      "position": {
+        "x": 175,
+        "y": 800
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    },
+    {
+      "id": "exec-ng-emo-wrong",
+      "type": "action",
+      "position": {
+        "x": 475,
+        "y": 800
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "exec-ng-emo-critical",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 1510
+      },
+      "data": {
+        "label": "Set Dazed",
+        "actionType": "set_emotion",
+        "emotion": "dazed"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-ng-btn",
+      "target": "exec-ng-random"
+    },
+    {
+      "id": "e2",
+      "source": "exec-ng-random",
+      "target": "exec-ng-counter"
+    },
+    {
+      "id": "e3",
+      "source": "exec-ng-counter",
+      "target": "exec-ng-intro"
+    },
+    {
+      "id": "e6",
+      "source": "exec-ng-guess",
+      "sourceHandle": "close",
+      "target": "exec-ng-close-msg"
+    },
+    {
+      "id": "e7",
+      "source": "exec-ng-close-msg",
+      "target": "exec-ng-close-device"
+    },
+    {
+      "id": "e9",
+      "source": "exec-ng-wrong-msg",
+      "target": "exec-ng-wrong-cycle"
+    },
+    {
+      "id": "e10",
+      "source": "exec-ng-correct",
+      "target": "exec-ng-delay"
+    },
+    {
+      "id": "e11",
+      "source": "exec-ng-close-device",
+      "target": "exec-ng-delay"
+    },
+    {
+      "id": "e12",
+      "source": "exec-ng-wrong-cycle",
+      "target": "exec-ng-delay"
+    },
+    {
+      "id": "e13",
+      "source": "exec-ng-delay",
+      "target": "exec-ng-condition"
+    },
+    {
+      "id": "e15",
+      "source": "exec-ng-condition",
+      "sourceHandle": "false",
+      "target": "exec-ng-continues"
+    },
+    {
+      "id": "e-exec-ng-intro-to-exec-ng-emo-start",
+      "source": "exec-ng-intro",
+      "target": "exec-ng-emo-start"
+    },
+    {
+      "id": "e-exec-ng-emo-start-to-exec-ng-guess",
+      "source": "exec-ng-emo-start",
+      "target": "exec-ng-guess"
+    },
+    {
+      "id": "e-exec-ng-guess-to-exec-ng-emo-correct",
+      "source": "exec-ng-guess",
+      "target": "exec-ng-emo-correct",
+      "sourceHandle": "correct"
+    },
+    {
+      "id": "e-exec-ng-emo-correct-to-exec-ng-correct",
+      "source": "exec-ng-emo-correct",
+      "target": "exec-ng-correct"
+    },
+    {
+      "id": "e-exec-ng-guess-to-exec-ng-emo-wrong",
+      "source": "exec-ng-guess",
+      "target": "exec-ng-emo-wrong",
+      "sourceHandle": "wrong"
+    },
+    {
+      "id": "e-exec-ng-emo-wrong-to-exec-ng-wrong-msg",
+      "source": "exec-ng-emo-wrong",
+      "target": "exec-ng-wrong-msg"
+    },
+    {
+      "id": "e-exec-ng-condition-to-exec-ng-emo-critical",
+      "source": "exec-ng-condition",
+      "target": "exec-ng-emo-critical",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-exec-ng-emo-critical-to-exec-ng-critical",
+      "source": "exec-ng-emo-critical",
+      "target": "exec-ng-critical"
+    }
+  ]
+}

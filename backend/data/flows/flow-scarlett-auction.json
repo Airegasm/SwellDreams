@@ -1,0 +1,429 @@
+{
+  "id": "flow-scarlett-auction",
+  "name": "The Auction",
+  "category": "character",
+  "description": "A rigged coin flip determines the initial lot, then a slot machine bonus round adds further consequences.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "sc-au-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Start Auction",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-auction",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sc-au-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Auction Intro",
+        "actionType": "send_message",
+        "message": "*gestures to an unseen audience with cold elegance* Welcome to the auction, [Player]. The house decides what you receive. You have no say in the matter. *a thin smile* Shall we see what fate has in store?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-coin",
+      "type": "coin_flip",
+      "position": {
+        "x": 300,
+        "y": 340
+      },
+      "data": {
+        "label": "Lot Selection",
+        "headsLabel": "Lesser Lot",
+        "tailsLabel": "Greater Lot",
+        "headsWeight": 40,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*produces a coin, holding it between thumb and forefinger* The coin decides your lot. *flips it with practiced indifference*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "sc-au-lesser-msg",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 520
+      },
+      "data": {
+        "label": "Lesser Lot",
+        "actionType": "send_message",
+        "message": "*catches the coin without looking* The lesser lot. *glances at you* Consider yourself fortunate. This time, the house shows a measure of restraint.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-lesser-cycle",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 670
+      },
+      "data": {
+        "label": "Lesser Punishment",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 5,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the device with a single, deliberate press* Three cycles. Brief but pointed.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*observes the final cycle's conclusion* The lesser lot, delivered. But we are not finished.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-au-greater-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 520
+      },
+      "data": {
+        "label": "Greater Lot",
+        "actionType": "send_message",
+        "message": "*catches the coin and examines it without expression* The greater lot. *meets your eyes* As I intended.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-greater-device",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 670
+      },
+      "data": {
+        "label": "Greater Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 25,
+        "preMessageEnabled": true,
+        "preMessage": "*engages the device* Twenty-five seconds. You will feel every one of them.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches your breathing with clinical interest* The greater lot, fulfilled. But there is still the matter of the bonus round.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-au-bonus-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 900
+      },
+      "data": {
+        "label": "Bonus Round",
+        "actionType": "send_message",
+        "message": "*produces a small device from the table, its reels gleaming* And now... the bonus round. The machine decides your final fate. *sets it before you* Spin.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-slots",
+      "type": "slot_machine",
+      "position": {
+        "x": 300,
+        "y": 1060
+      },
+      "data": {
+        "label": "Fate Machine",
+        "symbols": [
+          "⛓️",
+          "🔥",
+          "👠",
+          "🖤",
+          "💀"
+        ],
+        "matches": [
+          {
+            "id": "jackpot",
+            "pattern": "three-of-a-kind",
+            "label": "Jackpot"
+          },
+          {
+            "id": "partial",
+            "pattern": "two-of-a-kind",
+            "label": "Partial Match"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sc-au-jackpot",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1280
+      },
+      "data": {
+        "label": "Reprieve",
+        "actionType": "send_message",
+        "message": "*raises one eyebrow as the reels align* A reprieve. How unexpected. *studies you for a long moment* Enjoy this rare mercy, [Player]. The machine has granted what I would not. Do not expect such fortune again.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-partial-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1280
+      },
+      "data": {
+        "label": "Partial Match",
+        "actionType": "send_message",
+        "message": "*examines the reels* A partial match. Two symbols aligned. The machine shows no mercy... and neither do I.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-partial-pulse",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1430
+      },
+      "data": {
+        "label": "Partial Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the corrective sequence* Ten pulses. One for each moment you dared to hope for the jackpot.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches the last pulse with quiet satisfaction* The auction is concluded. You may go... when I say you may go.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-au-other-msg",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1280
+      },
+      "data": {
+        "label": "No Match",
+        "actionType": "send_message",
+        "message": "*the reels spin to a stop, none matching* No match. *a cold smile* The machine is as merciless as I am. Additional punishment.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-au-other-device",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1430
+      },
+      "data": {
+        "label": "No Match Punishment",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*engages the device once more* Fifteen more seconds. The house always wins, [Player].",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*steps back, smoothing her gloves* The auction is closed. Remember what you've learned here today.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-au-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "sc-au-emo-greater",
+      "type": "action",
+      "position": {
+        "x": 408,
+        "y": 400
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sc-au-attr-greater",
+      "type": "action",
+      "position": {
+        "x": 492,
+        "y": 460
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 80
+      }
+    },
+    {
+      "id": "sc-au-emo-jackpot",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1170
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sc-au-btn",
+      "target": "sc-au-intro"
+    },
+    {
+      "id": "e3",
+      "source": "sc-au-coin",
+      "sourceHandle": "heads",
+      "target": "sc-au-lesser-msg"
+    },
+    {
+      "id": "e5",
+      "source": "sc-au-lesser-msg",
+      "target": "sc-au-lesser-cycle"
+    },
+    {
+      "id": "e6",
+      "source": "sc-au-lesser-cycle",
+      "sourceHandle": "completion",
+      "target": "sc-au-bonus-intro"
+    },
+    {
+      "id": "e7",
+      "source": "sc-au-greater-msg",
+      "target": "sc-au-greater-device"
+    },
+    {
+      "id": "e8",
+      "source": "sc-au-greater-device",
+      "target": "sc-au-bonus-intro"
+    },
+    {
+      "id": "e9",
+      "source": "sc-au-bonus-intro",
+      "target": "sc-au-slots"
+    },
+    {
+      "id": "e11",
+      "source": "sc-au-slots",
+      "sourceHandle": "partial",
+      "target": "sc-au-partial-msg"
+    },
+    {
+      "id": "e12",
+      "source": "sc-au-partial-msg",
+      "target": "sc-au-partial-pulse"
+    },
+    {
+      "id": "e13",
+      "source": "sc-au-slots",
+      "sourceHandle": "other",
+      "target": "sc-au-other-msg"
+    },
+    {
+      "id": "e14",
+      "source": "sc-au-other-msg",
+      "target": "sc-au-other-device"
+    },
+    {
+      "id": "e-sc-au-intro-to-sc-au-emo-start",
+      "source": "sc-au-intro",
+      "target": "sc-au-emo-start"
+    },
+    {
+      "id": "e-sc-au-emo-start-to-sc-au-coin",
+      "source": "sc-au-emo-start",
+      "target": "sc-au-coin"
+    },
+    {
+      "id": "e-sc-au-coin-to-sc-au-emo-greater",
+      "source": "sc-au-coin",
+      "target": "sc-au-emo-greater",
+      "sourceHandle": "tails"
+    },
+    {
+      "id": "e-sc-au-emo-greater-to-sc-au-attr-greater",
+      "source": "sc-au-emo-greater",
+      "target": "sc-au-attr-greater"
+    },
+    {
+      "id": "e-sc-au-attr-greater-to-sc-au-greater-msg",
+      "source": "sc-au-attr-greater",
+      "target": "sc-au-greater-msg"
+    },
+    {
+      "id": "e-sc-au-slots-to-sc-au-emo-jackpot",
+      "source": "sc-au-slots",
+      "target": "sc-au-emo-jackpot",
+      "sourceHandle": "jackpot"
+    },
+    {
+      "id": "e-sc-au-emo-jackpot-to-sc-au-jackpot",
+      "source": "sc-au-emo-jackpot",
+      "target": "sc-au-jackpot"
+    }
+  ]
+}

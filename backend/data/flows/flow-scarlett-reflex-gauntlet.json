@@ -1,0 +1,289 @@
+{
+  "id": "flow-scarlett-reflex-gauntlet",
+  "name": "Reflex Gauntlet",
+  "category": "character",
+  "description": "A reflex challenge test followed by a pain-level condition check that determines recovery or additional punishment.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "sc-rg-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Test Reflexes",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-reflex",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sc-rg-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Gauntlet Intro",
+        "actionType": "send_message",
+        "message": "*arranges a series of targets with meticulous care* Your reflexes will be tested, [Player]. Seven rounds. Small targets. Two and a half seconds per target. *turns to face you* Failure has consequences. Success... is merely expected.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-rg-reflex",
+      "type": "reflex_challenge",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Reflex Test",
+        "timePerTarget": 2.5,
+        "rounds": 7,
+        "targetSize": "small",
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "*a measured nod, the barest acknowledgment* Adequate reflexes. You hit every target within the window. Perhaps your instincts are not entirely worthless.",
+        "aiMessageWinSuppressLlm": false,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "*cold disappointment settles across her features like frost* Too slow. You missed targets that should have been effortless. Your reflexes are... lacking.",
+        "aiMessageLoseSuppressLlm": false
+      }
+    },
+    {
+      "id": "sc-rg-win",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 560
+      },
+      "data": {
+        "label": "Win Result",
+        "actionType": "send_message",
+        "message": "*collects the target apparatus without expression* The gauntlet is complete. Now we assess your current state.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-rg-lose",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 560
+      },
+      "data": {
+        "label": "Lose Result",
+        "actionType": "send_message",
+        "message": "*removes the targets with deliberate slowness* Failure noted. But the gauntlet continues regardless. Let us see what your body tells us.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-rg-delay",
+      "type": "delay",
+      "position": {
+        "x": 300,
+        "y": 720
+      },
+      "data": {
+        "label": "Assessment Pause",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-rg-condition",
+      "type": "condition",
+      "position": {
+        "x": 300,
+        "y": 860
+      },
+      "data": {
+        "label": "Pain Assessment",
+        "conditions": [
+          {
+            "variable": "pain",
+            "operator": ">=",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "sc-rg-high-pain",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1060
+      },
+      "data": {
+        "label": "Recovery Granted",
+        "actionType": "send_message",
+        "message": "*studies your posture, the tension in your muscles, the way you hold yourself* Your pain levels are elevated. I will allow a brief recovery period. *turns away* Do not mistake this for mercy, [Player]. It is calculation. A broken instrument produces no useful data. Rest... and prepare yourself for what comes next.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-rg-low-pain-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1060
+      },
+      "data": {
+        "label": "Low Pain Msg",
+        "actionType": "send_message",
+        "message": "*tilts her head, assessing* Pain is manageable. Good. That means you can take more. *a thin smile* Fifteen corrective pulses. For good measure.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-rg-low-pain-pulse",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1220
+      },
+      "data": {
+        "label": "Corrective Pulses",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*activates the pulse sequence with unhurried precision*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches the final pulse complete* Fifteen delivered. Your reflexes may have been tested, but your endurance... that is another matter entirely. Dismissed.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-rg-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 265
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "sc-rg-emo-lowpain",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 960
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sc-rg-emo-highpain",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 960
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sc-rg-btn",
+      "target": "sc-rg-intro"
+    },
+    {
+      "id": "e3",
+      "source": "sc-rg-reflex",
+      "sourceHandle": "win",
+      "target": "sc-rg-win"
+    },
+    {
+      "id": "e4",
+      "source": "sc-rg-reflex",
+      "sourceHandle": "lose",
+      "target": "sc-rg-lose"
+    },
+    {
+      "id": "e5",
+      "source": "sc-rg-win",
+      "target": "sc-rg-delay"
+    },
+    {
+      "id": "e6",
+      "source": "sc-rg-lose",
+      "target": "sc-rg-delay"
+    },
+    {
+      "id": "e7",
+      "source": "sc-rg-delay",
+      "target": "sc-rg-condition"
+    },
+    {
+      "id": "e10",
+      "source": "sc-rg-low-pain-msg",
+      "target": "sc-rg-low-pain-pulse"
+    },
+    {
+      "id": "e-sc-rg-intro-to-sc-rg-emo-start",
+      "source": "sc-rg-intro",
+      "target": "sc-rg-emo-start"
+    },
+    {
+      "id": "e-sc-rg-emo-start-to-sc-rg-reflex",
+      "source": "sc-rg-emo-start",
+      "target": "sc-rg-reflex"
+    },
+    {
+      "id": "e-sc-rg-condition-to-sc-rg-emo-lowpain",
+      "source": "sc-rg-condition",
+      "target": "sc-rg-emo-lowpain",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-sc-rg-emo-lowpain-to-sc-rg-low-pain-msg",
+      "source": "sc-rg-emo-lowpain",
+      "target": "sc-rg-low-pain-msg"
+    },
+    {
+      "id": "e-sc-rg-condition-to-sc-rg-emo-highpain",
+      "source": "sc-rg-condition",
+      "target": "sc-rg-emo-highpain",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-sc-rg-emo-highpain-to-sc-rg-high-pain",
+      "source": "sc-rg-emo-highpain",
+      "target": "sc-rg-high-pain"
+    }
+  ]
+}

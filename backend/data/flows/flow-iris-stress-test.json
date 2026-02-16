@@ -1,0 +1,370 @@
+{
+  "id": "flow-iris-stress-test",
+  "name": "Stress Test",
+  "category": "character",
+  "description": "Multi-phase stress test with looped stimulus cycles and capacity-based evaluation",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "iris-st-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Stress Test",
+        "buttonTarget": "character",
+        "buttonId": "iris-stress",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "iris-st-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 300
+      },
+      "data": {
+        "label": "Intro Message",
+        "actionType": "send_message",
+        "message": "*adjusts glasses and clicks pen* Initiating multi-phase stress test for Subject #47. Three sequential phases of escalating stimulus will be administered. Your physiological responses will be recorded in real-time. *makes preliminary note on clipboard* Try not to disappoint me.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-st-init-var",
+      "type": "set_variable",
+      "position": {
+        "x": 200,
+        "y": 500
+      },
+      "data": {
+        "label": "Init Phase Counter",
+        "variable": "stressPhase",
+        "variableName": "stressPhase",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "iris-st-loop",
+      "type": "loop",
+      "position": {
+        "x": 200,
+        "y": 680
+      },
+      "data": {
+        "label": "3 Phase Loop",
+        "mode": "fixed",
+        "iterations": 3,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "iris-st-counter",
+      "type": "counter",
+      "position": {
+        "x": 200,
+        "y": 880
+      },
+      "data": {
+        "label": "Increment Phase",
+        "variable": "stressPhase",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "iris-st-random",
+      "type": "random_number",
+      "position": {
+        "x": 200,
+        "y": 1060
+      },
+      "data": {
+        "label": "Stimulus Variance",
+        "minValue": 1,
+        "maxValue": 4,
+        "variableName": "stimulusVariance"
+      }
+    },
+    {
+      "id": "iris-st-phase-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1240
+      },
+      "data": {
+        "label": "Phase Announce",
+        "actionType": "send_message",
+        "message": "*checks instruments* Phase [Flow:stressPhase] commencing. Stimulus variance index: [Flow:stimulusVariance]. *scribbles on clipboard* Engaging device now.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-st-cycle",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1440
+      },
+      "data": {
+        "label": "Stress Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*activates pump sequence* Monitoring biometric response...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*notes readings on clipboard* Cycle complete. Data captured.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "iris-st-delay",
+      "type": "delay",
+      "position": {
+        "x": 200,
+        "y": 1680
+      },
+      "data": {
+        "label": "Recovery Interval",
+        "duration": 4,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "iris-st-condition",
+      "type": "condition",
+      "position": {
+        "x": 200,
+        "y": 1900
+      },
+      "data": {
+        "label": "Capacity Eval",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 60
+          },
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "iris-st-high",
+      "type": "action",
+      "position": {
+        "x": -150,
+        "y": 2150
+      },
+      "data": {
+        "label": "High Capacity",
+        "actionType": "send_message",
+        "message": "*a rare flicker of interest crosses her face* ...Impressive resilience under sustained multi-phase stress, Subject #47. Capacity readings remain elevated despite repeated stimulus application. *adjusts glasses* I may need to recalibrate my expectations upward. *makes extensive notes* This data is... genuinely interesting.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-st-mid",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 2150
+      },
+      "data": {
+        "label": "Mid Capacity",
+        "actionType": "send_message",
+        "message": "*makes note on clipboard* Expected tolerance range. Your stress response falls within the median parameters for Subject #47's profile. Adequate for continued testing, though nothing to write a paper about. *clicks pen* Session data logged.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-st-low",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 2150
+      },
+      "data": {
+        "label": "Low Capacity",
+        "actionType": "send_message",
+        "message": "*sighs and removes glasses to pinch bridge of nose* Disappointing. Your stress response falls well below the median, Subject #47. Three phases of moderate stimulus and this is your threshold? *replaces glasses* I expected better from you. *writes BELOW EXPECTED in red ink* We'll need to revisit your baseline.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "iris-st-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 400
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "iris-st-emo-done",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 1290
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    },
+    {
+      "id": "iris-st-emo-high",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 2025
+      },
+      "data": {
+        "label": "Set Happy",
+        "actionType": "set_emotion",
+        "emotion": "happy"
+      }
+    },
+    {
+      "id": "iris-st-emo-low",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 2025
+      },
+      "data": {
+        "label": "Set Embarrassed",
+        "actionType": "set_emotion",
+        "emotion": "embarrassed"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "iris-st-btn",
+      "target": "iris-st-intro"
+    },
+    {
+      "id": "e3",
+      "source": "iris-st-init-var",
+      "target": "iris-st-loop"
+    },
+    {
+      "id": "e4",
+      "source": "iris-st-loop",
+      "sourceHandle": "loop",
+      "target": "iris-st-counter"
+    },
+    {
+      "id": "e5",
+      "source": "iris-st-counter",
+      "target": "iris-st-random"
+    },
+    {
+      "id": "e6",
+      "source": "iris-st-random",
+      "target": "iris-st-phase-msg"
+    },
+    {
+      "id": "e7",
+      "source": "iris-st-phase-msg",
+      "target": "iris-st-cycle"
+    },
+    {
+      "id": "e8",
+      "source": "iris-st-cycle",
+      "sourceHandle": "completion",
+      "target": "iris-st-delay"
+    },
+    {
+      "id": "e9",
+      "source": "iris-st-delay",
+      "target": "iris-st-loop"
+    },
+    {
+      "id": "e12",
+      "source": "iris-st-condition",
+      "sourceHandle": "true-1",
+      "target": "iris-st-mid"
+    },
+    {
+      "id": "e-iris-st-intro-to-iris-st-emo-start",
+      "source": "iris-st-intro",
+      "target": "iris-st-emo-start"
+    },
+    {
+      "id": "e-iris-st-emo-start-to-iris-st-init-var",
+      "source": "iris-st-emo-start",
+      "target": "iris-st-init-var"
+    },
+    {
+      "id": "e-iris-st-loop-to-iris-st-emo-done",
+      "source": "iris-st-loop",
+      "target": "iris-st-emo-done",
+      "sourceHandle": "done"
+    },
+    {
+      "id": "e-iris-st-emo-done-to-iris-st-condition",
+      "source": "iris-st-emo-done",
+      "target": "iris-st-condition"
+    },
+    {
+      "id": "e-iris-st-condition-to-iris-st-emo-high",
+      "source": "iris-st-condition",
+      "target": "iris-st-emo-high",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-iris-st-emo-high-to-iris-st-high",
+      "source": "iris-st-emo-high",
+      "target": "iris-st-high"
+    },
+    {
+      "id": "e-iris-st-condition-to-iris-st-emo-low",
+      "source": "iris-st-condition",
+      "target": "iris-st-emo-low",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-iris-st-emo-low-to-iris-st-low",
+      "source": "iris-st-emo-low",
+      "target": "iris-st-low"
+    }
+  ]
+}

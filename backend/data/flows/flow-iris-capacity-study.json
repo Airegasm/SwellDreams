@@ -128,6 +128,33 @@
         "preMessageEnabled": false,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "iris-cs-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 215
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "iris-cs-attr-dom",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 390
+      },
+      "data": {
+        "label": "Lower Dominant",
+        "actionType": "set_attribute",
+        "attribute": "dominant",
+        "attributeValue": 20
+      }
     }
   ],
   "edges": [
@@ -137,14 +164,24 @@
       "target": "iris-cs-intro"
     },
     {
-      "id": "e2",
+      "id": "e-iris-cs-intro-to-iris-cs-emo-start",
       "source": "iris-cs-intro",
+      "target": "iris-cs-emo-start"
+    },
+    {
+      "id": "e-iris-cs-emo-start-to-iris-cs-capacity-msg",
+      "source": "iris-cs-emo-start",
       "target": "iris-cs-capacity-msg"
     },
     {
-      "id": "e3",
+      "id": "e-iris-cs-capacity-msg-to-iris-cs-attr-dom",
       "source": "iris-cs-capacity-msg",
-      "sourceHandle": "global",
+      "target": "iris-cs-attr-dom",
+      "sourceHandle": "global"
+    },
+    {
+      "id": "e-iris-cs-attr-dom-to-iris-cs-analysis",
+      "source": "iris-cs-attr-dom",
       "target": "iris-cs-analysis"
     }
   ]

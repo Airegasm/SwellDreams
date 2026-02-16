@@ -1,0 +1,623 @@
+{
+  "id": "flow-luna-bedtime-ritual",
+  "name": "Luna's Bedtime Ritual",
+  "category": "character",
+  "description": "A cozy bedtime flow. Session timer determines the intro, player picks a wind-down style, then a card draw decides a bonus before goodnight.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "luna-br-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Bedtime",
+        "buttonTarget": "character",
+        "buttonId": "luna-bedtime",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "luna-br-timer",
+      "type": "sessionTimer",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Been Here A While?",
+        "mode": "check",
+        "duration": 10,
+        "unit": "minutes",
+        "onlyOnce": false
+      }
+    },
+    {
+      "id": "luna-br-long-msg",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 330
+      },
+      "data": {
+        "label": "Long Session Intro",
+        "actionType": "send_message",
+        "message": "*yawns softly and stretches, then curls up against you* We've been at this a while, sweetheart... time for bed. *rests her head on your shoulder* But first... let me send you off properly.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-short-msg",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 330
+      },
+      "data": {
+        "label": "Short Session Intro",
+        "actionType": "send_message",
+        "message": "*tilts her head* Already sleepy, baby? *smiles warmly* Let's wind down together, then... I want to make sure you drift off feeling loved.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 300,
+        "y": 490
+      },
+      "data": {
+        "label": "Bedtime Style",
+        "description": "How do you want Luna to send you off to sleep?",
+        "introMessageEnabled": true,
+        "introMessage": "*traces lazy circles on your chest* So tell me, love... how do you want to wind down tonight?",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "fill-me",
+            "label": "Fill Me Up",
+            "description": "One last deep, warm fill"
+          },
+          {
+            "id": "lullaby",
+            "label": "Lullaby Pulses",
+            "description": "Gentle rhythmic pulses to drift off to"
+          },
+          {
+            "id": "hold-me",
+            "label": "Just Hold Me",
+            "description": "No devices, just Luna's warmth"
+          }
+        ]
+      }
+    },
+    {
+      "id": "luna-br-fill",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 700
+      },
+      "data": {
+        "label": "Fill Me Up",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "*wraps herself around you* One last fill, baby... let it all in, nice and warm...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*sighs happily, rubbing your belly gently* There... all full and cozy. You look so peaceful like this, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-br-lullaby",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 700
+      },
+      "data": {
+        "label": "Lullaby Pulses",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 2,
+        "interval": 3,
+        "cycles": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*hums softly* Close your eyes, love... let the rhythm carry you...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*whispers* There you go... in and out, like breathing... like waves on the shore. My own personal lullaby, just for you, darling.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-br-hold",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 700
+      },
+      "data": {
+        "label": "Just Hold Me",
+        "actionType": "send_message",
+        "message": "*pulls you into the softest, warmest embrace* No gadgets, no games... just us. *rests her forehead against yours* This is my favorite part, baby. Just being here with you. Feeling your heartbeat against mine. You don't need anything else tonight... just me holding you.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-card-fill",
+      "type": "card_draw",
+      "position": {
+        "x": 50,
+        "y": 870
+      },
+      "data": {
+        "label": "Bonus Card (Fill)",
+        "deckType": "standard",
+        "outputMode": "high_low"
+      }
+    },
+    {
+      "id": "luna-br-card-lullaby",
+      "type": "card_draw",
+      "position": {
+        "x": 300,
+        "y": 870
+      },
+      "data": {
+        "label": "Bonus Card (Lullaby)",
+        "deckType": "standard",
+        "outputMode": "high_low"
+      }
+    },
+    {
+      "id": "luna-br-card-hold",
+      "type": "card_draw",
+      "position": {
+        "x": 550,
+        "y": 870
+      },
+      "data": {
+        "label": "Bonus Card (Hold)",
+        "deckType": "standard",
+        "outputMode": "high_low"
+      }
+    },
+    {
+      "id": "luna-br-win-fill",
+      "type": "action",
+      "position": {
+        "x": -100,
+        "y": 1050
+      },
+      "data": {
+        "label": "Bonus Win (Fill)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*gasps and giggles* You drew higher! Lucky you, baby...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Lucky you! One last little treat before sleep... *three gentle goodnight kisses* One... two... three.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-br-lose-fill",
+      "type": "action",
+      "position": {
+        "x": 50,
+        "y": 1050
+      },
+      "data": {
+        "label": "No Bonus (Fill)",
+        "actionType": "send_message",
+        "message": "Mmm, no bonus tonight... *kisses your cheek* But I've got you, baby. That's all the bonus either of us needs.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-tie-fill",
+      "type": "action",
+      "position": {
+        "x": -25,
+        "y": 1150
+      },
+      "data": {
+        "label": "Tie (Fill)",
+        "actionType": "send_message",
+        "message": "A tie! *laughs softly* How fitting for us, love... always perfectly matched. Always in sync.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-win-lullaby",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1050
+      },
+      "data": {
+        "label": "Bonus Win (Lullaby)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*claps quietly* You won the draw, darling!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Lucky you! One last little treat... *three soft pulses like goodnight kisses* Sweet dreams are made of these, baby.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-br-lose-lullaby",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 1050
+      },
+      "data": {
+        "label": "No Bonus (Lullaby)",
+        "actionType": "send_message",
+        "message": "Mmm, no bonus tonight... but I've got you, baby. *strokes your hair* The lullaby was the real prize anyway.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-tie-lullaby",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 1150
+      },
+      "data": {
+        "label": "Tie (Lullaby)",
+        "actionType": "send_message",
+        "message": "A tie! How fitting for us, love... *intertwines her fingers with yours* We're always on the same wavelength.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-win-hold",
+      "type": "action",
+      "position": {
+        "x": 475,
+        "y": 1050
+      },
+      "data": {
+        "label": "Bonus Win (Hold)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*whispers* You drew higher, love... a little bedtime bonus...",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Lucky you! One last little treat before dreamland... *three featherlight pulses* Consider those goodnight kisses from the inside, sweetheart.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "luna-br-lose-hold",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 1050
+      },
+      "data": {
+        "label": "No Bonus (Hold)",
+        "actionType": "send_message",
+        "message": "Mmm, no bonus tonight... *holds you tighter* But I've got you, baby. And that's better than any card could give us.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-tie-hold",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1150
+      },
+      "data": {
+        "label": "Tie (Hold)",
+        "actionType": "send_message",
+        "message": "A tie! *smiles sleepily* How fitting for us, love... perfectly matched, as always.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-off",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1320
+      },
+      "data": {
+        "label": "All Done",
+        "actionType": "device_off",
+        "device": "primary_pump",
+        "preMessageEnabled": true,
+        "preMessage": "*reaches over and turns everything off, then pulls the covers up over both of you*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-goodnight",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1450
+      },
+      "data": {
+        "label": "Goodnight",
+        "actionType": "send_message",
+        "message": "*kisses your forehead, lingering for a moment* Goodnight, sweetheart... I love you. Dream of me, okay? *settles in beside you, her breathing slow and warm against your skin* I'll be right here when you wake up.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "luna-br-emo-fill",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 595
+      },
+      "data": {
+        "label": "Set Aroused",
+        "actionType": "set_emotion",
+        "emotion": "aroused"
+      }
+    },
+    {
+      "id": "luna-br-emo-lull",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 595
+      },
+      "data": {
+        "label": "Set Loving",
+        "actionType": "set_emotion",
+        "emotion": "loving"
+      }
+    },
+    {
+      "id": "luna-br-emo-end",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 1385
+      },
+      "data": {
+        "label": "Set Blissful",
+        "actionType": "set_emotion",
+        "emotion": "blissful"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "luna-br-btn",
+      "target": "luna-br-timer"
+    },
+    {
+      "id": "e2",
+      "source": "luna-br-timer",
+      "sourceHandle": "true",
+      "target": "luna-br-long-msg"
+    },
+    {
+      "id": "e3",
+      "source": "luna-br-timer",
+      "sourceHandle": "false",
+      "target": "luna-br-short-msg"
+    },
+    {
+      "id": "e4",
+      "source": "luna-br-long-msg",
+      "target": "luna-br-choice"
+    },
+    {
+      "id": "e5",
+      "source": "luna-br-short-msg",
+      "target": "luna-br-choice"
+    },
+    {
+      "id": "e8",
+      "source": "luna-br-choice",
+      "sourceHandle": "hold-me",
+      "target": "luna-br-hold"
+    },
+    {
+      "id": "e9",
+      "source": "luna-br-fill",
+      "target": "luna-br-card-fill"
+    },
+    {
+      "id": "e10",
+      "source": "luna-br-lullaby",
+      "target": "luna-br-card-lullaby"
+    },
+    {
+      "id": "e11",
+      "source": "luna-br-hold",
+      "target": "luna-br-card-hold"
+    },
+    {
+      "id": "e12",
+      "source": "luna-br-card-fill",
+      "sourceHandle": "player-wins",
+      "target": "luna-br-win-fill"
+    },
+    {
+      "id": "e13",
+      "source": "luna-br-card-fill",
+      "sourceHandle": "dealer-wins",
+      "target": "luna-br-lose-fill"
+    },
+    {
+      "id": "e14",
+      "source": "luna-br-card-fill",
+      "sourceHandle": "tie",
+      "target": "luna-br-tie-fill"
+    },
+    {
+      "id": "e15",
+      "source": "luna-br-card-lullaby",
+      "sourceHandle": "player-wins",
+      "target": "luna-br-win-lullaby"
+    },
+    {
+      "id": "e16",
+      "source": "luna-br-card-lullaby",
+      "sourceHandle": "dealer-wins",
+      "target": "luna-br-lose-lullaby"
+    },
+    {
+      "id": "e17",
+      "source": "luna-br-card-lullaby",
+      "sourceHandle": "tie",
+      "target": "luna-br-tie-lullaby"
+    },
+    {
+      "id": "e18",
+      "source": "luna-br-card-hold",
+      "sourceHandle": "player-wins",
+      "target": "luna-br-win-hold"
+    },
+    {
+      "id": "e19",
+      "source": "luna-br-card-hold",
+      "sourceHandle": "dealer-wins",
+      "target": "luna-br-lose-hold"
+    },
+    {
+      "id": "e20",
+      "source": "luna-br-card-hold",
+      "sourceHandle": "tie",
+      "target": "luna-br-tie-hold"
+    },
+    {
+      "id": "e21",
+      "source": "luna-br-win-fill",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e22",
+      "source": "luna-br-lose-fill",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e23",
+      "source": "luna-br-tie-fill",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e24",
+      "source": "luna-br-win-lullaby",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e25",
+      "source": "luna-br-lose-lullaby",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e26",
+      "source": "luna-br-tie-lullaby",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e27",
+      "source": "luna-br-win-hold",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e28",
+      "source": "luna-br-lose-hold",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e29",
+      "source": "luna-br-tie-hold",
+      "target": "luna-br-off"
+    },
+    {
+      "id": "e-luna-br-choice-to-luna-br-emo-fill",
+      "source": "luna-br-choice",
+      "target": "luna-br-emo-fill",
+      "sourceHandle": "fill-me"
+    },
+    {
+      "id": "e-luna-br-emo-fill-to-luna-br-fill",
+      "source": "luna-br-emo-fill",
+      "target": "luna-br-fill"
+    },
+    {
+      "id": "e-luna-br-choice-to-luna-br-emo-lull",
+      "source": "luna-br-choice",
+      "target": "luna-br-emo-lull",
+      "sourceHandle": "lullaby"
+    },
+    {
+      "id": "e-luna-br-emo-lull-to-luna-br-lullaby",
+      "source": "luna-br-emo-lull",
+      "target": "luna-br-lullaby"
+    },
+    {
+      "id": "e-luna-br-off-to-luna-br-emo-end",
+      "source": "luna-br-off",
+      "target": "luna-br-emo-end"
+    },
+    {
+      "id": "e-luna-br-emo-end-to-luna-br-goodnight",
+      "source": "luna-br-emo-end",
+      "target": "luna-br-goodnight"
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "id": "flow-medteam-pressure-threshold",
+  "name": "MedTeam Pressure Threshold",
+  "category": "character",
+  "description": "Marsh orders escalating pressure threshold test. Player chooses intensity level — team reacts per role.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-pt-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Pressure Threshold",
+        "buttonTarget": "character",
+        "buttonId": "medteam-threshold",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-pt-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Intensity Level",
+        "description": "Dr. Marsh wants to test your pressure tolerance at a specific intensity.",
+        "introMessageEnabled": true,
+        "introMessage": "Dr. Marsh: *clicks her recorder* \"Pressure threshold test, Subject 12. We're going to run a sustained inflation at a fixed intensity level. I need you to select: low, medium, or high.\" *glances at Dani* \"Dani, baseline vitals before we begin.\"\n\nNurse Dani: \"Heart rate 86, BP 122 over 78. Baseline captured, Doctor.\"\n\nDr. Marsh: \"Good. Subject 12 — choose your intensity.\"",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "low",
+            "label": "Low Intensity",
+            "description": "10-second sustained inflation"
+          },
+          {
+            "id": "medium",
+            "label": "Medium Intensity",
+            "description": "20-second sustained inflation"
+          },
+          {
+            "id": "high",
+            "label": "High Intensity",
+            "description": "30-second sustained inflation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-pt-low",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 400
+      },
+      "data": {
+        "label": "Low Intensity (10s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: \"Low intensity. Conservative choice.\" *notes it* \"Priya, ten-second sustained at standard flow rate.\"\n\nNurse Priya: \"Ten seconds, standard flow. Initiating now.\" *engages the pump*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Ten seconds complete. Pump off.\"\n\nNurse Dani: \"Heart rate 92, respiration slightly elevated. Within normal parameters.\"\n\nDr. Marsh: *reviews data* \"Clean data point. Subject 12 tolerated low intensity without distress markers. Noted for escalation baseline.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pt-medium",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 400
+      },
+      "data": {
+        "label": "Medium Intensity (20s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 20,
+        "preMessageEnabled": true,
+        "preMessage": "Dr. Marsh: \"Medium intensity. Reasonable.\" *adjusts her glasses* \"Priya, twenty seconds sustained. Dani, continuous vitals monitoring throughout.\"\n\nNurse Priya: \"Twenty-second sustained inflation, confirmed. Engaging pump now.\"\n\nNurse Dani: *positions herself closer to the monitors* \"Monitoring. I'll call out any spikes.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Twenty seconds complete. Disengaging.\"\n\nNurse Dani: \"Heart rate peaked at 104, settling back. BP 134 over 84. Elevated but stable.\" *touches [Player]'s wrist* \"You handled that well.\"\n\nDr. Marsh: \"Excellent compliance at medium threshold. The distension response was textbook.\" *dictates into recorder* \"Subject 12 shows above-average tolerance at the twenty-second mark.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pt-high",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 400
+      },
+      "data": {
+        "label": "High Intensity (30s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 30,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Dani: *looks up sharply* \"Doctor — high intensity is a thirty-second sustained burst. At this stage of the session, I'd recommend—\"\n\nDr. Marsh: \"Noted and overruled. The subject volunteered. Priya, thirty seconds sustained. Full flow.\"\n\nNurse Priya: *hesitates a fraction of a second* \"...Thirty seconds, full flow. Initiating.\" *engages the pump*\n\nNurse Dani: *moves closer to [Player]* \"I'm right here. Breathe through it. Thirty seconds — I'll count you down.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Thirty seconds. Pump disengaged.\"\n\nNurse Dani: *checking monitors rapidly* \"Heart rate 118, BP 142 over 92. Respiration 24 — elevated but stable. No danger signs.\" *squeezes [Player]'s hand* \"It's over. You did it.\"\n\nDr. Marsh: *studying the data with visible interest* \"Remarkable. Subject 12 sustained the full thirty seconds at high intensity without triggering safety thresholds. The distension profile is...\" *pauses* \"...exceptional. I want this data set flagged for the review committee.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "mt-pt-emo-high",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "mt-pt-emo-low",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "mt-pt-btn",
+      "target": "mt-pt-choice"
+    },
+    {
+      "id": "e3",
+      "source": "mt-pt-choice",
+      "sourceHandle": "medium",
+      "target": "mt-pt-medium"
+    },
+    {
+      "id": "e-mt-pt-choice-to-mt-pt-emo-high",
+      "source": "mt-pt-choice",
+      "target": "mt-pt-emo-high",
+      "sourceHandle": "high"
+    },
+    {
+      "id": "e-mt-pt-emo-high-to-mt-pt-high",
+      "source": "mt-pt-emo-high",
+      "target": "mt-pt-high"
+    },
+    {
+      "id": "e-mt-pt-choice-to-mt-pt-emo-low",
+      "source": "mt-pt-choice",
+      "target": "mt-pt-emo-low",
+      "sourceHandle": "low"
+    },
+    {
+      "id": "e-mt-pt-emo-low-to-mt-pt-low",
+      "source": "mt-pt-emo-low",
+      "target": "mt-pt-low"
+    }
+  ]
+}

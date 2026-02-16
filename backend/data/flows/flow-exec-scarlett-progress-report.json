@@ -1,0 +1,185 @@
+{
+  "id": "flow-exec-scarlett-progress-report",
+  "name": "Executress Scarlett: Progress Report",
+  "category": "character",
+  "description": "Random stage assessment — early, mid, or terminal phase with appropriate device actions.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-pr-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Progress Report",
+        "buttonTarget": "character",
+        "buttonId": "exec-progress",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-pr-branch",
+      "type": "branch",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Execution Stage",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "early",
+            "label": "Early Stage",
+            "weight": 34
+          },
+          {
+            "id": "mid",
+            "label": "Mid Stage",
+            "weight": 33
+          },
+          {
+            "id": "terminal",
+            "label": "Terminal Warning",
+            "weight": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "exec-pr-early",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 380
+      },
+      "data": {
+        "label": "Early Stage (10s pump)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett consults the execution log and makes a notation*\n\n\"Progress report. You are in the early stage of the execution — approximately 20 to 30 percent of the way to terminal pressure.\" *looks at [Player]'s belly with professional assessment* \"The distension is visible but unremarkable. Your intestines are accommodating the volume without significant resistance.\"\n\n*closes the log* \"This is the easy part. I'm going to add another ten seconds of sustained inflation to move us along. You'll notice the belly beginning to firm — that's the intestinal walls reaching their natural resting elasticity limit.\"\n\n*reaches for the controls* \"Ten seconds.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett palpates [Player]'s belly with one hand, pressing gently*\n\n\"Firmer. The skin is beginning to show tension lines.\" *makes a note* \"You have a long way to go, Subject [Player]. What you're feeling now is discomfort. What comes later is pain. And what comes after that...\" *returns to her station* \"...is the purpose of your being here.\"\n\n*files the progress note* \"Proceeding.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-pr-mid",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 380
+      },
+      "data": {
+        "label": "Mid Stage (cycle 3s/2s x3)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett reviews the pressure readings with a slight nod*\n\n\"Mid-stage assessment. Approximately 50 to 60 percent of terminal capacity.\" *studies [Player]'s distended belly* \"The abdomen is significantly distended. Skin is taut. The navel is flattening — it will begin to protrude soon.\"\n\n*presses her palm flat against [Player]'s belly* \"Firmness test.\" *applies pressure and releases* \"Considerable resistance. The intestinal walls are under meaningful tension.\"\n\n\"Three test cycles — three seconds on, two seconds off. I want to observe how the distension responds to intermittent loading at this volume.\"\n\n*activates the cycle*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett observes the way [Player]'s belly responds to the cycling*\n\n\"Each inflation cycle produces less visible expansion than the last. The intestines are reaching their accommodation ceiling — there's less room for each new volume of air to distribute.\" *notes this in the log* \"This is the stage where subjects typically begin to understand that the process will not be stopped. The early denial fades. The mathematical certainty of what comes next becomes apparent.\"\n\n*looks at [Player]* \"You are halfway through your execution. The second half takes longer.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-pr-terminal",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 380
+      },
+      "data": {
+        "label": "Terminal Warning (pulse x4)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett sets down her log and stands, looking at [Player]'s massively distended belly with a careful, measuring gaze*\n\n\"Terminal phase assessment. You are approaching structural limits.\" *her voice is quieter now, more precise* \"The abdominal wall is at maximum visible distension. The navel has protruded. Skin is showing stress patterning — fine white lines where the collagen fibers are separating.\"\n\n*traces a finger along one of the stretch marks* \"The intestinal tissue has exceeded its designed elastic range. Every additional volume of air from this point moves you closer to rupture. Not metaphorically. Anatomically.\"\n\n\"Four diagnostic pulses. I need to assess how much accommodation remains.\"\n\n*activates the pulses*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett studies the response data with careful attention*\n\n\"Four pulses, minimal accommodation on each. The intestinal walls are returning almost zero additional stretch per pressure increment.\" *makes a final notation* \"This is the terminal warning stage. From this point forward, each additional inflation carries a meaningful probability of initiating rupture.\"\n\n*meets [Player]'s eyes steadily* \"I am telling you this not as a warning — the execution will proceed regardless — but because the protocol requires that you understand what is happening to your body in real time. You are approaching the end, Subject [Player]. The final phase of your sentence.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-pr-emo-terminal",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "exec-pr-emo-early",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-pr-btn",
+      "target": "exec-pr-branch"
+    },
+    {
+      "id": "e3",
+      "source": "exec-pr-branch",
+      "sourceHandle": "branch-1",
+      "target": "exec-pr-mid"
+    },
+    {
+      "id": "e-exec-pr-branch-to-exec-pr-emo-terminal",
+      "source": "exec-pr-branch",
+      "target": "exec-pr-emo-terminal",
+      "sourceHandle": "branch-2"
+    },
+    {
+      "id": "e-exec-pr-emo-terminal-to-exec-pr-terminal",
+      "source": "exec-pr-emo-terminal",
+      "target": "exec-pr-terminal"
+    },
+    {
+      "id": "e-exec-pr-branch-to-exec-pr-emo-early",
+      "source": "exec-pr-branch",
+      "target": "exec-pr-emo-early",
+      "sourceHandle": "branch-0"
+    },
+    {
+      "id": "e-exec-pr-emo-early-to-exec-pr-early",
+      "source": "exec-pr-emo-early",
+      "target": "exec-pr-early"
+    }
+  ]
+}

@@ -1,0 +1,951 @@
+{
+  "id": "flow-SororityHell-hazing-night",
+  "name": "Sorority Hell: Hazing Night",
+  "category": "character",
+  "description": "10-chain flow for the Sorority Hell hazing scenario — button triggers, capacity reactions, keyword responses, and ambient banter",
+  "isActive": true,
+  "createdAt": 1739750400000,
+  "updatedAt": 1739750400000,
+  "nodes": [
+    {
+      "id": "sh-btn-tradition",
+      "type": "button_press",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "data": {
+        "label": "Start the Tradition",
+        "buttonTarget": "character",
+        "buttonId": "sh-tradition",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-tradition-reveal",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 150
+      },
+      "data": {
+        "label": "The Reveal",
+        "actionType": "send_message",
+        "message": "Elle Kingsley: *sets down her drink and claps her hands once* \"Okay! I think it's time.\" *her smile widens as she turns to [Player]* \"Come on, babe — we've got something to show you.\" *takes [Player]'s hand and leads them down the back hallway, heels clicking on the tile*\n\nCadence Morales: *bounces after them, barely containing herself* \"Oh my GOD oh my GOD it's happening!\" *she's already pulled ahead, throwing open the door to the back room* \"TA-DAAAA!\" *inside: a sturdy chair bolted to the floor, a pump system with clear tubing coiled on a metal tray, a pressure gauge mounted on a stand, and a set of leather straps laid out on a side table*\n\nAggie Park: *is already in the room — she's been in here the whole time* *looks up from checking a connection on the pump hose* \"Everything's ready.\" *her eyes move to [Player]* \"Sit down.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-tradition-delay",
+      "type": "delay",
+      "position": {
+        "x": 0,
+        "y": 300
+      },
+      "data": {
+        "label": "Let It Sink In",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sh-tradition-pump",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 430
+      },
+      "data": {
+        "label": "First Inflation",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "Elle Kingsley: *crouches beside [Player], hand on their knee* \"Every sister in this house sat in that chair. This is what bonds us. You trust me, right?\" *nods to Cadence*\n\nCadence Morales: *grabs the pump handle with both hands, grinning* \"Here we GOOOOO!\" *starts pumping*\n\nAggie Park: *watches the gauge needle begin to move* \"Flow is good. Seal is holding.\"",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Elle Kingsley: *squeezes [Player]'s shoulder* \"See? That wasn't so bad. You're doing great, sweetie.\"\n\nCadence Morales: *wipes her forehead dramatically* \"That was just the WARM-UP! Oh my God, your face right now!\"\n\nAggie Park: *notes the gauge reading in her notebook* \"Holding steady.\" *clicks her pen*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sh-btn-round",
+      "type": "button_press",
+      "position": {
+        "x": 400,
+        "y": 0
+      },
+      "data": {
+        "label": "Another Round",
+        "buttonTarget": "character",
+        "buttonId": "sh-round",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-round-pump",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 150
+      },
+      "data": {
+        "label": "Pump Burst",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "Cadence Morales: *cracks her knuckles and grabs the pump handle* \"Round TWO, baby! Ready or not!\" *pumps with enthusiasm*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Aggie Park: *reads the gauge* \"[Capacity] percent.\" *writes it down without looking up*\n\nElle Kingsley: *nods slowly, arms crossed* \"Good. Keep going, Cadence.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sh-btn-restrain",
+      "type": "button_press",
+      "position": {
+        "x": 750,
+        "y": 0
+      },
+      "data": {
+        "label": "Strap Them In",
+        "buttonTarget": "character",
+        "buttonId": "sh-restrain",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-restrain-scene",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 150
+      },
+      "data": {
+        "label": "Restraint Scene",
+        "actionType": "send_message",
+        "message": "Aggie Park: *picks up the leather straps from the side table — she's had them laid out since before [Player] even arrived* *kneels beside the chair and begins securing [Player]'s left wrist with efficient, practiced movements* \"Hold still.\"\n\nElle Kingsley: *steps forward, her expression matter-of-fact* \"This is where it gets real, hun. We can't have you pulling the tube out — it's happened before and it's a whole mess.\" *watches Aggie work* \"It's for your safety. Honestly.\"\n\nCadence Morales: *leans over and tightens the right wrist strap with a giggle* \"There! Snug as a bug!\" *pats [Player]'s hand* \"Don't worry, Aggie's done this like a hundred times. She's basically a professional.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-restrain-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 750,
+        "y": 310
+      },
+      "data": {
+        "label": "Mark Restrained",
+        "variable": "restrained",
+        "variableName": "restrained",
+        "value": "true",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "sh-restrain-after",
+      "type": "action",
+      "position": {
+        "x": 750,
+        "y": 440
+      },
+      "data": {
+        "label": "Post-Restraint",
+        "actionType": "send_message",
+        "message": "Aggie Park: *tests each strap with a sharp tug — wrists, ankles, waist* \"Secure.\" *stands up and steps back to examine her work*\n\nElle Kingsley: *tilts her head, studying [Player]* \"You're not a guest anymore, sweetie. You're a pledge.\" *her voice is warm but her eyes have changed* \"And pledges finish what they start.\"\n\nCadence Morales: *whistles low* \"Damn. You look... committed.\" *pulls out her phone and snaps a photo before [Player] can react*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-btn-vote",
+      "type": "button_press",
+      "position": {
+        "x": 1100,
+        "y": 0
+      },
+      "data": {
+        "label": "Sister Vote",
+        "buttonTarget": "character",
+        "buttonId": "sh-vote",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-vote-intro",
+      "type": "action",
+      "position": {
+        "x": 1100,
+        "y": 150
+      },
+      "data": {
+        "label": "Call the Vote",
+        "actionType": "send_message",
+        "message": "Elle Kingsley: *holds up her hand* \"Alright, girls — tradition says we vote. Do we keep going... or do we show our pledge a little mercy?\" *looks between Cadence and Aggie with a slight smirk* \"All in favor of mercy?\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-vote-flip",
+      "type": "coin_flip",
+      "position": {
+        "x": 1100,
+        "y": 310
+      },
+      "data": {
+        "label": "The Vote",
+        "headsLabel": "Keep Going",
+        "tailsLabel": "Show Mercy",
+        "headsWeight": 60,
+        "bestOf": 1,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-vote-keep",
+      "type": "action",
+      "position": {
+        "x": 950,
+        "y": 500
+      },
+      "data": {
+        "label": "No Mercy",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "Cadence Morales: *throws her hand down* \"KEEP GOING! Are you kidding?! We're just getting started!\" *grabs the pump*\n\nAggie Park: *raises one finger without looking up* \"Continue.\"\n\nElle Kingsley: *spreads her hands* \"The sisterhood has spoken. Sorry, hun — democracy.\" *winks*",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Cadence Morales: *pumps her fist* \"THAT'S what I'm talking about!\"",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sh-vote-mercy",
+      "type": "action",
+      "position": {
+        "x": 1250,
+        "y": 500
+      },
+      "data": {
+        "label": "Fake Mercy",
+        "actionType": "send_message",
+        "message": "Cadence Morales: *gasps dramatically* \"Wait, MERCY?! No no no —\"\n\nAggie Park: \"Mercy.\" *shrugs one shoulder*\n\nElle Kingsley: *tilts her head, looking at [Player] with something almost like tenderness* \"Well... I suppose we could —\" *pause* *her expression shifts* \"Actually, no. I changed my mind. Cadence, pump.\"\n\nCadence Morales: *SCREAMS with delight* \"I KNEW IT! I KNEW IT!\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-vote-mercy-pump",
+      "type": "action",
+      "position": {
+        "x": 1250,
+        "y": 680
+      },
+      "data": {
+        "label": "Mercy Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "Elle Kingsley: *watches with cold satisfaction* \"The vote was a formality, sweetie. It always is.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sh-btn-selfie",
+      "type": "button_press",
+      "position": {
+        "x": 1550,
+        "y": 0
+      },
+      "data": {
+        "label": "Selfie Break",
+        "buttonTarget": "character",
+        "buttonId": "sh-selfie",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-selfie-grab",
+      "type": "action",
+      "position": {
+        "x": 1550,
+        "y": 150
+      },
+      "data": {
+        "label": "Grab Phone",
+        "actionType": "send_message",
+        "message": "Cadence Morales: *whips out her phone* \"SELFIE TIME!\" *kneels next to [Player] and holds the camera up, peace sign*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-selfie-check",
+      "type": "condition",
+      "position": {
+        "x": 1550,
+        "y": 310
+      },
+      "data": {
+        "label": "Enough to Show?",
+        "conditions": [
+          {
+            "variable": "capacity",
+            "operator": ">=",
+            "value": 50
+          }
+        ]
+      }
+    },
+    {
+      "id": "sh-selfie-good",
+      "type": "action",
+      "position": {
+        "x": 1400,
+        "y": 480
+      },
+      "data": {
+        "label": "Great Photo",
+        "actionType": "send_message",
+        "message": "Cadence Morales: *reviews the photo and SQUEALS* \"Oh my GOD, this is AMAZING. You look so — \" *typing furiously* \"I'm sending this to the group chat. The girls need to SEE this.\"\n\nAggie Park: *glances at Cadence's screen* \"Delete that.\"\n\nElle Kingsley: *looks over Cadence's shoulder, smirks* \"Leave it. It's a good look.\" *pats [Player]'s swollen belly* \"Something to remember tonight by.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-selfie-early",
+      "type": "action",
+      "position": {
+        "x": 1700,
+        "y": 480
+      },
+      "data": {
+        "label": "Too Early",
+        "actionType": "send_message",
+        "message": "Cadence Morales: *looks at the photo and pouts* \"Ugh. You can barely even tell.\" *shows the screen to Elle* \"There's like... nothing to show yet. This is NOT group-chat worthy.\"\n\nElle Kingsley: *laughs* \"Give it time, babe. We're just getting started.\"\n\nAggie Park: *without looking up* \"Pump more first.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-cap-serious",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 700
+      },
+      "data": {
+        "label": "Getting Serious (30%)",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "meet_or_exceed",
+        "targetValue": 30,
+        "fireOnlyOnce": true,
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-cap-serious-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 860
+      },
+      "data": {
+        "label": "Tone Shifts",
+        "actionType": "send_message",
+        "message": "Elle Kingsley: *stops smiling — or rather, the smile stays but the warmth leaves it* *crosses her arms and studies [Player]'s belly with a new kind of attention* \"Getting there.\"\n\nCadence Morales: *has stopped bouncing — she's leaning forward now, watching [Player]'s midsection with focused, almost hungry eyes* \"...Whoa.\" *quieter than she's been all night* \"You can like... really see it now.\"\n\nAggie Park: \"Thirty percent.\" *writes the number down, then looks at [Player]* \"The last pledge cried at twenty-five.\" *clicks her pen* \"You're tougher than she was.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-cap-lockdown",
+      "type": "trigger",
+      "position": {
+        "x": 400,
+        "y": 700
+      },
+      "data": {
+        "label": "Lock Them Down (60%)",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "meet_or_exceed",
+        "targetValue": 60,
+        "fireOnlyOnce": true,
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-cap-lockdown-check",
+      "type": "condition",
+      "position": {
+        "x": 400,
+        "y": 860
+      },
+      "data": {
+        "label": "Already Restrained?",
+        "conditions": [
+          {
+            "variable": "custom",
+            "customVariable": "restrained",
+            "operator": "==",
+            "value": "true"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sh-cap-lockdown-tighten",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1030
+      },
+      "data": {
+        "label": "Tighten Restraints",
+        "actionType": "send_message",
+        "message": "Aggie Park: *steps forward without a word and runs her fingers along each restraint strap* *pulls the waist strap one notch tighter* *then the wrists* \"Belly's bigger now. Straps need adjusting.\" *tugs the ankle restraints* \"Good.\"\n\nElle Kingsley: *watches approvingly* \"Sixty percent, and still holding. You should be proud, hun.\"\n\nCadence Morales: *fans herself* \"God, look at you. You're like... actually HUGE now.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-cap-lockdown-apply",
+      "type": "action",
+      "position": {
+        "x": 550,
+        "y": 1030
+      },
+      "data": {
+        "label": "Apply Restraints Now",
+        "actionType": "send_message",
+        "message": "Aggie Park: *stands up from the corner where she's been sitting and picks up the leather restraint straps* *walks to [Player] with unhurried calm* \"Sixty percent. This is the part where they start trying to pull the tube out.\" *begins strapping [Player]'s wrists to the chair arms* \"Not happening.\"\n\nElle Kingsley: *places a hand on [Player]'s shoulder* \"Don't panic, sweetie. This is standard — every pledge gets strapped in at this point. It's for your safety.\" *her grip tightens slightly* \"And ours.\"\n\nCadence Morales: *tightens the ankle straps and pats [Player]'s leg* \"There ya go! All cozy!\" *giggles* \"You're not going ANYWHERE now.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-cap-lockdown-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 550,
+        "y": 1200
+      },
+      "data": {
+        "label": "Mark Restrained",
+        "variable": "restrained",
+        "variableName": "restrained",
+        "value": "true",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "sh-cap-record",
+      "type": "trigger",
+      "position": {
+        "x": 800,
+        "y": 700
+      },
+      "data": {
+        "label": "The Record (90%)",
+        "triggerType": "player_state_change",
+        "stateType": "capacity",
+        "comparison": "meet_or_exceed",
+        "targetValue": 90,
+        "fireOnlyOnce": true,
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-cap-record-msg",
+      "type": "action",
+      "position": {
+        "x": 800,
+        "y": 860
+      },
+      "data": {
+        "label": "Chasing the Record",
+        "actionType": "send_message",
+        "message": "Aggie Park: *looks at the gauge for a long time* *then speaks — the most she's said all night* \"Ninety. That's fourteen from the record.\" *closes her notebook and gives [Player] her full attention for the first time* \"Fourteen.\"\n\nElle Kingsley: *the mask is gone now — what's underneath is cold, fascinated, hungry* \"One more, Cadence.\"\n\nCadence Morales: *her hands are shaking — not from fear, from adrenaline* \"YES. Yes yes yes.\" *grips the pump* \"Oh my God, we're actually gonna BREAK it.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-cap-record-push",
+      "type": "action",
+      "position": {
+        "x": 800,
+        "y": 1030
+      },
+      "data": {
+        "label": "The Push",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "Aggie Park: *watches the gauge needle climb* \"...Ninety-two.\" *the smallest smile she's worn all night*",
+        "postMessageSuppressLlm": true,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "sh-word-beg",
+      "type": "trigger",
+      "position": {
+        "x": 0,
+        "y": 1400
+      },
+      "data": {
+        "label": "Begging",
+        "triggerType": "player_speaks",
+        "keywords": [
+          "*stop*",
+          "*enough*",
+          "*no more*",
+          "*let me go*",
+          "*can't take*",
+          "*please stop*"
+        ],
+        "cooldown": 8,
+        "unblockable": false,
+        "notify": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sh-word-beg-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 1560
+      },
+      "data": {
+        "label": "Sisters React",
+        "actionType": "send_message",
+        "message": "Elle Kingsley: *kneels beside [Player], voice low and even* \"Shh. Listen to me. You are ALMOST done. Every single sister in this house sat where you're sitting and every single one of them made it through.\" *tucks a strand of hair behind [Player]'s ear* \"You wanted to be one of us. This is what that means, hun.\"\n\nCadence Morales: *doesn't even slow down* \"No WAY we're stopping! Are you serious?! You're SO close!\" *pumps the handle and whoops* \"Come ONNN, pledge! Dig DEEP!\"\n\nAggie Park: *walks behind the chair and silently checks each restraint strap — tugs the waist, the wrists, the ankles* *tightens the left wrist half a notch* *leans close to [Player]'s ear* \"You can't leave anyway.\" *steps back*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-word-beg-pump",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 1730
+      },
+      "data": {
+        "label": "Punctuation Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 1,
+        "preMessageEnabled": false,
+        "postMessageEnabled": true,
+        "postMessage": "Cadence Morales: *pumps once more with a satisfied grin* \"That's for complaining.\"",
+        "postMessageSuppressLlm": true,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sh-random-banter",
+      "type": "trigger",
+      "position": {
+        "x": 400,
+        "y": 1400
+      },
+      "data": {
+        "label": "Sorority Banter (20%)",
+        "triggerType": "random",
+        "probability": 20,
+        "fireOnlyOnce": false,
+        "unblockable": false
+      }
+    },
+    {
+      "id": "sh-banter-branch",
+      "type": "branch",
+      "position": {
+        "x": 400,
+        "y": 1560
+      },
+      "data": {
+        "label": "Random Moment",
+        "branchType": "random",
+        "branches": [
+          {
+            "id": "phone",
+            "label": "Cadence's Phone",
+            "weight": 33
+          },
+          {
+            "id": "notebook",
+            "label": "Aggie's Notebook",
+            "weight": 34
+          },
+          {
+            "id": "inspect",
+            "label": "Elle's Inspection",
+            "weight": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "sh-banter-phone",
+      "type": "action",
+      "position": {
+        "x": 250,
+        "y": 1730
+      },
+      "data": {
+        "label": "Phone Check",
+        "actionType": "send_message",
+        "message": "Cadence Morales: *phone buzzes — she checks it mid-pump* \"Oh! Tiffany's asking how the pledge is doing.\" *types one-handed, tongue out in concentration* *reads her reply out loud* \"'SO good. Like a balloon rn. Pics incoming.'\" *sends it before anyone can object* \"What? She asked!\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-banter-notebook",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1730
+      },
+      "data": {
+        "label": "Notebook Entry",
+        "actionType": "send_message",
+        "message": "Aggie Park: *opens her small black notebook and writes something in neat, precise handwriting* *[Player] can't see what it says from this angle* *she notices [Player] trying to look and tilts the notebook away* \"Notes.\" *turns the page* *keeps writing*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-banter-inspect",
+      "type": "action",
+      "position": {
+        "x": 650,
+        "y": 1730
+      },
+      "data": {
+        "label": "Belly Inspection",
+        "actionType": "send_message",
+        "message": "Elle Kingsley: *slowly circles the chair, heels clicking on the floor* *stops in front of [Player] and looks down at their belly* *extends one finger and traces a slow line along the curve of [Player]'s distended stomach* *nods once, lips pressed together in quiet satisfaction* \"Coming along nicely.\" *walks back to her spot and picks up her drink*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sh-emo-tradition",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 75
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "sh-emo-keep",
+      "type": "action",
+      "position": {
+        "x": 1050,
+        "y": 405
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sh-emo-selfie",
+      "type": "action",
+      "position": {
+        "x": 1500,
+        "y": 395
+      },
+      "data": {
+        "label": "Set Embarrassed",
+        "actionType": "set_emotion",
+        "emotion": "embarrassed"
+      }
+    },
+    {
+      "id": "sh-emo-lockdown",
+      "type": "action",
+      "position": {
+        "x": 375,
+        "y": 917
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "sh-attr-lockdown",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 973
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 65
+      }
+    },
+    {
+      "id": "sh-emo-beg",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 1480
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e2",
+      "source": "sh-tradition-reveal",
+      "target": "sh-tradition-delay"
+    },
+    {
+      "id": "e3",
+      "source": "sh-tradition-delay",
+      "target": "sh-tradition-pump"
+    },
+    {
+      "id": "e4",
+      "source": "sh-btn-round",
+      "target": "sh-round-pump"
+    },
+    {
+      "id": "e5",
+      "source": "sh-btn-restrain",
+      "target": "sh-restrain-scene"
+    },
+    {
+      "id": "e6",
+      "source": "sh-restrain-scene",
+      "target": "sh-restrain-setvar"
+    },
+    {
+      "id": "e7",
+      "source": "sh-restrain-setvar",
+      "target": "sh-restrain-after"
+    },
+    {
+      "id": "e8",
+      "source": "sh-btn-vote",
+      "target": "sh-vote-intro"
+    },
+    {
+      "id": "e9",
+      "source": "sh-vote-intro",
+      "target": "sh-vote-flip"
+    },
+    {
+      "id": "e11",
+      "source": "sh-vote-flip",
+      "sourceHandle": "tails",
+      "target": "sh-vote-mercy"
+    },
+    {
+      "id": "e12",
+      "source": "sh-vote-mercy",
+      "target": "sh-vote-mercy-pump"
+    },
+    {
+      "id": "e13",
+      "source": "sh-btn-selfie",
+      "target": "sh-selfie-grab"
+    },
+    {
+      "id": "e14",
+      "source": "sh-selfie-grab",
+      "target": "sh-selfie-check"
+    },
+    {
+      "id": "e16",
+      "source": "sh-selfie-check",
+      "sourceHandle": "false",
+      "target": "sh-selfie-early"
+    },
+    {
+      "id": "e17",
+      "source": "sh-cap-serious",
+      "target": "sh-cap-serious-msg"
+    },
+    {
+      "id": "e18",
+      "source": "sh-cap-lockdown",
+      "target": "sh-cap-lockdown-check"
+    },
+    {
+      "id": "e20",
+      "source": "sh-cap-lockdown-check",
+      "sourceHandle": "false",
+      "target": "sh-cap-lockdown-apply"
+    },
+    {
+      "id": "e21",
+      "source": "sh-cap-lockdown-apply",
+      "target": "sh-cap-lockdown-setvar"
+    },
+    {
+      "id": "e22",
+      "source": "sh-cap-record",
+      "target": "sh-cap-record-msg"
+    },
+    {
+      "id": "e23",
+      "source": "sh-cap-record-msg",
+      "target": "sh-cap-record-push"
+    },
+    {
+      "id": "e25",
+      "source": "sh-word-beg-msg",
+      "target": "sh-word-beg-pump"
+    },
+    {
+      "id": "e26",
+      "source": "sh-random-banter",
+      "target": "sh-banter-branch"
+    },
+    {
+      "id": "e27",
+      "source": "sh-banter-branch",
+      "sourceHandle": "phone",
+      "target": "sh-banter-phone"
+    },
+    {
+      "id": "e28",
+      "source": "sh-banter-branch",
+      "sourceHandle": "notebook",
+      "target": "sh-banter-notebook"
+    },
+    {
+      "id": "e29",
+      "source": "sh-banter-branch",
+      "sourceHandle": "inspect",
+      "target": "sh-banter-inspect"
+    },
+    {
+      "id": "e-sh-btn-tradition-to-sh-emo-tradition",
+      "source": "sh-btn-tradition",
+      "target": "sh-emo-tradition"
+    },
+    {
+      "id": "e-sh-emo-tradition-to-sh-tradition-reveal",
+      "source": "sh-emo-tradition",
+      "target": "sh-tradition-reveal"
+    },
+    {
+      "id": "e-sh-vote-flip-to-sh-emo-keep",
+      "source": "sh-vote-flip",
+      "target": "sh-emo-keep",
+      "sourceHandle": "heads"
+    },
+    {
+      "id": "e-sh-emo-keep-to-sh-vote-keep",
+      "source": "sh-emo-keep",
+      "target": "sh-vote-keep"
+    },
+    {
+      "id": "e-sh-selfie-check-to-sh-emo-selfie",
+      "source": "sh-selfie-check",
+      "target": "sh-emo-selfie",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-sh-emo-selfie-to-sh-selfie-good",
+      "source": "sh-emo-selfie",
+      "target": "sh-selfie-good"
+    },
+    {
+      "id": "e-sh-cap-lockdown-check-to-sh-emo-lockdown",
+      "source": "sh-cap-lockdown-check",
+      "target": "sh-emo-lockdown",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-sh-emo-lockdown-to-sh-attr-lockdown",
+      "source": "sh-emo-lockdown",
+      "target": "sh-attr-lockdown"
+    },
+    {
+      "id": "e-sh-attr-lockdown-to-sh-cap-lockdown-tighten",
+      "source": "sh-attr-lockdown",
+      "target": "sh-cap-lockdown-tighten"
+    },
+    {
+      "id": "e-sh-word-beg-to-sh-emo-beg",
+      "source": "sh-word-beg",
+      "target": "sh-emo-beg"
+    },
+    {
+      "id": "e-sh-emo-beg-to-sh-word-beg-msg",
+      "source": "sh-emo-beg",
+      "target": "sh-word-beg-msg"
+    }
+  ]
+}

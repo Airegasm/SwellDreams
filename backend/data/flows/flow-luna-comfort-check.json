@@ -180,6 +180,46 @@
         "preDelay": 0,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "luna-cc-emo-high",
+      "type": "action",
+      "position": {
+        "x": 75,
+        "y": 280
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "luna-cc-emo-safe",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 93
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "id": "luna-cc-attr-safe",
+      "type": "action",
+      "position": {
+        "x": 425,
+        "y": 137
+      },
+      "data": {
+        "label": "Lower Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 40
+      }
     }
   ],
   "edges": [
@@ -192,12 +232,6 @@
       "id": "e1",
       "source": "luna-cc-trigger",
       "target": "luna-cc-condition"
-    },
-    {
-      "id": "e2",
-      "source": "luna-cc-condition",
-      "sourceHandle": "true-0",
-      "target": "luna-cc-high"
     },
     {
       "id": "e3",
@@ -218,8 +252,29 @@
       "target": "luna-cc-start"
     },
     {
-      "id": "e6",
+      "id": "e-luna-cc-condition-to-luna-cc-emo-high",
+      "source": "luna-cc-condition",
+      "target": "luna-cc-emo-high",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-luna-cc-emo-high-to-luna-cc-high",
+      "source": "luna-cc-emo-high",
+      "target": "luna-cc-high"
+    },
+    {
+      "id": "e-luna-cc-pumpoff-btn-to-luna-cc-emo-safe",
       "source": "luna-cc-pumpoff-btn",
+      "target": "luna-cc-emo-safe"
+    },
+    {
+      "id": "e-luna-cc-emo-safe-to-luna-cc-attr-safe",
+      "source": "luna-cc-emo-safe",
+      "target": "luna-cc-attr-safe"
+    },
+    {
+      "id": "e-luna-cc-attr-safe-to-luna-cc-pumpoff-action",
+      "source": "luna-cc-attr-safe",
       "target": "luna-cc-pumpoff-action"
     }
   ]

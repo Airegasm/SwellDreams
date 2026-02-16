@@ -404,23 +404,79 @@
         "postMessageSuppressLlm": false,
         "postDelay": 2
       }
+    },
+    {
+      "id": "sc-rx-emo-obey",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 115
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
+    },
+    {
+      "id": "sc-rx-emo-defy",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 93
+      },
+      "data": {
+        "label": "Set Angry",
+        "actionType": "set_emotion",
+        "emotion": "angry"
+      }
+    },
+    {
+      "id": "sc-rx-attr-defy",
+      "type": "action",
+      "position": {
+        "x": 525,
+        "y": 137
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 80
+      }
+    },
+    {
+      "id": "sc-rx-emo-stop",
+      "type": "action",
+      "position": {
+        "x": 25,
+        "y": 465
+      },
+      "data": {
+        "label": "Set Neutral",
+        "actionType": "set_emotion",
+        "emotion": "neutral"
+      }
+    },
+    {
+      "id": "sc-rx-emo-worship",
+      "type": "action",
+      "position": {
+        "x": 775,
+        "y": 465
+      },
+      "data": {
+        "label": "Set Loving",
+        "actionType": "set_emotion",
+        "emotion": "loving"
+      }
     }
   ],
   "edges": [
     {
-      "id": "e1",
-      "source": "scarlett-rx-yesmistress",
-      "target": "scarlett-rx-yesmistress-action"
-    },
-    {
       "id": "e2",
       "source": "scarlett-rx-thankyou",
       "target": "scarlett-rx-thankyou-action"
-    },
-    {
-      "id": "e3",
-      "source": "scarlett-rx-defiance",
-      "target": "scarlett-rx-defiance-action"
     },
     {
       "id": "e4",
@@ -433,11 +489,6 @@
       "target": "scarlett-rx-sorry-action"
     },
     {
-      "id": "e6",
-      "source": "scarlett-rx-stop",
-      "target": "scarlett-rx-stop-action"
-    },
-    {
       "id": "e7",
       "source": "scarlett-rx-ai-punish",
       "target": "scarlett-rx-ai-punish-action"
@@ -448,14 +499,54 @@
       "target": "scarlett-rx-ai-pleased-action"
     },
     {
-      "id": "e9",
-      "source": "scarlett-rx-worship",
-      "target": "scarlett-rx-worship-action"
-    },
-    {
       "id": "e10",
       "source": "scarlett-rx-ready",
       "target": "scarlett-rx-ready-action"
+    },
+    {
+      "id": "e-scarlett-rx-yesmistress-to-sc-rx-emo-obey",
+      "source": "scarlett-rx-yesmistress",
+      "target": "sc-rx-emo-obey"
+    },
+    {
+      "id": "e-sc-rx-emo-obey-to-scarlett-rx-yesmistress-action",
+      "source": "sc-rx-emo-obey",
+      "target": "scarlett-rx-yesmistress-action"
+    },
+    {
+      "id": "e-scarlett-rx-defiance-to-sc-rx-emo-defy",
+      "source": "scarlett-rx-defiance",
+      "target": "sc-rx-emo-defy"
+    },
+    {
+      "id": "e-sc-rx-emo-defy-to-sc-rx-attr-defy",
+      "source": "sc-rx-emo-defy",
+      "target": "sc-rx-attr-defy"
+    },
+    {
+      "id": "e-sc-rx-attr-defy-to-scarlett-rx-defiance-action",
+      "source": "sc-rx-attr-defy",
+      "target": "scarlett-rx-defiance-action"
+    },
+    {
+      "id": "e-scarlett-rx-stop-to-sc-rx-emo-stop",
+      "source": "scarlett-rx-stop",
+      "target": "sc-rx-emo-stop"
+    },
+    {
+      "id": "e-sc-rx-emo-stop-to-scarlett-rx-stop-action",
+      "source": "sc-rx-emo-stop",
+      "target": "scarlett-rx-stop-action"
+    },
+    {
+      "id": "e-scarlett-rx-worship-to-sc-rx-emo-worship",
+      "source": "scarlett-rx-worship",
+      "target": "sc-rx-emo-worship"
+    },
+    {
+      "id": "e-sc-rx-emo-worship-to-scarlett-rx-worship-action",
+      "source": "sc-rx-emo-worship",
+      "target": "scarlett-rx-worship-action"
     }
   ]
 }

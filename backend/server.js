@@ -963,7 +963,7 @@ function rebuildFlowsIndex() {
   return index;
 }
 
-// Ensure flows index exists, is populated, and all indexed flows exist on disk
+// Ensure flows index exists, is populated, and matches what's on disk
 function ensureFlowsIndex() {
   const index = loadFlowsIndex();
   if (index.length === 0) {
@@ -976,6 +976,20 @@ function ensureFlowsIndex() {
     if (loadFlow(entry.id) === null) {
       console.log(`[Server] Flow '${entry.name}' (${entry.id}) in index but not on disk - rebuilding index`);
       return rebuildFlowsIndex();
+    }
+  }
+
+  // Check for new flow files on disk that aren't in the index yet
+  // (e.g. flows added via git pull or manual file copy)
+  if (fs.existsSync(FLOWS_DIR)) {
+    const indexedIds = new Set(index.map(f => f.id));
+    const files = fs.readdirSync(FLOWS_DIR).filter(f => f.endsWith('.json') && f !== 'flows-index.json');
+    for (const file of files) {
+      const flowId = file.replace('.json', '');
+      if (!indexedIds.has(flowId)) {
+        console.log(`[Server] Flow file '${file}' on disk but not in index - rebuilding index`);
+        return rebuildFlowsIndex();
+      }
     }
   }
 
@@ -1180,7 +1194,7 @@ function rebuildCharsIndex() {
     }
   }
 
-  // Scan custom characters
+  // Scan custom characters — use folder name as ID (loadCharacter resolves by folder)
   if (fs.existsSync(CHARS_CUSTOM_DIR)) {
     const customDirs = fs.readdirSync(CHARS_CUSTOM_DIR);
     for (const dirName of customDirs) {
@@ -1188,8 +1202,14 @@ function rebuildCharsIndex() {
       if (fs.existsSync(charPath)) {
         try {
           const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
+          // Fix mismatched IDs: if char.id doesn't match folder name, update it
+          if (char.id && char.id !== dirName) {
+            console.log(`[Server]   Fixing ID mismatch for '${char.name}': ${char.id} -> ${dirName}`);
+            char.id = dirName;
+            fs.writeFileSync(charPath, JSON.stringify(char, null, 2));
+          }
           index.push({
-            id: char.id || dirName,
+            id: dirName,
             name: char.name || dirName,
             category: 'custom',
             description: (char.description || '').substring(0, 100) + '...'
@@ -1223,17 +1243,18 @@ function ensureCharsIndex() {
     }
   }
 
-  // Check for new default characters not yet in the index (e.g. added via git pull)
-  if (fs.existsSync(CHARS_DEFAULT_DIR)) {
-    const indexedIds = new Set(index.map(c => c.id));
-    for (const dirName of fs.readdirSync(CHARS_DEFAULT_DIR)) {
-      const charPath = path.join(CHARS_DEFAULT_DIR, dirName, 'char.json');
+  // Check for new characters not yet in the index (e.g. added via git pull or manual copy)
+  const indexedIds = new Set(index.map(c => c.id));
+  for (const dir of [CHARS_DEFAULT_DIR, CHARS_CUSTOM_DIR]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const dirName of fs.readdirSync(dir)) {
+      const charPath = path.join(dir, dirName, 'char.json');
       if (fs.existsSync(charPath)) {
         try {
           const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
           const charId = char.id || dirName;
           if (!indexedIds.has(charId)) {
-            console.log(`[Server] New default character '${char.name || dirName}' found on disk - rebuilding index`);
+            console.log(`[Server] New character '${char.name || dirName}' found on disk - rebuilding index`);
             return rebuildCharsIndex();
           }
         } catch (e) { /* skip unreadable */ }
@@ -1468,17 +1489,18 @@ function ensurePersonasIndex() {
     }
   }
 
-  // Check for new default personas not yet in the index (e.g. added via git pull)
-  if (fs.existsSync(PERSONAS_DEFAULT_DIR)) {
-    const indexedIds = new Set(index.map(p => p.id));
-    for (const dirName of fs.readdirSync(PERSONAS_DEFAULT_DIR)) {
-      const personaPath = path.join(PERSONAS_DEFAULT_DIR, dirName, 'persona.json');
+  // Check for new personas not yet in the index (e.g. added via git pull or manual copy)
+  const indexedIds = new Set(index.map(p => p.id));
+  for (const dir of [PERSONAS_DEFAULT_DIR, PERSONAS_CUSTOM_DIR]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const dirName of fs.readdirSync(dir)) {
+      const personaPath = path.join(dir, dirName, 'persona.json');
       if (fs.existsSync(personaPath)) {
         try {
           const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
           const personaId = persona.id || dirName;
           if (!indexedIds.has(personaId)) {
-            console.log(`[Server] New default persona '${persona.displayName || dirName}' found on disk - rebuilding index`);
+            console.log(`[Server] New persona '${persona.displayName || dirName}' found on disk - rebuilding index`);
             return rebuildPersonasIndex();
           }
         } catch (e) { /* skip unreadable */ }
@@ -2111,6 +2133,153 @@ function ensureDefaultConnectionProfiles() {
       openRouterApiKey: '',
       openRouterModel: '',
       isDefault: true
+    },
+    {
+      id: 'default-llamacpp-patricide21b',
+      name: 'LlamaCPP-Patricide 21B',
+      llmUrl: 'http://localhost:8080/',
+      apiType: 'auto',
+      endpointStandard: 'llamacpp',
+      promptTemplate: 'chatml',
+      supportsSystemRole: true,
+      maxTokens: 320,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 150,
+      temperature: 1.0,
+      topK: 0,
+      topP: 1.0,
+      typicalP: 1,
+      minP: 0.1,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.05,
+      repPenRange: 512,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0.8,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 256,
+      drySequenceBreakers: [],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      openRouterApiKey: '',
+      openRouterModel: '',
+      isDefault: false
+    },
+    {
+      id: 'default-llamacpp-vulpecula70b',
+      name: 'LlamaCPP-Vulpecula 70B',
+      llmUrl: 'http://localhost:8080/',
+      apiType: 'auto',
+      endpointStandard: 'llamacpp',
+      promptTemplate: 'llama3',
+      supportsSystemRole: true,
+      maxTokens: 320,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 150,
+      temperature: 0.8,
+      topK: 0,
+      topP: 0.95,
+      typicalP: 1,
+      minP: 0.02,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.1,
+      repPenRange: 512,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0.8,
+      dryBase: 1.75,
+      dryAllowedLength: 4,
+      dryPenaltyLastN: 4096,
+      drySequenceBreakers: [],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0.1,
+      xtcThreshold: 0.15,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      openRouterApiKey: '',
+      openRouterModel: '',
+      isDefault: false
+    },
+    {
+      id: 'default-llamacpp-phr00ty32b',
+      name: 'LlamaCPP-Phr00ty 32B',
+      llmUrl: 'http://localhost:8080/',
+      apiType: 'auto',
+      endpointStandard: 'llamacpp',
+      promptTemplate: 'chatml',
+      supportsSystemRole: true,
+      maxTokens: 320,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 150,
+      temperature: 0.9,
+      topK: 0,
+      topP: 0.9,
+      typicalP: 1,
+      minP: 0.05,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.03,
+      repPenRange: 256,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0.3,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 256,
+      drySequenceBreakers: [],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      openRouterApiKey: '',
+      openRouterModel: '',
+      isDefault: false
     }
   ];
 
@@ -2287,7 +2456,14 @@ function migrateCharacterStories() {
       globalReminderIds: existingStory.globalReminderIds || [],
       startingEmotion: existingStory.startingEmotion || character.startingEmotion || 'neutral',
       storyProgressionEnabled: existingStory.storyProgressionEnabled ?? false,
-      storyProgressionMaxOptions: existingStory.storyProgressionMaxOptions ?? 3
+      storyProgressionMaxOptions: existingStory.storyProgressionMaxOptions ?? 3,
+      checkpoints: existingStory.checkpoints || {},
+      attributes: existingStory.attributes || {},
+      llmMaxOnDuration: existingStory.llmMaxOnDuration ?? 5,
+      llmMaxCycleOnDuration: existingStory.llmMaxCycleOnDuration ?? 2,
+      llmMaxCycleRepetitions: existingStory.llmMaxCycleRepetitions ?? 2,
+      llmMaxPulseRepetitions: existingStory.llmMaxPulseRepetitions ?? 5,
+      llmMaxTimedDuration: existingStory.llmMaxTimedDuration ?? 10
     }];
     character.activeStoryId = character.stories[0].id;
 
@@ -2367,7 +2543,8 @@ const sessionState = {
   playerName: null, // Active persona's display name
   characterName: null, // Active character's name
   pumpRuntimeTracker: {}, // deviceKey -> { totalSeconds } for auto-capacity tracking
-  runtimeTrackingEnabled: true // Flag to enable/disable runtime tracking (used during emergency stop)
+  runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
+  activeAttributes: null // Transient: rolled personality attributes for current LLM call
 };
 
 // LLM State - tracks busy state and queues flow messages when LLM is busy
@@ -2788,6 +2965,22 @@ deviceService.setEventEmitter((eventType, data) => {
 // Character Helper Functions
 // ============================================
 
+// Get per-character device control limits from active story
+// Always returns hard defaults — these are safety ceilings, not optional
+function getCharacterLimits(character) {
+  if (!character?.stories?.length) {
+    return { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10 };
+  }
+  const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
+  return {
+    llmMaxOnDuration: activeStory.llmMaxOnDuration ?? 5,
+    llmMaxCycleOnDuration: activeStory.llmMaxCycleOnDuration ?? 2,
+    llmMaxCycleRepetitions: activeStory.llmMaxCycleRepetitions ?? 2,
+    llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
+    llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10
+  };
+}
+
 // Get active welcome message for a character
 function getActiveWelcomeMessage(character) {
   if (!character) return null;
@@ -2950,10 +3143,16 @@ async function sendWelcomeMessage(character, settings) {
       systemPrompt += `STRICT RULES:\n`;
       systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
       systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
-      systemPrompt += `- If mentioning a capacity percentage, it MUST be exactly ${capacity}% - NO OTHER NUMBER\n`;
+      systemPrompt += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage\n`;
       systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
       systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
       systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+
+      // Inject pre-inflation checkpoint for welcome message
+      const checkpointWelcome = getActiveCheckpoint(character, capacity);
+      if (checkpointWelcome?.preInflation) {
+        systemPrompt += `=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointWelcome.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n\n`;
+      }
 
       systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
 
@@ -2988,17 +3187,14 @@ async function sendWelcomeMessage(character, settings) {
   console.log(`[WELCOME] Processing AI device commands in: "${placeholderMessage.content.substring(0, 200)}..."`);
   console.log(`[WELCOME] Devices available: ${devices.length}, looking for [pump on], [vibe on], etc.`);
 
-  // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-  const reinforceResult = aiDeviceControl.reinforcePumpControl(placeholderMessage.content, devices, sessionState, settings);
-  if (reinforceResult.reinforced) {
-    console.log(`[WELCOME] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
-    placeholderMessage.content = reinforceResult.text;
-  }
+  // Skip pump reinforcement for welcome messages — authored text describes pump/inflation
+  // narratively without intending activation. Only explicit [pump on] tags should trigger.
 
   const aiControlResult = await aiDeviceControl.processLlmOutput(placeholderMessage.content, devices, deviceService, {
     settings,
     sessionState,
     broadcast,
+    characterLimits: getCharacterLimits(character),
     injectContext: (text) => {
       // Append to welcome message so LLM thinks they said it
       placeholderMessage.content += ` ${text}`;
@@ -3205,7 +3401,7 @@ If announcing the result, say "${result}" - not something else.
           const capacity = Math.round(sessionState.capacity);
           const playerName = activePersona?.displayName || 'the player';
           const subject = isPlayerVoice ? 'Your' : `${playerName}'s`;
-          capacityStateInstruction = `\n\n=== MANDATORY CAPACITY STATE ===\n${subject} belly is currently at EXACTLY ${capacity}% capacity. If you mention ANY number related to fullness, inflation level, or capacity percentage, it MUST be ${capacity}%. Do not invent, estimate, or use any other number.\n=== END CAPACITY STATE ===`;
+          capacityStateInstruction = `\n\n=== MANDATORY CAPACITY STATE ===\n${subject} belly is currently at EXACTLY ${capacity}% capacity. The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage.\n=== END CAPACITY STATE ===`;
         }
 
         // Build instruction based on voice type
@@ -3313,7 +3509,7 @@ If announcing the result, say "${result}" - not something else.
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
         if (reinforceResult.reinforced) {
           console.log(`[EventEngine/ai_message] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
           finalText = reinforceResult.text;
@@ -3323,6 +3519,7 @@ If announcing the result, say "${result}" - not something else.
           settings: aiControlSettings,
           sessionState,
           broadcast,
+          characterLimits: getCharacterLimits(activeCharacter),
           injectContext: (text) => {
             // Append to last AI message so LLM thinks they said it
             const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
@@ -4232,6 +4429,43 @@ setInterval(() => {
   }
 }, 30000);
 
+// --- LLM Model Name Detection ---
+let lastDetectedModel = null;
+
+async function detectLlmModel() {
+  const settings = loadData(DATA_FILES.settings);
+  if (!settings?.llm?.llmUrl) return;
+
+  try {
+    const result = await llmService.testConnection(settings.llm);
+    if (result.success && result.modelName) {
+      if (result.modelName !== lastDetectedModel) {
+        lastDetectedModel = result.modelName;
+        settings.llm.detectedModelName = result.modelName;
+        saveData(DATA_FILES.settings, settings);
+        broadcast('settings_update', maskSettingsForResponse(settings));
+        log.info(`[LLM] Detected model: ${result.modelName}`);
+      }
+    }
+  } catch (e) {
+    if (lastDetectedModel !== null) {
+      lastDetectedModel = null;
+      settings.llm.detectedModelName = null;
+      saveData(DATA_FILES.settings, settings);
+      broadcast('settings_update', maskSettingsForResponse(settings));
+      log.info('[LLM] Model detection cleared (server unreachable)');
+    }
+  }
+}
+
+// Poll llama.cpp for model name changes every 30 seconds
+setInterval(() => {
+  const settings = loadData(DATA_FILES.settings);
+  if (settings?.llm?.endpointStandard === 'llamacpp') {
+    detectLlmModel();
+  }
+}, 30000);
+
 async function handleWsMessage(ws, type, data) {
   switch (type) {
     case 'chat_message':
@@ -5038,35 +5272,38 @@ async function handleSwipeMessage(data) {
     let systemPrompt, prompt;
 
     if (isPlayerMsg) {
-      // For player messages, use impersonate
-      const impersonateContext = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
-      const playerName = activePersona?.displayName || 'Player';
+      // For player messages, use impersonate with guidance if provided
+      const mode = guidanceText ? 'guided_impersonate' : 'impersonate';
+      const impersonateContext = buildSpecialContext(mode, guidanceText, activeCharacter, activePersona, settings);
 
       systemPrompt = impersonateContext.systemPrompt;
       prompt = impersonateContext.prompt;
-      if (guidanceText) {
-        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
-Your response MUST be about: "${guidanceText}"
-- This is the central focus of your message - not just a suggestion
-- Your entire response should directly address or embody this direction
-- Do NOT repeat the guidance text verbatim, but make it the core subject matter
-- Everything you write should relate back to this guidance`;
-        prompt += `\n${playerName}:`;
-      }
     } else {
-      // For character messages
+      // For character messages — roll personality attributes
+      const attrResult = rollAttributes(activeCharacter);
+      sessionState.activeAttributes = attrResult.active;
+      if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
       const context = buildChatContext(activeCharacter, settings);
 
       systemPrompt = context.systemPrompt;
       prompt = context.prompt;
+
       if (guidanceText) {
+        // Add guidance to system prompt
         systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
 Your response MUST be about: "${guidanceText}"
 - This is the central focus of your message - not just a suggestion
 - Your entire response should directly address or embody this direction
 - Do NOT repeat the guidance text verbatim, but make it the core subject matter
 - Everything you write should relate back to this guidance`;
-        prompt += `\n${activeCharacter.name}:`;
+
+        // Inject guidance into prompt before the final speaker tag
+        // buildChatContext ends prompt with "CharName:" — insert guidance before it
+        const speakerSuffix = activeCharacter.multiChar?.enabled ? '[Characters]:' : `${activeCharacter.name}:`;
+        const tagIdx = prompt.lastIndexOf(speakerSuffix);
+        if (tagIdx > 0) {
+          prompt = prompt.slice(0, tagIdx) + `[Direction: ${guidanceText}]\n` + speakerSuffix;
+        }
       }
     }
 
@@ -5096,7 +5333,7 @@ Your response MUST be about: "${guidanceText}"
     const devices = loadData(DATA_FILES.devices) || [];
 
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-    const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings);
+    const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings, getCharacterLimits(activeCharacter));
     if (reinforceResult.reinforced) {
       console.log(`[Swipe] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
       resultText = reinforceResult.text;
@@ -5106,6 +5343,7 @@ Your response MUST be about: "${guidanceText}"
       settings,
       sessionState,
       broadcast,
+      characterLimits: getCharacterLimits(activeCharacter),
       injectContext: (text) => {
         // Append to this message so LLM thinks they said it
         resultText += ` ${text}`;
@@ -5133,6 +5371,7 @@ Your response MUST be about: "${guidanceText}"
     sessionState.chatHistory[msgIndex].streaming = false;
 
     broadcast('generating_stop', {});
+    sessionState.activeAttributes = null;
 
     if (useStreaming) {
       broadcast('stream_complete', { messageId: id, content: sessionState.chatHistory[msgIndex].content });
@@ -5144,6 +5383,7 @@ Your response MUST be about: "${guidanceText}"
 
   } catch (error) {
     console.error('[Swipe] Error:', error);
+    sessionState.activeAttributes = null;
     // Restore original content on error
     sessionState.chatHistory[msgIndex].content = originalContent;
     sessionState.chatHistory[msgIndex].streaming = false;
@@ -5312,6 +5552,11 @@ async function handleButtonSendMessage(action, characterId, personaId) {
     broadcast('generating_start', { characterName: character.name });
 
     try {
+      // Roll personality attributes for button-triggered message
+      const attrResult = rollAttributes(character);
+      sessionState.activeAttributes = attrResult.active;
+      if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'button' });
+
       // Build context with button instruction
       const context = buildChatContext(character, settings);
 
@@ -5341,6 +5586,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       }
 
       llmState.isGenerating = false;
+      sessionState.activeAttributes = null;
       broadcast('generating_stop', {});
       broadcast('message_updated', placeholderMessage);
       autosaveSession();
@@ -5350,6 +5596,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
 
     } catch (error) {
       console.error('[Button] LLM enhancement failed, sending raw text:', error);
+      sessionState.activeAttributes = null;
       // Fallback to raw text if LLM fails (apply variable substitution)
       placeholderMessage.content = substituteAllVariables(instructionText);
 
@@ -5635,6 +5882,11 @@ async function handleChatMessage(data) {
     broadcast('generating_start', { characterName: activeCharacter.name });
 
     try {
+      // Roll personality attributes for this message
+      const attrResult = rollAttributes(activeCharacter);
+      sessionState.activeAttributes = attrResult.active;
+      if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
+
       // Build context
       const context = buildChatContext(activeCharacter, settings);
 
@@ -5683,7 +5935,7 @@ async function handleChatMessage(data) {
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-        const reinforceResult = aiDeviceControl.reinforcePumpControl(aiMessage.content, devices, sessionState, aiControlSettings);
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(aiMessage.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
         if (reinforceResult.reinforced) {
           console.log(`[Chat/Stream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
           aiMessage.content = reinforceResult.text;
@@ -5693,6 +5945,7 @@ async function handleChatMessage(data) {
           settings: aiControlSettings,
           sessionState,
           broadcast,
+          characterLimits: getCharacterLimits(activeCharacter),
           injectContext: (text) => {
             const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
             if (lastAiMsg) lastAiMsg.content += ` ${text}`;
@@ -5862,7 +6115,7 @@ async function handleChatMessage(data) {
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+        const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
         if (reinforceResult.reinforced) {
           console.log(`[Chat/NonStream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
           finalText = reinforceResult.text;
@@ -5872,6 +6125,7 @@ async function handleChatMessage(data) {
           settings: aiControlSettings,
           sessionState,
           broadcast,
+          characterLimits: getCharacterLimits(activeCharacter),
           injectContext: (text) => {
             const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
             if (lastAiMsg) lastAiMsg.content += ` ${text}`;
@@ -5906,6 +6160,7 @@ async function handleChatMessage(data) {
       }
 
       broadcast('generating_stop', {});
+      sessionState.activeAttributes = null;
       autosaveSession();
 
       // Trigger AI speaks event for flow engine
@@ -5925,6 +6180,7 @@ async function handleChatMessage(data) {
 
     } catch (error) {
       console.error('[Chat] LLM error:', error.message);
+      sessionState.activeAttributes = null;
       broadcast('generating_stop', {});
       broadcast('error', { message: 'Failed to generate AI response', error: error.message });
     }
@@ -6172,6 +6428,11 @@ async function generateAIResponseAfterBlocking() {
   broadcast('generating_start', { characterName: activeCharacter.name });
 
   try {
+    // Roll personality attributes for post-blocking response
+    const attrResult = rollAttributes(activeCharacter);
+    sessionState.activeAttributes = attrResult.active;
+    if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
+
     const context = buildChatContext(activeCharacter, settings);
     console.log('[Media] Generating AI response after blocking ended...');
 
@@ -6244,6 +6505,7 @@ async function generateAIResponseAfterBlocking() {
     }
 
     broadcast('generating_stop', {});
+    sessionState.activeAttributes = null;
     autosaveSession();
 
     // Trigger AI speaks event for flow engine
@@ -6252,6 +6514,7 @@ async function generateAIResponseAfterBlocking() {
 
   } catch (error) {
     console.error('[Media] LLM error after blocking:', error.message);
+    sessionState.activeAttributes = null;
     broadcast('generating_stop', {});
     broadcast('error', { message: 'Failed to generate AI response', error: error.message });
   }
@@ -6283,6 +6546,13 @@ async function handleSpecialGenerate(data) {
   broadcast('generating_start', { characterName: generatingFor, isPlayerVoice });
 
   try {
+    // Roll personality attributes for character voice only (not impersonate)
+    if (!isPlayerVoice) {
+      const attrResult = rollAttributes(activeCharacter);
+      sessionState.activeAttributes = attrResult.active;
+      if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
+    }
+
     const context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
     const useStreaming = settings.llm?.streaming === true;
 
@@ -6322,7 +6592,7 @@ async function handleSpecialGenerate(data) {
       const aiControlSettings = loadData(DATA_FILES.settings);
 
       // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-      const reinforceResult = aiDeviceControl.reinforcePumpControl(message.content, devices, sessionState, aiControlSettings);
+      const reinforceResult = aiDeviceControl.reinforcePumpControl(message.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
       if (reinforceResult.reinforced) {
         console.log(`[SpecialGen/Stream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
         message.content = reinforceResult.text;
@@ -6332,6 +6602,7 @@ async function handleSpecialGenerate(data) {
         settings: aiControlSettings,
         sessionState,
         broadcast,
+        characterLimits: getCharacterLimits(activeCharacter),
         injectContext: (text) => {
           const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
           if (lastAiMsg) lastAiMsg.content += ` ${text}`;
@@ -6356,6 +6627,7 @@ async function handleSpecialGenerate(data) {
 
       broadcast('stream_complete', { messageId: message.id, content: message.content });
       broadcast('generating_stop', {});
+      sessionState.activeAttributes = null;
       autosaveSession();
       return;
 
@@ -6407,7 +6679,7 @@ async function handleSpecialGenerate(data) {
     const aiControlSettings = loadData(DATA_FILES.settings);
 
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
-    const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings);
+    const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
     if (reinforceResult.reinforced) {
       console.log(`[SpecialGen/NonStream] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
       finalText = reinforceResult.text;
@@ -6417,6 +6689,7 @@ async function handleSpecialGenerate(data) {
       settings: aiControlSettings,
       sessionState,
       broadcast,
+      characterLimits: getCharacterLimits(activeCharacter),
       injectContext: (text) => {
         const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
         if (lastAiMsg) lastAiMsg.content += ` ${text}`;
@@ -6459,12 +6732,14 @@ async function handleSpecialGenerate(data) {
     };
 
     broadcast('generating_stop', {});
+    sessionState.activeAttributes = null;
     sessionState.chatHistory.push(message);
     broadcast('chat_message', message);
     autosaveSession();
 
   } catch (error) {
     console.error('[Special Generate] Error:', error);
+    sessionState.activeAttributes = null;
     broadcast('generating_stop', {});
     broadcast('error', { message: 'Failed to generate', error: error.message });
   }
@@ -6567,6 +6842,67 @@ Keep responses SHORT and focused (2-3 sentences max).
   return { systemPrompt, prompt };
 }
 
+const ATTRIBUTE_PROMPTS = {
+  dominant: 'Take control of the situation. Be assertive, commanding, and decisive. Direct the scene rather than following.',
+  sadistic: 'Be cruel, teasing, and take pleasure in discomfort. Push boundaries and enjoy reactions.',
+  psychopathic: 'Be unhinged, unpredictable, and unsettling. Disregard normal social boundaries completely.',
+  sensual: 'Be caring, tender, and amorous. Focus on intimacy, touch, and emotional connection.',
+  sexual: 'Be overtly aroused and flirtatious. Express desire and physical attraction openly.'
+};
+
+function rollAttributes(character) {
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const attributes = activeStory?.attributes;
+  if (!attributes) return { active: [], rolls: [] };
+  const active = [];
+  const rolls = [];
+  for (const [trait, chance] of Object.entries(attributes)) {
+    if (chance > 0) {
+      const rolled = Math.random() * 100;
+      const passed = rolled < chance;
+      rolls.push({ trait, chance, rolled: Math.round(rolled), passed });
+      if (passed) active.push(trait);
+    }
+  }
+  return { active, rolls };
+}
+
+function buildAttributeBlock(activeAttributes) {
+  if (!activeAttributes || activeAttributes.length === 0) return '';
+  const labels = activeAttributes.map(t => t.charAt(0).toUpperCase() + t.slice(1));
+  let block = `\n=== CHARACTER DRIVE (THIS MESSAGE) ===\nThis response must be noticeably driven by: ${labels.join(', ')}\n`;
+  for (const trait of activeAttributes) {
+    const label = trait.charAt(0).toUpperCase() + trait.slice(1);
+    block += `- ${label}: ${ATTRIBUTE_PROMPTS[trait]}\n`;
+  }
+  block += `=== END CHARACTER DRIVE ===\n`;
+  return block;
+}
+
+function getActiveCheckpoint(character, capacity) {
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const checkpoints = activeStory?.checkpoints;
+  if (!checkpoints) return null;
+
+  let rangeKey;
+  if (capacity <= 0) rangeKey = '0';
+  else if (capacity <= 10) rangeKey = '1-10';
+  else if (capacity <= 20) rangeKey = '11-20';
+  else if (capacity <= 30) rangeKey = '21-30';
+  else if (capacity <= 40) rangeKey = '31-40';
+  else if (capacity <= 50) rangeKey = '41-50';
+  else if (capacity <= 60) rangeKey = '51-60';
+  else if (capacity <= 70) rangeKey = '61-70';
+  else if (capacity <= 80) rangeKey = '71-80';
+  else if (capacity <= 90) rangeKey = '81-90';
+  else if (capacity <= 100) rangeKey = '91-100';
+  else rangeKey = '100+';
+
+  const text = checkpoints[rangeKey]?.trim();
+  const preInflation = checkpoints['0']?.trim();
+  return { text: text || null, preInflation: (capacity <= 0 && preInflation) ? preInflation : null };
+}
+
 function buildSpecialContext(mode, guidedText, character, persona, settings) {
   let systemPrompt = '';
   let prompt = '';
@@ -6631,7 +6967,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     }
 
     let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
-    instructions += `- If you mention a capacity number, it MUST be exactly ${capacity}%. NEVER invent or estimate a different number.\n`;
+    instructions += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage.\n`;
 
     if (capacity > 25) {
       instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
@@ -6672,6 +7008,16 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     }
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
+
+    // Inject capacity checkpoints
+    const checkpointImp = getActiveCheckpoint(character, sessionState.capacity);
+    if (checkpointImp?.preInflation) {
+      systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointImp.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
+    }
+    if (checkpointImp?.text) {
+      systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointImp.text}\n=== END CHECKPOINT ===\n`;
+    }
+
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
 
     // Add global prompt / author note
@@ -6695,6 +7041,16 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += '\n';
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
+
+    // Inject capacity checkpoints
+    const checkpointGuided = getActiveCheckpoint(character, sessionState.capacity);
+    if (checkpointGuided?.preInflation) {
+      systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointGuided.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
+    }
+    if (checkpointGuided?.text) {
+      systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointGuided.text}\n=== END CHECKPOINT ===\n`;
+    }
+
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
 
     // Add active reminders (using reminder engine for keyword-based activation)
@@ -6715,10 +7071,21 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
     // Add LLM device control instructions if enabled
     if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
-      const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-      systemPrompt += `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+      const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
+      const charLimits = getCharacterLimits(character);
+      const maxSeconds = charLimits ? Math.min(globalMax, charLimits.llmMaxOnDuration ?? Infinity) : globalMax;
+      let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player, auto-timeout ${maxSeconds}s)\n`;
+Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player, auto-timeout ${maxSeconds}s)`;
+      if (charLimits) {
+        devicePrompt += `\nLimits: max ON ${charLimits.llmMaxOnDuration ?? 5}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${charLimits.llmMaxTimedDuration ?? 10}s, max cycle ON ${charLimits.llmMaxCycleOnDuration ?? 2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
+      }
+      systemPrompt += devicePrompt + '\n';
+    }
+
+    // Inject personality attributes if rolled (character voice only)
+    if (sessionState.activeAttributes?.length > 0) {
+      systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
     }
 
     systemPrompt += `Continue from the text provided. Stay in character.`;
@@ -6738,9 +7105,15 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   if (mode === 'guided' || mode === 'guided_impersonate') {
     const speakerTag = mode === 'guided_impersonate' ? '[Player]' : '[Char]';
     if (guidedText) {
-      // Add guidance as instruction
-      prompt += `\n(Guidance: ${guidedText})\n`;
+      // Add guidance prominently in prompt and system prompt
+      prompt += `\n[Direction: ${guidedText}]\n`;
       prompt += `${speakerTag}:`;
+      systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
+Your response MUST be about: "${guidedText}"
+- This is the central focus of your message - not just a suggestion
+- Your entire response should directly address or embody this direction
+- Do NOT repeat the guidance text verbatim, but make it the core subject matter
+- Everything you write should relate back to this guidance`;
     } else {
       // No guidance - just signal the speaker's turn with a clear newline
       prompt += `\n${speakerTag}:`;
@@ -6826,7 +7199,7 @@ function buildChatContext(character, settings) {
     }
 
     let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
-    instructions += `- If you mention a capacity number, it MUST be exactly ${capacity}%. NEVER invent or estimate a different number.\n`;
+    instructions += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage.\n`;
 
     if (capacity > 25) {
       instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
@@ -6874,6 +7247,16 @@ function buildChatContext(character, settings) {
   // Add player's current physical/emotional state
   const playerLabel = activePersona?.displayName || 'The player';
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
+
+  // Inject capacity checkpoints
+  const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
+  if (checkpointChat?.preInflation) {
+    systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointChat.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
+  }
+  if (checkpointChat?.text) {
+    systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointChat.text}\n=== END CHECKPOINT ===\n`;
+  }
+
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
 
   // Add recent challenge result if available
@@ -6903,10 +7286,21 @@ function buildChatContext(character, settings) {
 
   // Add LLM device control instructions if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
-    const maxSeconds = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
-    systemPrompt += `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+    const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
+    const charLimits = getCharacterLimits(character);
+    const maxSeconds = charLimits ? Math.min(globalMax, charLimits.llmMaxOnDuration ?? Infinity) : globalMax;
+    let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from player, auto-timeout ${maxSeconds}s)\n`;
+Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from player, auto-timeout ${maxSeconds}s)`;
+    if (charLimits) {
+      devicePrompt += `\nLimits: max ON ${charLimits.llmMaxOnDuration ?? 5}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${charLimits.llmMaxTimedDuration ?? 10}s, max cycle ON ${charLimits.llmMaxCycleOnDuration ?? 2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
+    }
+    systemPrompt += devicePrompt + '\n';
+  }
+
+  // Inject personality attributes if rolled
+  if (sessionState.activeAttributes?.length > 0) {
+    systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
   }
 
   // Final style anchor
@@ -7349,6 +7743,12 @@ app.post('/api/llm/test', llmLimiter, async (req, res) => {
   }
 });
 
+app.post('/api/llm/detect-model', async (req, res) => {
+  await detectLlmModel();
+  const settings = loadData(DATA_FILES.settings);
+  res.json({ modelName: settings?.llm?.detectedModelName || null });
+});
+
 app.post('/api/llm/generate', llmLimiter, async (req, res) => {
   try {
     const { prompt, messages, systemPrompt, maxTokens } = req.body;
@@ -7680,6 +8080,15 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
           // Normalize story progression fields
           story.storyProgressionEnabled = story.storyProgressionEnabled ?? false;
           story.storyProgressionMaxOptions = story.storyProgressionMaxOptions ?? 3;
+
+          // Normalize per-character device control limits
+          story.llmMaxOnDuration = story.llmMaxOnDuration ?? 5;
+          story.llmMaxCycleOnDuration = story.llmMaxCycleOnDuration ?? 2;
+          story.llmMaxCycleRepetitions = story.llmMaxCycleRepetitions ?? 2;
+          story.llmMaxPulseRepetitions = story.llmMaxPulseRepetitions ?? 5;
+          story.llmMaxTimedDuration = story.llmMaxTimedDuration ?? 10;
+          story.checkpoints = story.checkpoints || {};
+          story.attributes = story.attributes || {};
         }
         // Update activeStoryId
         if (convertedCharacter.activeStoryId && storyIdMap[convertedCharacter.activeStoryId]) {
@@ -7960,6 +8369,9 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
   saveData(DATA_FILES.settings, settings);
   broadcast('settings_update', maskSettingsForResponse(settings));
   res.json({ success: true, settings: maskSettingsForResponse(settings) });
+
+  // Detect actual model name from the newly activated endpoint
+  detectLlmModel();
 });
 
 // --- Remote Settings ---
@@ -9740,11 +10152,18 @@ app.post('/api/import/character', async (req, res) => {
       updatedAt: Date.now()
     };
 
-    // Normalize story progression fields on all imported stories
+    // Normalize story progression and device control limit fields on all imported stories
     if (newCharacter.stories) {
       for (const story of newCharacter.stories) {
         story.storyProgressionEnabled = story.storyProgressionEnabled ?? false;
         story.storyProgressionMaxOptions = story.storyProgressionMaxOptions ?? 3;
+        story.llmMaxOnDuration = story.llmMaxOnDuration ?? 5;
+        story.llmMaxCycleOnDuration = story.llmMaxCycleOnDuration ?? 2;
+        story.llmMaxCycleRepetitions = story.llmMaxCycleRepetitions ?? 2;
+        story.llmMaxPulseRepetitions = story.llmMaxPulseRepetitions ?? 5;
+        story.llmMaxTimedDuration = story.llmMaxTimedDuration ?? 10;
+        story.checkpoints = story.checkpoints || {};
+        story.attributes = story.attributes || {};
       }
     }
 
@@ -10305,6 +10724,8 @@ ensurePlaysIndex();
 
 server.listen(PORT, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT}`);
+  // Detect model name from active LLM endpoint on startup
+  detectLlmModel();
 });
 
 // ============================================

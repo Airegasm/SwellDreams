@@ -1,0 +1,391 @@
+{
+  "id": "flow-medteam-tolerance-calibration",
+  "name": "MedTeam Tolerance Calibration",
+  "category": "character",
+  "description": "Dr. Marsh orders a four-phase calibration protocol. Each phase runs a timed inflation while the team monitors responses. Post-calibration pain assessment determines if the subject needs recalibration or can handle upper-range probing.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "mt-tc-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Calibration Test",
+        "buttonTarget": "character",
+        "buttonId": "medteam-calibrate",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "mt-tc-intro",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Calibration Intro",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *clicks her pen and pulls up the calibration protocol on her tablet* \"Initiating tolerance calibration protocol. Four phases, sequential. Each phase will measure accommodation response at standard flow rate.\" *turns to her team* \"Priya, standard flow rate on the pump. Dani, I want continuous vitals from start to finish.\"\n\nNurse Priya: \"Standard flow rate confirmed, Doctor. Pump is primed and standing by.\"\n\nNurse Dani: *positions herself beside the monitors* \"Continuous monitoring active. Baseline captured — heart rate 82, BP 118 over 74.\" *glances at Subject 12* \"I'll be watching every number. Just breathe normally.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tc-setvar",
+      "type": "set_variable",
+      "position": {
+        "x": 200,
+        "y": 340
+      },
+      "data": {
+        "label": "Init Phase Counter",
+        "variable": "calPhase",
+        "variableName": "calPhase",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "mt-tc-loop",
+      "type": "loop",
+      "position": {
+        "x": 200,
+        "y": 480
+      },
+      "data": {
+        "label": "Calibration Loop (4 Phases)",
+        "mode": "fixed",
+        "iterations": 4,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "mt-tc-counter",
+      "type": "counter",
+      "position": {
+        "x": 200,
+        "y": 620
+      },
+      "data": {
+        "label": "Increment Phase",
+        "variable": "calPhase",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "mt-tc-random",
+      "type": "random_number",
+      "position": {
+        "x": 200,
+        "y": 760
+      },
+      "data": {
+        "label": "Narrative Duration",
+        "minValue": 8,
+        "maxValue": 20,
+        "variableName": "narrativeDuration"
+      }
+    },
+    {
+      "id": "mt-tc-phase-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 900
+      },
+      "data": {
+        "label": "Phase Announcement",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *checks her tablet* \"Phase [Flow:calPhase] of four. Theoretical accommodation window: [Flow:narrativeDuration] seconds at current parameters.\" *nods to Priya* \"Engage the pump.\"\n\nNurse Priya: \"Phase [Flow:calPhase], engaging pump now.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tc-device",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1060
+      },
+      "data": {
+        "label": "Phase Inflation (12s)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Pump active. Twelve-second sustained inflation, standard flow.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Twelve seconds complete. Pump disengaged.\"\n\nNurse Dani: *checks monitors* \"Vitals holding. Heart rate elevated but within parameters.\" *notes reading on her chart*\n\nDr. Marsh: \"Phase [Flow:calPhase] data captured. Logging accommodation response.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-tc-delay",
+      "type": "delay",
+      "position": {
+        "x": 200,
+        "y": 1220
+      },
+      "data": {
+        "label": "Inter-Phase Recovery",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "mt-tc-done-msg",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 1420
+      },
+      "data": {
+        "label": "Calibration Complete",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *sets down her tablet and removes her glasses, cleaning them methodically* \"All four calibration phases complete. Aggregate data looks clean.\" *replaces glasses* \"Dani, I need a pain assessment on Subject 12 before we determine next steps.\"\n\nNurse Dani: *turns to Subject 12 with a concerned but professional expression* \"Subject 12, I need your honest assessment right now. How's your pain level?\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tc-condition",
+      "type": "condition",
+      "position": {
+        "x": 200,
+        "y": 1580
+      },
+      "data": {
+        "label": "Pain Assessment",
+        "conditions": [
+          {
+            "variable": "pain",
+            "operator": ">=",
+            "value": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "mt-tc-high-pain",
+      "type": "action",
+      "position": {
+        "x": -50,
+        "y": 1760
+      },
+      "data": {
+        "label": "High Pain - Recalibrate",
+        "actionType": "send_message",
+        "message": "Nurse Dani: *reviewing the vitals readout* \"Pain is elevated, Doctor. Heart rate has been trending upward across all four phases. I'm recommending a recalibration pause before any further testing.\"\n\nDr. Marsh: *studies the data, then nods slowly* \"The accommodation curve supports your assessment, Dani. The pain markers are tracking above the median line.\" *dictates into her recorder* \"Calibration note: Subject 12 reached pain threshold during standard four-phase protocol. Recommending parameter adjustment before the next test series.\"\n\nNurse Priya: \"Shall I power down the pump, Doctor?\"\n\nDr. Marsh: \"Stand by, Priya. We'll adjust parameters and resume when the vitals normalize.\" *to Subject 12* \"Your data is useful regardless, Subject 12. Even a threshold response tells us where to recalibrate.\"",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tc-low-pain-msg",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1760
+      },
+      "data": {
+        "label": "Low Pain - Probe Upper Range",
+        "actionType": "send_message",
+        "message": "Dr. Marsh: *a flicker of interest crosses her face* \"Pain within acceptable tolerance across all four phases. Impressive accommodation response, Subject 12.\" *turns to Priya* \"The calibration data suggests we have headroom. Five probe pulses to explore the upper range. I want to see where the curve inflects.\"\n\nNurse Priya: \"Five pulses, confirmed. Standing by.\"\n\nNurse Dani: *checks the monitors one more time* \"Vitals are stable, Doctor. Proceeding.\" *quietly to Subject 12* \"You're handling this well.\"",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "mt-tc-probe-pulse",
+      "type": "action",
+      "position": {
+        "x": 450,
+        "y": 1940
+      },
+      "data": {
+        "label": "Upper Range Probes (5 pulses)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "Nurse Priya: \"Five probe pulses. Engaging now.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "Nurse Priya: \"Five pulses complete. Pump standing by.\"\n\nDr. Marsh: *studying the response data intently* \"Excellent. The upper-range response curve is clean. Subject 12's accommodation profile exceeds the baseline by a significant margin.\" *makes extensive notes* \"This calibration series has given us a solid foundation for future protocols.\"\n\nNurse Dani: *checks monitors one final time* \"Heart rate 96, settling. Good data all around.\" *gives Subject 12 a reassuring nod* \"Calibration's done. You did great.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "mt-tc-emo-start",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "mt-tc-emo-lowpain",
+      "type": "action",
+      "position": {
+        "x": 308,
+        "y": 1640
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "mt-tc-attr-lowpain",
+      "type": "action",
+      "position": {
+        "x": 392,
+        "y": 1700
+      },
+      "data": {
+        "label": "Lower Dominant",
+        "actionType": "set_attribute",
+        "attribute": "dominant",
+        "attributeValue": 20
+      }
+    },
+    {
+      "id": "mt-tc-emo-highpain",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1670
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "tc-e1",
+      "source": "mt-tc-btn",
+      "target": "mt-tc-intro"
+    },
+    {
+      "id": "tc-e3",
+      "source": "mt-tc-setvar",
+      "target": "mt-tc-loop"
+    },
+    {
+      "id": "tc-e4",
+      "source": "mt-tc-loop",
+      "sourceHandle": "loop",
+      "target": "mt-tc-counter"
+    },
+    {
+      "id": "tc-e5",
+      "source": "mt-tc-counter",
+      "target": "mt-tc-random"
+    },
+    {
+      "id": "tc-e6",
+      "source": "mt-tc-random",
+      "target": "mt-tc-phase-msg"
+    },
+    {
+      "id": "tc-e7",
+      "source": "mt-tc-phase-msg",
+      "target": "mt-tc-device"
+    },
+    {
+      "id": "tc-e8",
+      "source": "mt-tc-device",
+      "sourceHandle": "completion",
+      "target": "mt-tc-delay"
+    },
+    {
+      "id": "tc-e9",
+      "source": "mt-tc-delay",
+      "target": "mt-tc-loop"
+    },
+    {
+      "id": "tc-e10",
+      "source": "mt-tc-loop",
+      "sourceHandle": "done",
+      "target": "mt-tc-done-msg"
+    },
+    {
+      "id": "tc-e11",
+      "source": "mt-tc-done-msg",
+      "target": "mt-tc-condition"
+    },
+    {
+      "id": "tc-e14",
+      "source": "mt-tc-low-pain-msg",
+      "target": "mt-tc-probe-pulse"
+    },
+    {
+      "id": "e-mt-tc-intro-to-mt-tc-emo-start",
+      "source": "mt-tc-intro",
+      "target": "mt-tc-emo-start"
+    },
+    {
+      "id": "e-mt-tc-emo-start-to-mt-tc-setvar",
+      "source": "mt-tc-emo-start",
+      "target": "mt-tc-setvar"
+    },
+    {
+      "id": "e-mt-tc-condition-to-mt-tc-emo-lowpain",
+      "source": "mt-tc-condition",
+      "target": "mt-tc-emo-lowpain",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "e-mt-tc-emo-lowpain-to-mt-tc-attr-lowpain",
+      "source": "mt-tc-emo-lowpain",
+      "target": "mt-tc-attr-lowpain"
+    },
+    {
+      "id": "e-mt-tc-attr-lowpain-to-mt-tc-low-pain-msg",
+      "source": "mt-tc-attr-lowpain",
+      "target": "mt-tc-low-pain-msg"
+    },
+    {
+      "id": "e-mt-tc-condition-to-mt-tc-emo-highpain",
+      "source": "mt-tc-condition",
+      "target": "mt-tc-emo-highpain",
+      "sourceHandle": "true-0"
+    },
+    {
+      "id": "e-mt-tc-emo-highpain-to-mt-tc-high-pain",
+      "source": "mt-tc-emo-highpain",
+      "target": "mt-tc-high-pain"
+    }
+  ]
+}

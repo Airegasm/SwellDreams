@@ -1,0 +1,371 @@
+{
+  "id": "flow-scarlett-conditioning",
+  "name": "Conditioning Protocol",
+  "category": "character",
+  "description": "Five rounds of physical conditioning with device stimulus, followed by a Simon memory challenge to test mental resilience.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "sc-cn-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Begin Training",
+        "buttonTarget": "character",
+        "buttonId": "scarlett-conditioning",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "sc-cn-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "data": {
+        "label": "Training Intro",
+        "actionType": "send_message",
+        "message": "*stands before you, arms folded, expression unreadable* Training begins now. Five rounds of conditioning. Each round will test your body's tolerance. And when the physical portion is complete... *pauses deliberately* ...we test the mind. Do not disappoint me, [Player].",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cn-init",
+      "type": "set_variable",
+      "position": {
+        "x": 300,
+        "y": 340
+      },
+      "data": {
+        "label": "Init Round",
+        "variable": "condRound",
+        "variableName": "condRound",
+        "value": "0",
+        "varType": "flow"
+      }
+    },
+    {
+      "id": "sc-cn-loop",
+      "type": "loop",
+      "position": {
+        "x": 300,
+        "y": 470
+      },
+      "data": {
+        "label": "Five Rounds",
+        "mode": "fixed",
+        "iterations": 5,
+        "maxIterations": 100
+      }
+    },
+    {
+      "id": "sc-cn-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 620
+      },
+      "data": {
+        "label": "Increment Round",
+        "variable": "condRound",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": false
+      }
+    },
+    {
+      "id": "sc-cn-random",
+      "type": "random_number",
+      "position": {
+        "x": 300,
+        "y": 760
+      },
+      "data": {
+        "label": "Stimulus Duration",
+        "minValue": 5,
+        "maxValue": 15,
+        "variableName": "stimDuration"
+      }
+    },
+    {
+      "id": "sc-cn-announce",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 900
+      },
+      "data": {
+        "label": "Round Announce",
+        "actionType": "send_message",
+        "message": "*checks her notes with quiet precision* Round [Flow:condRound]. Stimulus duration noted: [Flow:stimDuration] seconds. *looks up* Brace yourself.",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cn-device",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1050
+      },
+      "data": {
+        "label": "Apply Stimulus",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*engages the device without hesitation*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*observes your reaction, making a brief notation* Round [Flow:condRound] complete. Recovery interval.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cn-delay",
+      "type": "delay",
+      "position": {
+        "x": 300,
+        "y": 1230
+      },
+      "data": {
+        "label": "Recovery",
+        "duration": 3,
+        "unit": "seconds"
+      }
+    },
+    {
+      "id": "sc-cn-mental-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 1420
+      },
+      "data": {
+        "label": "Mental Test Intro",
+        "actionType": "send_message",
+        "message": "*sets down her notes and turns to face you fully* Physical conditioning complete. Five rounds endured. Now... the mental test. *produces a control panel* You will repeat the sequences I present to you. Three misses and you fail. Concentrate, [Player]. Your body is already fatigued. Let's see if your mind can compensate.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cn-simon",
+      "type": "simon_challenge",
+      "position": {
+        "x": 300,
+        "y": 1590
+      },
+      "data": {
+        "label": "Memory Challenge",
+        "startingLength": 3,
+        "maxLength": 6,
+        "maxMisses": 2,
+        "aiMessageWinEnabled": true,
+        "aiMessageWin": "*the slightest inclination of her head* You passed. Both body and mind held under pressure. Perhaps there is potential in you after all, [Player].",
+        "aiMessageWinSuppressLlm": false,
+        "aiMessageLoseEnabled": true,
+        "aiMessageLose": "*cold stare, unblinking* Failure. Your mind crumbled where your body held. That is... unacceptable.",
+        "aiMessageLoseSuppressLlm": true
+      }
+    },
+    {
+      "id": "sc-cn-win",
+      "type": "action",
+      "position": {
+        "x": 100,
+        "y": 1800
+      },
+      "data": {
+        "label": "Pass",
+        "actionType": "send_message",
+        "message": "*turns away, but you catch the faintest trace of approval in her voice* You are dismissed. Rest while you can. Tomorrow's training will not be so forgiving.",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "sc-cn-lose",
+      "type": "action",
+      "position": {
+        "x": 500,
+        "y": 1800
+      },
+      "data": {
+        "label": "Fail Punishment",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 20,
+        "preMessageEnabled": true,
+        "preMessage": "Twenty corrective pulses. One for each second you wasted with your incompetence. *activates the device* Count them if you can.",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches the last pulse fade* Let that serve as motivation. Next time, you will not fail. *pauses* Because next time, it will be forty.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "sc-cn-emo-start",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 260
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "sc-cn-emo-mental",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 1505
+      },
+      "data": {
+        "label": "Set Confused",
+        "actionType": "set_emotion",
+        "emotion": "confused"
+      }
+    },
+    {
+      "id": "sc-cn-emo-fail",
+      "type": "action",
+      "position": {
+        "x": 392,
+        "y": 1660
+      },
+      "data": {
+        "label": "Set Exhausted",
+        "actionType": "set_emotion",
+        "emotion": "exhausted"
+      }
+    },
+    {
+      "id": "sc-cn-attr-fail",
+      "type": "action",
+      "position": {
+        "x": 458,
+        "y": 1730
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 80
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sc-cn-btn",
+      "target": "sc-cn-intro"
+    },
+    {
+      "id": "e3",
+      "source": "sc-cn-init",
+      "target": "sc-cn-loop"
+    },
+    {
+      "id": "e4",
+      "source": "sc-cn-loop",
+      "sourceHandle": "loop",
+      "target": "sc-cn-counter"
+    },
+    {
+      "id": "e5",
+      "source": "sc-cn-counter",
+      "target": "sc-cn-random"
+    },
+    {
+      "id": "e6",
+      "source": "sc-cn-random",
+      "target": "sc-cn-announce"
+    },
+    {
+      "id": "e7",
+      "source": "sc-cn-announce",
+      "target": "sc-cn-device"
+    },
+    {
+      "id": "e8",
+      "source": "sc-cn-device",
+      "target": "sc-cn-delay"
+    },
+    {
+      "id": "e9",
+      "source": "sc-cn-delay",
+      "target": "sc-cn-loop"
+    },
+    {
+      "id": "e10",
+      "source": "sc-cn-loop",
+      "sourceHandle": "done",
+      "target": "sc-cn-mental-intro"
+    },
+    {
+      "id": "e12",
+      "source": "sc-cn-simon",
+      "sourceHandle": "win",
+      "target": "sc-cn-win"
+    },
+    {
+      "id": "e-sc-cn-intro-to-sc-cn-emo-start",
+      "source": "sc-cn-intro",
+      "target": "sc-cn-emo-start"
+    },
+    {
+      "id": "e-sc-cn-emo-start-to-sc-cn-init",
+      "source": "sc-cn-emo-start",
+      "target": "sc-cn-init"
+    },
+    {
+      "id": "e-sc-cn-mental-intro-to-sc-cn-emo-mental",
+      "source": "sc-cn-mental-intro",
+      "target": "sc-cn-emo-mental"
+    },
+    {
+      "id": "e-sc-cn-emo-mental-to-sc-cn-simon",
+      "source": "sc-cn-emo-mental",
+      "target": "sc-cn-simon"
+    },
+    {
+      "id": "e-sc-cn-simon-to-sc-cn-emo-fail",
+      "source": "sc-cn-simon",
+      "target": "sc-cn-emo-fail",
+      "sourceHandle": "lose"
+    },
+    {
+      "id": "e-sc-cn-emo-fail-to-sc-cn-attr-fail",
+      "source": "sc-cn-emo-fail",
+      "target": "sc-cn-attr-fail"
+    },
+    {
+      "id": "e-sc-cn-attr-fail-to-sc-cn-lose",
+      "source": "sc-cn-attr-fail",
+      "target": "sc-cn-lose"
+    }
+  ]
+}

@@ -49,7 +49,7 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(the\s+)?(pump|machine)\b\s+(kicks|springs?|whirs?|hums?|roars?|comes?)\s*(in|into|to\s+life|alive|on)/i,
 
   // Flow/pressure references (pump-related)
-  /\b(increase|increases|increased|increasing)\s+\w*\s*(flow|pressure|airflow)/i,
+  /\b(increase|increases|increased|increasing)\s+(?:\S+\s+){0,3}(flow|pressure|airflow)/i,
   /\b(increase|increases|increased|increasing)\s+the\s+(air\s*)?flow\s+(steadily|gradually|slowly|quickly)?\s*(once\s+more|again|further)?/i,
   /\b(adjust|adjusts|adjusted|adjusting)\s+.*?(flow|dial|dials|setting|settings|pressure|knob|knobs)/i,
   /\b(adjust|adjusts|adjusted|adjusting)\s+(the\s+)?(pump|compressor|machine|motor)\b\s+settings?/i,
@@ -737,16 +737,37 @@ function reinforcePumpControl(text, devices, sessionState, settings) {
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Only skip for clearly hypothetical/imaginary text — minimal guard
+    // Skip for clearly hypothetical/imaginary/fantasy text
     const hypotheticalMarkers = [
       /\b(imagine|picture|think\s+about|remember\s+when|describe|talk\s+about|discuss)\b/i,
       /\b(would|could|might)\s+(start|begin|pump|inflate)/i,
       /\b(if\s+(I|we)\s+(were|could)|what\s+if)\b.*\b(pump|inflate)/i,
+      /\b(mind\s+wanders?|images?\s+of|thoughts?\s+of|thinking\s+(about|of)|fantasiz(e|es|ing)|daydream(s|ing)?)\b/i,
+      /\b(dream(s|ing|ed|t)?\s+(about|of)|recalls?\s|memor(y|ies)\s+of|vision(s)?\s+of)\b/i,
+      /\b(wonders?\s+(what|how|if)|imagining|picturing|envision(s|ing)?)\b/i,
     ];
 
     for (const marker of hypotheticalMarkers) {
       if (marker.test(text)) {
         log.info(`[Reinforce] Hypothetical marker - skipping: "${matchedPhrase}"`);
+        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+      }
+    }
+
+    // Skip for descriptive/passive inflation state phrases — these describe the EFFECT
+    // of inflation (what's happening to the body), not a pump activation command
+    const descriptiveMarkers = [
+      /\b(belly|stomach|abdomen|intestines?|gut|tummy|insides?|bowels?)\s+(fills?|filling|filled|inflate[sd]?|inflating|expand[sd]?|expanding|swell[sd]?|swelling|grow[sd]?|growing|distend[sd]?|distending|stretch|stretching|stretched|bloat[sd]?|bloating)\s+(with|from|full\s+of)/i,
+      /\bfill(s|ed|ing)?\s+with\s+(air|fluid|liquid|gas|water|pressure)/i,
+      /\b(air|fluid|liquid|gas)\s+fill(s|ed|ing)?\s+(her|his|their|the|your|\[)/i,
+      /\b(grow|grows|growing|swell|swells|swelling|expand|expands|expanding|distend|distends|distending|bloat|bloats|bloating)\s+(larger|bigger|rounder|tighter|further|more|outward|visibly)/i,
+      /\b(taut|tight|round|firm|swollen|distended|bloated|full)\s+(belly|stomach|abdomen|gut|tummy)/i,
+      /\b(belly|stomach|abdomen|gut|tummy)\s+(is|was|gets?|getting|became|becomes?|growing|looking)\s+(bigger|larger|rounder|tighter|fuller|more\s+distended|more\s+swollen)/i,
+    ];
+
+    for (const marker of descriptiveMarkers) {
+      if (marker.test(text)) {
+        log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
         return { text, reinforced: false, matchedPhrase: null, isPulse: false };
       }
     }

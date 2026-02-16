@@ -127,6 +127,19 @@
         "preDelay": 1,
         "postMessageEnabled": false
       }
+    },
+    {
+      "id": "iris-ps-emo-start",
+      "type": "action",
+      "position": {
+        "x": 275,
+        "y": 250
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
     }
   ],
   "edges": [
@@ -134,11 +147,6 @@
       "id": "e1",
       "source": "iris-ps-trigger",
       "target": "iris-ps-selection"
-    },
-    {
-      "id": "e2",
-      "source": "iris-ps-selection",
-      "target": "iris-ps-random"
     },
     {
       "id": "e3",
@@ -157,6 +165,16 @@
       "source": "iris-ps-random",
       "sourceHandle": "branch-2",
       "target": "iris-ps-threshold"
+    },
+    {
+      "id": "e-iris-ps-selection-to-iris-ps-emo-start",
+      "source": "iris-ps-selection",
+      "target": "iris-ps-emo-start"
+    },
+    {
+      "id": "e-iris-ps-emo-start-to-iris-ps-random",
+      "source": "iris-ps-emo-start",
+      "target": "iris-ps-random"
     }
   ]
 }

@@ -226,6 +226,11 @@ export function AppProvider({ children }) {
         window.dispatchEvent(new CustomEvent('ai_device_control', { detail: data }));
         break;
 
+      case 'attribute_rolls':
+        // Attribute roll results - dispatch event for toast notification
+        window.dispatchEvent(new CustomEvent('attribute_rolls', { detail: data }));
+        break;
+
       case 'flows_update':
         setFlows(data);
         break;
@@ -1273,6 +1278,7 @@ export function AppProvider({ children }) {
 
     return () => {
       if (ws.current) {
+        ws.current.onclose = null; // prevent reconnect during cleanup
         ws.current.close();
       }
     };

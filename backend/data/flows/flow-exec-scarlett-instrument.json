@@ -1,0 +1,206 @@
+{
+  "id": "flow-exec-scarlett-instrument",
+  "name": "Executress Scarlett: Apply Instrument",
+  "category": "character",
+  "description": "Player chooses a torture instrument — Pneumatic Vice, Electrodes, or Navel Probe. Each with clinical description.",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "exec-ai-btn",
+      "type": "button_press",
+      "position": {
+        "x": 200,
+        "y": 50
+      },
+      "data": {
+        "label": "Apply Instrument",
+        "buttonTarget": "character",
+        "buttonId": "exec-instrument",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "exec-ai-choice",
+      "type": "player_choice",
+      "position": {
+        "x": 200,
+        "y": 180
+      },
+      "data": {
+        "label": "Select Instrument",
+        "description": "Scarlett offers a choice of instruments.",
+        "introMessageEnabled": true,
+        "introMessage": "*Scarlett wheels a polished steel instrument cart to the side of the execution chair and removes the cloth covering it with a practiced motion*\n\n\"A brief interlude from the inflation itself. Your intestines need a moment to accommodate the current pressure — and I need to keep you stimulated while they do.\"\n\n*gestures at three instruments laid out neatly on the cart*\n\n\"Choose. The Pneumatic Vice, the Electrodes, or the Navel Probe. Each has its particular qualities. I'll describe them if you need, but frankly — the experience is more instructive than any explanation.\"",
+        "introMessageSuppressLlm": false,
+        "choices": [
+          {
+            "id": "vice",
+            "label": "Pneumatic Vice",
+            "description": "Compression plates squeeze the inflated belly"
+          },
+          {
+            "id": "electrodes",
+            "label": "Electrodes",
+            "description": "Electrical stimulation on the distended abdomen"
+          },
+          {
+            "id": "probe",
+            "label": "Navel Probe",
+            "description": "Direct navel targeting device"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exec-ai-vice",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 400
+      },
+      "data": {
+        "label": "Pneumatic Vice (cycle 3s/4s x3)",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 4,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett lifts the Pneumatic Vice — two flat metal plates connected by hydraulic pistons*\n\n\"The Vice. It applies measured compression to the inflated abdomen — squeezing the pressurized intestines against themselves. The sensation is... quite distinctive when you're already full.\"\n\n*positions the plates on either side of [Player]'s distended belly with clinical precision*\n\n\"Three compression cycles. Three seconds of squeeze, four seconds of release. During each compression, I'll run the pump simultaneously — so you'll feel inflation pressure AND external compression at the same time. The internal pressure has nowhere to go.\"\n\n*activates the vice* \"Watch your belly. Watch what happens to the shape.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett examines the compression marks left on [Player]'s belly with professional interest*\n\n\"Three cycles complete. Note the temporary deformation pattern — the flesh bulges between the plates during compression, then slowly returns to its inflated shape during release.\" *traces a finger along the marks* \"Your skin is already showing stress patterns. The collagen is reaching its reorganization threshold.\"\n\n*returns the Vice to the cart* \"That was informative. For both of us.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ai-electrodes",
+      "type": "action",
+      "position": {
+        "x": 200,
+        "y": 400
+      },
+      "data": {
+        "label": "Electrodes (pulse x6)",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 6,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett peels adhesive electrode pads from their backing and places them methodically across [Player]'s swollen abdomen*\n\n\"The Electrodes. Low-voltage stimulation that causes involuntary abdominal muscle contraction. When your muscles clench against the internal pressure, the sensation is... amplified considerably.\"\n\n*connects the leads* \"Six pulses — each one timed to coincide with an electrical contraction. Your abdominal wall will tighten around the inflated intestines with each shock. You cannot prevent this reaction. It is involuntary.\"\n\n*hand on the control* \"Eyes open. Watch your belly clench.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett removes the electrode pads with deliberate care*\n\n\"Six contractions against internal pressure. Each one forced your abdominal wall to compress your inflated intestines from the outside while the air pressed outward from within.\" *studies [Player]'s face* \"The conflicting pressure vectors are what make this particular instrument so effective. Your body tried to make itself smaller while the inflation tried to make it larger.\"\n\n*sets the electrodes back on the cart* \"The muscle fatigue will make the next phase of inflation feel more intense. That is by design.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ai-probe",
+      "type": "action",
+      "position": {
+        "x": 400,
+        "y": 400
+      },
+      "data": {
+        "label": "Navel Probe (8s device_on)",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 8,
+        "preMessageEnabled": true,
+        "preMessage": "*Scarlett picks up a slender metal instrument with a rounded tip*\n\n\"The Navel Probe. Your navel is the thinnest point of your abdominal wall — the place where internal pressure is most directly felt through the skin.\" *examines [Player]'s belly button, which is already beginning to flatten from the inflation pressure*\n\n\"I'm going to insert the probe into your navel and apply steady downward pressure while simultaneously running the pump for eight seconds. You will feel the inflation pressure pushing back against the probe from inside.\" *positions the tip* \"The navel is remarkably sensitive when the belly is pressurized. Most subjects find this the most... intimate of the three instruments.\"\n\n*presses the probe gently into [Player]'s navel* \"Eight seconds. Keep your eyes on the probe.\"",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*Scarlett withdraws the probe and examines the impression left in [Player]'s navel*\n\n\"Eight seconds of opposing forces — the probe pressing inward, the inflation pressing outward, with nothing but the thinnest layer of your abdominal wall between them.\" *tilts her head, studying the mark* \"Your navel inverted approximately two millimeters during the inflation. It's trying to pop outward. A few more PSI and it will.\"\n\n*places the probe back on the cart* \"That particular sensation — pressure against the navel from both sides — is one that stays with subjects long after the session ends. Something to think about during the next inflation phase.\"",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "exec-ai-emo-choose-0",
+      "type": "action",
+      "position": {
+        "x": 125,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-ai-emo-choose-1",
+      "type": "action",
+      "position": {
+        "x": 225,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "exec-ai-emo-choose-2",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 290
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "exec-ai-btn",
+      "target": "exec-ai-choice"
+    },
+    {
+      "id": "e-exec-ai-choice-to-exec-ai-emo-choose-0",
+      "source": "exec-ai-choice",
+      "target": "exec-ai-emo-choose-0",
+      "sourceHandle": "vice"
+    },
+    {
+      "id": "e-exec-ai-emo-choose-0-to-exec-ai-vice",
+      "source": "exec-ai-emo-choose-0",
+      "target": "exec-ai-vice"
+    },
+    {
+      "id": "e-exec-ai-choice-to-exec-ai-emo-choose-1",
+      "source": "exec-ai-choice",
+      "target": "exec-ai-emo-choose-1",
+      "sourceHandle": "electrodes"
+    },
+    {
+      "id": "e-exec-ai-emo-choose-1-to-exec-ai-electrodes",
+      "source": "exec-ai-emo-choose-1",
+      "target": "exec-ai-electrodes"
+    },
+    {
+      "id": "e-exec-ai-choice-to-exec-ai-emo-choose-2",
+      "source": "exec-ai-choice",
+      "target": "exec-ai-emo-choose-2",
+      "sourceHandle": "probe"
+    },
+    {
+      "id": "e-exec-ai-emo-choose-2-to-exec-ai-probe",
+      "source": "exec-ai-emo-choose-2",
+      "target": "exec-ai-probe"
+    }
+  ]
+}

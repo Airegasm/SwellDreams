@@ -1,0 +1,430 @@
+{
+  "id": "flow-vex-card-shark",
+  "name": "Card Shark",
+  "category": "character",
+  "description": "High-low card draw with prize wheel rewards and device punishments",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "vex-cs-btn",
+      "type": "button_press",
+      "position": {
+        "x": 300,
+        "y": 50
+      },
+      "data": {
+        "label": "Draw Cards",
+        "buttonTarget": "character",
+        "buttonId": "vex-cards",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "vex-cs-counter",
+      "type": "counter",
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "data": {
+        "label": "Track Rounds",
+        "variable": "cardRounds",
+        "operation": "increment",
+        "amount": 1,
+        "initialValue": 0,
+        "initializeDefault": true
+      }
+    },
+    {
+      "id": "vex-cs-intro",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 350
+      },
+      "data": {
+        "label": "Shuffle Deck",
+        "actionType": "send_message",
+        "message": "*shuffles deck theatrically, cards flying between fingers* LADIES AND GENTLEMEN, it's CARD SHARK TIME! Round [Flow:cardRounds]! High card takes it ALL! *audience drums on tables*",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-draw",
+      "type": "card_draw",
+      "position": {
+        "x": 300,
+        "y": 520
+      },
+      "data": {
+        "label": "Draw Cards",
+        "deckType": "standard",
+        "outputMode": "high_low"
+      }
+    },
+    {
+      "id": "vex-cs-win-msg",
+      "type": "action",
+      "position": {
+        "x": 0,
+        "y": 720
+      },
+      "data": {
+        "label": "Player Wins!",
+        "actionType": "send_message",
+        "message": "*audience gasps* WELL WELL WELL! Would you look at THAT! The contestant drew HIGH! *confetti pops* But don't celebrate yet... let's see what the WHEEL has in store for you!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-wheel",
+      "type": "prize_wheel",
+      "position": {
+        "x": 0,
+        "y": 900
+      },
+      "data": {
+        "label": "Winner's Wheel",
+        "segments": [
+          {
+            "id": "mercy",
+            "label": "Mercy!",
+            "color": "#22c55e",
+            "weight": 25
+          },
+          {
+            "id": "double-down",
+            "label": "Double Down",
+            "color": "#f97316",
+            "weight": 25
+          },
+          {
+            "id": "jackpot-rest",
+            "label": "Jackpot Rest",
+            "color": "#ffd700",
+            "weight": 25
+          },
+          {
+            "id": "surprise",
+            "label": "Surprise!",
+            "color": "#9333ea",
+            "weight": 25
+          }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*spins the Winner's Wheel* Round and ROUND she goes! WHERE she stops... *dramatic pause*",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "vex-cs-mercy",
+      "type": "action",
+      "position": {
+        "x": -300,
+        "y": 1150
+      },
+      "data": {
+        "label": "Mercy!",
+        "actionType": "send_message",
+        "message": "*the wheel clicks to a stop* MERCY! *audience boos* Oh, the crowd HATES it, but a deal's a deal! You walk away SCOT-FREE... for now! *wags finger* Don't get used to it, contestant!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-double",
+      "type": "action",
+      "position": {
+        "x": -75,
+        "y": 1150
+      },
+      "data": {
+        "label": "Double Down",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 4,
+        "preMessageEnabled": true,
+        "preMessage": "*klaxon sounds* DOUBLE DOWN! You thought winning meant SAFETY?! *cackles* FOUR quick blasts coming your way!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*takes a bow* AND THAT is the Double Down special! *audience cheers* Winning never felt so... complicated!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-cs-jackpot",
+      "type": "action",
+      "position": {
+        "x": 150,
+        "y": 1150
+      },
+      "data": {
+        "label": "Jackpot Rest",
+        "actionType": "send_message",
+        "message": "*golden lights flood the stage* JACKPOT! REST PERIOD! *audience awws* That's RIGHT, ladies and gentlemen, our contestant gets a GENUINE break! Soak it in, champion... savor EVERY second... because the next round WON'T be so kind! *evil wink*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-surprise",
+      "type": "action",
+      "position": {
+        "x": 375,
+        "y": 1150
+      },
+      "data": {
+        "label": "Surprise Cycle",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 3,
+        "interval": 1,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*trap door opens under stage* SURPRISE! The mystery segment! Three rapid-fire cycles! *audience goes WILD* You wanted excitement? HERE IT IS!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*wipes tears of joy* BEAUTIFUL! The Surprise Special NEVER disappoints! How are we feeling, contestant?! *holds out microphone*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-cs-lose-msg",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 720
+      },
+      "data": {
+        "label": "House Wins!",
+        "actionType": "send_message",
+        "message": "*BUZZER sounds* OHHHHH! THE HOUSE WINS! *audience roars* That's RIGHT, the dealer takes this round! And you KNOW what that means... PUNISHMENT TIME! Let's see how long the dice of fate decree!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-punish-random",
+      "type": "random_number",
+      "position": {
+        "x": 600,
+        "y": 900
+      },
+      "data": {
+        "label": "Punishment Duration",
+        "minValue": 5,
+        "maxValue": 20,
+        "variableName": "punishDuration"
+      }
+    },
+    {
+      "id": "vex-cs-punish-device",
+      "type": "action",
+      "position": {
+        "x": 600,
+        "y": 1080
+      },
+      "data": {
+        "label": "Punishment!",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 15,
+        "preMessageEnabled": true,
+        "preMessage": "*reads the number* [Flow:punishDuration] seconds on the clock! *slams button* HERE WE GOOOOO! *audience chants along*",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*slow clap* And TIME! You survived the house punishment! *audience applauds* Come back for another round... IF you dare!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-cs-tie-msg",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 720
+      },
+      "data": {
+        "label": "Tie!",
+        "actionType": "send_message",
+        "message": "*record scratch* A TIE?! How INCREDIBLY boring! *audience groans* Well, you know the rules... DEALER TAKES TIES! And since that was SO anticlimactic, you get a little reminder of who runs this show!",
+        "suppressLlm": true,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "vex-cs-tie-pulse",
+      "type": "action",
+      "position": {
+        "x": 300,
+        "y": 920
+      },
+      "data": {
+        "label": "Tie Penalty",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*presses buzzer twice* Two quick ones for the tie-breaker! Consider it a WARNING shot!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*dusts hands off* THERE we go! Next time, try actually WINNING! *audience laughs*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "vex-cs-emo-deal",
+      "type": "action",
+      "position": {
+        "x": 325,
+        "y": 435
+      },
+      "data": {
+        "label": "Set Anxious",
+        "actionType": "set_emotion",
+        "emotion": "anxious"
+      }
+    },
+    {
+      "id": "vex-cs-emo-lose",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 780
+      },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "vex-cs-attr-lose",
+      "type": "action",
+      "position": {
+        "x": 625,
+        "y": 840
+      },
+      "data": {
+        "label": "Raise Sadistic",
+        "actionType": "set_attribute",
+        "attribute": "sadistic",
+        "attributeValue": 88
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "vex-cs-btn",
+      "target": "vex-cs-counter"
+    },
+    {
+      "id": "e2",
+      "source": "vex-cs-counter",
+      "target": "vex-cs-intro"
+    },
+    {
+      "id": "e4",
+      "source": "vex-cs-draw",
+      "sourceHandle": "player-wins",
+      "target": "vex-cs-win-msg"
+    },
+    {
+      "id": "e5",
+      "source": "vex-cs-draw",
+      "sourceHandle": "dealer-wins",
+      "target": "vex-cs-lose-msg"
+    },
+    {
+      "id": "e6",
+      "source": "vex-cs-draw",
+      "sourceHandle": "tie",
+      "target": "vex-cs-tie-msg"
+    },
+    {
+      "id": "e7",
+      "source": "vex-cs-win-msg",
+      "target": "vex-cs-wheel"
+    },
+    {
+      "id": "e8",
+      "source": "vex-cs-wheel",
+      "sourceHandle": "mercy",
+      "target": "vex-cs-mercy"
+    },
+    {
+      "id": "e9",
+      "source": "vex-cs-wheel",
+      "sourceHandle": "double-down",
+      "target": "vex-cs-double"
+    },
+    {
+      "id": "e10",
+      "source": "vex-cs-wheel",
+      "sourceHandle": "jackpot-rest",
+      "target": "vex-cs-jackpot"
+    },
+    {
+      "id": "e11",
+      "source": "vex-cs-wheel",
+      "sourceHandle": "surprise",
+      "target": "vex-cs-surprise"
+    },
+    {
+      "id": "e13",
+      "source": "vex-cs-punish-random",
+      "target": "vex-cs-punish-device"
+    },
+    {
+      "id": "e14",
+      "source": "vex-cs-tie-msg",
+      "target": "vex-cs-tie-pulse"
+    },
+    {
+      "id": "e-vex-cs-intro-to-vex-cs-emo-deal",
+      "source": "vex-cs-intro",
+      "target": "vex-cs-emo-deal"
+    },
+    {
+      "id": "e-vex-cs-emo-deal-to-vex-cs-draw",
+      "source": "vex-cs-emo-deal",
+      "target": "vex-cs-draw"
+    },
+    {
+      "id": "e-vex-cs-lose-msg-to-vex-cs-emo-lose",
+      "source": "vex-cs-lose-msg",
+      "target": "vex-cs-emo-lose"
+    },
+    {
+      "id": "e-vex-cs-emo-lose-to-vex-cs-attr-lose",
+      "source": "vex-cs-emo-lose",
+      "target": "vex-cs-attr-lose"
+    },
+    {
+      "id": "e-vex-cs-attr-lose-to-vex-cs-punish-random",
+      "source": "vex-cs-attr-lose",
+      "target": "vex-cs-punish-random"
+    }
+  ]
+}

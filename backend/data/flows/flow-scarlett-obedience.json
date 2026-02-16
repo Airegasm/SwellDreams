@@ -274,6 +274,45 @@
       },
       "selected": false,
       "dragging": false
+    },
+    {
+      "id": "sc-ob-emo-start",
+      "type": "action",
+      "position": {
+        "x": -226,
+        "y": 321
+      },
+      "data": {
+        "label": "Set Curious",
+        "actionType": "set_emotion",
+        "emotion": "curious"
+      }
+    },
+    {
+      "id": "sc-ob-emo-resist",
+      "type": "action",
+      "position": {
+        "x": -77,
+        "y": 662
+      },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "sc-ob-emo-obey",
+      "type": "action",
+      "position": {
+        "x": -266,
+        "y": 681
+      },
+      "data": {
+        "label": "Set Submissive",
+        "actionType": "set_emotion",
+        "emotion": "submissive"
+      }
     }
   ],
   "edges": [
@@ -281,24 +320,6 @@
       "id": "e1",
       "source": "scarlett-ob-btn",
       "target": "scarlett-ob-intro"
-    },
-    {
-      "id": "e2",
-      "source": "scarlett-ob-intro",
-      "target": "scarlett-ob-choice"
-    },
-    {
-      "id": "e4",
-      "source": "scarlett-ob-choice",
-      "sourceHandle": "b",
-      "target": "scarlett-ob-resist-warn"
-    },
-    {
-      "source": "scarlett-ob-choice",
-      "sourceHandle": "a",
-      "target": "node_0",
-      "animated": true,
-      "id": "xy-edge__scarlett-ob-choicea-node_0"
     },
     {
       "source": "scarlett-ob-resist-warn",
@@ -326,6 +347,38 @@
       "target": "node_2",
       "animated": true,
       "id": "xy-edge__node_1seg-1770910090942-node_2"
+    },
+    {
+      "id": "e-scarlett-ob-intro-to-sc-ob-emo-start",
+      "source": "scarlett-ob-intro",
+      "target": "sc-ob-emo-start"
+    },
+    {
+      "id": "e-sc-ob-emo-start-to-scarlett-ob-choice",
+      "source": "sc-ob-emo-start",
+      "target": "scarlett-ob-choice"
+    },
+    {
+      "id": "e-scarlett-ob-choice-to-sc-ob-emo-resist",
+      "source": "scarlett-ob-choice",
+      "target": "sc-ob-emo-resist",
+      "sourceHandle": "b"
+    },
+    {
+      "id": "e-sc-ob-emo-resist-to-scarlett-ob-resist-warn",
+      "source": "sc-ob-emo-resist",
+      "target": "scarlett-ob-resist-warn"
+    },
+    {
+      "id": "e-scarlett-ob-choice-to-sc-ob-emo-obey",
+      "source": "scarlett-ob-choice",
+      "target": "sc-ob-emo-obey",
+      "sourceHandle": "a"
+    },
+    {
+      "id": "e-sc-ob-emo-obey-to-node_0",
+      "source": "sc-ob-emo-obey",
+      "target": "node_0"
     }
   ],
   "groups": []
