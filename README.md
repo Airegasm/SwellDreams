@@ -18,9 +18,11 @@
 
 ## What is SwellDreams?
 
-SwellDreams is a self-hosted, AI-powered interactive experience platform that bridges the gap between conversational roleplay and real-world device automation. It connects to smart outlets on your local network and orchestrates them through two distinct modules — each with its own visual scripting system — creating deeply interactive, fully customizable sessions where what happens on screen drives what happens in the room.
+SwellDreams is a self-hosted, AI-powered interactive experience platform that bridges the gap between conversational roleplay and real-world device automation. It connects to smart outlets on your local network or through cloud APIs and orchestrates them through two distinct modules — each with its own visual scripting system — creating deeply interactive, fully customizable sessions where what happens on screen drives what happens in the room.
 
 Think of it as an AI game master that doesn't just talk — it *does things*.
+
+> **No LLM or smart devices required.** An LLM and hardware integration deliver the full experience, but neither is necessary to run SwellDreams. You can author every response, sequence, and story beat manually using the Flow Engine and ScreenPlay — no AI needed. And if you don't have or don't want to connect smart devices, everything still works as a pure story mode. Start with what you have and add integrations when you're ready.
 
 ### ChatSD
 
