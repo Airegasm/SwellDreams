@@ -9,6 +9,8 @@ function StatusBadges({
   onPainLevelChange,
   capacity,
   onCapacityChange,
+  capacityModifier,
+  onCapacityModifierChange,
   personaName,
   useAutoCapacity,
 }) {
@@ -19,6 +21,7 @@ function StatusBadges({
   const [showPainPopup, setShowPainPopup] = React.useState(false);
   const [showCapacitySlider, setShowCapacitySlider] = React.useState(false);
   const [sliderValue, setSliderValue] = React.useState(0);
+  const [modifierValue, setModifierValue] = React.useState(1.0);
 
   // Click-outside handlers
   useEffect(() => {
@@ -60,7 +63,10 @@ function StatusBadges({
         ref={capacityRef}
         onClick={() => {
           if (!onCapacityChange) return;
-          if (!showCapacitySlider) setSliderValue(Math.max(0, Math.min(100, capacity)));
+          if (!showCapacitySlider) {
+            setSliderValue(Math.max(0, Math.min(100, capacity)));
+            setModifierValue(capacityModifier || 1.0);
+          }
           setShowCapacitySlider(!showCapacitySlider);
         }}
       >
@@ -75,49 +81,105 @@ function StatusBadges({
         </div>
         {showCapacitySlider && onCapacityChange && (
           <div className="capacity-slider-popup" onClick={(e) => e.stopPropagation()}>
-            <span className="capacity-slider-label">{sliderValue}%</span>
-            <div
-              className="capacity-slider-track"
-              onMouseDown={(e) => {
-                const track = e.currentTarget;
-                const update = (ev) => {
-                  const rect = track.getBoundingClientRect();
-                  const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - ev.clientY) / rect.height) * 100)));
-                  setSliderValue(pct);
-                  onCapacityChange(pct);
-                };
-                update(e);
-                const onMove = (ev) => update(ev);
-                const onUp = () => {
-                  document.removeEventListener('mousemove', onMove);
-                  document.removeEventListener('mouseup', onUp);
-                };
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onUp);
-              }}
-              onTouchStart={(e) => {
-                const track = e.currentTarget;
-                const update = (ev) => {
-                  const touch = ev.touches[0];
-                  const rect = track.getBoundingClientRect();
-                  const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)));
-                  setSliderValue(pct);
-                  onCapacityChange(pct);
-                };
-                update(e);
-                const onMove = (ev) => { ev.preventDefault(); update(ev); };
-                const onEnd = () => {
-                  document.removeEventListener('touchmove', onMove);
-                  document.removeEventListener('touchend', onEnd);
-                };
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-              }}
-            >
-              <div className="capacity-slider-fill" style={{ height: `${sliderValue}%` }} />
-              <div className="capacity-slider-thumb" style={{ bottom: `${sliderValue}%` }} />
+            <div className="capacity-sliders-row">
+              {/* Capacity % slider */}
+              <div className="capacity-slider-column">
+                <span className="capacity-slider-label">{sliderValue}%</span>
+                <div
+                  className="capacity-slider-track"
+                  onMouseDown={(e) => {
+                    const track = e.currentTarget;
+                    const update = (ev) => {
+                      const rect = track.getBoundingClientRect();
+                      const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - ev.clientY) / rect.height) * 100)));
+                      setSliderValue(pct);
+                      onCapacityChange(pct);
+                    };
+                    update(e);
+                    const onMove = (ev) => update(ev);
+                    const onUp = () => {
+                      document.removeEventListener('mousemove', onMove);
+                      document.removeEventListener('mouseup', onUp);
+                    };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                  }}
+                  onTouchStart={(e) => {
+                    const track = e.currentTarget;
+                    const update = (ev) => {
+                      const touch = ev.touches[0];
+                      const rect = track.getBoundingClientRect();
+                      const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)));
+                      setSliderValue(pct);
+                      onCapacityChange(pct);
+                    };
+                    update(e);
+                    const onMove = (ev) => { ev.preventDefault(); update(ev); };
+                    const onEnd = () => {
+                      document.removeEventListener('touchmove', onMove);
+                      document.removeEventListener('touchend', onEnd);
+                    };
+                    document.addEventListener('touchmove', onMove, { passive: false });
+                    document.addEventListener('touchend', onEnd);
+                  }}
+                >
+                  <div className="capacity-slider-fill" style={{ height: `${sliderValue}%` }} />
+                  <div className="capacity-slider-thumb" style={{ bottom: `${sliderValue}%` }} />
+                </div>
+                <span className="capacity-slider-min">0</span>
+              </div>
+              {/* Capacity modifier slider */}
+              {onCapacityModifierChange && (
+                <div className="capacity-slider-column modifier-column">
+                  <span className="capacity-slider-label modifier-label">{modifierValue.toFixed(2)}x</span>
+                  <div
+                    className="capacity-slider-track modifier-track"
+                    onMouseDown={(e) => {
+                      const track = e.currentTarget;
+                      const update = (ev) => {
+                        const rect = track.getBoundingClientRect();
+                        // Map 0-100% to 0.25-2.0 range
+                        const pct = Math.max(0, Math.min(1, (rect.bottom - ev.clientY) / rect.height));
+                        const val = Math.round((0.25 + pct * 1.75) * 100) / 100;
+                        setModifierValue(val);
+                        onCapacityModifierChange(val);
+                      };
+                      update(e);
+                      const onMove = (ev) => update(ev);
+                      const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                      };
+                      document.addEventListener('mousemove', onMove);
+                      document.addEventListener('mouseup', onUp);
+                    }}
+                    onTouchStart={(e) => {
+                      const track = e.currentTarget;
+                      const update = (ev) => {
+                        const touch = ev.touches[0];
+                        const rect = track.getBoundingClientRect();
+                        const pct = Math.max(0, Math.min(1, (rect.bottom - touch.clientY) / rect.height));
+                        const val = Math.round((0.25 + pct * 1.75) * 100) / 100;
+                        setModifierValue(val);
+                        onCapacityModifierChange(val);
+                      };
+                      update(e);
+                      const onMove = (ev) => { ev.preventDefault(); update(ev); };
+                      const onEnd = () => {
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onEnd);
+                      };
+                      document.addEventListener('touchmove', onMove, { passive: false });
+                      document.addEventListener('touchend', onEnd);
+                    }}
+                  >
+                    <div className="capacity-slider-fill modifier-fill" style={{ height: `${((modifierValue - 0.25) / 1.75) * 100}%` }} />
+                    <div className="capacity-slider-thumb modifier-thumb" style={{ bottom: `${((modifierValue - 0.25) / 1.75) * 100}%` }} />
+                  </div>
+                  <span className="capacity-slider-min">0.25</span>
+                </div>
+              )}
             </div>
-            <span className="capacity-slider-min">0</span>
           </div>
         )}
       </div>

@@ -1249,6 +1249,10 @@ function Chat() {
             setSessionState(prev => ({ ...prev, capacity: cap }));
             sendWsMessage('update_capacity', { capacity: cap });
           }}
+          capacityModifier={settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0}
+          onCapacityModifierChange={(mod) => {
+            sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
+          }}
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
         />
@@ -1287,6 +1291,10 @@ function Chat() {
             onCapacityChange={(cap) => {
               setSessionState(prev => ({ ...prev, capacity: cap }));
               sendWsMessage('update_capacity', { capacity: cap });
+            }}
+            capacityModifier={settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0}
+            onCapacityModifierChange={(mod) => {
+              sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
             }}
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}

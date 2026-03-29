@@ -4634,6 +4634,19 @@ async function handleWsMessage(ws, type, data) {
       });
       break;
 
+    case 'update_capacity_modifier': {
+      const newModifier = Math.max(0.25, Math.min(2.0, parseFloat(data.capacityModifier) || 1.0));
+      sessionState.capacityModifier = newModifier;
+      // Also persist to settings so it survives restart
+      const modSettings = loadData(DATA_FILES.settings) || {};
+      if (!modSettings.globalCharacterControls) modSettings.globalCharacterControls = {};
+      modSettings.globalCharacterControls.autoCapacityMultiplier = newModifier;
+      saveData(DATA_FILES.settings, modSettings);
+      console.log(`[CapacityModifier] Updated to ${newModifier}x`);
+      broadcast('capacity_modifier_update', { capacityModifier: newModifier });
+      break;
+    }
+
     case 'update_pain':
       sessionState.pain = data.pain;
       broadcast('pain_update', { pain: sessionState.pain });
@@ -7118,12 +7131,16 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
       const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
       const charLimits = getCharacterLimits(character);
-      const maxSeconds = charLimits ? Math.min(globalMax, charLimits.llmMaxOnDuration ?? Infinity) : globalMax;
+      const capacityMod = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+      const scaledMaxOn = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
+      const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn) : globalMax;
       let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
 Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player, auto-timeout ${maxSeconds}s)`;
       if (charLimits) {
-        devicePrompt += `\nLimits: max ON ${charLimits.llmMaxOnDuration ?? 5}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${charLimits.llmMaxTimedDuration ?? 10}s, max cycle ON ${charLimits.llmMaxCycleOnDuration ?? 2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
+        const scaledMaxTimed = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod);
+        const scaledMaxCycleOn = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod);
+        devicePrompt += `\nLimits: max ON ${scaledMaxOn}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed}s, max cycle ON ${scaledMaxCycleOn}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
       }
       systemPrompt += devicePrompt + '\n';
     }
@@ -7352,12 +7369,16 @@ function buildChatContext(character, settings) {
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
     const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
     const charLimits = getCharacterLimits(character);
-    const maxSeconds = charLimits ? Math.min(globalMax, charLimits.llmMaxOnDuration ?? Infinity) : globalMax;
+    const capacityMod2 = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+    const scaledMaxOn2 = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod2);
+    const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn2) : globalMax;
     let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
 Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from player, auto-timeout ${maxSeconds}s)`;
     if (charLimits) {
-      devicePrompt += `\nLimits: max ON ${charLimits.llmMaxOnDuration ?? 5}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${charLimits.llmMaxTimedDuration ?? 10}s, max cycle ON ${charLimits.llmMaxCycleOnDuration ?? 2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
+      const scaledMaxTimed2 = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod2);
+      const scaledMaxCycleOn2 = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod2);
+      devicePrompt += `\nLimits: max ON ${scaledMaxOn2}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed2}s, max cycle ON ${scaledMaxCycleOn2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
     }
     systemPrompt += devicePrompt + '\n';
   }

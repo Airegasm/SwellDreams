@@ -266,6 +266,17 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'capacity_modifier_update':
+        setSessionState(prev => ({ ...prev, capacityModifier: data.capacityModifier }));
+        setSettings(prev => ({
+          ...prev,
+          globalCharacterControls: {
+            ...prev?.globalCharacterControls,
+            autoCapacityMultiplier: data.capacityModifier
+          }
+        }));
+        break;
+
       case 'pump_runtime':
         // Informational - actual capacity comes via auto_capacity_update
         break;

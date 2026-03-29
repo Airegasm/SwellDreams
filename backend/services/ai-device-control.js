@@ -345,8 +345,10 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
   const { settings, sessionState, broadcast, characterLimits } = options;
 
   // Get max seconds for LLM device control — per-character limit is the hard ceiling
+  // Scale time-based limits by capacity modifier
+  const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
   const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-  const charMaxOn = characterLimits?.llmMaxOnDuration ?? 5;
+  const charMaxOn = Math.round((characterLimits?.llmMaxOnDuration ?? 5) * capacityModifier);
   const maxSeconds = Math.min(globalMaxSeconds, charMaxOn);
 
   // Deduplicate: if same device has multiple commands, only execute the LAST one
@@ -464,7 +466,7 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
       } else if (cmd.action === 'timed') {
         // Timed mode: run for X seconds then auto-off
         const rawDuration = cmd.duration || maxSeconds;
-        const duration = Math.min(rawDuration, characterLimits?.llmMaxTimedDuration ?? 10);
+        const duration = Math.min(rawDuration, Math.round((characterLimits?.llmMaxTimedDuration ?? 10) * capacityModifier));
 
         result = await deviceService.turnOn(deviceId, device);
         log.info(`AI TIMED ${device.label || device.name || cmd.device} for ${duration}s`);
@@ -801,10 +803,12 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     let mode, tag;
 
     // Per-character limit caps — safe defaults, never Infinity
+    // Scale time-based limits by capacity modifier
+    const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
     const maxPulse = characterLimits?.llmMaxPulseRepetitions ?? 5;
-    const maxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
+    const maxCycleOn = Math.round((characterLimits?.llmMaxCycleOnDuration ?? 2) * capacityModifier);
     const maxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
-    const maxTimed = characterLimits?.llmMaxTimedDuration ?? 10;
+    const maxTimed = Math.round((characterLimits?.llmMaxTimedDuration ?? 10) * capacityModifier);
     const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
 
     if (isPulse || (!isCycle && !isTimed && rand < 0.22)) {
@@ -865,13 +869,18 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
   // Hard-clamp all parsed command values against per-character limits (defense-in-depth)
   // This catches disobedient LLM tags before they reach executeDeviceCommands
   // Safe defaults (not Infinity) ensure limits always apply even if characterLimits is null
-  const { characterLimits, settings } = options;
+  const { characterLimits, settings, sessionState } = options;
+  const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
   const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-  const limMaxOn = characterLimits?.llmMaxOnDuration ?? 5;
+  // Scale time-based limits by capacity modifier (higher modifier = longer allowed durations)
+  const limMaxOn = Math.round((characterLimits?.llmMaxOnDuration ?? 5) * capacityModifier);
   const limMaxPulse = characterLimits?.llmMaxPulseRepetitions ?? 5;
-  const limMaxTimed = characterLimits?.llmMaxTimedDuration ?? 10;
-  const limMaxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
+  const limMaxTimed = Math.round((characterLimits?.llmMaxTimedDuration ?? 10) * capacityModifier);
+  const limMaxCycleOn = Math.round((characterLimits?.llmMaxCycleOnDuration ?? 2) * capacityModifier);
   const limMaxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
+  if (capacityModifier !== 1.0) {
+    log.info(`[Clamp] Capacity modifier ${capacityModifier}x applied to time limits: maxOn=${limMaxOn}s, maxTimed=${limMaxTimed}s, maxCycleOn=${limMaxCycleOn}s`);
+  }
 
   for (const cmd of commands) {
     if (cmd.action === 'on') {
