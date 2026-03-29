@@ -24,6 +24,7 @@ const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
 const tapoService = require('./services/tapo-service');
+const haService = require('./services/homeassistant-service');
 const aiDeviceControl = require('./services/ai-device-control');
 const imageStorage = require('./services/image-storage');
 const mediaStorage = require('./services/media-storage');
@@ -2325,6 +2326,10 @@ function migrateApiKeyEncryption() {
       settings.tuyaAccessSecret = encrypt(settings.tuyaAccessSecret);
       migrated = true;
     }
+    if (settings.haToken && !isEncrypted(settings.haToken)) {
+      settings.haToken = encrypt(settings.haToken);
+      migrated = true;
+    }
     if (migrated) {
       saveData(DATA_FILES.settings, settings);
       console.log('[Migration] Encrypted plaintext API keys in settings');
@@ -2911,7 +2916,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
 
     for (const pump of pumpDevices) {
-      const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+      const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' || pump.brand === 'homeassistant' ? pump.deviceId : pump.ip;
       const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : pumpDeviceId;
       const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
 
@@ -4342,6 +4347,15 @@ if (startupSettings.tapoEmail && startupSettings.tapoPassword) {
   console.log('[Startup] Tapo credentials loaded');
 }
 
+// Load Home Assistant credentials from settings if saved
+if (startupSettings.haUrl && startupSettings.haToken) {
+  haService.setCredentials(
+    startupSettings.haUrl,
+    startupSettings.haToken
+  );
+  console.log('[Startup] Home Assistant credentials loaded');
+}
+
 wss.on('connection', async (ws) => {
   wsClients.add(ws);
   console.log('[WS] Client connected');
@@ -4547,7 +4561,7 @@ async function handleWsMessage(ws, type, data) {
         const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
 
         for (const pump of pumpDevices) {
-          const deviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const deviceId = pump.brand === 'govee' || pump.brand === 'tuya' || pump.brand === 'homeassistant' ? pump.deviceId : pump.ip;
           const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : deviceId;
           const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
 
@@ -5069,7 +5083,7 @@ async function handleWsMessage(ws, type, data) {
 
           // Stop all pump devices
           for (const pump of pumpDevices) {
-            const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+            const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' || pump.brand === 'homeassistant' ? pump.deviceId : pump.ip;
             console.log(`[ScreenPlay] Attempting to stop pump: ${pump.label || pump.name}, brand=${pump.brand}, id=${pumpDeviceId}`);
             try {
               const turnOffResult = await deviceService.turnOff(pumpDeviceId, pump);
@@ -5143,7 +5157,7 @@ async function handleWsMessage(ws, type, data) {
           break;
         }
 
-        const deviceId = device.brand === 'govee' || device.brand === 'tuya' ? device.deviceId : device.ip;
+        const deviceId = device.brand === 'govee' || device.brand === 'tuya' || device.brand === 'homeassistant' ? device.deviceId : device.ip;
         console.log(`[ScreenPlay] Pump command: ${data.type} for ${data.device} (${deviceId})`);
 
         try {
@@ -5463,8 +5477,15 @@ function resolveDeviceKey(deviceKey) {
     return { deviceId, deviceObj: device || { brand: 'tuya', deviceId } };
   }
 
+  // Handle ha:entityId format (Home Assistant)
+  if (deviceKey.startsWith('ha:')) {
+    const deviceId = deviceKey.substring(3);
+    const device = devices.find(d => d.brand === 'homeassistant' && d.deviceId === deviceId);
+    return { deviceId, deviceObj: device || { brand: 'homeassistant', deviceId } };
+  }
+
   // Handle ip:childId format (power strip outlet)
-  if (deviceKey.includes(':') && !deviceKey.startsWith('govee:') && !deviceKey.startsWith('tuya:')) {
+  if (deviceKey.includes(':') && !deviceKey.startsWith('govee:') && !deviceKey.startsWith('tuya:') && !deviceKey.startsWith('ha:')) {
     const [ip, childId] = deviceKey.split(':');
     const device = devices.find(d => d.ip === ip && d.childId === childId);
     return { deviceId: ip, deviceObj: device || { ip, childId, brand: 'tplink' } };
@@ -7641,6 +7662,11 @@ app.post('/api/settings', async (req, res) => {
   } else if (!req.body.tuyaAccessSecret) {
     settings.tuyaAccessSecret = oldSettings.tuyaAccessSecret;
   }
+  if (req.body.haToken && req.body.haToken !== '') {
+    settings.haToken = encrypt(req.body.haToken);
+  } else if (!req.body.haToken) {
+    settings.haToken = oldSettings.haToken;
+  }
 
   saveData(DATA_FILES.settings, settings);
 
@@ -9009,6 +9035,10 @@ app.post('/api/devices/check-reachability', async (req, res) => {
           // Tuya devices - try to get power state
           const state = await tuyaService.getPowerState(device.deviceId);
           isReachable = state !== null && state !== undefined;
+        } else if (device.brand === 'homeassistant') {
+          // Home Assistant devices - try to get power state
+          const state = await haService.getPowerState(device.deviceId);
+          isReachable = state !== null && state !== undefined;
         } else {
           // TPLink devices - try to get device info
           const result = await deviceService.getDeviceInfo(device.ip);
@@ -9671,6 +9701,131 @@ app.get('/api/tapo/devices/:ip/state', async (req, res) => {
     res.json({ state, relay_state: state === 'on' ? 1 : 0 });
   } catch (error) {
     console.error('[Tapo] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==============================================
+// Home Assistant API Routes
+// ==============================================
+
+// Connect to Home Assistant (save URL + token)
+app.post('/api/homeassistant/connect', async (req, res) => {
+  const { url, token } = req.body;
+  if (!url || !token) {
+    return res.status(400).json({ error: 'URL and token required' });
+  }
+
+  haService.setCredentials(url, token);
+
+  try {
+    const success = await haService.testConnection();
+
+    if (success) {
+      const settings = loadData(DATA_FILES.settings) || {};
+      settings.haUrl = url;
+      settings.haToken = encrypt(token);
+      saveData(DATA_FILES.settings, settings);
+      console.log('[HomeAssistant] Connected and credentials saved');
+      res.json({ success: true, message: 'Connected to Home Assistant' });
+    } else {
+      haService.clearCredentials();
+      res.status(401).json({ error: 'Connection failed - check URL and token' });
+    }
+  } catch (error) {
+    console.error('[HomeAssistant] Connect error:', error);
+    haService.clearCredentials();
+    res.status(401).json({ error: error.message || 'Connection failed' });
+  }
+});
+
+// Check Home Assistant connection status
+app.get('/api/homeassistant/status', (req, res) => {
+  res.json({ connected: haService.isConnected() });
+});
+
+// Disconnect from Home Assistant
+app.post('/api/homeassistant/disconnect', (req, res) => {
+  haService.clearCredentials();
+  const settings = loadData(DATA_FILES.settings) || {};
+  delete settings.haUrl;
+  delete settings.haToken;
+  saveData(DATA_FILES.settings, settings);
+  console.log('[HomeAssistant] Credentials cleared');
+  res.json({ success: true, message: 'Disconnected from Home Assistant' });
+});
+
+// List Home Assistant switch entities
+app.get('/api/homeassistant/devices', async (req, res) => {
+  if (!haService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Home Assistant' });
+  }
+
+  try {
+    const devices = await haService.listDevices();
+    res.json({ devices });
+  } catch (error) {
+    console.error('[HomeAssistant] Failed to list devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Home Assistant entity info
+app.get('/api/homeassistant/devices/:entityId/info', async (req, res) => {
+  if (!haService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Home Assistant' });
+  }
+
+  try {
+    const info = await haService.getEntityInfo(req.params.entityId);
+    res.json(info);
+  } catch (error) {
+    console.error('[HomeAssistant] Failed to get entity info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Home Assistant entity on
+app.post('/api/homeassistant/devices/:entityId/on', async (req, res) => {
+  if (!haService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Home Assistant' });
+  }
+
+  try {
+    await haService.turnOn(req.params.entityId);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[HomeAssistant] Failed to turn on entity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Home Assistant entity off
+app.post('/api/homeassistant/devices/:entityId/off', async (req, res) => {
+  if (!haService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Home Assistant' });
+  }
+
+  try {
+    await haService.turnOff(req.params.entityId);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[HomeAssistant] Failed to turn off entity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Home Assistant entity state
+app.get('/api/homeassistant/devices/:entityId/state', async (req, res) => {
+  if (!haService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Home Assistant' });
+  }
+
+  try {
+    const state = await haService.getPowerState(req.params.entityId);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[HomeAssistant] Failed to get entity state:', error);
     res.status(500).json({ error: error.message });
   }
 });

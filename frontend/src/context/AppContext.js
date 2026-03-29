@@ -1134,6 +1134,36 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/info`
     ),
 
+    // Home Assistant devices (bridge for Tapo and other HA-managed devices)
+    connectHomeAssistant: (url, token) => apiFetch(`${API_BASE}/api/homeassistant/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ url, token })
+    }),
+
+    getHomeAssistantStatus: () => apiFetch(`${API_BASE}/api/homeassistant/status`),
+
+    disconnectHomeAssistant: () => apiFetch(`${API_BASE}/api/homeassistant/disconnect`, {
+      method: 'POST'
+    }),
+
+    scanHomeAssistantDevices: () => apiFetch(`${API_BASE}/api/homeassistant/devices`),
+
+    haDeviceOn: (entityId) => apiFetch(`${API_BASE}/api/homeassistant/devices/${encodeURIComponent(entityId)}/on`, {
+      method: 'POST'
+    }),
+
+    haDeviceOff: (entityId) => apiFetch(`${API_BASE}/api/homeassistant/devices/${encodeURIComponent(entityId)}/off`, {
+      method: 'POST'
+    }),
+
+    getHaDeviceState: (entityId) => apiFetch(
+      `${API_BASE}/api/homeassistant/devices/${encodeURIComponent(entityId)}/state`
+    ),
+
+    getHaDeviceInfo: (entityId) => apiFetch(
+      `${API_BASE}/api/homeassistant/devices/${encodeURIComponent(entityId)}/info`
+    ),
+
     // Matter devices (universal smart home protocol)
     commissionMatterDevice: (pairingCode, deviceName = null) => apiFetch(
       `${API_BASE}/api/matter/commission`,

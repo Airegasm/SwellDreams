@@ -269,6 +269,11 @@ function decryptSettings(settings) {
     decrypted.tapoPassword = decrypt(decrypted.tapoPassword);
   }
 
+  // Decrypt Home Assistant token
+  if (decrypted.haToken) {
+    decrypted.haToken = decrypt(decrypted.haToken);
+  }
+
   return decrypted;
 }
 
@@ -313,6 +318,11 @@ function maskSettingsForResponse(settings) {
     masked.hasTapoCredentials = hasApiKey(masked.tapoEmail) && hasApiKey(masked.tapoPassword);
     masked.tapoEmail = '';
     masked.tapoPassword = '';
+  }
+  if (masked.haUrl || masked.haToken) {
+    masked.haUrlMasked = maskApiKey(masked.haUrl);
+    masked.hasHaCredentials = hasApiKey(masked.haUrl) && hasApiKey(masked.haToken);
+    masked.haToken = '';
   }
 
   return masked;

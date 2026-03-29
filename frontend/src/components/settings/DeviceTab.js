@@ -87,6 +87,16 @@ function DeviceTab() {
   const [chipToolInstalled, setChipToolInstalled] = useState(false);
   const [chipToolInstalling, setChipToolInstalling] = useState(false);
 
+  // Home Assistant state
+  const [haConnected, setHaConnected] = useState(false);
+  const [haUrl, setHaUrl] = useState('');
+  const [haToken, setHaToken] = useState('');
+  const [hasHaCredentials, setHasHaCredentials] = useState(false);
+  const [discoveredHa, setDiscoveredHa] = useState([]);
+  const [scanningHa, setScanningHa] = useState(false);
+  const [haConnecting, setHaConnecting] = useState(false);
+  const [haError, setHaError] = useState(null);
+
   // Collapsible section states
   const [expandedSections, setExpandedSections] = useState({
     discovery: false,
@@ -95,6 +105,7 @@ function DeviceTab() {
     tuya: false,
     wyze: false,
     tapo: false,
+    homeassistant: false,
     matter: false
   });
 
@@ -135,6 +146,14 @@ function DeviceTab() {
         console.error('Failed to check Tapo status:', error);
       }
     };
+    const checkHaStatus = async () => {
+      try {
+        const status = await api.getHomeAssistantStatus();
+        setHaConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Home Assistant status:', error);
+      }
+    };
     const checkStoredKeys = async () => {
       try {
         const settings = await api.getSettings();
@@ -150,6 +169,9 @@ function DeviceTab() {
         if (settings.hasTapoCredentials !== undefined) {
           setHasTapoCredentials(settings.hasTapoCredentials);
         }
+        if (settings.hasHaCredentials !== undefined) {
+          setHasHaCredentials(settings.hasHaCredentials);
+        }
       } catch (error) {
         console.error('Failed to check stored keys:', error);
       }
@@ -158,6 +180,7 @@ function DeviceTab() {
     checkTuyaStatus();
     checkWyzeStatus();
     checkTapoStatus();
+    checkHaStatus();
     checkStoredKeys();
   }, [api]);
 
@@ -807,6 +830,86 @@ function DeviceTab() {
     }
   };
 
+  // Home Assistant handlers
+  const handleHaDisconnect = async () => {
+    try {
+      await api.disconnectHomeAssistant();
+      setHaConnected(false);
+      setDiscoveredHa([]);
+      setHaError(null);
+    } catch (error) {
+      console.error('Home Assistant disconnect failed:', error);
+    }
+  };
+
+  const handleHaConnect = async () => {
+    if (!haUrl.trim() || !haToken.trim()) return;
+    setHaConnecting(true);
+    setHaError(null);
+    try {
+      const result = await api.connectHomeAssistant(haUrl.trim(), haToken.trim());
+      if (result.success) {
+        setHaConnected(true);
+        setHaUrl('');
+        setHaToken('');
+        setHasHaCredentials(true);
+      } else {
+        setHaError(result.error || 'Connection failed');
+      }
+    } catch (error) {
+      console.error('Home Assistant connect failed:', error);
+      setHaError(error.message || 'Failed to connect to Home Assistant');
+    }
+    setHaConnecting(false);
+  };
+
+  const handleHaScan = async () => {
+    setScanningHa(true);
+    setHaError(null);
+    try {
+      const result = await api.scanHomeAssistantDevices();
+      const haDevices = result.devices || [];
+      const configuredIds = new Set(
+        devices.filter(d => d.brand === 'homeassistant').map(d => d.deviceId)
+      );
+      const newDevices = haDevices.filter(d => !configuredIds.has(d.entityId));
+      setDiscoveredHa(newDevices);
+      if (newDevices.length === 0 && haDevices.length > 0) {
+        setHaError('All discovered devices are already configured.');
+      }
+    } catch (error) {
+      console.error('Home Assistant scan failed:', error);
+      setHaError(error.message || 'Failed to scan devices');
+    }
+    setScanningHa(false);
+  };
+
+  const handleAddHaDevice = async (haDevice) => {
+    try {
+      await api.addDevice({
+        deviceId: haDevice.entityId,
+        name: haDevice.name,
+        label: haDevice.name,
+        deviceType: 'PUMP',
+        brand: 'homeassistant'
+      });
+      setDiscoveredHa(discoveredHa.filter(d => d.entityId !== haDevice.entityId));
+    } catch (error) {
+      console.error('Failed to add Home Assistant device:', error);
+    }
+  };
+
+  const handleTestHaDevice = async (device) => {
+    try {
+      await api.haDeviceOn(device.deviceId);
+      setTimeout(async () => {
+        await api.haDeviceOff(device.deviceId);
+      }, 2000);
+    } catch (error) {
+      console.error('Home Assistant test failed:', error);
+    }
+  };
+
   const handleCommissionMatterDevice = async (device) => {
     if (!device.pairingCode) {
       alert('No pairing code found for this device. Please add the pairing code in device settings.');
@@ -948,6 +1051,7 @@ function DeviceTab() {
     if (device.brand === 'govee') return { name, label: 'SKU', value: device.sku };
     if (device.brand === 'tuya') return { name, label: 'Device ID', value: device.deviceId };
     if (device.brand === 'tapo') return { name, label: 'IP', value: device.ip };
+    if (device.brand === 'homeassistant') return { name, label: 'Entity', value: device.deviceId };
     return { name, label: 'IP', value: device.ip + (device.childId ? ` (Child: ${device.childId})` : '') };
   };
 
@@ -976,7 +1080,7 @@ function DeviceTab() {
               <div key={device.id} className="configured-device-item">
                 <div className="device-badges">
                   <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'matter' ? 'Matter' : 'TPLink'}
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'homeassistant' ? 'HA' : device.brand === 'matter' ? 'Matter' : 'TPLink'}
                   </span>
                   {device.childId && (
                     <span className="device-brand-badge brand-strip">Strip</span>
@@ -1042,7 +1146,7 @@ function DeviceTab() {
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
-                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : device.brand === 'tapo' ? handleTestTapoDevice(device) : handleTestDevice(device.ip, device.childId)}
+                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : device.brand === 'tapo' ? handleTestTapoDevice(device) : device.brand === 'homeassistant' ? handleTestHaDevice(device) : handleTestDevice(device.ip, device.childId)}
                   >
                     Test
                   </button>
@@ -1560,6 +1664,97 @@ function DeviceTab() {
                     </button>
                   </div>
                   {tapoError && <div className="discovery-error">{tapoError}</div>}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Home Assistant Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('homeassistant')}>
+              <span>Home Assistant</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {haConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.homeassistant ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.homeassistant && (
+            <div className="settings-subsection-content">
+              {!haConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">Connect to Home Assistant to control Tapo and other HA-managed devices via its REST API.</p>
+                  <p className="form-hint" style={{ color: 'var(--warning-color)', fontSize: '0.85em' }}>
+                    Create a <strong>Long-Lived Access Token</strong> in HA: Profile → Security → Long-Lived Access Tokens
+                  </p>
+                  <div className="connect-row">
+                    <input
+                      type="text"
+                      value={haUrl}
+                      onChange={(e) => setHaUrl(e.target.value)}
+                      placeholder={hasHaCredentials ? 'URL saved - enter new to replace' : 'http://192.168.1.50:8123'}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={haToken}
+                      onChange={(e) => setHaToken(e.target.value)}
+                      placeholder={hasHaCredentials ? 'Enter new token' : 'Long-Lived Access Token'}
+                      onKeyDown={(e) => e.key === 'Enter' && handleHaConnect()}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleHaConnect}
+                      disabled={haConnecting || !haUrl.trim() || !haToken.trim()}
+                    >
+                      {haConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {hasHaCredentials && <p className="api-key-status">Credentials are securely stored (encrypted)</p>}
+                  {haError && <div className="discovery-error">{haError}</div>}
+                </div>
+              ) : (
+                <>
+                  <div className="integration-connected">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleHaScan}
+                      disabled={scanningHa}
+                      style={{ marginRight: '8px' }}
+                    >
+                      {scanningHa ? 'Scanning...' : 'Discover Devices'}
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={handleHaDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {haError && <div className="discovery-error">{haError}</div>}
+                  {discoveredHa.length > 0 && (
+                    <div className="discovered-devices">
+                      <h4>Discovered Switches ({discoveredHa.length})</h4>
+                      {discoveredHa.map((device) => (
+                        <div key={device.entityId} className="discovered-device">
+                          <div className="device-info">
+                            <strong>{device.name}</strong>
+                            <span className="device-id">{device.entityId}</span>
+                            <span className={`device-state ${device.state}`}>{device.state}</span>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => handleAddHaDevice(device)}
+                          >
+                            Add
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
             </div>
