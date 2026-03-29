@@ -22,13 +22,16 @@ class HomeAssistantService {
     this.url = url ? url.replace(/\/+$/, '') : null;
     this.token = token;
     log.info(`Configured for ${this.url || '(not set)'}`);
+    log.info(`Token: ${this.token ? this.token.substring(0, 8) + '...' : '(not set)'}`);
   }
 
   /**
    * Check if credentials are configured
    */
   isConnected() {
-    return !!(this.url && this.token);
+    const connected = !!(this.url && this.token);
+    log.info(`Connection check: ${connected ? 'configured' : 'not configured'} (url=${!!this.url}, token=${!!this.token})`);
+    return connected;
   }
 
   /**
@@ -45,8 +48,12 @@ class HomeAssistantService {
    */
   async request(method, endpoint, body = null) {
     if (!this.url || !this.token) {
+      log.error(`Request failed - not configured (url=${!!this.url}, token=${!!this.token})`);
       throw new Error('Home Assistant not configured');
     }
+
+    const fullUrl = `${this.url}/api${endpoint}`;
+    log.info(`${method} ${fullUrl}${body ? ' body=' + JSON.stringify(body) : ''}`);
 
     const options = {
       method,
@@ -60,15 +67,31 @@ class HomeAssistantService {
       options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(`${this.url}/api${endpoint}`, options);
+    const startTime = Date.now();
+    let response;
+    try {
+      response = await fetch(fullUrl, options);
+    } catch (error) {
+      const elapsed = Date.now() - startTime;
+      log.error(`${method} ${endpoint} - network error after ${elapsed}ms: ${error.message}`);
+      if (error.cause) log.error(`  cause: ${error.cause.message || error.cause}`);
+      throw new Error(`Home Assistant unreachable: ${error.message}`);
+    }
+
+    const elapsed = Date.now() - startTime;
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Home Assistant API error: ${response.status} - ${error}`);
+      const errorBody = await response.text();
+      log.error(`${method} ${endpoint} - HTTP ${response.status} ${response.statusText} (${elapsed}ms)`);
+      log.error(`  Response body: ${errorBody.substring(0, 500)}`);
+      throw new Error(`Home Assistant API error: ${response.status} - ${errorBody}`);
     }
 
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    const result = text ? JSON.parse(text) : {};
+    const dataSize = Array.isArray(result) ? `${result.length} items` : `${text.length} bytes`;
+    log.info(`${method} ${endpoint} - OK (${elapsed}ms, ${dataSize})`);
+    return result;
   }
 
   /**
@@ -76,11 +99,14 @@ class HomeAssistantService {
    * @returns {Promise<boolean>}
    */
   async testConnection() {
+    log.info(`Testing connection to ${this.url}`);
     try {
       const result = await this.request('GET', '/');
-      return !!result.message; // HA returns { "message": "API running." }
+      const success = !!result.message;
+      log.info(`Connection test ${success ? 'PASSED' : 'FAILED'}: ${JSON.stringify(result)}`);
+      return success;
     } catch (error) {
-      log.error('Connection test failed:', error.message);
+      log.error(`Connection test FAILED: ${error.message}`);
       return false;
     }
   }
@@ -90,10 +116,12 @@ class HomeAssistantService {
    * @returns {Promise<Array>} Array of switch entities
    */
   async listDevices() {
+    log.info('Discovering switch entities...');
     const states = await this.request('GET', '/states');
+    log.info(`Got ${states.length} total entities from HA`);
 
     // Filter to switch entities (covers smart plugs/outlets)
-    return states
+    const switches = states
       .filter(entity => entity.entity_id.startsWith('switch.'))
       .map(entity => ({
         entityId: entity.entity_id,
@@ -102,6 +130,10 @@ class HomeAssistantService {
         deviceClass: entity.attributes.device_class || null,
         icon: entity.attributes.icon || null,
       }));
+
+    log.info(`Found ${switches.length} switch entities:`);
+    switches.forEach(s => log.info(`  ${s.entityId} "${s.name}" state=${s.state}`));
+    return switches;
   }
 
   /**
@@ -110,9 +142,15 @@ class HomeAssistantService {
    */
   async turnOn(entityId) {
     log.info(`Turning ON ${entityId}`);
-    await this.request('POST', '/services/switch/turn_on', {
-      entity_id: entityId,
-    });
+    try {
+      await this.request('POST', '/services/switch/turn_on', {
+        entity_id: entityId,
+      });
+      log.info(`Turn ON ${entityId} - success`);
+    } catch (error) {
+      log.error(`Turn ON ${entityId} - FAILED: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -121,9 +159,15 @@ class HomeAssistantService {
    */
   async turnOff(entityId) {
     log.info(`Turning OFF ${entityId}`);
-    await this.request('POST', '/services/switch/turn_off', {
-      entity_id: entityId,
-    });
+    try {
+      await this.request('POST', '/services/switch/turn_off', {
+        entity_id: entityId,
+      });
+      log.info(`Turn OFF ${entityId} - success`);
+    } catch (error) {
+      log.error(`Turn OFF ${entityId} - FAILED: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -132,8 +176,16 @@ class HomeAssistantService {
    * @returns {Promise<string>} 'on' or 'off'
    */
   async getPowerState(entityId) {
-    const states = await this.request('GET', `/states/${entityId}`);
-    return states.state === 'on' ? 'on' : 'off';
+    log.info(`Getting power state for ${entityId}`);
+    try {
+      const data = await this.request('GET', `/states/${entityId}`);
+      const state = data.state === 'on' ? 'on' : 'off';
+      log.info(`${entityId} state=${state} (raw=${data.state})`);
+      return state;
+    } catch (error) {
+      log.error(`Get power state ${entityId} - FAILED: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -142,13 +194,21 @@ class HomeAssistantService {
    * @returns {Promise<Object>}
    */
   async getEntityInfo(entityId) {
-    const state = await this.request('GET', `/states/${entityId}`);
-    return {
-      entityId: state.entity_id,
-      name: state.attributes.friendly_name || state.entity_id,
-      state: state.state,
-      attributes: state.attributes,
-    };
+    log.info(`Getting entity info for ${entityId}`);
+    try {
+      const data = await this.request('GET', `/states/${entityId}`);
+      const info = {
+        entityId: data.entity_id,
+        name: data.attributes.friendly_name || data.entity_id,
+        state: data.state,
+        attributes: data.attributes,
+      };
+      log.info(`${entityId} info: name="${info.name}" state=${info.state} attrs=${Object.keys(data.attributes).join(',')}`);
+      return info;
+    } catch (error) {
+      log.error(`Get entity info ${entityId} - FAILED: ${error.message}`);
+      throw error;
+    }
   }
 }
 
