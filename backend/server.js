@@ -2643,10 +2643,11 @@ function substituteAllVariables(text, context = {}) {
 
   let result = text;
 
-  // Player name
+  // Player name — support both [Player] and SillyTavern {{user}} macro
   const playerName = context.playerName || sessionState.playerName;
   if (playerName) {
     result = result.replace(/\[Player\]/gi, playerName);
+    result = result.replace(/\{\{user\}\}/gi, playerName);
   }
 
   // Gender pronouns - context-aware substitution based on PLAYER persona
@@ -2662,10 +2663,11 @@ function substituteAllVariables(text, context = {}) {
     }
   }
 
-  // Character name
+  // Character name — support both [Char] and SillyTavern {{char}} macro
   const charName = context.characterName || sessionState.characterName;
   if (charName) {
     result = result.replace(/\[Char\]/gi, charName);
+    result = result.replace(/\{\{char\}\}/gi, charName);
   }
 
   // Session state variables
@@ -7127,22 +7129,41 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   if (mode === 'guided' || mode === 'guided_impersonate') {
     const speakerTag = mode === 'guided_impersonate' ? '[Player]' : '[Char]';
     if (guidedText) {
-      // Add guidance prominently in prompt and system prompt
-      prompt += `\n[Direction: ${guidedText}]\n`;
-      prompt += `${speakerTag}:`;
-      systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
+      if (mode === 'guided_impersonate') {
+        // Impersonate with context — instruct to write as player using the provided text as basis
+        prompt += `\n[Write your next message from the perspective of ${playerName}, using the following as the basis for the message context: "${guidedText}"]\n`;
+        prompt += `${speakerTag}:`;
+        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
+Write your next response as ${playerName}, using this as the basis for what ${playerName} says and does: "${guidedText}"
+- This is the central focus of your message - not just a suggestion
+- Your entire response should directly address or embody this direction
+- Do NOT repeat the guidance text verbatim, but make it the core subject matter
+- Everything you write should relate back to this guidance`;
+      } else {
+        // Guided character generation
+        prompt += `\n[Direction: ${guidedText}]\n`;
+        prompt += `${speakerTag}:`;
+        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
 Your response MUST be about: "${guidedText}"
 - This is the central focus of your message - not just a suggestion
 - Your entire response should directly address or embody this direction
 - Do NOT repeat the guidance text verbatim, but make it the core subject matter
 - Everything you write should relate back to this guidance`;
+      }
     } else {
-      // No guidance - just signal the speaker's turn with a clear newline
-      prompt += `\n${speakerTag}:`;
+      if (mode === 'guided_impersonate') {
+        // Pure impersonate (no context text) — instruct to write as player
+        prompt += `\n[Write your next message from the perspective of ${playerName}]\n`;
+        prompt += `${speakerTag}:`;
+      } else {
+        // No guidance - just signal the speaker's turn with a clear newline
+        prompt += `\n${speakerTag}:`;
+      }
     }
   } else if (mode === 'impersonate') {
     // For pure impersonate - generate as player
-    prompt += `\n[Player]:`;
+    prompt += `\n[Write your next message from the perspective of ${playerName}]\n`;
+    prompt += `[Player]:`;
   } else {
     // Default - generate as character
     prompt += `\n[Char]:`;

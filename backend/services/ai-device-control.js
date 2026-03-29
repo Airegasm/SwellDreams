@@ -39,6 +39,7 @@ const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\
 const PUMP_ACTIVITY_PHRASES = [
   // Direct pump references (word boundaries added to prevent "machine" matching "machinery")
   /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*(pump|compressor|machine)\b/i,
+  /\b(turn|turns|turned|turning)\s+(?:the\s+)?(pump|compressor|machine)\s+(up|on|higher)\b/i,
   /\b(start|starts|started|starting)\s+\w*\s*(pump|compressor|machine)\b/i,
   /\b(activate|activates|activated|activating)\s+\w*\s*(pump|compressor|machine)\b/i,
   /\b(engage|engages|engaged|engaging)\s+\w*\s*(pump|compressor|machine)\b/i,
@@ -86,6 +87,7 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(grasp|grasps|grasped|grasping|grab|grabs|grabbed|grabbing|grip|grips|gripped|gripping)\s+.*?(dial|knob|control|handle|lever|valve)/i,
   /\b(turn|turns|turned|turning)\s+(it|the\s+dial|the\s+knob|the\s+valve)\s*(to|and)?\s*(start|begin|increase|restart)?/i,
   /\b(turn|turns|turned|turning)\s+the\s+(dial|knob|valve)/i,
+  /\b(turn|turns|turned|turning)\s+(?:the\s+)?(?:pump|machine|compressor)\s+(dial|knob|valve|control)/i,
   /\b(turn|turns|turned|turning)\s*.*?\s*(dial|knob|valve|control|lever)/i,
   /\b(open|opens|opened|opening)\s+(the\s+)?(valve|release)/i,
 

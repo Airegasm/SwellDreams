@@ -43,6 +43,9 @@ tapo-test*.py
 NUL
 CLAUDE.md
 
+# CodeGraph
+.codegraph/
+
 # Matter SDK and build artifacts
 connectedhomeip/
 c:SwellDreamsbackendbinchip-tool/

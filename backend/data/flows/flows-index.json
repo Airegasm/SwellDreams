@@ -144,18 +144,6 @@
     "description": "Random stage assessment — early, mid, or terminal phase with appropriate device actions."
   },
   {
-    "id": "flow-exec-scarlett-reactions",
-    "name": "Executress Reactions",
-    "characterId": null,
-    "description": "Keyword triggers for Executress Scarlett - clinical cruelty, professional detachment, and execution protocol"
-  },
-  {
-    "id": "flow-exec-scarlett-session-start",
-    "name": "Execution Session Start",
-    "characterId": null,
-    "description": "First message triggers random execution chamber introduction"
-  },
-  {
     "id": "flow-global-001",
     "name": "Ambient Pressure Sensations",
     "characterId": null,

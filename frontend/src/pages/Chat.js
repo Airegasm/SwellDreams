@@ -893,8 +893,15 @@ function Chat() {
 
     // For impersonate mode, we want the text back to edit before sending
     if (mode === 'guided_impersonate') {
+      // Save input text to history so up-arrow can recall it for retry
+      const guidanceText = inputValue.trim();
+      if (guidanceText) {
+        setMessageHistory(prev => [...prev, guidanceText]);
+        setHistoryIndex(-1);
+        setCurrentDraft('');
+      }
       sendWsMessage('impersonate_request', {
-        guidedText: inputValue.trim() || null
+        guidedText: guidanceText || null
       });
       // Don't clear input yet - we'll populate it with the result
     } else {

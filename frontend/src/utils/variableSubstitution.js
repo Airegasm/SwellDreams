@@ -16,14 +16,16 @@ export function substituteVariables(text, context = {}) {
 
   let result = text;
 
-  // Player name
+  // Player name — support both [Player] and SillyTavern {{user}} macro
   if (context.playerName) {
     result = result.replace(/\[Player\]/gi, context.playerName);
+    result = result.replace(/\{\{user\}\}/gi, context.playerName);
   }
 
-  // Character name
+  // Character name — support both [Char] and SillyTavern {{char}} macro
   if (context.characterName) {
     result = result.replace(/\[Char\]/gi, context.characterName);
+    result = result.replace(/\{\{char\}\}/gi, context.characterName);
   }
 
   // Session state variables

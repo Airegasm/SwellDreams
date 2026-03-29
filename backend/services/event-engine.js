@@ -4849,7 +4849,9 @@ class EventEngine {
     // System variables from session state
     if (this.sessionState) {
       result = result.replace(/\[Player\]/gi, this.sessionState.playerName || 'Player');
+      result = result.replace(/\{\{user\}\}/gi, this.sessionState.playerName || 'Player');
       result = result.replace(/\[Char\]/gi, this.sessionState.characterName || 'Character');
+      result = result.replace(/\{\{char\}\}/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
       // Convert pain number to descriptive label
       const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
