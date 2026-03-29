@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import ImagesTab from '../components/media/ImagesTab';
 import VideosTab from '../components/media/VideosTab';
 import AudioTab from '../components/media/AudioTab';
+import MediaReferenceCard from '../components/media/MediaReferenceCard';
 import './Settings.css';
 import './MediaAlbum.css';
 
@@ -99,6 +100,8 @@ function MediaAlbum() {
             </button>
           ))}
         </div>
+
+        <MediaReferenceCard />
 
         <div className="tab-content">
           {renderTabContent()}
