@@ -92,6 +92,36 @@
   text-underline-offset: 3px;
 }
 
+/* Checkpoint sub-tabs for pumpable characters */
+.checkpoint-subtabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: var(--spacing-xs);
+}
+
+.checkpoint-subtab {
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.checkpoint-subtab:hover {
+  color: white;
+}
+
+.checkpoint-subtab.active {
+  color: white;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Modal Body - Card background matching Settings */
 .character-modal-body {
   padding: var(--spacing-lg);
@@ -1465,3 +1495,194 @@
 }
 
 /* Scrollbar styles already defined above - removed duplicate */
+
+/* ======================================== */
+/* Staged Portraits / Portrait Media Grid   */
+/* ======================================== */
+
+.staged-portraits-section {
+  padding: var(--spacing-sm) 0;
+}
+
+.staged-portraits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.staged-portrait-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.staged-portrait-card.pop-range {
+  border-color: var(--accent-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.staged-portrait-label {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.media-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.media-slot-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.staged-portrait-upload {
+  aspect-ratio: 3/4;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease;
+}
+
+.staged-portrait-upload:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.staged-portrait-upload.transition-slot {
+  aspect-ratio: 3/4;
+  border-style: dotted;
+}
+
+.staged-portrait-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: calc(var(--border-radius) - 2px);
+}
+
+.staged-portrait-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-muted);
+}
+
+.upload-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.upload-hint {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.staged-portrait-remove {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  align-self: center;
+}
+
+/* Portrait Crop Editor */
+.portrait-crop-editor {
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.portrait-crop-editor h4 {
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 0.95rem;
+}
+
+.crop-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.crop-controls label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.crop-controls input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Checkpoint Spoiler Toggle */
+.checkpoint-field {
+  position: relative;
+}
+
+.checkpoint-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.checkpoint-spoiler-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--border-radius);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.checkpoint-spoiler-toggle:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.spoiler-eye {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.spoiler-label {
+  white-space: nowrap;
+}
+
+.checkpoint-spoiler-wrap {
+  position: relative;
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease;
+}
+
+.checkpoint-spoiler-wrap.revealed {
+  filter: none;
+  user-select: auto;
+  pointer-events: auto;
+}

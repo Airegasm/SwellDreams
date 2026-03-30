@@ -18,17 +18,24 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
 /**
- * Check if a string is a base64 data URI
+ * Check if a string is a base64 data URI (image)
  */
 function isBase64DataUri(str) {
   return str && typeof str === 'string' && str.startsWith('data:image/');
 }
 
 /**
- * Check if a string is an image path (not base64)
+ * Check if a string is a media path (not base64)
  */
 function isImagePath(str) {
   return str && typeof str === 'string' && str.startsWith('/api/images/');
+}
+
+/**
+ * Check if a filename is a video based on extension
+ */
+function isVideoFile(filename) {
+  return /\.(mp4|webm|mov|avi|mkv)$/i.test(filename);
 }
 
 /**
@@ -176,16 +183,17 @@ async function processPersonaImages(persona, isDefault = false) {
     processed.avatar = await savePersonaImage(persona.id, processed.avatar, 'avatar', isDefault);
   }
 
-  // Process staged portraits
-  if (processed.stagedPortraits && Array.isArray(processed.stagedPortraits)) {
-    processed.stagedPortraits = await Promise.all(
-      processed.stagedPortraits.map(async (portrait, index) => {
-        if (portrait && isBase64DataUri(portrait)) {
-          return await savePersonaImage(persona.id, portrait, `staged-${index}`, isDefault);
-        }
-        return portrait;
-      })
-    );
+  // Process staged portraits (object keyed by rangeId, e.g. { range_5_10: "data:image/..." })
+  if (processed.stagedPortraits && typeof processed.stagedPortraits === 'object' && !Array.isArray(processed.stagedPortraits)) {
+    const processedPortraits = {};
+    for (const [rangeId, imageData] of Object.entries(processed.stagedPortraits)) {
+      if (imageData && isBase64DataUri(imageData)) {
+        processedPortraits[rangeId] = await savePersonaImage(persona.id, imageData, `staged-${rangeId}`, isDefault);
+      } else {
+        processedPortraits[rangeId] = imageData;
+      }
+    }
+    processed.stagedPortraits = processedPortraits;
   }
 
   return processed;
@@ -403,6 +411,103 @@ async function findCharacterLocation(charId) {
   return { exists: false, isDefault: false };
 }
 
+/**
+ * Save a video/media file to disk from a buffer
+ * @param {string} entityType - 'chars' or 'personas'
+ * @param {string} entityId - Entity UUID
+ * @param {boolean} isDefault - Default or custom
+ * @param {string} slot - Slot name (e.g., 'idle-range_5_10', 'trans-range_11_20', 'trans-burst')
+ * @param {Buffer} buffer - File data
+ * @param {string} ext - File extension (e.g., 'mp4', 'webm')
+ * @returns {string} API URL path
+ */
+async function savePortraitMedia(entityType, entityId, isDefault, slot, buffer, ext) {
+  const folder = isDefault ? 'default' : 'custom';
+  const baseDir = entityType === 'personas'
+    ? getPersonaDir(entityId, isDefault)
+    : getCharacterDir(entityId, isDefault);
+  const imgDir = path.join(baseDir, 'img');
+  await ensureDir(imgDir);
+
+  // Remove any existing file for this slot (may have different extension)
+  await deleteSlotFiles(imgDir, slot);
+
+  const filename = `${slot}.${ext}`;
+  const filePath = path.join(imgDir, filename);
+  await fs.writeFile(filePath, buffer);
+
+  return `/api/images/${entityType}/${folder}/${entityId}/${filename}`;
+}
+
+/**
+ * Delete all files matching a slot prefix (handles extension changes)
+ */
+async function deleteSlotFiles(imgDir, slot) {
+  try {
+    const files = await fs.readdir(imgDir);
+    for (const file of files) {
+      const nameWithoutExt = file.replace(/\.[^.]+$/, '');
+      if (nameWithoutExt === slot) {
+        await fs.unlink(path.join(imgDir, file));
+      }
+    }
+  } catch (err) {
+    // Directory may not exist yet
+  }
+}
+
+/**
+ * Delete a specific portrait media slot
+ * @param {string} entityType - 'chars' or 'personas'
+ * @param {string} entityId - Entity UUID
+ * @param {boolean} isDefault - Default or custom
+ * @param {string} slot - Slot name to delete
+ */
+async function deletePortraitMedia(entityType, entityId, isDefault, slot) {
+  const baseDir = entityType === 'personas'
+    ? getPersonaDir(entityId, isDefault)
+    : getCharacterDir(entityId, isDefault);
+  const imgDir = path.join(baseDir, 'img');
+  await deleteSlotFiles(imgDir, slot);
+}
+
+/**
+ * List all media files in an entity's img directory
+ * @param {string} entityType - 'chars' or 'personas'
+ * @param {string} entityId - Entity UUID
+ * @param {boolean} isDefault - Default or custom
+ * @returns {Array<{filename: string, slot: string, isVideo: boolean, path: string}>}
+ */
+async function listPortraitMedia(entityType, entityId, isDefault) {
+  const baseDir = entityType === 'personas'
+    ? getPersonaDir(entityId, isDefault)
+    : getCharacterDir(entityId, isDefault);
+  const imgDir = path.join(baseDir, 'img');
+  const folder = isDefault ? 'default' : 'custom';
+
+  try {
+    const files = await fs.readdir(imgDir);
+    return files.map(filename => ({
+      filename,
+      slot: filename.replace(/\.[^.]+$/, ''),
+      isVideo: isVideoFile(filename),
+      path: `/api/images/${entityType}/${folder}/${entityId}/${filename}`
+    }));
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Get the full filesystem path to an entity's img directory
+ */
+function getImgDir(entityType, entityId, isDefault) {
+  const baseDir = entityType === 'personas'
+    ? getPersonaDir(entityId, isDefault)
+    : getCharacterDir(entityId, isDefault);
+  return path.join(baseDir, 'img');
+}
+
 module.exports = {
   isBase64DataUri,
   isImagePath,
@@ -424,5 +529,10 @@ module.exports = {
   findPersonaLocation,
   findCharacterLocation,
   ensureDir,
+  isVideoFile,
+  savePortraitMedia,
+  deletePortraitMedia,
+  listPortraitMedia,
+  getImgDir,
   DATA_DIR
 };

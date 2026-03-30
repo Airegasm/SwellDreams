@@ -891,10 +891,10 @@ function ImageCropModal({ image, onSave, onCancel }) {
   const [dragging, setDragging] = React.useState(false);
   const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
 
-  // Output dimensions: 3:4 portrait aspect ratio
+  // Output dimensions: 9:16 portrait aspect ratio
   const OUTPUT_WIDTH = 512;
-  const OUTPUT_HEIGHT = 683;
-  const ASPECT_RATIO = 3 / 4;
+  const OUTPUT_HEIGHT = 911;
+  const ASPECT_RATIO = 9 / 16;
 
   // Load image
   React.useEffect(() => {

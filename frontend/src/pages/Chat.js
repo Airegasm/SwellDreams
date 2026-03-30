@@ -9,7 +9,8 @@ import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
 import { parseMediaVariables } from '../utils/mediaVariables';
-import { getPortraitForCapacity } from '../utils/stagedPortraits';
+import { getPortraitForCapacity, getPortraitTransition } from '../utils/stagedPortraits';
+import PortraitDisplay from '../components/chat/PortraitDisplay';
 import StatusBadges from '../components/StatusBadges';
 import { EMOTIONS } from '../constants/stateValues';
 import MediaBubble from '../components/chat/MediaBubble';
@@ -227,22 +228,47 @@ function Chat() {
     return 101; // Default fallback
   }, [settings?.globalCharacterControls]);
 
+  // Track previous capacity values for transition detection
+  const prevPersonaCapRef = useRef(0);
+  const prevCharCapRef = useRef(0);
+
   // Memoized persona portrait based on capacity - changes automatically with staged portraits
   const personaPortrait = useMemo(() => {
     return getPortraitForCapacity(activePersona, sessionState.capacity || 0, effectivePopThreshold);
   }, [activePersona, sessionState.capacity, effectivePopThreshold]);
 
+  // Rich persona portrait data (for PortraitDisplay with video/transition support)
+  const personaPortraitData = useMemo(() => {
+    const data = getPortraitTransition(activePersona, prevPersonaCapRef.current, sessionState.capacity || 0, effectivePopThreshold);
+    prevPersonaCapRef.current = sessionState.capacity || 0;
+    return data;
+  }, [activePersona, sessionState.capacity, effectivePopThreshold]);
+
   // Memoized character portrait based on character capacity - changes with staged portraits
   const characterPortrait = useMemo(() => {
-    if (!activeCharacter?.isPumpable || !activeCharacter?.charStagedPortraits) {
+    if (!activeCharacter?.isPumpable && !activeCharacter?.charStagedPortraits && !activeCharacter?.charPortraitMedia) {
       return activeCharacter?.avatar || null;
     }
-    // Create a pseudo-persona object for getPortraitForCapacity
     const charAsPortraitSource = {
-      avatar: activeCharacter.avatar,
-      stagedPortraits: activeCharacter.charStagedPortraits
+      avatar: activeCharacter?.avatar,
+      stagedPortraits: activeCharacter?.charStagedPortraits,
+      charPortraitMedia: activeCharacter?.charPortraitMedia,
+      charPortraitCrop: activeCharacter?.charPortraitCrop
     };
-    return getPortraitForCapacity(charAsPortraitSource, sessionState.characterCapacity || 0, activeCharacter.charBurstPercent || 100);
+    return getPortraitForCapacity(charAsPortraitSource, sessionState.characterCapacity || 0, activeCharacter?.charBurstPercent || 100);
+  }, [activeCharacter, sessionState.characterCapacity]);
+
+  // Rich character portrait data (for PortraitDisplay with video/transition support)
+  const characterPortraitData = useMemo(() => {
+    const charAsPortraitSource = {
+      avatar: activeCharacter?.avatar,
+      stagedPortraits: activeCharacter?.charStagedPortraits,
+      charPortraitMedia: activeCharacter?.charPortraitMedia,
+      charPortraitCrop: activeCharacter?.charPortraitCrop
+    };
+    const data = getPortraitTransition(charAsPortraitSource, prevCharCapRef.current, sessionState.characterCapacity || 0, activeCharacter?.charBurstPercent || 100);
+    prevCharCapRef.current = sessionState.characterCapacity || 0;
+    return data;
   }, [activeCharacter, sessionState.characterCapacity]);
 
   // Reset action page when character changes
@@ -1293,11 +1319,7 @@ function Chat() {
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
         <div className={`entity-portrait-large ${personaHidden ? 'portrait-hidden' : ''}`}>
-          {personaPortrait ? (
-            <img src={personaPortrait} alt={activePersona?.displayName} />
-          ) : (
-            <div className="portrait-placeholder">?</div>
-          )}
+          <PortraitDisplay portrait={personaPortraitData} alt={activePersona?.displayName} />
           {/* Visibility toggle */}
           <button
             className={`portrait-visibility-toggle ${personaHidden ? 'hidden' : ''}`}
@@ -1838,11 +1860,7 @@ function Chat() {
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Character Portrait */}
         <div className={`entity-portrait-large ${characterHidden ? 'portrait-hidden' : ''}`}>
-          {characterPortrait ? (
-            <img src={characterPortrait} alt={activeCharacter?.name} />
-          ) : (
-            <div className="portrait-placeholder">?</div>
-          )}
+          <PortraitDisplay portrait={characterPortraitData} alt={activeCharacter?.name} />
           {/* Visibility toggle */}
           <button
             className={`portrait-visibility-toggle ${characterHidden ? 'hidden' : ''}`}

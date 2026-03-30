@@ -77,6 +77,12 @@ function migrateStoryToV2(story, character) {
 function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const { flows, devices, settings, personas, api } = useApp();
 
+  // Player's primary pump calibration time
+  const playerPumpCalibration = useMemo(() => {
+    const pump = devices?.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    return pump?.calibrationTime || null;
+  }, [devices]);
+
   // System-level global reminders from settings
   const systemGlobalReminders = settings?.globalReminders || [];
 
@@ -162,11 +168,14 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         isPumpable: character.isPumpable || false,
         characterCalibrationTime: character.characterCalibrationTime || 60,
         charBurstPercent: character.charBurstPercent || 100,
+        charSyncCalibrationWithPlayer: character.charSyncCalibrationWithPlayer || false,
         charInflateKnowledge: character.charInflateKnowledge || 'unaware',
         charInflateDesire: character.charInflateDesire || 'neutral',
         charPopDesire: character.charPopDesire || 'terrified',
         charInflateAutoLoadControls: character.charInflateAutoLoadControls || false,
         charStagedPortraits: character.charStagedPortraits || {},
+        charPortraitMedia: character.charPortraitMedia || {},
+        charPortraitCrop: character.charPortraitCrop || { scale: 1, offsetX: 0, offsetY: 0 },
         desireToInflateOthers: character.desireToInflateOthers || 'none',
         desireToPopOthers: character.desireToPopOthers || 'none',
         stories,
@@ -212,11 +221,14 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       isPumpable: false,
       characterCalibrationTime: 60,
       charBurstPercent: 100,
+      charSyncCalibrationWithPlayer: false,
       charInflateKnowledge: 'unaware',
       charInflateDesire: 'neutral',
       charPopDesire: 'terrified',
       charInflateAutoLoadControls: false,
       charStagedPortraits: {},
+      charPortraitMedia: {},
+      charPortraitCrop: { scale: 1, offsetX: 0, offsetY: 0 },
       desireToInflateOthers: 'none',
       desireToPopOthers: 'none',
       stories: [defaultStory],
@@ -271,6 +283,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [editingButtonId, setEditingButtonId] = useState(null);
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
   const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
+  const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState(null);
   const [reminderForm, setReminderForm] = useState({
@@ -296,6 +309,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [enhancingScenario, setEnhancingScenario] = useState(false);
   const cancelledRef = React.useRef({ welcomeMessage: false, scenario: false });
   const charStagedFileRefs = React.useRef({});
+  const charMediaIdleRefs = React.useRef({});
+  const charMediaTransRefs = React.useRef({});
 
   // Derive POV from active persona's pronouns
   const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
@@ -1029,13 +1044,17 @@ Write only the scenario description itself, no explanations.`;
     }
 
     const activeStory = getActiveStory();
+    // Strip UI-only fields from stories before save
+    const cleanedStories = (formData.stories || []).map(({ _checkpointSubTab, ...story }) => story);
     const saveData = {
       ...formData,
+      stories: cleanedStories,
       activeStoryId: activeStory?.id || formData.stories?.[0]?.id,
       // Backwards compatibility
       autoReplyEnabled: activeStory?.autoReplyEnabled || false,
       allowLlmDeviceAccess: activeStory?.allowLlmDeviceAccess || false,
       pumpOnEveryReply: activeStory?.pumpOnEveryReply || false,
+      characterCheckpoints: activeStory?.characterCheckpoints || {},
       startingEmotion: activeStory?.startingEmotion || 'neutral',
       assignedFlows: activeStory?.assignedFlows || [],
       exampleDialogues: activeStory?.exampleDialogues || [],
@@ -1076,7 +1095,7 @@ Write only the scenario description itself, no explanations.`;
     setUploadedImage(null);
   };
 
-  // Character staged portrait handlers
+  // Character staged portrait handlers (legacy image-only)
   const handleCharStagedImageClick = (rangeId) => {
     charStagedFileRefs.current[rangeId]?.click();
   };
@@ -1102,6 +1121,114 @@ Write only the scenario description itself, no explanations.`;
     const updated = { ...formData.charStagedPortraits };
     delete updated[rangeId];
     setFormData(prev => ({ ...prev, charStagedPortraits: updated }));
+  };
+
+  // Portrait media handlers (new format with video support)
+
+  const uploadPortraitMedia = async (file, slot) => {
+    if (!character?.id) return null;
+    const folder = character._isDefault ? 'default' : 'custom';
+    const form = new FormData();
+    form.append('file', file);
+    form.append('slot', slot);
+    try {
+      const res = await fetch(`${window.location.protocol}//${window.location.hostname}:${window.location.port || 3001}/api/portrait-media/chars/${folder}/${character.id}`, {
+        method: 'POST',
+        body: form
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      return await res.json();
+    } catch (err) {
+      console.error('[PortraitMedia] Upload error:', err);
+      return null;
+    }
+  };
+
+  const handleIdleUpload = async (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isVideo && !isImage) return;
+
+    if (isImage) {
+      // Images still go through base64 for the crop flow, stored in legacy field too
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        setFormData(prev => ({
+          ...prev,
+          charStagedPortraits: { ...prev.charStagedPortraits, [rangeId]: url },
+          charPortraitMedia: {
+            ...prev.charPortraitMedia,
+            [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), idle: url, idleType: 'image' }
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Videos upload directly to server
+      const slot = `idle-${rangeId}`;
+      const result = await uploadPortraitMedia(file, slot);
+      if (result?.url) {
+        setFormData(prev => ({
+          ...prev,
+          charPortraitMedia: {
+            ...prev.charPortraitMedia,
+            [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), idle: result.url, idleType: 'video' }
+          }
+        }));
+      }
+    }
+  };
+
+  const handleTransUpload = async (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('video/')) return;
+    e.target.value = '';
+
+    const slot = `trans-${rangeId}`;
+    const result = await uploadPortraitMedia(file, slot);
+    if (result?.url) {
+      setFormData(prev => ({
+        ...prev,
+        charPortraitMedia: {
+          ...prev.charPortraitMedia,
+          [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), trans: result.url }
+        }
+      }));
+    }
+  };
+
+  const handleRemoveIdle = (rangeId) => {
+    const updated = { ...formData.charPortraitMedia };
+    if (updated[rangeId]) {
+      delete updated[rangeId].idle;
+      delete updated[rangeId].idleType;
+      if (!updated[rangeId].trans) delete updated[rangeId];
+    }
+    // Also remove from legacy
+    const legacyUpdated = { ...formData.charStagedPortraits };
+    delete legacyUpdated[rangeId];
+    setFormData(prev => ({ ...prev, charPortraitMedia: updated, charStagedPortraits: legacyUpdated }));
+  };
+
+  const handleRemoveTrans = (rangeId) => {
+    const updated = { ...formData.charPortraitMedia };
+    if (updated[rangeId]) {
+      delete updated[rangeId].trans;
+      if (!updated[rangeId].idle) delete updated[rangeId];
+    }
+    setFormData(prev => ({ ...prev, charPortraitMedia: updated }));
+  };
+
+  const handleCropChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      charPortraitCrop: { ...(prev.charPortraitCrop || { scale: 1, offsetX: 0, offsetY: 0 }), [field]: value }
+    }));
   };
 
   // Button management
@@ -2145,20 +2272,33 @@ Write only the scenario description itself, no explanations.`;
               <div style={{ marginTop: '1rem' }}>
                 <div className="form-group">
                   <label>Calibration Time (seconds)</label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={600}
-                    value={formData.characterCalibrationTime || 60}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      characterCalibrationTime: Math.min(600, Math.max(5, parseInt(e.target.value) || 60))
-                    }))}
-                    style={{ width: '100px' }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      type="number"
+                      min={5}
+                      max={600}
+                      value={formData.charSyncCalibrationWithPlayer ? (playerPumpCalibration || formData.characterCalibrationTime || 60) : (formData.characterCalibrationTime || 60)}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        characterCalibrationTime: Math.min(600, Math.max(5, parseInt(e.target.value) || 60))
+                      }))}
+                      disabled={formData.charSyncCalibrationWithPlayer}
+                      style={{ width: '100px', opacity: formData.charSyncCalibrationWithPlayer ? 0.5 : 1 }}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.charSyncCalibrationWithPlayer || false}
+                        onChange={(e) => setFormData(prev => ({ ...prev, charSyncCalibrationWithPlayer: e.target.checked }))}
+                      />
+                      Synchronize with Player Primary Pump
+                    </label>
+                  </div>
                   <div className="form-hint">
                     How many seconds of simulated inflation to reach 100% capacity. This is purely visual — no real devices are triggered.
-                    Use "Character Inflation" flow nodes to start and stop inflation.
+                    {formData.charSyncCalibrationWithPlayer
+                      ? (playerPumpCalibration ? ` Synced to player pump: ${playerPumpCalibration}s.` : ' No primary pump configured yet.')
+                      : ' Use "AI Pump" flow nodes to start and stop inflation.'}
                   </div>
                 </div>
 
@@ -2683,37 +2823,156 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              <h4>Capacity Checkpoints</h4>
-              <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
+              {formData.isPumpable ? (
+                <>
+                  {/* Sub-tab switcher for pumpable characters */}
+                  <div className="checkpoint-subtabs">
+                    <button
+                      className={`checkpoint-subtab ${(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') ? 'active' : ''}`}
+                      onClick={() => updateStoryField('_checkpointSubTab', 'player')}
+                    >
+                      Player Capacity
+                    </button>
+                    <button
+                      className={`checkpoint-subtab ${activeStory?._checkpointSubTab === 'character' ? 'active' : ''}`}
+                      onClick={() => updateStoryField('_checkpointSubTab', 'character')}
+                    >
+                      Character Capacity
+                    </button>
+                  </div>
 
-              {[
-                { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
-                { key: '1-10', label: '1–10%' },
-                { key: '11-20', label: '11–20%' },
-                { key: '21-30', label: '21–30%' },
-                { key: '31-40', label: '31–40%' },
-                { key: '41-50', label: '41–50%' },
-                { key: '51-60', label: '51–60%' },
-                { key: '61-70', label: '61–70%' },
-                { key: '71-80', label: '71–80%' },
-                { key: '81-90', label: '81–90%' },
-                { key: '91-100', label: '91–100%' },
-                { key: '100+', label: '100%+ — Over-Inflation' }
-              ].map(({ key, label, hint }) => (
-                <div className="form-group" key={key}>
-                  <label>{label}</label>
-                  {hint && <p className="section-hint">{hint}</p>}
-                  <textarea
-                    value={activeStory?.checkpoints?.[key] || ''}
-                    onChange={(e) => updateStoryField('checkpoints', {
-                      ...(activeStory?.checkpoints || {}),
-                      [key]: e.target.value
-                    })}
-                    placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                    rows={3}
-                  />
-                </div>
-              ))}
+                  {/* Player Capacity Checkpoints */}
+                  {(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') && (
+                    <>
+                      <h4>Player Capacity Checkpoints</h4>
+                      <p className="section-hint">Author instructions injected into the AI prompt based on the player's current inflation level. Blank ranges are ignored.</p>
+                      {[
+                        { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
+                        { key: '1-10', label: '1–10%' },
+                        { key: '11-20', label: '11–20%' },
+                        { key: '21-30', label: '21–30%' },
+                        { key: '31-40', label: '31–40%' },
+                        { key: '41-50', label: '41–50%' },
+                        { key: '51-60', label: '51–60%' },
+                        { key: '61-70', label: '61–70%' },
+                        { key: '71-80', label: '71–80%' },
+                        { key: '81-90', label: '81–90%' },
+                        { key: '91-100', label: '91–100%' },
+                        { key: '100+', label: '100%+ — Over-Inflation' }
+                      ].map(({ key, label, hint }) => (
+                        <div className="form-group checkpoint-field" key={key}>
+                          <div className="checkpoint-header">
+                            <label>{label}</label>
+                            <button
+                              type="button"
+                              className="checkpoint-spoiler-toggle"
+                              onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: !prev[`player-${key}`] }))}
+                              title={visibleCheckpoints[`player-${key}`] ? 'Hide' : 'Show'}
+                            >
+                              <span className="spoiler-eye">{visibleCheckpoints[`player-${key}`] ? '👁' : '👁‍🗨'}</span>
+                              <span className="spoiler-label">{visibleCheckpoints[`player-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                            </button>
+                          </div>
+                          {hint && <p className="section-hint">{hint}</p>}
+                          <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
+                            <textarea
+                              value={activeStory?.checkpoints?.[key] || ''}
+                              onChange={(e) => updateStoryField('checkpoints', {
+                                ...(activeStory?.checkpoints || {}),
+                                [key]: e.target.value
+                              })}
+                              placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Character Capacity Checkpoints */}
+                  {activeStory?._checkpointSubTab === 'character' && (
+                    <>
+                      <h4>Character Capacity Checkpoints</h4>
+                      <p className="section-hint">Author instructions injected into the AI prompt based on the character's own inflation level. Blank ranges are ignored.</p>
+                      {[
+                        { key: '0', label: '0% — Pre-Inflation', hint: 'Guidance for the character before their own inflation begins.' },
+                        { key: '1-10', label: '1–10%' },
+                        { key: '11-20', label: '11–20%' },
+                        { key: '21-30', label: '21–30%' },
+                        { key: '31-40', label: '31–40%' },
+                        { key: '41-50', label: '41–50%' },
+                        { key: '51-60', label: '51–60%' },
+                        { key: '61-70', label: '61–70%' },
+                        { key: '71-80', label: '71–80%' },
+                        { key: '81-90', label: '81–90%' },
+                        { key: '91-100', label: '91–100%' },
+                        { key: '100+', label: '100%+ — Over-Inflation' }
+                      ].map(({ key, label, hint }) => (
+                        <div className="form-group checkpoint-field" key={key}>
+                          <div className="checkpoint-header">
+                            <label>{label}</label>
+                            <button
+                              type="button"
+                              className="checkpoint-spoiler-toggle"
+                              onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`char-${key}`]: !prev[`char-${key}`] }))}
+                              title={visibleCheckpoints[`char-${key}`] ? 'Hide' : 'Show'}
+                            >
+                              <span className="spoiler-eye">{visibleCheckpoints[`char-${key}`] ? '👁' : '👁‍🗨'}</span>
+                              <span className="spoiler-label">{visibleCheckpoints[`char-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                            </button>
+                          </div>
+                          {hint && <p className="section-hint">{hint}</p>}
+                          <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`char-${key}`] ? 'revealed' : ''}`}>
+                            <textarea
+                              value={activeStory?.characterCheckpoints?.[key] || ''}
+                              onChange={(e) => updateStoryField('characterCheckpoints', {
+                                ...(activeStory?.characterCheckpoints || {}),
+                                [key]: e.target.value
+                              })}
+                              placeholder={key === '0' ? 'e.g. Character is unaware of what inflation feels like...' : `Guidance for character at ${label} capacity...`}
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h4>Capacity Checkpoints</h4>
+                  <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
+                  {[
+                    { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
+                    { key: '1-10', label: '1–10%' },
+                    { key: '11-20', label: '11–20%' },
+                    { key: '21-30', label: '21–30%' },
+                    { key: '31-40', label: '31–40%' },
+                    { key: '41-50', label: '41–50%' },
+                    { key: '51-60', label: '51–60%' },
+                    { key: '61-70', label: '61–70%' },
+                    { key: '71-80', label: '71–80%' },
+                    { key: '81-90', label: '81–90%' },
+                    { key: '91-100', label: '91–100%' },
+                    { key: '100+', label: '100%+ — Over-Inflation' }
+                  ].map(({ key, label, hint }) => (
+                    <div className="form-group" key={key}>
+                      <label>{label}</label>
+                      {hint && <p className="section-hint">{hint}</p>}
+                      <textarea
+                        value={activeStory?.checkpoints?.[key] || ''}
+                        onChange={(e) => updateStoryField('checkpoints', {
+                          ...(activeStory?.checkpoints || {}),
+                          [key]: e.target.value
+                        })}
+                        placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
+                        rows={3}
+                      />
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           </div>
 
@@ -2722,51 +2981,172 @@ Write only the scenario description itself, no explanations.`;
             <div className="modal-body character-modal-body" style={{ display: activeTab === 'charPortraits' ? 'block' : 'none' }}>
               <div className="staged-portraits-section">
                 <p className="section-hint">
-                  Upload different portraits for capacity ranges. The portrait changes automatically as the character's inflation increases.
-                  Capacity below 5% uses the default avatar. If a range has no portrait, the nearest lower range is used.
-                  These images are stored locally and are NOT exported with the character card.
+                  Upload portraits (images or videos) for capacity ranges. Videos loop as idle animations.
+                  Transition videos play once when crossing into a range. Empty slots inherit from the nearest lower range.
+                  {!character?.id && <strong> Save the character first to enable video uploads.</strong>}
                 </p>
-                <div className="staged-portraits-grid">
-                  {STAGED_PORTRAIT_RANGES.map((range) => (
-                    <div key={range.id} className={`staged-portrait-card ${range.isPop ? 'pop-range' : ''}`}>
-                      <div className="staged-portrait-label">{range.label}</div>
-                      <div
-                        className="staged-portrait-upload"
-                        onClick={() => handleCharStagedImageClick(range.id)}
-                      >
-                        {formData.charStagedPortraits?.[range.id] ? (
-                          <img
-                            src={formData.charStagedPortraits[range.id]}
-                            alt={`Portrait for ${range.label}`}
-                            className="staged-portrait-preview"
-                          />
-                        ) : (
-                          <div className="staged-portrait-placeholder">
-                            <span className="upload-icon">+</span>
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        ref={(el) => charStagedFileRefs.current[range.id] = el}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleCharStagedImageUpload(e, range.id)}
-                        style={{ display: 'none' }}
+
+                {/* Export/Import Buttons */}
+                {character?.id && (
+                  <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const folder = character._isDefault ? 'default' : 'custom';
+                        window.open(`/api/export/portrait-media/chars/${folder}/${character.id}`, '_blank');
+                      }}
+                    >
+                      Export Portraits (Zip)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => document.getElementById('portrait-zip-import')?.click()}
+                    >
+                      Import Portraits (Zip)
+                    </button>
+                    <input
+                      id="portrait-zip-import"
+                      type="file"
+                      accept=".zip"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        e.target.value = '';
+                        const folder = character._isDefault ? 'default' : 'custom';
+                        const form = new FormData();
+                        form.append('file', file);
+                        try {
+                          const res = await fetch(`/api/import/portrait-media/chars/${folder}/${character.id}`, {
+                            method: 'POST',
+                            body: form
+                          });
+                          const result = await res.json();
+                          if (result.success) {
+                            alert(`Imported ${result.filesImported} portrait files. Reload the character to see changes.`);
+                          } else {
+                            alert('Import failed: ' + (result.error || 'Unknown error'));
+                          }
+                        } catch (err) {
+                          alert('Import failed: ' + err.message);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Batch Crop/Position */}
+                <div className="portrait-crop-editor">
+                  <h4>Batch Crop / Position</h4>
+                  <p className="section-hint">These values apply to ALL portrait media uniformly.</p>
+                  <div className="crop-controls">
+                    <label>
+                      Scale: {(formData.charPortraitCrop?.scale || 1).toFixed(2)}x
+                      <input type="range" min="0.5" max="2" step="0.05"
+                        value={formData.charPortraitCrop?.scale || 1}
+                        onChange={(e) => handleCropChange('scale', parseFloat(e.target.value))}
                       />
-                      {formData.charStagedPortraits?.[range.id] && (
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm staged-portrait-remove"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveCharStagedPortrait(range.id);
-                          }}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    </label>
+                    <label>
+                      Offset X: {formData.charPortraitCrop?.offsetX || 0}px
+                      <input type="range" min="-100" max="100" step="1"
+                        value={formData.charPortraitCrop?.offsetX || 0}
+                        onChange={(e) => handleCropChange('offsetX', parseInt(e.target.value))}
+                      />
+                    </label>
+                    <label>
+                      Offset Y: {formData.charPortraitCrop?.offsetY || 0}px
+                      <input type="range" min="-100" max="100" step="1"
+                        value={formData.charPortraitCrop?.offsetY || 0}
+                        onChange={(e) => handleCropChange('offsetY', parseInt(e.target.value))}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Range Grid */}
+                <div className="staged-portraits-grid">
+                  {[...STAGED_PORTRAIT_RANGES.filter(r => !r.isPop), { id: 'burst', label: 'BURST', isPop: true }].map((range) => {
+                    const media = formData.charPortraitMedia?.[range.id];
+                    const legacyImg = formData.charStagedPortraits?.[range.id];
+                    const idleUrl = media?.idle || legacyImg;
+                    const idleType = media?.idleType || (idleUrl ? 'image' : null);
+                    const transUrl = media?.trans;
+
+                    return (
+                      <div key={range.id} className={`staged-portrait-card ${range.isPop ? 'pop-range' : ''}`}>
+                        <div className="staged-portrait-label">{range.label}</div>
+
+                        {/* Idle slot */}
+                        <div className="media-slot">
+                          <div className="media-slot-label">Idle {idleType === 'video' ? '(video)' : idleType === 'image' ? '(image)' : ''}</div>
+                          <div
+                            className="staged-portrait-upload"
+                            onClick={() => charMediaIdleRefs.current[range.id]?.click()}
+                          >
+                            {idleUrl ? (
+                              idleType === 'video' ? (
+                                <video src={idleUrl} className="staged-portrait-preview" muted loop autoPlay playsInline />
+                              ) : (
+                                <img src={idleUrl} alt={`Idle for ${range.label}`} className="staged-portrait-preview" />
+                              )
+                            ) : (
+                              <div className="staged-portrait-placeholder">
+                                <span className="upload-icon">+</span>
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            ref={(el) => charMediaIdleRefs.current[range.id] = el}
+                            type="file"
+                            accept="image/*,video/mp4,video/webm"
+                            onChange={(e) => handleIdleUpload(e, range.id)}
+                            style={{ display: 'none' }}
+                          />
+                          {idleUrl && (
+                            <button type="button" className="btn btn-secondary btn-sm staged-portrait-remove"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveIdle(range.id); }}>
+                              Remove
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Transition slot */}
+                        <div className="media-slot">
+                          <div className="media-slot-label">Transition {transUrl ? '(video)' : ''}</div>
+                          <div
+                            className="staged-portrait-upload transition-slot"
+                            onClick={() => character?.id && charMediaTransRefs.current[range.id]?.click()}
+                            style={{ opacity: character?.id ? 1 : 0.4 }}
+                          >
+                            {transUrl ? (
+                              <video src={transUrl} className="staged-portrait-preview" muted playsInline />
+                            ) : (
+                              <div className="staged-portrait-placeholder">
+                                <span className="upload-icon">+</span>
+                                <span className="upload-hint">video</span>
+                              </div>
+                            )}
+                          </div>
+                          <input
+                            ref={(el) => charMediaTransRefs.current[range.id] = el}
+                            type="file"
+                            accept="video/mp4,video/webm"
+                            onChange={(e) => handleTransUpload(e, range.id)}
+                            style={{ display: 'none' }}
+                          />
+                          {transUrl && (
+                            <button type="button" className="btn btn-secondary btn-sm staged-portrait-remove"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveTrans(range.id); }}>
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -2870,8 +3250,8 @@ function ImageCropModal({ image, onSave, onCancel }) {
   const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
 
   const OUTPUT_WIDTH = 512;
-  const OUTPUT_HEIGHT = 683;
-  const ASPECT_RATIO = 3 / 4;
+  const OUTPUT_HEIGHT = 911;
+  const ASPECT_RATIO = 9 / 16;
 
   React.useEffect(() => {
     const img = new Image();

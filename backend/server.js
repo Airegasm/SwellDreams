@@ -218,6 +218,188 @@ app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
   }
 });
 
+// ==================== PORTRAIT MEDIA API ====================
+
+// Multer config for portrait media uploads (disk-based to avoid memory pressure for large videos)
+const portraitUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 200 * 1024 * 1024 } // 200MB max per portrait video
+});
+
+// Upload a portrait media file (image or video) to a specific slot
+app.post('/api/portrait-media/:type/:folder/:id', portraitUpload.single('file'), async (req, res) => {
+  try {
+    const { type, folder, id } = req.params;
+    const { slot } = req.body;
+
+    if (!slot || !req.file) {
+      return res.status(400).json({ error: 'Missing file or slot parameter' });
+    }
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+
+    const isDefault = folder === 'default';
+    const ext = path.extname(req.file.originalname).replace('.', '').toLowerCase() || 'mp4';
+    const url = await imageStorage.savePortraitMedia(type, id, isDefault, slot, req.file.buffer, ext);
+
+    console.log(`[PortraitMedia] Saved ${slot}.${ext} for ${type}/${folder}/${id}`);
+    res.json({ url, slot, isVideo: imageStorage.isVideoFile(`${slot}.${ext}`) });
+  } catch (error) {
+    console.error('[PortraitMedia] Upload error:', error);
+    res.status(500).json({ error: 'Failed to save portrait media' });
+  }
+});
+
+// Delete a portrait media slot
+app.delete('/api/portrait-media/:type/:folder/:id/:slot', async (req, res) => {
+  try {
+    const { type, folder, id, slot } = req.params;
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+
+    const isDefault = folder === 'default';
+    await imageStorage.deletePortraitMedia(type, id, isDefault, slot);
+
+    console.log(`[PortraitMedia] Deleted ${slot} for ${type}/${folder}/${id}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[PortraitMedia] Delete error:', error);
+    res.status(500).json({ error: 'Failed to delete portrait media' });
+  }
+});
+
+// List all portrait media for an entity
+app.get('/api/portrait-media/:type/:folder/:id', async (req, res) => {
+  try {
+    const { type, folder, id } = req.params;
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+
+    const isDefault = folder === 'default';
+    const files = await imageStorage.listPortraitMedia(type, id, isDefault);
+    res.json({ files });
+  } catch (error) {
+    console.error('[PortraitMedia] List error:', error);
+    res.status(500).json({ error: 'Failed to list portrait media' });
+  }
+});
+
+// ==================== PORTRAIT MEDIA ZIP EXPORT/IMPORT ====================
+
+const archiver = require('archiver');
+const AdmZip = require('adm-zip');
+
+// Export all portrait media as a zip
+app.get('/api/export/portrait-media/:type/:folder/:id', async (req, res) => {
+  try {
+    const { type, folder, id } = req.params;
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+
+    const isDefault = folder === 'default';
+    const imgDir = imageStorage.getImgDir(type, id, isDefault);
+
+    try {
+      await require('fs').promises.access(imgDir);
+    } catch {
+      return res.status(404).json({ error: 'No portrait media found' });
+    }
+
+    let entity;
+    if (type === 'chars') {
+      entity = loadCharacter(id);
+    } else {
+      entity = loadPersona(id);
+    }
+
+    const name = entity?.name || entity?.displayName || id;
+    const manifest = {
+      entityType: type,
+      entityId: id,
+      name,
+      portraitMedia: type === 'chars' ? entity?.charPortraitMedia : entity?.portraitMedia,
+      portraitCrop: type === 'chars' ? entity?.charPortraitCrop : entity?.portraitCrop,
+      exportedAt: new Date().toISOString()
+    };
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${name.replace(/[^a-zA-Z0-9]/g, '_')}-portraits.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 5 } });
+    archive.pipe(res);
+    archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
+    archive.directory(imgDir, 'img');
+    await archive.finalize();
+    console.log(`[PortraitMedia] Exported portrait zip for ${type}/${folder}/${id} (${name})`);
+  } catch (error) {
+    console.error('[PortraitMedia] Export error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to export portrait media' });
+    }
+  }
+});
+
+// Import portrait media from a zip
+app.post('/api/import/portrait-media/:type/:folder/:id', portraitUpload.single('file'), async (req, res) => {
+  try {
+    const { type, folder, id } = req.params;
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No zip file provided' });
+    }
+
+    const isDefault = folder === 'default';
+    const imgDir = imageStorage.getImgDir(type, id, isDefault);
+    await imageStorage.ensureDir(imgDir);
+
+    const zip = new AdmZip(req.file.buffer);
+    const entries = zip.getEntries();
+    let manifest = null;
+
+    for (const entry of entries) {
+      if (entry.entryName === 'manifest.json') {
+        manifest = JSON.parse(entry.getData().toString('utf8'));
+        continue;
+      }
+      if (entry.entryName.startsWith('img/') && !entry.isDirectory) {
+        const filename = entry.entryName.replace('img/', '');
+        const filePath = path.join(imgDir, filename);
+        await require('fs').promises.writeFile(filePath, entry.getData());
+      }
+    }
+
+    if (manifest) {
+      if (type === 'chars') {
+        const char = loadCharacter(id);
+        if (char) {
+          if (manifest.portraitMedia) char.charPortraitMedia = manifest.portraitMedia;
+          if (manifest.portraitCrop) char.charPortraitCrop = manifest.portraitCrop;
+          await saveCharacterAsync(char);
+        }
+      } else {
+        const persona = loadPersona(id);
+        if (persona) {
+          if (manifest.portraitMedia) persona.portraitMedia = manifest.portraitMedia;
+          if (manifest.portraitCrop) persona.portraitCrop = manifest.portraitCrop;
+          await savePersonaAsync(persona);
+        }
+      }
+    }
+
+    console.log(`[PortraitMedia] Imported portrait zip for ${type}/${folder}/${id}`);
+    res.json({ success: true, filesImported: entries.filter(e => !e.isDirectory && e.entryName !== 'manifest.json').length });
+  } catch (error) {
+    console.error('[PortraitMedia] Import error:', error);
+    res.status(500).json({ error: 'Failed to import portrait media' });
+  }
+});
+
 // ==================== MEDIA ALBUM API ====================
 
 // Initialize media directories on startup
@@ -1026,6 +1208,49 @@ function saveCharsIndex(index) {
   fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
 }
 
+/**
+ * Migrate old charStagedPortraits to charPortraitMedia format.
+ * Only runs if charPortraitMedia doesn't exist yet.
+ */
+function migrateCharPortraitMedia(character) {
+  if (!character) return character;
+  if (character.charPortraitMedia) return character; // Already migrated
+  if (!character.charStagedPortraits || typeof character.charStagedPortraits !== 'object') return character;
+
+  const media = {};
+  for (const [rangeId, url] of Object.entries(character.charStagedPortraits)) {
+    if (url) {
+      media[rangeId] = {
+        idle: url,
+        idleType: imageStorage.isVideoFile(url) ? 'video' : 'image'
+      };
+    }
+  }
+  character.charPortraitMedia = media;
+  return character;
+}
+
+/**
+ * Migrate old persona stagedPortraits to portraitMedia format.
+ */
+function migratePersonaPortraitMedia(persona) {
+  if (!persona) return persona;
+  if (persona.portraitMedia) return persona;
+  if (!persona.stagedPortraits || typeof persona.stagedPortraits !== 'object') return persona;
+
+  const media = {};
+  for (const [rangeId, url] of Object.entries(persona.stagedPortraits)) {
+    if (url) {
+      media[rangeId] = {
+        idle: url,
+        idleType: imageStorage.isVideoFile(url) ? 'video' : 'image'
+      };
+    }
+  }
+  persona.portraitMedia = media;
+  return persona;
+}
+
 // Load single character by ID (checks both default and custom dirs)
 // Supports both old format ({id}.json) and new folder format ({id}/char.json)
 function loadCharacter(charId) {
@@ -1039,7 +1264,8 @@ function loadCharacter(charId) {
   for (const charPath of [customFolderPath, defaultFolderPath, customPath, defaultPath]) {
     if (fs.existsSync(charPath)) {
       try {
-        return JSON.parse(fs.readFileSync(charPath, 'utf8'));
+        const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
+        return migrateCharPortraitMedia(char);
       } catch (e) {
         console.error(`Error loading character ${charId}:`, e);
       }
@@ -1304,7 +1530,8 @@ function loadPersona(personaId) {
   for (const personaPath of [customFolderPath, defaultFolderPath]) {
     if (fs.existsSync(personaPath)) {
       try {
-        return JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+        const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+        return migratePersonaPortraitMedia(persona);
       } catch (e) {
         console.error(`Error loading persona ${personaId}:`, e);
       }
@@ -1313,7 +1540,8 @@ function loadPersona(personaId) {
 
   // Fall back to old personas.json array format
   const personas = loadAllPersonas() || [];
-  return personas.find(p => p.id === personaId) || null;
+  const found = personas.find(p => p.id === personaId) || null;
+  return found ? migratePersonaPortraitMedia(found) : null;
 }
 
 // Save single persona to its own folder + update index
@@ -2710,6 +2938,19 @@ function buildCharacterInflationContext(character) {
   return context;
 }
 
+/**
+ * Get the effective calibration time for a pumpable character.
+ * If synced with player, uses the primary pump's calibration time.
+ */
+function getCharacterCalibrationTime(character) {
+  if (character?.charSyncCalibrationWithPlayer) {
+    const devices = loadData(DATA_FILES.devices) || [];
+    const pump = devices.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    if (pump?.calibrationTime) return pump.calibrationTime;
+  }
+  return character?.characterCalibrationTime || 60;
+}
+
 // LLM State - tracks busy state and queues flow messages when LLM is busy
 const llmState = {
   isGenerating: false,
@@ -3978,9 +4219,10 @@ STRICT RULES:
     const ciSettings = loadData(DATA_FILES.settings) || {};
     const ciChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const ciChar = ciChars.find(c => c.id === ciSettings.activeCharacterId);
-    console.log(`[CharInflation] Broadcast received: activeChar=${ciChar?.name}, isPumpable=${ciChar?.isPumpable}, calibrationTime=${ciChar?.characterCalibrationTime}`);
-    if (ciChar?.isPumpable && ciChar?.characterCalibrationTime) {
-      startCharacterInflation(ciChar.characterCalibrationTime, ciChar.charBurstPercent || 100);
+    const ciCalTime = getCharacterCalibrationTime(ciChar);
+    console.log(`[CharInflation] Broadcast received: activeChar=${ciChar?.name}, isPumpable=${ciChar?.isPumpable}, calibrationTime=${ciCalTime}, synced=${ciChar?.charSyncCalibrationWithPlayer}`);
+    if (ciChar?.isPumpable && ciCalTime) {
+      startCharacterInflation(ciCalTime, ciChar.charBurstPercent || 100);
     } else {
       console.log(`[CharInflation] Cannot start: character not pumpable or missing calibration time`);
     }
@@ -4944,8 +5186,9 @@ async function handleWsMessage(ws, type, data) {
       const charInflateSettings = loadData(DATA_FILES.settings) || {};
       const charInflateChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
       const activeCharInflate = charInflateChars.find(c => c.id === charInflateSettings.activeCharacterId);
-      if (activeCharInflate?.isPumpable && activeCharInflate?.characterCalibrationTime) {
-        startCharacterInflation(activeCharInflate.characterCalibrationTime, activeCharInflate.charBurstPercent || 100);
+      const wsCalTime = getCharacterCalibrationTime(activeCharInflate);
+      if (activeCharInflate?.isPumpable && wsCalTime) {
+        startCharacterInflation(wsCalTime, activeCharInflate.charBurstPercent || 100);
       } else {
         console.log(`[CharInflation] Cannot start - character not pumpable or no calibration time`);
       }
@@ -7328,6 +7571,31 @@ function buildInflationDispositionContext(character) {
   return context;
 }
 
+function getActiveCharacterCheckpoint(character) {
+  if (!character?.isPumpable) return null;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const checkpoints = activeStory?.characterCheckpoints;
+  if (!checkpoints) return null;
+
+  const capacity = sessionState.characterCapacity || 0;
+  let rangeKey;
+  if (capacity <= 0) rangeKey = '0';
+  else if (capacity <= 10) rangeKey = '1-10';
+  else if (capacity <= 20) rangeKey = '11-20';
+  else if (capacity <= 30) rangeKey = '21-30';
+  else if (capacity <= 40) rangeKey = '31-40';
+  else if (capacity <= 50) rangeKey = '41-50';
+  else if (capacity <= 60) rangeKey = '51-60';
+  else if (capacity <= 70) rangeKey = '61-70';
+  else if (capacity <= 80) rangeKey = '71-80';
+  else if (capacity <= 90) rangeKey = '81-90';
+  else if (capacity <= 100) rangeKey = '91-100';
+  else rangeKey = '100+';
+
+  const text = checkpoints[rangeKey]?.trim();
+  return text || null;
+}
+
 function getActiveCheckpoint(character, capacity) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const checkpoints = activeStory?.checkpoints;
@@ -7570,13 +7838,19 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
     systemPrompt += buildCharacterInflationContext(character);
 
-    // Inject capacity checkpoints
+    // Inject player capacity checkpoints
     const checkpointImp = getActiveCheckpoint(character, sessionState.capacity);
     if (checkpointImp?.preInflation) {
       systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointImp.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
     }
     if (checkpointImp?.text) {
-      systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointImp.text}\n=== END CHECKPOINT ===\n`;
+      systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointImp.text}\n=== END CHECKPOINT ===\n`;
+    }
+
+    // Inject character capacity checkpoints (pumpable characters only)
+    const charCheckpointImp = getActiveCharacterCheckpoint(character);
+    if (charCheckpointImp) {
+      systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointImp}\n=== END CHECKPOINT ===\n`;
     }
 
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
@@ -7604,13 +7878,19 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
     systemPrompt += buildCharacterInflationContext(character);
 
-    // Inject capacity checkpoints
+    // Inject player capacity checkpoints
     const checkpointGuided = getActiveCheckpoint(character, sessionState.capacity);
     if (checkpointGuided?.preInflation) {
       systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointGuided.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
     }
     if (checkpointGuided?.text) {
-      systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointGuided.text}\n=== END CHECKPOINT ===\n`;
+      systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointGuided.text}\n=== END CHECKPOINT ===\n`;
+    }
+
+    // Inject character capacity checkpoints (pumpable characters only)
+    const charCheckpointGuided = getActiveCharacterCheckpoint(character);
+    if (charCheckpointGuided) {
+      systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointGuided}\n=== END CHECKPOINT ===\n`;
     }
 
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
@@ -7843,13 +8123,19 @@ function buildChatContext(character, settings) {
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
   systemPrompt += buildCharacterInflationContext(character);
 
-  // Inject capacity checkpoints
+  // Inject player capacity checkpoints
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
   if (checkpointChat?.preInflation) {
     systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointChat.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
   }
   if (checkpointChat?.text) {
-    systemPrompt += `\n=== CHARACTER CHECKPOINT ===\nCurrent guidance for this capacity range:\n${checkpointChat.text}\n=== END CHECKPOINT ===\n`;
+    systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointChat.text}\n=== END CHECKPOINT ===\n`;
+  }
+
+  // Inject character capacity checkpoints (pumpable characters only)
+  const charCheckpointChat = getActiveCharacterCheckpoint(character);
+  if (charCheckpointChat) {
+    systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointChat}\n=== END CHECKPOINT ===\n`;
   }
 
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
@@ -8718,6 +9004,7 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
           story.llmMaxPulseRepetitions = story.llmMaxPulseRepetitions ?? 5;
           story.llmMaxTimedDuration = story.llmMaxTimedDuration ?? 10;
           story.checkpoints = story.checkpoints || {};
+          story.characterCheckpoints = story.characterCheckpoints || {};
           story.attributes = story.attributes || {};
         }
         // Update activeStoryId
@@ -10605,8 +10892,10 @@ app.get('/api/export/character/:id', (req, res) => {
   // Clone character data for export
   const exportCharacter = { ...character };
 
-  // Strip staged portraits - they are local-only and not exported
+  // Strip portrait media - they are local-only and exported separately as zip
   delete exportCharacter.charStagedPortraits;
+  delete exportCharacter.charPortraitMedia;
+  delete exportCharacter.charPortraitCrop;
 
   // Embed avatar image if it exists and is a local path
   if (exportCharacter.avatar && exportCharacter.avatar.startsWith('/api/images/')) {
