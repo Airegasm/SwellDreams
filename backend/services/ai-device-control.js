@@ -110,13 +110,13 @@ const PUMP_ACTIVITY_PHRASES = [
   /\bhiss(es|ing)?\s+through\s+\w*\s*(tub|hose|line|pipe)/i,
   /\b(tub|hose|line|pipe)\w*\s+(hiss|hisses|hissing|fills?|swells?)/i,
 
-  // Inflation/filling references (contextual pump activity)
-  /\b(begin|begins|began|beginning)\s+(to\s+)?(inflate|inflating|fill|filling|pump|pumping|expand|expanding|swell|swelling)/i,
-  /\b(start|starts|started|starting)\s+(to\s+)?(inflate|inflating|fill|filling|pump|pumping|expand|expanding|swell|swelling)/i,
+  // Inflation/filling references (contextual pump activity - require device/machine context)
+  /\b(begin|begins|began|beginning)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
+  /\b(start|starts|started|starting)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
+  /\b(start|starts|started|starting)\s+(?:the\s+)?(pump|machine|compressor|inflation)\b/i,
   /\bair\s+to\s+begin\s+pump/i,
   /\binflation\s+(begins?|starts?|continues?|resumes?)/i,
   /\b(filling|inflation|pumping)\s+(process|sequence|cycle)\s+(begins?|starts?|continues?)/i,
-  /\b(belly|stomach|abdomen)\s+(begins?|starts?)\s+(to\s+)?(fill|inflate|expand|swell|grow)/i,
 
   // Character action phrases
   /\b(sends?|sending)\s+(more\s+)?(air|liquid|fluid)\s+(into|through)/i,

@@ -3154,6 +3154,27 @@ function getCharacterLimits(character) {
   };
 }
 
+/**
+ * Check if the active story has pumpOnEveryReply enabled
+ */
+function isPumpOnEveryReply(character) {
+  if (!character?.stories?.length) return false;
+  const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
+  return activeStory?.pumpOnEveryReply === true;
+}
+
+/**
+ * Inject [pump on] into response text if pumpOnEveryReply is enabled and the text
+ * doesn't already contain a pump command. Skips flow chain messages.
+ */
+function injectPumpOnEveryReply(text, character, isFlowChain) {
+  if (isFlowChain) return text;
+  if (!isPumpOnEveryReply(character)) return text;
+  // Don't double up if text already has a pump tag
+  if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return text;
+  return text + ' [pump on]';
+}
+
 // Get active welcome message for a character
 function getActiveWelcomeMessage(character) {
   if (!character) return null;
@@ -3681,6 +3702,9 @@ If announcing the result, say "${result}" - not something else.
         // Process AI device commands (e.g., [pump on], [vibe off]) - only for non-flow messages
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
+
+        // Inject [pump on] if pumpOnEveryReply is enabled (skips flow chain messages)
+        finalText = injectPumpOnEveryReply(finalText, activeCharacter, !!data.flowId);
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -4730,6 +4754,26 @@ setInterval(() => {
 
 async function handleWsMessage(ws, type, data) {
   switch (type) {
+    case 'emergency_stop': {
+      console.log('[EMERGENCY STOP via WS] Immediate LLM abort + device shutoff');
+      // Abort LLM immediately — this is the most time-critical action
+      llmService.abortAllRequests();
+      aiDeviceControl.clearAllLlmTimers();
+      // Halt flows
+      if (eventEngine) eventEngine.emergencyStop();
+      // Stop timers
+      deviceService.stopAllPumpRuntimeTracking();
+      stopCharacterInflation();
+      // Stop all devices (async but fire-and-forget for speed)
+      const estopDevices = loadData(DATA_FILES.devices) || [];
+      for (const d of estopDevices) {
+        const id = (d.brand === 'tuya' || d.brand === 'govee' || d.brand === 'wyze' || d.brand === 'homeassistant') ? d.deviceId : d.ip;
+        if (id) { deviceService.stopCycle(id); deviceService.turnOff(id, d).catch(() => {}); }
+      }
+      broadcast('emergency_stop', { timestamp: Date.now() });
+      break;
+    }
+
     case 'chat_message':
       await handleChatMessage(data);
       break;
@@ -5658,6 +5702,9 @@ Your response MUST be about: "${guidanceText}"
     // Process AI device commands (e.g., [pump on], [vibe off])
     const devices = loadData(DATA_FILES.devices) || [];
 
+    // Inject [pump on] if pumpOnEveryReply is enabled
+    resultText = injectPumpOnEveryReply(resultText, activeCharacter, false);
+
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
     const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings, getCharacterLimits(activeCharacter));
     if (reinforceResult.reinforced) {
@@ -6270,6 +6317,9 @@ async function handleChatMessage(data) {
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
 
+        // Inject [pump on] if pumpOnEveryReply is enabled
+        aiMessage.content = injectPumpOnEveryReply(aiMessage.content, activeCharacter, false);
+
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(aiMessage.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
         if (reinforceResult.reinforced) {
@@ -6449,6 +6499,9 @@ async function handleChatMessage(data) {
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
         const aiControlSettings = loadData(DATA_FILES.settings);
+
+        // Inject [pump on] if pumpOnEveryReply is enabled
+        finalText = injectPumpOnEveryReply(finalText, activeCharacter, false);
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -6930,6 +6983,9 @@ async function handleSpecialGenerate(data) {
       const devices = loadData(DATA_FILES.devices) || [];
       const aiControlSettings = loadData(DATA_FILES.settings);
 
+      // Inject [pump on] if pumpOnEveryReply is enabled
+      message.content = injectPumpOnEveryReply(message.content, activeCharacter, false);
+
       // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
       const reinforceResult = aiDeviceControl.reinforcePumpControl(message.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
       if (reinforceResult.reinforced) {
@@ -7016,6 +7072,9 @@ async function handleSpecialGenerate(data) {
     // Process AI device commands (e.g., [pump on], [vibe off])
     const devices = loadData(DATA_FILES.devices) || [];
     const aiControlSettings = loadData(DATA_FILES.settings);
+
+    // Inject [pump on] if pumpOnEveryReply is enabled
+    finalText = injectPumpOnEveryReply(finalText, activeCharacter, false);
 
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
     const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -7219,6 +7278,54 @@ function buildAttributeBlock(activeAttributes) {
   }
   block += `=== END CHARACTER DRIVE ===\n`;
   return block;
+}
+
+/**
+ * Build inflation disposition context — always-on personality traits for inflating/popping others
+ */
+function buildInflationDispositionContext(character) {
+  const inflateDesire = character?.desireToInflateOthers;
+  const popDesire = character?.desireToPopOthers;
+
+  // Skip if both are default/none
+  if ((!inflateDesire || inflateDesire === 'none') && (!popDesire || popDesire === 'none')) {
+    return '';
+  }
+
+  const charName = character.name || 'This character';
+
+  const inflateMap = {
+    none: null,
+    reluctant: `${charName} would only inflate someone if absolutely forced to — deeply uncomfortable with it`,
+    indifferent: `${charName} has no strong feelings about inflating others — would do it or not without caring`,
+    willing: `${charName} is happy to inflate others when asked or when the situation calls for it`,
+    eager: `${charName} actively wants to inflate others and looks for opportunities to do so`,
+    obsessed: `${charName} is driven to inflate others at every opportunity — it's a compulsion they can barely control`,
+    sadistic: `${charName} inflates others specifically to cause discomfort, fear, and helplessness — and takes visible pleasure in it`
+  };
+
+  const popMap = {
+    none: null,
+    avoidant: `${charName} actively tries to prevent others from popping — monitors limits carefully and stops before it's too late`,
+    careless: `${charName} doesn't worry about others popping — pushes forward without checking if they're at their limit`,
+    curious: `${charName} wonders what it would be like if someone popped — might push boundaries to find out`,
+    willing: `${charName} is okay with others popping if it happens — won't try to prevent it`,
+    eager: `${charName} actively tries to push others past their limit to make them pop`,
+    sadistic: `${charName} wants to make others pop and takes pleasure in pushing them beyond their breaking point`
+  };
+
+  const inflateText = inflateMap[inflateDesire];
+  const popText = popMap[popDesire];
+
+  if (!inflateText && !popText) return '';
+
+  let context = `\n=== INFLATION DISPOSITION ===\n`;
+  if (inflateText) context += `${inflateText}.\n`;
+  if (popText) context += `${popText}.\n`;
+  context += `These drives should subtly influence ${charName}'s dialogue, actions, and decisions.\n`;
+  context += `=== END INFLATION DISPOSITION ===\n`;
+
+  return context;
 }
 
 function getActiveCheckpoint(character, capacity) {
@@ -7547,6 +7654,9 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
       systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
     }
 
+    // Inject inflation disposition (always-on)
+    systemPrompt += buildInflationDispositionContext(character);
+
     systemPrompt += `Continue from the text provided. Stay in character.`;
   }
 
@@ -7791,6 +7901,7 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   if (sessionState.activeAttributes?.length > 0) {
     systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
   }
+  systemPrompt += buildInflationDispositionContext(character);
 
   // Final style anchor
   systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
@@ -10316,16 +10427,20 @@ app.post('/api/emergency-stop', async (req, res) => {
     llm: null
   };
 
-  // 1. Stop ALL pump runtime tracking intervals immediately
-  deviceService.stopAllPumpRuntimeTracking();
-  stopCharacterInflation();
+  // 1. IMMEDIATELY abort all LLM requests (highest priority — stops token generation)
+  results.llm = { aborted: llmService.abortAllRequests() };
+  aiDeviceControl.clearAllLlmTimers();
 
   // 2. Halt all flow execution
   if (eventEngine) {
     results.flows = eventEngine.emergencyStop();
   }
 
-  // 3. Stop ALL devices (including cycles)
+  // 3. Stop ALL pump runtime tracking intervals
+  deviceService.stopAllPumpRuntimeTracking();
+  stopCharacterInflation();
+
+  // 4. Stop ALL devices (including cycles)
   const devices = loadData(DATA_FILES.devices) || [];
   for (const device of devices) {
     try {
@@ -10351,12 +10466,6 @@ app.post('/api/emergency-stop', async (req, res) => {
   if (devices.length === 0) {
     console.log('[EMERGENCY STOP] No devices configured to stop');
   }
-
-  // 4. Abort all pending LLM requests
-  results.llm = { aborted: llmService.abortAllRequests() };
-
-  // 5. Clear any LLM device control auto-off timers
-  aiDeviceControl.clearAllLlmTimers();
 
   broadcast('emergency_stop', { timestamp: Date.now(), results });
   res.json({ success: true, message: 'Emergency stop executed', results });

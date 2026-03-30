@@ -146,7 +146,7 @@ function wrapWithTemplate(systemPrompt, prompt, template) {
       if (systemPrompt) {
         vicuna += `${systemPrompt}\n\n`;
       }
-      vicuna += `USER: ${prompt}\nASSISTANT:`;
+      vicuna += `USER: ${prompt}\nASSISTANT: `;
       return vicuna;
 
     case 'llama3':
@@ -201,6 +201,10 @@ function getTemplateStopTokens(template) {
     case 'llama':
     case 'mistral':
       return ['</s>'];
+    case 'alpaca':
+      return ['### Instruction:', '### Input:'];
+    case 'vicuna':
+      return ['USER:', '</s>'];
     default:
       return [];
   }
@@ -267,9 +271,12 @@ function buildTextCompletionRequest(prompt, settings) {
     body.mirostat_eta = settings.mirostatEta || 0.1;
   }
 
-  // Stop sequences
-  if (settings.stopSequences && settings.stopSequences.length > 0) {
-    body.stop_sequence = settings.stopSequences;
+  // Stop sequences — merge user-defined + template-specific stop tokens
+  const templateStops = getTemplateStopTokens(settings.promptTemplate);
+  const userStops = settings.stopSequences || [];
+  const allStops = [...new Set([...userStops, ...templateStops])];
+  if (allStops.length > 0) {
+    body.stop_sequence = allStops;
   }
 
   // Banned tokens
@@ -640,18 +647,8 @@ async function generate(options) {
   let endpoint = mergedSettings.llmUrl;
 
   if (apiType === 'chat_completion') {
-    // Build messages array
-    let chatMessages = [];
-
-    if (systemPrompt) {
-      chatMessages.push({ role: 'system', content: systemPrompt });
-    }
-
-    if (messages && messages.length > 0) {
-      chatMessages = chatMessages.concat(messages);
-    } else if (prompt) {
-      chatMessages.push({ role: 'user', content: prompt });
-    }
+    // Build messages array, handling models without system role support
+    const chatMessages = buildChatMessages(systemPrompt, prompt, messages, mergedSettings);
 
     requestBody = buildChatCompletionRequest(chatMessages, mergedSettings);
   } else {
@@ -793,16 +790,8 @@ async function generateStream(options) {
   let endpoint = mergedSettings.llmUrl;
 
   if (apiType === 'chat_completion') {
-    // Build messages array for chat completion
-    let chatMessages = [];
-    if (systemPrompt) {
-      chatMessages.push({ role: 'system', content: systemPrompt });
-    }
-    if (messages && messages.length > 0) {
-      chatMessages = chatMessages.concat(messages);
-    } else if (prompt) {
-      chatMessages.push({ role: 'user', content: prompt });
-    }
+    // Build messages array, handling models without system role support
+    const chatMessages = buildChatMessages(systemPrompt, prompt, messages, mergedSettings);
 
     requestBody = buildChatCompletionRequest(chatMessages, mergedSettings);
     requestBody.stream = true;

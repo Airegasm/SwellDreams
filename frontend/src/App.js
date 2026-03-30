@@ -346,36 +346,33 @@ function App() {
     window.location.href = 'about:blank';
   };
 
-  // E-STOP / ABORT button handler
+  // E-STOP / ABORT button handler — uses WebSocket for instant response
   const handleEmergencyStop = async () => {
     if (controlMode === 'simulated' || stopping) return;
 
     setStopping(true);
     const hasActiveFlows = flowExecutions && flowExecutions.length > 0;
 
-    try {
-      const response = await fetch('/api/emergency-stop', { method: 'POST' });
-      const result = await response.json();
+    // Send via WebSocket first (instant, not blocked by HTTP connection pool)
+    sendWsMessage('emergency_stop', {});
 
-      if (result.success) {
-        if (hasActiveFlows) {
-          // Show flow abort message with flow name
-          const flowInfo = flowExecutions[0];
-          const flowLabel = flowInfo?.triggerLabel || flowInfo?.flowName || 'Flow';
-          showWarning(`Flow Aborted: ${flowLabel}`, 5000);
-        } else {
-          // Show simple shutoff message
-          showWarning('Shutoff Initiated', 3000);
-        }
-      } else {
-        showError('Emergency stop failed');
-      }
+    // Also send via HTTP as a fallback
+    try {
+      await fetch('/api/emergency-stop', { method: 'POST' });
     } catch (error) {
-      console.error('Emergency stop error:', error);
-      showError('Emergency stop failed: ' + error.message);
-    } finally {
-      setStopping(false);
+      // WS already handled it — HTTP failure is non-critical
+      console.warn('HTTP emergency stop fallback failed:', error.message);
     }
+
+    if (hasActiveFlows) {
+      const flowInfo = flowExecutions[0];
+      const flowLabel = flowInfo?.triggerLabel || flowInfo?.flowName || 'Flow';
+      showWarning(`Flow Aborted: ${flowLabel}`, 5000);
+    } else {
+      showWarning('Shutoff Initiated', 3000);
+    }
+
+    setStopping(false);
   };
 
   // Determine E-STOP button state

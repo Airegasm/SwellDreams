@@ -1106,11 +1106,11 @@ function Chat() {
   // Emergency stop handler
   const handleEmergencyStop = async () => {
     setStopping(true);
+    sendWsMessage('emergency_stop', {});
     try {
       await api.emergencyStop();
     } catch (error) {
-      console.error('Emergency stop failed:', error);
-      showError('Emergency stop failed - check device connections!');
+      console.warn('HTTP E-STOP fallback failed:', error.message);
     }
     setTimeout(() => setStopping(false), 1000);
   };
@@ -1716,7 +1716,7 @@ function Chat() {
               <button
                 type="button"
                 className={`mobile-estop-btn mobile-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
-                onClick={() => api.emergencyStop()}
+                onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
                 disabled={controlMode === 'simulated'}
                 title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}
               >

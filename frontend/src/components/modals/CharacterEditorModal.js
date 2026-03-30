@@ -167,6 +167,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         charPopDesire: character.charPopDesire || 'terrified',
         charInflateAutoLoadControls: character.charInflateAutoLoadControls || false,
         charStagedPortraits: character.charStagedPortraits || {},
+        desireToInflateOthers: character.desireToInflateOthers || 'none',
+        desireToPopOthers: character.desireToPopOthers || 'none',
         stories,
         activeStoryId: character.activeStoryId || stories[0]?.id || 'story-1',
         buttons: character.buttons || character.events || [],
@@ -215,6 +217,8 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       charPopDesire: 'terrified',
       charInflateAutoLoadControls: false,
       charStagedPortraits: {},
+      desireToInflateOthers: 'none',
+      desireToPopOthers: 'none',
       stories: [defaultStory],
       activeStoryId: 'story-1',
       buttons: [],
@@ -228,10 +232,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     };
   }, [character, filterValidFlows]);
 
-  // Use draft persistence - only enable when character is actually loaded
+  // Use draft persistence - enable for both new and existing characters
   const draftKey = getDraftKey('character', character?.id);
-  const isReady = isOpen && character?.id;
-  const { formData, setFormData, clearDraft, hasDraft } = useDraft(draftKey, initialData, isReady);
+  const { formData, setFormData, clearDraft, hasDraft } = useDraft(draftKey, initialData, isOpen);
 
   // Migrate draft data to v2 format if needed (only runs when loading from a draft, not from initialData)
   useEffect(() => {
@@ -1032,6 +1035,7 @@ Write only the scenario description itself, no explanations.`;
       // Backwards compatibility
       autoReplyEnabled: activeStory?.autoReplyEnabled || false,
       allowLlmDeviceAccess: activeStory?.allowLlmDeviceAccess || false,
+      pumpOnEveryReply: activeStory?.pumpOnEveryReply || false,
       startingEmotion: activeStory?.startingEmotion || 'neutral',
       assignedFlows: activeStory?.assignedFlows || [],
       exampleDialogues: activeStory?.exampleDialogues || [],
@@ -1683,6 +1687,25 @@ Write only the scenario description itself, no explanations.`;
                     </span>
                   </div>
                 </div>
+
+                {activeStory?.allowLlmDeviceAccess && settings?.globalCharacterControls?.allowLlmDeviceControl && (
+                  <div className="story-field auto-reply-field" style={{ marginTop: '0.25rem' }}>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={activeStory?.pumpOnEveryReply || false}
+                        onChange={(e) => updateStoryField('pumpOnEveryReply', e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div className="auto-reply-text">
+                      <span className="auto-reply-label">Send [pump on] with EVERY reply</span>
+                      <span className="auto-reply-hint">
+                        Automatically triggers pump on every AI response (excluding flow chain messages)
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {activeStory?.allowLlmDeviceAccess && settings?.globalCharacterControls?.allowLlmDeviceControl && (
                   <div className="story-field" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
                     <label style={{ fontWeight: 'bold', marginBottom: '0.25rem', display: 'block' }}>Device Control Limits</label>
@@ -2779,6 +2802,41 @@ Write only the scenario description itself, no explanations.`;
                   />
                 </div>
               ))}
+
+              <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition</h4>
+              <p className="section-hint">These are always active and affect every AI response. They define this character's baseline attitude toward inflating and popping others.</p>
+
+              <div className="form-group">
+                <label>Desire to Inflate Others</label>
+                <select
+                  value={formData.desireToInflateOthers || 'none'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, desireToInflateOthers: e.target.value }))}
+                >
+                  <option value="none">None — no interest in inflating others</option>
+                  <option value="reluctant">Reluctant — would only inflate others if forced</option>
+                  <option value="indifferent">Indifferent — doesn't care either way</option>
+                  <option value="willing">Willing — happy to inflate others if asked</option>
+                  <option value="eager">Eager — actively wants to inflate others</option>
+                  <option value="obsessed">Obsessed — driven to inflate others at every opportunity</option>
+                  <option value="sadistic">Sadistic — inflates others specifically to cause discomfort</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Desire to Pop Others</label>
+                <select
+                  value={formData.desireToPopOthers || 'none'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, desireToPopOthers: e.target.value }))}
+                >
+                  <option value="none">None — would never intentionally pop someone</option>
+                  <option value="avoidant">Avoidant — actively tries to prevent popping</option>
+                  <option value="careless">Careless — doesn't worry about it happening</option>
+                  <option value="curious">Curious — wonders what would happen</option>
+                  <option value="willing">Willing — okay with it if it happens</option>
+                  <option value="eager">Eager — actively tries to push others to pop</option>
+                  <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
+                </select>
+              </div>
             </div>
           </div>
 

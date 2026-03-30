@@ -635,9 +635,20 @@ function GlobalTab() {
   }, [calibrationState.capacity, calibrationState.phase]);
 
   // Collapsible section states
+  // Chat Memory state
+  const [chatMemory, setChatMemory] = useState({
+    chatHistoryDepth: 20,
+    impersonateHistoryDepth: 15,
+    reminderScanDepth: 20,
+    summarizationEnabled: true
+  });
+  const [chatMemorySummary, setChatMemorySummary] = useState('');
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+
   const [expandedSections, setExpandedSections] = useState({
     controlMode: true,
     characterControls: false,
+    chatMemory: false,
     authorNote: false,
     reminders: false,
     flows: false,
@@ -683,6 +694,27 @@ function GlobalTab() {
       setCharacterControls(settings.globalCharacterControls);
     }
   }, [settings?.globalCharacterControls]);
+
+  // Load chat memory settings
+  useEffect(() => {
+    if (settings?.chatMemory) {
+      setChatMemory(prev => ({ ...prev, ...settings.chatMemory }));
+    }
+  }, [settings?.chatMemory]);
+
+  // Sync chat memory summary from session state
+  useEffect(() => {
+    setChatMemorySummary(sessionState.chatMemorySummary || '');
+  }, [sessionState.chatMemorySummary]);
+
+  // Listen for summary updates from backend
+  useEffect(() => {
+    const handleSummaryUpdate = (event) => {
+      setChatMemorySummary(event.detail?.summary || '');
+    };
+    window.addEventListener('chat_memory_summary_updated', handleSummaryUpdate);
+    return () => window.removeEventListener('chat_memory_summary_updated', handleSummaryUpdate);
+  }, []);
 
   // Load remote settings
   useEffect(() => {
@@ -748,6 +780,32 @@ function GlobalTab() {
       console.error('Failed to save global prompt:', error);
     }
     setIsSaving(false);
+  };
+
+  // Chat Memory handlers
+  const handleChatMemoryChange = async (key, value) => {
+    const updated = { ...chatMemory, [key]: value };
+    setChatMemory(updated);
+    try {
+      await api.updateSettings({ chatMemory: updated });
+    } catch (error) {
+      console.error('Failed to save chat memory settings:', error);
+    }
+  };
+
+  const handleSaveSummary = async () => {
+    setIsSavingMemory(true);
+    try {
+      sendWsMessage('update_chat_memory_summary', { summary: chatMemorySummary.trim() || null });
+    } catch (error) {
+      console.error('Failed to save summary:', error);
+    }
+    setIsSavingMemory(false);
+  };
+
+  const handleClearSummary = () => {
+    setChatMemorySummary('');
+    sendWsMessage('update_chat_memory_summary', { summary: null });
   };
 
   // Character Controls handlers
@@ -1221,6 +1279,103 @@ function GlobalTab() {
                   </label>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+
+      {/* Chat Memory Section */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('chatMemory')}>
+          <span>Chat Memory</span>
+          <span className="collapse-icon">{expandedSections.chatMemory ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.chatMemory && (
+        <div className="settings-section-content">
+          <p className="section-description">
+            Controls how many recent messages are included in the LLM context window.
+            Older messages are automatically summarized so the AI retains long-term memory of the conversation.
+          </p>
+
+          <div className="character-controls-grid">
+            <div className="character-control-row">
+              <label className="control-inline-label">Chat History Depth:</label>
+              <input
+                type="number"
+                value={chatMemory.chatHistoryDepth}
+                onChange={(e) => handleChatMemoryChange('chatHistoryDepth', Math.max(4, parseInt(e.target.value) || 20))}
+                min={4}
+                max={100}
+                style={{ width: '80px' }}
+              />
+              <span className="control-inline-hint">messages in main chat context</span>
+            </div>
+            <div className="character-control-row">
+              <label className="control-inline-label">Impersonate History Depth:</label>
+              <input
+                type="number"
+                value={chatMemory.impersonateHistoryDepth}
+                onChange={(e) => handleChatMemoryChange('impersonateHistoryDepth', Math.max(4, parseInt(e.target.value) || 15))}
+                min={4}
+                max={100}
+                style={{ width: '80px' }}
+              />
+              <span className="control-inline-hint">messages for impersonate/guided context</span>
+            </div>
+            <div className="character-control-row">
+              <label className="control-inline-label">Reminder Scan Depth:</label>
+              <input
+                type="number"
+                value={chatMemory.reminderScanDepth}
+                onChange={(e) => handleChatMemoryChange('reminderScanDepth', Math.max(4, parseInt(e.target.value) || 20))}
+                min={4}
+                max={100}
+                style={{ width: '80px' }}
+              />
+              <span className="control-inline-hint">messages scanned for keyword-triggered reminders</span>
+            </div>
+            <div className="character-control-row">
+              <label className="checkbox-inline">
+                <input
+                  type="checkbox"
+                  checked={chatMemory.summarizationEnabled}
+                  onChange={(e) => handleChatMemoryChange('summarizationEnabled', e.target.checked)}
+                />
+                <span>Auto-Summarize</span>
+              </label>
+              <span className="control-inline-hint">summarize overflow messages so the AI remembers earlier events</span>
+            </div>
+          </div>
+
+          {/* Editable Summary */}
+          <div className="form-group" style={{ marginTop: 'var(--spacing-md)' }}>
+            <label style={{ fontWeight: 'bold', marginBottom: 'var(--spacing-xs)', display: 'block' }}>
+              Rolling Summary
+              {chatMemorySummary ? '' : ' (none yet)'}
+            </label>
+            <textarea
+              className="global-prompt-textarea"
+              value={chatMemorySummary}
+              onChange={(e) => setChatMemorySummary(e.target.value)}
+              placeholder="Auto-generated summary of earlier conversation will appear here. You can also edit it manually."
+              rows={4}
+            />
+            <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveSummary}
+                disabled={isSavingMemory}
+              >
+                {isSavingMemory ? 'Saving...' : 'Save Summary'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleClearSummary}
+                disabled={!chatMemorySummary}
+              >
+                Clear
+              </button>
             </div>
           </div>
         </div>
