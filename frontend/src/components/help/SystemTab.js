@@ -60,8 +60,13 @@ function SystemTab() {
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[Capacity]</span></td>
-                  <td>Current physical capacity (0-100)</td>
+                  <td>Player's current physical capacity (0-100)</td>
                   <td>45</td>
+                </tr>
+                <tr>
+                  <td><span className="variable-tag">[CharCapacity]</span></td>
+                  <td>Character's inflation capacity (0-100) — for pumpable characters</td>
+                  <td>72</td>
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[Feeling]</span></td>

@@ -1,0 +1,71 @@
+{
+  "id": "flow-char-inflate-basic",
+  "name": "Basic AI Pump Controls",
+  "description": "Activate and deactivate the AI character's simulated inflation pump",
+  "category": "character",
+  "nodes": [
+    {
+      "id": "btn_start",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 50
+      },
+      "data": {
+        "label": "AI Pump ON",
+        "buttonId": "char-inflate-start-btn",
+        "buttonTarget": "persona"
+      }
+    },
+    {
+      "id": "act_start",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 50
+      },
+      "data": {
+        "label": "Activate AI Pump",
+        "actionType": "char_inflate_start"
+      }
+    },
+    {
+      "id": "btn_stop",
+      "type": "button_press",
+      "position": {
+        "x": 50,
+        "y": 200
+      },
+      "data": {
+        "label": "AI Pump OFF",
+        "buttonId": "char-inflate-stop-btn",
+        "buttonTarget": "persona"
+      }
+    },
+    {
+      "id": "act_stop",
+      "type": "action",
+      "position": {
+        "x": 350,
+        "y": 200
+      },
+      "data": {
+        "label": "Deactivate AI Pump",
+        "actionType": "char_inflate_stop"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_start",
+      "source": "btn_start",
+      "target": "act_start"
+    },
+    {
+      "id": "e_stop",
+      "source": "btn_stop",
+      "target": "act_stop"
+    }
+  ],
+  "isActive": true
+}

@@ -250,6 +250,7 @@ class EventEngine {
       pain: 0, // 0-10 numeric pain scale
       emotion: 'neutral'
     };
+    this.previousCharacterCapacity = 0; // Track character capacity for change detection
     this.executedOnceConditions = new Set(); // Track conditions that have fired with onlyOnce
     this.simulationMode = false; // When true, device actions are simulated (not executed)
     this.aborted = false; // Emergency stop flag - when true, all flow execution halts immediately
@@ -749,6 +750,20 @@ class EventEngine {
             action: 'pulse'
           });
         }
+        return true;
+      }
+
+      case 'char_inflate_start': {
+        nodeStep.details = 'Activate AI Pump';
+        this.emitTestStep(nodeStep);
+        await this.broadcast('character_inflate_start', {});
+        return true;
+      }
+
+      case 'char_inflate_stop': {
+        nodeStep.details = 'Deactivate AI Pump';
+        this.emitTestStep(nodeStep);
+        await this.broadcast('character_inflate_stop', {});
         return true;
       }
 
@@ -1557,6 +1572,29 @@ class EventEngine {
               return newValue !== targetValue;
             }
             return newValue === targetValue;
+          }
+
+        case 'char_state_change':
+          if (node.data.triggerType !== 'char_state_change') return false;
+          {
+            const charTarget = Number(node.data.targetValue);
+            const charNew = Number(eventData.newValue);
+            const charComparison = node.data.comparison || 'meet';
+
+            switch (charComparison) {
+              case 'meet':
+                return charNew === charTarget;
+              case 'meet_or_exceed':
+                return charNew >= charTarget;
+              case 'greater':
+                return charNew > charTarget;
+              case 'less':
+                return charNew < charTarget;
+              case 'less_or_equal':
+                return charNew <= charTarget;
+              default:
+                return charNew === charTarget;
+            }
           }
 
         default:
@@ -4229,6 +4267,20 @@ class EventEngine {
         break;
       }
 
+      case 'char_inflate_start': {
+        console.log('[EventEngine] Executing char_inflate_start action');
+        await this.broadcast('character_inflate_start', {});
+        actionResult = true;
+        break;
+      }
+
+      case 'char_inflate_stop': {
+        console.log('[EventEngine] Executing char_inflate_stop action');
+        await this.broadcast('character_inflate_stop', {});
+        actionResult = true;
+        break;
+      }
+
       case 'show_image': {
         const tag = data.tag?.trim();
         if (!tag) {
@@ -4734,6 +4786,9 @@ class EventEngine {
         case 'emotion':
           value = this.sessionState?.emotion ?? this.variables.emotion ?? 'neutral';
           break;
+        case 'characterCapacity':
+          value = this.sessionState?.characterCapacity ?? 0;
+          break;
         case 'device_state':
           // Check specific device state from execution history
           const condDeviceId = condition.device || 'primary_pump';
@@ -4853,6 +4908,8 @@ class EventEngine {
       result = result.replace(/\[Char\]/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\{\{char\}\}/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
+      result = result.replace(/\[CharCapacity\]/gi, this.sessionState.characterCapacity ?? 0);
+      result = result.replace(/\{\{charCapacity\}\}/gi, this.sessionState.characterCapacity ?? 0);
       // Convert pain number to descriptive label
       const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
       const painValue = this.sessionState.pain ?? 0;
@@ -5306,6 +5363,7 @@ class EventEngine {
       pain: 0,
       emotion: 'neutral'
     };
+    this.previousCharacterCapacity = 0;
     this.executedOnceConditions.clear();
     this.alternateWelcome = null;
 
@@ -5464,6 +5522,17 @@ class EventEngine {
     for (const change of changes) {
       console.log(`[EventEngine] Player state changed: ${change.stateType} from ${change.oldValue} to ${change.newValue}`);
       await this.handleEvent('player_state_change', change);
+    }
+  }
+  async checkCharacterStateChanges(newState) {
+    if (newState.characterCapacity !== this.previousCharacterCapacity) {
+      console.log(`[EventEngine] Character capacity changed: ${this.previousCharacterCapacity} -> ${newState.characterCapacity}`);
+      this.previousCharacterCapacity = newState.characterCapacity;
+      await this.handleEvent('char_state_change', {
+        stateType: 'characterCapacity',
+        oldValue: this.previousCharacterCapacity,
+        newValue: newState.characterCapacity
+      });
     }
   }
 }

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
+import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import KeywordInput from '../common/KeywordInput';
 import './CharacterEditorModal.css';
 
@@ -158,6 +159,14 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
+        isPumpable: character.isPumpable || false,
+        characterCalibrationTime: character.characterCalibrationTime || 60,
+        charBurstPercent: character.charBurstPercent || 100,
+        charInflateKnowledge: character.charInflateKnowledge || 'unaware',
+        charInflateDesire: character.charInflateDesire || 'neutral',
+        charPopDesire: character.charPopDesire || 'terrified',
+        charInflateAutoLoadControls: character.charInflateAutoLoadControls || false,
+        charStagedPortraits: character.charStagedPortraits || {},
         stories,
         activeStoryId: character.activeStoryId || stories[0]?.id || 'story-1',
         buttons: character.buttons || character.events || [],
@@ -198,6 +207,14 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       avatar: '',
       description: '',
       personality: '',
+      isPumpable: false,
+      characterCalibrationTime: 60,
+      charBurstPercent: 100,
+      charInflateKnowledge: 'unaware',
+      charInflateDesire: 'neutral',
+      charPopDesire: 'terrified',
+      charInflateAutoLoadControls: false,
+      charStagedPortraits: {},
       stories: [defaultStory],
       activeStoryId: 'story-1',
       buttons: [],
@@ -275,6 +292,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
   const [enhancingScenario, setEnhancingScenario] = useState(false);
   const cancelledRef = React.useRef({ welcomeMessage: false, scenario: false });
+  const charStagedFileRefs = React.useRef({});
 
   // Derive POV from active persona's pronouns
   const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
@@ -1054,6 +1072,34 @@ Write only the scenario description itself, no explanations.`;
     setUploadedImage(null);
   };
 
+  // Character staged portrait handlers
+  const handleCharStagedImageClick = (rangeId) => {
+    charStagedFileRefs.current[rangeId]?.click();
+  };
+
+  const handleCharStagedImageUpload = (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setFormData(prev => ({
+        ...prev,
+        charStagedPortraits: {
+          ...prev.charStagedPortraits,
+          [rangeId]: event.target.result
+        }
+      }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveCharStagedPortrait = (rangeId) => {
+    const updated = { ...formData.charStagedPortraits };
+    delete updated[rangeId];
+    setFormData(prev => ({ ...prev, charStagedPortraits: updated }));
+  };
+
   // Button management
   const getNextButtonId = () => {
     const existingIds = buttons.map(b => b.buttonId).filter(id => typeof id === 'number');
@@ -1386,6 +1432,13 @@ Write only the scenario description itself, no explanations.`;
           </button>
           <button
             type="button"
+            className={`modal-tab ${activeTab === 'pumpable' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pumpable')}
+          >
+            Pumpable
+          </button>
+          <button
+            type="button"
             className={`modal-tab ${activeTab === 'reminders' ? 'active' : ''}`}
             onClick={() => setActiveTab('reminders')}
           >
@@ -1412,6 +1465,15 @@ Write only the scenario description itself, no explanations.`;
           >
             Checkpoints
           </button>
+          {formData.isPumpable && (
+            <button
+              type="button"
+              className={`modal-tab ${activeTab === 'charPortraits' ? 'active' : ''}`}
+              onClick={() => setActiveTab('charPortraits')}
+            >
+              Staged Portraits
+            </button>
+          )}
           <button
             type="button"
             className={`modal-tab ${activeTab === 'attributes' ? 'active' : ''}`}
@@ -2039,6 +2101,137 @@ Write only the scenario description itself, no explanations.`;
             </div>
           </div>
 
+          {/* Pumpable Tab */}
+          <div className="modal-body character-modal-body" style={{ display: activeTab === 'pumpable' ? 'block' : 'none' }}>
+            <div className="story-field auto-reply-field">
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={formData.isPumpable || false}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isPumpable: e.target.checked }))}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+              <div className="auto-reply-text">
+                <span className="auto-reply-label">Is this character a valid inflation target?</span>
+                <span className="auto-reply-hint">Enables a capacity gauge on this character's portrait and allows flow nodes to inflate them</span>
+              </div>
+            </div>
+
+            {formData.isPumpable && (
+              <div style={{ marginTop: '1rem' }}>
+                <div className="form-group">
+                  <label>Calibration Time (seconds)</label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={600}
+                    value={formData.characterCalibrationTime || 60}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      characterCalibrationTime: Math.min(600, Math.max(5, parseInt(e.target.value) || 60))
+                    }))}
+                    style={{ width: '100px' }}
+                  />
+                  <div className="form-hint">
+                    How many seconds of simulated inflation to reach 100% capacity. This is purely visual — no real devices are triggered.
+                    Use "Character Inflation" flow nodes to start and stop inflation.
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Burst Threshold (%)</label>
+                  <input
+                    type="number"
+                    min={50}
+                    max={200}
+                    value={formData.charBurstPercent || 100}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      charBurstPercent: Math.min(200, Math.max(50, parseInt(e.target.value) || 100))
+                    }))}
+                    style={{ width: '100px' }}
+                  />
+                  <div className="form-hint">
+                    The capacity % at which this character pops. Inflation stops automatically at this threshold.
+                    Values over 100% allow over-inflation before popping.
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '1rem' }}>
+                  <label>Character's Knowledge of Inflation</label>
+                  <select
+                    value={formData.charInflateKnowledge || 'unaware'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, charInflateKnowledge: e.target.value }))}
+                  >
+                    <option value="unaware">Unaware — doesn't know what's happening</option>
+                    <option value="confused">Confused — notices something but doesn't understand</option>
+                    <option value="partial">Partial — understands the basics but not the full picture</option>
+                    <option value="informed">Informed — knows exactly what inflation is and what's happening</option>
+                    <option value="expert">Expert — deeply knowledgeable, may have experience</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Character's Desire to be Inflated</label>
+                  <select
+                    value={formData.charInflateDesire || 'neutral'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, charInflateDesire: e.target.value }))}
+                  >
+                    <option value="terrified">Terrified — desperately does not want this</option>
+                    <option value="reluctant">Reluctant — would prefer not to but may comply</option>
+                    <option value="nervous">Nervous — anxious but not fully opposed</option>
+                    <option value="neutral">Neutral — neither wants nor resists</option>
+                    <option value="curious">Curious — intrigued and willing to try</option>
+                    <option value="eager">Eager — actively wants to be inflated</option>
+                    <option value="obsessed">Obsessed — craves inflation intensely</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                  <label>Desire to be Popped</label>
+                  <select
+                    value={formData.charPopDesire || 'terrified'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, charPopDesire: e.target.value }))}
+                  >
+                    <option value="terrified">Terrified — will do anything to avoid popping</option>
+                    <option value="dreading">Dreading — deeply fears it but feels it coming</option>
+                    <option value="anxious">Anxious — worried about the possibility</option>
+                    <option value="resigned">Resigned — accepts it may happen</option>
+                    <option value="indifferent">Indifferent — doesn't care either way</option>
+                    <option value="curious">Curious — wonders what it would feel like</option>
+                    <option value="willing">Willing — okay with popping if it happens</option>
+                    <option value="eager">Eager — wants to pop</option>
+                  </select>
+                  <div className="form-hint">Affects AI behavior when character capacity reaches 60% or higher.</div>
+                </div>
+
+                <div className="story-field auto-reply-field" style={{ marginTop: '1rem' }}>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={formData.charInflateAutoLoadControls || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, charInflateAutoLoadControls: e.target.checked }))}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Auto Load Basic Controls</span>
+                    <span className="auto-reply-hint">Automatically assigns the "Basic Character Inflation Controls" flow (Inflate, Stop, Reset, 50%) to this character's button menu</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>System Variables</strong>
+                  <div style={{ marginTop: '6px', lineHeight: 1.6 }}>
+                    <code>[CharCapacity]</code> or <code>{'{{charCapacity}}'}</code> — Current character inflation % (0-100)<br/>
+                    <code>[Capacity]</code> — Player inflation % (for reference)
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Custom Reminders Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'reminders' ? 'block' : 'none' }}>
             <div className="reminders-editor">
@@ -2500,6 +2693,61 @@ Write only the scenario description itself, no explanations.`;
               ))}
             </div>
           </div>
+
+          {/* Character Staged Portraits Tab */}
+          {formData.isPumpable && (
+            <div className="modal-body character-modal-body" style={{ display: activeTab === 'charPortraits' ? 'block' : 'none' }}>
+              <div className="staged-portraits-section">
+                <p className="section-hint">
+                  Upload different portraits for capacity ranges. The portrait changes automatically as the character's inflation increases.
+                  Capacity below 5% uses the default avatar. If a range has no portrait, the nearest lower range is used.
+                  These images are stored locally and are NOT exported with the character card.
+                </p>
+                <div className="staged-portraits-grid">
+                  {STAGED_PORTRAIT_RANGES.map((range) => (
+                    <div key={range.id} className={`staged-portrait-card ${range.isPop ? 'pop-range' : ''}`}>
+                      <div className="staged-portrait-label">{range.label}</div>
+                      <div
+                        className="staged-portrait-upload"
+                        onClick={() => handleCharStagedImageClick(range.id)}
+                      >
+                        {formData.charStagedPortraits?.[range.id] ? (
+                          <img
+                            src={formData.charStagedPortraits[range.id]}
+                            alt={`Portrait for ${range.label}`}
+                            className="staged-portrait-preview"
+                          />
+                        ) : (
+                          <div className="staged-portrait-placeholder">
+                            <span className="upload-icon">+</span>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={(el) => charStagedFileRefs.current[range.id] = el}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleCharStagedImageUpload(e, range.id)}
+                        style={{ display: 'none' }}
+                      />
+                      {formData.charStagedPortraits?.[range.id] && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm staged-portrait-remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCharStagedPortrait(range.id);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Attributes Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>

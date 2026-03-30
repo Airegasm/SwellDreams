@@ -2543,14 +2543,172 @@ const sessionState = {
     storyEvents: new Set(), // Track story event IDs
     lastExecutionTime: {} // Track last execution time per flow node
   },
+  chatMemorySummary: null, // LLM-generated summary of older messages that fell out of the context window
+  chatMemorySummaryUpTo: 0, // Index in chatHistory that the summary covers up to (exclusive)
   autoReply: false, // When false, AI only responds via Guided Response/Events/Flows
   playerName: null, // Active persona's display name
   characterName: null, // Active character's name
   pumpRuntimeTracker: {}, // deviceKey -> { totalSeconds } for auto-capacity tracking
   capacityOffset: 0, // Manual slider offset applied on top of auto-capacity
   runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
-  activeAttributes: null // Transient: rolled personality attributes for current LLM call
+  activeAttributes: null, // Transient: rolled personality attributes for current LLM call
+  characterCapacity: 0, // 0-100% simulated inflation for the AI character
+  characterInflationTimer: null, // interval ID for active character inflation
+  characterInflationStartTime: null, // timestamp when character inflation started
+  characterInflationBaseCapacity: 0 // capacity when inflation started (to add to)
 };
+
+// ==============================================
+// Character Inflation Helpers
+// ==============================================
+
+/**
+ * Start simulated inflation for the active character
+ * @param {number} calibrationTime - seconds to reach 100%
+ * @param {number} burstPercent - capacity at which character pops (default 100)
+ */
+function startCharacterInflation(calibrationTime, burstPercent = 100) {
+  // Stop any existing inflation first
+  stopCharacterInflation();
+
+  sessionState.characterInflationStartTime = Date.now();
+  sessionState.characterInflationBaseCapacity = sessionState.characterCapacity;
+  const startCap = sessionState.characterCapacity;
+
+  console.log(`[CharInflation] Starting: calibrationTime=${calibrationTime}s, startCap=${startCap}%, burstAt=${burstPercent}%`);
+
+  // Broadcast initial state (pump just turned on)
+  broadcast('character_inflate_state', { active: true, elapsed: 0, characterCapacity: startCap });
+
+  sessionState.characterInflationTimer = setInterval(() => {
+    const elapsed = (Date.now() - sessionState.characterInflationStartTime) / 1000;
+    const gain = (elapsed / calibrationTime) * 100;
+    const newCapacity = Math.min(burstPercent, Math.round(startCap + gain));
+    const elapsedRounded = Math.round(elapsed);
+
+    if (newCapacity !== sessionState.characterCapacity) {
+      sessionState.characterCapacity = newCapacity;
+      eventEngine.checkCharacterStateChanges({ characterCapacity: newCapacity });
+    }
+
+    // Always broadcast elapsed + capacity so frontend timer overlay stays in sync
+    broadcast('character_capacity_update', {
+      characterCapacity: newCapacity,
+      elapsed: elapsedRounded,
+      inflating: true
+    });
+
+    // Auto-stop at burst threshold
+    if (newCapacity >= burstPercent) {
+      console.log(`[CharInflation] Reached burst threshold ${burstPercent}%, auto-stopping (POP!)`);
+      stopCharacterInflation();
+      broadcast('character_burst', { characterCapacity: newCapacity, burstPercent });
+    }
+  }, 1000);
+}
+
+/**
+ * Stop simulated inflation for the active character
+ */
+function stopCharacterInflation() {
+  if (sessionState.characterInflationTimer) {
+    clearInterval(sessionState.characterInflationTimer);
+    sessionState.characterInflationTimer = null;
+    sessionState.characterInflationStartTime = null;
+    console.log(`[CharInflation] Stopped at ${sessionState.characterCapacity}%`);
+    broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: sessionState.characterCapacity });
+  }
+}
+
+/**
+ * Build character inflation context for the AI system prompt.
+ * Only returns content if the character is pumpable and capacity > 0.
+ */
+function buildCharacterInflationContext(character) {
+  if (!character?.isPumpable) return '';
+  const cap = sessionState.characterCapacity || 0;
+  if (cap <= 0) return '';
+
+  const charName = character.name || 'The character';
+  const isInflating = !!sessionState.characterInflationTimer;
+
+  // Map capacity to description
+  let bellyDesc;
+  if (cap <= 10) bellyDesc = 'very slight fullness, barely noticeable';
+  else if (cap <= 25) bellyDesc = 'mildly bloated, noticeably rounder';
+  else if (cap <= 40) bellyDesc = 'visibly swollen, belly pushing outward';
+  else if (cap <= 55) bellyDesc = 'significantly inflated, round and taut';
+  else if (cap <= 70) bellyDesc = 'heavily inflated, stretched drum-tight';
+  else if (cap <= 85) bellyDesc = 'massively distended, skin pulled tight';
+  else if (cap <= 95) bellyDesc = 'enormous, straining at maximum capacity';
+  else bellyDesc = 'beyond full, dangerously over-inflated';
+
+  // Pain level mapped evenly from 0-100%
+  const painLevel = Math.min(10, Math.floor(cap / 10));
+  const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+  const painLabel = painLabels[painLevel] || 'None';
+
+  // Knowledge level
+  const knowledgeMap = {
+    unaware: `${charName} has NO idea what inflation is or what is happening to them`,
+    confused: `${charName} notices something strange happening to their body but doesn't understand why`,
+    partial: `${charName} has a basic understanding of what's happening but lacks full context`,
+    informed: `${charName} knows exactly what inflation is and understands what's being done to them`,
+    expert: `${charName} has deep knowledge of inflation and may have experienced it before`
+  };
+
+  // Desire level
+  const desireMap = {
+    terrified: `desperately does NOT want to be inflated and is fighting against it`,
+    reluctant: `would prefer not to be inflated but may reluctantly comply`,
+    nervous: `is anxious about being inflated but not fully opposed`,
+    neutral: `neither wants nor resists the inflation`,
+    curious: `is intrigued by the inflation and willing to explore it`,
+    eager: `actively wants to be inflated and enjoys the sensation`,
+    obsessed: `craves inflation intensely and encourages more`
+  };
+
+  const knowledge = knowledgeMap[character.charInflateKnowledge] || knowledgeMap.unaware;
+  const desire = desireMap[character.charInflateDesire] || desireMap.neutral;
+
+  const burstPercent = character.charBurstPercent || 100;
+  const burstProximity = Math.round((cap / burstPercent) * 100);
+  const burstWarning = burstProximity >= 90 ? ' DANGEROUSLY CLOSE TO POPPING!'
+    : burstProximity >= 75 ? ' Getting very close to their limit.'
+    : burstProximity >= 50 ? ' Past the halfway point to their limit.'
+    : '';
+
+  let context = `\n=== ${charName.toUpperCase()}'S INFLATION STATE ===\n`;
+  context += `${charName}'s belly is at ${cap}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
+  context += `Burst threshold: ${burstPercent}% (currently ${burstProximity}% of the way to popping).${burstWarning}\n`;
+  if (cap >= burstPercent) {
+    context += `${charName.toUpperCase()} HAS POPPED! They have exceeded their burst threshold. React to this catastrophic event!\n`;
+  }
+  context += `Inflation pump is currently ${isInflating ? 'ON and actively inflating' : 'OFF'}.\n`;
+  context += `Knowledge: ${knowledge}.\n`;
+  context += `Desire: ${charName} ${desire}.\n`;
+
+  // Pop desire context at 60%+
+  if (burstProximity >= 60) {
+    const popDesireMap = {
+      terrified: `will do ANYTHING to avoid popping — begging, pleading, bargaining`,
+      dreading: `deeply fears popping and is becoming increasingly desperate`,
+      anxious: `is visibly worried about the growing possibility of popping`,
+      resigned: `has accepted that popping may be inevitable`,
+      indifferent: `doesn't seem to care whether they pop or not`,
+      curious: `is strangely curious about what popping would feel like`,
+      willing: `is okay with popping if it happens — no resistance`,
+      eager: `actually WANTS to pop and may encourage pushing further`
+    };
+    const popDesire = popDesireMap[character.charPopDesire] || popDesireMap.terrified;
+    context += `Pop desire: ${charName} ${popDesire}.\n`;
+  }
+
+  context += `IMPORTANT: ${charName} MUST react to their own inflation state in every response. Their physical sensations, emotions, and dialogue must reflect being at ${cap}% capacity.\n`;
+  context += `=== END ${charName.toUpperCase()}'S INFLATION STATE ===\n`;
+
+  return context;
+}
 
 // LLM State - tracks busy state and queues flow messages when LLM is busy
 const llmState = {
@@ -2718,6 +2876,8 @@ function autosaveSession() {
       pain: sessionState.pain,
       emotion: sessionState.emotion,
       chatHistory: sessionState.chatHistory,
+      chatMemorySummary: sessionState.chatMemorySummary,
+      chatMemorySummaryUpTo: sessionState.chatMemorySummaryUpTo,
       messageInputHistory: sessionState.messageInputHistory,
       flowVariables: sessionState.flowVariables,
       pumpRuntimeTracker: sessionState.pumpRuntimeTracker,
@@ -2750,6 +2910,8 @@ function loadAutosave() {
       }
       sessionState.emotion = autosaveData.emotion || 'neutral';
       sessionState.chatHistory = autosaveData.chatHistory || [];
+      sessionState.chatMemorySummary = autosaveData.chatMemorySummary || null;
+      sessionState.chatMemorySummaryUpTo = autosaveData.chatMemorySummaryUpTo || 0;
       sessionState.messageInputHistory = autosaveData.messageInputHistory || [];
       sessionState.flowVariables = autosaveData.flowVariables || {};
       // DO NOT restore pumpRuntimeTracker - prevents pumps from auto-starting on refresh
@@ -3120,7 +3282,8 @@ async function sendWelcomeMessage(character, settings) {
       }
 
       // Add active reminders (using reminder engine for keyword-based activation)
-      const recentMessages = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+      const memSettingsAutoReply = getChatMemorySettings(settings);
+      const recentMessages = reminderEngine.extractRecentMessages(sessionState.chatHistory, memSettingsAutoReply.reminderScanDepth);
       const activeReminders = reminderEngine.getMergedActiveReminders(
         character.constantReminders || [],
         settings.globalReminders || [],
@@ -3786,6 +3949,20 @@ STRICT RULES:
     sessionState.chatHistory.push(message);
     broadcast('chat_message', message);
     autosaveSession();
+  } else if (type === 'character_inflate_start') {
+    // Start character inflation timer
+    const ciSettings = loadData(DATA_FILES.settings) || {};
+    const ciChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const ciChar = ciChars.find(c => c.id === ciSettings.activeCharacterId);
+    console.log(`[CharInflation] Broadcast received: activeChar=${ciChar?.name}, isPumpable=${ciChar?.isPumpable}, calibrationTime=${ciChar?.characterCalibrationTime}`);
+    if (ciChar?.isPumpable && ciChar?.characterCalibrationTime) {
+      startCharacterInflation(ciChar.characterCalibrationTime, ciChar.charBurstPercent || 100);
+    } else {
+      console.log(`[CharInflation] Cannot start: character not pumpable or missing calibration time`);
+    }
+  } else if (type === 'character_inflate_stop') {
+    console.log('[CharInflation] Deactivate broadcast received');
+    stopCharacterInflation();
   } else {
     // For other message types, broadcast normally
     broadcast(type, data);
@@ -4292,9 +4469,74 @@ function loadFlowAssignments() {
   });
 }
 
+/**
+ * Ensure pumpable characters with autoLoadControls have the AI pump flow
+ * assigned to both their stories and the active persona.
+ */
+function ensureCharInflateFlowAssignments() {
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeChar = characters.find(c => c.id === settings.activeCharacterId);
+  const charInflateFlowId = 'flow-char-inflate-basic';
+  const shouldHaveFlow = activeChar?.isPumpable && activeChar?.charInflateAutoLoadControls;
+
+  // Handle character story assignments
+  if (shouldHaveFlow && activeChar) {
+    let charChanged = false;
+    const activeStory = activeChar.stories?.find(s => s.id === activeChar.activeStoryId) || activeChar.stories?.[0];
+    if (activeStory) {
+      if (!activeStory.assignedFlows) activeStory.assignedFlows = [];
+      if (!activeStory.assignedFlows.includes(charInflateFlowId)) {
+        activeStory.assignedFlows.push(charInflateFlowId);
+        charChanged = true;
+      }
+    }
+    if (charChanged) {
+      if (isPerCharStorageActive()) {
+        saveCharacter(activeChar);
+      } else {
+        const allChars = loadData(DATA_FILES.characters) || [];
+        const idx = allChars.findIndex(c => c.id === activeChar.id);
+        if (idx !== -1) { allChars[idx] = activeChar; saveData(DATA_FILES.characters, allChars); }
+      }
+      console.log(`[CharInflation] Assigned ${charInflateFlowId} to ${activeChar.name}`);
+    }
+  }
+
+  // Handle persona assignments — add or remove based on whether active char needs it
+  if (settings.activePersonaId) {
+    const personas = loadAllPersonas() || [];
+    const activePersona = personas.find(p => p.id === settings.activePersonaId);
+    if (activePersona) {
+      if (!activePersona.assignedFlows) activePersona.assignedFlows = [];
+      const hasFlow = activePersona.assignedFlows.includes(charInflateFlowId);
+
+      if (shouldHaveFlow && !hasFlow) {
+        // Add flow to persona
+        activePersona.assignedFlows.push(charInflateFlowId);
+        imageStorage.savePersonaJson(activePersona, false);
+        console.log(`[CharInflation] Added ${charInflateFlowId} to persona "${activePersona.displayName}"`);
+      } else if (!shouldHaveFlow && hasFlow) {
+        // Remove flow from persona — active character is not pumpable
+        activePersona.assignedFlows = activePersona.assignedFlows.filter(id => id !== charInflateFlowId);
+        imageStorage.savePersonaJson(activePersona, false);
+        console.log(`[CharInflation] Removed ${charInflateFlowId} from persona "${activePersona.displayName}"`);
+      }
+
+      // Sync persona buttons either way
+      syncPersonaAutoGeneratedButtons(activePersona.id, activePersona.assignedFlows);
+      if (!sessionState.flowAssignments.personas) sessionState.flowAssignments.personas = {};
+      sessionState.flowAssignments.personas[activePersona.id] = activePersona.assignedFlows;
+    }
+  }
+}
+
 // Load flow assignments on server startup
 loadFlowAssignments();
 console.log('[Startup] Flow assignments loaded from persisted data');
+
+// Ensure pumpable character flows are assigned
+ensureCharInflateFlowAssignments();
 
 // Activate flows for current character/persona on startup
 activateAssignedFlows();
@@ -4647,6 +4889,29 @@ async function handleWsMessage(ws, type, data) {
       break;
     }
 
+    case 'update_character_capacity':
+      sessionState.characterCapacity = Math.max(0, Math.min(100, parseInt(data.characterCapacity) || 0));
+      broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity });
+      eventEngine.checkCharacterStateChanges({ characterCapacity: sessionState.characterCapacity });
+      console.log(`[CharCapacity] Manually set to ${sessionState.characterCapacity}%`);
+      break;
+
+    case 'character_inflate_start': {
+      const charInflateSettings = loadData(DATA_FILES.settings) || {};
+      const charInflateChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const activeCharInflate = charInflateChars.find(c => c.id === charInflateSettings.activeCharacterId);
+      if (activeCharInflate?.isPumpable && activeCharInflate?.characterCalibrationTime) {
+        startCharacterInflation(activeCharInflate.characterCalibrationTime, activeCharInflate.charBurstPercent || 100);
+      } else {
+        console.log(`[CharInflation] Cannot start - character not pumpable or no calibration time`);
+      }
+      break;
+    }
+
+    case 'character_inflate_stop':
+      stopCharacterInflation();
+      break;
+
     case 'update_pain':
       sessionState.pain = data.pain;
       broadcast('pain_update', { pain: sessionState.pain });
@@ -4750,6 +5015,16 @@ async function handleWsMessage(ws, type, data) {
     case 'update_message_history':
       sessionState.messageInputHistory = data.history || [];
       autosaveSession();
+      break;
+
+    case 'update_chat_memory_summary':
+      // Allow user to edit or clear the rolling chat summary
+      sessionState.chatMemorySummary = data.summary || null;
+      if (!data.summary) {
+        sessionState.chatMemorySummaryUpTo = 0;
+      }
+      autosaveSession();
+      broadcast('chat_memory_summary_updated', { summary: sessionState.chatMemorySummary });
       break;
 
     case 'edit_message':
@@ -5873,6 +6148,9 @@ async function handleChatMessage(data) {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
+  // Summarize overflow messages before building context (non-blocking on failure)
+  await summarizeOverflowMessages(settings);
+
   // Validate speaker - player should not speak as character
   if (activeCharacter && activePersona) {
     const validation = validateSpeaker(
@@ -6596,6 +6874,9 @@ async function handleSpecialGenerate(data) {
     return;
   }
 
+  // Summarize overflow messages before building context
+  await summarizeOverflowMessages(settings);
+
   // Determine who is generating based on mode
   const isPlayerVoice = mode === 'impersonate' || mode === 'guided_impersonate';
   const generatingFor = isPlayerVoice ? (activePersona?.displayName || 'Player') : activeCharacter.name;
@@ -6822,6 +7103,9 @@ async function handleImpersonateRequest(data) {
     return;
   }
 
+  // Summarize overflow messages before building context
+  await summarizeOverflowMessages(settings);
+
   try {
     llmState.isGenerating = true;
     broadcast('generating_start', { characterName: activePersona?.displayName || 'Player', isPlayerVoice: true });
@@ -6961,6 +7245,117 @@ function getActiveCheckpoint(character, capacity) {
   return { text: text || null, preInflation: (capacity <= 0 && preInflation) ? preInflation : null };
 }
 
+/**
+ * Get chat memory settings with defaults
+ */
+function getChatMemorySettings(settings) {
+  const mem = settings?.chatMemory || {};
+  return {
+    chatHistoryDepth: mem.chatHistoryDepth || 20,
+    impersonateHistoryDepth: mem.impersonateHistoryDepth || 15,
+    reminderScanDepth: mem.reminderScanDepth || 20,
+    summarizationEnabled: mem.summarizationEnabled ?? true
+  };
+}
+
+/**
+ * Summarize older chat messages that have fallen outside the context window.
+ * Merges any existing summary with newly overflowed messages to produce a rolling summary.
+ * Called before building context when there are messages beyond the window.
+ */
+async function summarizeOverflowMessages(settings) {
+  const memSettings = getChatMemorySettings(settings);
+  if (!memSettings.summarizationEnabled) return;
+
+  const depth = memSettings.chatHistoryDepth;
+  const totalMessages = sessionState.chatHistory.length;
+
+  // Nothing to summarize if history fits in the window
+  if (totalMessages <= depth) return;
+
+  // The overflow boundary: messages before this index are outside the context window
+  const overflowEnd = totalMessages - depth;
+
+  // Already summarized up to this point
+  if (sessionState.chatMemorySummaryUpTo >= overflowEnd) return;
+
+  // Collect messages that need summarizing (between last summary point and current overflow boundary)
+  const newOverflow = sessionState.chatHistory.slice(sessionState.chatMemorySummaryUpTo, overflowEnd);
+  if (newOverflow.length === 0) return;
+
+  // Check if LLM is available
+  const hasLlmConfig = settings?.llm?.llmUrl ||
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+  if (!hasLlmConfig) return;
+
+  // Format the new messages for summarization
+  const playerName = sessionState.playerName || 'Player';
+  const charName = sessionState.characterName || 'Character';
+  let messageBlock = '';
+  newOverflow.forEach(msg => {
+    const speaker = msg.sender === 'player' ? playerName : (msg.characterName || charName);
+    messageBlock += `${speaker}: ${msg.content}\n`;
+  });
+
+  // Build the summarization prompt
+  const existingSummary = sessionState.chatMemorySummary;
+  let summaryPrompt;
+  if (existingSummary) {
+    summaryPrompt = `You are a summarization assistant. Below is an existing summary of earlier conversation, followed by new messages that continue the story. Produce an updated summary that incorporates both.
+
+EXISTING SUMMARY:
+${existingSummary}
+
+NEW MESSAGES:
+${messageBlock}
+
+Write a concise summary (3-8 sentences) that captures:
+- Key events, actions, and emotional beats
+- Current physical state and scenario progression
+- Important details that would affect future conversation
+- Who did what to whom
+
+Write ONLY the summary, no preamble or labels.`;
+  } else {
+    summaryPrompt = `You are a summarization assistant. Summarize the following roleplay conversation messages.
+
+MESSAGES:
+${messageBlock}
+
+Write a concise summary (3-8 sentences) that captures:
+- Key events, actions, and emotional beats
+- Current physical state and scenario progression
+- Important details that would affect future conversation
+- Who did what to whom
+
+Write ONLY the summary, no preamble or labels.`;
+  }
+
+  try {
+    console.log(`[ChatMemory] Summarizing ${newOverflow.length} overflow messages (${sessionState.chatMemorySummaryUpTo} → ${overflowEnd})`);
+    const summarySettings = { ...settings.llm };
+    summarySettings.maxTokens = 300;
+    // Don't stream summaries
+    summarySettings.streaming = false;
+
+    const result = await llmService.generate({
+      prompt: summaryPrompt,
+      systemPrompt: 'You are a concise summarizer. Output only the summary text.',
+      settings: summarySettings
+    });
+
+    if (result.text && result.text.trim()) {
+      sessionState.chatMemorySummary = result.text.trim();
+      sessionState.chatMemorySummaryUpTo = overflowEnd;
+      console.log(`[ChatMemory] Summary updated (covers ${overflowEnd} messages): ${sessionState.chatMemorySummary.substring(0, 100)}...`);
+      autosaveSession();
+    }
+  } catch (error) {
+    console.error('[ChatMemory] Summarization failed:', error.message);
+    // Non-fatal — we just won't have a summary this round
+  }
+}
+
 function buildSpecialContext(mode, guidedText, character, persona, settings) {
   let systemPrompt = '';
   let prompt = '';
@@ -7055,7 +7450,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += '\n';
 
     // Add active reminders (using reminder engine for keyword-based activation)
-    const recentMessagesImp = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+    const recentMessagesImp = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
     const activeRemindersImp = reminderEngine.getMergedActiveReminders(
       character.constantReminders || [],
       settings.globalReminders || [],
@@ -7066,6 +7461,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     }
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
+    systemPrompt += buildCharacterInflationContext(character);
 
     // Inject capacity checkpoints
     const checkpointImp = getActiveCheckpoint(character, sessionState.capacity);
@@ -7099,6 +7495,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += '\n';
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
+    systemPrompt += buildCharacterInflationContext(character);
 
     // Inject capacity checkpoints
     const checkpointGuided = getActiveCheckpoint(character, sessionState.capacity);
@@ -7112,7 +7509,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
 
     // Add active reminders (using reminder engine for keyword-based activation)
-    const recentMessagesGuided = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+    const recentMessagesGuided = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
     const activeRemindersGuided = reminderEngine.getMergedActiveReminders(
       character.constantReminders || [],
       settings.globalReminders || [],
@@ -7154,7 +7551,13 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   }
 
   // Build prompt from history using [Player] and [Char] tags
-  const recentMessages = sessionState.chatHistory.slice(-15);
+  const memSettingsSpecial = getChatMemorySettings(settings);
+  const recentMessages = sessionState.chatHistory.slice(-memSettingsSpecial.impersonateHistoryDepth);
+
+  // Inject rolling summary of older messages if available
+  if (sessionState.chatMemorySummary) {
+    prompt += `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]\n\n`;
+  }
   prompt += 'Current conversation:\n';
   recentMessages.forEach(msg => {
     if (msg.sender === 'player') {
@@ -7328,6 +7731,7 @@ function buildChatContext(character, settings) {
   // Add player's current physical/emotional state
   const playerLabel = activePersona?.displayName || 'The player';
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
+  systemPrompt += buildCharacterInflationContext(character);
 
   // Inject capacity checkpoints
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
@@ -7350,7 +7754,7 @@ function buildChatContext(character, settings) {
   }
 
   // Add active reminders (using reminder engine for keyword-based activation)
-  const recentMessagesChat = reminderEngine.extractRecentMessages(sessionState.chatHistory, 20);
+  const recentMessagesChat = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
   const activeRemindersChat = reminderEngine.getMergedActiveReminders(
     character.constantReminders || [],
     settings.globalReminders || [],
@@ -7392,8 +7796,14 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
 
   // Build prompt from recent chat history
-  const recentMessages = sessionState.chatHistory.slice(-20);
+  const memSettingsChat = getChatMemorySettings(settings);
+  const recentMessages = sessionState.chatHistory.slice(-memSettingsChat.chatHistoryDepth);
   let prompt = '';
+
+  // Inject rolling summary of older messages if available
+  if (sessionState.chatMemorySummary) {
+    prompt += `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]\n\n`;
+  }
 
   if (character.exampleDialogues && character.exampleDialogues.length > 0) {
     prompt += 'Example dialogue:\n';
@@ -7720,6 +8130,14 @@ app.post('/api/settings', async (req, res) => {
       const personas = loadAllPersonas() || [];
       const activePersona = personas.find(p => p.id === settings.activePersonaId);
       sessionState.playerName = activePersona?.displayName || null;
+    }
+
+    // Ensure AI pump flow assignments are correct for the new character
+    if (charChanged) {
+      ensureCharInflateFlowAssignments();
+      // Broadcast updated personas so frontend sees button changes
+      broadcast('personas_update', loadAllPersonas() || []);
+      broadcast('flow_assignments_update', sessionState.flowAssignments);
     }
 
     activateAssignedFlows();
@@ -8634,6 +9052,44 @@ app.put('/api/characters/:id', async (req, res) => {
       characters[index] = { ...characters[index], ...req.body, updatedAt: Date.now() };
       updatedCharacter = characters[index];
       saveData(DATA_FILES.characters, characters);
+    }
+
+    // Auto-assign basic character inflation flow if enabled
+    if (updatedCharacter.charInflateAutoLoadControls && updatedCharacter.isPumpable) {
+      const charInflateFlowId = 'flow-char-inflate-basic';
+      // Check all stories, not just active — assign to all stories that don't have it
+      for (const story of (updatedCharacter.stories || [])) {
+        if (!story.assignedFlows) story.assignedFlows = [];
+        if (!story.assignedFlows.includes(charInflateFlowId)) {
+          story.assignedFlows.push(charInflateFlowId);
+          console.log(`[CharInflation] Auto-assigned ${charInflateFlowId} to story "${story.name}" of ${updatedCharacter.name}`);
+        }
+      }
+      // Re-save character with updated flow assignments
+      if (isPerCharStorageActive()) {
+        updatedCharacter = await saveCharacterAsync(updatedCharacter);
+      } else {
+        const chars2 = loadData(DATA_FILES.characters) || [];
+        const idx2 = chars2.findIndex(c => c.id === req.params.id);
+        if (idx2 !== -1) { chars2[idx2] = updatedCharacter; saveData(DATA_FILES.characters, chars2); }
+      }
+      // Also assign to active persona so persona-targeted buttons appear under persona avatar
+      const ciSettings = loadData(DATA_FILES.settings) || {};
+      if (ciSettings.activePersonaId) {
+        const ciPersonas = loadAllPersonas() || [];
+        const ciPersona = ciPersonas.find(p => p.id === ciSettings.activePersonaId);
+        if (ciPersona) {
+          if (!ciPersona.assignedFlows) ciPersona.assignedFlows = [];
+          if (!ciPersona.assignedFlows.includes(charInflateFlowId)) {
+            ciPersona.assignedFlows.push(charInflateFlowId);
+            imageStorage.savePersonaJson(ciPersona, false);
+            console.log(`[CharInflation] Auto-assigned ${charInflateFlowId} to persona "${ciPersona.displayName}"`);
+          }
+          syncPersonaAutoGeneratedButtons(ciPersona.id, ciPersona.assignedFlows);
+          if (!sessionState.flowAssignments.personas) sessionState.flowAssignments.personas = {};
+          sessionState.flowAssignments.personas[ciPersona.id] = ciPersona.assignedFlows;
+        }
+      }
     }
 
     // Sync buttons if character has story flows assigned
@@ -9862,6 +10318,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 1. Stop ALL pump runtime tracking intervals immediately
   deviceService.stopAllPumpRuntimeTracking();
+  stopCharacterInflation();
 
   // 2. Halt all flow execution
   if (eventEngine) {
@@ -10038,6 +10495,9 @@ app.get('/api/export/character/:id', (req, res) => {
 
   // Clone character data for export
   const exportCharacter = { ...character };
+
+  // Strip staged portraits - they are local-only and not exported
+  delete exportCharacter.charStagedPortraits;
 
   // Embed avatar image if it exists and is a local path
   if (exportCharacter.avatar && exportCharacter.avatar.startsWith('/api/images/')) {
@@ -10521,6 +10981,8 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.emotion = initialValues.emotion ?? startingEmotion;
   sessionState.capacityModifier = initialValues.capacityModifier ?? 1.0;
   sessionState.chatHistory = [];
+  sessionState.chatMemorySummary = null;
+  sessionState.chatMemorySummaryUpTo = 0;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
@@ -10529,6 +10991,9 @@ app.post('/api/session/reset', async (req, res) => {
   };
   sessionState.pumpRuntimeTracker = {}; // Reset auto-capacity tracking
   sessionState.capacityOffset = 0; // Clear manual capacity offset
+  stopCharacterInflation(); // Stop any active character inflation
+  sessionState.characterCapacity = 0;
+  sessionState.characterInflationBaseCapacity = 0;
 
   console.log(`[Session Reset] Initial values - capacity: ${sessionState.capacity}, pain: ${sessionState.pain}, emotion: ${sessionState.emotion}, capacityModifier: ${sessionState.capacityModifier}`);
 
@@ -10541,8 +11006,9 @@ app.post('/api/session/reset', async (req, res) => {
   eventEngine.cleanup();
   console.log('[Session Reset] Event engine cleanup complete');
 
-  // Re-load flow assignments and re-activate flows
+  // Re-load flow assignments, ensure pumpable flows, and re-activate
   loadFlowAssignments();
+  ensureCharInflateFlowAssignments();
   activateAssignedFlows();
 
   broadcast('session_reset', sessionState);

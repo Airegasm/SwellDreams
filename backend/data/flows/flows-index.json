@@ -96,6 +96,12 @@
     "description": "Tests all 9 trigger node types"
   },
   {
+    "id": "flow-char-inflate-basic",
+    "name": "Basic AI Pump Controls",
+    "characterId": null,
+    "description": "Activate and deactivate the AI character's simulated inflation pump"
+  },
+  {
     "id": "flow-exec-scarlett-card-fate",
     "name": "Executress Scarlett: Card of Fate",
     "characterId": null,

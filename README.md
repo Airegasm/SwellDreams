@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v3.8.0 — Open Beta is Here!</h3>
+<h3 align="center">SwellDreams v3.8.5 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v3.8.0 "Open Beta"**
+**v3.8.5 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -121,7 +121,8 @@ Each device can be calibrated to establish a baseline — the system learns how 
 | Brand | Connection | Status |
 |-------|-----------|--------|
 | **TP-Link Kasa** | Local network (native TCP) | Supported |
-| **TP-Link Tapo** | Local network (Python bridge) | Out of service — manufacturer TATP encryption changes currently block third-party control |
+| **TP-Link Tapo** | Local network (Python bridge) | Out of service — manufacturer KLAP encryption changes currently block third-party control |
+| **Home Assistant** | REST API (local network) | Supported — bridge for Tapo and any other HA-managed switch entities |
 | **Govee** | Cloud API | Supported |
 | **Tuya / Smart Life** | Cloud API | Supported — includes Globe, Treatlife, Gosund, Teckin, and other Tuya-based brands |
 | **Simulated** | None | Built-in testing mode, no hardware required |
@@ -157,6 +158,7 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Custom reminders (lorebook)** — constant or keyword-triggered instructions with priority, scan depth, case sensitivity, and enable/disable toggle. Flow-controllable mid-session.
 - **Global reminders** — reminders that apply to all characters, configured in global settings
 - **Author note** — high-priority persistent instruction field in global settings
+- **Character inflation ("Pumpable")** — characters can be inflation targets with their own capacity gauge, pain emoji, staged portraits, burst threshold, and full AI context awareness. Controlled via flow nodes (start/stop/set capacity) with configurable calibration time, knowledge level (unaware→expert), desire to be inflated (terrified→obsessed), and desire to be popped (terrified→eager). Auto-load basic controls option assigns ready-made button flows.
 - **Custom buttons** — quick-action buttons with send message, device control, cycle device, and flow linking actions. Dynamically togglable via flows.
 - **[Gender] smart pronoun system** — context-aware pronoun variable that resolves to he/she/they based on persona gender and grammatical position
 - **Built-in characters** — Luna (romantic partner), Mistress Scarlett (dominatrix), Vex (gameshow host), Dr. Iris Chen (researcher), Research Team Alpha (multi-char medical team) — each with pre-built flows
@@ -178,18 +180,19 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Emotion system** — 20 selectable emotions (neutral, excited, aroused, submissive, dominant, shy, frightened, blissful, and more) with emoji display
 - **Auto-link capacity to pain** — optional automatic pain level progression tied to capacity percentage
 - **Emotional decline** — optional automatic emotion shift to "frightened" at 75%+ capacity
-- **Built-in variables** — `[Player]`, `[Char]`, `[Gender]`, `[Capacity]`, `[Feeling]`, `[Emotion]` — replaced dynamically in prompts, messages, and reminders
+- **Built-in variables** — `[Player]`, `[Char]`, `[Gender]`, `[Capacity]`, `[CharCapacity]`, `[Feeling]`, `[Emotion]` — replaced dynamically in prompts, messages, and reminders
 - **Custom flow variables** — `[Flow:variableName]` for tracking state, counts, and decisions across a session
-- **Auto-capacity system** — real-time capacity tracking from pump runtime with per-device calibration, configurable speed multiplier (0.25x-2.0x), and auto-shutoff at threshold
+- **Auto-capacity system** — real-time capacity tracking from pump runtime with per-device calibration, configurable speed multiplier (0.25x-2.0x), live modifier slider on the capacity gauge, and auto-shutoff at threshold. Capacity modifier also scales LLM device control time limits.
 
 ### Flow Node Scripting Engine
 
 - **Visual drag-and-drop editor** — connect nodes on a canvas to build automation
-- **12 trigger types** — first message, new session, player speaks, AI speaks, device on/off, timer, random, idle, player state change, button press
+- **13 trigger types** — first message, new session, player speaks, AI speaks, device on/off, timer, random, idle, player state change, character state change, button press
 - **Pattern matching** — wildcard (`*`) and alternative (`[word/or/other]`) syntax for keyword triggers
 - **Message actions** — send AI message, send player message, system message, capacity-ranged AI/player messages
 - **Device actions** — turn on/off, start/stop cycle, with "until" conditions (timer, capacity, pain, emotion)
 - **State actions** — declare/set variables, toggle reminders, toggle buttons, set emotion, set attribute
+- **Character inflation actions** — start/stop character inflation, set character capacity — for pumpable characters with timer-based simulated inflation
 - **Logic nodes** — condition (AND logic), conditional branch, random branch (weighted), delay, pause/resume window, player choice, simple A/B, input collection, random number, counter, loop, switch, session timer, comment
 - **10 challenge mini-games** — prize wheel, dice roll, coin flip, rock-paper-scissors, timer challenge, number guess, slot machine, card draw, Simon memory, reflex challenge — each with win/lose branching
 - **Media nodes** — show image, play video, play audio — with blocking, looping, and silent modes
@@ -226,6 +229,7 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Video modes** — one-shot, looping (`[Video:tag:loop]`), and blocking (`[Video:tag:blocking]`)
 - **Audio modes** — visible player or silent background (`[Audio:tag:nomsg]`)
 - **Media flow nodes** — dedicated show image, play video, and play audio action nodes with blocking support
+- **Media variables reference** — collapsible reference card in the Media Album showing all variable formats
 
 ### Interface & Access
 

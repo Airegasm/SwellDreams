@@ -721,6 +721,20 @@ function ActionNode({ data, selected }) {
         );
       }
 
+      case 'char_inflate_start':
+        return (
+          <div className="node-config">
+            <div className="node-hint">Activates the AI pump — starts a visible timer on the character portrait and increments their capacity gauge. Does nothing if the character isn't pumpable.</div>
+          </div>
+        );
+
+      case 'char_inflate_stop':
+        return (
+          <div className="node-config">
+            <div className="node-hint">Deactivates the AI pump — stops the timer and hides the overlay. Does nothing if the character isn't pumpable.</div>
+          </div>
+        );
+
       default:
         return null;
     }

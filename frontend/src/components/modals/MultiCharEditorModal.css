@@ -44,3 +44,17 @@
   position: relative;
   top: -1px;
 }
+
+/* Pumpable badge in CharacterTab list */
+.pumpable-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #dc2626;
+  color: white;
+  padding: 3px 8px;
+  border-radius: var(--border-radius, 4px);
+  margin-left: 4px;
+  position: relative;
+  top: -1px;
+  white-space: nowrap;
+}

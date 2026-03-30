@@ -384,6 +384,9 @@ function CharacterTab() {
                     {character.multiChar?.enabled && (
                       <span className="multi-char-badge">Multi-Char</span>
                     )}
+                    {character.isPumpable && !character.multiChar?.enabled && (
+                      <span className="pumpable-badge">Pumpable</span>
+                    )}
                     {settings.activeCharacterId === character.id && (
                       <span className="active-badge">Active</span>
                     )}

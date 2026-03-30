@@ -110,6 +110,16 @@ const NODE_TEMPLATES = {
       label: 'New Session',
       triggerType: 'new_session',
       initialVariables: []
+    },
+    char_state_change: {
+      label: 'Character State Change',
+      triggerType: 'char_state_change',
+      stateType: 'characterCapacity',
+      comparison: 'meet',
+      targetValue: 50,
+      fireOnlyOnce: true,
+      hasPriority: false,
+      priority: 5
     }
   },
   button_press: {
@@ -131,7 +141,9 @@ const NODE_TEMPLATES = {
     play_video: { label: 'Play Video', actionType: 'play_video', tag: '', loop: false, blocking: false, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     play_audio: { label: 'Play Audio', actionType: 'play_audio', tag: '', noBubble: false, blocking: false, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     set_emotion: { label: 'Set Emotion', actionType: 'set_emotion', emotion: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
-    set_attribute: { label: 'Set Attribute', actionType: 'set_attribute', attribute: '', attributeValue: 50, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
+    set_attribute: { label: 'Set Attribute', actionType: 'set_attribute', attribute: '', attributeValue: 50, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    char_inflate_start: { label: 'Activate AI Pump', actionType: 'char_inflate_start', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    char_inflate_stop: { label: 'Deactivate AI Pump', actionType: 'char_inflate_stop', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
   },
   condition: {
     default: {

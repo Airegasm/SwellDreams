@@ -207,6 +207,19 @@ async function processCharacterImages(character, isDefault = false) {
     processed.avatar = await saveCharacterImage(character.id, processed.avatar, 'avatar', isDefault);
   }
 
+  // Process character staged portraits (for pumpable characters)
+  if (processed.charStagedPortraits && typeof processed.charStagedPortraits === 'object') {
+    const processedPortraits = {};
+    for (const [rangeId, imageData] of Object.entries(processed.charStagedPortraits)) {
+      if (imageData && isBase64DataUri(imageData)) {
+        processedPortraits[rangeId] = await saveCharacterImage(character.id, imageData, `staged-${rangeId}`, isDefault);
+      } else {
+        processedPortraits[rangeId] = imageData;
+      }
+    }
+    processed.charStagedPortraits = processedPortraits;
+  }
+
   return processed;
 }
 

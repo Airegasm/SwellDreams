@@ -5,6 +5,131 @@ function WhatsNewTab() {
   return (
     <div className="help-tab">
       <div className="help-section">
+        <h2>🎈 What's New in v3.8.2–3.8.5</h2>
+        <p className="version-date">Released: March 2026</p>
+      </div>
+
+      <div className="help-section">
+        <h3>🏠 Home Assistant Device Integration</h3>
+        <p>
+          Connect to Home Assistant to control Tapo outlets and any other HA-managed switch entities
+          via the HA REST API. This replaces direct Tapo KLAP protocol control which is currently broken
+          on Tapo's end.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>REST API Bridge:</strong>
+            <p>Pure HTTP control — no Python bridge, no KLAP protocol headaches</p>
+          </div>
+          <div className="feature-item">
+            <strong>Device Discovery:</strong>
+            <p>Automatically discovers all switch entities from your HA instance</p>
+          </div>
+          <div className="feature-item">
+            <strong>Full Logging:</strong>
+            <p>Comprehensive console logging with request timing, error details, and entity state tracking</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 Setup:</strong> Settings → Devices → Home Assistant → Enter HA URL + Long-Lived Access Token → Discover Devices
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🎈 Character Inflation System ("Pumpable")</h3>
+        <p>
+          Characters can now be inflation targets with their own capacity gauge, pain emoji,
+          staged portraits, and AI context awareness. No real devices are triggered — this is
+          purely simulated visual inflation driven by flow nodes and timer-based progression.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Pumpable Toggle:</strong>
+            <p>Enable per-character in the new "Pumpable" tab of the character editor</p>
+          </div>
+          <div className="feature-item">
+            <strong>Capacity Gauge:</strong>
+            <p>Mini gauge on the character's portrait (top-left) with clickable slider for manual adjustment</p>
+          </div>
+          <div className="feature-item">
+            <strong>Pain Emoji:</strong>
+            <p>Emoji below the gauge that maps character capacity (0-100%) across the 11-level pain scale</p>
+          </div>
+          <div className="feature-item">
+            <strong>Staged Portraits:</strong>
+            <p>Upload different portraits for capacity ranges — portrait changes automatically as inflation increases. Local only, not exported with character cards.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Burst Threshold:</strong>
+            <p>Configurable pop percentage (50-200%). Inflation auto-stops and fires a burst event at the threshold.</p>
+          </div>
+          <div className="feature-item">
+            <strong>AI Awareness:</strong>
+            <p>When character capacity {'>'} 0%, every AI prompt includes: current capacity, belly description, pain level, pump on/off, knowledge level, desire level, pop proximity, and pop desire (at 60%+).</p>
+          </div>
+          <div className="feature-item">
+            <strong>Knowledge & Desire:</strong>
+            <p>Dropdowns for character's knowledge of inflation (unaware→expert) and desire to be inflated (terrified→obsessed), plus desire to be popped (terrified→eager)</p>
+          </div>
+          <div className="feature-item">
+            <strong>Auto Load Controls:</strong>
+            <p>One-click toggle to assign the "Basic Character Inflation Controls" flow with Inflate, Stop, Reset, and 50% buttons</p>
+          </div>
+          <div className="feature-item">
+            <strong>Pumpable Badge:</strong>
+            <p>Red "Pumpable" badge on character cards in the selector, and a red "PUMPABLE" info section below the portrait in chat showing Auto-Pop threshold</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 System Variables:</strong> <code>[CharCapacity]</code> or <code>{'{{charCapacity}}'}</code> — character's current inflation % (0-100). Also available as <code>characterCapacity</code> in flow conditions.
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🔧 Character Inflation Flow Nodes</h3>
+        <p>New flow node types for controlling character inflation:</p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Actions:</strong>
+            <p><em>Start Character Inflation</em> — begins timer-based inflation using the character's calibration time.
+            <em>Stop Character Inflation</em> — stops the timer at current capacity.
+            <em>Set Character Capacity</em> — directly set capacity to a specific value (0-100%).</p>
+          </div>
+          <div className="feature-item">
+            <strong>Trigger:</strong>
+            <p><em>Character State Change</em> — fires when character capacity crosses a threshold (=, {'>=', '>', '<', '<='} comparisons)</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>⚡ Capacity Modifier Scaling</h3>
+        <p>
+          The capacity modifier now affects LLM device control limits. Time-based limits (max ON duration,
+          max timed, max cycle ON) scale proportionally with the modifier. A new live modifier slider
+          appears next to the player's capacity slider for on-the-fly adjustment during sessions.
+        </p>
+      </div>
+
+      <div className="help-section">
+        <h3>🖼️ Media Variables Reference</h3>
+        <p>
+          The Media Album now includes a collapsible reference card showing all 6 media variable formats
+          for embedding images, video, and audio into chat messages and flow actions.
+        </p>
+      </div>
+
+      <div className="help-section">
+        <h3>🐛 Fixes & Improvements</h3>
+        <ul>
+          <li>Fixed capacity slider persistence — manual adjustments now properly offset from auto-capacity</li>
+          <li>Bypassed descriptive filter for explicit device phrases ("pump continues", "turns dial")</li>
+          <li>Added SillyTavern {'{{user}}'}/{'{{char}}'} macro support in variable substitution</li>
+          <li>Removed Matter/Thread service (unimplemented)</li>
+        </ul>
+      </div>
+
+      <div className="help-section">
         <h2>🎉 What's New in Version 4.0</h2>
         <p className="version-date">Released: February 2026</p>
       </div>

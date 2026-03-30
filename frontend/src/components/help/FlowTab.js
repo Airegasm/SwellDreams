@@ -120,6 +120,11 @@ function FlowTab() {
                   <td>Fires when persona state changes</td>
                   <td>State type (Capacity, Pain Level, Emotion), comparison operator, value</td>
                 </tr>
+                <tr>
+                  <td><strong>Character State Change</strong></td>
+                  <td>Fires when a pumpable character's inflation capacity changes</td>
+                  <td>Comparison operator (=, {'>=, >, <, <='}), target value (0-100%), fire-only-once toggle</td>
+                </tr>
               </tbody>
             </table>
 
@@ -218,6 +223,34 @@ function FlowTab() {
                   <td><strong>Stop Cycle</strong></td>
                   <td>Stop an active pump cycle</td>
                   <td>Device selector</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4 className="subsection-header">Character Inflation Actions</h4>
+            <table className="help-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Description</th>
+                  <th>Options</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Start Character Inflation</strong></td>
+                  <td>Begin timer-based simulated inflation using the character's calibration time</td>
+                  <td>None — uses character's Pumpable settings</td>
+                </tr>
+                <tr>
+                  <td><strong>Stop Character Inflation</strong></td>
+                  <td>Stop inflation timer at current capacity</td>
+                  <td>None</td>
+                </tr>
+                <tr>
+                  <td><strong>Set Character Capacity</strong></td>
+                  <td>Directly set the character's inflation capacity</td>
+                  <td>Value (0-100%)</td>
                 </tr>
               </tbody>
             </table>

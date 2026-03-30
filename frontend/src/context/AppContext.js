@@ -53,6 +53,9 @@ export function AppProvider({ children }) {
     capacity: 0,
     pain: 0, // 0-10 numeric pain scale
     emotion: 'neutral',
+    characterCapacity: 0, // AI character's simulated inflation capacity
+    characterInflating: false, // Whether the AI pump is active
+    characterInflateElapsed: 0, // Seconds elapsed since pump activated
     chatHistory: [],
     flowVariables: {},
     deviceStates: {},
@@ -263,6 +266,33 @@ export function AppProvider({ children }) {
           capacity: data.capacity,
           pain: data.pain,
           isOverInflating: data.isOverInflating
+        }));
+        break;
+
+      case 'character_capacity_update':
+        setSessionState(prev => ({
+          ...prev,
+          characterCapacity: data.characterCapacity,
+          characterInflating: data.inflating ?? prev.characterInflating,
+          characterInflateElapsed: data.elapsed ?? prev.characterInflateElapsed
+        }));
+        break;
+
+      case 'character_inflate_state':
+        setSessionState(prev => ({
+          ...prev,
+          characterInflating: data.active,
+          characterInflateElapsed: data.elapsed || 0,
+          characterCapacity: data.characterCapacity ?? prev.characterCapacity
+        }));
+        break;
+
+      case 'character_burst':
+        setSessionState(prev => ({
+          ...prev,
+          characterCapacity: data.characterCapacity,
+          characterInflating: false,
+          characterInflateElapsed: 0
         }));
         break;
 

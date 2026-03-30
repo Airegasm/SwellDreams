@@ -128,6 +128,11 @@ function Chat() {
   const mobileMenuRef = useRef(null);
   const navigate = useNavigate();
 
+  // Character capacity slider
+  const [showCharCapSlider, setShowCharCapSlider] = useState(false);
+  const [charCapSliderValue, setCharCapSliderValue] = useState(0);
+  const charCapRef = useRef(null);
+
   // Challenge result display (for inline challenges)
   const [challengeResult, setChallengeResult] = useState(null);
 
@@ -226,6 +231,19 @@ function Chat() {
   const personaPortrait = useMemo(() => {
     return getPortraitForCapacity(activePersona, sessionState.capacity || 0, effectivePopThreshold);
   }, [activePersona, sessionState.capacity, effectivePopThreshold]);
+
+  // Memoized character portrait based on character capacity - changes with staged portraits
+  const characterPortrait = useMemo(() => {
+    if (!activeCharacter?.isPumpable || !activeCharacter?.charStagedPortraits) {
+      return activeCharacter?.avatar || null;
+    }
+    // Create a pseudo-persona object for getPortraitForCapacity
+    const charAsPortraitSource = {
+      avatar: activeCharacter.avatar,
+      stagedPortraits: activeCharacter.charStagedPortraits
+    };
+    return getPortraitForCapacity(charAsPortraitSource, sessionState.characterCapacity || 0, activeCharacter.charBurstPercent || 100);
+  }, [activeCharacter, sessionState.characterCapacity]);
 
   // Reset action page when character changes
   useEffect(() => {
@@ -445,6 +463,19 @@ function Chat() {
     const timer = setTimeout(checkDevices, 15000);
     return () => clearTimeout(timer);
   }, [api, showWarning, showInfo]);
+
+  // Close character capacity slider when clicking outside
+  useEffect(() => {
+    const handleCharCapClickOutside = (e) => {
+      if (charCapRef.current && !charCapRef.current.contains(e.target)) {
+        setShowCharCapSlider(false);
+      }
+    };
+    if (showCharCapSlider) {
+      document.addEventListener('mousedown', handleCharCapClickOutside);
+      return () => document.removeEventListener('mousedown', handleCharCapClickOutside);
+    }
+  }, [showCharCapSlider]);
 
   // Close quick menu when clicking outside
   useEffect(() => {
@@ -1807,8 +1838,8 @@ function Chat() {
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Character Portrait */}
         <div className={`entity-portrait-large ${characterHidden ? 'portrait-hidden' : ''}`}>
-          {activeCharacter?.avatar ? (
-            <img src={activeCharacter.avatar} alt={activeCharacter.name} />
+          {characterPortrait ? (
+            <img src={characterPortrait} alt={activeCharacter?.name} />
           ) : (
             <div className="portrait-placeholder">?</div>
           )}
@@ -1820,6 +1851,97 @@ function Chat() {
           >
             {characterHidden ? '👁' : '👁'}
           </button>
+          {/* Character Capacity Gauge + Pain Emoji - top left of portrait */}
+          {activeCharacter?.isPumpable && (
+            <div
+              className="char-inflate-overlay"
+              ref={charCapRef}
+              onClick={() => {
+                if (!showCharCapSlider) setCharCapSliderValue(sessionState.characterCapacity || 0);
+                setShowCharCapSlider(!showCharCapSlider);
+              }}
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+            >
+              <div className="char-capacity-gauge">
+                <div className="char-gauge-bg"></div>
+                <div
+                  className="char-gauge-needle"
+                  style={{ '--capacity': Math.min(sessionState.characterCapacity || 0, 100) }}
+                ></div>
+                <div className="char-gauge-center"></div>
+                <span className="char-gauge-value">{sessionState.characterCapacity || 0}%</span>
+              </div>
+              <span className="char-pain-emoji">
+                {(() => {
+                  const cap = sessionState.characterCapacity || 0;
+                  const painLevel = Math.min(10, Math.floor(cap / 10));
+                  const emojis = ['\u{1F60A}', '\u{1F642}', '\u{1F610}', '\u{1F615}', '\u{1F61F}', '\u{1F623}', '\u{1F62B}', '\u{1F616}', '\u{1F62D}', '\u{1F92E}', '\u{1F635}'];
+                  return emojis[painLevel];
+                })()}
+              </span>
+              {showCharCapSlider && (
+                <div className="char-cap-slider-popup" onClick={(e) => e.stopPropagation()}>
+                  <span className="capacity-slider-label">{charCapSliderValue}%</span>
+                  <div
+                    className="capacity-slider-track char-cap-track"
+                    onMouseDown={(e) => {
+                      const track = e.currentTarget;
+                      const update = (ev) => {
+                        const rect = track.getBoundingClientRect();
+                        const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - ev.clientY) / rect.height) * 100)));
+                        setCharCapSliderValue(pct);
+                        sendWsMessage('update_character_capacity', { characterCapacity: pct });
+                      };
+                      update(e);
+                      const onMove = (ev) => update(ev);
+                      const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                      };
+                      document.addEventListener('mousemove', onMove);
+                      document.addEventListener('mouseup', onUp);
+                    }}
+                    onTouchStart={(e) => {
+                      const track = e.currentTarget;
+                      const update = (ev) => {
+                        const touch = ev.touches[0];
+                        const rect = track.getBoundingClientRect();
+                        const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - touch.clientY) / rect.height) * 100)));
+                        setCharCapSliderValue(pct);
+                        sendWsMessage('update_character_capacity', { characterCapacity: pct });
+                      };
+                      update(e);
+                      const onMove = (ev) => { ev.preventDefault(); update(ev); };
+                      const onEnd = () => {
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onEnd);
+                      };
+                      document.addEventListener('touchmove', onMove, { passive: false });
+                      document.addEventListener('touchend', onEnd);
+                    }}
+                  >
+                    <div className="capacity-slider-fill" style={{ height: `${charCapSliderValue}%` }} />
+                    <div className="capacity-slider-thumb" style={{ bottom: `${charCapSliderValue}%` }} />
+                  </div>
+                  <span className="capacity-slider-min">0</span>
+                </div>
+              )}
+            </div>
+          )}
+          {/* AI Pump Timer Overlay - bottom left of portrait */}
+          {activeCharacter?.isPumpable && sessionState.characterInflating && (
+            <div className="char-pump-timer-overlay">
+              <div className="char-pump-timer-icon">&#9202;</div>
+              <div className="char-pump-timer-value">
+                {(() => {
+                  const secs = sessionState.characterInflateElapsed || 0;
+                  const m = Math.floor(secs / 60);
+                  const s = secs % 60;
+                  return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `${s}s`;
+                })()}
+              </div>
+            </div>
+          )}
           {/* Frame overlay to match persona portrait */}
           <div className="status-badges-overlay">
             <div className="metallic-frame">
@@ -1857,6 +1979,14 @@ function Chat() {
                 )}
                 <li>LLM Device Control {settings?.globalCharacterControls?.allowLlmDeviceControl ? 'ON' : 'OFF'}</li>
               </ul>
+              {activeCharacter?.isPumpable && (
+                <div className="char-pumpable-info">
+                  <div className="char-pumpable-header">PUMPABLE</div>
+                  <ul className="session-info-list char-pumpable-list">
+                    <li>Auto-Pop @ {activeCharacter.charBurstPercent || 100}%</li>
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="character-bottom-bar">
               <button

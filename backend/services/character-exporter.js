@@ -157,6 +157,9 @@ function buildSwellDExport(character, selectedStories, flows, embedFlows, avatar
   // Clone character data for export
   const exportChar = JSON.parse(JSON.stringify(character));
 
+  // Strip staged portraits - they are local-only
+  delete exportChar.charStagedPortraits;
+
   // Filter stories to only selected ones
   if (selectedStories && selectedStories.length > 0) {
     const selectedIds = new Set(selectedStories.map(s => s.id));

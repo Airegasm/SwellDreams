@@ -546,6 +546,49 @@ function TriggerNode({ data, selected }) {
         );
       }
 
+      case 'char_state_change': {
+        return (
+          <div className="node-config">
+            <div className="config-row">
+              <label>Character Capacity:</label>
+              <select
+                className="node-select"
+                value={data.comparison || 'meet'}
+                onChange={(e) => data.onChange?.('comparison', e.target.value)}
+              >
+                <option value="meet">= (equals)</option>
+                <option value="meet_or_exceed">>= (meet or exceed)</option>
+                <option value="greater">> (greater than)</option>
+                <option value="less">{'<'} (less than)</option>
+                <option value="less_or_equal">{'<='} (less or equal)</option>
+              </select>
+            </div>
+            <div className="config-row">
+              <label>Value:</label>
+              <NumberInput
+                className="node-input small"
+                value={data.targetValue}
+                defaultValue={50}
+                min={0}
+                max={100}
+                onChange={(val) => data.onChange?.('targetValue', val)}
+                allowFloat={false}
+              />
+              <span>%</span>
+            </div>
+            <label className="node-checkbox">
+              <input
+                type="checkbox"
+                checked={data.fireOnlyOnce !== false}
+                onChange={(e) => data.onChange?.('fireOnlyOnce', e.target.checked)}
+              />
+              Fire Only Once
+            </label>
+            {renderTriggerOptions()}
+          </div>
+        );
+      }
+
       default:
         return null;
     }
