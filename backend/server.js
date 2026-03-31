@@ -3242,7 +3242,17 @@ function buildCharacterInflationContext(character) {
     context += `Pop desire: ${charName} ${popDesire}.\n`;
   }
 
-  context += `IMPORTANT: ${charName} MUST react to their own inflation state in every response. Their physical sensations, emotions, and dialogue must reflect being at ${cap}% capacity.\n`;
+  // Graduated instruction intensity based on capacity
+  if (cap <= 10) {
+    context += `${charName}'s inflation is barely perceptible. Do NOT exaggerate — no "huge", "enormous", "round", "swollen". At most a subtle hint of fullness or slight discomfort. ${cap}% is almost nothing.\n`;
+  } else if (cap <= 30) {
+    context += `${charName}'s inflation is mild. Do NOT use words like "enormous", "massive", "bursting". Describe only mild bloating and slight tightness appropriate for ${cap}%.\n`;
+  } else if (cap <= 60) {
+    context += `${charName} should react to their inflation proportionally to ${cap}%. Noticeable but not extreme. Match descriptions to the belly state above.\n`;
+  } else {
+    context += `${charName} MUST react strongly to their inflation at ${cap}%. Physical sensations, emotions, and dialogue must reflect this extreme state.\n`;
+  }
+  context += `The ONLY percentage you may reference for ${charName} is ${cap}%. Do NOT write any other number.\n`;
   context += `=== END ${charName.toUpperCase()}'S INFLATION STATE ===\n`;
 
   return context;
@@ -7887,6 +7897,82 @@ const ATTRIBUTE_PROMPTS = {
   sexual: 'Be overtly aroused and flirtatious. Express desire and physical attraction openly.'
 };
 
+function rollPersonaAttributes(persona) {
+  const attributes = persona?.attributes;
+  if (!attributes) return { active: [], rolls: [] };
+  const active = [];
+  const rolls = [];
+  for (const [trait, chance] of Object.entries(attributes)) {
+    if (chance > 0) {
+      const rolled = Math.random() * 100;
+      const passed = rolled < chance;
+      rolls.push({ trait, chance, rolled: Math.round(rolled), passed });
+      if (passed) active.push(trait);
+    }
+  }
+  return { active, rolls };
+}
+
+const PERSONA_ATTRIBUTE_PROMPTS = {
+  dominant: 'Take control of the situation. Be assertive, commanding, and decisive.',
+  submissive: 'Be compliant, yielding, and eager to please. Follow rather than lead.',
+  sadistic: 'Be cruel, teasing, and take pleasure in others\' discomfort.',
+  masochistic: 'Enjoy your own discomfort and pain. Lean into the sensations.',
+  sensual: 'Be tender, intimate, and focused on physical connection.',
+  sexual: 'Be overtly aroused and flirtatious. Express desire openly.'
+};
+
+function buildPersonaAttributeBlock(activeAttributes) {
+  if (!activeAttributes || activeAttributes.length === 0) return '';
+  const labels = activeAttributes.map(t => t.charAt(0).toUpperCase() + t.slice(1));
+  let block = `\n=== PERSONA DRIVE (THIS MESSAGE) ===\nThis response must be noticeably driven by: ${labels.join(', ')}\n`;
+  for (const trait of activeAttributes) {
+    const label = trait.charAt(0).toUpperCase() + trait.slice(1);
+    block += `- ${label}: ${PERSONA_ATTRIBUTE_PROMPTS[trait] || ''}\n`;
+  }
+  block += `=== END PERSONA DRIVE ===\n`;
+  return block;
+}
+
+/**
+ * Build persona inflation disposition context for inflating/popping others
+ */
+function buildPersonaDispositionContext(persona, playerName) {
+  const inflateDesire = persona?.desireToInflateOthers;
+  const popDesire = persona?.desireToPopOthers;
+
+  if ((!inflateDesire || inflateDesire === 'none') && (!popDesire || popDesire === 'none')) {
+    return '';
+  }
+
+  const inflateMap = {
+    none: null,
+    reluctant: `${playerName} would only inflate someone if absolutely forced to`,
+    indifferent: `${playerName} has no strong feelings about inflating others`,
+    willing: `${playerName} is happy to inflate others when asked`,
+    eager: `${playerName} actively wants to inflate others`,
+    obsessed: `${playerName} is driven to inflate others at every opportunity`,
+    sadistic: `${playerName} inflates others specifically to cause discomfort and takes pleasure in it`
+  };
+
+  const popMap = {
+    none: null,
+    avoidant: `${playerName} actively tries to prevent others from popping`,
+    careless: `${playerName} doesn't worry about others popping`,
+    curious: `${playerName} wonders what it would be like if someone popped`,
+    willing: `${playerName} is okay with others popping`,
+    eager: `${playerName} actively tries to push others past their limit`,
+    sadistic: `${playerName} wants to make others pop and takes pleasure in it`
+  };
+
+  const parts = [];
+  if (inflateMap[inflateDesire]) parts.push(inflateMap[inflateDesire]);
+  if (popMap[popDesire]) parts.push(popMap[popDesire]);
+
+  if (parts.length === 0) return '';
+  return `Player's inflation drives: ${parts.join('. ')}.\n`;
+}
+
 function rollAttributes(character) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const attributes = activeStory?.attributes;
@@ -8394,13 +8480,22 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
       systemPrompt += devicePrompt + '\n';
     }
 
-    // Inject personality attributes if rolled (character voice only)
-    if (sessionState.activeAttributes?.length > 0) {
-      systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
+    // Inject personality attributes if rolled (character voice only, for guided response)
+    if (mode !== 'impersonate' && mode !== 'guided_impersonate') {
+      if (sessionState.activeAttributes?.length > 0) {
+        systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
+      }
+      systemPrompt += buildInflationDispositionContext(character);
     }
 
-    // Inject inflation disposition (always-on)
-    systemPrompt += buildInflationDispositionContext(character);
+    // Inject persona attributes for impersonate mode
+    if ((mode === 'impersonate' || mode === 'guided_impersonate') && persona) {
+      const personaAttrResult = rollPersonaAttributes(persona);
+      if (personaAttrResult.active.length > 0) {
+        systemPrompt += buildPersonaAttributeBlock(personaAttrResult.active);
+      }
+      systemPrompt += buildPersonaDispositionContext(persona, playerName);
+    }
 
     // Inject checkpoints at end (recency = higher LLM priority)
     const checkpointSpecial = getActiveCheckpoint(character, sessionState.capacity);
@@ -8608,6 +8703,7 @@ function buildChatContext(character, settings) {
       systemPrompt += `Player's additional inflation context: ${activePersona.relationshipWithInflation}\n`;
     }
     systemPrompt += buildPersonaInflationContext(activePersona, activePersona.displayName || 'The player');
+    systemPrompt += buildPersonaDispositionContext(activePersona, activePersona.displayName || 'The player');
     systemPrompt += '\n';
   }
 

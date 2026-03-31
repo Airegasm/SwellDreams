@@ -26,6 +26,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         inflationKnowledge: persona.inflationKnowledge || 'unaware',
         inflationDesire: persona.inflationDesire || 'neutral',
         popDesire: persona.popDesire || 'terrified',
+        attributes: persona.attributes || {},
+        desireToInflateOthers: persona.desireToInflateOthers || 'none',
+        desireToPopOthers: persona.desireToPopOthers || 'none',
         avatar: persona.avatar || '',
         stagedPortraits: persona.stagedPortraits || {},
         checkpoints: persona.checkpoints || {},
@@ -46,6 +49,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       inflationKnowledge: 'unaware',
       inflationDesire: 'neutral',
       popDesire: 'terrified',
+      attributes: {},
+      desireToInflateOthers: 'none',
+      desireToPopOthers: 'none',
       avatar: '',
       stagedPortraits: {},
       checkpoints: {},
@@ -916,6 +922,75 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Attributes Tab */}
+          <div className="modal-body persona-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
+            <div className="session-defaults-editor">
+              <h4>Personality Attributes</h4>
+              <p className="section-hint">Each attribute has a chance to activate per impersonate message. When active, it drives the persona's voice for that response.</p>
+
+              {[
+                { key: 'dominant', label: 'Dominant', hint: 'Take control. Be assertive, commanding, and decisive.' },
+                { key: 'submissive', label: 'Submissive', hint: 'Be compliant, yielding, and eager to please.' },
+                { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in others\' discomfort.' },
+                { key: 'masochistic', label: 'Masochistic', hint: 'Enjoy your own discomfort and pain. Lean into it.' },
+                { key: 'sensual', label: 'Sensual', hint: 'Be tender, intimate, and focused on physical connection.' },
+                { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
+              ].map(({ key, label, hint }) => (
+                <div className="form-group" key={key}>
+                  <label>{label}: {formData.attributes?.[key] || 0}%</label>
+                  <p className="section-hint">{hint}</p>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={formData.attributes?.[key] || 0}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      attributes: { ...prev.attributes, [key]: parseInt(e.target.value) }
+                    }))}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              ))}
+
+              <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition</h4>
+              <p className="section-hint">Always active — defines this persona's baseline attitude toward inflating and popping others.</p>
+
+              <div className="form-group">
+                <label>Desire to Inflate Others</label>
+                <select
+                  value={formData.desireToInflateOthers || 'none'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, desireToInflateOthers: e.target.value }))}
+                >
+                  <option value="none">None — no interest in inflating others</option>
+                  <option value="reluctant">Reluctant — would only inflate others if forced</option>
+                  <option value="indifferent">Indifferent — doesn't care either way</option>
+                  <option value="willing">Willing — happy to inflate others if asked</option>
+                  <option value="eager">Eager — actively wants to inflate others</option>
+                  <option value="obsessed">Obsessed — driven to inflate others at every opportunity</option>
+                  <option value="sadistic">Sadistic — inflates others specifically to cause discomfort</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Desire to Pop Others</label>
+                <select
+                  value={formData.desireToPopOthers || 'none'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, desireToPopOthers: e.target.value }))}
+                >
+                  <option value="none">None — would never intentionally pop someone</option>
+                  <option value="avoidant">Avoidant — actively tries to prevent popping</option>
+                  <option value="careless">Careless — doesn't worry about it happening</option>
+                  <option value="curious">Curious — wonders what would happen</option>
+                  <option value="willing">Willing — okay with it if it happens</option>
+                  <option value="eager">Eager — actively tries to push others to pop</option>
+                  <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
+                </select>
+              </div>
             </div>
           </div>
 
