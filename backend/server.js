@@ -2719,6 +2719,92 @@ function migrateCharacterStories() {
 
 migrateCharacterStories();
 
+/**
+ * Backfill new fields onto all characters and personas with sensible defaults.
+ * Only sets fields that don't already exist — never overwrites existing values.
+ * Runs on every startup to ensure all cards are up to date.
+ */
+function migrateNewFieldDefaults() {
+  const CHARACTER_DEFAULTS = {
+    isPumpable: false,
+    characterCalibrationTime: 60,
+    charBurstPercent: 100,
+    charSyncCalibrationWithPlayer: false,
+    charInflateKnowledge: 'unaware',
+    charInflateDesire: 'neutral',
+    charPopDesire: 'terrified',
+    charInflateAutoLoadControls: false,
+    charStagedPortraits: {},
+    desireToInflateOthers: 'none',
+    desireToPopOthers: 'none'
+  };
+
+  const PERSONA_DEFAULTS = {
+    inflationKnowledge: 'unaware',
+    inflationDesire: 'neutral',
+    popDesire: 'terrified',
+    attributes: {},
+    desireToInflateOthers: 'none',
+    desireToPopOthers: 'none'
+  };
+
+  // Migrate characters
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  let charUpdated = 0;
+
+  for (const char of characters) {
+    let changed = false;
+    for (const [key, defaultValue] of Object.entries(CHARACTER_DEFAULTS)) {
+      if (char[key] === undefined) {
+        char[key] = defaultValue;
+        changed = true;
+      }
+    }
+    // Ensure sessionDefaults exists
+    if (!char.sessionDefaults) {
+      char.sessionDefaults = { capacity: 0, pain: 0, emotion: 'neutral', capacityModifier: 1.0 };
+      changed = true;
+    }
+    if (changed) {
+      if (isPerCharStorageActive()) {
+        saveCharacter(char);
+      }
+      charUpdated++;
+    }
+  }
+
+  if (!isPerCharStorageActive() && charUpdated > 0) {
+    saveData(DATA_FILES.characters, characters);
+  }
+
+  // Migrate personas
+  const personas = loadAllPersonas() || [];
+  let personaUpdated = 0;
+
+  for (const persona of personas) {
+    let changed = false;
+    for (const [key, defaultValue] of Object.entries(PERSONA_DEFAULTS)) {
+      if (persona[key] === undefined) {
+        persona[key] = defaultValue;
+        changed = true;
+      }
+    }
+    if (changed) {
+      // Determine if default or custom
+      const isDefault = imageStorage.getPersonaDir &&
+        fs.existsSync(path.join(imageStorage.getPersonaDir(persona.id, true), 'persona.json'));
+      imageStorage.savePersonaJson(persona, isDefault);
+      personaUpdated++;
+    }
+  }
+
+  if (charUpdated > 0 || personaUpdated > 0) {
+    console.log(`[Migration] Backfilled new field defaults: ${charUpdated} characters, ${personaUpdated} personas updated`);
+  }
+}
+
+migrateNewFieldDefaults();
+
 // ============================================
 // Simulation Mode Detection
 // ============================================
