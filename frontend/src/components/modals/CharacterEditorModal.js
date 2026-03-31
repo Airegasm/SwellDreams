@@ -1615,7 +1615,7 @@ Write only the scenario description itself, no explanations.`;
           {hasDraft && (
             <span className="draft-indicator" title="Unsaved changes restored">Draft restored</span>
           )}
-          <button className="modal-close" onClick={handleCancel}>&times;</button>
+          <button type="button" className="modal-close" onClick={handleCancel}>&times;</button>
         </div>
 
         <div className="modal-tabs character-modal-tabs">
@@ -3470,7 +3470,7 @@ function ImageCropModal({ image, onSave, onCancel }) {
       <div className="modal crop-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Crop Avatar</h3>
-          <button className="modal-close" onClick={onCancel}>&times;</button>
+          <button type="button" className="modal-close" onClick={onCancel}>&times;</button>
         </div>
         <div className="modal-body">
           <p className="text-muted" style={{ marginBottom: '1rem' }}>Drag the crop area to select portion</p>
@@ -3497,8 +3497,8 @@ function ImageCropModal({ image, onSave, onCancel }) {
           <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave}>Save</button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={handleSave}>Save</button>
         </div>
       </div>
     </div>
