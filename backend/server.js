@@ -2839,42 +2839,234 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   firedCheckpointTriggers.add(triggerKey);
   console.log(`[CheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
 
+  for (const trigger of triggers) {
+    await executeTrigger(trigger, triggerKey, activeCharacter, settings);
+  }
+}
+
+/**
+ * Execute a single trigger action. Shared by post-welcome, checkpoint, and future trigger sources.
+ */
+async function executeTrigger(trigger, source, character, settings) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
-  for (const trigger of triggers) {
-    try {
-      if (trigger.type === 'impersonate') {
-        console.log(`[CheckpointTriggers] ${triggerKey}: Player Impersonate`);
+  try {
+    console.log(`[Trigger/${source}] Executing: ${trigger.type}`);
+
+    switch (trigger.type) {
+      case 'impersonate': {
         broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
-        const impContext = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
+        const mode = trigger.context ? 'guided_impersonate' : 'impersonate';
+        const impContext = buildSpecialContext(mode, trigger.context || null, character, activePersona, settings);
         const impSettings = { ...settings.llm };
         if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
         impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
-        const impResult = await llmService.generate({
-          prompt: impContext.prompt,
-          systemPrompt: impContext.systemPrompt,
-          settings: impSettings
-        });
+        const impResult = await llmService.generate({ prompt: impContext.prompt, systemPrompt: impContext.systemPrompt, settings: impSettings });
         if (impResult.text) {
           let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
-          impText = substituteAllVariables(impText);
           broadcast('generating_stop', {});
-          broadcast('impersonate_result', { text: impText });
+          broadcast('impersonate_result', { text: substituteAllVariables(impText) });
         } else {
           broadcast('generating_stop', {});
         }
-      } else if (trigger.type === 'char_inflate_start') {
-        console.log(`[CheckpointTriggers] ${triggerKey}: AI Pump ON`);
-        const ciCalTime = getCharacterCalibrationTime(activeCharacter);
-        if (activeCharacter.isPumpable && ciCalTime) {
-          startCharacterInflation(ciCalTime, activeCharacter.charBurstPercent || 100);
-        }
+        break;
       }
-    } catch (err) {
-      console.error(`[CheckpointTriggers] Error executing ${trigger.type} for ${triggerKey}:`, err.message);
-      broadcast('generating_stop', {});
+
+      case 'ai_message': {
+        broadcast('generating_start', { characterName: character.name });
+        const mode = trigger.context ? 'guided' : 'guided';
+        const aiContext = buildSpecialContext(mode, trigger.context || 'Continue the conversation naturally.', character, activePersona, settings);
+        const aiResult = await llmService.generate({ prompt: aiContext.prompt, systemPrompt: aiContext.systemPrompt, settings: settings.llm });
+        if (aiResult.text) {
+          const { v4: uuidv4 } = require('uuid');
+          const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, timestamp: Date.now() };
+          sessionState.chatHistory.push(msg);
+          broadcast('chat_message', msg);
+          autosaveSession();
+        }
+        broadcast('generating_stop', {});
+        break;
+      }
+
+      case 'char_inflate_start': {
+        const ciCalTime = getCharacterCalibrationTime(character);
+        if (character?.isPumpable && ciCalTime) startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
+        break;
+      }
+
+      case 'char_inflate_stop':
+        stopCharacterInflation();
+        break;
+
+      case 'pump_on': {
+        const devices = loadData(DATA_FILES.devices) || [];
+        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        if (pump) {
+          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          await deviceService.turnOn(id, pump);
+          broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
+        }
+        break;
+      }
+
+      case 'pump_off': {
+        const devices = loadData(DATA_FILES.devices) || [];
+        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        if (pump) {
+          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          await deviceService.turnOff(id, pump);
+          broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pump.label || pump.name || 'Pump' });
+        }
+        break;
+      }
+
+      case 'toggle_pump_always': {
+        const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+        if (activeStory) {
+          activeStory.pumpOnEveryReply = !!trigger.enabled;
+          if (trigger.chance !== undefined) activeStory.pumpOnEveryReplyChance = trigger.chance;
+          await saveCharacterAsync(character);
+        }
+        break;
+      }
+
+      case 'set_attribute': {
+        const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+        if (activeStory && trigger.trait) {
+          activeStory.attributes = activeStory.attributes || {};
+          activeStory.attributes[trigger.trait] = trigger.value ?? 50;
+          await saveCharacterAsync(character);
+        }
+        break;
+      }
+
+      case 'set_player_capacity':
+        sessionState.capacity = Math.max(0, parseInt(trigger.value) || 0);
+        broadcast('capacity_update', { capacity: sessionState.capacity });
+        break;
+
+      case 'set_char_capacity':
+        sessionState.characterCapacity = Math.max(0, Math.min(200, parseInt(trigger.value) || 0));
+        broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!sessionState.characterInflationTimer });
+        break;
+
+      case 'set_player_pain':
+        sessionState.pain = Math.max(0, Math.min(10, parseInt(trigger.value) || 0));
+        broadcast('pain_update', { pain: sessionState.pain });
+        break;
+
+      case 'set_emotion':
+        sessionState.emotion = trigger.value || 'neutral';
+        broadcast('emotion_update', { emotion: sessionState.emotion });
+        break;
+
+      case 'toggle_device_control': {
+        const s = loadData(DATA_FILES.settings) || {};
+        s.globalCharacterControls = s.globalCharacterControls || {};
+        s.globalCharacterControls.allowLlmDeviceControl = !!trigger.enabled;
+        saveData(DATA_FILES.settings, s);
+        break;
+      }
+
+      case 'set_pump_mode': {
+        const devices = loadData(DATA_FILES.devices) || [];
+        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        if (pump) {
+          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const dur = trigger.duration || 5;
+          if (trigger.mode === 'on') await deviceService.turnOn(id, pump);
+          else if (trigger.mode === 'pulse') await deviceService.pulsePump(id, dur, pump);
+          else if (trigger.mode === 'cycle') await deviceService.startCycle(id, { duration: dur, interval: dur, cycles: 3 }, pump);
+          else if (trigger.mode === 'timed') {
+            await deviceService.turnOn(id, pump);
+            setTimeout(() => deviceService.turnOff(id, pump), dur * 1000);
+          }
+          broadcast('ai_device_control', { device: 'pump', action: trigger.mode, deviceName: pump.label || pump.name || 'Pump' });
+        }
+        break;
+      }
+
+      case 'toggle_auto_reply':
+        sessionState.autoReply = !!trigger.enabled;
+        broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+        break;
+
+      case 'toggle_pumpable': {
+        character.isPumpable = !!trigger.enabled;
+        if (trigger.enabled) {
+          if (trigger.sync) character.charSyncCalibrationWithPlayer = true;
+          else if (trigger.calTime) character.characterCalibrationTime = trigger.calTime;
+        }
+        await saveCharacterAsync(character);
+        break;
+      }
+
+      case 'set_player_burst': {
+        const s = loadData(DATA_FILES.settings) || {};
+        s.globalCharacterControls = s.globalCharacterControls || {};
+        s.globalCharacterControls.autoPopFixedPercent = parseInt(trigger.value) || 110;
+        saveData(DATA_FILES.settings, s);
+        break;
+      }
+
+      case 'set_char_burst':
+        character.charBurstPercent = parseInt(trigger.value) || 100;
+        await saveCharacterAsync(character);
+        break;
+
+      case 'set_char_inflate_desire':
+        character.charInflateDesire = trigger.value || 'neutral';
+        await saveCharacterAsync(character);
+        break;
+
+      case 'set_char_pop_desire':
+        character.charPopDesire = trigger.value || 'terrified';
+        await saveCharacterAsync(character);
+        break;
+
+      case 'set_char_desire_inflate_others':
+        character.desireToInflateOthers = trigger.value || 'none';
+        await saveCharacterAsync(character);
+        break;
+
+      case 'set_char_desire_pop_others':
+        character.desireToPopOthers = trigger.value || 'none';
+        await saveCharacterAsync(character);
+        break;
+
+      case 'toggle_reminder': {
+        if (trigger.reminderId && character.constantReminders) {
+          const reminder = character.constantReminders.find(r => r.id === trigger.reminderId);
+          if (reminder) {
+            reminder.enabled = !!trigger.enabled;
+            await saveCharacterAsync(character);
+          }
+        }
+        break;
+      }
+
+      case 'equip_reminder': {
+        const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+        if (activeStory && trigger.reminderId) {
+          const field = trigger.source === 'global' ? 'globalReminderIds' : 'constantReminderIds';
+          activeStory[field] = activeStory[field] || [];
+          if (trigger.action === 'equip') {
+            if (!activeStory[field].includes(trigger.reminderId)) activeStory[field].push(trigger.reminderId);
+          } else {
+            activeStory[field] = activeStory[field].filter(id => id !== trigger.reminderId);
+          }
+          await saveCharacterAsync(character);
+        }
+        break;
+      }
+
+      default:
+        console.log(`[Trigger/${source}] Unknown trigger type: ${trigger.type}`);
     }
+  } catch (err) {
+    console.error(`[Trigger/${source}] Error executing ${trigger.type}:`, err.message);
+    broadcast('generating_stop', {});
   }
 }
 
@@ -3842,40 +4034,7 @@ async function sendWelcomeMessage(character, settings) {
   if (postTriggers.length > 0) {
     console.log(`[WELCOME] Executing ${postTriggers.length} post-welcome trigger(s)`);
     for (const trigger of postTriggers) {
-      try {
-        if (trigger.type === 'impersonate') {
-          console.log('[WELCOME] Trigger: Player Impersonate');
-          broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
-          const personas = loadAllPersonas() || [];
-          const activePersona = personas.find(p => p.id === settings?.activePersonaId);
-          const impContext = buildSpecialContext('impersonate', null, character, activePersona, settings);
-          const impSettings = { ...settings.llm };
-          if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
-          impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
-          const impResult = await llmService.generate({
-            prompt: impContext.prompt,
-            systemPrompt: impContext.systemPrompt,
-            settings: impSettings
-          });
-          if (impResult.text) {
-            let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
-            impText = substituteAllVariables(impText);
-            broadcast('generating_stop', {});
-            broadcast('impersonate_result', { text: impText });
-          } else {
-            broadcast('generating_stop', {});
-          }
-        } else if (trigger.type === 'char_inflate_start') {
-          console.log('[WELCOME] Trigger: AI Pump ON');
-          const ciCalTime = getCharacterCalibrationTime(character);
-          if (character.isPumpable && ciCalTime) {
-            startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
-          }
-        }
-      } catch (triggerErr) {
-        console.error(`[WELCOME] Post-welcome trigger error (${trigger.type}):`, triggerErr.message);
-        broadcast('generating_stop', {});
-      }
+      await executeTrigger(trigger, 'post-welcome', character, settings);
     }
   }
 

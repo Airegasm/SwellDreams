@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import KeywordInput from '../common/KeywordInput';
+import TriggerRow from '../common/TriggerRow';
 import './CharacterEditorModal.css';
 
 // Migration function to ensure story data has v2 format (welcomeMessages[] and scenarios[] arrays)
@@ -2030,37 +2031,27 @@ Write only the scenario description itself, no explanations.`;
                   ) : (
                     <div className="post-welcome-triggers-list">
                       {(activeStory?.postWelcomeTriggers || []).map((trigger, idx) => (
-                        <div key={trigger.id || idx} className="post-welcome-trigger-row"
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData('text/plain', idx.toString())}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                            if (fromIdx === idx) return;
+                        <TriggerRow
+                          key={trigger.id || idx}
+                          trigger={trigger}
+                          isPumpable={formData.isPumpable}
+                          reminders={formData.globalReminders || []}
+                          globalReminders={systemGlobalReminders}
+                          onChange={(updated) => {
                             const items = [...(activeStory?.postWelcomeTriggers || [])];
-                            const [moved] = items.splice(fromIdx, 1);
-                            items.splice(idx, 0, moved);
+                            items[idx] = updated;
                             updateStoryField('postWelcomeTriggers', items);
                           }}
-                        >
-                          <span className="drag-handle" title="Drag to reorder">☰</span>
-                          <select
-                            value={trigger.type}
-                            onChange={(e) => {
-                              const items = [...(activeStory?.postWelcomeTriggers || [])];
-                              items[idx] = { ...items[idx], type: e.target.value };
-                              updateStoryField('postWelcomeTriggers', items);
-                            }}
-                          >
-                            <option value="impersonate">Trigger Player Impersonate</option>
-                            {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
-                          </select>
-                          <button type="button" className="btn-icon btn-remove" onClick={() => {
-                            const items = (activeStory?.postWelcomeTriggers || []).filter((_, i) => i !== idx);
-                            updateStoryField('postWelcomeTriggers', items);
-                          }} title="Remove trigger">−</button>
-                        </div>
+                          onRemove={() => {
+                            updateStoryField('postWelcomeTriggers', (activeStory?.postWelcomeTriggers || []).filter((_, i) => i !== idx));
+                          }}
+                          dragProps={{
+                            draggable: true,
+                            onDragStart: (e) => e.dataTransfer.setData('text/plain', idx.toString()),
+                            onDragOver: (e) => e.preventDefault(),
+                            onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === idx) return; const items = [...(activeStory?.postWelcomeTriggers || [])]; const [m] = items.splice(from, 1); items.splice(idx, 0, m); updateStoryField('postWelcomeTriggers', items); }
+                          }}
+                        />
                       ))}
                     </div>
                   )}
@@ -3052,18 +3043,12 @@ Write only the scenario description itself, no explanations.`;
                               }} title="Add trigger">+</button>
                             </div>
                             {(activeStory?.checkpointTriggers?.[`player-${key}`] || []).map((trigger, tIdx) => (
-                              <div key={trigger.id || tIdx} className="post-welcome-trigger-row"
-                                draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', tIdx.toString())}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
-                              >
-                                <span className="drag-handle">☰</span>
-                                <select value={trigger.type} onChange={(e) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; items[tIdx] = { ...items[tIdx], type: e.target.value }; ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}>
-                                  <option value="impersonate">Trigger Player Impersonate</option>
-                                  {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
-                                </select>
-                                <button type="button" className="btn-remove" onClick={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`player-${key}`] = (ct[`player-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}>−</button>
-                              </div>
+                              <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={formData.isPumpable}
+                                reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
+                                onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; items[tIdx] = updated; ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
+                                onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`player-${key}`] = (ct[`player-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
+                                dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); } }}
+                              />
                             ))}
                           </div>
                         </div>
@@ -3152,18 +3137,12 @@ Write only the scenario description itself, no explanations.`;
                               }} title="Add trigger">+</button>
                             </div>
                             {(activeStory?.checkpointTriggers?.[`char-${key}`] || []).map((trigger, tIdx) => (
-                              <div key={trigger.id || tIdx} className="post-welcome-trigger-row"
-                                draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', tIdx.toString())}
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
-                              >
-                                <span className="drag-handle">☰</span>
-                                <select value={trigger.type} onChange={(e) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; items[tIdx] = { ...items[tIdx], type: e.target.value }; ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}>
-                                  <option value="impersonate">Trigger Player Impersonate</option>
-                                  {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
-                                </select>
-                                <button type="button" className="btn-remove" onClick={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`char-${key}`] = (ct[`char-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}>−</button>
-                              </div>
+                              <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={formData.isPumpable}
+                                reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
+                                onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; items[tIdx] = updated; ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
+                                onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`char-${key}`] = (ct[`char-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
+                                dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); } }}
+                              />
                             ))}
                           </div>
                         </div>
