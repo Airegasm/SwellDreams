@@ -64,20 +64,22 @@ export function getPortraitForCapacity(source, capacity, popThreshold = 101) {
 
   if (hasNewMedia) {
     // New format: portraitMedia[rangeId] = { idle, idleType, trans }
-    // Check burst
+    // Check burst — use idle if available, otherwise fall through to highest range
     if (capacity >= popThreshold && portraitMedia.burst?.idle) {
       return portraitMedia.burst.idle;
     }
 
+    // For capacity >= popThreshold without burst idle, or any capacity > 100,
+    // search backward from the highest range
     const rangeIndex = getRangeIndex(capacity);
-    if (rangeIndex === -1) return defaultAvatar;
+    const searchFrom = rangeIndex >= 0 ? rangeIndex : STAGED_PORTRAIT_RANGES.length - 1;
 
-    // Check current range
-    const range = STAGED_PORTRAIT_RANGES[rangeIndex];
-    if (portraitMedia[range.id]?.idle) return portraitMedia[range.id].idle;
+    // Check current range (skip range_pop if no media)
+    const range = STAGED_PORTRAIT_RANGES[searchFrom];
+    if (range && !range.isPop && portraitMedia[range.id]?.idle) return portraitMedia[range.id].idle;
 
     // Fallback through lower ranges
-    for (let i = rangeIndex - 1; i >= 0; i--) {
+    for (let i = (range?.isPop ? STAGED_PORTRAIT_RANGES.length - 2 : searchFrom - 1); i >= 0; i--) {
       const r = STAGED_PORTRAIT_RANGES[i];
       if (portraitMedia[r.id]?.idle) return portraitMedia[r.id].idle;
     }
@@ -90,12 +92,12 @@ export function getPortraitForCapacity(source, capacity, popThreshold = 101) {
   }
 
   const rangeIndex = getRangeIndex(capacity);
-  if (rangeIndex === -1) return defaultAvatar;
+  const legacySearchFrom = rangeIndex >= 0 ? rangeIndex : STAGED_PORTRAIT_RANGES.length - 1;
 
-  const range = STAGED_PORTRAIT_RANGES[rangeIndex];
-  if (legacyPortraits[range.id]) return legacyPortraits[range.id];
+  const range = STAGED_PORTRAIT_RANGES[legacySearchFrom];
+  if (range && !range.isPop && legacyPortraits[range.id]) return legacyPortraits[range.id];
 
-  for (let i = rangeIndex - 1; i >= 0; i--) {
+  for (let i = (range?.isPop ? STAGED_PORTRAIT_RANGES.length - 2 : legacySearchFrom - 1); i >= 0; i--) {
     const r = STAGED_PORTRAIT_RANGES[i];
     if (legacyPortraits[r.id]) return legacyPortraits[r.id];
   }
@@ -157,11 +159,13 @@ export function getPortraitTransition(source, prevCapacity, newCapacity, popThre
   if (newRangeId === 'burst' && portraitMedia.burst?.idle) {
     result.idle = portraitMedia.burst.idle;
     result.idleType = portraitMedia.burst.idleType || (isVideoUrl(portraitMedia.burst.idle) ? 'video' : 'image');
-  } else if (newRangeIndex >= 0) {
-    // Search current range, then lower ranges for idle
+  } else {
+    // Search from current range (or highest non-pop range if burst/over 100%) backward
+    const searchStart = newRangeIndex >= 0 ? newRangeIndex : STAGED_PORTRAIT_RANGES.length - 2; // -2 to skip range_pop
     let found = false;
-    for (let i = newRangeIndex; i >= 0; i--) {
+    for (let i = searchStart; i >= 0; i--) {
       const r = STAGED_PORTRAIT_RANGES[i];
+      if (r.isPop) continue;
       if (portraitMedia[r.id]?.idle) {
         result.idle = portraitMedia[r.id].idle;
         result.idleType = portraitMedia[r.id].idleType || (isVideoUrl(portraitMedia[r.id].idle) ? 'video' : 'image');
