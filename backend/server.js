@@ -2781,10 +2781,12 @@ const sessionState = {
   runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
   activeAttributes: null, // Transient: rolled personality attributes for current LLM call
   characterCapacity: 0, // 0-100% simulated inflation for the AI character
-  characterInflationTimer: null, // interval ID for active character inflation
-  characterInflationStartTime: null, // timestamp when character inflation started
   characterInflationBaseCapacity: 0 // capacity when inflation started (to add to)
 };
+
+// Non-serializable character inflation timer state (kept separate to avoid circular JSON)
+let charInflationTimer = null;
+let charInflationStartTime = null;
 
 // Track which checkpoint ranges have already fired triggers this session
 // Keys: "player-{rangeKey}" and "char-{rangeKey}"
@@ -2948,7 +2950,7 @@ async function executeTrigger(trigger, source, character, settings) {
 
       case 'set_char_capacity':
         sessionState.characterCapacity = Math.max(0, Math.min(200, parseInt(trigger.value) || 0));
-        broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!sessionState.characterInflationTimer });
+        broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
         break;
 
       case 'set_player_pain':
@@ -3083,7 +3085,7 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
   // Stop any existing inflation first
   stopCharacterInflation();
 
-  sessionState.characterInflationStartTime = Date.now();
+  charInflationStartTime = Date.now();
   sessionState.characterInflationBaseCapacity = sessionState.characterCapacity;
   const startCap = sessionState.characterCapacity;
 
@@ -3104,14 +3106,14 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
 
   // Auto-stop after max-on-duration (same limit as player pump)
   sessionState.characterInflationAutoStopTimer = setTimeout(() => {
-    if (sessionState.characterInflationTimer) {
+    if (charInflationTimer) {
       console.log(`[CharInflation] Auto-stopped after ${maxOnSeconds}s (max-on-duration limit)`);
       stopCharacterInflation();
     }
   }, maxOnSeconds * 1000);
 
-  sessionState.characterInflationTimer = setInterval(() => {
-    const elapsed = (Date.now() - sessionState.characterInflationStartTime) / 1000;
+  charInflationTimer = setInterval(() => {
+    const elapsed = (Date.now() - charInflationStartTime) / 1000;
     const gain = (elapsed / calibrationTime) * 100;
     const newCapacity = Math.min(burstPercent, Math.round(startCap + gain));
     const elapsedRounded = Math.round(elapsed);
@@ -3147,10 +3149,10 @@ function stopCharacterInflation() {
     clearTimeout(sessionState.characterInflationAutoStopTimer);
     sessionState.characterInflationAutoStopTimer = null;
   }
-  if (sessionState.characterInflationTimer) {
-    clearInterval(sessionState.characterInflationTimer);
-    sessionState.characterInflationTimer = null;
-    sessionState.characterInflationStartTime = null;
+  if (charInflationTimer) {
+    clearInterval(charInflationTimer);
+    charInflationTimer = null;
+    charInflationStartTime = null;
     console.log(`[CharInflation] Stopped at ${sessionState.characterCapacity}%`);
     broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: sessionState.characterCapacity });
   }
@@ -3166,7 +3168,7 @@ function buildCharacterInflationContext(character) {
   if (cap <= 0) return '';
 
   const charName = character.name || 'The character';
-  const isInflating = !!sessionState.characterInflationTimer;
+  const isInflating = !!charInflationTimer;
 
   // Map capacity to description
   let bellyDesc;
@@ -11907,9 +11909,7 @@ app.post('/api/session/reset', async (req, res) => {
   ensureCharInflateFlowAssignments();
   activateAssignedFlows();
 
-  // Strip non-serializable fields (Timeout objects have circular refs) before broadcasting
-  const { characterInflationTimer: _t1, characterInflationStartTime: _t2, ...resetSerializable } = sessionState;
-  broadcast('session_reset', resetSerializable);
+  broadcast('session_reset', sessionState);
 
   // Fire new_session triggers (for variable initialization etc.)
   await eventEngine.handleEvent('new_session', {});
@@ -12008,9 +12008,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
 
-  // Strip non-serializable fields before broadcasting
-  const { characterInflationTimer: _lt1, characterInflationStartTime: _lt2, ...loadedSerializable } = sessionState;
-  broadcast('session_loaded', loadedSerializable);
+  broadcast('session_loaded', sessionState);
 
   res.json(sessionState);
 });
