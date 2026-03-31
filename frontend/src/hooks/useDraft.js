@@ -91,9 +91,17 @@ export function useDraft(draftKey, initialData, isOpen) {
     const storageKey = `swelldreams-draft-${keyRef.current}`;
     const timeoutId = setTimeout(() => {
       try {
-        sessionStorage.setItem(storageKey, JSON.stringify(formData));
+        // Strip base64 data URIs to avoid exceeding storage quota
+        const stripped = JSON.stringify(formData, (key, value) => {
+          if (typeof value === 'string' && value.startsWith('data:') && value.length > 1000) {
+            return '__draft_stripped__';
+          }
+          return value;
+        });
+        sessionStorage.setItem(storageKey, stripped);
       } catch (e) {
-        console.error('Failed to save draft:', e);
+        // If still too large, clear this draft to prevent repeated errors
+        try { sessionStorage.removeItem(storageKey); } catch {}
       }
     }, 300); // Debounce 300ms
 

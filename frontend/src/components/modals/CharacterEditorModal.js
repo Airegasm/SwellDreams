@@ -284,6 +284,10 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
   const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+  const [checkpointProfiles, setCheckpointProfiles] = useState({ player: [], character: [] });
+  const [selectedPlayerProfile, setSelectedPlayerProfile] = useState('');
+  const [selectedCharProfile, setSelectedCharProfile] = useState('');
+  const [profileDirty, setProfileDirty] = useState({ player: false, character: false });
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState(null);
   const [reminderForm, setReminderForm] = useState({
@@ -331,6 +335,13 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       setSelectedStoryId(formData.activeStoryId || formData.stories[0]?.id || null);
     }
   }, [isOpen, formData.activeStoryId, formData.stories]);
+
+  // Load checkpoint profiles
+  useEffect(() => {
+    if (isOpen) {
+      api.getCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
+    }
+  }, [isOpen, api]);
 
   // Memoize computed values to prevent dropdown re-render issues
   const stories = useMemo(() => formData.stories || [], [formData.stories]);
@@ -1093,6 +1104,59 @@ Write only the scenario description itself, no explanations.`;
   const handleCropCancel = () => {
     setShowCropModal(false);
     setUploadedImage(null);
+  };
+
+  // Checkpoint profile handlers
+  const handleLoadProfile = (profileId, type) => {
+    const profiles = checkpointProfiles[type] || [];
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) return;
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    updateStoryField(field, { ...profile.checkpoints });
+    if (type === 'player') setSelectedPlayerProfile(profileId);
+    else setSelectedCharProfile(profileId);
+    setProfileDirty(prev => ({ ...prev, [type]: false }));
+  };
+
+  const handleSaveNewProfile = async (type) => {
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    const checkpoints = activeStory?.[field] || {};
+    const name = prompt('Profile name:');
+    if (!name?.trim()) return;
+    const result = await api.createCheckpointProfile(type, name.trim(), checkpoints);
+    if (result?.id) {
+      const updated = await api.getCheckpointProfiles();
+      setCheckpointProfiles(updated);
+      if (type === 'player') setSelectedPlayerProfile(result.id);
+      else setSelectedCharProfile(result.id);
+      setProfileDirty(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleUpdateProfile = async (type) => {
+    const profileId = type === 'player' ? selectedPlayerProfile : selectedCharProfile;
+    if (!profileId) return;
+    const profile = (checkpointProfiles[type] || []).find(p => p.id === profileId);
+    if (!profile || profile.builtIn) return;
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    const checkpoints = activeStory?.[field] || {};
+    await api.updateCheckpointProfile(profileId, type, profile.name, checkpoints);
+    const updated = await api.getCheckpointProfiles();
+    setCheckpointProfiles(updated);
+    setProfileDirty(prev => ({ ...prev, [type]: false }));
+  };
+
+  const handleDeleteProfile = async (type) => {
+    const profileId = type === 'player' ? selectedPlayerProfile : selectedCharProfile;
+    if (!profileId) return;
+    const profile = (checkpointProfiles[type] || []).find(p => p.id === profileId);
+    if (!profile || profile.builtIn) return;
+    if (!window.confirm(`Delete profile "${profile.name}"?`)) return;
+    await api.deleteCheckpointProfile(profileId, type);
+    const updated = await api.getCheckpointProfiles();
+    setCheckpointProfiles(updated);
+    if (type === 'player') setSelectedPlayerProfile('');
+    else setSelectedCharProfile('');
   };
 
   // Character staged portrait handlers (legacy image-only)
@@ -2829,13 +2893,13 @@ Write only the scenario description itself, no explanations.`;
                   <div className="checkpoint-subtabs">
                     <button
                       className={`checkpoint-subtab ${(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') ? 'active' : ''}`}
-                      onClick={() => updateStoryField('_checkpointSubTab', 'player')}
+                      onClick={(e) => { e.stopPropagation(); updateStoryField('_checkpointSubTab', 'player'); }}
                     >
                       Player Capacity
                     </button>
                     <button
                       className={`checkpoint-subtab ${activeStory?._checkpointSubTab === 'character' ? 'active' : ''}`}
-                      onClick={() => updateStoryField('_checkpointSubTab', 'character')}
+                      onClick={(e) => { e.stopPropagation(); updateStoryField('_checkpointSubTab', 'character'); }}
                     >
                       Character Capacity
                     </button>
@@ -2845,7 +2909,29 @@ Write only the scenario description itself, no explanations.`;
                   {(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') && (
                     <>
                       <h4>Player Capacity Checkpoints</h4>
-                      <p className="section-hint">Author instructions injected into the AI prompt based on the player's current inflation level. Blank ranges are ignored.</p>
+                      <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
+
+                      <div className="checkpoint-profile-bar">
+                        <select
+                          value={selectedPlayerProfile}
+                          onChange={(e) => handleLoadProfile(e.target.value, 'player')}
+                          className="checkpoint-profile-select"
+                        >
+                          <option value="">-- Load Profile --</option>
+                          {(checkpointProfiles.player || []).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('player')}>Save As New</button>
+                        {selectedPlayerProfile && !(checkpointProfiles.player || []).find(p => p.id === selectedPlayerProfile)?.builtIn && (
+                          <>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('player')}>
+                              Update{profileDirty.player ? ' !' : ''}
+                            </button>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('player')}>Delete</button>
+                          </>
+                        )}
+                      </div>
                       {[
                         { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
                         { key: '1-10', label: '1–10%' },
@@ -2877,10 +2963,13 @@ Write only the scenario description itself, no explanations.`;
                           <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
                             <textarea
                               value={activeStory?.checkpoints?.[key] || ''}
-                              onChange={(e) => updateStoryField('checkpoints', {
-                                ...(activeStory?.checkpoints || {}),
-                                [key]: e.target.value
-                              })}
+                              onChange={(e) => {
+                                updateStoryField('checkpoints', {
+                                  ...(activeStory?.checkpoints || {}),
+                                  [key]: e.target.value
+                                });
+                                setProfileDirty(prev => ({ ...prev, player: true }));
+                              }}
                               placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
                               rows={3}
                             />
@@ -2894,7 +2983,29 @@ Write only the scenario description itself, no explanations.`;
                   {activeStory?._checkpointSubTab === 'character' && (
                     <>
                       <h4>Character Capacity Checkpoints</h4>
-                      <p className="section-hint">Author instructions injected into the AI prompt based on the character's own inflation level. Blank ranges are ignored.</p>
+                      <p className="section-hint">Stage directions telling the AI how to react to <strong>their own</strong> inflation at each capacity range. Uses <code>[Char]</code> for the character name.</p>
+
+                      <div className="checkpoint-profile-bar">
+                        <select
+                          value={selectedCharProfile}
+                          onChange={(e) => handleLoadProfile(e.target.value, 'character')}
+                          className="checkpoint-profile-select"
+                        >
+                          <option value="">-- Load Profile --</option>
+                          {(checkpointProfiles.character || []).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('character')}>Save As New</button>
+                        {selectedCharProfile && !(checkpointProfiles.character || []).find(p => p.id === selectedCharProfile)?.builtIn && (
+                          <>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('character')}>
+                              Update{profileDirty.character ? ' !' : ''}
+                            </button>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('character')}>Delete</button>
+                          </>
+                        )}
+                      </div>
                       {[
                         { key: '0', label: '0% — Pre-Inflation', hint: 'Guidance for the character before their own inflation begins.' },
                         { key: '1-10', label: '1–10%' },
@@ -2926,10 +3037,13 @@ Write only the scenario description itself, no explanations.`;
                           <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`char-${key}`] ? 'revealed' : ''}`}>
                             <textarea
                               value={activeStory?.characterCheckpoints?.[key] || ''}
-                              onChange={(e) => updateStoryField('characterCheckpoints', {
-                                ...(activeStory?.characterCheckpoints || {}),
-                                [key]: e.target.value
-                              })}
+                              onChange={(e) => {
+                                updateStoryField('characterCheckpoints', {
+                                  ...(activeStory?.characterCheckpoints || {}),
+                                  [key]: e.target.value
+                                });
+                                setProfileDirty(prev => ({ ...prev, character: true }));
+                              }}
                               placeholder={key === '0' ? 'e.g. Character is unaware of what inflation feels like...' : `Guidance for character at ${label} capacity...`}
                               rows={3}
                             />
@@ -2942,7 +3056,29 @@ Write only the scenario description itself, no explanations.`;
               ) : (
                 <>
                   <h4>Capacity Checkpoints</h4>
-                  <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
+                  <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
+
+                  <div className="checkpoint-profile-bar">
+                    <select
+                      value={selectedPlayerProfile}
+                      onChange={(e) => handleLoadProfile(e.target.value, 'player')}
+                      className="checkpoint-profile-select"
+                    >
+                      <option value="">-- Load Profile --</option>
+                      {(checkpointProfiles.player || []).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('player')}>Save As New</button>
+                    {selectedPlayerProfile && !(checkpointProfiles.player || []).find(p => p.id === selectedPlayerProfile)?.builtIn && (
+                      <>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('player')}>
+                          Update{profileDirty.player ? ' !' : ''}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('player')}>Delete</button>
+                      </>
+                    )}
+                  </div>
                   {[
                     { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
                     { key: '1-10', label: '1–10%' },
@@ -2962,10 +3098,13 @@ Write only the scenario description itself, no explanations.`;
                       {hint && <p className="section-hint">{hint}</p>}
                       <textarea
                         value={activeStory?.checkpoints?.[key] || ''}
-                        onChange={(e) => updateStoryField('checkpoints', {
-                          ...(activeStory?.checkpoints || {}),
-                          [key]: e.target.value
-                        })}
+                        onChange={(e) => {
+                          updateStoryField('checkpoints', {
+                            ...(activeStory?.checkpoints || {}),
+                            [key]: e.target.value
+                          });
+                          setProfileDirty(prev => ({ ...prev, player: true }));
+                        }}
                         placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
                         rows={3}
                       />
