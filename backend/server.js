@@ -2787,6 +2787,7 @@ const sessionState = {
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
 let charInflationTimer = null;
 let charInflationStartTime = null;
+let charInflationAutoStopTimer = null;
 
 // Track which checkpoint ranges have already fired triggers this session
 // Keys: "player-{rangeKey}" and "char-{rangeKey}"
@@ -3105,7 +3106,7 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
   broadcast('character_inflate_state', { active: true, elapsed: 0, characterCapacity: startCap });
 
   // Auto-stop after max-on-duration (same limit as player pump)
-  sessionState.characterInflationAutoStopTimer = setTimeout(() => {
+  charInflationAutoStopTimer = setTimeout(() => {
     if (charInflationTimer) {
       console.log(`[CharInflation] Auto-stopped after ${maxOnSeconds}s (max-on-duration limit)`);
       stopCharacterInflation();
@@ -3145,9 +3146,9 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
  * Stop simulated inflation for the active character
  */
 function stopCharacterInflation() {
-  if (sessionState.characterInflationAutoStopTimer) {
-    clearTimeout(sessionState.characterInflationAutoStopTimer);
-    sessionState.characterInflationAutoStopTimer = null;
+  if (charInflationAutoStopTimer) {
+    clearTimeout(charInflationAutoStopTimer);
+    charInflationAutoStopTimer = null;
   }
   if (charInflationTimer) {
     clearInterval(charInflationTimer);
@@ -3242,17 +3243,21 @@ function buildCharacterInflationContext(character) {
     context += `Pop desire: ${charName} ${popDesire}.\n`;
   }
 
-  // Graduated instruction intensity based on capacity
-  if (cap <= 10) {
-    context += `${charName}'s inflation is barely perceptible. Do NOT exaggerate — no "huge", "enormous", "round", "swollen". At most a subtle hint of fullness or slight discomfort. ${cap}% is almost nothing.\n`;
+  // Positive-framing graduated guidance
+  if (cap <= 5) {
+    context += `${charName}'s inflation has barely begun — their belly looks normal. They may notice: a faint warmth, a subtle internal awareness. Focus on dialogue and the situation, not physical sensations.\n`;
+  } else if (cap <= 15) {
+    context += `${charName} is in the very early stage. They may feel: gentle internal warmth, mild curiosity about the sensation. One brief mention of a physical feeling at most — then back to the scene.\n`;
   } else if (cap <= 30) {
-    context += `${charName}'s inflation is mild. Do NOT use words like "enormous", "massive", "bursting". Describe only mild bloating and slight tightness appropriate for ${cap}%.\n`;
-  } else if (cap <= 60) {
-    context += `${charName} should react to their inflation proportionally to ${cap}%. Noticeable but not extreme. Match descriptions to the belly state above.\n`;
+    context += `${charName} has mild inflation. They may describe: subtle bloating, gentle pressure, a slight rounding. Keep it understated — brief physical mentions mixed with dialogue.\n`;
+  } else if (cap <= 50) {
+    context += `${charName} has moderate inflation. They may describe: visible roundness, building tightness, clothes fitting differently. Balance physical awareness with interaction.\n`;
+  } else if (cap <= 70) {
+    context += `${charName} has significant inflation. They should describe: prominent swelling, taut skin, difficulty moving, labored breathing. Physical sensations are hard to ignore.\n`;
   } else {
-    context += `${charName} MUST react strongly to their inflation at ${cap}%. Physical sensations, emotions, and dialogue must reflect this extreme state.\n`;
+    context += `${charName} is heavily/critically inflated. Describe: extreme pressure, drum-tight skin, every movement is strain. React strongly.\n`;
   }
-  context += `The ONLY percentage you may reference for ${charName} is ${cap}%. Do NOT write any other number.\n`;
+  context += `Write ${cap}% if referencing a number.\n`;
   context += `=== END ${charName.toUpperCase()}'S INFLATION STATE ===\n`;
 
   return context;
@@ -8008,6 +8013,76 @@ function buildAttributeBlock(activeAttributes) {
 /**
  * Build persona inflation context — knowledge, desire, and pop desire for the player
  */
+/**
+ * Build a hardcoded physical state preface injected before every generation.
+ * This grounds the LLM in the current reality regardless of what checkpoints say.
+ */
+function buildStatePreface(playerName, charName, character) {
+  const playerCap = sessionState.capacity || 0;
+  const charCap = sessionState.characterCapacity || 0;
+  const isPumpable = character?.isPumpable;
+
+  // Player physical state lookup
+  const playerDesc = playerCap <= 0 ? 'flat and completely normal'
+    : playerCap <= 5 ? 'normal-looking — inflation has just barely started'
+    : playerCap <= 15 ? 'mostly flat with a very faint hint of fullness'
+    : playerCap <= 30 ? 'slightly bloated, like after a meal'
+    : playerCap <= 50 ? 'noticeably rounded and swollen'
+    : playerCap <= 70 ? 'very swollen, visibly inflated and taut'
+    : playerCap <= 85 ? 'hugely distended, skin tight and shiny'
+    : playerCap <= 95 ? 'enormous, about to burst, straining at the absolute limit'
+    : 'impossibly over-inflated, about to pop, beyond any safe limit';
+
+  // Player feeling lookup
+  const playerFeeling = playerCap <= 0 ? 'completely normal'
+    : playerCap <= 5 ? 'barely aware of anything different'
+    : playerCap <= 15 ? 'a faint warmth and subtle internal pressure'
+    : playerCap <= 30 ? 'a growing fullness and mild pressure'
+    : playerCap <= 50 ? 'persistent tightness and real pressure building'
+    : playerCap <= 70 ? 'intense pressure, difficulty breathing deeply'
+    : playerCap <= 85 ? 'overwhelming tightness, every movement hurts'
+    : playerCap <= 95 ? 'pure agony, feeling like they could burst any second'
+    : 'beyond agony, seconds from popping';
+
+  let preface = `[Current physical reality — use this, not your imagination:\n`;
+  preface += `${playerName}'s belly (${playerCap}%) is ${playerDesc}. ${playerName} feels ${playerFeeling}.\n`;
+
+  if (isPumpable && charCap > 0) {
+    const charDesc = charCap <= 5 ? 'normal-looking — inflation has just barely started'
+      : charCap <= 15 ? 'mostly flat with a very faint hint of fullness'
+      : charCap <= 30 ? 'slightly bloated, subtly rounder than normal'
+      : charCap <= 50 ? 'noticeably rounded and swollen'
+      : charCap <= 70 ? 'very swollen, visibly inflated and taut'
+      : charCap <= 85 ? 'hugely distended, skin tight and shiny'
+      : charCap <= 95 ? 'enormous, about to burst, straining at the absolute limit'
+      : 'impossibly over-inflated, about to pop';
+
+    const charFeeling = charCap <= 5 ? 'barely aware of anything'
+      : charCap <= 15 ? 'a faint warmth and subtle pressure'
+      : charCap <= 30 ? 'mild fullness and growing pressure'
+      : charCap <= 50 ? 'persistent tightness and real pressure'
+      : charCap <= 70 ? 'intense pressure, hard to ignore'
+      : charCap <= 85 ? 'overwhelming tightness, real pain'
+      : charCap <= 95 ? 'pure agony, feeling like they could burst any second'
+      : 'beyond agony, seconds from popping';
+
+    preface += `${charName}'s belly (${charCap}%) is ${charDesc}. ${charName} feels ${charFeeling}.\n`;
+    preface += `${playerName} can see that ${charName}'s belly looks ${charDesc}.\n`;
+    preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
+  } else if (isPumpable && charCap <= 0) {
+    preface += `${charName}'s belly is completely flat and normal — not inflated at all.\n`;
+    if (playerCap > 0) {
+      preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
+    }
+  } else if (playerCap > 0) {
+    // Non-pumpable char can still see the player
+    preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
+  }
+
+  preface += `]\n`;
+  return preface;
+}
+
 function buildPersonaInflationContext(persona, playerName) {
   const knowledge = persona?.inflationKnowledge;
   const desire = persona?.inflationDesire;
@@ -8374,15 +8449,25 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
 
-    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
-    instructions += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage.\n`;
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
 
-    if (capacity > 25) {
-      instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
+    if (capacity <= 5) {
+      instructions += `INFLATION HAS BARELY BEGUN. ${subject} belly looks completely normal. You may only mention: a faint warmth, a subtle awareness of the tube, or nothing at all. Focus on conversation, emotions, and the situation — not physical sensations. The story is just starting.\n`;
+    } else if (capacity <= 15) {
+      instructions += `EARLY STAGE. ${subject} belly is still flat-looking. You may only describe: a gentle internal warmth, a slight feeling of fullness like after a snack, or mild curiosity about the sensation. Keep physical descriptions minimal — one brief mention at most. Focus on dialogue and interaction.\n`;
+    } else if (capacity <= 30) {
+      instructions += `MILD INFLATION. You may describe: subtle bloating, a feeling of gentle pressure, clothes fitting slightly different. Keep it understated — this is still early. One or two brief physical references per response, then focus on the scene.\n`;
+    } else if (capacity <= 50) {
+      instructions += `MODERATE INFLATION. You may describe: visible roundness, noticeable tightness, pressure building, clothes straining. Physical sensations are present but manageable. Balance physical description with dialogue and character interaction.\n`;
+    } else if (capacity <= 70) {
+      instructions += `SIGNIFICANT INFLATION. You may describe: prominent swelling, taut skin, difficulty moving comfortably, labored breathing. Physical sensations are hard to ignore. Reactions should match the intensity.\n`;
+    } else if (capacity <= 85) {
+      instructions += `HEAVY INFLATION. Describe: drum-tight skin, extreme pressure, every movement causing discomfort, genuine strain. The body is at serious capacity.\n`;
+    } else {
+      instructions += `CRITICAL/MAX INFLATION. Describe: impossibly full, skin creaking, at the absolute limit. This is the climax.\n`;
     }
-    if (capacity <= 50 && capacity > 0) {
-      instructions += `- Do not exaggerate — no "enormous", "massive", "about to burst" below 85%.\n`;
-    }
+
+    instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
 
     return instructions;
   };
@@ -8511,6 +8596,7 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     }
 
     // Inject persona checkpoints for impersonate mode
+    const isPlayerVoice = (mode === 'impersonate' || mode === 'guided_impersonate');
     if (isPlayerVoice && persona) {
       const personaCp = getPersonaCheckpoint(persona, sessionState.capacity);
       if (personaCp) {
@@ -8543,6 +8629,9 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
       prompt += `[Char]: ${msg.content}\n`;
     }
   });
+
+  // Inject hardcoded physical state preface before every generation
+  prompt += buildStatePreface(playerName, character.name, character);
 
   if (mode === 'guided' || mode === 'guided_impersonate') {
     const speakerTag = mode === 'guided_impersonate' ? '[Player]' : '[Char]';
@@ -8659,15 +8748,25 @@ function buildChatContext(character, settings) {
       return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
 
-    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}% capacity: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
-    instructions += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage.\n`;
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
 
-    if (capacity > 25) {
-      instructions += `- Belly state is fixed — do not describe it changing, growing, or deflating.\n`;
+    if (capacity <= 5) {
+      instructions += `INFLATION HAS BARELY BEGUN. ${subject} belly looks completely normal. You may only mention: a faint warmth, a subtle awareness of the tube, or nothing at all. Focus on conversation, emotions, and the situation — not physical sensations. The story is just starting.\n`;
+    } else if (capacity <= 15) {
+      instructions += `EARLY STAGE. ${subject} belly is still flat-looking. You may only describe: a gentle internal warmth, a slight feeling of fullness like after a snack, or mild curiosity about the sensation. Keep physical descriptions minimal — one brief mention at most. Focus on dialogue and interaction.\n`;
+    } else if (capacity <= 30) {
+      instructions += `MILD INFLATION. You may describe: subtle bloating, a feeling of gentle pressure, clothes fitting slightly different. Keep it understated — this is still early. One or two brief physical references per response, then focus on the scene.\n`;
+    } else if (capacity <= 50) {
+      instructions += `MODERATE INFLATION. You may describe: visible roundness, noticeable tightness, pressure building, clothes straining. Physical sensations are present but manageable. Balance physical description with dialogue and character interaction.\n`;
+    } else if (capacity <= 70) {
+      instructions += `SIGNIFICANT INFLATION. You may describe: prominent swelling, taut skin, difficulty moving comfortably, labored breathing. Physical sensations are hard to ignore. Reactions should match the intensity.\n`;
+    } else if (capacity <= 85) {
+      instructions += `HEAVY INFLATION. Describe: drum-tight skin, extreme pressure, every movement causing discomfort, genuine strain. The body is at serious capacity.\n`;
+    } else {
+      instructions += `CRITICAL/MAX INFLATION. Describe: impossibly full, skin creaking, at the absolute limit. This is the climax.\n`;
     }
-    if (capacity <= 50 && capacity > 0) {
-      instructions += `- Do not exaggerate — no "enormous", "massive", "about to burst" below 85%.\n`;
-    }
+
+    instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
 
     return instructions;
   };
@@ -8836,8 +8935,10 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
         prompt += `\n[Hint: ${quietest.join(' and ')} ${quietest.length === 1 ? 'hasn\'t' : 'haven\'t'} had much to say recently — consider featuring ${quietest.length === 1 ? 'them' : 'one of them'} this turn.]\n`;
       }
     }
+    prompt += buildStatePreface(playerLabel, character.name, character);
     prompt += `[Characters]:`;
   } else {
+    prompt += buildStatePreface(playerLabel, character.name, character);
     prompt += `${character.name}:`;
   }
 
