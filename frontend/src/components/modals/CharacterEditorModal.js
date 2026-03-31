@@ -1896,6 +1896,19 @@ Write only the scenario description itself, no explanations.`;
                         Automatically triggers pump on every AI response (excluding flow chain messages)
                       </span>
                     </div>
+                    {activeStory?.pumpOnEveryReply && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={activeStory?.pumpOnEveryReplyChance ?? 100}
+                          onChange={(e) => updateStoryField('pumpOnEveryReplyChance', Math.min(100, Math.max(1, parseInt(e.target.value) || 100)))}
+                          style={{ width: '55px', textAlign: 'center' }}
+                        />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {activeStory?.allowLlmDeviceAccess && settings?.globalCharacterControls?.allowLlmDeviceControl && (
@@ -2001,6 +2014,56 @@ Write only the scenario description itself, no explanations.`;
                     placeholder="The first message the character sends..."
                     rows={9}
                   />
+                </div>
+
+                {/* Post Welcome Triggers */}
+                <div className="story-field">
+                  <div className="story-field-header">
+                    <label>Post Welcome Triggers</label>
+                    <button type="button" className="btn-icon btn-add" onClick={() => {
+                      const current = activeStory?.postWelcomeTriggers || [];
+                      updateStoryField('postWelcomeTriggers', [...current, { type: 'impersonate', id: Date.now().toString() }]);
+                    }} title="Add trigger">+</button>
+                  </div>
+                  {(activeStory?.postWelcomeTriggers || []).length === 0 ? (
+                    <p className="section-hint" style={{ margin: '0.25rem 0' }}>No triggers — click + to add actions that fire after the welcome message.</p>
+                  ) : (
+                    <div className="post-welcome-triggers-list">
+                      {(activeStory?.postWelcomeTriggers || []).map((trigger, idx) => (
+                        <div key={trigger.id || idx} className="post-welcome-trigger-row"
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', idx.toString())}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                            if (fromIdx === idx) return;
+                            const items = [...(activeStory?.postWelcomeTriggers || [])];
+                            const [moved] = items.splice(fromIdx, 1);
+                            items.splice(idx, 0, moved);
+                            updateStoryField('postWelcomeTriggers', items);
+                          }}
+                        >
+                          <span className="drag-handle" title="Drag to reorder">☰</span>
+                          <select
+                            value={trigger.type}
+                            onChange={(e) => {
+                              const items = [...(activeStory?.postWelcomeTriggers || [])];
+                              items[idx] = { ...items[idx], type: e.target.value };
+                              updateStoryField('postWelcomeTriggers', items);
+                            }}
+                          >
+                            <option value="impersonate">Trigger Player Impersonate</option>
+                            {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
+                          </select>
+                          <button type="button" className="btn-icon btn-remove" onClick={() => {
+                            const items = (activeStory?.postWelcomeTriggers || []).filter((_, i) => i !== idx);
+                            updateStoryField('postWelcomeTriggers', items);
+                          }} title="Remove trigger">−</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Scenario */}

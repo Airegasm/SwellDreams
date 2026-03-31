@@ -3314,7 +3314,10 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     // Apply capacityModifier to speed up or slow down capacity increase
     const deviceCapacity = (tracker.totalSeconds / deviceData.calibrationTime) * 100 * capacityModifier;
     totalCapacity += deviceCapacity;
-    console.log(`[AutoCapacity] Device ${deviceKey}: ${tracker.totalSeconds.toFixed(1)}s / ${deviceData.calibrationTime}s = ${deviceCapacity.toFixed(1)}%`);
+    // Log every 10 seconds to avoid console flood
+    if (Math.round(tracker.totalSeconds) % 10 === 0) {
+      console.log(`[AutoCapacity] Device ${deviceKey}: ${tracker.totalSeconds.toFixed(1)}s / ${deviceData.calibrationTime}s = ${deviceCapacity.toFixed(1)}%`);
+    }
   }
 
   // Apply manual capacity offset (set by slider) so auto-capacity continues from the manual value
@@ -3333,7 +3336,10 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
   sessionState.capacity = totalCapacity;
   sessionState.pain = pain;
 
-  console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
+  // Log every 10 seconds to avoid console flood
+  if (Math.round(runtimeSeconds) % 10 === 0) {
+    console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
+  }
 
   // Auto-pop shutoff: Turn off all pumps when capacity reaches the effective pop threshold
   const popThreshold = getEffectivePopThreshold(settings);
@@ -3434,6 +3440,15 @@ function isPumpOnEveryReply(character) {
 async function executePumpOnEveryReply(text, character, isFlowChain) {
   if (isFlowChain) return;
   if (!isPumpOnEveryReply(character)) return;
+
+  // Roll against chance percentage (default 100%)
+  const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+  const chance = activeStory?.pumpOnEveryReplyChance ?? 100;
+  if (chance < 100 && Math.random() * 100 >= chance) {
+    console.log(`[PumpOnEveryReply] Skipped (rolled above ${chance}% chance)`);
+    return;
+  }
+
   // Don't double up if text already has a pump command
   if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return;
 
@@ -3472,6 +3487,7 @@ async function executePumpOnEveryReply(text, character, isFlowChain) {
       try {
         await deviceService.turnOff(deviceId, pumpDevice);
         console.log(`[PumpOnEveryReply] Auto-off after ${maxSeconds}s`);
+        broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pumpDevice.label || pumpDevice.name || 'Pump', autoOff: true });
         delete global._pumpEveryReplyTimers[timerKey];
       } catch (e) {
         console.error('[PumpOnEveryReply] Auto-off error:', e.message);
@@ -3720,6 +3736,49 @@ async function sendWelcomeMessage(character, settings) {
 
   broadcast('chat_message', placeholderMessage);
   autosaveSession();
+
+  // Execute post-welcome triggers sequentially
+  const activeStoryWelcome = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+  const postTriggers = activeStoryWelcome?.postWelcomeTriggers || [];
+  if (postTriggers.length > 0) {
+    console.log(`[WELCOME] Executing ${postTriggers.length} post-welcome trigger(s)`);
+    for (const trigger of postTriggers) {
+      try {
+        if (trigger.type === 'impersonate') {
+          console.log('[WELCOME] Trigger: Player Impersonate');
+          broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
+          const personas = loadAllPersonas() || [];
+          const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+          const impContext = buildSpecialContext('impersonate', null, character, activePersona, settings);
+          const impSettings = { ...settings.llm };
+          if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
+          impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
+          const impResult = await llmService.generate({
+            prompt: impContext.prompt,
+            systemPrompt: impContext.systemPrompt,
+            settings: impSettings
+          });
+          if (impResult.text) {
+            let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
+            impText = substituteAllVariables(impText);
+            broadcast('generating_stop', {});
+            broadcast('impersonate_result', { text: impText });
+          } else {
+            broadcast('generating_stop', {});
+          }
+        } else if (trigger.type === 'char_inflate_start') {
+          console.log('[WELCOME] Trigger: AI Pump ON');
+          const ciCalTime = getCharacterCalibrationTime(character);
+          if (character.isPumpable && ciCalTime) {
+            startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
+          }
+        }
+      } catch (triggerErr) {
+        console.error(`[WELCOME] Post-welcome trigger error (${trigger.type}):`, triggerErr.message);
+        broadcast('generating_stop', {});
+      }
+    }
+  }
 
   // Story Progression: generate player reply suggestions after welcome message
   try {
@@ -7912,21 +7971,6 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
     systemPrompt += buildCharacterInflationContext(character);
 
-    // Inject player capacity checkpoints
-    const checkpointImp = getActiveCheckpoint(character, sessionState.capacity);
-    if (checkpointImp?.preInflation) {
-      systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointImp.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
-    }
-    if (checkpointImp?.text) {
-      systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointImp.text}\n=== END CHECKPOINT ===\n`;
-    }
-
-    // Inject character capacity checkpoints (pumpable characters only)
-    const charCheckpointImp = getActiveCharacterCheckpoint(character);
-    if (charCheckpointImp) {
-      systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointImp}\n=== END CHECKPOINT ===\n`;
-    }
-
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
 
     // Add global prompt / author note
@@ -7951,21 +7995,6 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
     systemPrompt += buildCharacterInflationContext(character);
-
-    // Inject player capacity checkpoints
-    const checkpointGuided = getActiveCheckpoint(character, sessionState.capacity);
-    if (checkpointGuided?.preInflation) {
-      systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointGuided.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
-    }
-    if (checkpointGuided?.text) {
-      systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointGuided.text}\n=== END CHECKPOINT ===\n`;
-    }
-
-    // Inject character capacity checkpoints (pumpable characters only)
-    const charCheckpointGuided = getActiveCharacterCheckpoint(character);
-    if (charCheckpointGuided) {
-      systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointGuided}\n=== END CHECKPOINT ===\n`;
-    }
 
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
 
@@ -8010,6 +8039,19 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
 
     // Inject inflation disposition (always-on)
     systemPrompt += buildInflationDispositionContext(character);
+
+    // Inject checkpoints at end (recency = higher LLM priority)
+    const checkpointSpecial = getActiveCheckpoint(character, sessionState.capacity);
+    if (checkpointSpecial?.preInflation) {
+      systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\n${checkpointSpecial.preInflation}\n=== END REQUIREMENT ===\n`;
+    }
+    if (checkpointSpecial?.text) {
+      systemPrompt += `\n=== MANDATORY — INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointSpecial.text}\n=== END STAGE DIRECTION ===\n`;
+    }
+    const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
+    if (charCheckpointSpecial) {
+      systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this. Do NOT describe ${character.name}'s inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointSpecial}\n=== END STAGE DIRECTION ===\n`;
+    }
 
     systemPrompt += `Continue from the text provided. Stay in character.`;
   }
@@ -8197,21 +8239,6 @@ function buildChatContext(character, settings) {
   systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
   systemPrompt += buildCharacterInflationContext(character);
 
-  // Inject player capacity checkpoints
-  const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
-  if (checkpointChat?.preInflation) {
-    systemPrompt += `\n=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointChat.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n`;
-  }
-  if (checkpointChat?.text) {
-    systemPrompt += `\n=== PLAYER CHECKPOINT ===\nCurrent guidance for player's capacity range:\n${checkpointChat.text}\n=== END CHECKPOINT ===\n`;
-  }
-
-  // Inject character capacity checkpoints (pumpable characters only)
-  const charCheckpointChat = getActiveCharacterCheckpoint(character);
-  if (charCheckpointChat) {
-    systemPrompt += `\n=== CHARACTER INFLATION CHECKPOINT ===\nCurrent guidance for ${character.name}'s capacity range:\n${charCheckpointChat}\n=== END CHECKPOINT ===\n`;
-  }
-
   systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
 
   // Add recent challenge result if available
@@ -8262,6 +8289,23 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
     systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
   }
   systemPrompt += buildInflationDispositionContext(character);
+
+  // Inject checkpoints at end of system prompt (recency = higher priority for LLM)
+  const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
+  if (checkpointChat?.preInflation) {
+    console.log(`[Checkpoints] Injecting PRE-INFLATION for player at ${sessionState.capacity}%`);
+    systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointChat.preInflation}\n=== END REQUIREMENT ===\n`;
+  }
+  if (checkpointChat?.text) {
+    console.log(`[Checkpoints] Injecting PLAYER checkpoint at ${sessionState.capacity}%: ${checkpointChat.text.substring(0, 60)}...`);
+    systemPrompt += `\n=== MANDATORY — PLAYER INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance for the player's current inflation level. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointChat.text}\n=== END STAGE DIRECTION ===\n`;
+  }
+
+  const charCheckpointChat = getActiveCharacterCheckpoint(character);
+  if (charCheckpointChat) {
+    console.log(`[Checkpoints] Injecting CHARACTER checkpoint at ${sessionState.characterCapacity}%: ${charCheckpointChat.substring(0, 60)}...`);
+    systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S INFLATION STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this guidance for ${character.name}'s current inflation level. Do NOT describe their inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointChat}\n=== END STAGE DIRECTION ===\n`;
+  }
 
   // Final style anchor
   systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;

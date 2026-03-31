@@ -285,6 +285,7 @@ export function AppProvider({ children }) {
           characterInflateElapsed: data.elapsed || 0,
           characterCapacity: data.characterCapacity ?? prev.characterCapacity
         }));
+        window.dispatchEvent(new CustomEvent('character_inflate_state', { detail: data }));
         break;
 
       case 'character_burst':

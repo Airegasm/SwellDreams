@@ -453,14 +453,29 @@ function Chat() {
   // Listen for AI device control events
   useEffect(() => {
     const handleAiDeviceControl = (event) => {
-      const { deviceName, action } = event.detail;
+      const { deviceName, label, device, action } = event.detail;
+      const name = deviceName || label || device || 'device';
       const actionText = action === 'on' ? 'turned ON' : 'turned OFF';
-      showSuccess(`AI ${actionText} ${deviceName}`, 3000);
+      showSuccess(`AI ${actionText} ${name}`, 3000);
     };
 
     window.addEventListener('ai_device_control', handleAiDeviceControl);
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
+
+  // Listen for character inflation state changes (AI pump on/off)
+  useEffect(() => {
+    const handleCharInflate = (event) => {
+      const { active } = event.detail;
+      if (active) {
+        showInfo(`${activeCharacter?.name || 'Character'} pump ON`, 3000);
+      } else {
+        showInfo(`${activeCharacter?.name || 'Character'} pump OFF`, 3000);
+      }
+    };
+    window.addEventListener('character_inflate_state', handleCharInflate);
+    return () => window.removeEventListener('character_inflate_state', handleCharInflate);
+  }, [showInfo, activeCharacter?.name]);
 
 
 
