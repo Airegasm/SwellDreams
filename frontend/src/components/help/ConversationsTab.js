@@ -1000,12 +1000,39 @@ function ConversationsTab() {
               </tbody>
             </table>
 
+            <h4 className="subsection-header">Player vs Character Checkpoints</h4>
+            <p>
+              For pumpable characters, the Checkpoints tab splits into two sub-tabs:
+            </p>
+            <ul className="help-list">
+              <li><strong>Player Capacity:</strong> How the character reacts to the player's inflation level</li>
+              <li><strong>Character Capacity:</strong> How the character reacts to their own inflation level</li>
+            </ul>
+            <p>
+              Personas also have checkpoints (in the Persona Editor → Checkpoints tab):
+            </p>
+            <ul className="help-list">
+              <li><strong>My Inflation:</strong> How the persona reacts to being inflated (guides impersonate)</li>
+              <li><strong>Character's Inflation:</strong> How the persona reacts to the AI character being inflated</li>
+            </ul>
+
+            <h4 className="subsection-header">Checkpoint Triggers</h4>
+            <p>
+              Each checkpoint range can have an ordered list of <strong>triggers</strong> that fire once
+              when capacity first enters that range. Triggers execute sequentially and support 25+ action
+              types including Player Impersonate, AI Message, Pump ON/OFF, Set Capacity/Pain/Emotion,
+              Toggle Device Control, Change Attributes, and more.
+            </p>
+
             <h4 className="subsection-header">Configuring Checkpoints</h4>
             <ol className="help-list numbered">
               <li>Open the <strong>Character Editor</strong></li>
               <li>Select the story you want to configure</li>
               <li>Go to the <strong>Checkpoints</strong> tab</li>
+              <li>For pumpable characters, switch between <strong>Player Capacity</strong> and <strong>Character Capacity</strong> sub-tabs</li>
+              <li>Click the eyeball icon to reveal/hide checkpoint text (blurred by default)</li>
               <li>Fill in guidance text for the ranges you want — blank ranges are ignored</li>
+              <li>Add triggers under each range using the + button</li>
               <li>Save the character</li>
             </ol>
 

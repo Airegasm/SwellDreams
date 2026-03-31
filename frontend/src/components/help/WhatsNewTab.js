@@ -5,6 +5,146 @@ function WhatsNewTab() {
   return (
     <div className="help-tab">
       <div className="help-section">
+        <h2>🎈 What's New in v3.9.x</h2>
+        <p className="version-date">Released: March 2026</p>
+      </div>
+
+      <div className="help-section">
+        <h3>🎬 Video Portrait System</h3>
+        <p>
+          Staged portraits now support video alongside images. Upload idle loop videos (MP4/WebM) for
+          each capacity range, plus transition videos that play when crossing range boundaries. Videos
+          play in reverse during deflation. All media is stored on disk and can be exported/imported as
+          zip bundles separate from the character card.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Idle Videos:</strong>
+            <p>Looping video portraits per capacity range — mix freely with static images</p>
+          </div>
+          <div className="feature-item">
+            <strong>Transition Videos:</strong>
+            <p>One-shot clips that play when capacity crosses into a new range. Plays in reverse for deflation.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Batch Crop/Position:</strong>
+            <p>Scale and offset controls that apply uniformly to all portrait media</p>
+          </div>
+          <div className="feature-item">
+            <strong>Zip Export/Import:</strong>
+            <p>Export all portrait media as a zip bundle. Import on another instance without touching the character card.</p>
+          </div>
+          <div className="feature-item">
+            <strong>9:16 Aspect Ratio:</strong>
+            <p>Portrait containers and image cropper updated to 9:16 for Wan video model compatibility</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🧠 Chat Memory & Summarization</h3>
+        <p>
+          Configurable chat history depths and automatic summarization of older messages so the AI
+          retains long-term memory of the conversation.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>History Depth Controls:</strong>
+            <p>Settings {'>'} Global {'>'} Chat Memory — configure how many messages are included in main chat, impersonate, and reminder scan contexts</p>
+          </div>
+          <div className="feature-item">
+            <strong>Auto-Summarize:</strong>
+            <p>When messages overflow the context window, older messages are summarized by the LLM and injected as a rolling summary</p>
+          </div>
+          <div className="feature-item">
+            <strong>Editable Summary:</strong>
+            <p>View and edit the rolling summary directly in Settings {'>'} Global {'>'} Chat Memory</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>⚡ Expanded Trigger System (25+ Actions)</h3>
+        <p>
+          Post-welcome triggers and checkpoint triggers now support a comprehensive set of actions
+          for controlling devices, modifying session state, toggling settings, and managing reminders.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Post-Welcome Triggers:</strong>
+            <p>Ordered list of actions that fire after the welcome message. Drag to reorder, add/remove freely.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Checkpoint Triggers:</strong>
+            <p>Same trigger system under each capacity checkpoint. Fire once per session when capacity first enters a range.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Action Types:</strong>
+            <p>Player Impersonate, AI Message, AI Pump ON/OFF, Primary Pump ON/OFF, Toggle Pump Always,
+            Change Attribute, Set Capacity/Pain/Emotion, Toggle Device Control, Pump Mode/Timer,
+            Toggle Auto-Reply, Toggle Pumpable, Set Burst Limits, Character Desires, Toggle/Equip Reminders</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>📋 Character & Persona Checkpoints</h3>
+        <p>
+          Checkpoints now split into sub-tabs for pumpable characters: Player Capacity and Character
+          Capacity. Persona editor also has checkpoints for guiding impersonate responses. All checkpoints
+          feature spoiler blur toggles.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Character Capacity Checkpoints:</strong>
+            <p>How the AI character should react to their own inflation at each capacity range</p>
+          </div>
+          <div className="feature-item">
+            <strong>Persona Checkpoints:</strong>
+            <p>"My Inflation" — how the persona reacts to being inflated. "Character's Inflation" — how the persona reacts to the AI character being inflated.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Spoiler Blur:</strong>
+            <p>Checkpoint text is blurred by default — click the eyeball icon to reveal</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🔧 Device Control Improvements</h3>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Send Pump On Every Reply:</strong>
+            <p>Per-story toggle that programmatically activates the pump before every AI response (excluding flow chains). Configurable % chance.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Character Inflation Auto-Stop:</strong>
+            <p>AI Pump ON now respects the character's max-on-duration device control limit</p>
+          </div>
+          <div className="feature-item">
+            <strong>Toast Notifications:</strong>
+            <p>Visual notifications when the AI character's pump turns on/off</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🐛 Fixes</h3>
+        <ul>
+          <li>Fixed KoboldCpp text completion missing template stop tokens (ChatML, Alpaca, Vicuna)</li>
+          <li>Fixed generic chat completion paths not handling models without system role support</li>
+          <li>Fixed persona staged portraits never extracting from base64 to disk</li>
+          <li>Fixed new character editor opening with previous character's data</li>
+          <li>Fixed checkpoint sub-tab buttons submitting the form (closing modal)</li>
+          <li>Fixed draft system localStorage quota overflow from base64 image data</li>
+          <li>SillyTavern {'{{user}}'}/{'{{char}}'} macros now work at runtime</li>
+          <li>Impersonate now sends explicit perspective instruction with player name</li>
+          <li>Impersonate input text saved to history for up-arrow retry</li>
+          <li>Megan added as default character with staged portraits</li>
+        </ul>
+      </div>
+
+      <div className="help-section">
         <h2>🎈 What's New in v3.8.2–3.8.5</h2>
         <p className="version-date">Released: March 2026</p>
       </div>

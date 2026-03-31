@@ -11907,7 +11907,9 @@ app.post('/api/session/reset', async (req, res) => {
   ensureCharInflateFlowAssignments();
   activateAssignedFlows();
 
-  broadcast('session_reset', sessionState);
+  // Strip non-serializable fields (Timeout objects have circular refs) before broadcasting
+  const { characterInflationTimer: _t1, characterInflationStartTime: _t2, ...resetSerializable } = sessionState;
+  broadcast('session_reset', resetSerializable);
 
   // Fire new_session triggers (for variable initialization etc.)
   await eventEngine.handleEvent('new_session', {});
@@ -12006,8 +12008,9 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
 
-  // Broadcast the loaded state
-  broadcast('session_loaded', sessionState);
+  // Strip non-serializable fields before broadcasting
+  const { characterInflationTimer: _lt1, characterInflationStartTime: _lt2, ...loadedSerializable } = sessionState;
+  broadcast('session_loaded', loadedSerializable);
 
   res.json(sessionState);
 });
@@ -12295,8 +12298,9 @@ process.on('uncaughtException', async (error) => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', async (reason, promise) => {
-  console.error('[FAILSAFE] Unhandled Promise Rejection:', reason);
-  await triggerEmergencyStop(`Unhandled Rejection: ${reason}`);
+  const reasonStr = reason instanceof Error ? reason.message : (typeof reason === 'string' ? reason : 'Unknown');
+  console.error('[FAILSAFE] Unhandled Promise Rejection:', reasonStr);
+  await triggerEmergencyStop(`Unhandled Rejection: ${reasonStr}`);
 
   // Give time for devices to stop, then exit
   setTimeout(() => {
