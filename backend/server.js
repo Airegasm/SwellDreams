@@ -10758,6 +10758,64 @@ app.post('/api/emergency-stop', async (req, res) => {
   res.json({ success: true, message: 'Emergency stop executed', results });
 });
 
+// --- Checkpoint Profiles ---
+
+const CHECKPOINT_PROFILES_PATH = path.join(DATA_DIR, 'checkpoint-profiles.json');
+
+function loadCheckpointProfiles() {
+  try {
+    return JSON.parse(fs.readFileSync(CHECKPOINT_PROFILES_PATH, 'utf8'));
+  } catch (e) {
+    return { player: [], character: [] };
+  }
+}
+
+function saveCheckpointProfiles(profiles) {
+  fs.writeFileSync(CHECKPOINT_PROFILES_PATH, JSON.stringify(profiles, null, 2));
+}
+
+app.get('/api/checkpoint-profiles', (req, res) => {
+  res.json(loadCheckpointProfiles());
+});
+
+app.post('/api/checkpoint-profiles', (req, res) => {
+  const { type, name, checkpoints } = req.body;
+  if (!type || !name || !checkpoints) {
+    return res.status(400).json({ error: 'type, name, and checkpoints required' });
+  }
+  const profiles = loadCheckpointProfiles();
+  if (!profiles[type]) profiles[type] = [];
+  const id = `${type}-${Date.now()}`;
+  profiles[type].push({ id, name, builtIn: false, checkpoints });
+  saveCheckpointProfiles(profiles);
+  res.json({ success: true, id });
+});
+
+app.put('/api/checkpoint-profiles/:id', (req, res) => {
+  const { type, name, checkpoints } = req.body;
+  const profiles = loadCheckpointProfiles();
+  if (!profiles[type]) return res.status(404).json({ error: 'Profile type not found' });
+  const idx = profiles[type].findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in profiles' });
+  if (name) profiles[type][idx].name = name;
+  if (checkpoints) profiles[type][idx].checkpoints = checkpoints;
+  saveCheckpointProfiles(profiles);
+  res.json({ success: true });
+});
+
+app.delete('/api/checkpoint-profiles/:id', (req, res) => {
+  const { type } = req.query;
+  const profiles = loadCheckpointProfiles();
+  if (!profiles[type]) return res.status(404).json({ error: 'Profile type not found' });
+  const idx = profiles[type].findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in profiles' });
+  profiles[type].splice(idx, 1);
+  saveCheckpointProfiles(profiles);
+  res.json({ success: true });
+});
+
 // --- Flows (Event Scripts) ---
 
 app.get('/api/flows', (req, res) => {

@@ -122,6 +122,20 @@
   text-underline-offset: 3px;
 }
 
+.checkpoint-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.checkpoint-profile-select {
+  flex: 1;
+  min-width: 150px;
+  max-width: 250px;
+}
+
 /* Modal Body - Card background matching Settings */
 .character-modal-body {
   padding: var(--spacing-lg);

@@ -1175,6 +1175,18 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/info`
     ),
 
+    // Checkpoint profiles
+    getCheckpointProfiles: () => apiFetch(`${API_BASE}/api/checkpoint-profiles`),
+    createCheckpointProfile: (type, name, checkpoints) => apiFetch(`${API_BASE}/api/checkpoint-profiles`, {
+      method: 'POST', body: JSON.stringify({ type, name, checkpoints })
+    }),
+    updateCheckpointProfile: (id, type, name, checkpoints) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}`, {
+      method: 'PUT', body: JSON.stringify({ type, name, checkpoints })
+    }),
+    deleteCheckpointProfile: (id, type) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}?type=${type}`, {
+      method: 'DELETE'
+    }),
+
     // Home Assistant devices (bridge for Tapo and other HA-managed devices)
     connectHomeAssistant: (url, token) => apiFetch(`${API_BASE}/api/homeassistant/connect`, {
       method: 'POST',

@@ -284,6 +284,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
   const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+  const [checkpointSubTab, setCheckpointSubTab] = useState('player');
   const [checkpointProfiles, setCheckpointProfiles] = useState({ player: [], character: [] });
   const [selectedPlayerProfile, setSelectedPlayerProfile] = useState('');
   const [selectedCharProfile, setSelectedCharProfile] = useState('');
@@ -336,9 +337,9 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     }
   }, [isOpen, formData.activeStoryId, formData.stories]);
 
-  // Load checkpoint profiles
+  // Load checkpoint profiles (if API exists)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && typeof api.getCheckpointProfiles === 'function') {
       api.getCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
     }
   }, [isOpen, api]);
@@ -2892,21 +2893,23 @@ Write only the scenario description itself, no explanations.`;
                   {/* Sub-tab switcher for pumpable characters */}
                   <div className="checkpoint-subtabs">
                     <button
-                      className={`checkpoint-subtab ${(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); updateStoryField('_checkpointSubTab', 'player'); }}
+                      type="button"
+                      className={`checkpoint-subtab ${checkpointSubTab === 'player' ? 'active' : ''}`}
+                      onClick={() => setCheckpointSubTab('player')}
                     >
                       Player Capacity
                     </button>
                     <button
-                      className={`checkpoint-subtab ${activeStory?._checkpointSubTab === 'character' ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); updateStoryField('_checkpointSubTab', 'character'); }}
+                      type="button"
+                      className={`checkpoint-subtab ${checkpointSubTab === 'character' ? 'active' : ''}`}
+                      onClick={() => setCheckpointSubTab('character')}
                     >
                       Character Capacity
                     </button>
                   </div>
 
                   {/* Player Capacity Checkpoints */}
-                  {(!activeStory?._checkpointSubTab || activeStory?._checkpointSubTab === 'player') && (
+                  {checkpointSubTab === 'player' && (
                     <>
                       <h4>Player Capacity Checkpoints</h4>
                       <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
@@ -2980,7 +2983,7 @@ Write only the scenario description itself, no explanations.`;
                   )}
 
                   {/* Character Capacity Checkpoints */}
-                  {activeStory?._checkpointSubTab === 'character' && (
+                  {checkpointSubTab === 'character' && (
                     <>
                       <h4>Character Capacity Checkpoints</h4>
                       <p className="section-hint">Stage directions telling the AI how to react to <strong>their own</strong> inflation at each capacity range. Uses <code>[Char]</code> for the character name.</p>
