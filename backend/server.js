@@ -3405,15 +3405,59 @@ function isPumpOnEveryReply(character) {
 }
 
 /**
- * Inject [pump on] into response text if pumpOnEveryReply is enabled and the text
- * doesn't already contain a pump command. Skips flow chain messages.
+ * Programmatically turn on the pump if pumpOnEveryReply is enabled.
+ * Runs after each LLM response. Skips if already has a pump tag in text,
+ * if it's a flow chain message, or if the pump is already on.
  */
-function injectPumpOnEveryReply(text, character, isFlowChain) {
-  if (isFlowChain) return text;
-  if (!isPumpOnEveryReply(character)) return text;
-  // Don't double up if text already has a pump tag
-  if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return text;
-  return text + ' [pump on]';
+async function executePumpOnEveryReply(text, character, isFlowChain) {
+  if (isFlowChain) return;
+  if (!isPumpOnEveryReply(character)) return;
+  // Don't double up if text already has a pump command
+  if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return;
+
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pumpDevice = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  if (!pumpDevice) return;
+
+  const deviceId = pumpDevice.brand === 'govee' || pumpDevice.brand === 'tuya' || pumpDevice.brand === 'wyze'
+    ? pumpDevice.deviceId : pumpDevice.ip;
+
+  // Check if pump is already on
+  const currentState = sessionState.executionHistory?.deviceActions?.[deviceId];
+  if (currentState?.state === 'on') return;
+
+  const settings = loadData(DATA_FILES.settings);
+  const capacityMod = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+  const globalMax = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
+  const charLimits = getCharacterLimits(character);
+  const charMax = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
+  const maxSeconds = Math.min(globalMax, charMax);
+
+  // Safety: block at 100% unless over-inflation allowed
+  const allowOver = settings?.globalCharacterControls?.allowOverInflation;
+  if (!allowOver && sessionState.capacity >= 100) return;
+
+  try {
+    await deviceService.turnOn(deviceId, pumpDevice);
+    console.log(`[PumpOnEveryReply] Pump ON (auto-off in ${maxSeconds}s)`);
+    broadcast('ai_device_control', { device: 'pump', action: 'on', label: pumpDevice.label || pumpDevice.name || 'Pump' });
+
+    // Auto-off timer
+    const timerKey = `pump-every-reply-${deviceId}`;
+    if (global._pumpEveryReplyTimers?.[timerKey]) clearTimeout(global._pumpEveryReplyTimers[timerKey]);
+    if (!global._pumpEveryReplyTimers) global._pumpEveryReplyTimers = {};
+    global._pumpEveryReplyTimers[timerKey] = setTimeout(async () => {
+      try {
+        await deviceService.turnOff(deviceId, pumpDevice);
+        console.log(`[PumpOnEveryReply] Auto-off after ${maxSeconds}s`);
+        delete global._pumpEveryReplyTimers[timerKey];
+      } catch (e) {
+        console.error('[PumpOnEveryReply] Auto-off error:', e.message);
+      }
+    }, maxSeconds * 1000);
+  } catch (e) {
+    console.error('[PumpOnEveryReply] Pump ON error:', e.message);
+  }
 }
 
 // Get active welcome message for a character
@@ -3945,7 +3989,7 @@ If announcing the result, say "${result}" - not something else.
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Inject [pump on] if pumpOnEveryReply is enabled (skips flow chain messages)
-        finalText = injectPumpOnEveryReply(finalText, activeCharacter, !!data.flowId);
+        // pumpOnEveryReply handled before generation
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -5946,7 +5990,7 @@ Your response MUST be about: "${guidanceText}"
     const devices = loadData(DATA_FILES.devices) || [];
 
     // Inject [pump on] if pumpOnEveryReply is enabled
-    resultText = injectPumpOnEveryReply(resultText, activeCharacter, false);
+    // pumpOnEveryReply handled before generation
 
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
     const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings, getCharacterLimits(activeCharacter));
@@ -6507,6 +6551,9 @@ async function handleChatMessage(data) {
     // Notify UI that AI is generating
     broadcast('generating_start', { characterName: activeCharacter.name });
 
+    // Pump on every reply — fire before LLM generates so pump runs during generation
+    await executePumpOnEveryReply('', activeCharacter, false);
+
     try {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
@@ -6561,7 +6608,7 @@ async function handleChatMessage(data) {
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Inject [pump on] if pumpOnEveryReply is enabled
-        aiMessage.content = injectPumpOnEveryReply(aiMessage.content, activeCharacter, false);
+        // pumpOnEveryReply handled before generation
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(aiMessage.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -6744,7 +6791,7 @@ async function handleChatMessage(data) {
         const aiControlSettings = loadData(DATA_FILES.settings);
 
         // Inject [pump on] if pumpOnEveryReply is enabled
-        finalText = injectPumpOnEveryReply(finalText, activeCharacter, false);
+        // pumpOnEveryReply handled before generation
 
         // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
         const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -7180,6 +7227,11 @@ async function handleSpecialGenerate(data) {
   // Notify UI that we're generating
   broadcast('generating_start', { characterName: generatingFor, isPlayerVoice });
 
+  // Pump on every reply — fire before LLM generates
+  if (!isPlayerVoice) {
+    await executePumpOnEveryReply('', activeCharacter, false);
+  }
+
   try {
     // Roll personality attributes for character voice only (not impersonate)
     if (!isPlayerVoice) {
@@ -7227,7 +7279,7 @@ async function handleSpecialGenerate(data) {
       const aiControlSettings = loadData(DATA_FILES.settings);
 
       // Inject [pump on] if pumpOnEveryReply is enabled
-      message.content = injectPumpOnEveryReply(message.content, activeCharacter, false);
+      // pumpOnEveryReply handled before generation
 
       // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
       const reinforceResult = aiDeviceControl.reinforcePumpControl(message.content, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
@@ -7317,7 +7369,7 @@ async function handleSpecialGenerate(data) {
     const aiControlSettings = loadData(DATA_FILES.settings);
 
     // Inject [pump on] if pumpOnEveryReply is enabled
-    finalText = injectPumpOnEveryReply(finalText, activeCharacter, false);
+    // pumpOnEveryReply handled before generation
 
     // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
     const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, aiControlSettings, getCharacterLimits(activeCharacter));
