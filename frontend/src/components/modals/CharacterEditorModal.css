@@ -1751,3 +1751,22 @@
 .btn-remove:hover {
   opacity: 1;
 }
+
+/* Checkpoint Triggers (inline under each checkpoint) */
+.checkpoint-triggers {
+  margin-top: 4px;
+}
+
+.checkpoint-triggers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.checkpoint-triggers-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

@@ -2786,6 +2786,98 @@ const sessionState = {
   characterInflationBaseCapacity: 0 // capacity when inflation started (to add to)
 };
 
+// Track which checkpoint ranges have already fired triggers this session
+// Keys: "player-{rangeKey}" and "char-{rangeKey}"
+const firedCheckpointTriggers = new Set();
+
+/**
+ * Get the range key for a capacity value
+ */
+function capacityToRangeKey(capacity) {
+  if (capacity <= 0) return '0';
+  if (capacity <= 10) return '1-10';
+  if (capacity <= 20) return '11-20';
+  if (capacity <= 30) return '21-30';
+  if (capacity <= 40) return '31-40';
+  if (capacity <= 50) return '41-50';
+  if (capacity <= 60) return '51-60';
+  if (capacity <= 70) return '61-70';
+  if (capacity <= 80) return '71-80';
+  if (capacity <= 90) return '81-90';
+  if (capacity <= 100) return '91-100';
+  return '100+';
+}
+
+/**
+ * Execute checkpoint triggers when capacity enters a new range.
+ * @param {string} type - 'player' or 'char'
+ * @param {number} oldCapacity - previous capacity
+ * @param {number} newCapacity - current capacity
+ */
+async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
+  const oldRange = capacityToRangeKey(oldCapacity);
+  const newRange = capacityToRangeKey(newCapacity);
+  if (oldRange === newRange) return;
+
+  const triggerKey = `${type}-${newRange}`;
+  if (firedCheckpointTriggers.has(triggerKey)) return;
+
+  // Get the active character and story
+  const settings = loadData(DATA_FILES.settings);
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+  if (!activeCharacter) return;
+
+  const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+  const checkpointTriggers = activeStory?.checkpointTriggers;
+  if (!checkpointTriggers) return;
+
+  const triggers = checkpointTriggers[triggerKey];
+  if (!triggers || triggers.length === 0) return;
+
+  // Mark as fired
+  firedCheckpointTriggers.add(triggerKey);
+  console.log(`[CheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
+
+  const personas = loadAllPersonas() || [];
+  const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  for (const trigger of triggers) {
+    try {
+      if (trigger.type === 'impersonate') {
+        console.log(`[CheckpointTriggers] ${triggerKey}: Player Impersonate`);
+        broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
+        const impContext = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
+        const impSettings = { ...settings.llm };
+        if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
+        impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
+        const impResult = await llmService.generate({
+          prompt: impContext.prompt,
+          systemPrompt: impContext.systemPrompt,
+          settings: impSettings
+        });
+        if (impResult.text) {
+          let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
+          impText = substituteAllVariables(impText);
+          broadcast('generating_stop', {});
+          broadcast('impersonate_result', { text: impText });
+        } else {
+          broadcast('generating_stop', {});
+        }
+      } else if (trigger.type === 'char_inflate_start') {
+        console.log(`[CheckpointTriggers] ${triggerKey}: AI Pump ON`);
+        const ciCalTime = getCharacterCalibrationTime(activeCharacter);
+        if (activeCharacter.isPumpable && ciCalTime) {
+          startCharacterInflation(ciCalTime, activeCharacter.charBurstPercent || 100);
+        }
+      }
+    } catch (err) {
+      console.error(`[CheckpointTriggers] Error executing ${trigger.type} for ${triggerKey}:`, err.message);
+      broadcast('generating_stop', {});
+    }
+  }
+}
+
 // ==============================================
 // Character Inflation Helpers
 // ==============================================
@@ -2833,8 +2925,10 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
     const elapsedRounded = Math.round(elapsed);
 
     if (newCapacity !== sessionState.characterCapacity) {
+      const prevCharCap = sessionState.characterCapacity;
       sessionState.characterCapacity = newCapacity;
       eventEngine.checkCharacterStateChanges({ characterCapacity: newCapacity });
+      executeCheckpointTriggers('char', prevCharCap, newCapacity);
     }
 
     // Always broadcast elapsed + capacity so frontend timer overlay stays in sync
@@ -3333,6 +3427,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
   const maxPain = calibratedPains.length > 0 ? Math.max(...calibratedPains) : 10;
   const pain = Math.min(10, Math.round((Math.min(totalCapacity, 100) / 100) * maxPain));
 
+  const prevPlayerCapacity = sessionState.capacity;
   sessionState.capacity = totalCapacity;
   sessionState.pain = pain;
 
@@ -3385,6 +3480,9 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     pain: pain,
     emotion: sessionState.emotion
   });
+
+  // Fire checkpoint triggers on range boundary crossing
+  executeCheckpointTriggers('player', prevPlayerCapacity, totalCapacity);
 }
 
 // Device service event handler
@@ -11621,6 +11719,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.chatHistory = [];
   sessionState.chatMemorySummary = null;
   sessionState.chatMemorySummaryUpTo = 0;
+  firedCheckpointTriggers.clear();
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {

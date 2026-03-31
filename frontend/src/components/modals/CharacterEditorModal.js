@@ -3040,6 +3040,32 @@ Write only the scenario description itself, no explanations.`;
                               rows={3}
                             />
                           </div>
+                          {/* Checkpoint triggers */}
+                          <div className="checkpoint-triggers">
+                            <div className="checkpoint-triggers-header">
+                              <span className="checkpoint-triggers-label">Triggers</span>
+                              <button type="button" className="btn-icon btn-add" onClick={() => {
+                                const trigKey = `player-${key}`;
+                                const ct = { ...(activeStory?.checkpointTriggers || {}) };
+                                ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
+                                updateStoryField('checkpointTriggers', ct);
+                              }} title="Add trigger">+</button>
+                            </div>
+                            {(activeStory?.checkpointTriggers?.[`player-${key}`] || []).map((trigger, tIdx) => (
+                              <div key={trigger.id || tIdx} className="post-welcome-trigger-row"
+                                draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', tIdx.toString())}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
+                              >
+                                <span className="drag-handle">☰</span>
+                                <select value={trigger.type} onChange={(e) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; items[tIdx] = { ...items[tIdx], type: e.target.value }; ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}>
+                                  <option value="impersonate">Trigger Player Impersonate</option>
+                                  {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
+                                </select>
+                                <button type="button" className="btn-remove" onClick={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`player-${key}`] = (ct[`player-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}>−</button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </>
@@ -3113,6 +3139,32 @@ Write only the scenario description itself, no explanations.`;
                               placeholder={key === '0' ? 'e.g. Character is unaware of what inflation feels like...' : `Guidance for character at ${label} capacity...`}
                               rows={3}
                             />
+                          </div>
+                          {/* Checkpoint triggers */}
+                          <div className="checkpoint-triggers">
+                            <div className="checkpoint-triggers-header">
+                              <span className="checkpoint-triggers-label">Triggers</span>
+                              <button type="button" className="btn-icon btn-add" onClick={() => {
+                                const trigKey = `char-${key}`;
+                                const ct = { ...(activeStory?.checkpointTriggers || {}) };
+                                ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
+                                updateStoryField('checkpointTriggers', ct);
+                              }} title="Add trigger">+</button>
+                            </div>
+                            {(activeStory?.checkpointTriggers?.[`char-${key}`] || []).map((trigger, tIdx) => (
+                              <div key={trigger.id || tIdx} className="post-welcome-trigger-row"
+                                draggable onDragStart={(e) => e.dataTransfer.setData('text/plain', tIdx.toString())}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
+                              >
+                                <span className="drag-handle">☰</span>
+                                <select value={trigger.type} onChange={(e) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`char-${key}`] || [])]; items[tIdx] = { ...items[tIdx], type: e.target.value }; ct[`char-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}>
+                                  <option value="impersonate">Trigger Player Impersonate</option>
+                                  {formData.isPumpable && <option value="char_inflate_start">AI Pump ON</option>}
+                                </select>
+                                <button type="button" className="btn-remove" onClick={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`char-${key}`] = (ct[`char-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}>−</button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
