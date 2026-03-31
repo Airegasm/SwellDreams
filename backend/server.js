@@ -7730,6 +7730,55 @@ function getActiveCharacterCheckpoint(character) {
   return text || null;
 }
 
+/**
+ * Get active persona checkpoint for player's own inflation
+ */
+function getPersonaCheckpoint(persona, capacity) {
+  const checkpoints = persona?.checkpoints;
+  if (!checkpoints) return null;
+
+  let rangeKey;
+  if (capacity <= 0) rangeKey = '0';
+  else if (capacity <= 10) rangeKey = '1-10';
+  else if (capacity <= 20) rangeKey = '11-20';
+  else if (capacity <= 30) rangeKey = '21-30';
+  else if (capacity <= 40) rangeKey = '31-40';
+  else if (capacity <= 50) rangeKey = '41-50';
+  else if (capacity <= 60) rangeKey = '51-60';
+  else if (capacity <= 70) rangeKey = '61-70';
+  else if (capacity <= 80) rangeKey = '71-80';
+  else if (capacity <= 90) rangeKey = '81-90';
+  else if (capacity <= 100) rangeKey = '91-100';
+  else rangeKey = '100+';
+
+  return checkpoints[rangeKey]?.trim() || null;
+}
+
+/**
+ * Get active persona checkpoint for reacting to character's inflation
+ */
+function getPersonaCharacterCheckpoint(persona) {
+  const checkpoints = persona?.characterCheckpoints;
+  if (!checkpoints) return null;
+
+  const capacity = sessionState.characterCapacity || 0;
+  let rangeKey;
+  if (capacity <= 0) rangeKey = '0';
+  else if (capacity <= 10) rangeKey = '1-10';
+  else if (capacity <= 20) rangeKey = '11-20';
+  else if (capacity <= 30) rangeKey = '21-30';
+  else if (capacity <= 40) rangeKey = '31-40';
+  else if (capacity <= 50) rangeKey = '41-50';
+  else if (capacity <= 60) rangeKey = '51-60';
+  else if (capacity <= 70) rangeKey = '61-70';
+  else if (capacity <= 80) rangeKey = '71-80';
+  else if (capacity <= 90) rangeKey = '81-90';
+  else if (capacity <= 100) rangeKey = '91-100';
+  else rangeKey = '100+';
+
+  return checkpoints[rangeKey]?.trim() || null;
+}
+
 function getActiveCheckpoint(character, capacity) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const checkpoints = activeStory?.checkpoints;
@@ -8052,6 +8101,20 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
     if (charCheckpointSpecial) {
       systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this. Do NOT describe ${character.name}'s inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointSpecial}\n=== END STAGE DIRECTION ===\n`;
+    }
+
+    // Inject persona checkpoints for impersonate mode
+    if (isPlayerVoice && persona) {
+      const personaCp = getPersonaCheckpoint(persona, sessionState.capacity);
+      if (personaCp) {
+        systemPrompt += `\n=== MANDATORY — YOUR REACTION TO YOUR OWN INFLATION (${sessionState.capacity}%) ===\n${personaCp}\n=== END ===\n`;
+      }
+      if (character?.isPumpable) {
+        const personaCharCp = getPersonaCharacterCheckpoint(persona);
+        if (personaCharCp) {
+          systemPrompt += `\n=== MANDATORY — YOUR REACTION TO ${character.name.toUpperCase()}'S INFLATION (${sessionState.characterCapacity}%) ===\n${personaCharCp}\n=== END ===\n`;
+        }
+      }
     }
 
     systemPrompt += `Continue from the text provided. Stay in character.`;

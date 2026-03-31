@@ -25,6 +25,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         relationshipWithInflation: persona.relationshipWithInflation || '',
         avatar: persona.avatar || '',
         stagedPortraits: persona.stagedPortraits || {},
+        checkpoints: persona.checkpoints || {},
+        characterCheckpoints: persona.characterCheckpoints || {},
         // New fields for buttons and flows
         assignedFlows: filterValidFlows(persona.assignedFlows),
         buttons: persona.buttons || [],
@@ -40,6 +42,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       relationshipWithInflation: '',
       avatar: '',
       stagedPortraits: {},
+      checkpoints: {},
+      characterCheckpoints: {},
       assignedFlows: [],
       buttons: [],
       assignedButtons: []
@@ -52,6 +56,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
 
   // Tab state
   const [activeTab, setActiveTab] = useState('basic');
+  const [checkpointSubTab, setCheckpointSubTab] = useState('player');
+  const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
 
   // Button management state
   const [showButtonForm, setShowButtonForm] = useState(false);
@@ -463,6 +469,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           >
             Custom Buttons
           </button>
+          <button
+            type="button"
+            className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`}
+            onClick={() => setActiveTab('checkpoints')}
+          >
+            Checkpoints
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -842,6 +855,125 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                     <button type="button" className="btn btn-primary" onClick={handleSaveButton}>{editingButtonId !== null ? 'Update' : 'Create'}</button>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Checkpoints Tab */}
+          <div className="modal-body persona-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
+            <div className="session-defaults-editor">
+              {/* Sub-tab switcher */}
+              <div className="checkpoint-subtabs">
+                <button
+                  type="button"
+                  className={`checkpoint-subtab ${checkpointSubTab === 'player' ? 'active' : ''}`}
+                  onClick={() => setCheckpointSubTab('player')}
+                >
+                  My Inflation
+                </button>
+                <button
+                  type="button"
+                  className={`checkpoint-subtab ${checkpointSubTab === 'character' ? 'active' : ''}`}
+                  onClick={() => setCheckpointSubTab('character')}
+                >
+                  Character's Inflation
+                </button>
+              </div>
+
+              {/* Player's own inflation checkpoints */}
+              {checkpointSubTab === 'player' && (
+                <>
+                  <h4>My Inflation Reactions</h4>
+                  <p className="section-hint">How this persona reacts to their own inflation at each capacity range. Guides impersonate responses.</p>
+                  {[
+                    { key: '0', label: '0% — Before Inflation', hint: 'How the persona feels before anything starts.' },
+                    { key: '1-10', label: '1–10%' },
+                    { key: '11-20', label: '11–20%' },
+                    { key: '21-30', label: '21–30%' },
+                    { key: '31-40', label: '31–40%' },
+                    { key: '41-50', label: '41–50%' },
+                    { key: '51-60', label: '51–60%' },
+                    { key: '61-70', label: '61–70%' },
+                    { key: '71-80', label: '71–80%' },
+                    { key: '81-90', label: '81–90%' },
+                    { key: '91-100', label: '91–100%' },
+                    { key: '100+', label: '100%+ — Over-Inflation' }
+                  ].map(({ key, label, hint }) => (
+                    <div className="form-group checkpoint-field" key={key}>
+                      <div className="checkpoint-header">
+                        <label>{label}</label>
+                        <button
+                          type="button"
+                          className="checkpoint-spoiler-toggle"
+                          onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`p-player-${key}`]: !prev[`p-player-${key}`] }))}
+                        >
+                          <span className="spoiler-eye">{visibleCheckpoints[`p-player-${key}`] ? '👁' : '👁‍🗨'}</span>
+                          <span className="spoiler-label">{visibleCheckpoints[`p-player-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                        </button>
+                      </div>
+                      {hint && <p className="section-hint">{hint}</p>}
+                      <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`p-player-${key}`] ? 'revealed' : ''}`}>
+                        <textarea
+                          value={formData.checkpoints?.[key] || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            checkpoints: { ...prev.checkpoints, [key]: e.target.value }
+                          }))}
+                          placeholder={key === '0' ? 'e.g. Nervous but excited to try this...' : `How I react at ${label}...`}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {/* Reacting to character's inflation */}
+              {checkpointSubTab === 'character' && (
+                <>
+                  <h4>Reacting to Character's Inflation</h4>
+                  <p className="section-hint">How this persona reacts to the AI character being inflated. Only applies in sessions with pumpable characters.</p>
+                  {[
+                    { key: '0', label: '0% — Before Inflation', hint: 'How the persona feels before the character starts inflating.' },
+                    { key: '1-10', label: '1–10%' },
+                    { key: '11-20', label: '11–20%' },
+                    { key: '21-30', label: '21–30%' },
+                    { key: '31-40', label: '31–40%' },
+                    { key: '41-50', label: '41–50%' },
+                    { key: '51-60', label: '51–60%' },
+                    { key: '61-70', label: '61–70%' },
+                    { key: '71-80', label: '71–80%' },
+                    { key: '81-90', label: '81–90%' },
+                    { key: '91-100', label: '91–100%' },
+                    { key: '100+', label: '100%+ — Over-Inflation' }
+                  ].map(({ key, label, hint }) => (
+                    <div className="form-group checkpoint-field" key={key}>
+                      <div className="checkpoint-header">
+                        <label>{label}</label>
+                        <button
+                          type="button"
+                          className="checkpoint-spoiler-toggle"
+                          onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`p-char-${key}`]: !prev[`p-char-${key}`] }))}
+                        >
+                          <span className="spoiler-eye">{visibleCheckpoints[`p-char-${key}`] ? '👁' : '👁‍🗨'}</span>
+                          <span className="spoiler-label">{visibleCheckpoints[`p-char-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                        </button>
+                      </div>
+                      {hint && <p className="section-hint">{hint}</p>}
+                      <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`p-char-${key}`] ? 'revealed' : ''}`}>
+                        <textarea
+                          value={formData.characterCheckpoints?.[key] || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            characterCheckpoints: { ...prev.characterCheckpoints, [key]: e.target.value }
+                          }))}
+                          placeholder={key === '0' ? 'e.g. Watching them nervously, wondering what it feels like...' : `How I react to their ${label}...`}
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </div>
