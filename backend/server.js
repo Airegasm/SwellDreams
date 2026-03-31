@@ -7919,6 +7919,58 @@ function buildAttributeBlock(activeAttributes) {
 /**
  * Build inflation disposition context — always-on personality traits for inflating/popping others
  */
+/**
+ * Build persona inflation context — knowledge, desire, and pop desire for the player
+ */
+function buildPersonaInflationContext(persona, playerName) {
+  const knowledge = persona?.inflationKnowledge;
+  const desire = persona?.inflationDesire;
+  const popDesire = persona?.popDesire;
+
+  // Skip if all defaults
+  if ((!knowledge || knowledge === 'unaware') && (!desire || desire === 'neutral') && (!popDesire || popDesire === 'terrified')) {
+    return '';
+  }
+
+  const knowledgeMap = {
+    unaware: null,
+    confused: `${playerName} notices something but doesn't understand what inflation is`,
+    partial: `${playerName} understands the basics of inflation but not the full picture`,
+    informed: `${playerName} knows exactly what inflation is and what's happening`,
+    expert: `${playerName} is deeply knowledgeable about inflation and may have experience`
+  };
+
+  const desireMap = {
+    terrified: `desperately does NOT want to be inflated`,
+    reluctant: `would prefer not to be inflated but may comply`,
+    nervous: `is anxious about being inflated but not fully opposed`,
+    neutral: null,
+    curious: `is intrigued by inflation and willing to try`,
+    eager: `actively wants to be inflated`,
+    obsessed: `craves inflation intensely`
+  };
+
+  const popMap = {
+    terrified: null, // default, don't mention
+    dreading: `deeply fears popping`,
+    anxious: `is worried about the possibility of popping`,
+    resigned: `has accepted that popping may happen`,
+    indifferent: `doesn't care whether they pop or not`,
+    curious: `wonders what popping would feel like`,
+    willing: `is okay with popping if it happens`,
+    eager: `actually wants to pop`
+  };
+
+  const parts = [];
+  if (knowledgeMap[knowledge]) parts.push(knowledgeMap[knowledge]);
+  if (desireMap[desire]) parts.push(`${playerName} ${desireMap[desire]}`);
+  if (popMap[popDesire]) parts.push(`${playerName} ${popMap[popDesire]}`);
+
+  if (parts.length === 0) return '';
+
+  return `Player inflation disposition: ${parts.join('. ')}.\n`;
+}
+
 function buildInflationDispositionContext(character) {
   const inflateDesire = character?.desireToInflateOthers;
   const popDesire = character?.desireToPopOthers;
@@ -8255,7 +8307,8 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     if (persona) {
       if (persona.personality) systemPrompt += `Personality: ${persona.personality}\n`;
       if (persona.appearance) systemPrompt += `Appearance: ${persona.appearance}\n`;
-      if (persona.relationshipWithInflation) systemPrompt += `Relationship with Inflation: ${persona.relationshipWithInflation}\n`;
+      if (persona.relationshipWithInflation) systemPrompt += `Additional inflation context: ${persona.relationshipWithInflation}\n`;
+      systemPrompt += buildPersonaInflationContext(persona, playerName);
       systemPrompt += '\n';
     }
 
@@ -8552,8 +8605,9 @@ function buildChatContext(character, settings) {
       systemPrompt += `Player personality: ${activePersona.personality}\n`;
     }
     if (activePersona.relationshipWithInflation) {
-      systemPrompt += `Player's relationship with inflation: ${activePersona.relationshipWithInflation}\n`;
+      systemPrompt += `Player's additional inflation context: ${activePersona.relationshipWithInflation}\n`;
     }
+    systemPrompt += buildPersonaInflationContext(activePersona, activePersona.displayName || 'The player');
     systemPrompt += '\n';
   }
 

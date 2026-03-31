@@ -23,6 +23,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         appearance: persona.appearance || '',
         personality: persona.personality || '',
         relationshipWithInflation: persona.relationshipWithInflation || '',
+        inflationKnowledge: persona.inflationKnowledge || 'unaware',
+        inflationDesire: persona.inflationDesire || 'neutral',
+        popDesire: persona.popDesire || 'terrified',
         avatar: persona.avatar || '',
         stagedPortraits: persona.stagedPortraits || {},
         checkpoints: persona.checkpoints || {},
@@ -40,6 +43,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       appearance: '',
       personality: '',
       relationshipWithInflation: '',
+      inflationKnowledge: 'unaware',
+      inflationDesire: 'neutral',
+      popDesire: 'terrified',
       avatar: '',
       stagedPortraits: {},
       checkpoints: {},
@@ -471,6 +477,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
           </button>
           <button
             type="button"
+            className={`modal-tab ${activeTab === 'attributes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('attributes')}
+          >
+            Attributes
+          </button>
+          <button
+            type="button"
             className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`}
             onClick={() => setActiveTab('checkpoints')}
           >
@@ -529,12 +542,59 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 </div>
 
                 <div className="form-group">
-                  <label>Relationship with Inflation</label>
+                  <label>Knowledge of Inflation</label>
+                  <select
+                    value={formData.inflationKnowledge || 'unaware'}
+                    onChange={(e) => setFormData({ ...formData, inflationKnowledge: e.target.value })}
+                  >
+                    <option value="unaware">Unaware — doesn't know what inflation is</option>
+                    <option value="confused">Confused — notices something but doesn't understand</option>
+                    <option value="partial">Partial — understands the basics but not the full picture</option>
+                    <option value="informed">Informed — knows exactly what inflation is</option>
+                    <option value="expert">Expert — deeply knowledgeable, may have experience</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Desire to be Inflated</label>
+                  <select
+                    value={formData.inflationDesire || 'neutral'}
+                    onChange={(e) => setFormData({ ...formData, inflationDesire: e.target.value })}
+                  >
+                    <option value="terrified">Terrified — desperately does not want this</option>
+                    <option value="reluctant">Reluctant — would prefer not to but may comply</option>
+                    <option value="nervous">Nervous — anxious but not fully opposed</option>
+                    <option value="neutral">Neutral — neither wants nor resists</option>
+                    <option value="curious">Curious — intrigued and willing to try</option>
+                    <option value="eager">Eager — actively wants to be inflated</option>
+                    <option value="obsessed">Obsessed — craves inflation intensely</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Desire to be Popped</label>
+                  <select
+                    value={formData.popDesire || 'terrified'}
+                    onChange={(e) => setFormData({ ...formData, popDesire: e.target.value })}
+                  >
+                    <option value="terrified">Terrified — will do anything to avoid popping</option>
+                    <option value="dreading">Dreading — deeply fears it but feels it coming</option>
+                    <option value="anxious">Anxious — worried about the possibility</option>
+                    <option value="resigned">Resigned — accepts it may happen</option>
+                    <option value="indifferent">Indifferent — doesn't care either way</option>
+                    <option value="curious">Curious — wonders what it would feel like</option>
+                    <option value="willing">Willing — okay with popping if it happens</option>
+                    <option value="eager">Eager — wants to pop</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Additional Notes (optional)</label>
                   <textarea
                     value={formData.relationshipWithInflation}
                     onChange={(e) => setFormData({ ...formData, relationshipWithInflation: e.target.value })}
-                    placeholder="Describe their knowledge, experience, or lack thereof regarding the inflation process..."
-                    rows={4}
+                    placeholder="Any additional context about their relationship with inflation..."
+                    rows={2}
                   />
                 </div>
               </div>
