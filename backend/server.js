@@ -3437,6 +3437,8 @@ function isPumpOnEveryReply(character) {
  * Runs after each LLM response. Skips if already has a pump tag in text,
  * if it's a flow chain message, or if the pump is already on.
  */
+const pumpEveryReplyTimers = new Map();
+
 async function executePumpOnEveryReply(text, character, isFlowChain) {
   if (isFlowChain) return;
   if (!isPumpOnEveryReply(character)) return;
@@ -3479,20 +3481,19 @@ async function executePumpOnEveryReply(text, character, isFlowChain) {
     console.log(`[PumpOnEveryReply] Pump ON (auto-off in ${maxSeconds}s)`);
     broadcast('ai_device_control', { device: 'pump', action: 'on', label: pumpDevice.label || pumpDevice.name || 'Pump' });
 
-    // Auto-off timer
+    // Auto-off timer (use module-level Map to avoid circular ref issues)
     const timerKey = `pump-every-reply-${deviceId}`;
-    if (global._pumpEveryReplyTimers?.[timerKey]) clearTimeout(global._pumpEveryReplyTimers[timerKey]);
-    if (!global._pumpEveryReplyTimers) global._pumpEveryReplyTimers = {};
-    global._pumpEveryReplyTimers[timerKey] = setTimeout(async () => {
+    if (pumpEveryReplyTimers.has(timerKey)) clearTimeout(pumpEveryReplyTimers.get(timerKey));
+    pumpEveryReplyTimers.set(timerKey, setTimeout(async () => {
       try {
         await deviceService.turnOff(deviceId, pumpDevice);
         console.log(`[PumpOnEveryReply] Auto-off after ${maxSeconds}s`);
         broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pumpDevice.label || pumpDevice.name || 'Pump', autoOff: true });
-        delete global._pumpEveryReplyTimers[timerKey];
       } catch (e) {
         console.error('[PumpOnEveryReply] Auto-off error:', e.message);
       }
-    }, maxSeconds * 1000);
+      pumpEveryReplyTimers.delete(timerKey);
+    }, maxSeconds * 1000));
   } catch (e) {
     console.error('[PumpOnEveryReply] Pump ON error:', e.message);
   }
