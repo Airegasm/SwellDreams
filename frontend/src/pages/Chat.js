@@ -2052,7 +2052,7 @@ function Chat() {
                 })()}
                 <li>Auto-Capacity {settings?.globalCharacterControls?.useAutoCapacity ? 'ON' : 'OFF'}</li>
                 {settings?.globalCharacterControls?.allowOverInflation && <li>Over-Inflate Allowed</li>}
-                {(!settings?.globalCharacterControls?.allowOverInflation || settings?.globalCharacterControls?.enableAutoPopRoleplay) && (
+                {!(settings?.globalCharacterControls?.hidePlayerBurstFromDetails ?? true) && (!settings?.globalCharacterControls?.allowOverInflation || settings?.globalCharacterControls?.enableAutoPopRoleplay) && (
                   <li>Auto-Pop @ {effectivePopThreshold}%</li>
                 )}
                 <li>LLM Device Control {settings?.globalCharacterControls?.allowLlmDeviceControl ? 'ON' : 'OFF'}</li>
@@ -2060,9 +2060,11 @@ function Chat() {
               {activeCharacter?.isPumpable && (
                 <div className="char-pumpable-info">
                   <div className="char-pumpable-header">PUMPABLE</div>
-                  <ul className="session-info-list char-pumpable-list">
-                    <li>Auto-Pop @ {activeCharacter.charBurstPercent || 100}%</li>
-                  </ul>
+                  {!(activeCharacter.hideCharBurstFromDetails ?? true) && (
+                    <ul className="session-info-list char-pumpable-list">
+                      <li>Auto-Pop @ {activeCharacter.charBurstPercent || 100}%</li>
+                    </ul>
+                  )}
                 </div>
               )}
             </div>

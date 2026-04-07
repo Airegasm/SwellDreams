@@ -170,6 +170,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         isPumpable: character.isPumpable || false,
         characterCalibrationTime: character.characterCalibrationTime || 60,
         charBurstPercent: character.charBurstPercent || 100,
+        hideCharBurstFromDetails: character.hideCharBurstFromDetails ?? true,
         charSyncCalibrationWithPlayer: character.charSyncCalibrationWithPlayer || false,
         charInflateKnowledge: character.charInflateKnowledge || 'unaware',
         charInflateDesire: character.charInflateDesire || 'neutral',
@@ -223,6 +224,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       isPumpable: false,
       characterCalibrationTime: 60,
       charBurstPercent: 100,
+      hideCharBurstFromDetails: true,
       charSyncCalibrationWithPlayer: false,
       charInflateKnowledge: 'unaware',
       charInflateDesire: 'neutral',
@@ -2523,6 +2525,20 @@ Write only the scenario description itself, no explanations.`;
                   <div className="form-hint">
                     The capacity % at which this character pops. Inflation stops automatically at this threshold.
                     Values over 100% allow over-inflation before popping.
+                  </div>
+                  <div className="auto-reply-field" style={{ marginTop: '0.5rem' }}>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={formData.hideCharBurstFromDetails ?? true}
+                        onChange={(e) => setFormData(prev => ({ ...prev, hideCharBurstFromDetails: e.target.checked }))}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div className="auto-reply-text">
+                      <span className="auto-reply-label">Hide from Details Panel</span>
+                      <span className="auto-reply-hint">Hide character Auto-Pop threshold from the info panel in chat</span>
+                    </div>
                   </div>
                 </div>
 

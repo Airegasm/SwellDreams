@@ -1415,6 +1415,21 @@ function GlobalTab() {
               )}
             </div>
           </div>
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.hidePlayerBurstFromDetails ?? true}
+                onChange={(e) => handleCharacterControlChange('hidePlayerBurstFromDetails', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Hide from Details Panel</span>
+              <span className="control-hint">Hide the player Auto-Pop threshold from the info panel below the character portrait</span>
+            </div>
+          </div>
         </div>
         )}
       </div>
