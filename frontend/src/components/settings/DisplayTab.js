@@ -212,26 +212,64 @@ function DisplayTab() {
 
   const isBuiltIn = activeSkin?.builtIn;
 
-  const renderColorPicker = (label, field) => (
-    <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <input
-        type="color"
-        value={activeSkin?.[field]?.startsWith('#') ? activeSkin[field] : '#ffffff'}
-        onChange={(e) => updateField(field, e.target.value)}
-        style={{ width: '36px', height: '36px', border: 'none', cursor: 'pointer', background: 'none' }}
-      />
-      <div style={{ flex: 1 }}>
-        <label style={{ fontSize: '0.85rem' }}>{label}</label>
+  // Convert any color string to closest hex for the native picker swatch
+  const toHex = (val) => {
+    if (!val) return '#000000';
+    if (val.startsWith('#') && (val.length === 7 || val.length === 4)) return val;
+    // Try to parse rgba
+    const rgba = val.match(/rgba?\(\s*(\d+),\s*(\d+),\s*(\d+)/);
+    if (rgba) {
+      const r = parseInt(rgba[1]).toString(16).padStart(2, '0');
+      const g = parseInt(rgba[2]).toString(16).padStart(2, '0');
+      const b = parseInt(rgba[3]).toString(16).padStart(2, '0');
+      return `#${r}${g}${b}`;
+    }
+    // Gradient — try to extract first color
+    const gradHex = val.match(/#[0-9a-fA-F]{6}/);
+    if (gradHex) return gradHex[0];
+    return '#000000';
+  };
+
+  const [advancedFields, setAdvancedFields] = useState({});
+
+  const renderColorPicker = (label, field) => {
+    const value = activeSkin?.[field] || '';
+    const isAdvanced = advancedFields[field];
+    return (
+      <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
         <input
-          type="text"
-          value={activeSkin?.[field] || ''}
+          type="color"
+          value={toHex(value)}
           onChange={(e) => updateField(field, e.target.value)}
-          placeholder="Color value (hex, rgba, etc)"
-          style={{ width: '100%', fontSize: '0.8rem', marginTop: '2px' }}
+          style={{ width: '44px', height: '44px', border: '2px solid #3a3d45', borderRadius: '6px', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
         />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '0.85rem', flex: 1 }}>{label}</label>
+            <button
+              type="button"
+              onClick={() => setAdvancedFields(prev => ({ ...prev, [field]: !prev[field] }))}
+              style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'none', border: '1px solid #3a3d45', borderRadius: '3px', color: '#8b9099', cursor: 'pointer' }}
+            >
+              {isAdvanced ? 'Simple' : 'Advanced'}
+            </button>
+          </div>
+          {isAdvanced && (
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => updateField(field, e.target.value)}
+              placeholder="rgba(), gradient, or hex"
+              style={{ width: '100%', fontSize: '0.75rem', marginTop: '4px' }}
+            />
+          )}
+          {!isAdvanced && (
+            <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{value || 'Not set'}</div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderFontPicker = (label, fontField, sizeField) => (
     <div className="form-group">
