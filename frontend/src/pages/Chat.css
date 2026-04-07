@@ -201,14 +201,15 @@
   left: 0;
   right: 0;
   padding: 8px 12px;
-  background: transparent;
+  background: var(--skin-scene-details-bg, transparent);
   z-index: 3;
 }
 
 .session-info-item.story-name {
   font-weight: 700;
-  font-size: 0.95rem;
-  color: #1a1d21;
+  font-size: var(--skin-scene-details-font-size, 0.95rem);
+  color: var(--skin-scene-details-text, #1a1d21);
+  font-family: var(--skin-scene-details-font, inherit);
   margin-bottom: 6px;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
@@ -221,8 +222,9 @@
 
 .session-info-list li {
   font-weight: 600;
-  font-size: 0.85rem;
-  color: #1a1d21;
+  font-size: var(--skin-scene-details-font-size, 0.85rem);
+  color: var(--skin-scene-details-text, #1a1d21);
+  font-family: var(--skin-scene-details-font, inherit);
   line-height: 1.5;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
@@ -3802,17 +3804,17 @@
 .char-pumpable-header {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #dc2626;
+  color: var(--skin-pumpable-color, #dc2626);
   letter-spacing: 0.05em;
   margin-bottom: 2px;
 }
 
 .char-pumpable-list {
-  color: #dc2626 !important;
+  color: var(--skin-pumpable-color, #dc2626) !important;
 }
 
 .char-pumpable-list li {
-  color: #dc2626 !important;
+  color: var(--skin-pumpable-color, #dc2626) !important;
 }
 
 .char-gauge-bg {

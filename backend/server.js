@@ -12179,7 +12179,12 @@ const DEFAULT_SKIN = {
   leftSidebarBgImage: '/assets/sidebar-bg-left.png',
   rightSidebarBg: '',
   rightSidebarBgImage: '/assets/sidebar-bg-right.png',
-  uiTrimColor: ''
+  uiTrimColor: '',
+  sceneDetailsBg: 'transparent',
+  sceneDetailsText: '#1a1d21',
+  sceneDetailsFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  sceneDetailsFontSize: 14,
+  pumpableColor: '#dc2626'
 };
 
 const BUILTIN_SKINS = [
@@ -12227,7 +12232,12 @@ const BUILTIN_SKINS = [
     leftSidebarBgImage: '',
     rightSidebarBg: '#0d1f0d',
     rightSidebarBgImage: '',
-    uiTrimColor: '#1a3a1a'
+    uiTrimColor: '#1a3a1a',
+    sceneDetailsBg: 'rgba(10, 30, 10, 0.7)',
+    sceneDetailsText: '#b8d4b8',
+    sceneDetailsFont: 'Georgia, "Times New Roman", serif',
+    sceneDetailsFontSize: 13,
+    pumpableColor: '#7cfc00'
   },
   {
     id: 'skin-abandoned-warehouse',
@@ -12272,7 +12282,12 @@ const BUILTIN_SKINS = [
     leftSidebarBgImage: '',
     rightSidebarBg: '#1a1815',
     rightSidebarBgImage: '',
-    uiTrimColor: '#2a2520'
+    uiTrimColor: '#2a2520',
+    sceneDetailsBg: 'rgba(25, 22, 18, 0.7)',
+    sceneDetailsText: '#c8b8a0',
+    sceneDetailsFont: '"Courier New", Courier, monospace',
+    sceneDetailsFontSize: 12,
+    pumpableColor: '#cc8844'
   }
 ];
 

@@ -36,6 +36,8 @@
   flex-direction: column;
   box-sizing: border-box;
   padding: 0 !important;
+  position: relative;
+  z-index: 500;
 }
 
 .settings-page .page-header {

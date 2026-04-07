@@ -129,6 +129,11 @@ function App() {
         root.style.setProperty('--skin-left-sidebar-img', skin.leftSidebarBgImage ? `url("${skin.leftSidebarBgImage}")` : 'none');
         if (skin.rightSidebarBg) root.style.setProperty('--skin-right-sidebar-bg', skin.rightSidebarBg);
         root.style.setProperty('--skin-right-sidebar-img', skin.rightSidebarBgImage ? `url("${skin.rightSidebarBgImage}")` : 'none');
+        if (skin.sceneDetailsBg) root.style.setProperty('--skin-scene-details-bg', skin.sceneDetailsBg);
+        if (skin.sceneDetailsText) root.style.setProperty('--skin-scene-details-text', skin.sceneDetailsText);
+        if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
+        if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
+        if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
         if (skin.uiTrimColor) { root.style.setProperty('--skin-trim', skin.uiTrimColor); } else { root.style.removeProperty('--skin-trim'); }
       }
     }).catch(() => {});

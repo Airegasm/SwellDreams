@@ -184,6 +184,12 @@ function DisplayTab() {
     root.style.setProperty('--skin-left-sidebar-img', skin.leftSidebarBgImage ? `url("${skin.leftSidebarBgImage}")` : 'none');
     if (skin.rightSidebarBg) root.style.setProperty('--skin-right-sidebar-bg', skin.rightSidebarBg);
     root.style.setProperty('--skin-right-sidebar-img', skin.rightSidebarBgImage ? `url("${skin.rightSidebarBgImage}")` : 'none');
+    // Scene details
+    if (skin.sceneDetailsBg) root.style.setProperty('--skin-scene-details-bg', skin.sceneDetailsBg);
+    if (skin.sceneDetailsText) root.style.setProperty('--skin-scene-details-text', skin.sceneDetailsText);
+    if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
+    if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
+    if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
     // Trim: remove variable entirely if empty so hardcoded fallbacks work
     if (skin.uiTrimColor) {
       root.style.setProperty('--skin-trim', skin.uiTrimColor);
@@ -413,6 +419,15 @@ function DisplayTab() {
       {renderFontPicker('System Font', 'uiSystemFont', null)}
       {renderColorPicker('UI Trim Color', 'uiTrimColor')}
       <p className="form-hint" style={{ marginTop: '-8px' }}>Solid color or gradient for all frame borders, resize handles, and metallic trim pieces. Leave empty to use the default gunmetal gradients.</p>
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
+      {/* Scene Details */}
+      <h4 style={{ margin: '0 0 8px' }}>Scene Details (Character Column)</h4>
+      {renderColorPicker('Background', 'sceneDetailsBg')}
+      {renderColorPicker('Text Color', 'sceneDetailsText')}
+      {renderFontPicker('Font', 'sceneDetailsFont', 'sceneDetailsFontSize')}
+      {renderColorPicker('PUMPABLE Flag Color', 'pumpableColor')}
     </div>
   );
 }
