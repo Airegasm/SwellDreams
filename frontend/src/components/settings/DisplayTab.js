@@ -25,6 +25,7 @@ function DisplayTab() {
   const [activeSkin, setActiveSkin] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [advancedFields, setAdvancedFields] = useState({});
   const bgInputRef = useRef(null);
   const modalBgInputRef = useRef(null);
   const leftSidebarInputRef = useRef(null);
@@ -230,19 +231,27 @@ function DisplayTab() {
     return '#000000';
   };
 
-  const [advancedFields, setAdvancedFields] = useState({});
-
   const renderColorPicker = (label, field) => {
     const value = activeSkin?.[field] || '';
     const isAdvanced = advancedFields[field];
     return (
       <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-        <input
-          type="color"
-          value={toHex(value)}
-          onChange={(e) => updateField(field, e.target.value)}
-          style={{ width: '44px', height: '44px', border: '2px solid #3a3d45', borderRadius: '6px', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
-        />
+        {/* Live preview swatch — shows actual CSS value including rgba/gradients */}
+        <div
+          style={{
+            width: '44px', height: '44px', borderRadius: '6px', flexShrink: 0,
+            border: '2px solid #3a3d45', background: value || '#000',
+            position: 'relative', overflow: 'hidden', cursor: 'pointer'
+          }}
+          title="Click to pick a color"
+        >
+          <input
+            type="color"
+            value={toHex(value)}
+            onChange={(e) => updateField(field, e.target.value)}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+          />
+        </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <label style={{ fontSize: '0.85rem', flex: 1 }}>{label}</label>
