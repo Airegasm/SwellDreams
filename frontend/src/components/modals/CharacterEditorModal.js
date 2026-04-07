@@ -4,6 +4,7 @@ import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
+import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 
 // Migration function to ensure story data has v2 format (welcomeMessages[] and scenarios[] arrays)
@@ -2348,22 +2349,32 @@ Write only the scenario description itself, no explanations.`;
                   />
                 </div>
 
-                <div className="story-field">
-                  <label>Emotion</label>
-                  <select
-                    value={activeStory?.startingEmotion || 'neutral'}
-                    onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
-                  >
-                    <option value="neutral">Neutral</option>
-                    <option value="happy">Happy</option>
-                    <option value="excited">Excited</option>
-                    <option value="nervous">Nervous</option>
-                    <option value="uncomfortable">Uncomfortable</option>
-                    <option value="struggling">Struggling</option>
-                    <option value="distressed">Distressed</option>
-                    <option value="desperate">Desperate</option>
-                  </select>
+                <div className="story-field auto-reply-field">
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={activeStory?.overrideDisposition || false}
+                      onChange={(e) => updateStoryField('overrideDisposition', e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Override Persona Starting Disposition</span>
+                    <span className="auto-reply-hint">Use this story's disposition instead of the persona's default at session start</span>
+                  </div>
                 </div>
+                {activeStory?.overrideDisposition && (
+                  <div className="story-field" style={{ marginTop: '0.25rem' }}>
+                    <select
+                      value={activeStory?.startingEmotion || 'neutral'}
+                      onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
+                    >
+                      {EMOTIONS.map(e => (
+                        <option key={e.key} value={e.key}>{e.emoji} {e.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="story-field">
                   <div className="form-label-row">

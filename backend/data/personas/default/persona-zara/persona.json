@@ -34,6 +34,7 @@
   "inflationDesire": "reluctant",
   "popDesire": "terrified",
   "desireToInflateOthers": "curious",
+  "disposition": "defiant",
   "desireToPopOthers": "none",
   "attributes": {
     "dominant": 65,

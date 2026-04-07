@@ -2746,6 +2746,7 @@ function migrateNewFieldDefaults() {
     attributes: {},
     checkpoints: {},
     characterCheckpoints: {},
+    disposition: 'neutral',
     desireToInflateOthers: 'none',
     desireToPopOthers: 'none'
   };
@@ -2959,13 +2960,30 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   const triggers = persona.checkpointTriggers[triggerKey];
   if (!triggers || triggers.length === 0) return;
 
-  firedCheckpointTriggers.add(triggerKey);
-  console.log(`[PersonaCheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
-
+  // Character checkpoint precedence: if a character checkpoint trigger already fired
+  // for this range with the same trigger type, skip the persona version of that type
+  const charTriggerKey = `${type}-${newRange}`;
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+  const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
+  const charTriggers = activeStory?.checkpointTriggers?.[charTriggerKey] || [];
+  const charTriggerTypes = new Set(charTriggers.map(t => t.type));
 
-  for (const trigger of triggers) {
+  // Filter persona triggers: skip any type that character already handles for this range
+  const filteredTriggers = triggers.filter(t => {
+    if (charTriggerTypes.has(t.type)) {
+      console.log(`[PersonaCheckpointTriggers] Skipping ${t.type} — character checkpoint takes precedence for ${newRange}`);
+      return false;
+    }
+    return true;
+  });
+
+  if (filteredTriggers.length === 0) return;
+
+  firedCheckpointTriggers.add(triggerKey);
+  console.log(`[PersonaCheckpointTriggers] Firing ${filteredTriggers.length} trigger(s) for ${triggerKey} (${triggers.length - filteredTriggers.length} skipped for char precedence)`);
+
+  for (const trigger of filteredTriggers) {
     await executeTrigger(trigger, triggerKey, activeCharacter, settings);
   }
 }
@@ -12657,6 +12675,12 @@ app.post('/api/session/reset', async (req, res) => {
   const settings = loadData(DATA_FILES.settings);
   let storyDefaults = { capacity: 0, pain: 0, emotion: 'neutral', capacityModifier: 1.0 };
 
+  // Persona disposition is the baseline emotion
+  const activePersona = settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null;
+  if (activePersona?.disposition) {
+    storyDefaults.emotion = activePersona.disposition;
+  }
+
   if (settings?.activeCharacterId) {
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
@@ -12665,16 +12689,16 @@ app.post('/api/session/reset', async (req, res) => {
       if (activeStory) {
         storyDefaults.capacity = activeStory.startingCapacity || 0;
         storyDefaults.pain = activeStory.startingPain || 0;
-        storyDefaults.emotion = activeStory.startingEmotion || activeCharacter.startingEmotion || 'neutral';
         storyDefaults.capacityModifier = activeStory.startingCapacityModifier || 1.0;
-      } else if (activeCharacter.startingEmotion) {
-        storyDefaults.emotion = activeCharacter.startingEmotion;
+        // Story overrides persona disposition only if explicitly enabled
+        if (activeStory.overrideDisposition && activeStory.startingEmotion) {
+          storyDefaults.emotion = activeStory.startingEmotion;
+        }
       }
       // Legacy fallback: check old sessionDefaults if story fields are empty
       if (activeCharacter.sessionDefaults) {
         if (!activeStory?.startingCapacity && activeCharacter.sessionDefaults.capacity) storyDefaults.capacity = activeCharacter.sessionDefaults.capacity;
         if (!activeStory?.startingPain && activeCharacter.sessionDefaults.pain) storyDefaults.pain = activeCharacter.sessionDefaults.pain;
-        if (!activeStory?.startingEmotion && activeCharacter.sessionDefaults.emotion) storyDefaults.emotion = activeCharacter.sessionDefaults.emotion;
         if (!activeStory?.startingCapacityModifier && activeCharacter.sessionDefaults.capacityModifier) storyDefaults.capacityModifier = activeCharacter.sessionDefaults.capacityModifier;
       }
     }

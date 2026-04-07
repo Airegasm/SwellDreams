@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import TriggerRow from '../common/TriggerRow';
+import { EMOTIONS } from '../../constants/stateValues';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
@@ -30,6 +31,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         attributes: persona.attributes || {},
         desireToInflateOthers: persona.desireToInflateOthers || 'none',
         desireToPopOthers: persona.desireToPopOthers || 'none',
+        disposition: persona.disposition || 'neutral',
         avatar: persona.avatar || '',
         stagedPortraits: persona.stagedPortraits || {},
         checkpoints: persona.checkpoints || {},
@@ -54,6 +56,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       attributes: {},
       desireToInflateOthers: 'none',
       desireToPopOthers: 'none',
+      disposition: 'neutral',
       avatar: '',
       stagedPortraits: {},
       checkpoints: {},
@@ -609,6 +612,19 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                     <option value="they/them">they/them</option>
                     <option value="it/its">it/its</option>
                   </select>
+                </div>
+
+                <div className="form-group">
+                  <label>General Disposition</label>
+                  <select
+                    value={formData.disposition || 'neutral'}
+                    onChange={(e) => setFormData({ ...formData, disposition: e.target.value })}
+                  >
+                    {EMOTIONS.map(e => (
+                      <option key={e.key} value={e.key}>{e.emoji} {e.label}</option>
+                    ))}
+                  </select>
+                  <div className="form-hint">This persona's default emotional stance at session start</div>
                 </div>
 
                 <div className="form-group">
