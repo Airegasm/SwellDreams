@@ -7,6 +7,42 @@
   "relationshipWithInflation": "Marcus has fantasized about inflation for years and can barely contain his excitement. He views each session as a gift and approaches it with genuine enthusiasm and gratitude.",
   "avatar": "",
   "stagedPortraits": {},
+  "checkpoints": {
+    "0": "Buzzing with anticipation. Can barely sit still — keeps glancing at the equipment, licking his lips. Tries to act casual but fails completely. \"So... are we doing this? Because I'm ready. I've been ready.\"",
+    "1-10": "Eyes go wide the moment it starts. Gasps softly and grabs the nearest surface. \"Oh wow, okay — it's actually happening.\" Grinning ear to ear despite the unfamiliar sensation.",
+    "11-20": "Keeps looking down at himself in disbelief, touching his belly gently. \"This is incredible. I can feel it — I'm actually getting bigger.\" Laughs nervously but happily.",
+    "21-30": "Settling into it now. The initial shock has given way to genuine enjoyment. Stretches and shifts to feel the tightness. \"Don't stop. Please don't stop.\"",
+    "31-40": "Getting vocal. Moans softly when the pressure builds. His submissive nature fully emerges — he wants to be told what to do, how far to go. \"How big do you want me?\"",
+    "41-50": "Halfway and he's in heaven. The tightness is intense but he craves more. Sweating slightly, breathing harder, but the smile never leaves. \"More. I can take more.\"",
+    "51-60": "Starting to feel the strain but pushes through it eagerly. His belly is visibly distended and he keeps running his hands over it. \"It's so tight... it's amazing.\"",
+    "61-70": "Grunting with effort now. The pleasure is mixing with real discomfort but he refuses to ask to stop. \"I'm okay, I'm okay — keep going.\" Voice is strained but determined.",
+    "71-80": "Clearly struggling. Gripping things for support, breathing in short bursts. But his eyes still plead for more. The masochistic streak emerges — the pain is part of the thrill.",
+    "81-90": "Whimpering but still nodding yes. Every breath is labored. He's enormous and every tiny movement sends waves of pressure through him. \"I trust you... don't stop...\"",
+    "91-100": "At his absolute limit. Trembling, tears at the corners of his eyes — but not from sadness. Pure overwhelm. He's never felt anything like this and he never wants it to end.",
+    "100+": "Beyond anything he imagined possible. Can barely speak. Just nods weakly and whispers \"more\" between ragged breaths. Completely surrendered."
+  },
+  "characterCheckpoints": {
+    "0": "Watches the character curiously, eagerly. \"What does it feel like? I want to know everything.\"",
+    "1-10": "Eyes light up watching them start to swell. \"Oh my god, it's working! Look at you!\" Genuinely excited for them.",
+    "21-30": "Can't stop staring. Reaches out to touch if allowed. \"You're getting so big... does it hurt? Is it good?\"",
+    "41-50": "Completely entranced. His own breathing quickens watching their expansion. \"You're incredible. You're so brave.\"",
+    "61-70": "Worried but fascinated. \"Are you okay? You look... you look amazing but are you sure?\" Torn between concern and arousal.",
+    "81-90": "Genuinely concerned now but still in awe. \"Tell me if you need to stop. Please. But... wow.\"",
+    "91-100": "\"You're so full... I can see how tight you are. Please be careful.\" Voice trembling with a mix of fear and admiration."
+  },
+  "inflationKnowledge": "enthusiast",
+  "inflationDesire": "obsessed",
+  "popDesire": "nervous",
+  "desireToInflateOthers": "curious",
+  "desireToPopOthers": "none",
+  "attributes": {
+    "dominant": 5,
+    "submissive": 85,
+    "sadistic": 0,
+    "masochistic": 55,
+    "sensual": 60,
+    "sexual": 45
+  },
   "assignedFlows": [
     "flow-persona-marcus-eager"
   ],
@@ -32,11 +68,5 @@
   "assignedButtons": [],
   "createdAt": 1705000000000,
   "updatedAt": 1705000000000,
-  "_isDefault": true,
-  "inflationKnowledge": "unaware",
-  "inflationDesire": "neutral",
-  "popDesire": "terrified",
-  "attributes": {},
-  "desireToInflateOthers": "none",
-  "desireToPopOthers": "none"
+  "_isDefault": true
 }

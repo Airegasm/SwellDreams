@@ -2744,6 +2744,8 @@ function migrateNewFieldDefaults() {
     inflationDesire: 'neutral',
     popDesire: 'terrified',
     attributes: {},
+    checkpoints: {},
+    characterCheckpoints: {},
     desireToInflateOthers: 'none',
     desireToPopOthers: 'none'
   };

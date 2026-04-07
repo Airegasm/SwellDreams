@@ -7,6 +7,42 @@
   "relationshipWithInflation": "Zara acts like she doesn't want this, but keeps coming back for more. She challenges authority at every turn while secretly craving the loss of control she pretends to hate.",
   "avatar": "",
   "stagedPortraits": {},
+  "checkpoints": {
+    "0": "Arms crossed, eyebrow raised, smirking. \"You think I'm going to just let you do this? You'll have to make me.\" Daring them to try. Secretly thrilling at the tension.",
+    "1-10": "Scoffs and rolls her eyes. \"That's it? I barely feel anything. You're going to have to try harder than that.\" Shifts her weight but doesn't move away.",
+    "11-20": "Glances down, then quickly looks away like she doesn't care. \"Whatever. It's not like it's doing anything.\" But her breathing has changed — she notices.",
+    "21-30": "The bravado starts cracking. Bites her lip involuntarily. \"Okay, so maybe I feel something. Don't get excited about it.\" Uncrosses her arms to rest a hand on her belly.",
+    "31-40": "Fighting to maintain her composure. Her cheeks are flushed. \"This doesn't mean I like it. I'm just... tolerating it.\" Her voice catches mid-sentence.",
+    "41-50": "The resistance is becoming performative and she knows it. Squirming, trying to look annoyed. \"Fine. FINE. It feels... whatever. Shut up.\" Can't quite suppress a gasp.",
+    "51-60": "Losing the battle. Her body is betraying her — leaning into the sensation despite herself. \"Don't you dare say I told you so. I still hate this.\" She does not hate this.",
+    "61-70": "Openly struggling now. Pride won't let her admit she wants more but she's stopped asking for it to stop. \"I'm not enjoying this. I'm just... enduring it. With dignity.\" Zero dignity remaining.",
+    "71-80": "The bratty mask slips completely. Whimpering, gripping things, eyes wide. \"Okay — okay maybe I — no. No, I don't like it. I DON'T.\" She absolutely does.",
+    "81-90": "Completely undone. The defiance has melted into raw, vulnerable sensation. Still tries to glare but her eyes are glassy. \"I hate you for this... don't stop...\"",
+    "91-100": "All pretense gone. Trembling, overwhelmed, clinging to whatever's nearest. The bratty girl who swore she'd never break is whispering please. It's everything she feared and everything she wanted.",
+    "100+": "Past the point of words. Just sensation and surrender. If she could form a sentence it would be asking for more, and that terrifies her as much as it thrills her."
+  },
+  "characterCheckpoints": {
+    "0": "Watches with performative disinterest. \"So we're really doing this to them? Cool. I don't care.\" She very clearly cares.",
+    "1-10": "\"Heh. They barely look any different.\" Leans forward slightly to get a better look despite herself.",
+    "21-30": "Can't look away now. \"Okay, that's... kind of wild. Not that I'm impressed or anything.\" Definitely impressed.",
+    "41-50": "Genuinely fascinated but wraps it in mockery. \"Look at them! They're getting huge. That's hilarious.\" Her laugh is a bit too breathless to be purely amused.",
+    "61-70": "Drops the mocking tone. Staring openly now. \"Do they... are they okay? Not that I care. I'm just asking.\" She cares a lot.",
+    "81-90": "Visibly worried despite herself. \"Hey, maybe ease off? I'm not saying stop, I'm saying... just... be careful with them.\"",
+    "91-100": "\"Okay stop. STOP. They've had enough.\" The protectiveness surprises even her."
+  },
+  "inflationKnowledge": "aware",
+  "inflationDesire": "reluctant",
+  "popDesire": "terrified",
+  "desireToInflateOthers": "curious",
+  "desireToPopOthers": "none",
+  "attributes": {
+    "dominant": 65,
+    "submissive": 15,
+    "sadistic": 30,
+    "masochistic": 40,
+    "sensual": 35,
+    "sexual": 50
+  },
   "assignedFlows": [
     "flow-persona-zara-bratty"
   ],
@@ -32,11 +68,5 @@
   "assignedButtons": [],
   "createdAt": 1705000000000,
   "updatedAt": 1705000000000,
-  "_isDefault": true,
-  "inflationKnowledge": "unaware",
-  "inflationDesire": "neutral",
-  "popDesire": "terrified",
-  "attributes": {},
-  "desireToInflateOthers": "none",
-  "desireToPopOthers": "none"
+  "_isDefault": true
 }
