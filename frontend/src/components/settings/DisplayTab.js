@@ -137,9 +137,30 @@ function DisplayTab() {
   };
 
   // Apply skin as CSS custom properties
+  const ALL_SKIN_VARS = [
+    '--skin-player-outline', '--skin-player-bg', '--skin-player-text', '--skin-player-font', '--skin-player-font-size',
+    '--skin-char-outline', '--skin-char-bg', '--skin-char-text', '--skin-char-font', '--skin-char-font-size',
+    '--skin-system-outline', '--skin-system-bg', '--skin-system-text', '--skin-system-font', '--skin-system-font-size',
+    '--skin-header', '--skin-tab', '--skin-ui-font', '--skin-chat-bg', '--skin-modal-bg',
+    '--skin-input-bg', '--skin-input-font', '--skin-input-text', '--skin-input-font-size',
+    '--skin-btn-face', '--skin-arrow-color',
+    '--skin-frame-btn-face', '--skin-frame-btn-text',
+    '--skin-char-action-menu-bg', '--skin-char-action-btn-face', '--skin-char-action-btn-text',
+    '--skin-persona-action-menu-bg', '--skin-persona-action-btn-face', '--skin-persona-action-btn-text',
+    '--skin-left-sidebar-bg', '--skin-left-sidebar-img', '--skin-right-sidebar-bg', '--skin-right-sidebar-img',
+    '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
+    '--skin-pumpable-color', '--skin-trim'
+  ];
+
   const applySkin = (skin) => {
     if (!skin) return;
     const root = document.documentElement;
+
+    // Default skin: remove ALL variables so original hardcoded CSS takes over
+    if (skin.id === 'swelldreams-default') {
+      ALL_SKIN_VARS.forEach(v => root.style.removeProperty(v));
+      return;
+    }
     root.style.setProperty('--skin-player-outline', skin.playerOutlineColor || '#00ff88');
     root.style.setProperty('--skin-player-bg', skin.playerBubbleBg || 'rgba(31, 41, 55, 0.75)');
     root.style.setProperty('--skin-player-text', skin.playerTextColor || '#f3f4f6');

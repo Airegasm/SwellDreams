@@ -93,7 +93,7 @@ function App() {
   useEffect(() => {
     fetch(`${API_BASE}/api/display-settings`).then(r => r.json()).then(data => {
       const skin = data?.skins?.find(s => s.id === data.activeSkinId) || data?.skins?.[0];
-      if (skin) {
+      if (skin && skin.id !== 'swelldreams-default') {
         const root = document.documentElement;
         root.style.setProperty('--skin-player-outline', skin.playerOutlineColor || '#00ff88');
         root.style.setProperty('--skin-player-bg', skin.playerBubbleBg || 'rgba(31, 41, 55, 0.75)');
