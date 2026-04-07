@@ -1,7 +1,8 @@
 CHANGELOG.md
 
-# Custom characters (all)
+# Custom characters and personas (all)
 backend/data/chars/custom/
+backend/data/personas/custom/
 
 # Custom/user flows (UUID-named)
 backend/data/flows/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*.json
@@ -22,6 +23,7 @@ backend/data/chars/chars-index.json
 backend/data/flows.json
 backend/data/calibrations.json
 backend/data/connection-profiles.json
+backend/data/display-settings.json
 backend/data/remote-settings.json
 backend/data/screenplay/actors-index.json
 backend/data/screenplay/plays-index.json

@@ -113,6 +113,8 @@ function CharacterTab() {
       // Start new session if setting is enabled
       if (settings?.globalCharacterControls?.startNewSessionOnSelect ?? true) {
         await startNewSession();
+        // Close the character selector and return to chat
+        window.dispatchEvent(new CustomEvent('exit-modal', { detail: { path: '/' } }));
       }
     } catch (error) {
       console.error('Failed to set active character:', error);
