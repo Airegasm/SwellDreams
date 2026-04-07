@@ -1540,6 +1540,22 @@
   max-width: calc(70% + 160px);
 }
 
+.message-system {
+  align-self: center;
+  background-color: rgba(30, 60, 114, 0.85);
+  border: 1px solid rgba(100, 149, 237, 0.5);
+  color: rgba(200, 220, 255, 0.95);
+  max-width: 80%;
+  text-align: center;
+  font-size: 0.85em;
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.message-system .message-content p {
+  margin: 0;
+}
+
 /* Reverse header layout for character messages - name on right, timestamp on left */
 .message-character .message-header {
   flex-direction: row-reverse;

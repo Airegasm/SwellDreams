@@ -728,6 +728,12 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
+  // Pre-inflation gate: don't reinforce pump-ON commands if gate is not met
+  if (sessionState && !sessionState.preInflationGateMet) {
+    log.info('[Pre-Inflation Gate] Skipping pump reinforcement — gate not met');
+    return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+  }
+
   // Check if text already has [pump on] or [pump:pulse:#] tag
   if (hasPumpOnTag(text)) {
     log.info('[Reinforce] Text already contains pump tag - no reinforcement needed');
@@ -866,10 +872,26 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
 
   log.info(`Found ${commands.length} device command(s) in LLM output`);
 
+  const { characterLimits, settings, sessionState } = options;
+
+  // Pre-inflation gate: block pump-ON commands if gate is not met
+  if (sessionState && !sessionState.preInflationGateMet) {
+    const blocked = commands.filter(c => c.action !== 'off');
+    if (blocked.length > 0) {
+      log.info(`[Pre-Inflation Gate] BLOCKED ${blocked.length} pump command(s) — gate not met (capacity still 0%)`);
+      // Only allow OFF commands through, strip everything else
+      const offOnly = commands.filter(c => c.action === 'off');
+      if (offOnly.length === 0) {
+        return { text, commands: [], results: [] };
+      }
+      commands.length = 0;
+      commands.push(...offOnly);
+    }
+  }
+
   // Hard-clamp all parsed command values against per-character limits (defense-in-depth)
   // This catches disobedient LLM tags before they reach executeDeviceCommands
   // Safe defaults (not Infinity) ensure limits always apply even if characterLimits is null
-  const { characterLimits, settings, sessionState } = options;
   const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
   const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
   // Scale time-based limits by capacity modifier (higher modifier = longer allowed durations)

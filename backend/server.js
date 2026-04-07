@@ -2867,7 +2867,8 @@ const sessionState = {
   runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
   activeAttributes: null, // Transient: rolled personality attributes for current LLM call
   characterCapacity: 0, // 0-100% simulated inflation for the AI character
-  characterInflationBaseCapacity: 0 // capacity when inflation started (to add to)
+  characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
+  preInflationGateMet: true // When false, blocks LLM-initiated pump commands until capacity > 0
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3761,6 +3762,12 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
   sessionState.capacity = totalCapacity;
   sessionState.pain = pain;
 
+  // Open pre-inflation gate once capacity rises above 0
+  if (!sessionState.preInflationGateMet && totalCapacity > 0) {
+    sessionState.preInflationGateMet = true;
+    console.log('[Pre-Inflation Gate] Gate OPENED — capacity is now above 0%. LLM pump commands enabled.');
+  }
+
   // Log every 10 seconds to avoid console flood
   if (Math.round(runtimeSeconds) % 10 === 0) {
     console.log(`[AutoCapacity] Runtime: ${runtimeSeconds.toFixed(1)}s, Total capacity: ${totalCapacity}%, Pain: ${pain}`);
@@ -3870,6 +3877,12 @@ const pumpEveryReplyTimers = new Map();
 async function executePumpOnEveryReply(text, character, isFlowChain) {
   if (isFlowChain) return;
   if (!isPumpOnEveryReply(character)) return;
+
+  // Pre-inflation gate: block if gate is not met
+  if (!sessionState.preInflationGateMet) {
+    console.log('[PumpOnEveryReply] Skipped — pre-inflation gate not met');
+    return;
+  }
 
   // Roll against chance percentage (default 100%)
   const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
@@ -5593,6 +5606,10 @@ async function handleWsMessage(ws, type, data) {
 
     case 'update_capacity':
       sessionState.capacity = data.capacity;
+      if (!sessionState.preInflationGateMet && data.capacity > 0) {
+        sessionState.preInflationGateMet = true;
+        console.log('[Pre-Inflation Gate] Gate OPENED — manual capacity set above 0%.');
+      }
 
       // Store offset between manual value and auto-calculated value so
       // auto-capacity continues increasing FROM the manual value
@@ -7381,7 +7398,7 @@ async function generateStoryProgressionSuggestions(activeCharacter, settings) {
     const context = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
 
     // Build the suggestion generation prompt
-    const recentMessages = sessionState.chatHistory.slice(-4).map(m => {
+    const recentMessages = sessionState.chatHistory.slice(-4).filter(m => !m.excludeFromContext && m.sender !== 'system').map(m => {
       const name = m.sender === 'character' ? (m.characterName || activeCharacter.name) : playerName;
       return `${name}: ${m.content}`;
     }).join('\n');
@@ -8453,6 +8470,7 @@ async function summarizeOverflowMessages(settings) {
   const charName = sessionState.characterName || 'Character';
   let messageBlock = '';
   newOverflow.forEach(msg => {
+    if (msg.excludeFromContext || msg.sender === 'system') return;
     const speaker = msg.sender === 'player' ? playerName : (msg.characterName || charName);
     messageBlock += `${speaker}: ${msg.content}\n`;
   });
@@ -8753,6 +8771,7 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   }
   prompt += 'Current conversation:\n';
   recentMessages.forEach(msg => {
+    if (msg.excludeFromContext || msg.sender === 'system') return;
     if (msg.sender === 'player') {
       prompt += `[Player]: ${msg.content}\n`;
     } else {
@@ -9037,6 +9056,7 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   }
 
   recentMessages.forEach(msg => {
+    if (msg.excludeFromContext) return;
     if (msg.sender === 'player') {
       prompt += `${playerLabel}: ${msg.content}\n`;
     } else if (msg.sender === 'character') {
@@ -12297,13 +12317,43 @@ app.post('/api/session/reset', async (req, res) => {
   await eventEngine.handleEvent('new_session', {});
   console.log('[Session Reset] new_session triggers fired');
 
-  // Send welcome message if character is active
+  // Determine pre-inflation gate state and send welcome message
   if (settings?.activeCharacterId) {
-    // Use per-char storage if active, otherwise fall back to legacy
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
+    let gateActive = false;
+
+    if (activeCharacter && sessionState.capacity === 0) {
+      const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+      const preInflationText = activeStory?.checkpoints?.['0']?.trim();
+      if (preInflationText) {
+        sessionState.preInflationGateMet = false;
+        gateActive = true;
+        console.log('[Pre-Inflation Gate] Gate CLOSED — 0% checkpoint has requirements. LLM pump commands blocked until capacity > 0.');
+      } else {
+        sessionState.preInflationGateMet = true;
+      }
+    } else {
+      sessionState.preInflationGateMet = true;
+    }
+
+    // Send welcome message first
     if (activeCharacter) {
       await sendWelcomeMessage(activeCharacter, settings);
+    }
+
+    // Then send the gate notice AFTER the welcome message so it isn't buried
+    if (gateActive) {
+      const { v4: uuidv4 } = require('uuid');
+      const gateMessage = {
+        id: uuidv4(),
+        content: `Pre-Inflation Checkpoint is active. The AI cannot activate your pump until a human action (manual control, button, or flow) starts inflation for the first time.`,
+        sender: 'system',
+        excludeFromContext: true,
+        timestamp: Date.now()
+      };
+      sessionState.chatHistory.push(gateMessage);
+      broadcast('chat_message', gateMessage);
     }
   }
 
@@ -12389,6 +12439,8 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowVariables = session.flowVariables || {};
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
+  // Pre-inflation gate: if capacity > 0, gate is already met
+  sessionState.preInflationGateMet = (sessionState.capacity > 0);
 
   broadcast('session_loaded', sessionState);
 

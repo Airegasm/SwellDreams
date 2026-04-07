@@ -1530,8 +1530,20 @@ function Chat() {
 
             return (
               <React.Fragment key={msg.id}>
+                {/* System messages render as distinct info bubbles */}
+                {msg.sender === 'system' && hasTextContent && (
+                  <div
+                    id={`msg-${msg.id}`}
+                    className="message message-system"
+                    style={{ fontSize: `${chatFontSize}px` }}
+                  >
+                    <div className="message-content">
+                      <p>{cleanContent}</p>
+                    </div>
+                  </div>
+                )}
                 {/* Only show message bubble if there's text content OR we're editing */}
-                {(hasTextContent || editingId === msg.id) && (
+                {msg.sender !== 'system' && (hasTextContent || editingId === msg.id) && (
                   <div
                     id={`msg-${msg.id}`}
                     className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}`}
