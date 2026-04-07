@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v3.8.5 — Open Beta</h3>
+<h3 align="center">SwellDreams v3.9.6 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v3.8.5 "Open Beta"**
+**v3.9.6 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -149,7 +149,7 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **SwellD character card format** — native format supporting single-character and multi-character cards
 - **Multi-character cards** — 2+ AI characters sharing a scene, each with independent name, description, and personality. The LLM writes for contextually relevant characters each turn.
 - **Multiple stories per character** — each story has its own scenario, welcome messages, example dialogues, attributes, checkpoints, and session defaults
-- **Welcome messages** — multiple versions per story with random or manual selection. LLM enhancement (magic wand) to expand brief text into immersive greetings.
+- **Welcome messages** — multiple versions per story with random or manual selection. Toggle the "R" button to randomly pick a version on each new session start. LLM enhancement (magic wand) to expand brief text into immersive greetings.
 - **Scenarios** — scene-setting context included in every prompt, with LLM enhancement support
 - **Example dialogues** — sample exchanges that establish the character's voice, formatting, and subject-object relationships
 - **Personality attributes** — five probability-based traits (dominant, sadistic, psychopathic, sensual, sexual) that roll on each AI message. Per-story configuration, dynamically adjustable mid-session via flow nodes.
@@ -158,17 +158,21 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Custom reminders (lorebook)** — constant or keyword-triggered instructions with priority, scan depth, case sensitivity, and enable/disable toggle. Flow-controllable mid-session.
 - **Global reminders** — reminders that apply to all characters, configured in global settings
 - **Author note** — high-priority persistent instruction field in global settings
+- **Token switching** — replace overused LLM words with random alternatives. Define trigger word → comma-separated replacements in Settings > Global. Applied to every AI response with case-preserving whole-word matching.
 - **Character inflation ("Pumpable")** — characters can be inflation targets with their own capacity gauge, pain emoji, staged portraits, burst threshold, and full AI context awareness. Controlled via flow nodes (start/stop/set capacity) with configurable calibration time, knowledge level (unaware→expert), desire to be inflated (terrified→obsessed), and desire to be popped (terrified→eager). Auto-load basic controls option assigns ready-made button flows.
 - **Custom buttons** — quick-action buttons with send message, device control, cycle device, and flow linking actions. Dynamically togglable via flows.
 - **[Gender] smart pronoun system** — context-aware pronoun variable that resolves to he/she/they based on persona gender and grammatical position
 - **Built-in characters** — Luna (romantic partner), Mistress Scarlett (dominatrix), Vex (gameshow host), Dr. Iris Chen (researcher), Research Team Alpha (multi-char medical team) — each with pre-built flows
-- **V2/V3 Tavern import** — full conversion of SillyTavern/TavernAI character cards (PNG and JSON) including lorebook entries, alternate greetings, and avatar extraction. Post-import guidance modal.
+- **V2/V3 Tavern import** — full conversion of SillyTavern/TavernAI character cards (PNG and JSON) including lorebook entries, alternate greetings, and avatar extraction. Batch import of multiple files at once with per-file error handling. Post-import guidance modal.
 - **Character export** — SwellDreams PNG (full-fidelity with optional embedded flows), V3 PNG (cross-platform compatible with dual V2/V3 chunks), and JSON backup
 - **Full backup & restore** — export all characters, personas, flows, and settings (API keys excluded) in a single file
 
 ### Persona System
 
 - **Persona creation** — define your player identity with name, pronouns (he/him, she/her, they/them, it/its), appearance, personality, and relationship with inflation
+- **Persona attributes** — inflation knowledge (unaware→expert), desire to be inflated (terrified→obsessed), pop desire, desire to inflate/pop others — guiding impersonate and AI behavior
+- **Persona checkpoints** — "My Inflation" reactions (how the persona feels about their own inflation) and "Character's Inflation" reactions (how the persona reacts to the AI character being inflated) at each capacity range
+- **Checkpoint profiles** — save, load, update, and delete reusable checkpoint sets. Shared profile library between Character and Persona editors with dirty-change tracking.
 - **Staged portraits** — upload multiple persona avatars that transition automatically based on capacity thresholds
 - **Built-in personas** — Marcus (eager, submissive) and Zara (bratty, resistant), each with pre-built reaction flows
 - **Persona flows** — flows assigned to personas that auto-generate player messages at different capacity levels

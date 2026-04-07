@@ -259,43 +259,64 @@ function CharacterTab() {
   };
 
   const handleV2V3Import = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
     setImportingV2V3(true);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    const results = { success: 0, failed: 0, names: [] };
 
-      const response = await fetch(`${API_BASE}/api/import/character-card`, {
-        method: 'POST',
-        body: formData
-      });
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to import character card');
+        const response = await fetch(`${API_BASE}/api/import/character-card`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          let errorMsg = 'Failed to import character card';
+          try {
+            const error = await response.json();
+            errorMsg = error.error || errorMsg;
+          } catch (_) {
+            // Response body wasn't JSON
+          }
+          throw new Error(errorMsg);
+        }
+
+        const result = await response.json();
+        results.success++;
+        results.names.push(result.character?.name || file.name);
+      } catch (error) {
+        results.failed++;
+        console.error(`[V2/V3 Import] Failed to import "${file.name}":`, error);
+        showError?.(`Skipped "${file.name}": ${error.message}`);
       }
+    }
 
-      const result = await response.json();
-      showSuccess?.(result.message || `Imported "${result.character?.name || 'character'}" successfully`);
-      // Refresh character list in case WebSocket broadcast was missed
-      api.getCharacters().then(chars => { if (chars) setCharacters(chars); }).catch(() => {});
+    // Refresh character list
+    api.getCharacters().then(chars => { if (chars) setCharacters(chars); }).catch(() => {});
 
-      // Show setup guidance modal for converted characters
+    if (results.success > 0) {
+      const msg = results.success === 1
+        ? `Imported "${results.names[0]}" successfully`
+        : `Imported ${results.success} character${results.success > 1 ? 's' : ''} successfully${results.failed > 0 ? ` (${results.failed} skipped)` : ''}`;
+      showSuccess?.(msg);
+    }
+
+    // Show setup guidance modal for converted characters
+    if (results.success > 0) {
       setTimeout(() => {
         setShowImportGuidance(true);
-      }, 500); // Delay to show after success toast
-    } catch (error) {
-      console.error('Failed to import V2/V3 character card:', error);
-      showError?.(error.message || 'Failed to import character card');
-    } finally {
-      setImportingV2V3(false);
-      // Reset file input
-      if (v2v3FileInputRef.current) {
-        v2v3FileInputRef.current.value = '';
-      }
+      }, 500);
+    }
+
+    setImportingV2V3(false);
+    if (v2v3FileInputRef.current) {
+      v2v3FileInputRef.current.value = '';
     }
   };
 
@@ -329,6 +350,7 @@ function CharacterTab() {
           ref={v2v3FileInputRef}
           onChange={handleV2V3Import}
           accept=".json,.png"
+          multiple
           style={{ display: 'none' }}
         />
         <button

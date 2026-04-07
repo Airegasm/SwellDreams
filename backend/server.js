@@ -3514,6 +3514,41 @@ function substituteAllVariables(text, context = {}) {
       : match;
   });
 
+  // Token Switching — replace overused LLM words with random alternatives
+  result = applyTokenSwitching(result, settings);
+
+  return result;
+}
+
+/**
+ * Apply token switching rules to text.
+ * Each rule has a trigger word and comma-separated replacements.
+ * Occurrences of the trigger word are randomly replaced with one of the alternatives.
+ */
+function applyTokenSwitching(text, settings) {
+  if (!text) return text;
+  const rules = settings?.tokenSwitching;
+  if (!rules || !Array.isArray(rules) || rules.length === 0) return text;
+
+  let result = text;
+  for (const rule of rules) {
+    if (!rule.enabled || !rule.trigger || !rule.replacements) continue;
+    const replacements = rule.replacements.split(',').map(r => r.trim()).filter(Boolean);
+    if (replacements.length === 0) continue;
+    // Case-insensitive whole-word replacement, preserving original case pattern
+    const escaped = rule.trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    result = result.replace(regex, (match) => {
+      const replacement = replacements[Math.floor(Math.random() * replacements.length)];
+      // Preserve capitalization: if match was all-caps, capitalize replacement; if title-case, title-case it
+      if (match === match.toUpperCase() && match !== match.toLowerCase()) {
+        return replacement.toUpperCase();
+      } else if (match[0] === match[0].toUpperCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+      return replacement;
+    });
+  }
   return result;
 }
 
@@ -3902,6 +3937,11 @@ function getActiveWelcomeMessage(character) {
     const activeStory = character.stories.find(s => s.id === activeStoryId) || character.stories[0];
 
     if (activeStory?.welcomeMessages?.length > 0) {
+      // Random version: pick a random welcome message on session start
+      if (activeStory.randomWelcomeVersion && activeStory.welcomeMessages.length > 1) {
+        const randomIdx = Math.floor(Math.random() * activeStory.welcomeMessages.length);
+        return activeStory.welcomeMessages[randomIdx];
+      }
       const activeId = activeStory.activeWelcomeMessageId || activeStory.welcomeMessages[0].id;
       const activeWelcome = activeStory.welcomeMessages.find(w => w.id === activeId);
       return activeWelcome || activeStory.welcomeMessages[0];
@@ -9967,7 +10007,8 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
     });
 
   } catch (error) {
-    console.error('Character card import error:', error);
+    const fileName = req.file?.originalname || 'unknown';
+    console.error(`[Import] Character card import failed for "${fileName}":`, error.message || error);
     res.status(500).json({ error: error.message || 'Failed to import character card' });
   }
 });

@@ -1983,6 +1983,12 @@ Write only the scenario description itself, no explanations.`;
                         onClick={handleToggleWelcomeMessageLlm}
                         title="Toggle LLM Enhancement"
                       >🤖</button>
+                      <button
+                        type="button"
+                        className={`btn-icon btn-random-version ${activeStory?.randomWelcomeVersion ? 'active' : ''}`}
+                        onClick={() => updateStoryField('randomWelcomeVersion', !activeStory?.randomWelcomeVersion)}
+                        title={activeStory?.randomWelcomeVersion ? 'Random version on session start (ON)' : 'Random version on session start (OFF)'}
+                      >R</button>
                       <select
                         value={activeStory?.activeWelcomeMessageId || ''}
                         onChange={(e) => handleWelcomeMessageChange(e.target.value)}

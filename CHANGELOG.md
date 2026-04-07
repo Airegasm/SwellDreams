@@ -2,6 +2,57 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v3.9.6] - 2026-04-07
+
+### Added
+- **Token Switching** — New section in Settings > Global States that replaces overused LLM words with random alternatives
+  - CRUD list with trigger word → comma-separated replacements
+  - Case-preserving whole-word replacement (Title Case, ALL CAPS, lowercase)
+  - Per-rule enable/disable toggle
+- **Persona Checkpoint Profiles** — Load, Save As New, Update, and Delete checkpoint profiles in the Persona editor
+  - Shares the same profile library as the Character editor
+  - Dirty tracking shows "!" on Update when checkpoints have changed
+- **Random Welcome Message Version** — Toggle button (R) in the welcome message controls
+  - When active, a random version is selected from the dropdown on each new session start
+  - Per-story setting stored on the story data
+- **Batch V2/V3 Character Import** — Select multiple files at once when importing V2/V3 character cards
+  - Sequential processing with per-file error handling
+  - Individual error toasts for failed files, aggregate success count
+  - Backend logs original filename on import failure
+
+### Fixed
+- Import error handling hardened — non-JSON error responses no longer crash the import loop
+
+## [v3.9.5] - 2026-03-29
+
+### Fixed
+- Portrait fallback at burst/over-100% — search backward from highest range instead of defaulting
+- AI pump buttons not loading on fresh installs and custom personas
+
+### Changed
+- Startup migration backfills new fields on all characters and personas
+
+## [v3.9.4] - 2026-03-28
+
+### Added
+- Persona attributes tab with inflation knowledge/desire dropdowns
+- Hardcoded state preface with positive-framing guardrails
+
+### Fixed
+- Circular JSON crash from isPlayerVoice reference
+- Exaggeration at low capacity levels
+
+## [v3.9.3] - 2026-03-27
+
+### Added
+- Persona checkpoints (My Inflation / Character's Inflation subtabs)
+
+### Fixed
+- Circular JSON crash from inflation timer on sessionState
+- Failsafe for circular JSON serialization
+
+---
+
 ## [v2.5.6] - 2026-01-28
 
 ### Added

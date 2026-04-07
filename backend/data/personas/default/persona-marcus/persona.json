@@ -32,5 +32,11 @@
   "assignedButtons": [],
   "createdAt": 1705000000000,
   "updatedAt": 1705000000000,
-  "_isDefault": true
+  "_isDefault": true,
+  "inflationKnowledge": "unaware",
+  "inflationDesire": "neutral",
+  "popDesire": "terrified",
+  "attributes": {},
+  "desireToInflateOthers": "none",
+  "desireToPopOthers": "none"
 }

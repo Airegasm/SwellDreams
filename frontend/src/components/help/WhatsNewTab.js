@@ -5,6 +5,95 @@ function WhatsNewTab() {
   return (
     <div className="help-tab">
       <div className="help-section">
+        <h2>🎈 What's New in v3.9.6</h2>
+        <p className="version-date">Released: April 2026</p>
+      </div>
+
+      <div className="help-section">
+        <h3>🔀 Token Switching</h3>
+        <p>
+          Prevent LLMs from falling into repetitive word patterns. Token switching scans every AI response
+          and randomly replaces overused words with alternatives you define.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Trigger → Replacements:</strong>
+            <p>Map a trigger word (e.g. "delve") to comma-separated alternatives (e.g. "explore, dig into, examine"). Each occurrence is replaced randomly.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Case Preservation:</strong>
+            <p>Replacements match the original capitalization — Title Case, ALL CAPS, or lowercase.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Toggle Per Rule:</strong>
+            <p>Enable/disable individual rules without deleting them.</p>
+          </div>
+        </div>
+        <div className="help-note info">
+          <strong>💡 How to Use:</strong> Settings → Global → Token Switching → Add New → Enter trigger word and comma-separated replacements.
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>📋 Persona Checkpoint Profiles</h3>
+        <p>
+          The checkpoint profile system (load, save, update, delete) is now available in the Persona editor —
+          matching the same workflow Characters already have. Save checkpoint sets as reusable profiles and
+          load them across different personas.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Shared Profile Library:</strong>
+            <p>Player and Character checkpoint profiles are shared between the Character and Persona editors.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Dirty Tracking:</strong>
+            <p>The Update button shows "!" when checkpoint text has changed since the profile was loaded.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🎲 Random Welcome Message Version</h3>
+        <p>
+          New toggle button (R) in the Welcome Message version controls. When active, a random version is
+          selected from the dropdown on each new session start instead of always using the same one.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Toggle:</strong>
+            <p>Red "R" = off (uses selected version). Blue "R" = on (random version per session).</p>
+          </div>
+          <div className="feature-item">
+            <strong>Per-Story:</strong>
+            <p>The setting is stored per story, so different stories can have different behavior.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>📦 Batch V2/V3 Character Import</h3>
+        <p>
+          The "Convert V2/V3" button now accepts multiple files at once. Select as many PNG or JSON character
+          cards as you want and they'll be imported sequentially. Failed files are skipped with individual
+          error toasts — the rest continue importing.
+        </p>
+      </div>
+
+      <div className="help-section">
+        <h3>🐛 Recent Fixes (v3.9.3–v3.9.5)</h3>
+        <ul>
+          <li>Fixed circular JSON crash from inflation timer on sessionState</li>
+          <li>Fixed AI pump buttons not loading on fresh installs and custom personas</li>
+          <li>Fixed portrait fallback at burst/over-100% — now searches backward from highest range</li>
+          <li>Fixed exaggeration at low capacity levels</li>
+          <li>Added startup migration to backfill new fields on all characters and personas</li>
+          <li>Hardcoded state preface with positive-framing guardrails</li>
+          <li>Persona attributes tab with inflation knowledge/desire dropdowns</li>
+        </ul>
+      </div>
+
+      <div className="help-section">
         <h2>🎈 What's New in v3.9.x</h2>
         <p className="version-date">Released: March 2026</p>
       </div>
@@ -606,7 +695,6 @@ function WhatsNewTab() {
       <div className="help-section">
         <h3>🚀 Coming Soon</h3>
         <ul>
-          <li>Global Reminders management tab in Settings</li>
           <li>Advanced lorebook features (insertion position, cooldowns)</li>
           <li>Regex pattern support for keywords</li>
         </ul>

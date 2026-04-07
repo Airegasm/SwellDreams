@@ -5,7 +5,7 @@ import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
-  const { flows, devices, settings } = useApp();
+  const { flows, devices, settings, api } = useApp();
 
   // Helper to filter out flow IDs that no longer exist
   const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
@@ -70,6 +70,10 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const [activeTab, setActiveTab] = useState('basic');
   const [checkpointSubTab, setCheckpointSubTab] = useState('player');
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+  const [checkpointProfiles, setCheckpointProfiles] = useState({ player: [], character: [] });
+  const [selectedPlayerProfile, setSelectedPlayerProfile] = useState('');
+  const [selectedCharProfile, setSelectedCharProfile] = useState('');
+  const [profileDirty, setProfileDirty] = useState({ player: false, character: false });
 
   // Button management state
   const [showButtonForm, setShowButtonForm] = useState(false);
@@ -116,6 +120,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     return buttons.filter(b => !assignedButtons.includes(b.buttonId));
   }, [buttons, formData.assignedButtons]);
 
+  // Load checkpoint profiles
+  useEffect(() => {
+    if (isOpen && typeof api.getCheckpointProfiles === 'function') {
+      api.getCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
+    }
+  }, [isOpen, api]);
+
   // Cleanup: Abort generation on unmount
   useEffect(() => {
     return () => {
@@ -124,6 +135,59 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       }
     };
   }, []);
+
+  // Checkpoint profile handlers
+  const handleLoadProfile = (profileId, type) => {
+    const profiles = checkpointProfiles[type] || [];
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) return;
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    setFormData(prev => ({ ...prev, [field]: { ...profile.checkpoints } }));
+    if (type === 'player') setSelectedPlayerProfile(profileId);
+    else setSelectedCharProfile(profileId);
+    setProfileDirty(prev => ({ ...prev, [type]: false }));
+  };
+
+  const handleSaveNewProfile = async (type) => {
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    const checkpoints = formData[field] || {};
+    const name = prompt('Profile name:');
+    if (!name?.trim()) return;
+    const result = await api.createCheckpointProfile(type, name.trim(), checkpoints);
+    if (result?.id) {
+      const updated = await api.getCheckpointProfiles();
+      setCheckpointProfiles(updated);
+      if (type === 'player') setSelectedPlayerProfile(result.id);
+      else setSelectedCharProfile(result.id);
+      setProfileDirty(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleUpdateProfile = async (type) => {
+    const profileId = type === 'player' ? selectedPlayerProfile : selectedCharProfile;
+    if (!profileId) return;
+    const profile = (checkpointProfiles[type] || []).find(p => p.id === profileId);
+    if (!profile || profile.builtIn) return;
+    const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
+    const checkpoints = formData[field] || {};
+    await api.updateCheckpointProfile(profileId, type, profile.name, checkpoints);
+    const updated = await api.getCheckpointProfiles();
+    setCheckpointProfiles(updated);
+    setProfileDirty(prev => ({ ...prev, [type]: false }));
+  };
+
+  const handleDeleteProfile = async (type) => {
+    const profileId = type === 'player' ? selectedPlayerProfile : selectedCharProfile;
+    if (!profileId) return;
+    const profile = (checkpointProfiles[type] || []).find(p => p.id === profileId);
+    if (!profile || profile.builtIn) return;
+    if (!window.confirm(`Delete profile "${profile.name}"?`)) return;
+    await api.deleteCheckpointProfile(profileId, type);
+    const updated = await api.getCheckpointProfiles();
+    setCheckpointProfiles(updated);
+    if (type === 'player') setSelectedPlayerProfile('');
+    else setSelectedCharProfile('');
+  };
 
   if (!isOpen) return null;
 
@@ -1020,6 +1084,28 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 <>
                   <h4>My Inflation Reactions</h4>
                   <p className="section-hint">How this persona reacts to their own inflation at each capacity range. Guides impersonate responses.</p>
+
+                  <div className="checkpoint-profile-bar">
+                    <select
+                      value={selectedPlayerProfile}
+                      onChange={(e) => handleLoadProfile(e.target.value, 'player')}
+                      className="checkpoint-profile-select"
+                    >
+                      <option value="">-- Load Profile --</option>
+                      {(checkpointProfiles.player || []).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('player')}>Save As New</button>
+                    {selectedPlayerProfile && !(checkpointProfiles.player || []).find(p => p.id === selectedPlayerProfile)?.builtIn && (
+                      <>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('player')}>
+                          Update{profileDirty.player ? ' !' : ''}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('player')}>Delete</button>
+                      </>
+                    )}
+                  </div>
                   {[
                     { key: '0', label: '0% — Before Inflation', hint: 'How the persona feels before anything starts.' },
                     { key: '1-10', label: '1–10%' },
@@ -1050,10 +1136,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                       <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`p-player-${key}`] ? 'revealed' : ''}`}>
                         <textarea
                           value={formData.checkpoints?.[key] || ''}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            checkpoints: { ...prev.checkpoints, [key]: e.target.value }
-                          }))}
+                          onChange={(e) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              checkpoints: { ...prev.checkpoints, [key]: e.target.value }
+                            }));
+                            setProfileDirty(prev => ({ ...prev, player: true }));
+                          }}
                           placeholder={key === '0' ? 'e.g. Nervous but excited to try this...' : `How I react at ${label}...`}
                           rows={3}
                         />
@@ -1068,6 +1157,28 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 <>
                   <h4>Reacting to Character's Inflation</h4>
                   <p className="section-hint">How this persona reacts to the AI character being inflated. Only applies in sessions with pumpable characters.</p>
+
+                  <div className="checkpoint-profile-bar">
+                    <select
+                      value={selectedCharProfile}
+                      onChange={(e) => handleLoadProfile(e.target.value, 'character')}
+                      className="checkpoint-profile-select"
+                    >
+                      <option value="">-- Load Profile --</option>
+                      {(checkpointProfiles.character || []).map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('character')}>Save As New</button>
+                    {selectedCharProfile && !(checkpointProfiles.character || []).find(p => p.id === selectedCharProfile)?.builtIn && (
+                      <>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('character')}>
+                          Update{profileDirty.character ? ' !' : ''}
+                        </button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('character')}>Delete</button>
+                      </>
+                    )}
+                  </div>
                   {[
                     { key: '0', label: '0% — Before Inflation', hint: 'How the persona feels before the character starts inflating.' },
                     { key: '1-10', label: '1–10%' },
@@ -1098,10 +1209,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                       <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`p-char-${key}`] ? 'revealed' : ''}`}>
                         <textarea
                           value={formData.characterCheckpoints?.[key] || ''}
-                          onChange={(e) => setFormData(prev => ({
-                            ...prev,
-                            characterCheckpoints: { ...prev.characterCheckpoints, [key]: e.target.value }
-                          }))}
+                          onChange={(e) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              characterCheckpoints: { ...prev.characterCheckpoints, [key]: e.target.value }
+                            }));
+                            setProfileDirty(prev => ({ ...prev, character: true }));
+                          }}
                           placeholder={key === '0' ? 'e.g. Watching them nervously, wondering what it feels like...' : `How I react to their ${label}...`}
                           rows={3}
                         />

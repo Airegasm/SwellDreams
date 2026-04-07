@@ -645,11 +645,19 @@ function GlobalTab() {
   const [chatMemorySummary, setChatMemorySummary] = useState('');
   const [isSavingMemory, setIsSavingMemory] = useState(false);
 
+  // Token Switching state
+  const [tokenRules, setTokenRules] = useState([]);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [editingTokenRule, setEditingTokenRule] = useState(null);
+  const [tokenForm, setTokenForm] = useState({ trigger: '', replacements: '' });
+  const [isSavingTokens, setIsSavingTokens] = useState(false);
+
   const [expandedSections, setExpandedSections] = useState({
     controlMode: true,
     characterControls: false,
     chatMemory: false,
     authorNote: false,
+    tokenSwitching: false,
     reminders: false,
     flows: false,
     remote: false
@@ -680,6 +688,13 @@ function GlobalTab() {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [globalPrompt]);
+
+  // Load token switching rules from settings
+  useEffect(() => {
+    if (settings?.tokenSwitching) {
+      setTokenRules(settings.tokenSwitching);
+    }
+  }, [settings?.tokenSwitching]);
 
   // Load global reminders from settings
   useEffect(() => {
@@ -780,6 +795,59 @@ function GlobalTab() {
       console.error('Failed to save global prompt:', error);
     }
     setIsSaving(false);
+  };
+
+  // Token Switching handlers
+  const saveTokenRules = async (rules) => {
+    setIsSavingTokens(true);
+    try {
+      await api.updateSettings({ tokenSwitching: rules });
+      setTokenRules(rules);
+    } catch (error) {
+      console.error('Failed to save token switching rules:', error);
+    }
+    setIsSavingTokens(false);
+  };
+
+  const handleAddTokenRule = () => {
+    setEditingTokenRule(null);
+    setTokenForm({ trigger: '', replacements: '' });
+    setShowTokenModal(true);
+  };
+
+  const handleEditTokenRule = (rule) => {
+    setEditingTokenRule(rule.id);
+    setTokenForm({ trigger: rule.trigger, replacements: rule.replacements });
+    setShowTokenModal(true);
+  };
+
+  const handleSaveTokenRule = () => {
+    if (!tokenForm.trigger.trim() || !tokenForm.replacements.trim()) return;
+    let updated;
+    if (editingTokenRule) {
+      updated = tokenRules.map(r => r.id === editingTokenRule
+        ? { ...r, trigger: tokenForm.trigger.trim(), replacements: tokenForm.replacements.trim() }
+        : r
+      );
+    } else {
+      updated = [...tokenRules, {
+        id: `ts-${Date.now()}`,
+        trigger: tokenForm.trigger.trim(),
+        replacements: tokenForm.replacements.trim(),
+        enabled: true
+      }];
+    }
+    saveTokenRules(updated);
+    setShowTokenModal(false);
+  };
+
+  const handleDeleteTokenRule = (id) => {
+    if (!window.confirm('Delete this token switching rule?')) return;
+    saveTokenRules(tokenRules.filter(r => r.id !== id));
+  };
+
+  const handleToggleTokenRule = (id, enabled) => {
+    saveTokenRules(tokenRules.map(r => r.id === id ? { ...r, enabled } : r));
   };
 
   // Chat Memory handlers
@@ -1422,6 +1490,101 @@ function GlobalTab() {
         </div>
         )}
       </div>
+
+      {/* Token Switching Section */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('tokenSwitching')}>
+          <span>Token Switching</span>
+          <span className="collapse-icon">{expandedSections.tokenSwitching ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.tokenSwitching && (
+        <div className="settings-section-content">
+          <p className="section-description">
+            Replace overused LLM words with random alternatives. Each rule maps a trigger word to comma-separated
+            replacements. Every AI response is scanned and matches are swapped randomly to keep language varied.
+          </p>
+
+          <div className="reminders-list">
+            {tokenRules.length === 0 ? (
+              <p className="empty-message">No token switching rules yet. Add one below.</p>
+            ) : (
+              tokenRules.map(rule => (
+                <div key={rule.id} className={`reminder-item ${rule.enabled === false ? 'disabled' : ''}`}>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled !== false}
+                      onChange={(e) => handleToggleTokenRule(rule.id, e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <span className="reminder-name" style={{ flex: 1 }}>
+                    <strong>{rule.trigger}</strong> → {rule.replacements}
+                  </span>
+                  <div className="reminder-actions">
+                    <button className="btn btn-sm btn-secondary" onClick={() => handleEditTokenRule(rule)}>Edit</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteTokenRule(rule.id)}>Del</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <button
+            className="btn btn-primary"
+            onClick={handleAddTokenRule}
+            disabled={isSavingTokens}
+            style={{ marginTop: '0.5rem' }}
+          >
+            + Add New
+          </button>
+        </div>
+        )}
+      </div>
+
+      {/* Token Switching Modal */}
+      {showTokenModal && (
+        <div className="modal-overlay" onClick={() => setShowTokenModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>{editingTokenRule ? 'Edit Token Rule' : 'New Token Rule'}</h3>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', gap: '12px', padding: '20px' }}>
+              <div style={{ flex: '0 0 35%' }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>Trigger Word</label>
+                <input
+                  type="text"
+                  value={tokenForm.trigger}
+                  onChange={(e) => setTokenForm(prev => ({ ...prev, trigger: e.target.value }))}
+                  placeholder="e.g. delve"
+                  style={{ width: '100%' }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>Replacements (comma-separated)</label>
+                <input
+                  type="text"
+                  value={tokenForm.replacements}
+                  onChange={(e) => setTokenForm(prev => ({ ...prev, replacements: e.target.value }))}
+                  placeholder="e.g. explore, dig into, examine"
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowTokenModal(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveTokenRule}
+                disabled={!tokenForm.trigger.trim() || !tokenForm.replacements.trim()}
+              >
+                {editingTokenRule ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global Reminders Section */}
       <div className="settings-section-collapsible">

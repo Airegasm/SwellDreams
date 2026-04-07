@@ -398,6 +398,24 @@
   color: white;
 }
 
+.btn-icon.btn-random-version {
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: #cc3333;
+  background: rgba(204, 51, 51, 0.1);
+  border-color: rgba(204, 51, 51, 0.3);
+}
+
+.btn-icon.btn-random-version:hover:not(:disabled) {
+  background: rgba(204, 51, 51, 0.2);
+}
+
+.btn-icon.btn-random-version.active {
+  background: #3366cc;
+  border-color: #3366cc;
+  color: white;
+}
+
 .btn-icon.btn-magic {
   background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(75, 0, 130, 0.2));
   border-color: rgba(138, 43, 226, 0.4);

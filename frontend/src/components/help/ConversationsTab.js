@@ -1050,6 +1050,13 @@ function ConversationsTab() {
               character can have different progression guidance for different scenarios.
             </div>
 
+            <h4 className="subsection-header">Checkpoint Profiles</h4>
+            <p>
+              Save checkpoint sets as reusable <strong>profiles</strong> that can be loaded into any character
+              or persona. Use the profile bar above the checkpoint list to Load, Save As New, Update, or Delete
+              profiles. Both the Character editor and Persona editor share the same profile library.
+            </p>
+
             <div className="tip-box">
               <strong>Tip:</strong> You don't need to fill in every range. Only fill the ones where you
               want the AI to shift its behavior. The 0% pre-inflation checkpoint is especially useful

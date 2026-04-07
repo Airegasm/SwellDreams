@@ -363,5 +363,16 @@
     "emotion": "neutral",
     "capacityModifier": 1
   },
-  "allowLlmDeviceAccess": false
+  "allowLlmDeviceAccess": false,
+  "isPumpable": false,
+  "characterCalibrationTime": 60,
+  "charBurstPercent": 100,
+  "charSyncCalibrationWithPlayer": false,
+  "charInflateKnowledge": "unaware",
+  "charInflateDesire": "neutral",
+  "charPopDesire": "terrified",
+  "charInflateAutoLoadControls": false,
+  "charStagedPortraits": {},
+  "desireToInflateOthers": "none",
+  "desireToPopOthers": "none"
 }
