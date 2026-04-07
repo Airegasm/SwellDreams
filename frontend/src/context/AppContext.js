@@ -378,7 +378,7 @@ export function AppProvider({ children }) {
              '--skin-persona-action-menu-bg','--skin-persona-action-btn-face','--skin-persona-action-btn-text',
              '--skin-left-sidebar-bg','--skin-left-sidebar-img','--skin-right-sidebar-bg','--skin-right-sidebar-img',
              '--skin-scene-details-bg','--skin-scene-details-text','--skin-scene-details-font','--skin-scene-details-font-size',
-             '--skin-pumpable-color','--skin-trim'
+             '--skin-pumpable-color','--skin-trim-topper','--skin-trim-center','--skin-trim-footer','--skin-name-backing'
             ].forEach(v => root.style.removeProperty(v));
             break;
           }
@@ -421,7 +421,10 @@ export function AppProvider({ children }) {
           if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
           if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
           if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
-          if (skin.uiTrimColor) { root.style.setProperty('--skin-trim', skin.uiTrimColor); } else { root.style.removeProperty('--skin-trim'); }
+          if (skin.trimTopperColor) root.style.setProperty('--skin-trim-topper', skin.trimTopperColor);
+          if (skin.trimCenterColor) root.style.setProperty('--skin-trim-center', skin.trimCenterColor);
+          if (skin.trimFooterColor) root.style.setProperty('--skin-trim-footer', skin.trimFooterColor);
+          if (!skin.nameBackingTransparent && skin.nameBackingColor) root.style.setProperty('--skin-name-backing', skin.nameBackingColor);
         }
         break;
       }

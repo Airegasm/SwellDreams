@@ -134,7 +134,10 @@ function App() {
         if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
         if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
         if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
-        if (skin.uiTrimColor) { root.style.setProperty('--skin-trim', skin.uiTrimColor); } else { root.style.removeProperty('--skin-trim'); }
+        if (skin.trimTopperColor) root.style.setProperty('--skin-trim-topper', skin.trimTopperColor);
+        if (skin.trimCenterColor) root.style.setProperty('--skin-trim-center', skin.trimCenterColor);
+        if (skin.trimFooterColor) root.style.setProperty('--skin-trim-footer', skin.trimFooterColor);
+        if (!skin.nameBackingTransparent && skin.nameBackingColor) root.style.setProperty('--skin-name-backing', skin.nameBackingColor);
       }
     }).catch(() => {});
   }, []);

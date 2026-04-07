@@ -26,6 +26,20 @@ function DisplayTab() {
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
   const [advancedFields, setAdvancedFields] = useState({});
+  const [expandedSections, setExpandedSections] = useState({
+    background: false,
+    sidebars: false,
+    playerChat: false,
+    charChat: false,
+    systemChat: false,
+    chatInput: false,
+    buttons: false,
+    actionMenus: false,
+    trim: false,
+    sceneDetails: false,
+    ui: false
+  });
+  const toggleSection = (s) => setExpandedSections(prev => ({ ...prev, [s]: !prev[s] }));
   const bgInputRef = useRef(null);
   const modalBgInputRef = useRef(null);
   const leftSidebarInputRef = useRef(null);
@@ -149,7 +163,7 @@ function DisplayTab() {
     '--skin-persona-action-menu-bg', '--skin-persona-action-btn-face', '--skin-persona-action-btn-text',
     '--skin-left-sidebar-bg', '--skin-left-sidebar-img', '--skin-right-sidebar-bg', '--skin-right-sidebar-img',
     '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
-    '--skin-pumpable-color', '--skin-trim'
+    '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing'
   ];
 
   const applySkin = (skin) => {
@@ -212,11 +226,18 @@ function DisplayTab() {
     if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
     if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
     if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
-    // Trim: remove variable entirely if empty so hardcoded fallbacks work
-    if (skin.uiTrimColor) {
-      root.style.setProperty('--skin-trim', skin.uiTrimColor);
+    // Trim zones
+    if (skin.trimTopperColor) root.style.setProperty('--skin-trim-topper', skin.trimTopperColor);
+    else root.style.removeProperty('--skin-trim-topper');
+    if (skin.trimCenterColor) root.style.setProperty('--skin-trim-center', skin.trimCenterColor);
+    else root.style.removeProperty('--skin-trim-center');
+    if (skin.trimFooterColor) root.style.setProperty('--skin-trim-footer', skin.trimFooterColor);
+    else root.style.removeProperty('--skin-trim-footer');
+    // Name backing
+    if (!skin.nameBackingTransparent && skin.nameBackingColor) {
+      root.style.setProperty('--skin-name-backing', skin.nameBackingColor);
     } else {
-      root.style.removeProperty('--skin-trim');
+      root.style.removeProperty('--skin-name-backing');
     }
   };
 
@@ -329,173 +350,148 @@ function DisplayTab() {
     </div>
   );
 
+  const S = (id, label, children) => (
+    <div className="settings-section-collapsible">
+      <div className="settings-section-header" onClick={() => toggleSection(id)}>
+        <span>{label}</span>
+        <span className="collapse-icon">{expandedSections[id] ? '▼' : '▶'}</span>
+      </div>
+      {expandedSections[id] && <div className="settings-section-content">{children}</div>}
+    </div>
+  );
+
   return (
     <div className="settings-tab">
-      {/* Skin Selector */}
-      <div className="form-group">
+      {/* Skin Selector — always visible */}
+      <div className="form-group" style={{ padding: '0 0 8px' }}>
         <label><strong>Skins</strong></label>
-        <select
-          value={activeSkin?.id || ''}
-          onChange={(e) => handleSkinChange(e.target.value)}
-          style={{ marginBottom: '8px' }}
-        >
+        <select value={activeSkin?.id || ''} onChange={(e) => handleSkinChange(e.target.value)} style={{ marginBottom: '8px' }}>
           {(displayData?.skins || []).map(s => (
             <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Default)' : ''}</option>
           ))}
         </select>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           <button className="btn btn-sm btn-primary" onClick={handleSaveAs}>Save As</button>
-          <button className="btn btn-sm btn-secondary" onClick={handleUpdate} disabled={isBuiltIn || !dirty}>
-            Update{dirty ? ' !' : ''}
-          </button>
+          <button className="btn btn-sm btn-secondary" onClick={handleUpdate} disabled={isBuiltIn || !dirty}>Update{dirty ? ' !' : ''}</button>
           <button className="btn btn-sm btn-secondary" onClick={handleRefresh}>Refresh</button>
           <button className="btn btn-sm btn-secondary" onClick={handleRename} disabled={isBuiltIn}>Rename</button>
           <button className="btn btn-sm btn-danger" onClick={handleDelete} disabled={isBuiltIn}>Delete</button>
         </div>
       </div>
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Background Image */}
-      <div className="form-group">
-        <label><strong>Background Image</strong></label>
-        <p className="form-hint" style={{ margin: '2px 0 6px' }}>Recommended: 1920x1080 or larger, dark/subtle patterns work best</p>
-        <input type="file" ref={bgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'backgroundImage')} style={{ display: 'none' }} />
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => bgInputRef.current?.click()}>Choose Image</button>
-          {activeSkin?.backgroundImage && (
-            <button className="btn btn-sm btn-secondary" onClick={() => updateField('backgroundImage', '')}>Clear</button>
-          )}
-          {activeSkin?.backgroundImage && (
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {activeSkin.backgroundImage.startsWith('data:') ? 'Custom image' : activeSkin.backgroundImage}
-            </span>
-          )}
+      {S('background', 'Background & Sidebars', <>
+        <div className="form-group">
+          <label><strong>Chat Background Image</strong></label>
+          <p className="form-hint" style={{ margin: '2px 0 6px' }}>Recommended: 1920x1080+, dark/subtle patterns</p>
+          <input type="file" ref={bgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'backgroundImage')} style={{ display: 'none' }} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="btn btn-sm btn-secondary" onClick={() => bgInputRef.current?.click()}>Choose Image</button>
+            {activeSkin?.backgroundImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('backgroundImage', '')}>Clear</button>}
+          </div>
         </div>
-      </div>
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Sidebars */}
-      <h4 style={{ margin: '0 0 8px' }}>Sidebars</h4>
-
-      <div className="form-group">
-        <label style={{ fontSize: '0.85rem' }}>Left Sidebar (Persona) — Image or Color</label>
-        <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended. Leave empty to use color instead.</p>
-        <input type="file" ref={leftSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'leftSidebarBgImage')} style={{ display: 'none' }} />
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => leftSidebarInputRef.current?.click()}>Choose Image</button>
-          {activeSkin?.leftSidebarBgImage && (
-            <button className="btn btn-sm btn-secondary" onClick={() => updateField('leftSidebarBgImage', '')}>Clear Image</button>
-          )}
+        <div className="form-group">
+          <label>Left Sidebar (Persona) — Image or Color</label>
+          <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended</p>
+          <input type="file" ref={leftSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'leftSidebarBgImage')} style={{ display: 'none' }} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+            <button className="btn btn-sm btn-secondary" onClick={() => leftSidebarInputRef.current?.click()}>Choose Image</button>
+            {activeSkin?.leftSidebarBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('leftSidebarBgImage', '')}>Clear</button>}
+          </div>
+          {renderColorPicker('Color (if no image)', 'leftSidebarBg')}
         </div>
-        {renderColorPicker('Color (if no image)', 'leftSidebarBg')}
-      </div>
-
-      <div className="form-group">
-        <label style={{ fontSize: '0.85rem' }}>Right Sidebar (Character) — Image or Color</label>
-        <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended. Leave empty to use color instead.</p>
-        <input type="file" ref={rightSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'rightSidebarBgImage')} style={{ display: 'none' }} />
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => rightSidebarInputRef.current?.click()}>Choose Image</button>
-          {activeSkin?.rightSidebarBgImage && (
-            <button className="btn btn-sm btn-secondary" onClick={() => updateField('rightSidebarBgImage', '')}>Clear Image</button>
-          )}
+        <div className="form-group">
+          <label>Right Sidebar (Character) — Image or Color</label>
+          <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended</p>
+          <input type="file" ref={rightSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'rightSidebarBgImage')} style={{ display: 'none' }} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+            <button className="btn btn-sm btn-secondary" onClick={() => rightSidebarInputRef.current?.click()}>Choose Image</button>
+            {activeSkin?.rightSidebarBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('rightSidebarBgImage', '')}>Clear</button>}
+          </div>
+          {renderColorPicker('Color (if no image)', 'rightSidebarBg')}
         </div>
-        {renderColorPicker('Color (if no image)', 'rightSidebarBg')}
-      </div>
+      </>)}
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+      {S('playerChat', 'Player Chat Bubbles', <>
+        {renderColorPicker('Outline Color', 'playerOutlineColor')}
+        {renderColorPicker('Background Color', 'playerBubbleBg')}
+        {renderColorPicker('Text Color', 'playerTextColor')}
+        {renderFontPicker('Font', 'playerFont', 'playerFontSize')}
+      </>)}
 
-      {/* Player Chat */}
-      <h4 style={{ margin: '0 0 8px' }}>Player Chat Bubbles</h4>
-      {renderColorPicker('Outline Color', 'playerOutlineColor')}
-      {renderColorPicker('Background Color', 'playerBubbleBg')}
-      {renderColorPicker('Text Color', 'playerTextColor')}
-      {renderFontPicker('Font', 'playerFont', 'playerFontSize')}
+      {S('charChat', 'Character Chat Bubbles', <>
+        {renderColorPicker('Outline Color', 'charOutlineColor')}
+        {renderColorPicker('Background Color', 'charBubbleBg')}
+        {renderColorPicker('Text Color', 'charTextColor')}
+        {renderFontPicker('Font', 'charFont', 'charFontSize')}
+      </>)}
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+      {S('systemChat', 'System / Summary Bubbles', <>
+        {renderColorPicker('Outline Color', 'systemOutlineColor')}
+        {renderColorPicker('Background Color', 'systemBubbleBg')}
+        {renderColorPicker('Text Color', 'systemTextColor')}
+        {renderFontPicker('Font', 'systemFont', 'systemFontSize')}
+      </>)}
 
-      {/* Character Chat */}
-      <h4 style={{ margin: '0 0 8px' }}>Character Chat Bubbles</h4>
-      {renderColorPicker('Outline Color', 'charOutlineColor')}
-      {renderColorPicker('Background Color', 'charBubbleBg')}
-      {renderColorPicker('Text Color', 'charTextColor')}
-      {renderFontPicker('Font', 'charFont', 'charFontSize')}
+      {S('chatInput', 'Chat Input Box', <>
+        {renderColorPicker('Background', 'inputBoxBg')}
+        {renderColorPicker('Text Color', 'inputBoxTextColor')}
+        {renderFontPicker('Font', 'inputBoxFont', 'inputBoxFontSize')}
+        {renderColorPicker('Button Face Color', 'inputButtonFaceColor')}
+        {renderColorPicker('History Arrow Color', 'historyArrowColor')}
+      </>)}
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+      {S('buttons', 'Devices / Actions Buttons', <>
+        {renderColorPicker('Button Face', 'frameBtnFaceColor')}
+        {renderColorPicker('Button Text', 'frameBtnTextColor')}
+      </>)}
 
-      {/* System/Summary Bubbles */}
-      <h4 style={{ margin: '0 0 8px' }}>System / Summary Bubbles</h4>
-      {renderColorPicker('Outline Color', 'systemOutlineColor')}
-      {renderColorPicker('Background Color', 'systemBubbleBg')}
-      {renderColorPicker('Text Color', 'systemTextColor')}
-      {renderFontPicker('Font', 'systemFont', 'systemFontSize')}
+      {S('actionMenus', 'Action Menus', <>
+        <h4 style={{ margin: '0 0 8px' }}>Character Actions</h4>
+        {renderColorPicker('Menu Background', 'charActionMenuBg')}
+        {renderColorPicker('Button Face', 'charActionBtnFace')}
+        {renderColorPicker('Button Text', 'charActionBtnText')}
+        <h4 style={{ margin: '12px 0 8px' }}>Persona Actions</h4>
+        {renderColorPicker('Menu Background', 'personaActionMenuBg')}
+        {renderColorPicker('Button Face', 'personaActionBtnFace')}
+        {renderColorPicker('Button Text', 'personaActionBtnText')}
+      </>)}
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Chat Input */}
-      <h4 style={{ margin: '0 0 8px' }}>Chat Input Box</h4>
-      {renderColorPicker('Background', 'inputBoxBg')}
-      {renderColorPicker('Text Color', 'inputBoxTextColor')}
-      {renderFontPicker('Font', 'inputBoxFont', 'inputBoxFontSize')}
-      {renderColorPicker('Button Face Color', 'inputButtonFaceColor')}
-      {renderColorPicker('History Arrow Color', 'historyArrowColor')}
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Frame Buttons (Devices/Actions toggle) */}
-      <h4 style={{ margin: '0 0 8px' }}>Devices / Actions Buttons</h4>
-      {renderColorPicker('Button Face', 'frameBtnFaceColor')}
-      {renderColorPicker('Button Text', 'frameBtnTextColor')}
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Character Action Menu */}
-      <h4 style={{ margin: '0 0 8px' }}>Character Action Menu</h4>
-      {renderColorPicker('Menu Background', 'charActionMenuBg')}
-      {renderColorPicker('Button Face', 'charActionBtnFace')}
-      {renderColorPicker('Button Text', 'charActionBtnText')}
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Persona Action Menu */}
-      <h4 style={{ margin: '0 0 8px' }}>Persona Action Menu</h4>
-      {renderColorPicker('Menu Background', 'personaActionMenuBg')}
-      {renderColorPicker('Button Face', 'personaActionBtnFace')}
-      {renderColorPicker('Button Text', 'personaActionBtnText')}
-
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* UI Colors */}
-      <h4 style={{ margin: '0 0 8px' }}>UI</h4>
-      {renderColorPicker('Header Color', 'uiHeaderColor')}
-      {renderColorPicker('Menu Tab Color', 'uiTabColor')}
-
-      <div className="form-group">
-        <label style={{ fontSize: '0.85rem' }}>Modal Background Image</label>
-        <p className="form-hint" style={{ margin: '2px 0 6px' }}>Recommended: 1024x768+, subtle textures or patterns</p>
-        <input type="file" ref={modalBgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'uiModalBgImage')} style={{ display: 'none' }} />
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button className="btn btn-sm btn-secondary" onClick={() => modalBgInputRef.current?.click()}>Choose Image</button>
-          {activeSkin?.uiModalBgImage && (
-            <button className="btn btn-sm btn-secondary" onClick={() => { updateField('uiModalBgImage', ''); }}>Clear</button>
-          )}
+      {S('trim', 'Frame Trim', <>
+        <p className="section-description">Column borders, resize handles, and metallic trim. Leave empty to use the default gunmetal gradients.</p>
+        {renderColorPicker('Column Topper Trim', 'trimTopperColor')}
+        {renderColorPicker('Column Center / Divider Trim', 'trimCenterColor')}
+        {renderColorPicker('Column Footer Trim', 'trimFooterColor')}
+        <div className="form-group" style={{ marginTop: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input type="checkbox" checked={activeSkin?.nameBackingTransparent ?? true}
+              onChange={(e) => updateField('nameBackingTransparent', e.target.checked)} />
+            Name Backing Transparent
+          </label>
+          {!(activeSkin?.nameBackingTransparent ?? true) && renderColorPicker('Name Backing Color', 'nameBackingColor')}
         </div>
-      </div>
+      </>)}
 
-      {renderFontPicker('System Font', 'uiSystemFont', null)}
-      {renderColorPicker('UI Trim Color', 'uiTrimColor')}
-      <p className="form-hint" style={{ marginTop: '-8px' }}>Solid color or gradient for all frame borders, resize handles, and metallic trim pieces. Leave empty to use the default gunmetal gradients.</p>
+      {S('sceneDetails', 'Scene Details (Character Column)', <>
+        {renderColorPicker('Background', 'sceneDetailsBg')}
+        {renderColorPicker('Text Color', 'sceneDetailsText')}
+        {renderFontPicker('Font', 'sceneDetailsFont', 'sceneDetailsFontSize')}
+        {renderColorPicker('PUMPABLE Flag Color', 'pumpableColor')}
+      </>)}
 
-      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
-
-      {/* Scene Details */}
-      <h4 style={{ margin: '0 0 8px' }}>Scene Details (Character Column)</h4>
-      {renderColorPicker('Background', 'sceneDetailsBg')}
-      {renderColorPicker('Text Color', 'sceneDetailsText')}
-      {renderFontPicker('Font', 'sceneDetailsFont', 'sceneDetailsFontSize')}
-      {renderColorPicker('PUMPABLE Flag Color', 'pumpableColor')}
+      {S('ui', 'Settings Pages & UI', <>
+        {renderColorPicker('Header / Nav Color', 'uiHeaderColor')}
+        {renderColorPicker('Menu Tab Strip Color', 'uiTabColor')}
+        <div className="form-group">
+          <label>Modal Background Image</label>
+          <p className="form-hint" style={{ margin: '2px 0 6px' }}>1024x768+, subtle textures</p>
+          <input type="file" ref={modalBgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'uiModalBgImage')} style={{ display: 'none' }} />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="btn btn-sm btn-secondary" onClick={() => modalBgInputRef.current?.click()}>Choose Image</button>
+            {activeSkin?.uiModalBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('uiModalBgImage', '')}>Clear</button>}
+          </div>
+        </div>
+        {renderFontPicker('System Font', 'uiSystemFont', null)}
+      </>)}
     </div>
   );
 }

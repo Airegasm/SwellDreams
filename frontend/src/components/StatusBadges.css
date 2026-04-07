@@ -20,7 +20,7 @@
   top: 35px;
   bottom: 0;
   width: 6px;
-  background: var(--skin-trim, linear-gradient(90deg, #4a4e54 0%, #5c6169 20%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
+  background: var(--skin-trim-center, linear-gradient(90deg, #4a4e54 0%, #5c6169 20%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   box-shadow:
     inset 1px 0 0 rgba(255, 255, 255, 0.1),
     inset -1px 0 0 rgba(0, 0, 0, 0.3);
@@ -35,7 +35,7 @@
 .frame-right {
   right: 0;
   bottom: 21px; /* Stop at tapered bar bottom level */
-  background: var(--skin-trim, linear-gradient(90deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 40%, #3d4147 60%, #5c6169 80%, #4a4e54 100%));
+  background: var(--skin-trim-center, linear-gradient(90deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 40%, #3d4147 60%, #5c6169 80%, #4a4e54 100%));
   border-radius: 0 4px 4px 0;
 }
 
@@ -56,7 +56,7 @@
   left: 0;
   right: 0;
   height: 35px;
-  background: var(--skin-trim, linear-gradient(180deg, #5c6169 0%, #4a4e54 8%, #2d3036 15%, #5c6169 25%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
+  background: var(--skin-trim-topper, linear-gradient(180deg, #5c6169 0%, #4a4e54 8%, #2d3036 15%, #5c6169 25%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   border-radius: 8px 8px 0 0;
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.1),
@@ -73,6 +73,9 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   z-index: 10;
+  background: var(--skin-name-backing, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
 /* Persona name - uses player outline color */
