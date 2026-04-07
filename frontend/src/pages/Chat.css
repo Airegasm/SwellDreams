@@ -1553,24 +1553,28 @@
 
 .message-player {
   align-self: flex-start;
-  background-color: rgba(31, 41, 55, 0.75);
-  border: 2px solid #00ff88;
+  background-color: var(--skin-player-bg, rgba(31, 41, 55, 0.75));
+  border: 2px solid var(--skin-player-outline, #00ff88);
+  color: var(--skin-player-text, #f3f4f6);
+  font-family: var(--skin-player-font, inherit);
   max-width: calc(70% + 160px);
 }
 
 .message-character {
   align-self: flex-end;
-  background-color: rgba(22, 33, 62, 0.75);
-  border: 2px solid #ff6b6b;
-  color: white;
+  background-color: var(--skin-char-bg, rgba(22, 33, 62, 0.75));
+  border: 2px solid var(--skin-char-outline, #ff6b6b);
+  color: var(--skin-char-text, white);
+  font-family: var(--skin-char-font, inherit);
   max-width: calc(70% + 160px);
 }
 
 .message-system {
   align-self: center;
-  background-color: rgba(30, 60, 114, 0.85);
-  border: 1px solid rgba(100, 149, 237, 0.5);
-  color: rgba(200, 220, 255, 0.95);
+  background-color: var(--skin-system-bg, rgba(30, 60, 114, 0.85));
+  border: 1px solid var(--skin-system-outline, rgba(100, 149, 237, 0.5));
+  color: var(--skin-system-text, rgba(200, 220, 255, 0.95));
+  font-family: var(--skin-system-font, inherit);
   max-width: 80%;
   text-align: center;
   font-size: 0.85em;

@@ -45,7 +45,7 @@
 .settings-page .tabs {
   flex-shrink: 0;
   padding: var(--spacing-sm) var(--spacing-lg);
-  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  background: var(--skin-tab, linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%));
   border-bottom: 1px solid var(--border-color);
   gap: var(--spacing-md);
 }

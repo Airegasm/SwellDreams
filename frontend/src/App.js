@@ -15,6 +15,7 @@ import HelpPanel from './components/HelpPanel';
 import SaveSessionModal from './components/modals/SaveSessionModal';
 import LoadSessionModal from './components/modals/LoadSessionModal';
 import { EMOTIONS } from './constants/stateValues';
+import { API_BASE } from './config';
 import './styles/App.css';
 import './styles/mobile.css';
 
@@ -87,6 +88,32 @@ function App() {
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
+
+  // Load and apply skin on startup
+  useEffect(() => {
+    fetch(`${API_BASE}/api/display-settings`).then(r => r.json()).then(data => {
+      const skin = data?.skins?.find(s => s.id === data.activeSkinId) || data?.skins?.[0];
+      if (skin) {
+        const root = document.documentElement;
+        root.style.setProperty('--skin-player-outline', skin.playerOutlineColor || '#00ff88');
+        root.style.setProperty('--skin-player-bg', skin.playerBubbleBg || 'rgba(31, 41, 55, 0.75)');
+        root.style.setProperty('--skin-player-text', skin.playerTextColor || '#f3f4f6');
+        root.style.setProperty('--skin-player-font', skin.playerFont || 'inherit');
+        root.style.setProperty('--skin-char-outline', skin.charOutlineColor || '#ff6b6b');
+        root.style.setProperty('--skin-char-bg', skin.charBubbleBg || 'rgba(22, 33, 62, 0.75)');
+        root.style.setProperty('--skin-char-text', skin.charTextColor || '#ffffff');
+        root.style.setProperty('--skin-char-font', skin.charFont || 'inherit');
+        root.style.setProperty('--skin-system-outline', skin.systemOutlineColor || 'rgba(100, 149, 237, 0.5)');
+        root.style.setProperty('--skin-system-bg', skin.systemBubbleBg || 'rgba(30, 60, 114, 0.85)');
+        root.style.setProperty('--skin-system-text', skin.systemTextColor || 'rgba(200, 220, 255, 0.95)');
+        root.style.setProperty('--skin-system-font', skin.systemFont || 'inherit');
+        root.style.setProperty('--skin-header', skin.uiHeaderColor || 'linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%)');
+        root.style.setProperty('--skin-tab', skin.uiTabColor || 'linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%)');
+        if (skin.backgroundImage) root.style.setProperty('--skin-chat-bg', `url("${skin.backgroundImage}")`);
+        if (skin.uiModalBgImage) root.style.setProperty('--skin-modal-bg', `url("${skin.uiModalBgImage}")`);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Update checking state
   const [updateStatus, setUpdateStatus] = useState('checking'); // 'checking', 'up-to-date', 'available', 'installing', 'restarting', 'error'

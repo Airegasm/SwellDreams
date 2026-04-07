@@ -12119,6 +12119,121 @@ app.delete('/api/persona-checkpoint-profiles/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Display Settings (Skins) ---
+
+const DISPLAY_SETTINGS_PATH = path.join(DATA_DIR, 'display-settings.json');
+
+const DEFAULT_SKIN = {
+  id: 'swelldreams-default',
+  name: 'SwellDreams',
+  builtIn: true,
+  backgroundImage: '/assets/chat-bg.png',
+  playerOutlineColor: '#00ff88',
+  playerBubbleBg: 'rgba(31, 41, 55, 0.75)',
+  playerTextColor: '#f3f4f6',
+  playerFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  playerFontSize: 16,
+  charOutlineColor: '#ff6b6b',
+  charBubbleBg: 'rgba(22, 33, 62, 0.75)',
+  charTextColor: '#ffffff',
+  charFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  charFontSize: 16,
+  systemOutlineColor: 'rgba(100, 149, 237, 0.5)',
+  systemBubbleBg: 'rgba(30, 60, 114, 0.85)',
+  systemTextColor: 'rgba(200, 220, 255, 0.95)',
+  systemFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  systemFontSize: 14,
+  uiHeaderColor: 'linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%)',
+  uiTabColor: 'linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%)',
+  uiModalBg: '',
+  uiModalBgImage: '/assets/card-bg.png',
+  systemFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+};
+
+function loadDisplaySettings() {
+  try {
+    const data = JSON.parse(fs.readFileSync(DISPLAY_SETTINGS_PATH, 'utf8'));
+    // Ensure default skin exists
+    if (!data.skins?.find(s => s.id === 'swelldreams-default')) {
+      data.skins = [DEFAULT_SKIN, ...(data.skins || [])];
+    }
+    return data;
+  } catch (e) {
+    return { activeSkinId: 'swelldreams-default', skins: [DEFAULT_SKIN] };
+  }
+}
+
+function saveDisplaySettings(data) {
+  fs.writeFileSync(DISPLAY_SETTINGS_PATH, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/display-settings', (req, res) => {
+  res.json(loadDisplaySettings());
+});
+
+app.put('/api/display-settings/active-skin', (req, res) => {
+  const data = loadDisplaySettings();
+  const { skinId } = req.body;
+  if (!data.skins.find(s => s.id === skinId)) {
+    return res.status(404).json({ error: 'Skin not found' });
+  }
+  data.activeSkinId = skinId;
+  saveDisplaySettings(data);
+  res.json({ success: true });
+});
+
+app.post('/api/display-settings/skins', (req, res) => {
+  const data = loadDisplaySettings();
+  const { name, skin } = req.body;
+  if (!name || !skin) return res.status(400).json({ error: 'name and skin required' });
+  const id = `skin-${Date.now()}`;
+  const newSkin = { ...skin, id, name, builtIn: false };
+  data.skins.push(newSkin);
+  data.activeSkinId = id;
+  saveDisplaySettings(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/display-settings/skins/:id', (req, res) => {
+  const data = loadDisplaySettings();
+  const idx = data.skins.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Skin not found' });
+  if (data.skins[idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in skin' });
+  const { name, skin } = req.body;
+  if (skin) {
+    data.skins[idx] = { ...skin, id: req.params.id, name: name || data.skins[idx].name, builtIn: false };
+  } else if (name) {
+    data.skins[idx].name = name;
+  }
+  saveDisplaySettings(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/display-settings/skins/:id', (req, res) => {
+  const data = loadDisplaySettings();
+  const idx = data.skins.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Skin not found' });
+  if (data.skins[idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in skin' });
+  data.skins.splice(idx, 1);
+  if (data.activeSkinId === req.params.id) {
+    data.activeSkinId = 'swelldreams-default';
+  }
+  saveDisplaySettings(data);
+  res.json({ success: true });
+});
+
+// Upload skin background or modal image
+const skinImageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+app.post('/api/display-settings/upload-image', skinImageUpload.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    res.json({ success: true, dataUrl: base64 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Flows (Event Scripts) ---
 
 app.get('/api/flows', (req, res) => {

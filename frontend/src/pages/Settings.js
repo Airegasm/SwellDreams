@@ -4,12 +4,14 @@ import ModelTab from '../components/settings/ModelTab';
 import GlobalTab from '../components/settings/GlobalTab';
 import DeviceTab from '../components/settings/DeviceTab';
 import DataTab from '../components/settings/DataTab';
+import DisplayTab from '../components/settings/DisplayTab';
 import './Settings.css';
 
 const TABS = [
   { id: 'model', label: 'LLM Backend' },
   { id: 'devices', label: 'Smart Devices' },
   { id: 'global', label: 'Global States' },
+  { id: 'display', label: 'Display' },
   { id: 'data', label: 'Data' }
 ];
 
@@ -72,6 +74,8 @@ function Settings() {
         return <GlobalTab />;
       case 'devices':
         return <DeviceTab />;
+      case 'display':
+        return <DisplayTab />;
       case 'data':
         return <DataTab />;
       default:
