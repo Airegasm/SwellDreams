@@ -361,6 +361,16 @@ export function AppProvider({ children }) {
         setMessages(prev => prev.filter(m => m.id !== data.id));
         break;
 
+      case 'chat_cleared':
+        if (data.screenOnly) {
+          // Screen-only clear: hide messages visually but keep state
+          setMessages([]);
+        } else {
+          // Replace messages with whatever the server sent (may include summary bubble)
+          setMessages(data.messages || []);
+        }
+        break;
+
       case 'stream_token':
         // Update message content with streaming text
         setMessages(prev => prev.map(m =>

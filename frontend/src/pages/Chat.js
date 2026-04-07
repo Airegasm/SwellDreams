@@ -96,6 +96,9 @@ function Chat() {
     return saved ? parseInt(saved, 10) : 16; // Default 16px
   });
 
+  // Clear menu state
+  const [showClearMenu, setShowClearMenu] = useState(false);
+
   // Story Progression suggestions
   const [storyProgressionSuggestions, setStoryProgressionSuggestions] = useState([]);
   const [storyProgressionVisible, setStoryProgressionVisible] = useState(false);
@@ -1503,6 +1506,33 @@ function Chat() {
             >
               +
             </button>
+            <button
+              className="font-size-btn"
+              onClick={() => setShowClearMenu(prev => !prev)}
+              title="Clear options"
+              style={{ fontSize: '0.75rem' }}
+            >
+              ⚙
+            </button>
+            {showClearMenu && (
+              <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)}>
+                <div className="clear-menu" onClick={(e) => e.stopPropagation()}>
+                  <div className="clear-menu-header">Clear</div>
+                  <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>
+                    Screen
+                  </button>
+                  <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'context' }); setShowClearMenu(false); }}>
+                    Context
+                  </button>
+                  <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'both' }); setShowClearMenu(false); }}>
+                    Screen + Context
+                  </button>
+                  <button className="clear-menu-item clear-menu-summarize" onClick={() => { sendWsMessage('clear_chat', { mode: 'summarize' }); setShowClearMenu(false); }}>
+                    Summarize &amp; Clear
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           {sessionLoading ? (
             <div className="chat-loading">
@@ -1534,9 +1564,12 @@ function Chat() {
                 {msg.sender === 'system' && hasTextContent && (
                   <div
                     id={`msg-${msg.id}`}
-                    className="message message-system"
+                    className={`message message-system${msg.systemLabel === 'Summary' ? ' message-summary' : ''}`}
                     style={{ fontSize: `${chatFontSize}px` }}
                   >
+                    {msg.systemLabel && (
+                      <div className="message-system-label">{msg.systemLabel}</div>
+                    )}
                     <div className="message-content">
                       <p>{cleanContent}</p>
                     </div>

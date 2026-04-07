@@ -6052,6 +6052,10 @@ async function handleWsMessage(ws, type, data) {
       broadcast('chat_memory_summary_updated', { summary: sessionState.chatMemorySummary });
       break;
 
+    case 'clear_chat':
+      await handleClearChat(data);
+      break;
+
     case 'edit_message':
       handleEditMessage(data);
       break;
@@ -6559,6 +6563,154 @@ async function handleWsMessage(ws, type, data) {
 
     default:
       console.log('[WS] Unknown message type:', type);
+  }
+}
+
+/**
+ * Handle clear chat actions: clear screen, clear context, clear both, summarize & clear.
+ * Modes: 'screen' | 'context' | 'both' | 'summarize'
+ */
+async function handleClearChat(data) {
+  const { mode } = data;
+  const { v4: uuidv4 } = require('uuid');
+
+  console.log(`[ClearChat] Mode: ${mode}`);
+
+  if (mode === 'summarize') {
+    // Summarize all messages, then clear both screen and context
+    const settings = loadData(DATA_FILES.settings);
+    const playerName = sessionState.playerName || 'Player';
+    const charName = sessionState.characterName || 'Character';
+
+    // Build message block from all history
+    let messageBlock = '';
+    sessionState.chatHistory.forEach(msg => {
+      if (msg.excludeFromContext || msg.sender === 'system') return;
+      const speaker = msg.sender === 'player' ? playerName : (msg.characterName || charName);
+      messageBlock += `${speaker}: ${msg.content}\n`;
+    });
+
+    let summaryText = null;
+
+    if (messageBlock.trim()) {
+      const hasLlmConfig = settings?.llm?.llmUrl ||
+        (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+
+      if (hasLlmConfig) {
+        try {
+          const existingSummary = sessionState.chatMemorySummary;
+          let summaryPrompt;
+          if (existingSummary) {
+            summaryPrompt = `You are a narrator summarizing a roleplay session. Below is an existing summary of earlier events, followed by the most recent conversation. Produce a cohesive narrative summary that incorporates both.
+
+EARLIER SUMMARY:
+${existingSummary}
+
+RECENT CONVERSATION:
+${messageBlock}
+
+Write a concise narrative summary (5-10 sentences) that captures:
+- The story arc and key events
+- Current physical state (capacity, pain, emotional state)
+- Character dynamics and relationship progression
+- Important details that would affect continuing the story
+
+Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
+          } else {
+            summaryPrompt = `You are a narrator summarizing a roleplay session. Summarize the following conversation.
+
+CONVERSATION:
+${messageBlock}
+
+Write a concise narrative summary (5-10 sentences) that captures:
+- The story arc and key events
+- Current physical state (capacity, pain, emotional state)
+- Character dynamics and relationship progression
+- Important details that would affect continuing the story
+
+Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
+          }
+
+          const summarySettings = { ...settings.llm };
+          summarySettings.maxTokens = 500;
+          summarySettings.streaming = false;
+
+          broadcast('generating_start', { characterName: 'System', isPlayerVoice: false });
+
+          const result = await llmService.generate({
+            prompt: summaryPrompt,
+            systemPrompt: 'You are a concise narrative summarizer. Output only the summary text.',
+            settings: summarySettings
+          });
+
+          broadcast('generating_stop', {});
+
+          if (result.text?.trim()) {
+            summaryText = result.text.trim();
+          }
+        } catch (error) {
+          console.error('[ClearChat] Summarization failed:', error.message);
+          broadcast('generating_stop', {});
+        }
+      }
+    }
+
+    // Clear both screen and context
+    sessionState.chatHistory = [];
+    sessionState.chatMemorySummaryUpTo = 0;
+
+    // Set the summary as the rolling memory
+    if (summaryText) {
+      sessionState.chatMemorySummary = summaryText;
+
+      // Add state context to the summary
+      const stateNote = `[Current state: ${playerName} capacity ${Math.round(sessionState.capacity)}%, pain ${sessionState.pain}/10, emotion: ${sessionState.emotion}` +
+        (sessionState.characterCapacity > 0 ? `, ${charName} capacity ${Math.round(sessionState.characterCapacity)}%` : '') + ']';
+      sessionState.chatMemorySummary += '\n' + stateNote;
+
+      // Create display-only summary bubble
+      const summaryMessage = {
+        id: uuidv4(),
+        content: summaryText,
+        sender: 'system',
+        systemLabel: 'Summary',
+        excludeFromContext: true,
+        timestamp: Date.now()
+      };
+      sessionState.chatHistory.push(summaryMessage);
+      broadcast('chat_cleared', { messages: sessionState.chatHistory });
+    } else {
+      sessionState.chatMemorySummary = null;
+      broadcast('chat_cleared', { messages: [] });
+    }
+
+    autosaveSession();
+    console.log(`[ClearChat] Summarize & Clear complete. Summary: ${summaryText ? summaryText.substring(0, 80) + '...' : 'none'}`);
+
+  } else if (mode === 'screen') {
+    // Mark all messages as hidden but keep in context
+    // We'll send empty messages array to frontend but keep chatHistory intact
+    broadcast('chat_cleared', { messages: [], screenOnly: true });
+    console.log('[ClearChat] Screen cleared (context preserved)');
+
+  } else if (mode === 'context') {
+    // Clear the LLM memory but keep screen
+    const preserved = sessionState.chatHistory.map(m => ({ ...m, excludeFromContext: true }));
+    sessionState.chatHistory = preserved;
+    sessionState.chatMemorySummary = null;
+    sessionState.chatMemorySummaryUpTo = 0;
+    autosaveSession();
+    broadcast('chat_cleared', { messages: preserved, contextOnly: true });
+    console.log('[ClearChat] Context cleared (screen preserved)');
+
+  } else if (mode === 'both') {
+    // Nuclear — clear everything
+    sessionState.chatHistory = [];
+    sessionState.chatMemorySummary = null;
+    sessionState.chatMemorySummaryUpTo = 0;
+    autosaveSession();
+    broadcast('chat_cleared', { messages: [] });
+    console.log('[ClearChat] Both screen and context cleared');
   }
 }
 

@@ -1582,6 +1582,76 @@
   margin: 0;
 }
 
+.message-system-label {
+  font-weight: 700;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  color: rgba(150, 180, 255, 0.9);
+}
+
+.message-summary {
+  background-color: rgba(25, 50, 100, 0.85);
+  border: 1px solid rgba(80, 130, 220, 0.5);
+  text-align: left;
+  font-style: italic;
+}
+
+/* Clear menu */
+.clear-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1001;
+}
+
+.clear-menu {
+  position: absolute;
+  top: 60px;
+  right: 0;
+  background: #1e2028;
+  border: 1px solid #3a3d45;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  min-width: 180px;
+  overflow: hidden;
+}
+
+.clear-menu-header {
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #3a3d45;
+}
+
+.clear-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clear-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.clear-menu-summarize {
+  border-top: 1px solid #3a3d45;
+  color: #6495ed;
+}
+
 /* Reverse header layout for character messages - name on right, timestamp on left */
 .message-character .message-header {
   flex-direction: row-reverse;
