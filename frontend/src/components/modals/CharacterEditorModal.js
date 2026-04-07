@@ -3235,21 +3235,53 @@ Write only the scenario description itself, no explanations.`;
                     { key: '91-100', label: '91–100%' },
                     { key: '100+', label: '100%+ — Over-Inflation' }
                   ].map(({ key, label, hint }) => (
-                    <div className="form-group" key={key}>
-                      <label>{label}</label>
+                    <div className="form-group checkpoint-field" key={key}>
+                      <div className="checkpoint-header">
+                        <label>{label}</label>
+                        <button
+                          type="button"
+                          className="checkpoint-spoiler-toggle"
+                          onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: !prev[`player-${key}`] }))}
+                          title={visibleCheckpoints[`player-${key}`] ? 'Hide' : 'Show'}
+                        >
+                          <span className="spoiler-eye">{visibleCheckpoints[`player-${key}`] ? '👁' : '👁‍🗨'}</span>
+                          <span className="spoiler-label">{visibleCheckpoints[`player-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                        </button>
+                      </div>
                       {hint && <p className="section-hint">{hint}</p>}
-                      <textarea
-                        value={activeStory?.checkpoints?.[key] || ''}
-                        onChange={(e) => {
-                          updateStoryField('checkpoints', {
-                            ...(activeStory?.checkpoints || {}),
-                            [key]: e.target.value
-                          });
-                          setProfileDirty(prev => ({ ...prev, player: true }));
-                        }}
-                        placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                        rows={3}
-                      />
+                      <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
+                        <textarea
+                          value={activeStory?.checkpoints?.[key] || ''}
+                          onChange={(e) => {
+                            updateStoryField('checkpoints', {
+                              ...(activeStory?.checkpoints || {}),
+                              [key]: e.target.value
+                            });
+                            setProfileDirty(prev => ({ ...prev, player: true }));
+                          }}
+                          placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="checkpoint-triggers">
+                        <div className="checkpoint-triggers-header">
+                          <span className="checkpoint-triggers-label">Triggers</span>
+                          <button type="button" className="btn-icon btn-add" onClick={() => {
+                            const trigKey = `player-${key}`;
+                            const ct = { ...(activeStory?.checkpointTriggers || {}) };
+                            ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
+                            updateStoryField('checkpointTriggers', ct);
+                          }} title="Add trigger">+</button>
+                        </div>
+                        {(activeStory?.checkpointTriggers?.[`player-${key}`] || []).map((trigger, tIdx) => (
+                          <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false}
+                            reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
+                            onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; items[tIdx] = updated; ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
+                            onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`player-${key}`] = (ct[`player-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
+                            dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); } }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </>
