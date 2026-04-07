@@ -12306,10 +12306,13 @@ const BUILTIN_SKINS = [
 function loadDisplaySettings() {
   try {
     const data = JSON.parse(fs.readFileSync(DISPLAY_SETTINGS_PATH, 'utf8'));
-    // Ensure all built-in skins exist
+    // Always replace built-in skins with latest definitions (picks up new fields)
+    data.skins = data.skins || [];
     for (const builtIn of BUILTIN_SKINS) {
-      if (!data.skins?.find(s => s.id === builtIn.id)) {
-        data.skins = data.skins || [];
+      const idx = data.skins.findIndex(s => s.id === builtIn.id);
+      if (idx !== -1) {
+        data.skins[idx] = builtIn;
+      } else {
         data.skins.push(builtIn);
       }
     }
