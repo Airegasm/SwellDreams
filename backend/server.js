@@ -3085,6 +3085,41 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
       }
 
+      case 'set_persona_attribute': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona && trigger.trait) {
+          persona.attributes = persona.attributes || {};
+          persona.attributes[trigger.trait] = trigger.value ?? 50;
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Set persona ${trigger.trait} to ${trigger.value}`);
+        }
+        break;
+      }
+
+      case 'nudge_attribute': {
+        const nudgeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+        if (nudgeStory && trigger.trait) {
+          nudgeStory.attributes = nudgeStory.attributes || {};
+          const current = nudgeStory.attributes[trigger.trait] ?? 50;
+          nudgeStory.attributes[trigger.trait] = Math.max(0, Math.min(100, current + (parseInt(trigger.value) || 0)));
+          await saveCharacterAsync(character);
+          console.log(`[Trigger/${source}] Nudged char ${trigger.trait}: ${current} → ${nudgeStory.attributes[trigger.trait]}`);
+        }
+        break;
+      }
+
+      case 'nudge_persona_attribute': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona && trigger.trait) {
+          persona.attributes = persona.attributes || {};
+          const current = persona.attributes[trigger.trait] ?? 0;
+          persona.attributes[trigger.trait] = Math.max(0, Math.min(100, current + (parseInt(trigger.value) || 0)));
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Nudged persona ${trigger.trait}: ${current} → ${persona.attributes[trigger.trait]}`);
+        }
+        break;
+      }
+
       case 'set_player_capacity':
         sessionState.capacity = Math.max(0, parseInt(trigger.value) || 0);
         broadcast('capacity_update', { capacity: sessionState.capacity });

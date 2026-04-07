@@ -41,6 +41,7 @@ const POP_OTHERS_OPTIONS = [
 ];
 
 const ATTRIBUTE_KEYS = ['dominant', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
+const PERSONA_ATTRIBUTE_KEYS = ['dominant', 'submissive', 'sadistic', 'masochistic', 'sensual', 'sexual'];
 
 const PUMP_MODES = [
   { value: 'on', label: 'ON' },
@@ -52,31 +53,32 @@ const PUMP_MODES = [
 // All available trigger types
 function getTriggerTypes(isPumpable) {
   const types = [
-    { value: 'impersonate', label: 'Trigger Player Impersonate' },
-    { value: 'ai_message', label: 'Trigger AI Message' },
+    { value: 'impersonate', label: 'Player Impersonate' },
+    { value: 'ai_message', label: 'Char AI Message' },
   ];
 
   if (isPumpable) {
-    types.push({ value: 'char_inflate_start', label: 'AI Pump ON' });
-    types.push({ value: 'char_inflate_stop', label: 'AI Pump OFF' });
+    types.push({ value: 'char_inflate_start', label: 'Char Pump ON' });
+    types.push({ value: 'char_inflate_stop', label: 'Char Pump OFF' });
   }
 
   types.push(
     { value: 'pump_on', label: 'Primary Pump ON' },
     { value: 'pump_off', label: 'Primary Pump OFF' },
     { value: 'toggle_pump_always', label: 'Toggle Send Pump Always' },
-    { value: 'set_attribute', label: 'Change Character Attribute' },
-    { value: 'set_player_capacity', label: 'Update Player Capacity' },
+    { value: 'set_attribute', label: 'Set Char Attribute' },
+    { value: 'set_persona_attribute', label: 'Set Player Attribute' },
+    { value: 'set_player_capacity', label: 'Set Player Capacity' },
   );
 
   if (isPumpable) {
-    types.push({ value: 'set_char_capacity', label: 'Update Char Capacity' });
+    types.push({ value: 'set_char_capacity', label: 'Set Char Capacity' });
   }
 
   types.push(
-    { value: 'set_player_pain', label: 'Update Player Pain' },
-    { value: 'set_emotion', label: 'Set Player Emotion' },
-    { value: 'toggle_device_control', label: 'Toggle Chat Device Control' },
+    { value: 'set_player_pain', label: 'Set Player Pain' },
+    { value: 'set_emotion', label: 'Set Player Disposition' },
+    { value: 'toggle_device_control', label: 'Toggle Char Device Control' },
     { value: 'set_pump_mode', label: 'Modify Pump Mode/Timer' },
     { value: 'toggle_auto_reply', label: 'Toggle Char Auto-Response' },
   );
@@ -96,12 +98,14 @@ function getTriggerTypes(isPumpable) {
     { value: 'set_char_pop_desire', label: 'Set Char Pop Desire' },
     { value: 'set_char_desire_inflate_others', label: 'Set Char Desire to Inflate Others' },
     { value: 'set_char_desire_pop_others', label: 'Set Char Desire to Pop Others' },
-    { value: 'set_persona_inflate_desire', label: 'Set Persona Inflate Desire' },
-    { value: 'set_persona_pop_desire', label: 'Set Persona Pop Desire' },
-    { value: 'set_persona_inflate_others', label: 'Set Persona Desire to Inflate Others' },
-    { value: 'set_persona_pop_others', label: 'Set Persona Desire to Pop Others' },
-    { value: 'toggle_reminder', label: 'Character Reminder State' },
-    { value: 'equip_reminder', label: 'Equip/Unequip Reminder' },
+    { value: 'set_persona_inflate_desire', label: 'Set Player Inflate Desire' },
+    { value: 'set_persona_pop_desire', label: 'Set Player Pop Desire' },
+    { value: 'set_persona_inflate_others', label: 'Set Player Desire to Inflate Others' },
+    { value: 'set_persona_pop_others', label: 'Set Player Desire to Pop Others' },
+    { value: 'nudge_attribute', label: 'Nudge Char Attribute (+/-)' },
+    { value: 'nudge_persona_attribute', label: 'Nudge Player Attribute (+/-)' },
+    { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
+    { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
   );
 
   return types;
@@ -120,8 +124,19 @@ function getTriggerTypes(isPumpable) {
  *   globalReminders: array — global reminders
  */
 function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [] }) {
+  const [typeSearch, setTypeSearch] = React.useState('');
+  const [typeOpen, setTypeOpen] = React.useState(false);
+  const typeRef = React.useRef(null);
   const update = (field, value) => onChange({ ...trigger, [field]: value });
   const triggerTypes = getTriggerTypes(isPumpable);
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    if (!typeOpen) return;
+    const handler = (e) => { if (typeRef.current && !typeRef.current.contains(e.target)) setTypeOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [typeOpen]);
 
   const renderParams = () => {
     switch (trigger.type) {
@@ -154,6 +169,39 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
             </select>
             <input type="number" min={0} max={100} value={trigger.value ?? 50} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
               style={{ width: '50px' }} title="% chance" />
+          </>
+        );
+
+      case 'set_persona_attribute':
+        return (
+          <>
+            <select value={trigger.trait || 'dominant'} onChange={(e) => update('trait', e.target.value)} style={{ width: '100px' }}>
+              {PERSONA_ATTRIBUTE_KEYS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
+            </select>
+            <input type="number" min={0} max={100} value={trigger.value ?? 50} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
+              style={{ width: '50px' }} title="% chance" />
+          </>
+        );
+
+      case 'nudge_attribute':
+        return (
+          <>
+            <select value={trigger.trait || 'dominant'} onChange={(e) => update('trait', e.target.value)} style={{ width: '100px' }}>
+              {ATTRIBUTE_KEYS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
+            </select>
+            <input type="number" min={-100} max={100} value={trigger.value ?? 10} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
+              style={{ width: '60px' }} title="+/- amount" />
+          </>
+        );
+
+      case 'nudge_persona_attribute':
+        return (
+          <>
+            <select value={trigger.trait || 'dominant'} onChange={(e) => update('trait', e.target.value)} style={{ width: '100px' }}>
+              {PERSONA_ATTRIBUTE_KEYS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
+            </select>
+            <input type="number" min={-100} max={100} value={trigger.value ?? 10} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
+              style={{ width: '60px' }} title="+/- amount" />
           </>
         );
 
@@ -295,12 +343,49 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
     }
   };
 
+  const currentLabel = triggerTypes.find(t => t.value === trigger.type)?.label || trigger.type;
+  const filteredTypes = typeSearch
+    ? triggerTypes.filter(t => t.label.toLowerCase().includes(typeSearch.toLowerCase()))
+    : triggerTypes;
+
   return (
     <div className="post-welcome-trigger-row" {...dragProps}>
       <span className="drag-handle">☰</span>
-      <select value={trigger.type} onChange={(e) => onChange({ ...trigger, type: e.target.value })} style={{ minWidth: '140px' }}>
-        {triggerTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-      </select>
+      <div className="trigger-type-picker" ref={typeRef} style={{ position: 'relative', minWidth: '140px' }}>
+        <button
+          type="button"
+          className="trigger-type-btn"
+          onClick={() => { setTypeOpen(!typeOpen); setTypeSearch(''); }}
+          style={{ width: '100%', textAlign: 'left', padding: '4px 8px', fontSize: '0.8rem', background: 'var(--bg-tertiary, #2a2d31)', border: '1px solid var(--border-color, #3a3d45)', borderRadius: '4px', color: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+        >
+          {currentLabel}
+        </button>
+        {typeOpen && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1e2028', border: '1px solid #3a3d45', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', maxHeight: '200px', display: 'flex', flexDirection: 'column' }}>
+            <input
+              type="text"
+              value={typeSearch}
+              onChange={(e) => setTypeSearch(e.target.value)}
+              placeholder="Search..."
+              autoFocus
+              style={{ padding: '4px 8px', fontSize: '0.8rem', border: 'none', borderBottom: '1px solid #3a3d45', background: 'transparent', color: 'inherit', outline: 'none' }}
+            />
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filteredTypes.map(t => (
+                <div
+                  key={t.value}
+                  onClick={() => { onChange({ ...trigger, type: t.value }); setTypeOpen(false); }}
+                  style={{ padding: '5px 8px', fontSize: '0.8rem', cursor: 'pointer', background: t.value === trigger.type ? 'rgba(100,149,237,0.2)' : 'transparent', whiteSpace: 'nowrap' }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.08)'}
+                  onMouseLeave={(e) => e.target.style.background = t.value === trigger.type ? 'rgba(100,149,237,0.2)' : 'transparent'}
+                >
+                  {t.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       {renderParams()}
       <button type="button" className="btn-remove" onClick={onRemove}>−</button>
     </div>
