@@ -27,6 +27,8 @@ function DisplayTab() {
   const [loading, setLoading] = useState(true);
   const bgInputRef = useRef(null);
   const modalBgInputRef = useRef(null);
+  const leftSidebarInputRef = useRef(null);
+  const rightSidebarInputRef = useRef(null);
 
   // Load display settings
   useEffect(() => {
@@ -170,6 +172,24 @@ function DisplayTab() {
     if (skin.inputBoxFontSize) root.style.setProperty('--skin-input-font-size', skin.inputBoxFontSize + 'px');
     if (skin.inputButtonFaceColor) root.style.setProperty('--skin-btn-face', skin.inputButtonFaceColor);
     if (skin.historyArrowColor) root.style.setProperty('--skin-arrow-color', skin.historyArrowColor);
+    if (skin.frameBtnFaceColor) root.style.setProperty('--skin-frame-btn-face', skin.frameBtnFaceColor);
+    if (skin.frameBtnTextColor) root.style.setProperty('--skin-frame-btn-text', skin.frameBtnTextColor);
+    if (skin.charActionMenuBg) root.style.setProperty('--skin-char-action-menu-bg', skin.charActionMenuBg);
+    if (skin.charActionBtnFace) root.style.setProperty('--skin-char-action-btn-face', skin.charActionBtnFace);
+    if (skin.charActionBtnText) root.style.setProperty('--skin-char-action-btn-text', skin.charActionBtnText);
+    if (skin.personaActionMenuBg) root.style.setProperty('--skin-persona-action-menu-bg', skin.personaActionMenuBg);
+    if (skin.personaActionBtnFace) root.style.setProperty('--skin-persona-action-btn-face', skin.personaActionBtnFace);
+    if (skin.personaActionBtnText) root.style.setProperty('--skin-persona-action-btn-text', skin.personaActionBtnText);
+    if (skin.leftSidebarBg) root.style.setProperty('--skin-left-sidebar-bg', skin.leftSidebarBg);
+    root.style.setProperty('--skin-left-sidebar-img', skin.leftSidebarBgImage ? `url("${skin.leftSidebarBgImage}")` : 'none');
+    if (skin.rightSidebarBg) root.style.setProperty('--skin-right-sidebar-bg', skin.rightSidebarBg);
+    root.style.setProperty('--skin-right-sidebar-img', skin.rightSidebarBgImage ? `url("${skin.rightSidebarBgImage}")` : 'none');
+    // Trim: remove variable entirely if empty so hardcoded fallbacks work
+    if (skin.uiTrimColor) {
+      root.style.setProperty('--skin-trim', skin.uiTrimColor);
+    } else {
+      root.style.removeProperty('--skin-trim');
+    }
   };
 
   // Apply on initial load
@@ -282,6 +302,37 @@ function DisplayTab() {
 
       <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
 
+      {/* Sidebars */}
+      <h4 style={{ margin: '0 0 8px' }}>Sidebars</h4>
+
+      <div className="form-group">
+        <label style={{ fontSize: '0.85rem' }}>Left Sidebar (Persona) — Image or Color</label>
+        <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended. Leave empty to use color instead.</p>
+        <input type="file" ref={leftSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'leftSidebarBgImage')} style={{ display: 'none' }} />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+          <button className="btn btn-sm btn-secondary" onClick={() => leftSidebarInputRef.current?.click()}>Choose Image</button>
+          {activeSkin?.leftSidebarBgImage && (
+            <button className="btn btn-sm btn-secondary" onClick={() => updateField('leftSidebarBgImage', '')}>Clear Image</button>
+          )}
+        </div>
+        {renderColorPicker('Color (if no image)', 'leftSidebarBg')}
+      </div>
+
+      <div className="form-group">
+        <label style={{ fontSize: '0.85rem' }}>Right Sidebar (Character) — Image or Color</label>
+        <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended. Leave empty to use color instead.</p>
+        <input type="file" ref={rightSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'rightSidebarBgImage')} style={{ display: 'none' }} />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+          <button className="btn btn-sm btn-secondary" onClick={() => rightSidebarInputRef.current?.click()}>Choose Image</button>
+          {activeSkin?.rightSidebarBgImage && (
+            <button className="btn btn-sm btn-secondary" onClick={() => updateField('rightSidebarBgImage', '')}>Clear Image</button>
+          )}
+        </div>
+        {renderColorPicker('Color (if no image)', 'rightSidebarBg')}
+      </div>
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
       {/* Player Chat */}
       <h4 style={{ margin: '0 0 8px' }}>Player Chat Bubbles</h4>
       {renderColorPicker('Outline Color', 'playerOutlineColor')}
@@ -319,6 +370,29 @@ function DisplayTab() {
 
       <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
 
+      {/* Frame Buttons (Devices/Actions toggle) */}
+      <h4 style={{ margin: '0 0 8px' }}>Devices / Actions Buttons</h4>
+      {renderColorPicker('Button Face', 'frameBtnFaceColor')}
+      {renderColorPicker('Button Text', 'frameBtnTextColor')}
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
+      {/* Character Action Menu */}
+      <h4 style={{ margin: '0 0 8px' }}>Character Action Menu</h4>
+      {renderColorPicker('Menu Background', 'charActionMenuBg')}
+      {renderColorPicker('Button Face', 'charActionBtnFace')}
+      {renderColorPicker('Button Text', 'charActionBtnText')}
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
+      {/* Persona Action Menu */}
+      <h4 style={{ margin: '0 0 8px' }}>Persona Action Menu</h4>
+      {renderColorPicker('Menu Background', 'personaActionMenuBg')}
+      {renderColorPicker('Button Face', 'personaActionBtnFace')}
+      {renderColorPicker('Button Text', 'personaActionBtnText')}
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
       {/* UI Colors */}
       <h4 style={{ margin: '0 0 8px' }}>UI</h4>
       {renderColorPicker('Header Color', 'uiHeaderColor')}
@@ -337,6 +411,8 @@ function DisplayTab() {
       </div>
 
       {renderFontPicker('System Font', 'uiSystemFont', null)}
+      {renderColorPicker('UI Trim Color', 'uiTrimColor')}
+      <p className="form-hint" style={{ marginTop: '-8px' }}>Solid color or gradient for all frame borders, resize handles, and metallic trim pieces. Leave empty to use the default gunmetal gradients.</p>
     </div>
   );
 }

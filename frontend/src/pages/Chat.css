@@ -132,8 +132,8 @@
 /* Sidebar */
 .chat-sidebar {
   width: 240px;
-  background-color: var(--bg-secondary);
-  background-image: url('../assets/sidebar-bg-left.png');
+  background-color: var(--skin-left-sidebar-bg, var(--bg-secondary));
+  background-image: var(--skin-left-sidebar-img, url('../assets/sidebar-bg-left.png'));
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -156,15 +156,7 @@
   right: 0;
   bottom: 6px;
   width: 6px;
-  background: linear-gradient(
-    90deg,
-    #1a1d21 0%,
-    #0d0f12 20%,
-    #1a1d21 40%,
-    #3d4147 60%,
-    #5c6169 80%,
-    #4a4e54 100%
-  );
+  background: var(--skin-trim, linear-gradient(90deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 40%, #3d4147 60%, #5c6169 80%, #4a4e54 100%));
   box-shadow:
     inset -1px 0 0 rgba(255, 255, 255, 0.05),
     inset 1px 0 0 rgba(0, 0, 0, 0.3);
@@ -177,7 +169,8 @@
   border-right: none;
   border-left: none;
   overflow: hidden; /* Lock sidebar - no scrolling */
-  background-image: url('../assets/sidebar-bg-right.png');
+  background-color: var(--skin-right-sidebar-bg, transparent);
+  background-image: var(--skin-right-sidebar-img, url('../assets/sidebar-bg-right.png'));
 }
 
 /* Interior metallic border on left side of right sidebar */
@@ -188,15 +181,7 @@
   left: 0;
   bottom: 6px;
   width: 6px;
-  background: linear-gradient(
-    90deg,
-    #4a4e54 0%,
-    #5c6169 20%,
-    #3d4147 40%,
-    #1a1d21 60%,
-    #0d0f12 80%,
-    #1a1d21 100%
-  );
+  background: var(--skin-trim, linear-gradient(90deg, #4a4e54 0%, #5c6169 20%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   box-shadow:
     inset 1px 0 0 rgba(255, 255, 255, 0.05),
     inset -1px 0 0 rgba(0, 0, 0, 0.3);
@@ -282,17 +267,10 @@
   flex: 1;
   max-width: 90px;
   height: 40px;
-  background: linear-gradient(
-    180deg,
-    #1a1d21 0%,
-    #0d0f12 30%,
-    #1a1d21 50%,
-    #0d0f12 70%,
-    #1a1d21 100%
-  );
+  background: var(--skin-frame-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
   border: 1px solid #3d4147;
   border-radius: 6px;
-  color: #8b9099;
+  color: var(--skin-frame-btn-text, #8b9099);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -336,12 +314,7 @@
   height: 0;
   overflow: hidden;
   pointer-events: auto;
-  background: linear-gradient(
-    180deg,
-    #1a1d21 0%,
-    #0d0f12 20%,
-    #1a1d21 100%
-  );
+  background: var(--skin-char-action-menu-bg, linear-gradient(180deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 100%));
   border: 1px solid #3d4147;
   border-top: none;
   border-radius: 0 0 8px 8px;
@@ -489,10 +462,10 @@
 .persona-action-btn {
   padding: 6px 6px;
   min-height: 36px;
-  background: linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%);
+  background: var(--skin-persona-action-btn-face, linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%));
   border: 1px solid #5c6169;
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--skin-persona-action-btn-text, #ffffff);
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -663,10 +636,10 @@
 .panel-action-btn {
   padding: 6px 6px;
   min-height: 36px;
-  background: linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%);
+  background: var(--skin-char-action-btn-face, linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%));
   border: 1px solid #5c6169;
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--skin-char-action-btn-text, #ffffff);
   font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
@@ -1914,15 +1887,7 @@
 .chat-input-resize-handle {
   height: 6px;
   cursor: ns-resize;
-  background: linear-gradient(
-    180deg,
-    #5c6169 0%,
-    #4a4e54 20%,
-    #3d4147 40%,
-    #1a1d21 60%,
-    #0d0f12 80%,
-    #1a1d21 100%
-  );
+  background: var(--skin-trim, linear-gradient(180deg, #5c6169 0%, #4a4e54 20%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.3);

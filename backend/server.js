@@ -12166,19 +12166,129 @@ const DEFAULT_SKIN = {
   inputBoxTextColor: '#ffffff',
   inputBoxFontSize: 16,
   inputButtonFaceColor: 'linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%)',
-  historyArrowColor: '#8b9099'
+  historyArrowColor: '#8b9099',
+  frameBtnFaceColor: 'linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%)',
+  frameBtnTextColor: '#8b9099',
+  charActionMenuBg: 'linear-gradient(180deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 100%)',
+  charActionBtnFace: 'linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%)',
+  charActionBtnText: '#ffffff',
+  personaActionMenuBg: '',
+  personaActionBtnFace: 'linear-gradient(180deg, #3d4147 0%, #2d3036 50%, #1a1d21 100%)',
+  personaActionBtnText: '#ffffff',
+  leftSidebarBg: '',
+  leftSidebarBgImage: '/assets/sidebar-bg-left.png',
+  rightSidebarBg: '',
+  rightSidebarBgImage: '/assets/sidebar-bg-right.png',
+  uiTrimColor: ''
 };
+
+const BUILTIN_SKINS = [
+  DEFAULT_SKIN,
+  {
+    id: 'skin-deep-forest',
+    name: 'Deep Forest',
+    builtIn: true,
+    backgroundImage: '',
+    playerOutlineColor: '#7cfc00',
+    playerBubbleBg: 'rgba(20, 40, 20, 0.85)',
+    playerTextColor: '#d4edda',
+    playerFont: 'Georgia, "Times New Roman", serif',
+    playerFontSize: 16,
+    charOutlineColor: '#8b4513',
+    charBubbleBg: 'rgba(40, 25, 10, 0.85)',
+    charTextColor: '#ffe4c4',
+    charFont: 'Georgia, "Times New Roman", serif',
+    charFontSize: 16,
+    systemOutlineColor: 'rgba(85, 107, 47, 0.6)',
+    systemBubbleBg: 'rgba(25, 50, 25, 0.85)',
+    systemTextColor: 'rgba(180, 220, 180, 0.95)',
+    systemFont: 'Georgia, "Times New Roman", serif',
+    systemFontSize: 14,
+    uiHeaderColor: 'linear-gradient(180deg, #1a2e1a 0%, #0d1f0d 40%, #061206 100%)',
+    uiTabColor: 'linear-gradient(180deg, #2a3a2a 0%, #1a2a1a 100%)',
+    uiModalBg: '',
+    uiModalBgImage: '',
+    uiSystemFont: 'Georgia, "Times New Roman", serif',
+    inputBoxBg: 'linear-gradient(180deg, #2a3a2a 0%, #1a2a1a 30%, #0d1f0d 60%, #1a2a1a 100%)',
+    inputBoxFont: 'Georgia, "Times New Roman", serif',
+    inputBoxTextColor: '#d4edda',
+    inputBoxFontSize: 16,
+    inputButtonFaceColor: 'linear-gradient(180deg, #1a2a1a 0%, #0d1f0d 50%, #1a2a1a 100%)',
+    historyArrowColor: '#6b8e6b',
+    frameBtnFaceColor: 'linear-gradient(180deg, #1a2a1a 0%, #0d1f0d 50%, #1a2a1a 100%)',
+    frameBtnTextColor: '#6b8e6b',
+    charActionMenuBg: 'linear-gradient(180deg, #1a2a1a 0%, #0d1f0d 20%, #1a2a1a 100%)',
+    charActionBtnFace: 'linear-gradient(180deg, #2d3d2d 0%, #1a2a1a 50%, #0d1f0d 100%)',
+    charActionBtnText: '#d4edda',
+    personaActionMenuBg: '#0d1f0d',
+    personaActionBtnFace: 'linear-gradient(180deg, #2d3d2d 0%, #1a2a1a 50%, #0d1f0d 100%)',
+    personaActionBtnText: '#d4edda',
+    leftSidebarBg: '#0d1f0d',
+    leftSidebarBgImage: '',
+    rightSidebarBg: '#0d1f0d',
+    rightSidebarBgImage: '',
+    uiTrimColor: '#1a3a1a'
+  },
+  {
+    id: 'skin-abandoned-warehouse',
+    name: 'Abandoned Warehouse',
+    builtIn: true,
+    backgroundImage: '',
+    playerOutlineColor: '#cc8844',
+    playerBubbleBg: 'rgba(50, 40, 30, 0.85)',
+    playerTextColor: '#e8d5b5',
+    playerFont: '"Courier New", Courier, monospace',
+    playerFontSize: 15,
+    charOutlineColor: '#888888',
+    charBubbleBg: 'rgba(35, 35, 40, 0.85)',
+    charTextColor: '#c8c8cc',
+    charFont: '"Courier New", Courier, monospace',
+    charFontSize: 15,
+    systemOutlineColor: 'rgba(120, 100, 70, 0.5)',
+    systemBubbleBg: 'rgba(40, 35, 25, 0.85)',
+    systemTextColor: 'rgba(200, 185, 155, 0.9)',
+    systemFont: '"Courier New", Courier, monospace',
+    systemFontSize: 13,
+    uiHeaderColor: 'linear-gradient(180deg, #2a2520 0%, #1a1815 40%, #0d0c0a 100%)',
+    uiTabColor: 'linear-gradient(180deg, #3a3530 0%, #2a2520 100%)',
+    uiModalBg: '',
+    uiModalBgImage: '',
+    uiSystemFont: '"Courier New", Courier, monospace',
+    inputBoxBg: 'linear-gradient(180deg, #3a3530 0%, #2a2520 30%, #1a1815 60%, #2a2520 100%)',
+    inputBoxFont: '"Courier New", Courier, monospace',
+    inputBoxTextColor: '#e8d5b5',
+    inputBoxFontSize: 15,
+    inputButtonFaceColor: 'linear-gradient(180deg, #2a2520 0%, #1a1815 50%, #2a2520 100%)',
+    historyArrowColor: '#8a7a6a',
+    frameBtnFaceColor: 'linear-gradient(180deg, #2a2520 0%, #1a1815 50%, #2a2520 100%)',
+    frameBtnTextColor: '#8a7a6a',
+    charActionMenuBg: 'linear-gradient(180deg, #2a2520 0%, #1a1815 20%, #2a2520 100%)',
+    charActionBtnFace: 'linear-gradient(180deg, #3a3530 0%, #2a2520 50%, #1a1815 100%)',
+    charActionBtnText: '#c8c8cc',
+    personaActionMenuBg: '#1a1815',
+    personaActionBtnFace: 'linear-gradient(180deg, #3a3530 0%, #2a2520 50%, #1a1815 100%)',
+    personaActionBtnText: '#e8d5b5',
+    leftSidebarBg: '#1a1815',
+    leftSidebarBgImage: '',
+    rightSidebarBg: '#1a1815',
+    rightSidebarBgImage: '',
+    uiTrimColor: '#2a2520'
+  }
+];
 
 function loadDisplaySettings() {
   try {
     const data = JSON.parse(fs.readFileSync(DISPLAY_SETTINGS_PATH, 'utf8'));
-    // Ensure default skin exists
-    if (!data.skins?.find(s => s.id === 'swelldreams-default')) {
-      data.skins = [DEFAULT_SKIN, ...(data.skins || [])];
+    // Ensure all built-in skins exist
+    for (const builtIn of BUILTIN_SKINS) {
+      if (!data.skins?.find(s => s.id === builtIn.id)) {
+        data.skins = data.skins || [];
+        data.skins.push(builtIn);
+      }
     }
     return data;
   } catch (e) {
-    return { activeSkinId: 'swelldreams-default', skins: [DEFAULT_SKIN] };
+    return { activeSkinId: 'swelldreams-default', skins: [...BUILTIN_SKINS] };
   }
 }
 

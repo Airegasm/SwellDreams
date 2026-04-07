@@ -20,15 +20,7 @@
   top: 35px;
   bottom: 0;
   width: 6px;
-  background: linear-gradient(
-    90deg,
-    #4a4e54 0%,
-    #5c6169 20%,
-    #3d4147 40%,
-    #1a1d21 60%,
-    #0d0f12 80%,
-    #1a1d21 100%
-  );
+  background: var(--skin-trim, linear-gradient(90deg, #4a4e54 0%, #5c6169 20%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   box-shadow:
     inset 1px 0 0 rgba(255, 255, 255, 0.1),
     inset -1px 0 0 rgba(0, 0, 0, 0.3);
@@ -43,15 +35,7 @@
 .frame-right {
   right: 0;
   bottom: 21px; /* Stop at tapered bar bottom level */
-  background: linear-gradient(
-    90deg,
-    #1a1d21 0%,
-    #0d0f12 20%,
-    #1a1d21 40%,
-    #3d4147 60%,
-    #5c6169 80%,
-    #4a4e54 100%
-  );
+  background: var(--skin-trim, linear-gradient(90deg, #1a1d21 0%, #0d0f12 20%, #1a1d21 40%, #3d4147 60%, #5c6169 80%, #4a4e54 100%));
   border-radius: 0 4px 4px 0;
 }
 
@@ -72,17 +56,7 @@
   left: 0;
   right: 0;
   height: 35px;
-  background: linear-gradient(
-    180deg,
-    #5c6169 0%,
-    #4a4e54 8%,
-    #2d3036 15%,
-    #5c6169 25%,
-    #3d4147 40%,
-    #1a1d21 60%,
-    #0d0f12 80%,
-    #1a1d21 100%
-  );
+  background: var(--skin-trim, linear-gradient(180deg, #5c6169 0%, #4a4e54 8%, #2d3036 15%, #5c6169 25%, #3d4147 40%, #1a1d21 60%, #0d0f12 80%, #1a1d21 100%));
   border-radius: 8px 8px 0 0;
   box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.1),
@@ -101,24 +75,22 @@
   z-index: 10;
 }
 
-/* Persona name - green glow */
+/* Persona name - uses player outline color */
 .frame-name.persona-name {
-  color: #00ff88;
+  color: var(--skin-player-outline, #00ff88);
   text-shadow:
-    0 0 8px rgba(0, 255, 136, 0.9),
-    0 0 16px rgba(0, 255, 136, 0.7),
-    0 0 24px rgba(0, 255, 136, 0.5),
-    0 0 32px rgba(0, 255, 136, 0.3);
+    0 0 8px var(--skin-player-outline, rgba(0, 255, 136, 0.9)),
+    0 0 16px var(--skin-player-outline, rgba(0, 255, 136, 0.7)),
+    0 0 24px var(--skin-player-outline, rgba(0, 255, 136, 0.5));
 }
 
-/* Character name - red glow */
+/* Character name - uses char outline color */
 .frame-name.character-name {
-  color: #ff4444;
+  color: var(--skin-char-outline, #ff4444);
   text-shadow:
-    0 0 8px rgba(255, 68, 68, 0.9),
-    0 0 16px rgba(255, 68, 68, 0.7),
-    0 0 24px rgba(255, 68, 68, 0.5),
-    0 0 32px rgba(255, 68, 68, 0.3);
+    0 0 8px var(--skin-char-outline, rgba(255, 68, 68, 0.9)),
+    0 0 16px var(--skin-char-outline, rgba(255, 68, 68, 0.7)),
+    0 0 24px var(--skin-char-outline, rgba(255, 68, 68, 0.5));
 }
 
 /* Interior corner curves for frame-top - larger to hide portrait border */
