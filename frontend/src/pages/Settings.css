@@ -1,7 +1,8 @@
 /* Page header for standalone pages */
 .page-header {
   padding: var(--spacing-md) var(--spacing-lg);
-  background-color: var(--bg-secondary);
+  background: var(--skin-header, var(--bg-secondary));
+  color: var(--skin-header-text, var(--text-primary));
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;

@@ -413,18 +413,23 @@
 /* ===================== */
 
 /* Static black section below persona portrait */
+/* Persona gauge backer — sits behind StatusBadges, matches character-bottom-bar trim */
+.persona-gauge-backer {
+  height: 60px;
+  margin: -1px -12px 0;
+  width: calc(100% + 24px);
+  background: var(--skin-trim-center, transparent);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 0;
+  margin-bottom: -60px; /* Overlap so gauge sits on top */
+}
+
 .persona-button-menu {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(
-    180deg,
-    #1a1d21 0%,
-    #0d0f12 30%,
-    #0a0c0e 50%,
-    #0d0f12 70%,
-    #1a1d21 100%
-  );
+  background: var(--skin-persona-action-menu-bg, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #0a0c0e 50%, #0d0f12 70%, #1a1d21 100%));
   border: 1px solid #3d4147;
   border-top: none;
   border-radius: 0 0 8px 8px;
