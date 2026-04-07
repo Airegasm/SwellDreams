@@ -39,6 +39,7 @@ body {
   max-height: 64px;
   padding: 0 var(--spacing-lg);
   background: var(--skin-header, linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%));
+  color: var(--skin-header-text, var(--text-primary));
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   position: relative;

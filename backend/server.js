@@ -2724,7 +2724,7 @@ migrateCharacterStories();
  * Only sets fields that don't already exist — never overwrites existing values.
  * Runs on every startup to ensure all cards are up to date.
  */
-function migrateNewFieldDefaults() {
+async function migrateNewFieldDefaults() {
   const CHARACTER_DEFAULTS = {
     isPumpable: false,
     characterCalibrationTime: 60,
@@ -2796,7 +2796,7 @@ function migrateNewFieldDefaults() {
       // Determine if default or custom
       const isDefault = imageStorage.getPersonaDir &&
         fs.existsSync(path.join(imageStorage.getPersonaDir(persona.id, true), 'persona.json'));
-      imageStorage.savePersonaJson(persona, isDefault);
+      await imageStorage.savePersonaJson(persona, isDefault);
       personaUpdated++;
     }
   }
@@ -2806,7 +2806,7 @@ function migrateNewFieldDefaults() {
   }
 }
 
-migrateNewFieldDefaults();
+migrateNewFieldDefaults().catch(e => console.error('[Migration] Error:', e.message));
 
 // ============================================
 // Simulation Mode Detection
@@ -12184,6 +12184,10 @@ const DEFAULT_SKIN = {
   trimFooterColor: '',
   nameBackingTransparent: true,
   nameBackingColor: '#1a1d21',
+  uiHeaderTextColor: '#f3f4f6',
+  uiSectionHeaderColor: '',
+  uiSectionBgColor: '',
+  uiSectionFontColor: '',
   sceneDetailsBg: 'transparent',
   sceneDetailsText: '#1a1d21',
   sceneDetailsFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -12214,7 +12218,11 @@ const BUILTIN_SKINS = [
     systemFont: 'Georgia, "Times New Roman", serif',
     systemFontSize: 14,
     uiHeaderColor: 'linear-gradient(180deg, #1a2e1a 0%, #0d1f0d 40%, #061206 100%)',
+    uiHeaderTextColor: '#b8d4b8',
     uiTabColor: 'linear-gradient(180deg, #2a3a2a 0%, #1a2a1a 100%)',
+    uiSectionHeaderColor: 'linear-gradient(0deg, #061206 0%, #0d1f0d 60%, #1a2e1a 100%)',
+    uiSectionBgColor: '#e8f0e8',
+    uiSectionFontColor: '#1a2e1a',
     uiModalBg: '',
     uiModalBgImage: '',
     uiSystemFont: 'Georgia, "Times New Roman", serif',
@@ -12268,7 +12276,11 @@ const BUILTIN_SKINS = [
     systemFont: '"Courier New", Courier, monospace',
     systemFontSize: 13,
     uiHeaderColor: 'linear-gradient(180deg, #2a2520 0%, #1a1815 40%, #0d0c0a 100%)',
+    uiHeaderTextColor: '#e8d5b5',
     uiTabColor: 'linear-gradient(180deg, #3a3530 0%, #2a2520 100%)',
+    uiSectionHeaderColor: 'linear-gradient(0deg, #0d0c0a 0%, #1a1815 60%, #2a2520 100%)',
+    uiSectionBgColor: '#f0e8d8',
+    uiSectionFontColor: '#2a2520',
     uiModalBg: '',
     uiModalBgImage: '',
     uiSystemFont: '"Courier New", Courier, monospace',

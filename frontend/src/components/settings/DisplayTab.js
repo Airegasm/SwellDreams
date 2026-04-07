@@ -163,7 +163,8 @@ function DisplayTab() {
     '--skin-persona-action-menu-bg', '--skin-persona-action-btn-face', '--skin-persona-action-btn-text',
     '--skin-left-sidebar-bg', '--skin-left-sidebar-img', '--skin-right-sidebar-bg', '--skin-right-sidebar-img',
     '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
-    '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing'
+    '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing',
+    '--skin-header-text', '--skin-section-header', '--skin-section-bg', '--skin-section-font'
   ];
 
   const applySkin = (skin) => {
@@ -239,6 +240,11 @@ function DisplayTab() {
     } else {
       root.style.removeProperty('--skin-name-backing');
     }
+    // UI settings page colors
+    if (skin.uiHeaderTextColor) root.style.setProperty('--skin-header-text', skin.uiHeaderTextColor);
+    if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
+    if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
+    if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
   };
 
   // Apply on initial load
@@ -329,7 +335,7 @@ function DisplayTab() {
         <select
           value={activeSkin?.[fontField] || WEB_SAFE_FONTS[0].value}
           onChange={(e) => updateField(fontField, e.target.value)}
-          style={{ flex: 1 }}
+          style={{ flex: '0 1 140px', minWidth: '100px' }}
         >
           {WEB_SAFE_FONTS.map(f => (
             <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
@@ -342,7 +348,7 @@ function DisplayTab() {
             max={32}
             value={activeSkin?.[sizeField] || 16}
             onChange={(e) => updateField(sizeField, parseInt(e.target.value) || 16)}
-            style={{ width: '60px' }}
+            style={{ width: '80px' }}
             title="Font size (px)"
           />
         )}
@@ -357,6 +363,17 @@ function DisplayTab() {
         <span className="collapse-icon">{expandedSections[id] ? '▼' : '▶'}</span>
       </div>
       {expandedSections[id] && <div className="settings-section-content">{children}</div>}
+    </div>
+  );
+
+  const imgUpload = (ref, field, hint) => (
+    <div className="form-group">
+      <p className="form-hint" style={{ margin: '2px 0 6px' }}>{hint}</p>
+      <input type="file" ref={ref} accept="image/*" onChange={(e) => handleImageUpload(e, field)} style={{ display: 'none' }} />
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <button className="btn btn-sm btn-secondary" onClick={() => ref.current?.click()}>Choose Image</button>
+        {activeSkin?.[field] && <button className="btn btn-sm btn-secondary" onClick={() => updateField(field, '')}>Clear</button>}
+      </div>
     </div>
   );
 
@@ -379,99 +396,72 @@ function DisplayTab() {
         </div>
       </div>
 
-      {S('background', 'Background & Sidebars', <>
-        <div className="form-group">
-          <label><strong>Chat Background Image</strong></label>
-          <p className="form-hint" style={{ margin: '2px 0 6px' }}>Recommended: 1920x1080+, dark/subtle patterns</p>
-          <input type="file" ref={bgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'backgroundImage')} style={{ display: 'none' }} />
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => bgInputRef.current?.click()}>Choose Image</button>
-            {activeSkin?.backgroundImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('backgroundImage', '')}>Clear</button>}
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Left Sidebar (Persona) — Image or Color</label>
-          <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended</p>
-          <input type="file" ref={leftSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'leftSidebarBgImage')} style={{ display: 'none' }} />
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => leftSidebarInputRef.current?.click()}>Choose Image</button>
-            {activeSkin?.leftSidebarBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('leftSidebarBgImage', '')}>Clear</button>}
-          </div>
-          {renderColorPicker('Color (if no image)', 'leftSidebarBg')}
-        </div>
-        <div className="form-group">
-          <label>Right Sidebar (Character) — Image or Color</label>
-          <p className="form-hint" style={{ margin: '2px 0 6px' }}>240x900+ recommended</p>
-          <input type="file" ref={rightSidebarInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'rightSidebarBgImage')} style={{ display: 'none' }} />
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => rightSidebarInputRef.current?.click()}>Choose Image</button>
-            {activeSkin?.rightSidebarBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('rightSidebarBgImage', '')}>Clear</button>}
-          </div>
-          {renderColorPicker('Color (if no image)', 'rightSidebarBg')}
-        </div>
+      {S('background', 'Backgrounds', <>
+        <label><strong>Chat Background</strong></label>
+        {imgUpload(bgInputRef, 'backgroundImage', '1920x1080+ recommended, dark/subtle patterns')}
       </>)}
 
-      {S('playerChat', 'Player Chat Bubbles', <>
-        {renderColorPicker('Outline Color', 'playerOutlineColor')}
-        {renderColorPicker('Background Color', 'playerBubbleBg')}
-        {renderColorPicker('Text Color', 'playerTextColor')}
+      {S('chat', 'Chat Colors', <>
+        <h4 style={{ margin: '0 0 8px', color: '#1a1a1a' }}>Player Bubbles</h4>
+        {renderColorPicker('Outline', 'playerOutlineColor')}
+        {renderColorPicker('Background', 'playerBubbleBg')}
+        {renderColorPicker('Text', 'playerTextColor')}
         {renderFontPicker('Font', 'playerFont', 'playerFontSize')}
-      </>)}
 
-      {S('charChat', 'Character Chat Bubbles', <>
-        {renderColorPicker('Outline Color', 'charOutlineColor')}
-        {renderColorPicker('Background Color', 'charBubbleBg')}
-        {renderColorPicker('Text Color', 'charTextColor')}
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Character Bubbles</h4>
+        {renderColorPicker('Outline', 'charOutlineColor')}
+        {renderColorPicker('Background', 'charBubbleBg')}
+        {renderColorPicker('Text', 'charTextColor')}
         {renderFontPicker('Font', 'charFont', 'charFontSize')}
-      </>)}
 
-      {S('systemChat', 'System / Summary Bubbles', <>
-        {renderColorPicker('Outline Color', 'systemOutlineColor')}
-        {renderColorPicker('Background Color', 'systemBubbleBg')}
-        {renderColorPicker('Text Color', 'systemTextColor')}
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>System / Summary Bubbles</h4>
+        {renderColorPicker('Outline', 'systemOutlineColor')}
+        {renderColorPicker('Background', 'systemBubbleBg')}
+        {renderColorPicker('Text', 'systemTextColor')}
         {renderFontPicker('Font', 'systemFont', 'systemFontSize')}
-      </>)}
 
-      {S('chatInput', 'Chat Input Box', <>
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Input Box</h4>
         {renderColorPicker('Background', 'inputBoxBg')}
-        {renderColorPicker('Text Color', 'inputBoxTextColor')}
+        {renderColorPicker('Text', 'inputBoxTextColor')}
         {renderFontPicker('Font', 'inputBoxFont', 'inputBoxFontSize')}
-        {renderColorPicker('Button Face Color', 'inputButtonFaceColor')}
+        {renderColorPicker('Send Button Face', 'inputButtonFaceColor')}
         {renderColorPicker('History Arrow Color', 'historyArrowColor')}
       </>)}
 
-      {S('buttons', 'Devices / Actions Buttons', <>
-        {renderColorPicker('Button Face', 'frameBtnFaceColor')}
-        {renderColorPicker('Button Text', 'frameBtnTextColor')}
-      </>)}
-
-      {S('actionMenus', 'Action Menus', <>
-        <h4 style={{ margin: '0 0 8px' }}>Character Actions</h4>
-        {renderColorPicker('Menu Background', 'charActionMenuBg')}
-        {renderColorPicker('Button Face', 'charActionBtnFace')}
-        {renderColorPicker('Button Text', 'charActionBtnText')}
-        <h4 style={{ margin: '12px 0 8px' }}>Persona Actions</h4>
-        {renderColorPicker('Menu Background', 'personaActionMenuBg')}
-        {renderColorPicker('Button Face', 'personaActionBtnFace')}
-        {renderColorPicker('Button Text', 'personaActionBtnText')}
-      </>)}
-
-      {S('trim', 'Frame Trim', <>
-        <p className="section-description">Column borders, resize handles, and metallic trim. Leave empty to use the default gunmetal gradients.</p>
-        {renderColorPicker('Column Topper Trim', 'trimTopperColor')}
-        {renderColorPicker('Column Center / Divider Trim', 'trimCenterColor')}
-        {renderColorPicker('Column Footer Trim', 'trimFooterColor')}
-        <div className="form-group" style={{ marginTop: '12px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {S('columns', 'Columns & Trim', <>
+        <h4 style={{ margin: '0 0 8px', color: '#1a1a1a' }}>General Trim</h4>
+        <p className="section-description">Leave empty to use default gunmetal gradients.</p>
+        {renderColorPicker('Column Topper', 'trimTopperColor')}
+        {renderColorPicker('Center Divider', 'trimCenterColor')}
+        {renderColorPicker('Column Footer', 'trimFooterColor')}
+        <div className="form-group" style={{ marginTop: '8px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a1a1a' }}>
             <input type="checkbox" checked={activeSkin?.nameBackingTransparent ?? true}
               onChange={(e) => updateField('nameBackingTransparent', e.target.checked)} />
             Name Backing Transparent
           </label>
           {!(activeSkin?.nameBackingTransparent ?? true) && renderColorPicker('Name Backing Color', 'nameBackingColor')}
         </div>
-      </>)}
 
-      {S('sceneDetails', 'Scene Details (Character Column)', <>
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Player Column (Left)</h4>
+        <label style={{ color: '#1a1a1a' }}>Sidebar — Image or Color</label>
+        {imgUpload(leftSidebarInputRef, 'leftSidebarBgImage', '240x900+ recommended')}
+        {renderColorPicker('Color (if no image)', 'leftSidebarBg')}
+        {renderColorPicker('Action Menu Background', 'personaActionMenuBg')}
+        {renderColorPicker('Action Button Face', 'personaActionBtnFace')}
+        {renderColorPicker('Action Button Text', 'personaActionBtnText')}
+
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Character Column (Right)</h4>
+        <label style={{ color: '#1a1a1a' }}>Sidebar — Image or Color</label>
+        {imgUpload(rightSidebarInputRef, 'rightSidebarBgImage', '240x900+ recommended')}
+        {renderColorPicker('Color (if no image)', 'rightSidebarBg')}
+        {renderColorPicker('Action Menu Background', 'charActionMenuBg')}
+        {renderColorPicker('Action Button Face', 'charActionBtnFace')}
+        {renderColorPicker('Action Button Text', 'charActionBtnText')}
+        {renderColorPicker('Devices/Actions Toggle Face', 'frameBtnFaceColor')}
+        {renderColorPicker('Devices/Actions Toggle Text', 'frameBtnTextColor')}
+
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Scene Details</h4>
         {renderColorPicker('Background', 'sceneDetailsBg')}
         {renderColorPicker('Text Color', 'sceneDetailsText')}
         {renderFontPicker('Font', 'sceneDetailsFont', 'sceneDetailsFontSize')}
@@ -479,17 +469,14 @@ function DisplayTab() {
       </>)}
 
       {S('ui', 'Settings Pages & UI', <>
-        {renderColorPicker('Header / Nav Color', 'uiHeaderColor')}
+        {renderColorPicker('Main Title Header Background', 'uiHeaderColor')}
+        {renderColorPicker('Main Title Header Font Color', 'uiHeaderTextColor')}
         {renderColorPicker('Menu Tab Strip Color', 'uiTabColor')}
-        <div className="form-group">
-          <label>Modal Background Image</label>
-          <p className="form-hint" style={{ margin: '2px 0 6px' }}>1024x768+, subtle textures</p>
-          <input type="file" ref={modalBgInputRef} accept="image/*" onChange={(e) => handleImageUpload(e, 'uiModalBgImage')} style={{ display: 'none' }} />
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => modalBgInputRef.current?.click()}>Choose Image</button>
-            {activeSkin?.uiModalBgImage && <button className="btn btn-sm btn-secondary" onClick={() => updateField('uiModalBgImage', '')}>Clear</button>}
-          </div>
-        </div>
+        {renderColorPicker('Collapsible Section Header Color', 'uiSectionHeaderColor')}
+        {renderColorPicker('Section Background Color', 'uiSectionBgColor')}
+        {renderColorPicker('Section Font Color', 'uiSectionFontColor')}
+        <label style={{ color: '#1a1a1a', marginTop: '8px' }}>Modal Background Image</label>
+        {imgUpload(modalBgInputRef, 'uiModalBgImage', '1024x768+, subtle textures')}
         {renderFontPicker('System Font', 'uiSystemFont', null)}
       </>)}
     </div>

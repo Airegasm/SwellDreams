@@ -11,7 +11,7 @@
 .page-header h1 {
   font-size: var(--font-size-xl);
   margin: 0;
-  color: var(--text-primary);
+  color: var(--skin-header-text, var(--text-primary));
 }
 
 .header-close-btn {

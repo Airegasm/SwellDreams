@@ -378,7 +378,8 @@ export function AppProvider({ children }) {
              '--skin-persona-action-menu-bg','--skin-persona-action-btn-face','--skin-persona-action-btn-text',
              '--skin-left-sidebar-bg','--skin-left-sidebar-img','--skin-right-sidebar-bg','--skin-right-sidebar-img',
              '--skin-scene-details-bg','--skin-scene-details-text','--skin-scene-details-font','--skin-scene-details-font-size',
-             '--skin-pumpable-color','--skin-trim-topper','--skin-trim-center','--skin-trim-footer','--skin-name-backing'
+             '--skin-pumpable-color','--skin-trim-topper','--skin-trim-center','--skin-trim-footer','--skin-name-backing',
+             '--skin-header-text','--skin-section-header','--skin-section-bg','--skin-section-font'
             ].forEach(v => root.style.removeProperty(v));
             break;
           }
@@ -425,6 +426,10 @@ export function AppProvider({ children }) {
           if (skin.trimCenterColor) root.style.setProperty('--skin-trim-center', skin.trimCenterColor);
           if (skin.trimFooterColor) root.style.setProperty('--skin-trim-footer', skin.trimFooterColor);
           if (!skin.nameBackingTransparent && skin.nameBackingColor) root.style.setProperty('--skin-name-backing', skin.nameBackingColor);
+          if (skin.uiHeaderTextColor) root.style.setProperty('--skin-header-text', skin.uiHeaderTextColor);
+          if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
+          if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
+          if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
         }
         break;
       }

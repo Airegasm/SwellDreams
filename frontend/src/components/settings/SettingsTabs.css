@@ -1209,10 +1209,10 @@
   padding: var(--spacing-md);
   margin: 0;
   cursor: pointer;
-  background: linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%);
+  background: var(--skin-section-header, linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%));
   font-size: 1.1rem;
   line-height: 1;
-  color: var(--text-primary);
+  color: var(--skin-header-text, var(--text-primary));
   transition: filter 0.2s;
   user-select: none;
 }
@@ -1232,10 +1232,10 @@
 .settings-section-content {
   padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
-  background-image: url('../../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
-  color: #1a1a1a; /* Dark text for light background */
+  color: var(--skin-section-font, #1a1a1a);
 }
 
 /* Connection Grid Layout - CSS Grid for precise alignment */

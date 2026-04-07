@@ -138,6 +138,10 @@ function App() {
         if (skin.trimCenterColor) root.style.setProperty('--skin-trim-center', skin.trimCenterColor);
         if (skin.trimFooterColor) root.style.setProperty('--skin-trim-footer', skin.trimFooterColor);
         if (!skin.nameBackingTransparent && skin.nameBackingColor) root.style.setProperty('--skin-name-backing', skin.nameBackingColor);
+        if (skin.uiHeaderTextColor) root.style.setProperty('--skin-header-text', skin.uiHeaderTextColor);
+        if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
+        if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
+        if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
       }
     }).catch(() => {});
   }, []);
