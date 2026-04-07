@@ -61,7 +61,7 @@ body {
   top: 6px;
   left: 6px;
   width: 231px;
-  height: 91px;
+  height: 64px;
   background: var(--skin-trim-topper, linear-gradient(180deg, #5c6169 0%, #4a4e54 8%, #2d3036 15%, #3d4147 25%, #1a1d21 40%, #0d0f12 60%, #0d0f12 100%));
   border-radius: 8px 8px 0 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
