@@ -1515,8 +1515,9 @@ function Chat() {
               ⚙
             </button>
             {showClearMenu && (
-              <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)}>
-                <div className="clear-menu" onClick={(e) => e.stopPropagation()}>
+              <>
+                <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)} />
+                <div className="clear-menu">
                   <div className="clear-menu-header">Clear</div>
                   <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>
                     Screen
@@ -1531,7 +1532,7 @@ function Chat() {
                     Summarize &amp; Clear
                   </button>
                 </div>
-              </div>
+              </>
             )}
           </div>
           {sessionLoading ? (

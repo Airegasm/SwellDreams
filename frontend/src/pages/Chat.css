@@ -1609,19 +1609,21 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1001;
+  z-index: 999;
 }
 
 .clear-menu {
   position: absolute;
-  top: 60px;
+  top: 100%;
   right: 0;
+  margin-top: 6px;
   background: #1e2028;
   border: 1px solid #3a3d45;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   min-width: 180px;
   overflow: hidden;
+  z-index: 1001;
 }
 
 .clear-menu-header {

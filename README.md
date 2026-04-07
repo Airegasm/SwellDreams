@@ -250,6 +250,15 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Auto-updating** — start scripts pull latest changes from git before launching
 - **Per-file character storage** — characters stored as individual JSON files, auto-indexed on startup
 
+### Display & Skins
+
+- **Skin system** — full visual customization with saveable skin profiles (Settings > Display)
+- **Customizable elements** — player/character/system bubble colors, outlines, text, fonts, background image, modal background, header color, tab strip color
+- **Per-character skins** — assign a custom skin to each character story, auto-loaded on session start
+- **Checkpoint skin triggers** — dynamically change skins based on capacity ranges via checkpoint triggers
+- **Web-safe fonts** — 14 font options for chat bubbles and system UI
+- **Live preview** — skin changes apply instantly via CSS custom properties
+
 ---
 
 ## Installation

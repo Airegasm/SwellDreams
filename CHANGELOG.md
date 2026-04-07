@@ -5,6 +5,30 @@ All notable changes to SwellDreams will be documented in this file.
 ## [v3.9.6] - 2026-04-07
 
 ### Added
+- **Display Settings / Skin System** — New Settings > Display tab with full visual customization
+  - Skin CRUD: save, load, update, rename, delete custom skins (default is read-only)
+  - Player/Character/System chat bubble colors, outlines, text colors, fonts, font sizes
+  - Background image, modal background image, UI header color, tab strip color, system font
+  - Web-safe font picker, custom image upload with size recommendations
+  - Per-character story skin: Custom Skin dropdown auto-loads a skin when starting a session
+  - Set Display Skin checkpoint trigger: dynamically change skins based on capacity ranges
+  - Live CSS variable injection with WebSocket push to all connected clients
+- **Persona Disposition System** — General Disposition dropdown on persona (baseline emotion)
+  - Override Persona Starting Disposition per character story (enable checkbox + dropdown)
+  - 39 disposition/emotion options (added: playful, defiant, bratty, eager, reluctant, resigned, stoic, desperate, panicked, nervous, vulnerable, overwhelmed, aggressive, euphoric, smug, flirtatious, detached, broken, fearful, hysterical, manic, proud, humiliated, adoring, spiteful, pleading)
+- **Persona Checkpoint Triggers** — Full trigger system (TriggerRow) in persona checkpoint ranges
+  - Checkpoint triggers saved with persona checkpoint profiles
+  - Character checkpoint triggers take precedence over persona triggers for same range/type
+- **Separate Persona Checkpoint Profiles** — Persona profiles stored independently from character profiles
+  - 6 built-in profiles with triggers and desire shifts: Eager Submissive, Reluctant Curious, Defiant Brat, Fascinated Observer, Protective Caretaker, Sadistic Controller
+- **New Trigger Types** — Set Player Attribute, Nudge Char/Player Attribute (+/-), Set Player Disposition, Set Player Inflate/Pop Desire, Set Player Desire to Inflate/Pop Others, Set Display Skin
+- **Searchable Trigger Dropdown** — Type-to-filter search in checkpoint trigger type picker
+- **Token Switching: Remove** — Strip entire sentences containing trigger words/phrases with colon-aware boundaries
+- **Pre-Inflation Gate** — 0% checkpoint blocks LLM pump commands until human-initiated capacity > 0
+  - System notice bubble after welcome message, Device Access toggle with "Checkpoint Gated" indicator
+- **Clear Chat Menu** — Gear button next to zoom controls: Clear Screen, Clear Context, Clear Both, Summarize & Clear
+- **Random Welcome Message Version** — Toggle (R) button picks random version per session start
+- **Batch V2/V3 Import** — Multi-file selection with per-file error handling
 - **Token Switching** — New section in Settings > Global States that replaces overused LLM words with random alternatives
   - CRUD list with trigger word → comma-separated replacements
   - Case-preserving whole-word replacement (Title Case, ALL CAPS, lowercase)

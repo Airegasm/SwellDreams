@@ -10,6 +10,73 @@ function WhatsNewTab() {
       </div>
 
       <div className="help-section">
+        <h3>🎨 Display Settings &amp; Skin System</h3>
+        <p>
+          Full visual customization via Settings {'>'} Display. Create, save, and switch between custom skins
+          that control every visual element of the chat interface.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Customizable:</strong>
+            <p>Player/Character/System bubble colors, outlines, text colors, fonts, sizes. Background image, modal background, header and tab strip colors.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Per-Character Skins:</strong>
+            <p>Assign a skin to each character story. It auto-loads when starting a session with that story.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Checkpoint Trigger:</strong>
+            <p>"Set Display Skin" trigger type lets skins change dynamically based on capacity ranges.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🧠 Persona Disposition &amp; Checkpoint Triggers</h3>
+        <p>
+          Personas now have a General Disposition (baseline emotion) and full checkpoint trigger support
+          matching the character system. 39 disposition options available.
+        </p>
+        <div className="feature-list">
+          <div className="feature-item">
+            <strong>Persona Checkpoint Triggers:</strong>
+            <p>Full trigger system under each checkpoint range in persona editor. Triggers save with profiles.</p>
+          </div>
+          <div className="feature-item">
+            <strong>Character Precedence:</strong>
+            <p>If both character and persona checkpoints fire triggers for the same range and type, the character trigger takes priority.</p>
+          </div>
+          <div className="feature-item">
+            <strong>6 Built-in Profiles:</strong>
+            <p>Eager Submissive, Reluctant Curious, Defiant Brat (player). Fascinated Observer, Protective Caretaker, Sadistic Controller (character).</p>
+          </div>
+          <div className="feature-item">
+            <strong>New Trigger Types:</strong>
+            <p>Set/Nudge Player Attribute, Set Player Disposition, Set Player Desires, Set Display Skin, and more.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="help-section">
+        <h3>🧹 Clear Chat Menu</h3>
+        <p>
+          Gear button next to the font size controls opens a clear menu with four options:
+          Clear Screen, Clear Context, Clear Both, and Summarize {'&'} Clear.
+          Summarize generates an AI narrative summary, clears everything, then shows the summary
+          as a blue bubble with the session state preserved in LLM memory.
+        </p>
+      </div>
+
+      <div className="help-section">
+        <h3>🛡️ Pre-Inflation Gate</h3>
+        <p>
+          When a character has a 0% checkpoint with text, the LLM cannot activate pumps until a human
+          action (manual control, button, or flow) raises capacity above 0% for the first time.
+          A system notice appears after the welcome message, and the Devices panel shows "Checkpoint Gated."
+        </p>
+      </div>
+
+      <div className="help-section">
         <h3>🔀 Token Switching</h3>
         <p>
           Prevent LLMs from falling into repetitive word patterns. Token switching scans every AI response
