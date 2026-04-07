@@ -1666,13 +1666,6 @@ Write only the scenario description itself, no explanations.`;
           </button>
           <button
             type="button"
-            className={`modal-tab ${activeTab === 'session' ? 'active' : ''}`}
-            onClick={() => setActiveTab('session')}
-          >
-            Session
-          </button>
-          <button
-            type="button"
             className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`}
             onClick={() => setActiveTab('checkpoints')}
           >
@@ -2325,6 +2318,66 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
 
+                {/* Session Defaults (per-story) */}
+                <div className="story-section-divider" style={{ marginTop: '1rem', marginBottom: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                  <h4 style={{ margin: '0 0 0.25rem 0' }}>Session Defaults</h4>
+                  <p className="section-hint">Starting values when beginning a new session with this story.</p>
+                </div>
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Starting Capacity</label>
+                    <span className="form-value">{activeStory?.startingCapacity || 0}%</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="100" step="5"
+                    value={activeStory?.startingCapacity || 0}
+                    onChange={(e) => updateStoryField('startingCapacity', parseInt(e.target.value))}
+                  />
+                </div>
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Pain Level</label>
+                    <span className="form-value">{activeStory?.startingPain || 0}</span>
+                  </div>
+                  <input
+                    type="range" min="0" max="10" step="1"
+                    value={activeStory?.startingPain || 0}
+                    onChange={(e) => updateStoryField('startingPain', parseInt(e.target.value))}
+                  />
+                </div>
+
+                <div className="story-field">
+                  <label>Emotion</label>
+                  <select
+                    value={activeStory?.startingEmotion || 'neutral'}
+                    onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
+                  >
+                    <option value="neutral">Neutral</option>
+                    <option value="happy">Happy</option>
+                    <option value="excited">Excited</option>
+                    <option value="nervous">Nervous</option>
+                    <option value="uncomfortable">Uncomfortable</option>
+                    <option value="struggling">Struggling</option>
+                    <option value="distressed">Distressed</option>
+                    <option value="desperate">Desperate</option>
+                  </select>
+                </div>
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Auto-Capacity Speed</label>
+                    <span className="form-value">{(activeStory?.startingCapacityModifier || 1.0).toFixed(2)}x</span>
+                  </div>
+                  <input
+                    type="range" min="0.25" max="2" step="0.25"
+                    value={activeStory?.startingCapacityModifier || 1.0}
+                    onChange={(e) => updateStoryField('startingCapacityModifier', parseFloat(e.target.value))}
+                  />
+                  <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
+                </div>
+
                 {/* V2/V3 Import Reference - Show original content if imported */}
                 {formData.extensions?.v2v3Import && (
                   <div className="story-subsection">
@@ -2875,89 +2928,6 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Session Tab */}
-          <div className="modal-body character-modal-body" style={{ display: activeTab === 'session' ? 'block' : 'none' }}>
-            <div className="session-defaults-editor">
-              <h4>Session</h4>
-              <p className="section-hint">These values will be used when starting a new session with this character.</p>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Starting Capacity</label>
-                  <span className="form-value">{formData.sessionDefaults?.capacity || 0}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={formData.sessionDefaults?.capacity || 0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    sessionDefaults: { ...prev.sessionDefaults, capacity: parseInt(e.target.value) }
-                  }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Pain Level</label>
-                  <span className="form-value">{formData.sessionDefaults?.pain || 0}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="1"
-                  value={formData.sessionDefaults?.pain || 0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    sessionDefaults: { ...prev.sessionDefaults, pain: parseInt(e.target.value) }
-                  }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Emotion</label>
-                <select
-                  value={formData.sessionDefaults?.emotion || 'neutral'}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    sessionDefaults: { ...prev.sessionDefaults, emotion: e.target.value }
-                  }))}
-                >
-                  <option value="neutral">Neutral</option>
-                  <option value="happy">Happy</option>
-                  <option value="excited">Excited</option>
-                  <option value="nervous">Nervous</option>
-                  <option value="uncomfortable">Uncomfortable</option>
-                  <option value="struggling">Struggling</option>
-                  <option value="distressed">Distressed</option>
-                  <option value="desperate">Desperate</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Auto-Capacity Speed</label>
-                  <span className="form-value">{(formData.sessionDefaults?.capacityModifier || 1.0).toFixed(2)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.25"
-                  max="2"
-                  step="0.25"
-                  value={formData.sessionDefaults?.capacityModifier || 1.0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    sessionDefaults: { ...prev.sessionDefaults, capacityModifier: parseFloat(e.target.value) }
-                  }))}
-                />
-                <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
-              </div>
             </div>
           </div>
 

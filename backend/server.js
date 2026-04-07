@@ -12653,15 +12653,30 @@ app.post('/api/session/reset', async (req, res) => {
   // Get initial values from request body (if provided)
   const initialValues = req.body?.initialValues || {};
 
-  // Load settings and character to get starting emotion
+  // Load settings and character to get per-story session defaults
   const settings = loadData(DATA_FILES.settings);
-  let startingEmotion = 'neutral';
+  let storyDefaults = { capacity: 0, pain: 0, emotion: 'neutral', capacityModifier: 1.0 };
 
   if (settings?.activeCharacterId) {
-    const characters = loadData(DATA_FILES.characters) || [];
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
-    if (activeCharacter && activeCharacter.startingEmotion) {
-      startingEmotion = activeCharacter.startingEmotion;
+    if (activeCharacter) {
+      const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+      if (activeStory) {
+        storyDefaults.capacity = activeStory.startingCapacity || 0;
+        storyDefaults.pain = activeStory.startingPain || 0;
+        storyDefaults.emotion = activeStory.startingEmotion || activeCharacter.startingEmotion || 'neutral';
+        storyDefaults.capacityModifier = activeStory.startingCapacityModifier || 1.0;
+      } else if (activeCharacter.startingEmotion) {
+        storyDefaults.emotion = activeCharacter.startingEmotion;
+      }
+      // Legacy fallback: check old sessionDefaults if story fields are empty
+      if (activeCharacter.sessionDefaults) {
+        if (!activeStory?.startingCapacity && activeCharacter.sessionDefaults.capacity) storyDefaults.capacity = activeCharacter.sessionDefaults.capacity;
+        if (!activeStory?.startingPain && activeCharacter.sessionDefaults.pain) storyDefaults.pain = activeCharacter.sessionDefaults.pain;
+        if (!activeStory?.startingEmotion && activeCharacter.sessionDefaults.emotion) storyDefaults.emotion = activeCharacter.sessionDefaults.emotion;
+        if (!activeStory?.startingCapacityModifier && activeCharacter.sessionDefaults.capacityModifier) storyDefaults.capacityModifier = activeCharacter.sessionDefaults.capacityModifier;
+      }
     }
   }
 
@@ -12681,11 +12696,11 @@ app.post('/api/session/reset', async (req, res) => {
   // Abort any pending LLM requests
   llmService.abortAllRequests();
 
-  // Use initial values if provided, otherwise use defaults
-  sessionState.capacity = initialValues.capacity ?? 0;
-  sessionState.pain = initialValues.pain ?? 0;
-  sessionState.emotion = initialValues.emotion ?? startingEmotion;
-  sessionState.capacityModifier = initialValues.capacityModifier ?? 1.0;
+  // Use initial values if provided, otherwise use per-story defaults
+  sessionState.capacity = initialValues.capacity ?? storyDefaults.capacity;
+  sessionState.pain = initialValues.pain ?? storyDefaults.pain;
+  sessionState.emotion = initialValues.emotion ?? storyDefaults.emotion;
+  sessionState.capacityModifier = initialValues.capacityModifier ?? storyDefaults.capacityModifier;
   sessionState.chatHistory = [];
   sessionState.chatMemorySummary = null;
   sessionState.chatMemorySummaryUpTo = 0;
