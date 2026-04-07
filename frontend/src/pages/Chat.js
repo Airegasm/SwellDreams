@@ -1372,9 +1372,6 @@ function Chat() {
           />
         </div>
 
-        {/* Persona gauge backer — mirrors character-bottom-bar for custom skins */}
-        <div className="persona-gauge-backer"></div>
-
         {/* Persona Button Menu - Static section below portrait */}
         <div className="persona-button-menu">
           {(() => {

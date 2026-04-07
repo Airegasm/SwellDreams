@@ -164,7 +164,8 @@ function DisplayTab() {
     '--skin-left-sidebar-bg', '--skin-left-sidebar-img', '--skin-right-sidebar-bg', '--skin-right-sidebar-img',
     '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
     '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing',
-    '--skin-header-text', '--skin-section-header', '--skin-section-bg', '--skin-section-font'
+    '--skin-header-text', '--skin-section-header', '--skin-section-bg', '--skin-section-font',
+    '--skin-central-menu-bg', '--skin-selector-desc'
   ];
 
   const applySkin = (skin) => {
@@ -245,6 +246,12 @@ function DisplayTab() {
     if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
     if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
     if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
+    if (!skin.uiCentralMenuTransparent && skin.uiCentralMenuBg) {
+      root.style.setProperty('--skin-central-menu-bg', skin.uiCentralMenuBg);
+    } else {
+      root.style.removeProperty('--skin-central-menu-bg');
+    }
+    if (skin.uiSelectorDescFontColor) root.style.setProperty('--skin-selector-desc', skin.uiSelectorDescFontColor);
   };
 
   // Apply on initial load
@@ -477,6 +484,15 @@ function DisplayTab() {
         {renderColorPicker('Section Font Color', 'uiSectionFontColor')}
         <label style={{ color: '#1a1a1a', marginTop: '8px' }}>Modal Background Image</label>
         {imgUpload(modalBgInputRef, 'uiModalBgImage', '1024x768+, subtle textures')}
+        <div className="form-group" style={{ marginTop: '8px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1a1a1a' }}>
+            <input type="checkbox" checked={activeSkin?.uiCentralMenuTransparent ?? true}
+              onChange={(e) => updateField('uiCentralMenuTransparent', e.target.checked)} />
+            Central Menu Background Transparent
+          </label>
+          {!(activeSkin?.uiCentralMenuTransparent ?? true) && renderColorPicker('Central Menu Background', 'uiCentralMenuBg')}
+        </div>
+        {renderColorPicker('Selector Description Font Color', 'uiSelectorDescFontColor')}
         {renderFontPicker('System Font', 'uiSystemFont', null)}
       </>)}
     </div>

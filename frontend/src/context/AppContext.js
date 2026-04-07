@@ -379,7 +379,8 @@ export function AppProvider({ children }) {
              '--skin-left-sidebar-bg','--skin-left-sidebar-img','--skin-right-sidebar-bg','--skin-right-sidebar-img',
              '--skin-scene-details-bg','--skin-scene-details-text','--skin-scene-details-font','--skin-scene-details-font-size',
              '--skin-pumpable-color','--skin-trim-topper','--skin-trim-center','--skin-trim-footer','--skin-name-backing',
-             '--skin-header-text','--skin-section-header','--skin-section-bg','--skin-section-font'
+             '--skin-header-text','--skin-section-header','--skin-section-bg','--skin-section-font',
+             '--skin-central-menu-bg','--skin-selector-desc'
             ].forEach(v => root.style.removeProperty(v));
             break;
           }
@@ -430,6 +431,8 @@ export function AppProvider({ children }) {
           if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
           if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
           if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
+          if (!skin.uiCentralMenuTransparent && skin.uiCentralMenuBg) root.style.setProperty('--skin-central-menu-bg', skin.uiCentralMenuBg);
+          if (skin.uiSelectorDescFontColor) root.style.setProperty('--skin-selector-desc', skin.uiSelectorDescFontColor);
         }
         break;
       }

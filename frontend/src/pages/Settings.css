@@ -75,12 +75,13 @@
 }
 
 .tab-content {
-  background-color: var(--bg-secondary);
+  background: var(--skin-central-menu-bg, var(--bg-secondary));
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: var(--spacing-lg);
   scrollbar-gutter: stable;
+  color: var(--skin-section-font, var(--text-primary));
 }
 
 /* Rounded scrollbar */

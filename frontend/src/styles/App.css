@@ -930,7 +930,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .list-item.card-style:not(.active) .list-item-meta {
-  color: #fff;
+  color: var(--skin-selector-desc, #fff);
 }
 
 .list-item-info {

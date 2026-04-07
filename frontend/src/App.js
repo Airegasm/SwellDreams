@@ -142,6 +142,8 @@ function App() {
         if (skin.uiSectionHeaderColor) root.style.setProperty('--skin-section-header', skin.uiSectionHeaderColor);
         if (skin.uiSectionBgColor) root.style.setProperty('--skin-section-bg', skin.uiSectionBgColor);
         if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
+        if (!skin.uiCentralMenuTransparent && skin.uiCentralMenuBg) root.style.setProperty('--skin-central-menu-bg', skin.uiCentralMenuBg);
+        if (skin.uiSelectorDescFontColor) root.style.setProperty('--skin-selector-desc', skin.uiSelectorDescFontColor);
       }
     }).catch(() => {});
   }, []);

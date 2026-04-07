@@ -142,11 +142,11 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0;
-  background-image: url('../../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
   scrollbar-gutter: stable;
-  color: #1a1a1a; /* Override global light text color */
+  color: var(--skin-section-font, #1a1a1a);
 }
 
 /* Rounded scrollbar with properly rounded top/bottom corners */
