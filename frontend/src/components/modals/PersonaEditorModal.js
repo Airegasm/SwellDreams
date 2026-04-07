@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
+import TriggerRow from '../common/TriggerRow';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
@@ -33,6 +34,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         stagedPortraits: persona.stagedPortraits || {},
         checkpoints: persona.checkpoints || {},
         characterCheckpoints: persona.characterCheckpoints || {},
+        checkpointTriggers: persona.checkpointTriggers || {},
         // New fields for buttons and flows
         assignedFlows: filterValidFlows(persona.assignedFlows),
         buttons: persona.buttons || [],
@@ -56,6 +58,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       stagedPortraits: {},
       checkpoints: {},
       characterCheckpoints: {},
+      checkpointTriggers: {},
       assignedFlows: [],
       buttons: [],
       assignedButtons: []
@@ -120,10 +123,10 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     return buttons.filter(b => !assignedButtons.includes(b.buttonId));
   }, [buttons, formData.assignedButtons]);
 
-  // Load checkpoint profiles
+  // Load persona checkpoint profiles (separate from character profiles)
   useEffect(() => {
-    if (isOpen && typeof api.getCheckpointProfiles === 'function') {
-      api.getCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
+    if (isOpen && typeof api.getPersonaCheckpointProfiles === 'function') {
+      api.getPersonaCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
     }
   }, [isOpen, api]);
 
@@ -136,13 +139,20 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     };
   }, []);
 
-  // Checkpoint profile handlers
+  // Checkpoint profile handlers (persona-specific profiles)
   const handleLoadProfile = (profileId, type) => {
     const profiles = checkpointProfiles[type] || [];
     const profile = profiles.find(p => p.id === profileId);
     if (!profile) return;
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
-    setFormData(prev => ({ ...prev, [field]: { ...profile.checkpoints } }));
+    setFormData(prev => ({
+      ...prev,
+      [field]: { ...profile.checkpoints },
+      checkpointTriggers: {
+        ...prev.checkpointTriggers,
+        ...(profile.checkpointTriggers || {})
+      }
+    }));
     if (type === 'player') setSelectedPlayerProfile(profileId);
     else setSelectedCharProfile(profileId);
     setProfileDirty(prev => ({ ...prev, [type]: false }));
@@ -151,11 +161,16 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const handleSaveNewProfile = async (type) => {
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
     const checkpoints = formData[field] || {};
+    const prefix = type === 'player' ? 'p-player-' : 'p-char-';
+    const triggers = {};
+    for (const [k, v] of Object.entries(formData.checkpointTriggers || {})) {
+      if (k.startsWith(prefix) && v.length > 0) triggers[k] = v;
+    }
     const name = prompt('Profile name:');
     if (!name?.trim()) return;
-    const result = await api.createCheckpointProfile(type, name.trim(), checkpoints);
+    const result = await api.createPersonaCheckpointProfile(type, name.trim(), checkpoints, triggers);
     if (result?.id) {
-      const updated = await api.getCheckpointProfiles();
+      const updated = await api.getPersonaCheckpointProfiles();
       setCheckpointProfiles(updated);
       if (type === 'player') setSelectedPlayerProfile(result.id);
       else setSelectedCharProfile(result.id);
@@ -170,8 +185,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     if (!profile || profile.builtIn) return;
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
     const checkpoints = formData[field] || {};
-    await api.updateCheckpointProfile(profileId, type, profile.name, checkpoints);
-    const updated = await api.getCheckpointProfiles();
+    const prefix = type === 'player' ? 'p-player-' : 'p-char-';
+    const triggers = {};
+    for (const [k, v] of Object.entries(formData.checkpointTriggers || {})) {
+      if (k.startsWith(prefix) && v.length > 0) triggers[k] = v;
+    }
+    await api.updatePersonaCheckpointProfile(profileId, type, profile.name, checkpoints, triggers);
+    const updated = await api.getPersonaCheckpointProfiles();
     setCheckpointProfiles(updated);
     setProfileDirty(prev => ({ ...prev, [type]: false }));
   };
@@ -182,8 +202,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     const profile = (checkpointProfiles[type] || []).find(p => p.id === profileId);
     if (!profile || profile.builtIn) return;
     if (!window.confirm(`Delete profile "${profile.name}"?`)) return;
-    await api.deleteCheckpointProfile(profileId, type);
-    const updated = await api.getCheckpointProfiles();
+    await api.deletePersonaCheckpointProfile(profileId, type);
+    const updated = await api.getPersonaCheckpointProfiles();
     setCheckpointProfiles(updated);
     if (type === 'player') setSelectedPlayerProfile('');
     else setSelectedCharProfile('');
@@ -1147,6 +1167,29 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                           rows={3}
                         />
                       </div>
+                      {/* Checkpoint triggers */}
+                      <div className="checkpoint-triggers">
+                        <div className="checkpoint-triggers-header">
+                          <span className="checkpoint-triggers-label">Triggers</span>
+                          <button type="button" className="btn-icon btn-add" onClick={() => {
+                            const trigKey = `p-player-${key}`;
+                            setFormData(prev => {
+                              const ct = { ...(prev.checkpointTriggers || {}) };
+                              ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
+                              return { ...prev, checkpointTriggers: ct };
+                            });
+                            setProfileDirty(prev => ({ ...prev, player: true }));
+                          }} title="Add trigger">+</button>
+                        </div>
+                        {(formData.checkpointTriggers?.[`p-player-${key}`] || []).map((trigger, tIdx) => (
+                          <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false}
+                            reminders={[]} globalReminders={[]}
+                            onChange={(updated) => { setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; const items = [...(ct[`p-player-${key}`] || [])]; items[tIdx] = updated; ct[`p-player-${key}`] = items; return { ...prev, checkpointTriggers: ct }; }); setProfileDirty(prev => ({ ...prev, player: true })); }}
+                            onRemove={() => { setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; ct[`p-player-${key}`] = (ct[`p-player-${key}`] || []).filter((_, i) => i !== tIdx); return { ...prev, checkpointTriggers: ct }; }); setProfileDirty(prev => ({ ...prev, player: true })); }}
+                            dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; const items = [...(ct[`p-player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`p-player-${key}`] = items; return { ...prev, checkpointTriggers: ct }; }); } }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </>
@@ -1219,6 +1262,29 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                           placeholder={key === '0' ? 'e.g. Watching them nervously, wondering what it feels like...' : `How I react to their ${label}...`}
                           rows={3}
                         />
+                      </div>
+                      {/* Checkpoint triggers */}
+                      <div className="checkpoint-triggers">
+                        <div className="checkpoint-triggers-header">
+                          <span className="checkpoint-triggers-label">Triggers</span>
+                          <button type="button" className="btn-icon btn-add" onClick={() => {
+                            const trigKey = `p-char-${key}`;
+                            setFormData(prev => {
+                              const ct = { ...(prev.checkpointTriggers || {}) };
+                              ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
+                              return { ...prev, checkpointTriggers: ct };
+                            });
+                            setProfileDirty(prev => ({ ...prev, character: true }));
+                          }} title="Add trigger">+</button>
+                        </div>
+                        {(formData.checkpointTriggers?.[`p-char-${key}`] || []).map((trigger, tIdx) => (
+                          <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false}
+                            reminders={[]} globalReminders={[]}
+                            onChange={(updated) => { setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; const items = [...(ct[`p-char-${key}`] || [])]; items[tIdx] = updated; ct[`p-char-${key}`] = items; return { ...prev, checkpointTriggers: ct }; }); setProfileDirty(prev => ({ ...prev, character: true })); }}
+                            onRemove={() => { setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; ct[`p-char-${key}`] = (ct[`p-char-${key}`] || []).filter((_, i) => i !== tIdx); return { ...prev, checkpointTriggers: ct }; }); setProfileDirty(prev => ({ ...prev, character: true })); }}
+                            dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; setFormData(prev => { const ct = { ...(prev.checkpointTriggers || {}) }; const items = [...(ct[`p-char-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`p-char-${key}`] = items; return { ...prev, checkpointTriggers: ct }; }); } }}
+                          />
+                        ))}
                       </div>
                     </div>
                   ))}

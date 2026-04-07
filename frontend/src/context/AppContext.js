@@ -1187,6 +1187,17 @@ export function AppProvider({ children }) {
     deleteCheckpointProfile: (id, type) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}?type=${type}`, {
       method: 'DELETE'
     }),
+    // Persona checkpoint profiles (separate from character)
+    getPersonaCheckpointProfiles: () => apiFetch(`${API_BASE}/api/persona-checkpoint-profiles`),
+    createPersonaCheckpointProfile: (type, name, checkpoints, checkpointTriggers) => apiFetch(`${API_BASE}/api/persona-checkpoint-profiles`, {
+      method: 'POST', body: JSON.stringify({ type, name, checkpoints, checkpointTriggers })
+    }),
+    updatePersonaCheckpointProfile: (id, type, name, checkpoints, checkpointTriggers) => apiFetch(`${API_BASE}/api/persona-checkpoint-profiles/${id}`, {
+      method: 'PUT', body: JSON.stringify({ type, name, checkpoints, checkpointTriggers })
+    }),
+    deletePersonaCheckpointProfile: (id, type) => apiFetch(`${API_BASE}/api/persona-checkpoint-profiles/${id}?type=${type}`, {
+      method: 'DELETE'
+    }),
 
     // Home Assistant devices (bridge for Tapo and other HA-managed devices)
     connectHomeAssistant: (url, token) => apiFetch(`${API_BASE}/api/homeassistant/connect`, {

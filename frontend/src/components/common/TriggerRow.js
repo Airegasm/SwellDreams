@@ -96,6 +96,10 @@ function getTriggerTypes(isPumpable) {
     { value: 'set_char_pop_desire', label: 'Set Char Pop Desire' },
     { value: 'set_char_desire_inflate_others', label: 'Set Char Desire to Inflate Others' },
     { value: 'set_char_desire_pop_others', label: 'Set Char Desire to Pop Others' },
+    { value: 'set_persona_inflate_desire', label: 'Set Persona Inflate Desire' },
+    { value: 'set_persona_pop_desire', label: 'Set Persona Pop Desire' },
+    { value: 'set_persona_inflate_others', label: 'Set Persona Desire to Inflate Others' },
+    { value: 'set_persona_pop_others', label: 'Set Persona Desire to Pop Others' },
     { value: 'toggle_reminder', label: 'Character Reminder State' },
     { value: 'equip_reminder', label: 'Equip/Unequip Reminder' },
   );
@@ -218,6 +222,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         );
 
       case 'set_char_inflate_desire':
+      case 'set_persona_inflate_desire':
         return (
           <select value={trigger.value || 'neutral'} onChange={(e) => update('value', e.target.value)} style={{ width: '100px' }}>
             {DESIRE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -225,6 +230,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         );
 
       case 'set_char_pop_desire':
+      case 'set_persona_pop_desire':
         return (
           <select value={trigger.value || 'terrified'} onChange={(e) => update('value', e.target.value)} style={{ width: '100px' }}>
             {POP_DESIRE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -232,6 +238,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         );
 
       case 'set_char_desire_inflate_others':
+      case 'set_persona_inflate_others':
         return (
           <select value={trigger.value || 'none'} onChange={(e) => update('value', e.target.value)} style={{ width: '100px' }}>
             {INFLATE_OTHERS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -239,6 +246,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         );
 
       case 'set_char_desire_pop_others':
+      case 'set_persona_pop_others':
         return (
           <select value={trigger.value || 'none'} onChange={(e) => update('value', e.target.value)} style={{ width: '100px' }}>
             {POP_OTHERS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

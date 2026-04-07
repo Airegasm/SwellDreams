@@ -2937,6 +2937,40 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
 }
 
 /**
+ * Execute persona checkpoint triggers when capacity enters a new range.
+ * Reads triggers from the active persona's checkpointTriggers.
+ * @param {string} type - 'player' or 'char'
+ * @param {number} oldCapacity - previous capacity
+ * @param {number} newCapacity - current capacity
+ */
+async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) {
+  const oldRange = capacityToRangeKey(oldCapacity);
+  const newRange = capacityToRangeKey(newCapacity);
+  if (oldRange === newRange) return;
+
+  const prefix = type === 'player' ? 'p-player' : 'p-char';
+  const triggerKey = `${prefix}-${newRange}`;
+  if (firedCheckpointTriggers.has(triggerKey)) return;
+
+  const settings = loadData(DATA_FILES.settings);
+  const persona = settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null;
+  if (!persona?.checkpointTriggers) return;
+
+  const triggers = persona.checkpointTriggers[triggerKey];
+  if (!triggers || triggers.length === 0) return;
+
+  firedCheckpointTriggers.add(triggerKey);
+  console.log(`[PersonaCheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
+
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
+
+  for (const trigger of triggers) {
+    await executeTrigger(trigger, triggerKey, activeCharacter, settings);
+  }
+}
+
+/**
  * Execute a single trigger action. Shared by post-welcome, checkpoint, and future trigger sources.
  */
 async function executeTrigger(trigger, source, character, settings) {
@@ -3127,6 +3161,46 @@ async function executeTrigger(trigger, source, character, settings) {
         await saveCharacterAsync(character);
         break;
 
+      case 'set_persona_inflate_desire': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona) {
+          persona.inflationDesire = trigger.value || 'neutral';
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Set persona inflate desire to ${persona.inflationDesire}`);
+        }
+        break;
+      }
+
+      case 'set_persona_pop_desire': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona) {
+          persona.popDesire = trigger.value || 'terrified';
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Set persona pop desire to ${persona.popDesire}`);
+        }
+        break;
+      }
+
+      case 'set_persona_inflate_others': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona) {
+          persona.desireToInflateOthers = trigger.value || 'none';
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Set persona desire to inflate others to ${persona.desireToInflateOthers}`);
+        }
+        break;
+      }
+
+      case 'set_persona_pop_others': {
+        const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
+        if (persona) {
+          persona.desireToPopOthers = trigger.value || 'none';
+          await savePersonaAsync(persona);
+          console.log(`[Trigger/${source}] Set persona desire to pop others to ${persona.desireToPopOthers}`);
+        }
+        break;
+      }
+
       case 'toggle_reminder': {
         if (trigger.reminderId && character.constantReminders) {
           const reminder = character.constantReminders.find(r => r.id === trigger.reminderId);
@@ -3213,6 +3287,7 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
       sessionState.characterCapacity = newCapacity;
       eventEngine.checkCharacterStateChanges({ characterCapacity: newCapacity });
       executeCheckpointTriggers('char', prevCharCap, newCapacity);
+      executePersonaCheckpointTriggers('char', prevCharCap, newCapacity);
     }
 
     // Always broadcast elapsed + capacity so frontend timer overlay stays in sync
@@ -3822,6 +3897,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
 
   // Fire checkpoint triggers on range boundary crossing
   executeCheckpointTriggers('player', prevPlayerCapacity, totalCapacity);
+  executePersonaCheckpointTriggers('player', prevPlayerCapacity, totalCapacity);
 }
 
 // Device service event handler
@@ -11624,20 +11700,22 @@ app.get('/api/checkpoint-profiles', (req, res) => {
 });
 
 app.post('/api/checkpoint-profiles', (req, res) => {
-  const { type, name, checkpoints } = req.body;
+  const { type, name, checkpoints, checkpointTriggers } = req.body;
   if (!type || !name || !checkpoints) {
     return res.status(400).json({ error: 'type, name, and checkpoints required' });
   }
   const profiles = loadCheckpointProfiles();
   if (!profiles[type]) profiles[type] = [];
   const id = `${type}-${Date.now()}`;
-  profiles[type].push({ id, name, builtIn: false, checkpoints });
+  const entry = { id, name, builtIn: false, checkpoints };
+  if (checkpointTriggers) entry.checkpointTriggers = checkpointTriggers;
+  profiles[type].push(entry);
   saveCheckpointProfiles(profiles);
   res.json({ success: true, id });
 });
 
 app.put('/api/checkpoint-profiles/:id', (req, res) => {
-  const { type, name, checkpoints } = req.body;
+  const { type, name, checkpoints, checkpointTriggers } = req.body;
   const profiles = loadCheckpointProfiles();
   if (!profiles[type]) return res.status(404).json({ error: 'Profile type not found' });
   const idx = profiles[type].findIndex(p => p.id === req.params.id);
@@ -11645,6 +11723,7 @@ app.put('/api/checkpoint-profiles/:id', (req, res) => {
   if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in profiles' });
   if (name) profiles[type][idx].name = name;
   if (checkpoints) profiles[type][idx].checkpoints = checkpoints;
+  if (checkpointTriggers !== undefined) profiles[type][idx].checkpointTriggers = checkpointTriggers;
   saveCheckpointProfiles(profiles);
   res.json({ success: true });
 });
@@ -11658,6 +11737,67 @@ app.delete('/api/checkpoint-profiles/:id', (req, res) => {
   if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in profiles' });
   profiles[type].splice(idx, 1);
   saveCheckpointProfiles(profiles);
+  res.json({ success: true });
+});
+
+// --- Persona Checkpoint Profiles (separate from character profiles) ---
+
+const PERSONA_CHECKPOINT_PROFILES_PATH = path.join(DATA_DIR, 'persona-checkpoint-profiles.json');
+
+function loadPersonaCheckpointProfiles() {
+  try {
+    return JSON.parse(fs.readFileSync(PERSONA_CHECKPOINT_PROFILES_PATH, 'utf8'));
+  } catch (e) {
+    return { player: [], character: [] };
+  }
+}
+
+function savePersonaCheckpointProfiles(profiles) {
+  fs.writeFileSync(PERSONA_CHECKPOINT_PROFILES_PATH, JSON.stringify(profiles, null, 2));
+}
+
+app.get('/api/persona-checkpoint-profiles', (req, res) => {
+  res.json(loadPersonaCheckpointProfiles());
+});
+
+app.post('/api/persona-checkpoint-profiles', (req, res) => {
+  const { type, name, checkpoints, checkpointTriggers } = req.body;
+  if (!type || !name || !checkpoints) {
+    return res.status(400).json({ error: 'type, name, and checkpoints required' });
+  }
+  const profiles = loadPersonaCheckpointProfiles();
+  if (!profiles[type]) profiles[type] = [];
+  const id = `persona-${type}-${Date.now()}`;
+  const entry = { id, name, builtIn: false, checkpoints };
+  if (checkpointTriggers) entry.checkpointTriggers = checkpointTriggers;
+  profiles[type].push(entry);
+  savePersonaCheckpointProfiles(profiles);
+  res.json({ success: true, id });
+});
+
+app.put('/api/persona-checkpoint-profiles/:id', (req, res) => {
+  const { type, name, checkpoints, checkpointTriggers } = req.body;
+  const profiles = loadPersonaCheckpointProfiles();
+  if (!profiles[type]) return res.status(404).json({ error: 'Profile type not found' });
+  const idx = profiles[type].findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in profiles' });
+  if (name) profiles[type][idx].name = name;
+  if (checkpoints) profiles[type][idx].checkpoints = checkpoints;
+  if (checkpointTriggers !== undefined) profiles[type][idx].checkpointTriggers = checkpointTriggers;
+  savePersonaCheckpointProfiles(profiles);
+  res.json({ success: true });
+});
+
+app.delete('/api/persona-checkpoint-profiles/:id', (req, res) => {
+  const { type } = req.query;
+  const profiles = loadPersonaCheckpointProfiles();
+  if (!profiles[type]) return res.status(404).json({ error: 'Profile type not found' });
+  const idx = profiles[type].findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in profiles' });
+  profiles[type].splice(idx, 1);
+  savePersonaCheckpointProfiles(profiles);
   res.json({ success: true });
 });
 
