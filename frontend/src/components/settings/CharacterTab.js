@@ -8,7 +8,7 @@ import MultiCharEditorModal from '../modals/MultiCharEditorModal';
 import './SettingsTabs.css';
 
 function CharacterTab() {
-  const { characters, setCharacters, settings, api, flows } = useApp();
+  const { characters, setCharacters, settings, api, flows, startNewSession } = useApp();
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
@@ -109,6 +109,10 @@ function CharacterTab() {
       // Scroll to top after setting active
       if (listRef.current) {
         listRef.current.scrollTop = 0;
+      }
+      // Start new session if setting is enabled
+      if (settings?.globalCharacterControls?.startNewSessionOnSelect ?? true) {
+        await startNewSession();
       }
     } catch (error) {
       console.error('Failed to set active character:', error);

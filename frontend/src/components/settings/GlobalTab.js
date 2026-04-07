@@ -48,6 +48,7 @@ function GlobalTab() {
 
   // Global Character Controls state
   const [characterControls, setCharacterControls] = useState({
+    startNewSessionOnSelect: true,
     useAutoCapacity: false,
     hasCalibrated: false,
     autoLinkCapacityToPain: true,
@@ -1209,6 +1210,21 @@ function GlobalTab() {
           <p className="section-description">
             Automatic adjustments to character state based on capacity changes.
           </p>
+
+          <div className="character-control-row">
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={characterControls.startNewSessionOnSelect ?? true}
+                onChange={(e) => handleCharacterControlChange('startNewSessionOnSelect', e.target.checked)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+            <div className="control-label-group">
+              <span className="toggle-label">Start New Session on Character Selection</span>
+              <span className="control-hint">When ON, pressing "Use" on a character clears the chat and starts a fresh session</span>
+            </div>
+          </div>
 
           <div className="character-control-row with-button">
             <label className={`toggle-switch ${!characterControls.hasCalibrated ? 'disabled' : ''}`}>
