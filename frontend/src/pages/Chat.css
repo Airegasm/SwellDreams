@@ -1955,15 +1955,7 @@
   padding: 4px var(--spacing-xs) var(--spacing-xs) var(--spacing-xs);
   padding-right: 4px;
   padding-top: 7px;
-  background: linear-gradient(
-    180deg,
-    #3d4147 0%,
-    #2d3036 20%,
-    #1a1d21 40%,
-    #0d0f12 60%,
-    #1a1d21 80%,
-    #2d3036 100%
-  );
+  background: var(--skin-input-bg, linear-gradient(180deg, #3d4147 0%, #2d3036 20%, #1a1d21 40%, #0d0f12 60%, #1a1d21 80%, #2d3036 100%));
   border-top: none;
   position: relative;
 }
@@ -2004,16 +1996,9 @@
   flex: 1;
   border: none;
   border-radius: var(--border-radius);
-  background: linear-gradient(
-    180deg,
-    #1a1d21 0%,
-    #0d0f12 30%,
-    #1a1d21 50%,
-    #0d0f12 70%,
-    #1a1d21 100%
-  );
+  background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
   border: 1px solid #3d4147;
-  color: #8b9099;
+  color: var(--skin-arrow-color, #8b9099);
   font-size: 1.4rem;
   font-weight: bold;
   cursor: pointer;
@@ -2040,9 +2025,9 @@
   background: rgba(200, 205, 215, 0.25);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  color: #ffffff;
-  font-size: var(--font-size-base);
-  font-family: inherit;
+  color: var(--skin-input-text, #ffffff);
+  font-size: var(--skin-input-font-size, var(--font-size-base));
+  font-family: var(--skin-input-font, inherit);
   resize: none;
   overflow-y: auto;
 }
@@ -2148,14 +2133,7 @@
   font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.15s ease;
-  background: linear-gradient(
-    180deg,
-    #1a1d21 0%,
-    #0d0f12 30%,
-    #1a1d21 50%,
-    #0d0f12 70%,
-    #1a1d21 100%
-  );
+  background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
   color: #1a1d21;
   display: flex;
   align-items: center;
@@ -2184,50 +2162,52 @@
   border-color: #5c6169;
 }
 
-/* Send as Persona button - green arrow */
+/* Send as Persona button - player outline color */
 .send-persona-btn {
-  color: #00ff88;
+  color: var(--skin-player-outline, #00ff88);
   font-size: 2rem;
   font-weight: bold;
 }
 
 .send-persona-btn:hover:not(:disabled) {
-  border-color: #00ff88;
+  border-color: var(--skin-player-outline, #00ff88);
+  box-shadow: 0 0 8px var(--skin-player-outline, #00ff88);
 }
 
-/* Send as Character button - red arrow */
+/* Send as Character button - char outline color */
 .send-character-btn {
-  color: #ff6b6b;
+  color: var(--skin-char-outline, #ff6b6b);
   font-size: 2rem;
   font-weight: bold;
 }
 
 .send-character-btn:hover:not(:disabled) {
-  border-color: #ff6b6b;
+  border-color: var(--skin-char-outline, #ff6b6b);
+  box-shadow: 0 0 8px var(--skin-char-outline, #ff6b6b);
 }
 
-/* Impersonate button - green background */
+/* Impersonate button - player glow */
 .impersonate-action-btn {
-  background: linear-gradient(180deg, #0a3d2a 0%, #052015 50%, #0a3d2a 100%);
-  border-color: #00ff88;
+  border-color: var(--skin-player-outline, #00ff88);
   font-size: 1.3rem;
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--skin-player-outline, #00ff88) 30%, transparent);
 }
 
 .impersonate-action-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #0f5038 0%, #0a3d2a 50%, #0f5038 100%);
-  border-color: #00ff88;
+  border-color: var(--skin-player-outline, #00ff88);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--skin-player-outline, #00ff88) 50%, transparent), 0 0 8px var(--skin-player-outline, #00ff88);
 }
 
-/* Response button - red background */
+/* Response button - char glow */
 .response-action-btn {
-  background: linear-gradient(180deg, #3d1a1a 0%, #200d0d 50%, #3d1a1a 100%);
-  border-color: #ff6b6b;
+  border-color: var(--skin-char-outline, #ff6b6b);
   font-size: 1.3rem;
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--skin-char-outline, #ff6b6b) 30%, transparent);
 }
 
 .response-action-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #4d2020 0%, #3d1a1a 50%, #4d2020 100%);
-  border-color: #ff6b6b;
+  border-color: var(--skin-char-outline, #ff6b6b);
+  box-shadow: inset 0 0 20px color-mix(in srgb, var(--skin-char-outline, #ff6b6b) 50%, transparent), 0 0 8px var(--skin-char-outline, #ff6b6b);
 }
 
 /* When generating, lights go off on imp/resp */

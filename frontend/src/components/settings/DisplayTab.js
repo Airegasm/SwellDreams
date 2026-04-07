@@ -163,6 +163,13 @@ function DisplayTab() {
     } else if (skin.uiModalBg) {
       root.style.setProperty('--skin-modal-bg', skin.uiModalBg);
     }
+    // Input box and button properties
+    if (skin.inputBoxBg) root.style.setProperty('--skin-input-bg', skin.inputBoxBg);
+    if (skin.inputBoxFont) root.style.setProperty('--skin-input-font', skin.inputBoxFont);
+    if (skin.inputBoxTextColor) root.style.setProperty('--skin-input-text', skin.inputBoxTextColor);
+    if (skin.inputBoxFontSize) root.style.setProperty('--skin-input-font-size', skin.inputBoxFontSize + 'px');
+    if (skin.inputButtonFaceColor) root.style.setProperty('--skin-btn-face', skin.inputButtonFaceColor);
+    if (skin.historyArrowColor) root.style.setProperty('--skin-arrow-color', skin.historyArrowColor);
   };
 
   // Apply on initial load
@@ -299,6 +306,16 @@ function DisplayTab() {
       {renderColorPicker('Background Color', 'systemBubbleBg')}
       {renderColorPicker('Text Color', 'systemTextColor')}
       {renderFontPicker('Font', 'systemFont', 'systemFontSize')}
+
+      <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
+
+      {/* Chat Input */}
+      <h4 style={{ margin: '0 0 8px' }}>Chat Input Box</h4>
+      {renderColorPicker('Background', 'inputBoxBg')}
+      {renderColorPicker('Text Color', 'inputBoxTextColor')}
+      {renderFontPicker('Font', 'inputBoxFont', 'inputBoxFontSize')}
+      {renderColorPicker('Button Face Color', 'inputButtonFaceColor')}
+      {renderColorPicker('History Arrow Color', 'historyArrowColor')}
 
       <hr style={{ borderColor: 'var(--border-color)', margin: '16px 0' }} />
 

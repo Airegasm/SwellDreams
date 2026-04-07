@@ -12160,7 +12160,13 @@ const DEFAULT_SKIN = {
   uiTabColor: 'linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%)',
   uiModalBg: '',
   uiModalBgImage: '/assets/card-bg.png',
-  systemFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+  uiSystemFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  inputBoxBg: 'linear-gradient(180deg, #3d4147 0%, #2d3036 20%, #1a1d21 40%, #0d0f12 60%, #1a1d21 80%, #2d3036 100%)',
+  inputBoxFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  inputBoxTextColor: '#ffffff',
+  inputBoxFontSize: 16,
+  inputButtonFaceColor: 'linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%)',
+  historyArrowColor: '#8b9099'
 };
 
 function loadDisplaySettings() {

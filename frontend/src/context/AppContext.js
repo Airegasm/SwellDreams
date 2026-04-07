@@ -381,6 +381,12 @@ export function AppProvider({ children }) {
           root.style.setProperty('--skin-tab', skin.uiTabColor || 'linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%)');
           if (skin.backgroundImage) root.style.setProperty('--skin-chat-bg', `url("${skin.backgroundImage}")`);
           if (skin.uiModalBgImage) root.style.setProperty('--skin-modal-bg', `url("${skin.uiModalBgImage}")`);
+          if (skin.inputBoxBg) root.style.setProperty('--skin-input-bg', skin.inputBoxBg);
+          if (skin.inputBoxFont) root.style.setProperty('--skin-input-font', skin.inputBoxFont);
+          if (skin.inputBoxTextColor) root.style.setProperty('--skin-input-text', skin.inputBoxTextColor);
+          if (skin.inputBoxFontSize) root.style.setProperty('--skin-input-font-size', skin.inputBoxFontSize + 'px');
+          if (skin.inputButtonFaceColor) root.style.setProperty('--skin-btn-face', skin.inputButtonFaceColor);
+          if (skin.historyArrowColor) root.style.setProperty('--skin-arrow-color', skin.historyArrowColor);
         }
         break;
       }
