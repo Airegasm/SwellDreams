@@ -1178,11 +1178,11 @@ export function AppProvider({ children }) {
 
     // Checkpoint profiles
     getCheckpointProfiles: () => apiFetch(`${API_BASE}/api/checkpoint-profiles`),
-    createCheckpointProfile: (type, name, checkpoints) => apiFetch(`${API_BASE}/api/checkpoint-profiles`, {
-      method: 'POST', body: JSON.stringify({ type, name, checkpoints })
+    createCheckpointProfile: (type, name, checkpoints, checkpointTriggers) => apiFetch(`${API_BASE}/api/checkpoint-profiles`, {
+      method: 'POST', body: JSON.stringify({ type, name, checkpoints, checkpointTriggers })
     }),
-    updateCheckpointProfile: (id, type, name, checkpoints) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}`, {
-      method: 'PUT', body: JSON.stringify({ type, name, checkpoints })
+    updateCheckpointProfile: (id, type, name, checkpoints, checkpointTriggers) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}`, {
+      method: 'PUT', body: JSON.stringify({ type, name, checkpoints, checkpointTriggers })
     }),
     deleteCheckpointProfile: (id, type) => apiFetch(`${API_BASE}/api/checkpoint-profiles/${id}?type=${type}`, {
       method: 'DELETE'

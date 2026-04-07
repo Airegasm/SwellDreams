@@ -2,7 +2,7 @@
   "player": [
     {
       "id": "player-default",
-      "name": "Reactions: Default",
+      "name": "Clinical Narrator",
       "builtIn": true,
       "checkpoints": {
         "0": "Build tension and anticipation. Tease about what's coming but do NOT start the pump or use [pump on] yet. Focus on setup, restraints, or conversation.",
@@ -17,11 +17,43 @@
         "81-90": "[Player] is at critical capacity. Enormous and straining. Reference the real possibility of popping. Build toward the climax.",
         "91-100": "[Player] is at their absolute limit. Every pump is agony. Describe them as enormous, ready to burst at any moment.",
         "100+": "[Player] has gone beyond full. They should not exist at this size. Describe the impossibility, the terror or ecstasy, the inevitability of what comes next."
+      },
+      "checkpointTriggers": {
+        "player-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "neutral" }
+        ],
+        "player-1-10": [
+          { "type": "set_emotion", "id": "t2", "emotion": "excited" }
+        ],
+        "player-21-30": [
+          { "type": "set_player_pain", "id": "t3", "value": 2 }
+        ],
+        "player-41-50": [
+          { "type": "set_player_pain", "id": "t4", "value": 4 },
+          { "type": "set_emotion", "id": "t5", "emotion": "aroused" }
+        ],
+        "player-61-70": [
+          { "type": "set_player_pain", "id": "t6", "value": 6 }
+        ],
+        "player-71-80": [
+          { "type": "set_player_pain", "id": "t7", "value": 7 },
+          { "type": "set_emotion", "id": "t8", "emotion": "frightened" }
+        ],
+        "player-81-90": [
+          { "type": "set_player_pain", "id": "t9", "value": 8 }
+        ],
+        "player-91-100": [
+          { "type": "set_player_pain", "id": "t10", "value": 9 },
+          { "type": "set_emotion", "id": "t11", "emotion": "frightened" }
+        ],
+        "player-100+": [
+          { "type": "set_player_pain", "id": "t12", "value": 10 }
+        ]
       }
     },
     {
       "id": "player-willing",
-      "name": "Reactions: Willing Player",
+      "name": "Blissful Volunteer",
       "builtIn": true,
       "checkpoints": {
         "0": "Build excitement and anticipation. [Player] is eager to begin. Flirt with the idea of inflation. Let the tension build naturally before starting.",
@@ -36,11 +68,54 @@
         "81-90": "[Player] is near their limit. Their eagerness gives way to awe at their own size. The reality of how full they are sets in.",
         "91-100": "[Player] is at max. Even a willing participant is overwhelmed at this size. Describe the mix of pride, pleasure, and genuine concern.",
         "100+": "[Player] pushed beyond what they thought possible. Describe the intoxicating mix of triumph and terror at being so impossibly full."
+      },
+      "checkpointTriggers": {
+        "player-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "excited" },
+          { "type": "set_char_inflate_desire", "id": "t1b", "value": "eager" }
+        ],
+        "player-1-10": [
+          { "type": "set_emotion", "id": "t2", "emotion": "aroused" }
+        ],
+        "player-21-30": [
+          { "type": "set_player_pain", "id": "t3", "value": 2 },
+          { "type": "set_char_inflate_desire", "id": "t3b", "value": "obsessed" }
+        ],
+        "player-31-40": [
+          { "type": "set_attribute", "id": "t4", "trait": "sensual", "value": 80 }
+        ],
+        "player-41-50": [
+          { "type": "set_player_pain", "id": "t5", "value": 3 },
+          { "type": "set_emotion", "id": "t6", "emotion": "blissful" }
+        ],
+        "player-51-60": [
+          { "type": "set_player_pain", "id": "t7", "value": 5 }
+        ],
+        "player-61-70": [
+          { "type": "set_player_pain", "id": "t8", "value": 6 },
+          { "type": "set_attribute", "id": "t9", "trait": "sensual", "value": 90 }
+        ],
+        "player-71-80": [
+          { "type": "set_player_pain", "id": "t10", "value": 7 },
+          { "type": "set_emotion", "id": "t11", "emotion": "aroused" }
+        ],
+        "player-81-90": [
+          { "type": "set_player_pain", "id": "t12", "value": 8 },
+          { "type": "set_char_pop_desire", "id": "t12b", "value": "nervous" }
+        ],
+        "player-91-100": [
+          { "type": "set_player_pain", "id": "t13", "value": 9 },
+          { "type": "set_emotion", "id": "t14", "emotion": "blissful" }
+        ],
+        "player-100+": [
+          { "type": "set_player_pain", "id": "t15", "value": 10 },
+          { "type": "set_char_pop_desire", "id": "t15b", "value": "curious" }
+        ]
       }
     },
     {
       "id": "player-unwilling",
-      "name": "Reactions: Unwilling Player",
+      "name": "Captive Prey",
       "builtIn": true,
       "checkpoints": {
         "0": "[Player] is reluctant or restrained. Build dread and tension. They don't want this. Focus on their resistance, pleading, or attempts to negotiate.",
@@ -55,6 +130,55 @@
         "81-90": "[Player] is at critical capacity. Pure animal terror. They're beyond words — just primal fear of what's about to happen.",
         "91-100": "[Player] is at the edge. They know they're going to pop. Describe their final desperate pleas, tears, or acceptance.",
         "100+": "[Player] is past the point of no return. Describe the horrifying inevitability, the last moments before the breaking point."
+      },
+      "checkpointTriggers": {
+        "player-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "frightened" },
+          { "type": "set_attribute", "id": "t1b", "trait": "sadistic", "value": 40 }
+        ],
+        "player-1-10": [
+          { "type": "set_char_inflate_desire", "id": "t2", "value": "eager" }
+        ],
+        "player-11-20": [
+          { "type": "set_player_pain", "id": "t3", "value": 3 },
+          { "type": "set_emotion", "id": "t4", "emotion": "frightened" }
+        ],
+        "player-21-30": [
+          { "type": "set_player_pain", "id": "t5", "value": 4 },
+          { "type": "set_attribute", "id": "t5b", "trait": "sadistic", "value": 60 }
+        ],
+        "player-31-40": [
+          { "type": "set_player_pain", "id": "t6", "value": 5 },
+          { "type": "set_char_inflate_desire", "id": "t6b", "value": "obsessed" }
+        ],
+        "player-41-50": [
+          { "type": "set_player_pain", "id": "t7", "value": 6 },
+          { "type": "set_emotion", "id": "t8", "emotion": "frightened" }
+        ],
+        "player-51-60": [
+          { "type": "set_player_pain", "id": "t9", "value": 7 },
+          { "type": "set_attribute", "id": "t9b", "trait": "psychopathic", "value": 30 }
+        ],
+        "player-61-70": [
+          { "type": "set_player_pain", "id": "t10", "value": 8 },
+          { "type": "set_char_pop_desire", "id": "t10b", "value": "curious" }
+        ],
+        "player-71-80": [
+          { "type": "set_player_pain", "id": "t11", "value": 9 },
+          { "type": "set_attribute", "id": "t11b", "trait": "sadistic", "value": 80 }
+        ],
+        "player-81-90": [
+          { "type": "set_player_pain", "id": "t12", "value": 9 },
+          { "type": "set_char_pop_desire", "id": "t12b", "value": "willing" }
+        ],
+        "player-91-100": [
+          { "type": "set_player_pain", "id": "t13", "value": 10 },
+          { "type": "set_attribute", "id": "t13b", "trait": "psychopathic", "value": 50 }
+        ],
+        "player-100+": [
+          { "type": "set_player_pain", "id": "t14", "value": 10 },
+          { "type": "set_char_pop_desire", "id": "t14b", "value": "eager" }
+        ]
       }
     },
     {
@@ -80,7 +204,7 @@
   "character": [
     {
       "id": "char-default",
-      "name": "Reactions: Default",
+      "name": "Detached Director",
       "builtIn": true,
       "checkpoints": {
         "0": "[Char] hasn't been inflated yet. Do not reference any fullness or pressure in your own body.",
@@ -95,11 +219,37 @@
         "81-90": "[Char] is near bursting. Describe your own desperate state — the creaking, the impossibility of getting any bigger.",
         "91-100": "[Char] is at the absolute limit. Panicking or ecstatic depending on personality. Reference the real possibility of popping.",
         "100+": "[Char] has gone beyond full. This is it. React to the impossible size and the inevitability of what comes next."
+      },
+      "checkpointTriggers": {
+        "char-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "neutral" }
+        ],
+        "char-1-10": [
+          { "type": "set_emotion", "id": "t2", "emotion": "shy" }
+        ],
+        "char-21-30": [
+          { "type": "set_attribute", "id": "t3", "trait": "sensual", "value": 40 }
+        ],
+        "char-41-50": [
+          { "type": "set_emotion", "id": "t4", "emotion": "aroused" }
+        ],
+        "char-61-70": [
+          { "type": "set_attribute", "id": "t5", "trait": "sensual", "value": 70 }
+        ],
+        "char-71-80": [
+          { "type": "set_emotion", "id": "t6", "emotion": "frightened" }
+        ],
+        "char-91-100": [
+          { "type": "set_char_pop_desire", "id": "t7", "value": "nervous" }
+        ],
+        "char-100+": [
+          { "type": "set_char_pop_desire", "id": "t8", "value": "terrified" }
+        ]
       }
     },
     {
       "id": "char-willing",
-      "name": "Reactions: Willing Character",
+      "name": "Enthusiastic Canvas",
       "builtIn": true,
       "checkpoints": {
         "0": "[Char] hasn't been inflated yet but is excited or curious about it. Express anticipation.",
@@ -114,11 +264,50 @@
         "81-90": "[Char] is near the edge. Bravery mixes with genuine awe at your own impossible size. The thrill is now laced with real danger.",
         "91-100": "[Char] is at max. Even eagerness gives way to being overwhelmed. Describe the intoxicating mix of pride and genuine fear.",
         "100+": "[Char] pushed beyond all limits willingly. Describe the euphoria and terror of being impossibly, dangerously full."
+      },
+      "checkpointTriggers": {
+        "char-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "excited" },
+          { "type": "set_char_inflate_desire", "id": "t1b", "value": "eager" }
+        ],
+        "char-1-10": [
+          { "type": "set_emotion", "id": "t2", "emotion": "aroused" },
+          { "type": "set_attribute", "id": "t2b", "trait": "sensual", "value": 60 }
+        ],
+        "char-21-30": [
+          { "type": "set_char_inflate_desire", "id": "t3", "value": "obsessed" }
+        ],
+        "char-31-40": [
+          { "type": "set_attribute", "id": "t4", "trait": "sexual", "value": 70 }
+        ],
+        "char-41-50": [
+          { "type": "set_emotion", "id": "t5", "emotion": "blissful" }
+        ],
+        "char-51-60": [
+          { "type": "set_attribute", "id": "t6", "trait": "sensual", "value": 85 }
+        ],
+        "char-61-70": [
+          { "type": "set_emotion", "id": "t7", "emotion": "aroused" },
+          { "type": "set_char_pop_desire", "id": "t7b", "value": "curious" }
+        ],
+        "char-71-80": [
+          { "type": "set_emotion", "id": "t8", "emotion": "blissful" }
+        ],
+        "char-81-90": [
+          { "type": "set_char_pop_desire", "id": "t9", "value": "willing" }
+        ],
+        "char-91-100": [
+          { "type": "set_emotion", "id": "t10", "emotion": "aroused" }
+        ],
+        "char-100+": [
+          { "type": "set_emotion", "id": "t11", "emotion": "blissful" },
+          { "type": "set_char_pop_desire", "id": "t11b", "value": "eager" }
+        ]
       }
     },
     {
       "id": "char-unwilling",
-      "name": "Reactions: Unwilling Character",
+      "name": "Helpless Victim",
       "builtIn": true,
       "checkpoints": {
         "0": "[Char] does NOT want to be inflated. Express dread, resistance, or plead to not be inflated.",
@@ -133,6 +322,53 @@
         "81-90": "[Char] is near popping. Beyond words — just desperate, wordless fear. Your body is failing you. Describe the end approaching.",
         "91-100": "[Char] is at the edge. Final desperate pleas or silent acceptance. You know what's about to happen.",
         "100+": "[Char] is past the point of no return. Describe the last moments — the horrifying realization that it's too late."
+      },
+      "checkpointTriggers": {
+        "char-0": [
+          { "type": "set_emotion", "id": "t1", "emotion": "frightened" },
+          { "type": "set_char_inflate_desire", "id": "t1b", "value": "terrified" }
+        ],
+        "char-1-10": [
+          { "type": "set_char_pop_desire", "id": "t2", "value": "terrified" }
+        ],
+        "char-11-20": [
+          { "type": "set_attribute", "id": "t3", "trait": "dominant", "value": 0 },
+          { "type": "set_emotion", "id": "t4", "emotion": "frightened" }
+        ],
+        "char-21-30": [
+          { "type": "set_char_inflate_desire", "id": "t5", "value": "reluctant" }
+        ],
+        "char-31-40": [
+          { "type": "set_attribute", "id": "t6", "trait": "sensual", "value": 20 },
+          { "type": "set_emotion", "id": "t7", "emotion": "frightened" }
+        ],
+        "char-41-50": [
+          { "type": "set_emotion", "id": "t8", "emotion": "shy" },
+          { "type": "set_char_inflate_desire", "id": "t8b", "value": "neutral" }
+        ],
+        "char-51-60": [
+          { "type": "set_attribute", "id": "t9", "trait": "sensual", "value": 50 }
+        ],
+        "char-61-70": [
+          { "type": "set_emotion", "id": "t10", "emotion": "submissive" },
+          { "type": "set_char_inflate_desire", "id": "t10b", "value": "curious" }
+        ],
+        "char-71-80": [
+          { "type": "set_emotion", "id": "t11", "emotion": "frightened" },
+          { "type": "set_char_pop_desire", "id": "t11b", "value": "avoidant" }
+        ],
+        "char-81-90": [
+          { "type": "set_attribute", "id": "t12", "trait": "dominant", "value": 0 },
+          { "type": "set_attribute", "id": "t13", "trait": "sensual", "value": 70 }
+        ],
+        "char-91-100": [
+          { "type": "set_emotion", "id": "t14", "emotion": "frightened" },
+          { "type": "set_char_inflate_desire", "id": "t14b", "value": "eager" }
+        ],
+        "char-100+": [
+          { "type": "set_emotion", "id": "t15", "emotion": "blissful" },
+          { "type": "set_char_pop_desire", "id": "t15b", "value": "resigned" }
+        ]
       }
     },
     {

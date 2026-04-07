@@ -1115,6 +1115,12 @@ Write only the scenario description itself, no explanations.`;
     if (!profile) return;
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
     updateStoryField(field, { ...profile.checkpoints });
+    // Load triggers from profile if present
+    if (profile.checkpointTriggers) {
+      const currentTriggers = { ...(activeStory?.checkpointTriggers || {}) };
+      Object.assign(currentTriggers, profile.checkpointTriggers);
+      updateStoryField('checkpointTriggers', currentTriggers);
+    }
     if (type === 'player') setSelectedPlayerProfile(profileId);
     else setSelectedCharProfile(profileId);
     setProfileDirty(prev => ({ ...prev, [type]: false }));
@@ -1123,9 +1129,14 @@ Write only the scenario description itself, no explanations.`;
   const handleSaveNewProfile = async (type) => {
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
     const checkpoints = activeStory?.[field] || {};
+    const prefix = type === 'player' ? 'player-' : 'char-';
+    const triggers = {};
+    for (const [k, v] of Object.entries(activeStory?.checkpointTriggers || {})) {
+      if (k.startsWith(prefix) && v.length > 0) triggers[k] = v;
+    }
     const name = prompt('Profile name:');
     if (!name?.trim()) return;
-    const result = await api.createCheckpointProfile(type, name.trim(), checkpoints);
+    const result = await api.createCheckpointProfile(type, name.trim(), checkpoints, triggers);
     if (result?.id) {
       const updated = await api.getCheckpointProfiles();
       setCheckpointProfiles(updated);
@@ -1142,7 +1153,12 @@ Write only the scenario description itself, no explanations.`;
     if (!profile || profile.builtIn) return;
     const field = type === 'player' ? 'checkpoints' : 'characterCheckpoints';
     const checkpoints = activeStory?.[field] || {};
-    await api.updateCheckpointProfile(profileId, type, profile.name, checkpoints);
+    const prefix = type === 'player' ? 'player-' : 'char-';
+    const triggers = {};
+    for (const [k, v] of Object.entries(activeStory?.checkpointTriggers || {})) {
+      if (k.startsWith(prefix) && v.length > 0) triggers[k] = v;
+    }
+    await api.updateCheckpointProfile(profileId, type, profile.name, checkpoints, triggers);
     const updated = await api.getCheckpointProfiles();
     setCheckpointProfiles(updated);
     setProfileDirty(prev => ({ ...prev, [type]: false }));
