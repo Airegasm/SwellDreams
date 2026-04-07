@@ -296,11 +296,11 @@ function DisplayTab() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.85rem', flex: 1 }}>{label}</label>
+            <label style={{ fontSize: '0.95rem', color: '#1a1a1a', flex: 1 }}>{label}</label>
             <button
               type="button"
               onClick={() => setAdvancedFields(prev => ({ ...prev, [field]: !prev[field] }))}
-              style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'none', border: '1px solid #3a3d45', borderRadius: '3px', color: '#8b9099', cursor: 'pointer' }}
+              style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.2)', borderRadius: '3px', color: '#333', cursor: 'pointer' }}
             >
               {isAdvanced ? 'Simple' : 'Advanced'}
             </button>
@@ -311,11 +311,11 @@ function DisplayTab() {
               value={value}
               onChange={(e) => updateField(field, e.target.value)}
               placeholder="rgba(), gradient, or hex"
-              style={{ width: '100%', fontSize: '0.75rem', marginTop: '4px' }}
+              style={{ width: '100%', fontSize: '0.85rem', marginTop: '4px', color: '#1a1a1a' }}
             />
           )}
           {!isAdvanced && (
-            <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '2px' }}>{value || 'Not set'}</div>
+            <div style={{ fontSize: '0.8rem', color: '#444', marginTop: '2px' }}>{value || 'Not set'}</div>
           )}
         </div>
       </div>
@@ -324,7 +324,7 @@ function DisplayTab() {
 
   const renderFontPicker = (label, fontField, sizeField) => (
     <div className="form-group">
-      <label style={{ fontSize: '0.85rem' }}>{label}</label>
+      <label style={{ fontSize: '0.95rem', color: '#1a1a1a' }}>{label}</label>
       <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
         <select
           value={activeSkin?.[fontField] || WEB_SAFE_FONTS[0].value}
