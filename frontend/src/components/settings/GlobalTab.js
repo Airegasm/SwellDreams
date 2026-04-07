@@ -652,6 +652,13 @@ function GlobalTab() {
   const [tokenForm, setTokenForm] = useState({ trigger: '', replacements: '' });
   const [isSavingTokens, setIsSavingTokens] = useState(false);
 
+  // Token Removal state
+  const [tokenRemovals, setTokenRemovals] = useState([]);
+  const [showRemovalModal, setShowRemovalModal] = useState(false);
+  const [editingRemovalRule, setEditingRemovalRule] = useState(null);
+  const [removalForm, setRemovalForm] = useState({ triggers: '' });
+  const [isSavingRemovals, setIsSavingRemovals] = useState(false);
+
   const [expandedSections, setExpandedSections] = useState({
     controlMode: true,
     characterControls: false,
@@ -695,6 +702,13 @@ function GlobalTab() {
       setTokenRules(settings.tokenSwitching);
     }
   }, [settings?.tokenSwitching]);
+
+  // Load token removal rules from settings
+  useEffect(() => {
+    if (settings?.tokenRemovals) {
+      setTokenRemovals(settings.tokenRemovals);
+    }
+  }, [settings?.tokenRemovals]);
 
   // Load global reminders from settings
   useEffect(() => {
@@ -848,6 +862,58 @@ function GlobalTab() {
 
   const handleToggleTokenRule = (id, enabled) => {
     saveTokenRules(tokenRules.map(r => r.id === id ? { ...r, enabled } : r));
+  };
+
+  // Token Removal handlers
+  const saveRemovalRules = async (rules) => {
+    setIsSavingRemovals(true);
+    try {
+      await api.updateSettings({ tokenRemovals: rules });
+      setTokenRemovals(rules);
+    } catch (error) {
+      console.error('Failed to save token removal rules:', error);
+    }
+    setIsSavingRemovals(false);
+  };
+
+  const handleAddRemovalRule = () => {
+    setEditingRemovalRule(null);
+    setRemovalForm({ triggers: '' });
+    setShowRemovalModal(true);
+  };
+
+  const handleEditRemovalRule = (rule) => {
+    setEditingRemovalRule(rule.id);
+    setRemovalForm({ triggers: rule.triggers });
+    setShowRemovalModal(true);
+  };
+
+  const handleSaveRemovalRule = () => {
+    if (!removalForm.triggers.trim()) return;
+    let updated;
+    if (editingRemovalRule) {
+      updated = tokenRemovals.map(r => r.id === editingRemovalRule
+        ? { ...r, triggers: removalForm.triggers.trim() }
+        : r
+      );
+    } else {
+      updated = [...tokenRemovals, {
+        id: `tr-${Date.now()}`,
+        triggers: removalForm.triggers.trim(),
+        enabled: true
+      }];
+    }
+    saveRemovalRules(updated);
+    setShowRemovalModal(false);
+  };
+
+  const handleDeleteRemovalRule = (id) => {
+    if (!window.confirm('Delete this removal rule?')) return;
+    saveRemovalRules(tokenRemovals.filter(r => r.id !== id));
+  };
+
+  const handleToggleRemovalRule = (id, enabled) => {
+    saveRemovalRules(tokenRemovals.map(r => r.id === id ? { ...r, enabled } : r));
   };
 
   // Chat Memory handlers
@@ -1499,14 +1565,16 @@ function GlobalTab() {
         </div>
         {expandedSections.tokenSwitching && (
         <div className="settings-section-content">
+
+          {/* Replace subsection */}
+          <h4 style={{ margin: '0 0 0.25rem 0' }}>Replace</h4>
           <p className="section-description">
-            Replace overused LLM words with random alternatives. Each rule maps a trigger word to comma-separated
-            replacements. Every AI response is scanned and matches are swapped randomly to keep language varied.
+            Swap overused words/phrases with random alternatives. Triggers and replacements are both comma-separated.
           </p>
 
           <div className="reminders-list">
             {tokenRules.length === 0 ? (
-              <p className="empty-message">No token switching rules yet. Add one below.</p>
+              <p className="empty-message">No replacement rules yet.</p>
             ) : (
               tokenRules.map(rule => (
                 <div key={rule.id} className={`reminder-item ${rule.enabled === false ? 'disabled' : ''}`}>
@@ -1529,7 +1597,6 @@ function GlobalTab() {
               ))
             )}
           </div>
-
           <button
             className="btn btn-primary"
             onClick={handleAddTokenRule}
@@ -1538,16 +1605,58 @@ function GlobalTab() {
           >
             + Add New
           </button>
+
+          {/* Remove subsection */}
+          <h4 style={{ margin: '1.25rem 0 0.25rem 0' }}>Remove</h4>
+          <p className="section-description">
+            Strip entire sentences containing these words or phrases. The sentence from punctuation to punctuation
+            is removed. Colons are treated as sentence boundaries.
+          </p>
+
+          <div className="reminders-list">
+            {tokenRemovals.length === 0 ? (
+              <p className="empty-message">No removal rules yet.</p>
+            ) : (
+              tokenRemovals.map(rule => (
+                <div key={rule.id} className={`reminder-item ${rule.enabled === false ? 'disabled' : ''}`}>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled !== false}
+                      onChange={(e) => handleToggleRemovalRule(rule.id, e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <span className="reminder-name" style={{ flex: 1 }}>
+                    {rule.triggers}
+                  </span>
+                  <div className="reminder-actions">
+                    <button className="btn btn-sm btn-secondary" onClick={() => handleEditRemovalRule(rule)}>Edit</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRemovalRule(rule.id)}>Del</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={handleAddRemovalRule}
+            disabled={isSavingRemovals}
+            style={{ marginTop: '0.5rem' }}
+          >
+            + Add New
+          </button>
+
         </div>
         )}
       </div>
 
-      {/* Token Switching Modal */}
+      {/* Token Replace Modal */}
       {showTokenModal && (
         <div className="modal-overlay" onClick={() => setShowTokenModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header">
-              <h3>{editingTokenRule ? 'Edit Token Rule' : 'New Token Rule'}</h3>
+              <h3>{editingTokenRule ? 'Edit Replace Rule' : 'New Replace Rule'}</h3>
             </div>
             <div className="modal-body" style={{ display: 'flex', gap: '12px', padding: '20px' }}>
               <div style={{ flex: '0 0 35%' }}>
@@ -1580,6 +1689,41 @@ function GlobalTab() {
                 disabled={!tokenForm.trigger.trim() || !tokenForm.replacements.trim()}
               >
                 {editingTokenRule ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Token Removal Modal */}
+      {showRemovalModal && (
+        <div className="modal-overlay" onClick={() => setShowRemovalModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h3>{editingRemovalRule ? 'Edit Removal Rule' : 'New Removal Rule'}</h3>
+            </div>
+            <div className="modal-body" style={{ padding: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>Words/Phrases to Remove (comma-separated)</label>
+              <input
+                type="text"
+                value={removalForm.triggers}
+                onChange={(e) => setRemovalForm(prev => ({ ...prev, triggers: e.target.value }))}
+                placeholder="e.g. sent shivers down, couldn't help but"
+                style={{ width: '100%' }}
+                autoFocus
+              />
+              <p className="section-hint" style={{ marginTop: '8px' }}>
+                Any sentence containing these words/phrases will be stripped from the AI's response.
+              </p>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRemovalModal(false)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveRemovalRule}
+                disabled={!removalForm.triggers.trim()}
+              >
+                {editingRemovalRule ? 'Update' : 'Add'}
               </button>
             </div>
           </div>

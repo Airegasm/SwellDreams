@@ -3594,6 +3594,7 @@ function substituteAllVariables(text, context = {}) {
 
   // Token Switching — replace overused LLM words with random alternatives
   result = applyTokenSwitching(result, settings);
+  result = applyTokenRemovals(result, settings);
 
   return result;
 }
@@ -3628,6 +3629,117 @@ function applyTokenSwitching(text, settings) {
       return replacement;
     });
   }
+  return result;
+}
+
+/**
+ * Apply token removal rules to text.
+ * Each rule has comma-separated trigger words/phrases.
+ * When a trigger is found, the entire sentence containing it is removed.
+ * Sentence boundaries: . ! ? : (colon has special handling)
+ *
+ * Colon rules:
+ *   "She paused: a shiver ran down her spine." → trigger "shiver" → "She paused."
+ *     (removed right side of colon, colon replaced with period)
+ *   "A shiver ran through her: she gasped." → trigger "shiver" → "She gasped."
+ *     (removed left side of colon and the colon, capitalize next segment)
+ */
+function applyTokenRemovals(text, settings) {
+  if (!text) return text;
+  const rules = settings?.tokenRemovals;
+  if (!rules || !Array.isArray(rules) || rules.length === 0) return text;
+
+  // Build a combined list of all enabled triggers
+  const allTriggers = [];
+  for (const rule of rules) {
+    if (!rule.enabled || !rule.triggers) continue;
+    const triggers = rule.triggers.split(',').map(t => t.trim()).filter(Boolean);
+    allTriggers.push(...triggers);
+  }
+  if (allTriggers.length === 0) return text;
+
+  // Build regex for all triggers
+  const triggerPattern = allTriggers.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const triggerRegex = new RegExp(`\\b(?:${triggerPattern})\\b`, 'i');
+
+  // Process text by splitting into segments around sentence-ending punctuation
+  // We handle colons specially, so split into chunks at . ! ? first, then handle colons within
+  let result = text;
+  let changed = true;
+  let iterations = 0;
+
+  // Iterate until no more removals (a removal might expose new sentence boundaries)
+  while (changed && iterations < 20) {
+    changed = false;
+    iterations++;
+
+    // Split into sentences on . ! ? while preserving the punctuation
+    // Handle colon-separated clauses within each sentence
+    const sentences = [];
+    let current = '';
+    for (let i = 0; i < result.length; i++) {
+      current += result[i];
+      if (result[i] === '.' || result[i] === '!' || result[i] === '?') {
+        // Include trailing whitespace
+        while (i + 1 < result.length && result[i + 1] === ' ') {
+          i++;
+          current += result[i];
+        }
+        sentences.push(current);
+        current = '';
+      }
+    }
+    if (current.trim()) sentences.push(current);
+
+    const rebuilt = [];
+    for (const sentence of sentences) {
+      // Check if this sentence contains a colon (splitting into clauses)
+      const colonIdx = sentence.indexOf(':');
+
+      if (colonIdx !== -1 && colonIdx > 0 && colonIdx < sentence.length - 1) {
+        const leftClause = sentence.substring(0, colonIdx);
+        const rightClause = sentence.substring(colonIdx + 1);
+
+        const leftHasTrigger = triggerRegex.test(leftClause);
+        const rightHasTrigger = triggerRegex.test(rightClause);
+
+        if (leftHasTrigger && rightHasTrigger) {
+          // Both sides match — remove entire sentence
+          changed = true;
+          continue;
+        } else if (rightHasTrigger) {
+          // Remove right side, replace colon with period
+          const trimmedLeft = leftClause.trimEnd();
+          // Add period if doesn't already end with punctuation
+          const lastChar = trimmedLeft[trimmedLeft.length - 1];
+          const needsPeriod = lastChar !== '.' && lastChar !== '!' && lastChar !== '?';
+          rebuilt.push(trimmedLeft + (needsPeriod ? '. ' : ' '));
+          changed = true;
+          continue;
+        } else if (leftHasTrigger) {
+          // Remove left side and colon, capitalize remaining
+          let remaining = rightClause.trimStart();
+          if (remaining.length > 0) {
+            remaining = remaining.charAt(0).toUpperCase() + remaining.slice(1);
+          }
+          rebuilt.push(remaining);
+          changed = true;
+          continue;
+        }
+      }
+
+      // No colon logic — check the whole sentence
+      if (triggerRegex.test(sentence)) {
+        changed = true;
+        continue; // Remove entire sentence
+      }
+
+      rebuilt.push(sentence);
+    }
+
+    result = rebuilt.join('').replace(/\s{2,}/g, ' ').trim();
+  }
+
   return result;
 }
 
