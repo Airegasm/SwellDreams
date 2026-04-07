@@ -1551,12 +1551,12 @@ function GlobalTab() {
             </div>
             <div className="modal-body" style={{ display: 'flex', gap: '12px', padding: '20px' }}>
               <div style={{ flex: '0 0 35%' }}>
-                <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>Trigger Word</label>
+                <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>Trigger(s)</label>
                 <input
                   type="text"
                   value={tokenForm.trigger}
                   onChange={(e) => setTokenForm(prev => ({ ...prev, trigger: e.target.value }))}
-                  placeholder="e.g. delve"
+                  placeholder="e.g. delve, delved, delving"
                   style={{ width: '100%' }}
                   autoFocus
                 />

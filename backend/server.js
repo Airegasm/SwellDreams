@@ -3611,11 +3611,12 @@ function applyTokenSwitching(text, settings) {
   let result = text;
   for (const rule of rules) {
     if (!rule.enabled || !rule.trigger || !rule.replacements) continue;
+    const triggers = rule.trigger.split(',').map(t => t.trim()).filter(Boolean);
     const replacements = rule.replacements.split(',').map(r => r.trim()).filter(Boolean);
-    if (replacements.length === 0) continue;
-    // Case-insensitive whole-word replacement, preserving original case pattern
-    const escaped = rule.trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    if (triggers.length === 0 || replacements.length === 0) continue;
+    // Build alternation regex from all trigger words/phrases
+    const pattern = triggers.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const regex = new RegExp(`\\b(?:${pattern})\\b`, 'gi');
     result = result.replace(regex, (match) => {
       const replacement = replacements[Math.floor(Math.random() * replacements.length)];
       // Preserve capitalization: if match was all-caps, capitalize replacement; if title-case, title-case it
