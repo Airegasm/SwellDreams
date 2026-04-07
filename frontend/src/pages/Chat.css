@@ -536,6 +536,32 @@
 }
 
 /* Devices panel styles */
+.device-access-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid #2d3036;
+  border-radius: 4px;
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.device-access-label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.device-access-gated {
+  font-size: 0.75rem;
+  color: #6495ed;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 2px;
+}
+
 .panel-device-list {
   display: flex;
   flex-direction: column;

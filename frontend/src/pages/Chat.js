@@ -2065,6 +2065,45 @@ function Chat() {
             {/* Sliding panels */}
             <div className={`character-panel devices-panel ${devicesExpanded ? 'expanded' : ''}`}>
               <div className="panel-content">
+                {/* Device Access toggle */}
+                {(() => {
+                  const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
+                  const globalEnabled = settings?.globalCharacterControls?.allowLlmDeviceControl;
+                  const storyEnabled = activeStory?.allowLlmDeviceAccess || false;
+                  const gateBlocked = !sessionState?.preInflationGateMet;
+
+                  const handleToggleDeviceAccess = async () => {
+                    if (!activeCharacter || !activeStory) return;
+                    const updatedStories = activeCharacter.stories.map(s =>
+                      s.id === activeStory.id ? { ...s, allowLlmDeviceAccess: !storyEnabled } : s
+                    );
+                    try {
+                      await api.updateCharacter(activeCharacter.id, { stories: updatedStories });
+                    } catch (e) {
+                      console.error('Failed to toggle device access:', e);
+                    }
+                  };
+
+                  return (
+                    <div className="device-access-toggle">
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={storyEnabled && globalEnabled}
+                          onChange={handleToggleDeviceAccess}
+                          disabled={!globalEnabled}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                      <span className="device-access-label">
+                        {globalEnabled ? 'Device Access' : 'Device Access (global off)'}
+                      </span>
+                      {gateBlocked && (
+                        <span className="device-access-gated">Checkpoint Gated</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 {devices && devices.length > 0 ? (
                   <div className="panel-device-list">
                     {devices.map((device, idx) => {
