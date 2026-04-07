@@ -1,5 +1,6 @@
 import React from 'react';
 import { EMOTIONS } from '../../constants/stateValues';
+import { API_BASE } from '../../config';
 
 const DESIRE_OPTIONS = [
   { value: 'terrified', label: 'Terrified' },
@@ -104,6 +105,7 @@ function getTriggerTypes(isPumpable) {
     { value: 'set_persona_pop_others', label: 'Set Player Desire to Pop Others' },
     { value: 'nudge_attribute', label: 'Nudge Char Attribute (+/-)' },
     { value: 'nudge_persona_attribute', label: 'Nudge Player Attribute (+/-)' },
+    { value: 'set_skin', label: 'Set Display Skin' },
     { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
   );
@@ -127,7 +129,17 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
   const [typeSearch, setTypeSearch] = React.useState('');
   const [typeOpen, setTypeOpen] = React.useState(false);
   const typeRef = React.useRef(null);
+  const [skinsList, setSkinsList] = React.useState(null);
   const update = (field, value) => onChange({ ...trigger, [field]: value });
+
+  // Lazy-load skins when set_skin trigger is selected
+  React.useEffect(() => {
+    if (trigger.type === 'set_skin' && !skinsList) {
+      fetch(`${API_BASE}/api/display-settings`).then(r => r.json()).then(data => {
+        setSkinsList(data?.skins || []);
+      }).catch(() => setSkinsList([]));
+    }
+  }, [trigger.type, skinsList]);
   const triggerTypes = getTriggerTypes(isPumpable);
 
   // Close dropdown on outside click
@@ -203,6 +215,16 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
             <input type="number" min={-100} max={100} value={trigger.value ?? 10} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
               style={{ width: '60px' }} title="+/- amount" />
           </>
+        );
+
+      case 'set_skin':
+        return (
+          <select value={trigger.skinId || 'swelldreams-default'} onChange={(e) => update('skinId', e.target.value)} style={{ minWidth: '140px' }}>
+            {(skinsList || []).map(s => (
+              <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Default)' : ''}</option>
+            ))}
+            {!skinsList && <option value={trigger.skinId || 'swelldreams-default'}>Loading...</option>}
+          </select>
         );
 
       case 'set_player_capacity':

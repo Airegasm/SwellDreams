@@ -361,6 +361,30 @@ export function AppProvider({ children }) {
         setMessages(prev => prev.filter(m => m.id !== data.id));
         break;
 
+      case 'skin_changed': {
+        const skin = data.skin;
+        if (skin) {
+          const root = document.documentElement;
+          root.style.setProperty('--skin-player-outline', skin.playerOutlineColor || '#00ff88');
+          root.style.setProperty('--skin-player-bg', skin.playerBubbleBg || 'rgba(31, 41, 55, 0.75)');
+          root.style.setProperty('--skin-player-text', skin.playerTextColor || '#f3f4f6');
+          root.style.setProperty('--skin-player-font', skin.playerFont || 'inherit');
+          root.style.setProperty('--skin-char-outline', skin.charOutlineColor || '#ff6b6b');
+          root.style.setProperty('--skin-char-bg', skin.charBubbleBg || 'rgba(22, 33, 62, 0.75)');
+          root.style.setProperty('--skin-char-text', skin.charTextColor || '#ffffff');
+          root.style.setProperty('--skin-char-font', skin.charFont || 'inherit');
+          root.style.setProperty('--skin-system-outline', skin.systemOutlineColor || 'rgba(100, 149, 237, 0.5)');
+          root.style.setProperty('--skin-system-bg', skin.systemBubbleBg || 'rgba(30, 60, 114, 0.85)');
+          root.style.setProperty('--skin-system-text', skin.systemTextColor || 'rgba(200, 220, 255, 0.95)');
+          root.style.setProperty('--skin-system-font', skin.systemFont || 'inherit');
+          root.style.setProperty('--skin-header', skin.uiHeaderColor || 'linear-gradient(180deg, #1e2a4a 0%, #16213e 40%, #0d1526 100%)');
+          root.style.setProperty('--skin-tab', skin.uiTabColor || 'linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%)');
+          if (skin.backgroundImage) root.style.setProperty('--skin-chat-bg', `url("${skin.backgroundImage}")`);
+          if (skin.uiModalBgImage) root.style.setProperty('--skin-modal-bg', `url("${skin.uiModalBgImage}")`);
+        }
+        break;
+      }
+
       case 'chat_cleared':
         if (data.screenOnly) {
           // Screen-only clear: hide messages visually but keep state

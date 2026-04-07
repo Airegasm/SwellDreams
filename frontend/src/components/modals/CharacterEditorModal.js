@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
+import { API_BASE } from '../../config';
+import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -347,6 +349,16 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       api.getCheckpointProfiles().then(p => setCheckpointProfiles(p)).catch(() => {});
     }
   }, [isOpen, api]);
+
+  // Load available skins for the story skin dropdown
+  const [availableSkins, setAvailableSkins] = useState([]);
+  useEffect(() => {
+    if (isOpen) {
+      apiFetch(`${API_BASE}/api/display-settings`).then(data => {
+        setAvailableSkins(data?.skins || []);
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   // Memoize computed values to prevent dropdown re-render issues
   const stories = useMemo(() => formData.stories || [], [formData.stories]);
@@ -2325,6 +2337,20 @@ Write only the scenario description itself, no explanations.`;
                 <div className="story-section-divider" style={{ marginTop: '1rem', marginBottom: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
                   <h4 style={{ margin: '0 0 0.25rem 0' }}>Session Defaults</h4>
                   <p className="section-hint">Starting values when beginning a new session with this story.</p>
+                </div>
+
+                <div className="story-field">
+                  <label>Custom Skin</label>
+                  <select
+                    value={activeStory?.skinId || ''}
+                    onChange={(e) => updateStoryField('skinId', e.target.value || '')}
+                  >
+                    <option value="">SwellDreams (Default)</option>
+                    {availableSkins.filter(s => !s.builtIn).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <div className="form-hint">Automatically switch to this skin when starting a session with this story</div>
                 </div>
 
                 <div className="story-field">

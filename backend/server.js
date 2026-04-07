@@ -3085,6 +3085,19 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
       }
 
+      case 'set_skin': {
+        const skinId = trigger.skinId || 'swelldreams-default';
+        const displayData = loadDisplaySettings();
+        const skin = displayData.skins?.find(s => s.id === skinId);
+        if (skin) {
+          displayData.activeSkinId = skinId;
+          saveDisplaySettings(displayData);
+          broadcast('skin_changed', { skinId, skin });
+          console.log(`[Trigger/${source}] Set display skin to "${skin.name}"`);
+        }
+        break;
+      }
+
       case 'set_persona_attribute': {
         const persona = activePersona || (settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null);
         if (persona && trigger.trait) {
@@ -12931,6 +12944,19 @@ app.post('/api/session/reset', async (req, res) => {
       }
     } else {
       sessionState.preInflationGateMet = true;
+    }
+
+    // Apply character's custom skin if set
+    const activeStoryForSkin = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
+    if (activeStoryForSkin?.skinId) {
+      const displayData = loadDisplaySettings();
+      const skin = displayData.skins?.find(s => s.id === activeStoryForSkin.skinId);
+      if (skin) {
+        displayData.activeSkinId = activeStoryForSkin.skinId;
+        saveDisplaySettings(displayData);
+        broadcast('skin_changed', { skinId: activeStoryForSkin.skinId, skin });
+        console.log(`[Session Reset] Applied character skin: "${skin.name}"`);
+      }
     }
 
     // Send welcome message first
