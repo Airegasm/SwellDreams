@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE } from '../../config';
@@ -10,6 +11,7 @@ import './SettingsTabs.css';
 function CharacterTab() {
   const { characters, setCharacters, settings, api, flows, startNewSession } = useApp();
   const { showError, showSuccess } = useError();
+  const navigate = useNavigate();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -112,9 +114,9 @@ function CharacterTab() {
       }
       // Start new session if setting is enabled
       if (settings?.globalCharacterControls?.startNewSessionOnSelect ?? true) {
-        await startNewSession();
-        // Close the character selector and return to chat
-        window.dispatchEvent(new CustomEvent('exit-modal', { detail: { path: '/' } }));
+        // Navigate to chat immediately, then start session
+        navigate('/');
+        setTimeout(() => startNewSession(), 100);
       }
     } catch (error) {
       console.error('Failed to set active character:', error);
