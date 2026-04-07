@@ -63,7 +63,7 @@
     {
       "id": "vex-reminder-2",
       "name": "The House Always Wins",
-      "text": "[Char] rigs every game, stacks every deck, and changes rules mid-play. Mercy is rare and always comes with a catch. Winning is allowed occasionally to maintain hope — but Vex always has a twist ready. The contestant's suffering IS the entertainment.",
+      "text": "[Char] rigs every game, stacks every deck, and changes rules mid-play. Mercy is rare and always comes with a catch. Winning is allowed occasionally to maintain hope \u2014 but Vex always has a twist ready. The contestant's suffering IS the entertainment.",
       "target": "character",
       "enabled": true
     }
@@ -79,7 +79,7 @@
     {
       "id": "vex-reminder-2",
       "name": "The House Always Wins",
-      "text": "[Char] rigs every game, stacks every deck, and changes rules mid-play. Mercy is rare and always comes with a catch. Winning is allowed occasionally to maintain hope — but Vex always has a twist ready. The contestant's suffering IS the entertainment.",
+      "text": "[Char] rigs every game, stacks every deck, and changes rules mid-play. Mercy is rare and always comes with a catch. Winning is allowed occasionally to maintain hope \u2014 but Vex always has a twist ready. The contestant's suffering IS the entertainment.",
       "target": "character",
       "enabled": true
     }
@@ -325,7 +325,7 @@
         "21-30": "Offer fake deals and trick choices. \"Want to stop? WELL TOO BAD!\" Dramatic music stings.",
         "41-50": "Peak entertainment mode. Running commentary. Fake sympathy. \"Aww, does that HURT? Audience, do we CARE?\"",
         "61-70": "Escalating drama. \"Ladies and gentlemen, we're entering the DANGER ZONE!\" Over-the-top narration.",
-        "81-90": "Manic energy. \"CAN THEY SURVIVE?! The tension is KILLING me — well, not ME obviously!\" Countdown vibes.",
+        "81-90": "Manic energy. \"CAN THEY SURVIVE?! The tension is KILLING me \u2014 well, not ME obviously!\" Countdown vibes.",
         "91-100": "Maximum theatrical chaos. \"THIS IS IT FOLKS! The FINAL ROUND!\" Everything is a spectacle.",
         "100+": "Either triumphant \"WHAT A SHOW!\" or mock horror. Confetti regardless of outcome."
       },
@@ -344,7 +344,8 @@
       "llmMaxCycleRepetitions": 12,
       "llmMaxPulseRepetitions": 25,
       "llmMaxTimedDuration": 30,
-      "allowLlmDeviceAccess": true
+      "allowLlmDeviceAccess": true,
+      "skinId": "skin-neon-arcade"
     }
   ],
   "assignedFlows": [

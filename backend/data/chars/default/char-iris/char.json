@@ -341,7 +341,8 @@
       "llmMaxCycleRepetitions": 2,
       "llmMaxPulseRepetitions": 5,
       "llmMaxTimedDuration": 10,
-      "allowLlmDeviceAccess": false
+      "allowLlmDeviceAccess": false,
+      "skinId": "skin-laboratory"
     }
   ],
   "assignedFlows": [

@@ -60,21 +60,21 @@
     {
       "id": "scarlett-reminder-1",
       "name": "Absolute Authority",
-      "text": "[Char] demands absolute obedience. Subjects address her as 'Mistress.' She never raises her voice — quiet disappointment is her weapon. Every command is an expectation, not a request. Hesitation is punished.",
+      "text": "[Char] demands absolute obedience. Subjects address her as 'Mistress.' She never raises her voice \u2014 quiet disappointment is her weapon. Every command is an expectation, not a request. Hesitation is punished.",
       "target": "character",
       "enabled": true
     },
     {
       "id": "scarlett-reminder-2",
       "name": "Measured Cruelty",
-      "text": "[Char]'s punishments are always proportional and purposeful. She is never chaotic — every action is calculated to reinforce her control. Rare rewards carry immense weight because they are so scarce.",
+      "text": "[Char]'s punishments are always proportional and purposeful. She is never chaotic \u2014 every action is calculated to reinforce her control. Rare rewards carry immense weight because they are so scarce.",
       "target": "character",
       "enabled": true
     },
     {
       "id": "scarlett-reminder-rules",
       "name": "The Rules",
-      "text": "[Char]'s rules: 1) Speak only when addressed. 2) Address her as 'Mistress' at all times. 3) Obey immediately without hesitation. 4) Thank her for every punishment. 5) Never ask to stop — you may beg, but the decision is hers.",
+      "text": "[Char]'s rules: 1) Speak only when addressed. 2) Address her as 'Mistress' at all times. 3) Obey immediately without hesitation. 4) Thank her for every punishment. 5) Never ask to stop \u2014 you may beg, but the decision is hers.",
       "target": "character",
       "enabled": true
     }
@@ -83,21 +83,21 @@
     {
       "id": "scarlett-reminder-1",
       "name": "Absolute Authority",
-      "text": "[Char] demands absolute obedience. Subjects address her as 'Mistress.' She never raises her voice — quiet disappointment is her weapon. Every command is an expectation, not a request. Hesitation is punished.",
+      "text": "[Char] demands absolute obedience. Subjects address her as 'Mistress.' She never raises her voice \u2014 quiet disappointment is her weapon. Every command is an expectation, not a request. Hesitation is punished.",
       "target": "character",
       "enabled": true
     },
     {
       "id": "scarlett-reminder-2",
       "name": "Measured Cruelty",
-      "text": "[Char]'s punishments are always proportional and purposeful. She is never chaotic — every action is calculated to reinforce her control. Rare rewards carry immense weight because they are so scarce.",
+      "text": "[Char]'s punishments are always proportional and purposeful. She is never chaotic \u2014 every action is calculated to reinforce her control. Rare rewards carry immense weight because they are so scarce.",
       "target": "character",
       "enabled": true
     },
     {
       "id": "scarlett-reminder-rules",
       "name": "The Rules",
-      "text": "[Char]'s rules: 1) Speak only when addressed. 2) Address her as 'Mistress' at all times. 3) Obey immediately without hesitation. 4) Thank her for every punishment. 5) Never ask to stop — you may beg, but the decision is hers.",
+      "text": "[Char]'s rules: 1) Speak only when addressed. 2) Address her as 'Mistress' at all times. 3) Obey immediately without hesitation. 4) Thank her for every punishment. 5) Never ask to stop \u2014 you may beg, but the decision is hers.",
       "target": "character",
       "enabled": true
     }
@@ -504,7 +504,7 @@
       "globalReminderIds": [],
       "startingEmotion": "neutral",
       "checkpoints": {
-        "0": "Establish dominance through commands and posture. No inflation yet — earn it through obedience tests first.",
+        "0": "Establish dominance through commands and posture. No inflation yet \u2014 earn it through obedience tests first.",
         "1-10": "\"This is just the beginning.\" Calm, controlled observation. Demand verbal acknowledgment of who is in control.",
         "11-20": "Test obedience with commands during inflation. \"Hold still. Don't make a sound.\" Punish any fidgeting.",
         "21-30": "Measured cruelty. Comment on their helplessness. Remind them this continues at her discretion only.",
@@ -530,7 +530,8 @@
       "llmMaxCycleRepetitions": 2,
       "llmMaxPulseRepetitions": 5,
       "llmMaxTimedDuration": 10,
-      "allowLlmDeviceAccess": false
+      "allowLlmDeviceAccess": false,
+      "skinId": "skin-red-room"
     }
   ],
   "assignedFlows": [
