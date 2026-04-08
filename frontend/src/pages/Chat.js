@@ -8,6 +8,7 @@ import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
+import { formatMessageContent } from '../utils/messageFormatter';
 import { parseMediaVariables } from '../utils/mediaVariables';
 import { getPortraitForCapacity, getPortraitTransition } from '../utils/stagedPortraits';
 import PortraitDisplay from '../components/chat/PortraitDisplay';
@@ -1657,7 +1658,12 @@ function Chat() {
                       </div>
                     ) : (
                       <div className={`message-content ${msg.streaming ? 'streaming' : ''}`}>
-                        {substituteVariables(cleanContent, subContext)}
+                        {formatMessageContent(
+                          substituteVariables(cleanContent, subContext),
+                          activePersona?.displayName,
+                          msg.characterName || activeCharacter?.name,
+                          activeCharacter?.multiChar?.characters?.map(c => c.name)
+                        )}
                         {msg.streaming && <span className="streaming-cursor">▌</span>}
                       </div>
                     )}

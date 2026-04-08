@@ -3653,6 +3653,9 @@ function substituteAllVariables(text, context = {}) {
   result = applyTokenSwitching(result, settings);
   result = applyTokenRemovals(result, settings);
 
+  // Normalize double asterisks to single (LLMs often use **bold** for actions)
+  result = result.replace(/\*\*/g, '*');
+
   return result;
 }
 
@@ -12259,7 +12262,8 @@ const DEFAULT_SKIN = {
   sceneDetailsText: '#1a1d21',
   sceneDetailsFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   sceneDetailsFontSize: 14,
-  pumpableColor: '#dc2626'
+  pumpableColor: '#dc2626',
+  actionTextColor: '#c4a0e8'
 };
 
 const BUILTIN_SKINS = [
@@ -12324,6 +12328,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: 'Georgia, "Times New Roman", serif',
     sceneDetailsFontSize: 13,
     pumpableColor: '#e8a0d0',
+    actionTextColor: '#d4a0f0',
     bubbleOpacity: 0.75
   },
   {
@@ -12386,6 +12391,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: '"Segoe UI", Roboto, sans-serif',
     sceneDetailsFontSize: 13,
     pumpableColor: '#cc2222',
+    actionTextColor: '#e88090',
     bubbleOpacity: 0.75
   },
   {
@@ -12448,6 +12454,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: '"Lucida Console", Monaco, monospace',
     sceneDetailsFontSize: 12,
     pumpableColor: '#ff44cc',
+    actionTextColor: '#80f0c0',
     bubbleOpacity: 0.75
   },
   {
@@ -12510,6 +12517,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     sceneDetailsFontSize: 13,
     pumpableColor: '#cc4444',
+    actionTextColor: '#7090c0',
     bubbleOpacity: 0.75
   },
   {
@@ -12572,6 +12580,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: '"Trebuchet MS", sans-serif',
     sceneDetailsFontSize: 13,
     pumpableColor: '#40c0a0',
+    actionTextColor: '#80d0b0',
     bubbleOpacity: 0.75
   },
   {
@@ -12634,6 +12643,7 @@ const BUILTIN_SKINS = [
     sceneDetailsFont: 'Verdana, Geneva, sans-serif',
     sceneDetailsFontSize: 13,
     pumpableColor: '#ff8899',
+    actionTextColor: '#e0a0c0',
     bubbleOpacity: 0.75
   }
 ];

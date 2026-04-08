@@ -165,7 +165,8 @@ function DisplayTab() {
     '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
     '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing',
     '--skin-header-text', '--skin-section-header', '--skin-section-bg', '--skin-section-font',
-    '--skin-central-menu-bg', '--skin-selector-desc', '--skin-bubble-opacity'
+    '--skin-central-menu-bg', '--skin-selector-desc', '--skin-bubble-opacity',
+    '--skin-action-text'
   ];
 
   const applySkin = (skin) => {
@@ -228,6 +229,7 @@ function DisplayTab() {
     if (skin.sceneDetailsFont) root.style.setProperty('--skin-scene-details-font', skin.sceneDetailsFont);
     if (skin.sceneDetailsFontSize) root.style.setProperty('--skin-scene-details-font-size', skin.sceneDetailsFontSize + 'px');
     if (skin.pumpableColor) root.style.setProperty('--skin-pumpable-color', skin.pumpableColor);
+    if (skin.actionTextColor) root.style.setProperty('--skin-action-text', skin.actionTextColor);
     // Trim zones
     if (skin.trimTopperColor) root.style.setProperty('--skin-trim-topper', skin.trimTopperColor);
     else root.style.removeProperty('--skin-trim-topper');
@@ -490,6 +492,7 @@ function DisplayTab() {
         {renderColorPicker('Text Color', 'sceneDetailsText')}
         {renderFontPicker('Font', 'sceneDetailsFont', 'sceneDetailsFontSize')}
         {renderColorPicker('PUMPABLE Flag Color', 'pumpableColor')}
+        {renderColorPicker('Action Text', 'actionTextColor')}
       </>)}
 
       {S('ui', 'Settings Pages & UI', <>

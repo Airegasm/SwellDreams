@@ -1,6 +1,6 @@
 {
   "name": "swelldreams-backend",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "SwellDreams - Single-player inflation roleplay backend",
   "main": "server.js",
   "scripts": {

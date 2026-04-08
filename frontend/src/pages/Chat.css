@@ -2212,6 +2212,27 @@
   text-align: center;
 }
 
+/* Action text (text between asterisks) */
+.action-text {
+  color: var(--skin-action-text, #c4a0e8);
+  font-style: italic;
+}
+
+/* Speaker name prefixes at start of paragraphs */
+.speaker-prefix {
+  font-weight: 600;
+}
+
+.message-player .speaker-prefix.player-speaker,
+.message-character .speaker-prefix.player-speaker {
+  color: var(--skin-player-outline, #00ff88);
+}
+
+.message-player .speaker-prefix.char-speaker,
+.message-character .speaker-prefix.char-speaker {
+  color: var(--skin-char-outline, #ff6b6b);
+}
+
 /* Mobile: make message buttons always visible since no hover */
 @media (max-width: 768px) {
   .msg-btn {

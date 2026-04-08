@@ -10,7 +10,10 @@
     {
       "id": "marcus-btn",
       "type": "button_press",
-      "position": { "x": 200, "y": 50 },
+      "position": {
+        "x": 200,
+        "y": 50
+      },
       "data": {
         "label": "Express Eagerness",
         "buttonTarget": "persona",
@@ -22,7 +25,10 @@
     {
       "id": "marcus-capacity-msg",
       "type": "capacity_player_message",
-      "position": { "x": 200, "y": 180 },
+      "position": {
+        "x": 200,
+        "y": 180
+      },
       "data": {
         "label": "Eager Reactions",
         "ranges": [
@@ -93,6 +99,10 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "marcus-btn", "target": "marcus-capacity-msg" }
+    {
+      "id": "e1",
+      "source": "marcus-btn",
+      "target": "marcus-capacity-msg"
+    }
   ]
 }

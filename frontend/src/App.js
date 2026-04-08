@@ -144,6 +144,7 @@ function App() {
         if (skin.uiSectionFontColor) root.style.setProperty('--skin-section-font', skin.uiSectionFontColor);
         if (!skin.uiCentralMenuTransparent && skin.uiCentralMenuBg) root.style.setProperty('--skin-central-menu-bg', skin.uiCentralMenuBg);
         if (skin.uiSelectorDescFontColor) root.style.setProperty('--skin-selector-desc', skin.uiSelectorDescFontColor);
+        if (skin.actionTextColor) root.style.setProperty('--skin-action-text', skin.actionTextColor);
         if (skin.bubbleOpacity !== undefined && skin.bubbleOpacity !== null) root.style.setProperty('--skin-bubble-opacity', skin.bubbleOpacity);
       }
     }).catch(() => {});
@@ -452,7 +453,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v4.1.0</span>
+      <span className="version-badge">v4.1.1</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
