@@ -9793,7 +9793,7 @@ app.post('/api/settings', async (req, res) => {
       sessionState.playerName = activePersona?.displayName || null;
     }
 
-    // Ensure AI pump flow assignments are correct for the new character
+    // Ensure AI pump flow assignments are correct for the new character or persona
     if (charChanged) {
       // If new character is not pumpable, stop any active inflation and reset capacity
       const charsForPumpCheck = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
@@ -9805,7 +9805,9 @@ app.post('/api/settings', async (req, res) => {
         broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: 0 });
         broadcast('character_capacity_update', { characterCapacity: 0, elapsed: 0, inflating: false });
       }
+    }
 
+    if (charChanged || personaChanged) {
       ensureCharInflateFlowAssignments();
       // Broadcast updated personas so frontend sees button changes
       broadcast('personas_update', loadAllPersonas() || []);
