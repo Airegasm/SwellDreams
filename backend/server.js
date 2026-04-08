@@ -5613,6 +5613,14 @@ function ensureCharInflateFlowAssignments() {
 
       if (!sessionState.flowAssignments.personas) sessionState.flowAssignments.personas = {};
       sessionState.flowAssignments.personas[activePersona.id] = activePersona.assignedFlows;
+
+      // Broadcast the in-memory persona list with updated buttons (don't re-read from disk)
+      if (personaFlowsChanged || buttonsChanged) {
+        const allPersonas = loadAllPersonas() || [];
+        const idx = allPersonas.findIndex(p => p.id === activePersona.id);
+        if (idx !== -1) allPersonas[idx] = activePersona;
+        broadcast('personas_update', allPersonas);
+      }
     }
   }
 }
@@ -9809,8 +9817,6 @@ app.post('/api/settings', async (req, res) => {
 
     if (charChanged || personaChanged) {
       ensureCharInflateFlowAssignments();
-      // Broadcast updated personas so frontend sees button changes
-      broadcast('personas_update', loadAllPersonas() || []);
       broadcast('flow_assignments_update', sessionState.flowAssignments);
     }
 
