@@ -3328,28 +3328,10 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
   sessionState.characterInflationBaseCapacity = sessionState.characterCapacity;
   const startCap = sessionState.characterCapacity;
 
-  // Apply max-on-duration limit from character device control settings
-  const settings = loadData(DATA_FILES.settings);
-  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-  const activeChar = characters.find(c => c.id === settings?.activeCharacterId);
-  const charLimits = getCharacterLimits(activeChar);
-  const capacityMod = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-  const globalMax = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-  const charMax = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
-  const maxOnSeconds = Math.min(globalMax, charMax);
-
-  console.log(`[CharInflation] Starting: calibrationTime=${calibrationTime}s, startCap=${startCap}%, burstAt=${burstPercent}%, maxOn=${maxOnSeconds}s`);
+  console.log(`[CharInflation] Starting: calibrationTime=${calibrationTime}s, startCap=${startCap}%, burstAt=${burstPercent}%`);
 
   // Broadcast initial state (pump just turned on)
   broadcast('character_inflate_state', { active: true, elapsed: 0, characterCapacity: startCap });
-
-  // Auto-stop after max-on-duration (same limit as player pump)
-  charInflationAutoStopTimer = setTimeout(() => {
-    if (charInflationTimer) {
-      console.log(`[CharInflation] Auto-stopped after ${maxOnSeconds}s (max-on-duration limit)`);
-      stopCharacterInflation();
-    }
-  }, maxOnSeconds * 1000);
 
   charInflationTimer = setInterval(() => {
     const elapsed = (Date.now() - charInflationStartTime) / 1000;
