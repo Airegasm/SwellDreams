@@ -13,8 +13,7 @@ backend/data/flows/flow-miranda-*
 backend/data/flows/flow-lily-*
 backend/data/flows/flow-SororityHell-*
 
-# User-uploaded skin images
-backend/data/skins/
+# User-uploaded skin images are tracked (built-in skin assets must ship with repo)
 
 # Runtime data files
 backend/data/autosave.json
