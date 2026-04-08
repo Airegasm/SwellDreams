@@ -13712,9 +13712,23 @@ const PORT = process.env.PORT || 8889;
     { src: path.join(FACTORY_DIR, 'personas-default'), dest: PERSONAS_DEFAULT_DIR }
   ];
 
+  // Portable recursive copy (works on Node 18+)
+  function copyDirSync(src, dest) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        copyDirSync(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+
   for (const { src, dest } of pairs) {
     if (fs.existsSync(src)) {
-      fs.cpSync(src, dest, { recursive: true });
+      copyDirSync(src, dest);
     }
   }
   console.log('[Startup] Default characters and personas restored to factory state');
