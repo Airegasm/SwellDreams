@@ -39,12 +39,12 @@ function parseParagraph(para, speakerNames) {
         }
 
         if (closeIdx !== -1) {
-          // Matched pair
-          segments.push({ type: 'action', content: para.slice(i + 1, closeIdx) });
+          // Matched pair — keep asterisks visible
+          segments.push({ type: 'action', content: para.slice(i, closeIdx + 1) });
           i = closeIdx + 1;
         } else {
-          // No closing asterisk — treat rest of paragraph as action
-          segments.push({ type: 'action', content: para.slice(i + 1) });
+          // No closing asterisk — treat rest of paragraph as action, keep leading *
+          segments.push({ type: 'action', content: para.slice(i) });
           i = para.length;
         }
       } else {
