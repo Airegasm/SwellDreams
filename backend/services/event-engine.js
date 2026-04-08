@@ -2926,8 +2926,15 @@ class EventEngine {
         newValue = currentValue + 1;
     }
 
-    // Store the new value
+    // Store the new value in both flow-scoped map and variables object
     this.flowVariables.set(`${flow.id}:${variable}`, newValue);
+    this.variables[variable] = newValue;
+
+    // Sync to sessionState for frontend access
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables[variable] = newValue;
+    }
 
     console.log(`[EventEngine] Counter "${variable}": ${currentValue} -> ${newValue} (${operation})`);
     return true;
