@@ -49,7 +49,7 @@
   position: absolute;
   inset: 0;
   background: var(--skin-central-menu-bg, rgba(0, 0, 0, 0.65));
-  opacity: 0.8;
+  opacity: 0.85;
   border-radius: inherit;
   pointer-events: none;
   z-index: 0;
@@ -64,12 +64,12 @@
   display: inline-flex;
   align-items: center;
   padding: 4.5px var(--spacing-md);
-  background: linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%);
+  background: var(--skin-section-header, linear-gradient(180deg, #2a2d31 0%, #1a1c1f 100%));
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--skin-header-text, var(--text-primary));
   letter-spacing: 0.5px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   margin-bottom: var(--spacing-xs);
@@ -78,8 +78,16 @@
 }
 
 .list-item.card-style:not(.active) .list-item-name {
-  color: #fff;
+  color: var(--skin-header-text, #fff);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Inactive card text uses skin header text color for readability */
+.list-item.card-style:not(.active) .list-item-meta,
+.list-item.card-style:not(.active) .flow-line-label,
+.list-item.card-style:not(.active) .flow-line-content,
+.list-item.card-style:not(.active) .default-char-notice {
+  color: var(--skin-header-text, var(--text-secondary));
 }
 
 /* Active card text - matches section font color */

@@ -3811,7 +3811,7 @@ function applyTokenRemovals(text, settings) {
       rebuilt.push(sentence);
     }
 
-    result = rebuilt.join('').replace(/\s{2,}/g, ' ').trim();
+    result = rebuilt.join('').replace(/ {2,}/g, ' ').trim();
   }
 
   return result;

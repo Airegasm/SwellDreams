@@ -104,6 +104,15 @@ function Chat() {
   const [storyProgressionVisible, setStoryProgressionVisible] = useState(false);
   const [storyProgressionGenerating, setStoryProgressionGenerating] = useState(false);
 
+  // Clear story progression on session reset (messages cleared or loading new session)
+  useEffect(() => {
+    if (sessionLoading || messages.length === 0) {
+      setStoryProgressionSuggestions([]);
+      setStoryProgressionVisible(false);
+      setStoryProgressionGenerating(false);
+    }
+  }, [sessionLoading, messages.length]);
+
   // Persona button menu pagination
   const [personaActionPage, setPersonaActionPage] = useState(0);
   const PERSONA_ACTIONS_PER_PAGE = 6; // 2 columns x 3 rows
