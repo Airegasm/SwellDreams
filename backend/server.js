@@ -1626,6 +1626,7 @@ function loadAllPersonas() {
           if (fs.existsSync(personaPath)) {
             try {
               const persona = JSON.parse(fs.readFileSync(personaPath, 'utf8'));
+              if (seenIds.has(persona.id)) continue; // Skip duplicates (default takes precedence)
               persona._isDefault = isDefault;
               personas.push(persona);
               seenIds.add(persona.id);
@@ -5616,19 +5617,8 @@ function ensureCharInflateFlowAssignments() {
   }
 }
 
-// Load flow assignments on server startup
-loadFlowAssignments();
-console.log('[Startup] Flow assignments loaded from persisted data');
-
-// Ensure pumpable character flows are assigned
-ensureCharInflateFlowAssignments();
-
-// Activate flows for current character/persona on startup
-activateAssignedFlows();
-console.log('[Startup] Flows activated for current session');
-
-// Sync auto-generated buttons from flows for all characters and personas
-syncAllButtonsOnStartup();
+// Flow assignments, pump controls, and button sync are deferred to after
+// factory restore and index rebuilds — see startup block near server.listen()
 
 // Load and decrypt API keys from settings for service initialization
 const startupSettings = decryptSettings(loadData(DATA_FILES.settings) || {});
@@ -13728,6 +13718,19 @@ const PORT = process.env.PORT || 8889;
     }
   }
   console.log('[Startup] Default characters and personas restored to factory state');
+
+  // Clean up stale copies of default personas/chars in custom/ (from prior race condition bug)
+  for (const [defaultDir, customDir] of [[CHARS_DEFAULT_DIR, CHARS_CUSTOM_DIR], [PERSONAS_DEFAULT_DIR, PERSONAS_CUSTOM_DIR]]) {
+    if (!fs.existsSync(defaultDir) || !fs.existsSync(customDir)) continue;
+    const defaultIds = fs.readdirSync(defaultDir);
+    for (const id of defaultIds) {
+      const stalePath = path.join(customDir, id);
+      if (fs.existsSync(stalePath)) {
+        fs.rmSync(stalePath, { recursive: true, force: true });
+        console.log(`[Startup] Removed stale custom copy: ${id}`);
+      }
+    }
+  }
 })();
 
 // Ensure all indexes exist and are valid before starting
@@ -13736,6 +13739,14 @@ ensureFlowsIndex();
 ensurePersonasIndex();
 ensureActorsIndex();
 ensurePlaysIndex();
+
+// Now that factory defaults are restored and indexes rebuilt, initialize flows
+loadFlowAssignments();
+console.log('[Startup] Flow assignments loaded from persisted data');
+ensureCharInflateFlowAssignments();
+activateAssignedFlows();
+console.log('[Startup] Flows activated for current session');
+syncAllButtonsOnStartup();
 
 server.listen(PORT, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT}`);
