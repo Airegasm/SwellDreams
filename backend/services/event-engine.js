@@ -421,6 +421,10 @@ class EventEngine {
       if (result !== null && result !== undefined) {
         edges = edges.filter(e => e.sourceHandle === `branch-${result}`);
       }
+    } else if (node.type === 'loop') {
+      if (typeof result === 'string') {
+        edges = edges.filter(e => e.sourceHandle === result);
+      }
     } else if (result === 'start_cycle' || result === 'device_on') {
       // For cycle/device_on, execute immediate edges
       const immediateEdges = edges.filter(e => e.sourceHandle === 'immediate');
@@ -1897,6 +1901,11 @@ class EventEngine {
     } else if (node.type === 'branch') {
       if (result !== null && result !== undefined) {
         edges = edges.filter(e => e.sourceHandle === `branch-${result}`);
+      }
+    } else if (node.type === 'loop') {
+      // Loop nodes return 'loop' to continue iterating or 'done' to exit
+      if (typeof result === 'string') {
+        edges = edges.filter(e => e.sourceHandle === result);
       }
     } else if (result === 'start_cycle') {
       // For start_cycle, only execute 'immediate' edges now
