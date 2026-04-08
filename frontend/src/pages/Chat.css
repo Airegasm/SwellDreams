@@ -2203,6 +2203,15 @@
   opacity: 0.7;
 }
 
+.swipe-counter {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0 4px;
+  user-select: none;
+  min-width: 28px;
+  text-align: center;
+}
+
 /* Mobile: make message buttons always visible since no hover */
 @media (max-width: 768px) {
   .msg-btn {

@@ -6129,6 +6129,38 @@ async function handleWsMessage(ws, type, data) {
       await handleSwipeMessage(data);
       break;
 
+    case 'cancel_generation': {
+      llmService.abortAllRequests();
+      llmState.isGenerating = false;
+      // Remove any in-progress message (streaming or placeholder)
+      const cancelIdx = sessionState.chatHistory.findIndex(m => m.streaming || m.content === '...');
+      if (cancelIdx !== -1) {
+        const removedId = sessionState.chatHistory[cancelIdx].id;
+        sessionState.chatHistory.splice(cancelIdx, 1);
+        broadcast('message_deleted', { id: removedId });
+      }
+      broadcast('generating_stop', {});
+      break;
+    }
+
+    case 'navigate_swipe': {
+      const { messageId, direction } = data;
+      const navIdx = sessionState.chatHistory.findIndex(m => m.id === messageId);
+      if (navIdx === -1) break;
+      const navMsg = sessionState.chatHistory[navIdx];
+      if (!navMsg.swipeHistory || navMsg.swipeHistory.length <= 1) break;
+
+      let newIndex = navMsg.activeSwipeIndex ?? navMsg.swipeHistory.length - 1;
+      if (direction === 'back') newIndex = Math.max(0, newIndex - 1);
+      else if (direction === 'forward') newIndex = Math.min(navMsg.swipeHistory.length - 1, newIndex + 1);
+
+      navMsg.activeSwipeIndex = newIndex;
+      navMsg.content = navMsg.swipeHistory[newIndex];
+      broadcast('message_updated', navMsg);
+      autosaveSession();
+      break;
+    }
+
     case 'delete_message':
       handleDeleteMessage(data);
       break;
@@ -6817,6 +6849,12 @@ async function handleSwipeMessage(data) {
     // Store original content
     const originalContent = msg.content;
 
+    // Initialize swipe history if first swipe
+    if (!msg.swipeHistory) {
+      msg.swipeHistory = [originalContent];
+      msg.activeSwipeIndex = 0;
+    }
+
     // Notify UI that AI is generating
     const isPlayerVoice = msg.sender === 'player';
     const generatingFor = isPlayerVoice ? (activePersona?.displayName || 'Player') : activeCharacter.name;
@@ -6941,7 +6979,10 @@ Your response MUST be about: "${guidanceText}"
 
     // Restore history and update the message (apply variable substitution)
     sessionState.chatHistory = fullHistory;
-    sessionState.chatHistory[msgIndex].content = substituteAllVariables(resultText);
+    const finalContent = substituteAllVariables(resultText);
+    sessionState.chatHistory[msgIndex].content = finalContent;
+    sessionState.chatHistory[msgIndex].swipeHistory.push(finalContent);
+    sessionState.chatHistory[msgIndex].activeSwipeIndex = sessionState.chatHistory[msgIndex].swipeHistory.length - 1;
     sessionState.chatHistory[msgIndex].swiped = true;
     sessionState.chatHistory[msgIndex].streaming = false;
 

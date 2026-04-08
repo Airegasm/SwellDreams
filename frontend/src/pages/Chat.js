@@ -1019,6 +1019,11 @@ function Chat() {
     setTimeout(() => scrollToBottom(), 100);
   };
 
+  const handleCancelGeneration = () => {
+    sendWsMessage('cancel_generation', {});
+    setIsGenerating(false);
+  };
+
   const handleSwipeMessage = (msg) => {
     // Check if LLM is configured
     if (!isLlmConfigured()) {
@@ -1604,11 +1609,29 @@ function Chat() {
                           onClick={() => handleEditMessage(msg)}
                           title="Edit message"
                         >✏️</button>
-                        <button
-                          className="msg-btn"
-                          onClick={() => handleSwipeMessage(msg)}
-                          title="Swipe (regenerate)"
-                        >➡️</button>
+                        {msg.swipeHistory && msg.swipeHistory.length > 1 ? (
+                          <>
+                            <button className="msg-btn"
+                              onClick={() => sendWsMessage('navigate_swipe', { messageId: msg.id, direction: 'back' })}
+                              disabled={(msg.activeSwipeIndex ?? msg.swipeHistory.length - 1) === 0}
+                              title="Previous swipe">⬅️</button>
+                            <span className="swipe-counter">{(msg.activeSwipeIndex ?? msg.swipeHistory.length - 1) + 1}/{msg.swipeHistory.length}</span>
+                            <button className="msg-btn"
+                              onClick={() => {
+                                const currentIdx = msg.activeSwipeIndex ?? msg.swipeHistory.length - 1;
+                                if (currentIdx >= msg.swipeHistory.length - 1) {
+                                  handleSwipeMessage(msg);
+                                } else {
+                                  sendWsMessage('navigate_swipe', { messageId: msg.id, direction: 'forward' });
+                                }
+                              }}
+                              title={(msg.activeSwipeIndex ?? msg.swipeHistory.length - 1) >= msg.swipeHistory.length - 1 ? "New swipe (regenerate)" : "Next swipe"}>
+                              {(msg.activeSwipeIndex ?? msg.swipeHistory.length - 1) >= msg.swipeHistory.length - 1 ? '🔄' : '➡️'}
+                            </button>
+                          </>
+                        ) : (
+                          <button className="msg-btn" onClick={() => handleSwipeMessage(msg)} title="Swipe (regenerate)">🔄</button>
+                        )}
                         <button
                           className="msg-btn"
                           onClick={() => handleDeleteMessage(msg.id)}
@@ -1896,16 +1919,16 @@ function Chat() {
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
-                  onClick={() => handleGuidedGenerate('guided_impersonate')}
-                  title={sessionLoading ? "Session starting..." : "Guided Impersonate (continue as you)"}
+                  disabled={!activeCharacter || isPanelBlocking || sessionLoading}
+                  onClick={isGenerating ? handleCancelGeneration : () => handleGuidedGenerate('guided_impersonate')}
+                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
-                  disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
-                  onClick={() => handleGuidedGenerate('guided')}
-                  title={sessionLoading ? "Session starting..." : "Guided Response (AI continues)"}
+                  disabled={!activeCharacter || isPanelBlocking || sessionLoading}
+                  onClick={isGenerating ? handleCancelGeneration : () => handleGuidedGenerate('guided')}
+                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : "Guided Response (AI continues)"}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">
