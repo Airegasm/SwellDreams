@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v3.9.6 — Open Beta</h3>
+<h3 align="center">SwellDreams v4.0.0 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v3.9.6 "Open Beta"**
+**v4.0.0 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -253,9 +253,13 @@ Each device can be calibrated to establish a baseline — the system learns how 
 ### Display & Skins
 
 - **Skin system** — full visual customization with saveable skin profiles (Settings > Display)
-- **Customizable elements** — player/character/system bubble colors, outlines, text, fonts, background image, modal background, header color, tab strip color
-- **Per-character skins** — assign a custom skin to each character story, auto-loaded on session start
+- **8 built-in scene skins** — Deep Forest, Abandoned Warehouse, Moonlit Embrace, The Red Room, Neon Arcade, The Laboratory, Observation Ward, Slumber Party — each with background images, sidebar images, and coordinated color schemes
+- **Customizable elements** — player/character/system bubble colors, outlines, text, fonts, background image, sidebar images, modal background, header color, tab strip color, action menu backgrounds, section backgrounds
+- **Bubble transparency** — adjustable opacity slider (10-100%) for chat bubbles with hover-to-full-opacity
+- **Persistent skin images** — uploaded backgrounds and sidebar images saved to disk as files, surviving across sessions and restarts
+- **Per-character skins** — assign any skin (built-in or custom) to each character story, auto-loaded on session start. Automatically reverts to default when switching to a character without a skin.
 - **Checkpoint skin triggers** — dynamically change skins based on capacity ranges via checkpoint triggers
+- **Full application skinning** — skins apply to chat, settings pages, modals, dropdown overlays, device cards, and all UI elements
 - **Web-safe fonts** — 14 font options for chat bubbles and system UI
 - **Live preview** — skin changes apply instantly via CSS custom properties
 

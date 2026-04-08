@@ -694,5 +694,11 @@
     "name": "Wheel of Fate",
     "characterId": null,
     "description": "Spin the prize wheel for varied outcomes"
+  },
+  {
+    "id": "9ef10b7f-a364-462e-bcde-18118b70fa70",
+    "name": "Amara",
+    "characterId": null,
+    "description": ""
   }
 ]

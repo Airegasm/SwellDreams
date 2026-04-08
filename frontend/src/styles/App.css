@@ -900,7 +900,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .list-item.card-style {
-  background-image: url('../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
   border-color: #5a5d61;
@@ -1097,7 +1097,7 @@ input[type="range"]::-webkit-slider-thumb {
   overflow-y: auto;
   padding: var(--spacing-lg);
   max-height: 50vh;
-  background-image: url('../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
 }
@@ -1419,7 +1419,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .center-modal-overlay .page {
   background-color: var(--bg-secondary);
-  background-image: url('../assets/chat-bg.png');
+  background-image: var(--skin-chat-bg, url('../assets/chat-bg.png'));
   background-size: cover;
   background-position: center;
   background-repeat: repeat;
@@ -1452,7 +1452,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-left: none;
   border-right: none;
   border-bottom: none;
-  background-image: url('../assets/chat-bg.png');
+  background-image: var(--skin-chat-bg, url('../assets/chat-bg.png'));
   background-size: cover;
   background-position: center;
   background-repeat: repeat;
@@ -1546,7 +1546,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 .new-session-body {
   padding: 1.5rem;
-  background-image: url('../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
 }

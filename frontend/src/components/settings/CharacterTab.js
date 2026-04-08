@@ -411,9 +411,10 @@ function CharacterTab() {
                     <div className="list-item-name">
                       {character.name}
                     </div>
-                    {character.multiChar?.enabled && (
+                    {character.multiChar?.enabled && (<>
                       <span className="multi-char-badge">Multi-Char</span>
-                    )}
+                      <span className="early-access-badge">Early Access Beta</span>
+                    </>)}
                     {character.isPumpable && !character.multiChar?.enabled && (
                       <span className="pumpable-badge">Pumpable</span>
                     )}
@@ -442,7 +443,7 @@ function CharacterTab() {
                     className="btn btn-sm btn-secondary"
                     onClick={() => handleEdit(character)}
                   >
-                    Edit
+                    {character._isDefault ? 'View' : 'Edit'}
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
@@ -461,6 +462,8 @@ function CharacterTab() {
                   <button
                     className="btn btn-sm btn-danger"
                     onClick={() => handleDelete(character.id)}
+                    disabled={character._isDefault}
+                    title={character._isDefault ? 'Default characters cannot be deleted' : 'Delete character'}
                   >
                     Delete
                   </button>
@@ -472,6 +475,9 @@ function CharacterTab() {
                   <span className="flow-line-content">
                     {getActiveStoryName(character)}
                   </span>
+                  {character._isDefault && (
+                    <span className="default-char-notice">System character — view only. Copy to edit.</span>
+                  )}
                 </div>
               </div>
             </div>

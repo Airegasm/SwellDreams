@@ -489,14 +489,12 @@ function Chat() {
         const result = await api.checkDeviceReachability();
 
         if (result.unreachableDevices && result.unreachableDevices.length > 0) {
-          // Show warning for unreachable devices (but they're still configured)
-          const deviceNames = result.unreachableDevices.map(d => d.name).join(', ');
-          showWarning(`Device(s) not responding: ${deviceNames}`, 8000);
-
-          // If simulation mode was forced due to no reachable pumps
-          if (result.simulationRequired && result.simulationReason === 'No primary pump set') {
+          // Only warn if simulation mode was forced (primary pump unreachable)
+          if (result.simulationRequired) {
             showWarning('No pump devices responding - restricted to simulation mode', 8000);
           }
+          // Non-primary unreachable devices fail silently (logged to console only)
+          console.log('[Chat] Unreachable devices:', result.unreachableDevices.map(d => d.name).join(', '));
         }
       } catch (error) {
         console.error('[Chat] Device reachability check failed:', error);
@@ -1555,6 +1553,10 @@ function Chat() {
               msg.sender !== 'player' &&
               index === filteredMsgs.length - 1;
 
+            // Most recent non-system message gets full opacity
+            const isLatestNonSystem = msg.sender !== 'system' &&
+              index === filteredMsgs.reduce((last, m, i) => m.sender !== 'system' ? i : last, -1);
+
             // Parse media variables from message content
             const { cleanContent, mediaItems } = parseMediaVariables(msg.content);
             const hasTextContent = cleanContent && cleanContent.trim().length > 0;
@@ -1580,7 +1582,7 @@ function Chat() {
                 {msg.sender !== 'system' && (hasTextContent || editingId === msg.id) && (
                   <div
                     id={`msg-${msg.id}`}
-                    className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}`}
+                    className={`message ${msg.sender === 'player' ? 'message-player' : 'message-character'}${isLastCharacterMsg ? ' message-highlighted' : ''}${isLatestNonSystem ? ' message-latest' : ''}`}
                     style={{ fontSize: `${chatFontSize}px` }}
                   >
                     <div className="message-header">

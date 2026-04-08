@@ -134,8 +134,8 @@
   width: 240px;
   background-color: var(--skin-left-sidebar-bg, var(--bg-secondary));
   background-image: var(--skin-left-sidebar-img, url('../assets/sidebar-bg-left.png'));
-  background-size: 100% 100%;
-  background-position: center;
+  background-size: cover;
+  background-position: top center;
   background-repeat: no-repeat;
   border-right: none;
   padding: var(--spacing-xs) var(--spacing-md) var(--spacing-md);
@@ -1397,7 +1397,7 @@
   position: relative; /* For emergency stop alert positioning */
   z-index: 160; /* Above filmstrips (150) so they appear from behind */
   background-color: var(--bg-primary);
-  background-image: url('../assets/chat-bg.png');
+  background-image: var(--skin-chat-bg, url('../assets/chat-bg.png'));
   background-size: cover;
   background-position: center;
   background-repeat: repeat;
@@ -1513,6 +1513,7 @@
   color: var(--skin-player-text, #f3f4f6);
   font-family: var(--skin-player-font, inherit);
   max-width: calc(70% + 160px);
+  opacity: var(--skin-bubble-opacity, 1);
 }
 
 .message-character {
@@ -1522,6 +1523,7 @@
   color: var(--skin-char-text, white);
   font-family: var(--skin-char-font, inherit);
   max-width: calc(70% + 160px);
+  opacity: var(--skin-bubble-opacity, 1);
 }
 
 .message-system {
@@ -1535,6 +1537,12 @@
   font-size: 0.85em;
   padding: 8px 16px;
   border-radius: 8px;
+  opacity: var(--skin-bubble-opacity, 1);
+}
+
+.message-player:hover, .message-character:hover, .message-system:hover,
+.message.message-latest {
+  opacity: 1;
 }
 
 .message-system .message-content p {

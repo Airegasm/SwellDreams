@@ -45,6 +45,20 @@
   top: -1px;
 }
 
+.early-access-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: white;
+  padding: 3px 8px;
+  border-radius: var(--border-radius, 4px);
+  margin-left: 4px;
+  position: relative;
+  top: -1px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
 /* Pumpable badge in CharacterTab list */
 .pumpable-badge {
   font-size: 0.75rem;

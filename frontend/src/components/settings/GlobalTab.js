@@ -1686,7 +1686,7 @@ function GlobalTab() {
       {showTokenModal && (
         <div className="modal-overlay" onClick={() => setShowTokenModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
+            <div className="modal-header settings-modal-header">
               <h3>{editingTokenRule ? 'Edit Replace Rule' : 'New Replace Rule'}</h3>
             </div>
             <div className="modal-body" style={{ display: 'flex', gap: '12px', padding: '20px' }}>
@@ -1730,7 +1730,7 @@ function GlobalTab() {
       {showRemovalModal && (
         <div className="modal-overlay" onClick={() => setShowRemovalModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px' }}>
-            <div className="modal-header">
+            <div className="modal-header settings-modal-header">
               <h3>{editingRemovalRule ? 'Edit Removal Rule' : 'New Removal Rule'}</h3>
             </div>
             <div className="modal-body" style={{ padding: '20px' }}>

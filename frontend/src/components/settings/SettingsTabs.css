@@ -40,6 +40,24 @@
 .list-item.card-style {
   flex-direction: column;
   align-items: stretch;
+  position: relative;
+}
+
+/* Semi-transparent backdrop on inactive cards for readability over skin backgrounds */
+.list-item.card-style:not(.active)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--skin-central-menu-bg, rgba(0, 0, 0, 0.65));
+  opacity: 0.8;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.list-item.card-style:not(.active) > * {
+  position: relative;
+  z-index: 1;
 }
 
 .list-item.card-style .list-item-name {
@@ -489,6 +507,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+
+.default-char-notice {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #e8a040;
+  margin-left: 8px;
+  white-space: nowrap;
 }
 
 /* Global Flows Card */
@@ -1620,7 +1646,7 @@
    ============================================ */
 
 .configured-devices-card {
-  background-image: url('../../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
   border: 1px solid var(--border-color);
@@ -1636,15 +1662,15 @@
   align-items: center;
   padding: var(--spacing-md);
   margin: calc(-1 * var(--spacing-md)) calc(-1 * var(--spacing-md)) var(--spacing-md) calc(-1 * var(--spacing-md));
-  background: linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%);
+  background: var(--skin-section-header, linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%));
   border-radius: var(--border-radius) var(--border-radius) 0 0;
   font-size: 1.1rem;
   line-height: 1;
-  color: var(--text-primary);
+  color: var(--skin-header-text, var(--text-primary));
 }
 
 .configured-devices-header span:first-child {
-  color: white;
+  color: var(--skin-header-text, white);
   font-weight: 500;
 }
 
@@ -2124,6 +2150,19 @@
 .settings-subsection-content .manual-add-form input:focus {
   outline: none;
   border-color: #0d47a1;
+}
+
+/* ============================================
+   SETTINGS MODAL HEADERS - Skinned
+   ============================================ */
+
+.settings-modal-header {
+  background: var(--skin-section-header, linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-modal-header h3 {
+  color: var(--skin-header-text, var(--text-primary));
 }
 
 /* ============================================
@@ -2840,7 +2879,7 @@
 .calibration-modal-body {
   padding: var(--spacing-lg);
   overflow-y: auto;
-  background-image: url('../../assets/card-bg.png');
+  background: var(--skin-section-bg, url('../../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
   color: #1a1a1a;

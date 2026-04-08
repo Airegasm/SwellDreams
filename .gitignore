@@ -13,6 +13,9 @@ backend/data/flows/flow-miranda-*
 backend/data/flows/flow-lily-*
 backend/data/flows/flow-SororityHell-*
 
+# User-uploaded skin images
+backend/data/skins/
+
 # Runtime data files
 backend/data/autosave.json
 backend/data/settings.json

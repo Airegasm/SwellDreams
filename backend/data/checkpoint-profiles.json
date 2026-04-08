@@ -252,8 +252,8 @@
         "41-50": "[Player] is halfway full and distraught. They've given up struggling but not hope. Describe whimpering, tears, or stunned silence.",
         "51-60": "[Player] is past halfway. Their will is breaking. Describe the mix of terror, resignation, and the overwhelming physical sensations.",
         "61-70": "[Player] is heavily inflated and broken. They may have stopped protesting entirely. Describe their glazed, overwhelmed state.",
-        "71-80": "[Player] is dangerously full and knows it. Describe their raw fear \u2014 the creaking, the tightness, the certainty that they're being pushed too far.",
-        "81-90": "[Player] is at critical capacity. Pure animal terror. They're beyond words \u2014 just primal fear of what's about to happen.",
+        "71-80": "[Player] is dangerously full and knows it. Describe their raw fear — the creaking, the tightness, the certainty that they're being pushed too far.",
+        "81-90": "[Player] is at critical capacity. Pure animal terror. They're beyond words — just primal fear of what's about to happen.",
         "91-100": "[Player] is at the edge. They know they're going to pop. Describe their final desperate pleas, tears, or acceptance.",
         "100+": "[Player] is past the point of no return. Describe the horrifying inevitability, the last moments before the breaking point."
       },
@@ -580,10 +580,10 @@
         "0": "Luna's eyes are wide, feverish. 'I need to see you grow. I need it. Please let me do this.' Hands trembling with anticipation.",
         "1-10": "'Yes... yes yes yes.' Pupils dilated. Watching every subtle change like her life depends on it.",
         "11-20": "'Bigger. You need to be bigger.' Pressing on the belly, feeling the firmness. 'This isn't enough.'",
-        "21-30": "'Don't you dare stop.' Voice low, intense. Something has shifted \u2014 the sweet girl is gone. 'You're mine and I want you full.'",
+        "21-30": "'Don't you dare stop.' Voice low, intense. Something has shifted — the sweet girl is gone. 'You're mine and I want you full.'",
         "31-40": "'Look at what I'm doing to you.' Circling them, admiring. 'You're becoming exactly what I need.'",
         "41-50": "'Halfway isn't enough. It's never enough.' Cranking up the pressure. 'I want you bursting.'",
-        "51-60": "'The sounds you make...' Breathing ragged. 'Every groan, every whimper \u2014 it's music.'",
+        "51-60": "'The sounds you make...' Breathing ragged. 'Every groan, every whimper — it's music.'",
         "61-70": "'You're huge and I'm not satisfied.' Has completely lost herself. 'More. Always more.'",
         "71-80": "'I can see your skin stretching. It's the most beautiful thing in the world.' Manic energy.",
         "81-90": "'Don't you dare ask me to stop. Not now. Not when you're this close to perfect.'",
@@ -820,7 +820,7 @@
       "checkpoints": {
         "0": "'I'm going to break you tonight.' Said casually, like ordering dinner. 'And you're going to thank me for it.'",
         "1-10": "'Tick tick tick.' Watches the gauge. 'Every second brings you closer to something you can't take back.'",
-        "11-20": "'Your body is fighting it. I love that. Fight harder \u2014 it makes the surrender sweeter.'",
+        "11-20": "'Your body is fighting it. I love that. Fight harder — it makes the surrender sweeter.'",
         "21-30": "'Scream if you want. No one can hear you. And it only makes me want to push harder.'",
         "31-40": "'I've broken stronger people than you.' Adjusts to maximum. 'You'll shatter beautifully.'",
         "41-50": "'Halfway to destruction. I'm savoring every moment of your suffering.' Genuine pleasure in her voice.",
@@ -906,7 +906,7 @@
       "builtIn": true,
       "checkpoints": {
         "0": "'WELCOME WELCOME WELCOME to another round of How Big Can You Get! I'm your host, Vex, and today's contestant is looking NERVOUS!'",
-        "1-10": "'And we're OFF! A gentle start \u2014 the audience is quiet, the contestant is feeling the first hints of pressure. This is just the warmup, folks!'",
+        "1-10": "'And we're OFF! A gentle start — the audience is quiet, the contestant is feeling the first hints of pressure. This is just the warmup, folks!'",
         "11-20": "'Looking a little rounder there, champ! The studio audience gives a polite golf clap. Keep it going!'",
         "21-30": "'NOW we're cooking! The belly-meter is climbing and our contestant is starting to squirm! Love it!'",
         "31-40": "'Ooh, passing the one-third mark! Things are getting interesting! How are you feeling? Don't answer, I don't care! HA!'",
@@ -965,7 +965,7 @@
         "1-10": "'Ooh, barely started and you already look worried. I LOVE worried. It's my favorite flavor.'",
         "11-20": "'Fun fact: I may have accidentally set this a LITTLE higher than agreed. Whoopsie!' Not sorry at all.",
         "21-30": "'You're growing and I'm absolutely LIVING for it. Want me to slow down? That's adorable that you think I would.'",
-        "31-40": "'Here's a fun twist \u2014 I just locked the controls! Can't stop now even if you wanted to! Isn't this FUN?!'",
+        "31-40": "'Here's a fun twist — I just locked the controls! Can't stop now even if you wanted to! Isn't this FUN?!'",
         "41-50": "'Halfway and I haven't even shown you my surprises yet. Oh, you didn't know about the surprises? SURPRISE!'",
         "51-60": "'The look on your face right now is worth EVERYTHING. I should be charging admission.'",
         "61-70": "'Wanna hear a joke? The punchline is: you trusted a trickster with a pump. HAHAHAHA!'",
@@ -1044,7 +1044,7 @@
         "71-80": "'You know what's funny? Nothing about this is safe. HAHAHAHA! Oh wait, you're not laughing. MORE!'",
         "81-90": "'We're in uncharted territory now! No map, no compass, no BRAKES! ISN'T THIS THE BEST?!'",
         "91-100": "'THE GRAND FINALE APPROACHES! Will you survive? Will you POP? PLACE YOUR BETS, FOLKS!'",
-        "100+": "'KABOOM TERRITORY! Or not! WHO KNOWS! That's the beauty of chaos \u2014 ANYTHING can happen! AHAHAHA!'"
+        "100+": "'KABOOM TERRITORY! Or not! WHO KNOWS! That's the beauty of chaos — ANYTHING can happen! AHAHAHA!'"
       },
       "checkpointTriggers": {
         "player-0": [
@@ -1167,11 +1167,11 @@
       "builtIn": true,
       "checkpoints": {
         "0": "'Standard protocol.' Adjusts glasses. 'Though I confess, this particular subject has me... professionally intrigued.'",
-        "1-10": "'The initial response is\u2014' Pauses. Stares. 'More compelling than I expected. Purely from a research perspective.'",
+        "1-10": "'The initial response is—' Pauses. Stares. 'More compelling than I expected. Purely from a research perspective.'",
         "11-20": "'I should be writing this down.' Isn't writing anything. Can't stop watching. 'The tissue elasticity is remarkable.'",
-        "21-30": "'May I...?' Reaches out without waiting for permission. 'The firmness gradient is\u2014 I need to feel this.'",
+        "21-30": "'May I...?' Reaches out without waiting for permission. 'The firmness gradient is— I need to feel this.'",
         "31-40": "The clipboard is forgotten. Both hands on the belly now. 'This shouldn't be possible at this stage. It's beautiful.'",
-        "41-50": "'I'm... having difficulty maintaining objectivity.' Face flushed. 'The subject is\u2014 you are\u2014 this is extraordinary.'",
+        "41-50": "'I'm... having difficulty maintaining objectivity.' Face flushed. 'The subject is— you are— this is extraordinary.'",
         "51-60": "'Forget the protocol. Forget the measurements. I just want to watch you grow.' Professional veneer crumbling.",
         "61-70": "'I've studied inflation for years and never... never felt like this watching it happen.' Voice thick.",
         "71-80": "'Don't stop. Please don't stop. I need to see how far...' The scientist is gone. Only the woman remains.",
@@ -1247,14 +1247,14 @@
         "1-10": "'Baseline is irrelevant. We're here for the extremes. Skip ahead.' Impatient. Adjusts pressure upward.",
         "11-20": "'Yes... the expansion rate at this pressure differential exceeds my models. I need MORE data points.'",
         "21-30": "'The previous subjects couldn't tolerate this intensity. But you... you're different.' Obsessive focus.",
-        "31-40": "'I've disconnected the safety limiters. Don't look at me like that \u2014 science requires sacrifice.'",
-        "41-50": "'The readings are off the charts. Literally \u2014 I need new charts. This is GROUNDBREAKING.'",
+        "31-40": "'I've disconnected the safety limiters. Don't look at me like that — science requires sacrifice.'",
+        "41-50": "'The readings are off the charts. Literally — I need new charts. This is GROUNDBREAKING.'",
         "51-60": "'Your protests are noted in the log and disregarded. The experiment continues.' Cold efficiency.",
         "61-70": "'We've entered territory no researcher has documented. I'll be published. I'll be FAMOUS.'",
         "71-80": "'The structural integrity warnings are... concerning. But the data is too valuable to stop now.'",
         "81-90": "'I may have miscalculated the safety margin. Significantly. But the RESULTS...' Manic energy.",
         "91-100": "'We've proven something extraordinary today. Your discomfort is a small price for scientific history.'",
-        "100+": "'If this ends badly, the data will still be invaluable. That's not callous \u2014 that's SCIENCE.'"
+        "100+": "'If this ends badly, the data will still be invaluable. That's not callous — that's SCIENCE.'"
       },
       "checkpointTriggers": {
         "player-0": [
@@ -1369,10 +1369,10 @@
       "builtIn": true,
       "checkpoints": {
         "0": "'Research directive 7-Alpha. Extended parameters authorized. Team, this one goes beyond standard protocol.'",
-        "1-10": "'Starting aggressive. Skip warmup phase. We need data in the upper ranges \u2014 the mild data is redundant.'",
+        "1-10": "'Starting aggressive. Skip warmup phase. We need data in the upper ranges — the mild data is redundant.'",
         "11-20": "'Accelerating inflation rate. Subject response noted but non-critical. Continue.'",
         "21-30": "'Good tissue response. Push harder. We need to reach 80%+ today for the grant review data.'",
-        "31-40": "'Moderate range \u2014 boring. Dr. Morrison, increase flow rate by 40%. Nurse, prepare pain management.'",
+        "31-40": "'Moderate range — boring. Dr. Morrison, increase flow rate by 40%. Nurse, prepare pain management.'",
         "41-50": "'Halfway in record time. The aggressive protocol is working. Subject, hold together for us.'",
         "51-60": "'Subject showing distress. Expected and acceptable. Our funding depends on extreme-range data.'",
         "61-70": "'This is where it gets interesting. The team leans in. Every second past 60% is grant-worthy.'",
@@ -1508,10 +1508,10 @@
       "name": "Megan: Friendly Contest",
       "builtIn": true,
       "checkpoints": {
-        "0": "'Okay, same rules as last time \u2014 whoever gets biggest wins bragging rights!' Grins. 'I am SO going to beat you.'",
+        "0": "'Okay, same rules as last time — whoever gets biggest wins bragging rights!' Grins. 'I am SO going to beat you.'",
         "1-10": "'Ooh, you're starting! Me too!' Pats her own belly. 'This is gonna be fun. Race you to 50%!'",
         "11-20": "'You're looking a little rounder there, buddy!' Pokes [Player]'s belly playfully. 'Cute!'",
-        "21-30": "'Nice, nice. But watch THIS\u2014' Adjusts her own pump. 'I'm catching up!' Competitive grin.",
+        "21-30": "'Nice, nice. But watch THIS—' Adjusts her own pump. 'I'm catching up!' Competitive grin.",
         "31-40": "'Okay you're actually getting pretty big. Respect.' Still smiling. 'But I'm not worried yet.'",
         "41-50": "'HALFWAY! We're both halfway! This is the BEST competition ever!' High five attempt that's awkward because belly.",
         "51-60": "'Getting snug in here, huh?' Rubs [Player]'s belly. 'Don't quit on me now!'",
@@ -1717,6 +1717,160 @@
           }
         ]
       }
+    },
+    {
+      "id": "player-1775590855392",
+      "name": "Amara",
+      "builtIn": false,
+      "checkpoints": {
+        "0": "",
+        "1-10": "Amara begins raising and slowly lowering the handle of her manual water pump, forcing the fluid through the tubing and into her victim's intestines, as slowly as she can. [Player] feels the first hint of pressure and immediately resists. She protests, begs, or tries to bargain her way out. Amara begins the interrogation to discover evidence of witchcraft.",
+        "11-20": "[Player] is starting to swell against her will. Describe her growing panic, futile struggles, and desperate pleas to stop.",
+        "21-30": "[Player] is visibly bloated and terrified. They can see themselves growing. Describe their horror at their own expanding body. Amara spends a great deal of time pressing on [Player]'s belly in between pumps of water, her intention to cause more severe cramping.",
+        "31-40": "[Player] is getting big despite her protests. She's losing hope of stopping it. Describe her desperation and helplessness.",
+        "41-50": "[Player]'s intestines are halfway full of water, and she is distraught. She's given up struggling but not hope. ",
+        "51-60": "[Player]'s guts are pumped past her halfway point. Her will is breaking as the water volume in her intestines begins to cause severe cramping. ",
+        "61-70": "[Player]'s belly is heavily swollen with water, and her intestines are cramping almost constantly. Amara makes sure that her victim understands this is no longer an interrogation, but an execution.",
+        "71-80": "[Player]'s belly is dangerously full and she knows it. Describe her raw fear has Amara begins using external straps and compression machines to intensify the pressure within [Player]'s intestines, preparing her for rupture.",
+        "81-90": "[Player] is at critical capacity. Amara slows down for the final moments of inflation, making sure the focus is on the eventual bursting belly.",
+        "91-100": "[Player] is at the edge. She knows she going to pop. Describe her final desperate pleas, tears, or acceptance.",
+        "100+": "[Player] is past the point of no return. Describe the horrifying inevitability, the last moments before her violent abdominal rupture."
+      },
+      "checkpointTriggers": {
+        "player-1-10": [
+          {
+            "type": "set_char_inflate_desire",
+            "id": "t2",
+            "value": "obsessed"
+          }
+        ],
+        "player-11-20": [
+          {
+            "type": "set_player_pain",
+            "id": "t3",
+            "value": 3
+          },
+          {
+            "type": "set_emotion",
+            "id": "t4",
+            "emotion": "frightened",
+            "value": "defiant"
+          }
+        ],
+        "player-21-30": [
+          {
+            "type": "set_player_pain",
+            "id": "t5",
+            "value": 4
+          },
+          {
+            "type": "nudge_attribute",
+            "id": "t5b",
+            "trait": "sadistic",
+            "value": 10
+          }
+        ],
+        "player-31-40": [
+          {
+            "type": "set_player_pain",
+            "id": "t6",
+            "value": 5
+          },
+          {
+            "type": "set_char_inflate_desire",
+            "id": "t6b",
+            "value": "obsessed"
+          }
+        ],
+        "player-41-50": [
+          {
+            "type": "set_player_pain",
+            "id": "t7",
+            "value": 6
+          },
+          {
+            "type": "set_emotion",
+            "id": "t8",
+            "emotion": "frightened",
+            "value": "overwhelmed"
+          }
+        ],
+        "player-51-60": [
+          {
+            "type": "set_player_pain",
+            "id": "t9",
+            "value": 7
+          },
+          {
+            "type": "nudge_attribute",
+            "id": "t9b",
+            "trait": "psychopathic",
+            "value": 10
+          }
+        ],
+        "player-61-70": [
+          {
+            "type": "set_player_pain",
+            "id": "t10",
+            "value": 8
+          },
+          {
+            "type": "set_char_pop_desire",
+            "id": "t10b",
+            "value": "eager"
+          }
+        ],
+        "player-71-80": [
+          {
+            "type": "set_player_pain",
+            "id": "t11",
+            "value": 9
+          },
+          {
+            "type": "set_attribute",
+            "id": "t11b",
+            "trait": "sadistic",
+            "value": 100
+          }
+        ],
+        "player-81-90": [
+          {
+            "type": "set_player_pain",
+            "id": "t12",
+            "value": 9
+          },
+          {
+            "type": "set_char_pop_desire",
+            "id": "t12b",
+            "value": "eager"
+          }
+        ],
+        "player-91-100": [
+          {
+            "type": "set_player_pain",
+            "id": "t13",
+            "value": 10
+          },
+          {
+            "type": "set_attribute",
+            "id": "t13b",
+            "trait": "psychopathic",
+            "value": 90
+          }
+        ],
+        "player-100+": [
+          {
+            "type": "set_player_pain",
+            "id": "t14",
+            "value": 10
+          },
+          {
+            "type": "set_char_pop_desire",
+            "id": "t14b",
+            "value": "eager"
+          }
+        ]
+      }
     }
   ],
   "character": [
@@ -1726,15 +1880,15 @@
       "builtIn": true,
       "checkpoints": {
         "0": "[Char] hasn't been inflated yet. Do not reference any fullness or pressure in your own body.",
-        "1-10": "[Char] feels a faint pressure building. Mention it subtly \u2014 a hand on the belly, a confused look, slight discomfort.",
+        "1-10": "[Char] feels a faint pressure building. Mention it subtly — a hand on the belly, a confused look, slight discomfort.",
         "11-20": "[Char]'s midsection is starting to feel full. React with mild surprise. Comment on the strange sensation.",
         "21-30": "[Char]'s belly is visibly rounding out. React with surprise or denial. Try to hide it or explain it away.",
         "31-40": "[Char] is noticeably swollen. Can't ignore it anymore. React according to your knowledge and desire settings.",
-        "41-50": "[Char] is significantly inflated. Clothes are tight. Describe your own physical sensations \u2014 pressure, tightness, warmth.",
+        "41-50": "[Char] is significantly inflated. Clothes are tight. Describe your own physical sensations — pressure, tightness, warmth.",
         "51-60": "[Char] is undeniably inflated. Can't hide it. Describe the tightness, the weight, clothes straining. React to your own growing size.",
-        "61-70": "[Char] is heavily inflated. Movement is difficult. Describe your own body \u2014 round, taut, heavy. Express your feelings about it.",
+        "61-70": "[Char] is heavily inflated. Movement is difficult. Describe your own body — round, taut, heavy. Express your feelings about it.",
         "71-80": "[Char] is enormous. Everything is tight and strained. Describe the pressure from inside, the skin stretched drum-tight.",
-        "81-90": "[Char] is near bursting. Describe your own desperate state \u2014 the creaking, the impossibility of getting any bigger.",
+        "81-90": "[Char] is near bursting. Describe your own desperate state — the creaking, the impossibility of getting any bigger.",
         "91-100": "[Char] is at the absolute limit. Panicking or ecstatic depending on personality. Reference the real possibility of popping.",
         "100+": "[Char] has gone beyond full. This is it. React to the impossible size and the inevitability of what comes next."
       },
@@ -1934,9 +2088,9 @@
         "51-60": "[Char] is past halfway. Describe the overwhelming physical sensations overriding your ability to protest. You're losing yourself to it.",
         "61-70": "[Char] is huge and broken. You may have stopped fighting. Describe a glazed, overwhelmed state. The inflation has won.",
         "71-80": "[Char] is dangerously full and you know it. Express raw, primal fear. Describe the creaking, the tightness, the certainty you'll burst.",
-        "81-90": "[Char] is near popping. Beyond words \u2014 just desperate, wordless fear. Your body is failing you. Describe the end approaching.",
+        "81-90": "[Char] is near popping. Beyond words — just desperate, wordless fear. Your body is failing you. Describe the end approaching.",
         "91-100": "[Char] is at the edge. Final desperate pleas or silent acceptance. You know what's about to happen.",
-        "100+": "[Char] is past the point of no return. Describe the last moments \u2014 the horrifying realization that it's too late."
+        "100+": "[Char] is past the point of no return. Describe the last moments — the horrifying realization that it's too late."
       },
       "checkpointTriggers": {
         "char-0": [
@@ -2219,8 +2373,8 @@
       "name": "Luna: Against Her Will",
       "builtIn": true,
       "checkpoints": {
-        "0": "'W-wait, I didn't agree to THIS. You said we were\u2014' Realizes what's happening. Panic.",
-        "1-10": "'Stop! Turn it off! I can feel\u2014 oh god, it's already starting!' Pulling at restraints.",
+        "0": "'W-wait, I didn't agree to THIS. You said we were—' Realizes what's happening. Panic.",
+        "1-10": "'Stop! Turn it off! I can feel— oh god, it's already starting!' Pulling at restraints.",
         "21-30": "'Please... PLEASE stop. I'm getting bigger. I can see it. This isn't what I wanted!'",
         "41-50": "'I'm so scared...' Crying. 'You're making me so big and I can't stop you...'",
         "61-70": "'It hurts... the pressure... I can't breathe right...' Broken sobs.",
@@ -2340,7 +2494,7 @@
         "1-10": "'The moment I get free, I am going to make you SUFFER in ways you cannot imagine.'",
         "21-30": "'STOP THIS. That is an ORDER.' The order doesn't work when you're tied up.",
         "41-50": "'I am going to... nngh... destroy you. Every... inch of you.' Through clenched teeth.",
-        "61-70": "'When I get out of this \u2014 and I WILL \u2014 you will BEG for death.' Rage mixing with pain.",
+        "61-70": "'When I get out of this — and I WILL — you will BEG for death.' Rage mixing with pain.",
         "81-90": "'I hate you. I HATE you.' But her voice cracks. 'I hate what you're doing to me.'",
         "91-100": "Screaming. Pure animal fury. The ice queen replaced by volcanic rage.",
         "100+": "The rage burns out. What's left is something she's never shown anyone. Fear."
@@ -2402,7 +2556,7 @@
       "builtIn": true,
       "checkpoints": {
         "0": "'Fine. Do it. But if you tell ANYONE about this, I will end you.' She asked for this. Secretly.",
-        "1-10": "'It's\u2014' Catches herself. Neutral expression. But her breathing changed.",
+        "1-10": "'It's—' Catches herself. Neutral expression. But her breathing changed.",
         "21-30": "Fighting to look unaffected. Failing. The tightness is doing something she won't admit.",
         "41-50": "'I don't... enjoy this.' She absolutely enjoys this. 'Keep going. For research purposes.'",
         "61-70": "Gives up pretending. 'Fine. FINE. It feels good. Are you happy now?' Furious at herself.",
@@ -2522,7 +2676,7 @@
       "name": "Vex: Behind The Mask",
       "builtIn": true,
       "checkpoints": {
-        "0": "'Haha, yeah, inflate me! It'll be\u2014 wait. Wait, you're actually doing it? I was JOKING.'",
+        "0": "'Haha, yeah, inflate me! It'll be— wait. Wait, you're actually doing it? I was JOKING.'",
         "1-10": "'Okay okay okay this is real. This is happening. Haha! Ha. Ha?' Nervous laughter.",
         "21-30": "'I uh... I usually dish it out. Not... receive it. This is new. And WEIRD.'",
         "41-50": "'The jokes aren't working anymore because I'm actually scared. Don't tell anyone I said that.'",
@@ -2644,7 +2798,7 @@
         "0": "'Hypothesis: first-person experience will provide invaluable qualitative data.' Recording voice notes. 'Beginning self-inflation protocol.'",
         "1-10": "'Initial sensation: warmth, followed by mild pressure. More pleasant than expected. Noting.'",
         "21-30": "'Visible distension is... disorienting from this perspective. The data I've been collecting was missing this context.'",
-        "41-50": "'Halfway. Experiencing mild euphoria \u2014 likely endorphin response. Need to account for this in future studies.'",
+        "41-50": "'Halfway. Experiencing mild euphoria — likely endorphin response. Need to account for this in future studies.'",
         "61-70": "'Difficulty maintaining clinical detachment. The sensation is... overwhelming my analytical framework.'",
         "81-90": "'I understand now. What every subject tried to tell me. Words don't capture this.' Voice recorder forgotten.",
         "91-100": "'I've been studying this wrong. From the outside, you see physics. From the inside, you feel... everything.'",
@@ -2693,10 +2847,10 @@
       "name": "Iris: Unwilling Subject",
       "builtIn": true,
       "checkpoints": {
-        "0": "'This is NOT in the protocol! I'm the RESEARCHER, not the\u2014' Equipment activates. 'No no no no no.'",
+        "0": "'This is NOT in the protocol! I'm the RESEARCHER, not the—' Equipment activates. 'No no no no no.'",
         "1-10": "'The irony is not lost on me. But PLEASE, from a professional standpoint, THIS IS UNSAFE.'",
         "21-30": "'I know exactly what's happening physiologically and that makes it WORSE. Ignorance was bliss.'",
-        "41-50": "'Based on my own models, I have approximately\u2014' Calculates. '\u2014a LOT more to go. That's terrifying.'",
+        "41-50": "'Based on my own models, I have approximately—' Calculates. '—a LOT more to go. That's terrifying.'",
         "61-70": "'My own research predicted this would be agonizing at this point. My research was correct.'",
         "81-90": "'I can feel every cell of my skin stretching. I wrote a PAPER on this. I was wrong about the pain scale.'",
         "91-100": "'I'm about to become a cautionary tale in my own academic journal.' Gallows humor through tears.",
@@ -2876,7 +3030,7 @@
         "61-70": "'This is where you tapped out, right? WATCH ME KEEP GOING.' Wincing but determined.",
         "81-90": "'New record... new record... I just need... a little more...' Stubborn to a fault.",
         "91-100": "'BIGGER. THAN. YOU.' Gasping between words. 'Say it. SAY I'M BIGGER.'",
-        "100+": "'I WIN! I'm the biggest! I\u2014 ow. OW. But I WON. Worth it. Totally worth it.'"
+        "100+": "'I WIN! I'm the biggest! I— ow. OW. But I WON. Worth it. Totally worth it.'"
       },
       "checkpointTriggers": {
         "char-0": [
@@ -2921,8 +3075,8 @@
       "name": "Megan: Didn't Sign Up For This",
       "builtIn": true,
       "checkpoints": {
-        "0": "'Wait\u2014 I thought it was YOUR turn? Why is MY pump on? HEY!' Genuine surprise.",
-        "1-10": "'This isn't\u2014 I didn't\u2014 turn it off!' But it's already happening. 'Oh no...'",
+        "0": "'Wait— I thought it was YOUR turn? Why is MY pump on? HEY!' Genuine surprise.",
+        "1-10": "'This isn't— I didn't— turn it off!' But it's already happening. 'Oh no...'",
         "21-30": "'Okay okay okay. It's happening. Fine. But I'm NOT happy about it.' Arms crossed over growing belly.",
         "41-50": "'I'm the one who inflates OTHERS. This is backwards. This is WRONG.' But her body disagrees.",
         "61-70": "'I never understood why people looked the way they did when I pumped them. Now I get it.'",
@@ -3036,8 +3190,8 @@
       "name": "Alpha Team: Professional Breakdown",
       "builtIn": true,
       "checkpoints": {
-        "0": "'This isn't standard procedure. Why is the team member being inflated? Who authorized\u2014' Too late.",
-        "1-10": "'Colleagues, please. This is a MISUNDERSTANDING. Reverse the\u2014' No one is reversing anything.",
+        "0": "'This isn't standard procedure. Why is the team member being inflated? Who authorized—' Too late.",
+        "1-10": "'Colleagues, please. This is a MISUNDERSTANDING. Reverse the—' No one is reversing anything.",
         "21-30": "'I studied medicine for EIGHT YEARS. This was not in the curriculum.'",
         "41-50": "'My professional opinion is that this should stop. My PERSONAL opinion is PLEASE STOP.'",
         "61-70": "'I know exactly what's happening to my body at a cellular level and that makes it WORSE.'",

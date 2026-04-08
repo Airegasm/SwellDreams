@@ -2340,14 +2340,14 @@ Write only the scenario description itself, no explanations.`;
                 </div>
 
                 <div className="story-field">
-                  <label>Custom Skin</label>
+                  <label>Session Skin</label>
                   <select
                     value={activeStory?.skinId || ''}
                     onChange={(e) => updateStoryField('skinId', e.target.value || '')}
                   >
                     <option value="">SwellDreams (Default)</option>
-                    {availableSkins.filter(s => !s.builtIn).map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                    {availableSkins.filter(s => s.id !== 'swelldreams-default').map(s => (
+                      <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Built-in)' : ''}</option>
                     ))}
                   </select>
                   <div className="form-hint">Automatically switch to this skin when starting a session with this story</div>

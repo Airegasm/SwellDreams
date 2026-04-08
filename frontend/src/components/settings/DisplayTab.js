@@ -165,7 +165,7 @@ function DisplayTab() {
     '--skin-scene-details-bg', '--skin-scene-details-text', '--skin-scene-details-font', '--skin-scene-details-font-size',
     '--skin-pumpable-color', '--skin-trim-topper', '--skin-trim-center', '--skin-trim-footer', '--skin-name-backing',
     '--skin-header-text', '--skin-section-header', '--skin-section-bg', '--skin-section-font',
-    '--skin-central-menu-bg', '--skin-selector-desc'
+    '--skin-central-menu-bg', '--skin-selector-desc', '--skin-bubble-opacity'
   ];
 
   const applySkin = (skin) => {
@@ -252,6 +252,11 @@ function DisplayTab() {
       root.style.removeProperty('--skin-central-menu-bg');
     }
     if (skin.uiSelectorDescFontColor) root.style.setProperty('--skin-selector-desc', skin.uiSelectorDescFontColor);
+    if (skin.bubbleOpacity !== undefined && skin.bubbleOpacity !== null) {
+      root.style.setProperty('--skin-bubble-opacity', skin.bubbleOpacity);
+    } else {
+      root.style.removeProperty('--skin-bubble-opacity');
+    }
   };
 
   // Apply on initial load
@@ -426,6 +431,18 @@ function DisplayTab() {
         {renderColorPicker('Background', 'systemBubbleBg')}
         {renderColorPicker('Text', 'systemTextColor')}
         {renderFontPicker('Font', 'systemFont', 'systemFontSize')}
+
+        <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Bubble Transparency</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <label style={{ minWidth: '60px', color: '#333', fontSize: '0.85rem' }}>Opacity</label>
+          <input
+            type="range" min="0.1" max="1" step="0.05"
+            value={activeSkin?.bubbleOpacity ?? 1}
+            onChange={(e) => updateField('bubbleOpacity', parseFloat(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <span style={{ minWidth: '36px', color: '#333', fontSize: '0.85rem' }}>{Math.round((activeSkin?.bubbleOpacity ?? 1) * 100)}%</span>
+        </div>
 
         <h4 style={{ margin: '16px 0 8px', color: '#1a1a1a' }}>Input Box</h4>
         {renderColorPicker('Background', 'inputBoxBg')}

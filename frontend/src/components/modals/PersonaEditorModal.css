@@ -18,7 +18,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%);
+  background: var(--skin-section-header, linear-gradient(0deg, #0d1526 0%, #16213e 60%, #1e2a4a 100%));
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
@@ -26,7 +26,7 @@
 .persona-modal-header h3 {
   margin: 0;
   font-size: 1.25rem;
-  color: var(--text-primary);
+  color: var(--skin-header-text, var(--text-primary));
   font-weight: 600;
 }
 

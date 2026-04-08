@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
+import { API_BASE } from '../../config';
+import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
+import TriggerRow from '../common/TriggerRow';
+import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 import './MultiCharEditorModal.css';
 
@@ -105,7 +109,16 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
           intensity: character.intensity || '',
           spoilers: character.spoilers || [],
           checkpoints: {},
-          attributes: {}
+          checkpointTriggers: {},
+          attributes: {},
+          startingCapacity: 0,
+          startingPain: 0,
+          startingCapacityModifier: 1.0,
+          skinId: '',
+          overrideDisposition: false,
+          storyProgressionEnabled: false,
+          storyProgressionMaxOptions: 3,
+          randomWelcomeVersion: false
         }];
       } else {
         stories = stories.map(s => {
@@ -136,7 +149,16 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
             assignedButtons: s.assignedButtons || [],
             constantReminderIds: s.constantReminderIds || [],
             globalReminderIds: s.globalReminderIds || [],
-            startingEmotion: s.startingEmotion || character.startingEmotion || 'neutral'
+            startingEmotion: s.startingEmotion || character.startingEmotion || 'neutral',
+            checkpointTriggers: s.checkpointTriggers || {},
+            startingCapacity: s.startingCapacity || 0,
+            startingPain: s.startingPain || 0,
+            startingCapacityModifier: s.startingCapacityModifier || 1.0,
+            skinId: s.skinId || '',
+            overrideDisposition: s.overrideDisposition || false,
+            storyProgressionEnabled: s.storyProgressionEnabled || false,
+            storyProgressionMaxOptions: s.storyProgressionMaxOptions || 3,
+            randomWelcomeVersion: s.randomWelcomeVersion || false
           };
         });
       }
@@ -188,7 +210,16 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       intensity: '',
       spoilers: [],
       checkpoints: {},
-      attributes: {}
+      checkpointTriggers: {},
+      attributes: {},
+      startingCapacity: 0,
+      startingPain: 0,
+      startingCapacityModifier: 1.0,
+      skinId: '',
+      overrideDisposition: false,
+      storyProgressionEnabled: false,
+      storyProgressionMaxOptions: 3,
+      randomWelcomeVersion: false
     };
 
     return {
@@ -240,6 +271,17 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       setFormData(prev => ({ ...prev, stories: migratedStories }));
     }
   }, [isOpen, formData.stories?.length, character, hasDraft]);
+
+  const [availableSkins, setAvailableSkins] = useState([]);
+  const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+
+  useEffect(() => {
+    if (isOpen) {
+      apiFetch(`${API_BASE}/api/display-settings`).then(data => {
+        setAvailableSkins(data?.skins || []);
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   const [selectedStoryId, setSelectedStoryId] = useState(null);
   const [editingStoryName, setEditingStoryName] = useState(false);
@@ -677,7 +719,14 @@ Write only the scenario description itself, no explanations.`;
       storyProgressionEnabled: false,
       storyProgressionMaxOptions: 3,
       checkpoints: {},
-      attributes: {}
+      checkpointTriggers: {},
+      attributes: {},
+      startingCapacity: 0,
+      startingPain: 0,
+      startingCapacityModifier: 1.0,
+      skinId: '',
+      overrideDisposition: false,
+      randomWelcomeVersion: false
     };
     setFormData({ ...formData, stories: [...stories, newStory] });
     setSelectedStoryId(newId);
@@ -1187,9 +1236,6 @@ Write only the scenario description itself, no explanations.`;
           <button type="button" className={`modal-tab ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>
             Custom Buttons
           </button>
-          <button type="button" className={`modal-tab ${activeTab === 'session' ? 'active' : ''}`} onClick={() => setActiveTab('session')}>
-            Session
-          </button>
           <button type="button" className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`} onClick={() => setActiveTab('checkpoints')}>
             Checkpoints
           </button>
@@ -1492,14 +1538,9 @@ Write only the scenario description itself, no explanations.`;
                     value={activeStory?.startingEmotion || 'neutral'}
                     onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
                   >
-                    <option value="neutral">Neutral</option>
-                    <option value="happy">Happy</option>
-                    <option value="excited">Excited</option>
-                    <option value="nervous">Nervous</option>
-                    <option value="uncomfortable">Uncomfortable</option>
-                    <option value="struggling">Struggling</option>
-                    <option value="distressed">Distressed</option>
-                    <option value="desperate">Desperate</option>
+                    {EMOTIONS.map(e => (
+                      <option key={e.key} value={e.key}>{e.emoji} {e.label}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -1511,6 +1552,12 @@ Write only the scenario description itself, no explanations.`;
                       {enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}
                     </label>
                     <div className="version-controls">
+                      <button
+                        type="button"
+                        className={`btn-icon btn-random-version ${activeStory?.randomWelcomeVersion ? 'active' : ''}`}
+                        onClick={() => updateStoryField('randomWelcomeVersion', !activeStory?.randomWelcomeVersion)}
+                        title={activeStory?.randomWelcomeVersion ? 'Random version on session start (ON)' : 'Random version on session start (OFF)'}
+                      >R</button>
                       <select
                         value={getActiveWelcomeMessage()?.id || ''}
                         onChange={(e) => handleWelcomeMessageChange(e.target.value)}
@@ -1799,6 +1846,86 @@ Write only the scenario description itself, no explanations.`;
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* Session Defaults (per-story) */}
+                <div className="story-section-divider" style={{ marginTop: '1rem', marginBottom: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
+                  <h4 style={{ margin: '0 0 0.25rem 0' }}>Session Defaults</h4>
+                  <p className="section-hint">Starting values when beginning a new session with this story.</p>
+                </div>
+
+                <div className="story-field">
+                  <label>Session Skin</label>
+                  <select
+                    value={activeStory?.skinId || ''}
+                    onChange={(e) => updateStoryField('skinId', e.target.value || '')}
+                  >
+                    <option value="">SwellDreams (Default)</option>
+                    {availableSkins.filter(s => s.id !== 'swelldreams-default').map(s => (
+                      <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Built-in)' : ''}</option>
+                    ))}
+                  </select>
+                  <div className="form-hint">Automatically switch to this skin when starting a session with this story</div>
+                </div>
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Starting Capacity</label>
+                    <span className="form-value">{activeStory?.startingCapacity || 0}%</span>
+                  </div>
+                  <input type="range" min="0" max="100" step="5"
+                    value={activeStory?.startingCapacity || 0}
+                    onChange={(e) => updateStoryField('startingCapacity', parseInt(e.target.value))}
+                  />
+                </div>
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Pain Level</label>
+                    <span className="form-value">{activeStory?.startingPain || 0}</span>
+                  </div>
+                  <input type="range" min="0" max="10" step="1"
+                    value={activeStory?.startingPain || 0}
+                    onChange={(e) => updateStoryField('startingPain', parseInt(e.target.value))}
+                  />
+                </div>
+
+                <div className="story-field auto-reply-field">
+                  <label className="toggle-switch">
+                    <input type="checkbox"
+                      checked={activeStory?.overrideDisposition || false}
+                      onChange={(e) => updateStoryField('overrideDisposition', e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Override Persona Starting Disposition</span>
+                    <span className="auto-reply-hint">Use this story's disposition instead of the persona's default at session start</span>
+                  </div>
+                </div>
+                {activeStory?.overrideDisposition && (
+                  <div className="story-field" style={{ marginTop: '0.25rem' }}>
+                    <select
+                      value={activeStory?.startingEmotion || 'neutral'}
+                      onChange={(e) => updateStoryField('startingEmotion', e.target.value)}
+                    >
+                      {EMOTIONS.map(e => (
+                        <option key={e.key} value={e.key}>{e.emoji} {e.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="story-field">
+                  <div className="form-label-row">
+                    <label>Auto-Capacity Speed</label>
+                    <span className="form-value">{(activeStory?.startingCapacityModifier || 1.0).toFixed(2)}x</span>
+                  </div>
+                  <input type="range" min="0.25" max="2" step="0.25"
+                    value={activeStory?.startingCapacityModifier || 1.0}
+                    onChange={(e) => updateStoryField('startingCapacityModifier', parseFloat(e.target.value))}
+                  />
+                  <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
                 </div>
               </div>
             </div>
@@ -2100,73 +2227,6 @@ Write only the scenario description itself, no explanations.`;
             </div>
           </div>
 
-          {/* Session Tab */}
-          <div className="modal-body character-modal-body" style={{ display: activeTab === 'session' ? 'block' : 'none' }}>
-            <div className="session-defaults-editor">
-              <h4>Session</h4>
-              <p className="section-hint">These values will be used when starting a new session with this character group.</p>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Starting Capacity</label>
-                  <span className="form-value">{formData.sessionDefaults?.capacity || 0}%</span>
-                </div>
-                <input type="range" min="0" max="100" step="5"
-                  value={formData.sessionDefaults?.capacity || 0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev, sessionDefaults: { ...prev.sessionDefaults, capacity: parseInt(e.target.value) }
-                  }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Pain Level</label>
-                  <span className="form-value">{formData.sessionDefaults?.pain || 0}</span>
-                </div>
-                <input type="range" min="0" max="10" step="1"
-                  value={formData.sessionDefaults?.pain || 0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev, sessionDefaults: { ...prev.sessionDefaults, pain: parseInt(e.target.value) }
-                  }))}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Emotion</label>
-                <select
-                  value={formData.sessionDefaults?.emotion || 'neutral'}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev, sessionDefaults: { ...prev.sessionDefaults, emotion: e.target.value }
-                  }))}
-                >
-                  <option value="neutral">Neutral</option>
-                  <option value="happy">Happy</option>
-                  <option value="excited">Excited</option>
-                  <option value="nervous">Nervous</option>
-                  <option value="uncomfortable">Uncomfortable</option>
-                  <option value="struggling">Struggling</option>
-                  <option value="distressed">Distressed</option>
-                  <option value="desperate">Desperate</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <div className="form-label-row">
-                  <label>Auto-Capacity Speed</label>
-                  <span className="form-value">{(formData.sessionDefaults?.capacityModifier || 1.0).toFixed(2)}x</span>
-                </div>
-                <input type="range" min="0.25" max="2" step="0.25"
-                  value={formData.sessionDefaults?.capacityModifier || 1.0}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev, sessionDefaults: { ...prev.sessionDefaults, capacityModifier: parseFloat(e.target.value) }
-                  }))}
-                />
-                <div className="form-hint">Affects how fast capacity increases during auto-mode</div>
-              </div>
-            </div>
-          </div>
-
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
@@ -2187,18 +2247,47 @@ Write only the scenario description itself, no explanations.`;
                 { key: '91-100', label: '91–100%' },
                 { key: '100+', label: '100%+ — Over-Inflation' }
               ].map(({ key, label, hint }) => (
-                <div className="form-group" key={key}>
-                  <label>{label}</label>
+                <div className="form-group checkpoint-field" key={key}>
+                  <div className="checkpoint-header">
+                    <label>{label}</label>
+                    <button type="button" className="checkpoint-spoiler-toggle"
+                      onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [key]: !prev[key] }))}
+                      title={visibleCheckpoints[key] ? 'Hide' : 'Show'}
+                    >
+                      <span className="spoiler-eye">{visibleCheckpoints[key] ? '\u{1F441}' : '\u{1F441}\u200D\u{1F5E8}'}</span>
+                      <span className="spoiler-label">{visibleCheckpoints[key] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
+                    </button>
+                  </div>
                   {hint && <p className="section-hint">{hint}</p>}
-                  <textarea
-                    value={activeStory?.checkpoints?.[key] || ''}
-                    onChange={(e) => updateStoryField('checkpoints', {
-                      ...(activeStory?.checkpoints || {}),
-                      [key]: e.target.value
-                    })}
-                    placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                    rows={3}
-                  />
+                  <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
+                    <textarea
+                      value={activeStory?.checkpoints?.[key] || ''}
+                      onChange={(e) => updateStoryField('checkpoints', {
+                        ...(activeStory?.checkpoints || {}),
+                        [key]: e.target.value
+                      })}
+                      placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
+                      rows={3}
+                    />
+                  </div>
+                  {/* Checkpoint triggers */}
+                  <div className="checkpoint-triggers">
+                    <div className="checkpoint-triggers-header">
+                      <span className="checkpoint-triggers-label">Triggers</span>
+                      <button type="button" className="btn-icon btn-add" onClick={() => {
+                        const ct = { ...(activeStory?.checkpointTriggers || {}) };
+                        ct[key] = [...(ct[key] || []), { type: 'impersonate', id: Date.now().toString() }];
+                        updateStoryField('checkpointTriggers', ct);
+                      }} title="Add trigger">+</button>
+                    </div>
+                    {(activeStory?.checkpointTriggers?.[key] || []).map((trigger, tIdx) => (
+                      <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false}
+                        reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
+                        onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[key] || [])]; items[tIdx] = updated; ct[key] = items; updateStoryField('checkpointTriggers', ct); }}
+                        onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[key] = (ct[key] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
+                      />
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
