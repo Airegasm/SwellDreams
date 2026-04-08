@@ -117,12 +117,14 @@
         "label": "Evaluate Discomfort",
         "conditions": [
           {
-            "variable": "flow:discomfortRating",
+            "variable": "custom",
+            "customVariable": "discomfortRating",
             "operator": ">=",
             "value": 8
           },
           {
-            "variable": "flow:discomfortRating",
+            "variable": "custom",
+            "customVariable": "discomfortRating",
             "operator": ">=",
             "value": 5
           }

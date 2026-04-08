@@ -104,7 +104,7 @@
         "device": "primary_pump",
         "pulses": 5,
         "preMessageEnabled": true,
-        "preMessage": "*activates device* Let this remind you of proper vocabulary. The phrase you ar elooking for is \"Yes, Mistress.\"",
+        "preMessage": "*activates device* Let this remind you of proper vocabulary. The phrase you are looking for is \"Yes, Mistress.\"",
         "preMessageSuppressLlm": false,
         "preDelay": 1,
         "postMessageEnabled": false,

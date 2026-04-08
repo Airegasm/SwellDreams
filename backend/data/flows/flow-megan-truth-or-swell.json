@@ -1,0 +1,224 @@
+{
+  "id": "flow-megan-truth-or-swell",
+  "name": "Truth or Swell",
+  "category": "character",
+  "description": "A/B choice between answering a personal question or taking a pump — with coin flip consequences",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "meg-ts-btn",
+      "type": "button_press",
+      "position": { "x": 250, "y": 50 },
+      "data": {
+        "label": "Truth or Swell",
+        "buttonTarget": "character",
+        "buttonId": "megan-truth",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "meg-ts-intro",
+      "type": "action",
+      "position": { "x": 250, "y": 180 },
+      "data": {
+        "label": "Game Intro",
+        "actionType": "send_message",
+        "message": "*sits cross-legged facing you* Okay, new game! Truth or Swell! I ask you something personal, and you either answer honestly... or you take a swell instead! *leans forward* But here's the twist — if you pick truth and I think you're lying, I pump you ANYWAY. *grins* Fair?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-ts-choice",
+      "type": "simple_ab",
+      "position": { "x": 250, "y": 380 },
+      "data": {
+        "label": "Truth or Swell?",
+        "description": "Megan is waiting for your answer...",
+        "labelA": "Truth!",
+        "descriptionA": "I'll answer honestly",
+        "labelB": "Swell!",
+        "descriptionB": "Just pump me, I'm not telling you anything"
+      }
+    },
+    {
+      "id": "meg-ts-truth-msg",
+      "type": "action",
+      "position": { "x": 50, "y": 580 },
+      "data": {
+        "label": "Truth Path",
+        "actionType": "send_message",
+        "message": "*claps* Ooh, brave choice! Okay let me think of something good... *taps chin* You know what, tell me — what's the kinkiest thing you've ever fantasized about but never told anyone? *leans in with sparkling eyes* And remember, I'll know if you're lying!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-ts-truth-coin",
+      "type": "coin_flip",
+      "position": { "x": 50, "y": 750 },
+      "data": {
+        "label": "Lie Detector",
+        "headsLabel": "Believes You",
+        "tailsLabel": "Calls BS",
+        "headsWeight": 60,
+        "bestOf": 1,
+        "preMessageEnabled": true,
+        "preMessage": "*listens intently, then studies your face* Hmm... let me decide if I believe you...",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "meg-ts-truth-believe",
+      "type": "action",
+      "position": { "x": -100, "y": 950 },
+      "data": {
+        "label": "Believes You",
+        "actionType": "send_message",
+        "message": "*eyes widen* Oh my god, really?! *laughs and covers mouth* That's... actually kind of amazing. I won't judge, I promise — look at what WE'RE doing right now! *gestures at both your inflated bellies* You're safe with me, weirdo. *affectionate shoulder bump*",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-ts-truth-bs",
+      "type": "action",
+      "position": { "x": 200, "y": 950 },
+      "data": {
+        "label": "Calls BS",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 5,
+        "preMessageEnabled": true,
+        "preMessage": "*narrows eyes* Nope! I call BULLSHIT! *grabs pump* That was NOT the whole truth! Five penalty pumps!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*smirks* Next time, don't hold back! I told you I'd know! *winks*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "meg-ts-swell-msg",
+      "type": "action",
+      "position": { "x": 450, "y": 580 },
+      "data": {
+        "label": "Swell Path",
+        "actionType": "send_message",
+        "message": "*gasps* You'd rather get pumped than answer?! *cackles* Oh this must be REALLY juicy if you're avoiding it! *reaches for pump* Fine, but I'm going to make it COUNT!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-ts-swell-device",
+      "type": "action",
+      "position": { "x": 450, "y": 750 },
+      "data": {
+        "label": "Swell Penalty",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 12,
+        "preMessageEnabled": true,
+        "preMessage": "*activates pump with relish* Twelve seconds! The price of secrecy!",
+        "preMessageSuppressLlm": true,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*watches with barely concealed arousal* Mmm, look how big you're getting... I almost hope you keep picking Swell. *bites lip* For science.",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "meg-ts-pause",
+      "type": "pause_resume",
+      "position": { "x": 250, "y": 1120 },
+      "data": {
+        "label": "Chat Break",
+        "resumeAfterType": "messages",
+        "resumeAfterValue": 3
+      }
+    },
+    {
+      "id": "meg-ts-emo-start",
+      "type": "action",
+      "position": { "x": 275, "y": 310 },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "meg-ts-emo-swell",
+      "type": "action",
+      "position": { "x": 375, "y": 490 },
+      "data": {
+        "label": "Set Dominant",
+        "actionType": "set_emotion",
+        "emotion": "dominant"
+      }
+    },
+    {
+      "id": "meg-ts-attr-swell",
+      "type": "action",
+      "position": { "x": 425, "y": 535 },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 85
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "meg-ts-btn", "target": "meg-ts-intro" },
+    { "id": "e3", "source": "meg-ts-choice", "sourceHandle": "a", "target": "meg-ts-truth-msg" },
+    { "id": "e4", "source": "meg-ts-truth-msg", "target": "meg-ts-truth-coin" },
+    { "id": "e5", "source": "meg-ts-truth-coin", "sourceHandle": "heads", "target": "meg-ts-truth-believe" },
+    { "id": "e6", "source": "meg-ts-truth-coin", "sourceHandle": "tails", "target": "meg-ts-truth-bs" },
+    { "id": "e7", "source": "meg-ts-truth-believe", "target": "meg-ts-pause" },
+    { "id": "e8", "source": "meg-ts-truth-bs", "target": "meg-ts-pause" },
+    { "id": "e10", "source": "meg-ts-swell-device", "target": "meg-ts-pause" },
+    {
+      "id": "e-meg-ts-intro-to-meg-ts-emo-start",
+      "source": "meg-ts-intro",
+      "target": "meg-ts-emo-start"
+    },
+    {
+      "id": "e-meg-ts-emo-start-to-meg-ts-choice",
+      "source": "meg-ts-emo-start",
+      "target": "meg-ts-choice"
+    },
+    {
+      "id": "e-meg-ts-choice-to-meg-ts-emo-swell",
+      "source": "meg-ts-choice",
+      "target": "meg-ts-emo-swell",
+      "sourceHandle": "b"
+    },
+    {
+      "id": "e-meg-ts-emo-swell-to-meg-ts-attr-swell",
+      "source": "meg-ts-emo-swell",
+      "target": "meg-ts-attr-swell"
+    },
+    {
+      "id": "e-meg-ts-attr-swell-to-meg-ts-swell-msg",
+      "source": "meg-ts-attr-swell",
+      "target": "meg-ts-swell-msg"
+    },
+    {
+      "id": "e-meg-ts-swell-msg-to-meg-ts-swell-device",
+      "source": "meg-ts-swell-msg",
+      "target": "meg-ts-swell-device"
+    }
+  ]
+}

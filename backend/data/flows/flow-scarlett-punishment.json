@@ -539,7 +539,7 @@
     },
     {
       "source": "scarlett-pn-timer",
-      "sourceHandle": "timeout",
+      "sourceHandle": "success",
       "target": "node_3",
       "animated": true,
       "id": "xy-edge__scarlett-pn-timertimeout-node_3"
@@ -615,7 +615,7 @@
       "id": "e-scarlett-pn-timer-to-sc-pn-emo-win",
       "source": "scarlett-pn-timer",
       "target": "sc-pn-emo-win",
-      "sourceHandle": "success"
+      "sourceHandle": "timeout"
     },
     {
       "id": "e-sc-pn-emo-win-to-scarlett-pn-success-stop",

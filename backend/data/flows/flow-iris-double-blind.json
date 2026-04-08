@@ -337,13 +337,13 @@
     {
       "id": "e11",
       "source": "iris-db-timer",
-      "sourceHandle": "success",
+      "sourceHandle": "timeout",
       "target": "iris-db-success-msg"
     },
     {
       "id": "e12",
       "source": "iris-db-timer",
-      "sourceHandle": "timeout",
+      "sourceHandle": "success",
       "target": "iris-db-fail-msg"
     },
     {

@@ -80,7 +80,7 @@
         "label": "Stage 1 Device On",
         "actionType": "device_on",
         "device": "primary_pump",
-        "untilType": "indefinite",
+        "untilType": "forever",
         "preMessageEnabled": true,
         "preMessage": "*slams activation switch* DEVICE ON! The clock is TICKING!",
         "preMessageSuppressLlm": true,

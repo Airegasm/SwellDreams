@@ -1,0 +1,230 @@
+{
+  "id": "flow-megan-dare-roulette",
+  "name": "Dare Roulette",
+  "category": "character",
+  "description": "Spin the wheel to determine who gets pumped and how much — competitive mutual inflation game",
+  "isActive": true,
+  "createdAt": 1705000000000,
+  "updatedAt": 1705000000000,
+  "nodes": [
+    {
+      "id": "meg-dr-btn",
+      "type": "button_press",
+      "position": { "x": 300, "y": 50 },
+      "data": {
+        "label": "Dare Roulette",
+        "buttonTarget": "character",
+        "buttonId": "megan-dare",
+        "unblockable": false,
+        "hasPriority": false
+      }
+    },
+    {
+      "id": "meg-dr-intro",
+      "type": "action",
+      "position": { "x": 300, "y": 180 },
+      "data": {
+        "label": "Dare Intro",
+        "actionType": "send_message",
+        "message": "*bounces excitedly on the couch* Okay okay okay, I have an idea! *pulls out phone* I found this random wheel spinner app. We take turns spinning, and whatever it lands on, that person has to take it! *grins mischievously* No backing out!",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-dr-wheel",
+      "type": "prize_wheel",
+      "position": { "x": 300, "y": 350 },
+      "data": {
+        "label": "Dare Wheel",
+        "segments": [
+          { "id": "gentle", "label": "Gentle Pump", "color": "#22c55e", "weight": 25 },
+          { "id": "burst", "label": "Burst of Air", "color": "#f97316", "weight": 25 },
+          { "id": "double", "label": "Double Dare", "color": "#ef4444", "weight": 20 },
+          { "id": "kiss", "label": "Kiss & Pump", "color": "#ec4899", "weight": 15 },
+          { "id": "free", "label": "Free Pass!", "color": "#3b82f6", "weight": 15 }
+        ],
+        "preMessageEnabled": true,
+        "preMessage": "*spins the wheel* Here we goooo!",
+        "preMessageSuppressLlm": true
+      }
+    },
+    {
+      "id": "meg-dr-gentle",
+      "type": "action",
+      "position": { "x": 0, "y": 580 },
+      "data": {
+        "label": "Gentle Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 2,
+        "preMessageEnabled": true,
+        "preMessage": "*reads the wheel* Gentle Pump! *giggles* That's the easy one... just a couple little puffs!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*pokes your belly playfully* See? That wasn't so bad! *wiggles* Okay, my turn to get pumped now... but spin first!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "meg-dr-burst",
+      "type": "action",
+      "position": { "x": 150, "y": 580 },
+      "data": {
+        "label": "Burst of Air",
+        "actionType": "device_on",
+        "device": "primary_pump",
+        "untilType": "timer",
+        "untilValue": 10,
+        "preMessageEnabled": true,
+        "preMessage": "*squeals* Burst of Air! Ten seconds straight! *hand hovers over pump* Ready? Three... two... one...!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*watches wide-eyed* Holy shit, look at you! *fans herself* That was... really hot actually. Okay WOW I might be more into this than I thought!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "meg-dr-double",
+      "type": "action",
+      "position": { "x": 300, "y": 580 },
+      "data": {
+        "label": "Double Dare",
+        "actionType": "start_cycle",
+        "device": "primary_pump",
+        "duration": 4,
+        "interval": 2,
+        "cycles": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*jaw drops* DOUBLE DARE! *cackles* Oh this is gonna be intense! Three rounds of pumping, no mercy!",
+        "preMessageSuppressLlm": false,
+        "preDelay": 0,
+        "postMessageEnabled": true,
+        "postMessage": "*fans herself rapidly* Oh my GOD that was a lot! *squirms* Your belly looks so round right now... I can't stop staring!",
+        "postMessageSuppressLlm": false,
+        "postDelay": 1
+      }
+    },
+    {
+      "id": "meg-dr-kiss",
+      "type": "action",
+      "position": { "x": 450, "y": 580 },
+      "data": {
+        "label": "Kiss & Pump",
+        "actionType": "pulse_pump",
+        "device": "primary_pump",
+        "pulses": 3,
+        "preMessageEnabled": true,
+        "preMessage": "*reads it and blushes hard* Kiss and Pump! That means I have to kiss you while I pump! *leans in close* Don't look so surprised... I did say I was kinky...",
+        "preMessageSuppressLlm": false,
+        "preDelay": 1,
+        "postMessageEnabled": true,
+        "postMessage": "*pulls back breathlessly* ...wow. *touches her lips* The combination of kissing while feeling you inflate under my hands is... I need a moment. *fans herself*",
+        "postMessageSuppressLlm": false,
+        "postDelay": 2
+      }
+    },
+    {
+      "id": "meg-dr-free",
+      "type": "action",
+      "position": { "x": 600, "y": 580 },
+      "data": {
+        "label": "Free Pass!",
+        "actionType": "send_message",
+        "message": "*pumps fist* FREE PASS! *laughs* No pumping this round! *leans back smugly* Lucky you... or lucky me? *taps chin thoughtfully* Actually I'm kinda disappointed. Spin again?",
+        "suppressLlm": false,
+        "preMessageEnabled": false,
+        "postMessageEnabled": false
+      }
+    },
+    {
+      "id": "meg-dr-emo-spin",
+      "type": "action",
+      "position": { "x": 325, "y": 265 },
+      "data": {
+        "label": "Set Excited",
+        "actionType": "set_emotion",
+        "emotion": "excited"
+      }
+    },
+    {
+      "id": "meg-dr-emo-double",
+      "type": "action",
+      "position": { "x": 225, "y": 480 },
+      "data": {
+        "label": "Set Frightened",
+        "actionType": "set_emotion",
+        "emotion": "frightened"
+      }
+    },
+    {
+      "id": "meg-dr-emo-kiss",
+      "type": "action",
+      "position": { "x": 375, "y": 480 },
+      "data": {
+        "label": "Set Horny",
+        "actionType": "set_emotion",
+        "emotion": "horny"
+      }
+    },
+    {
+      "id": "meg-dr-attr-kiss",
+      "type": "action",
+      "position": { "x": 475, "y": 530 },
+      "data": {
+        "label": "Raise Sexual",
+        "actionType": "set_attribute",
+        "attribute": "sexual",
+        "attributeValue": 90
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "meg-dr-btn", "target": "meg-dr-intro" },
+    { "id": "e3", "source": "meg-dr-wheel", "sourceHandle": "gentle", "target": "meg-dr-gentle" },
+    { "id": "e4", "source": "meg-dr-wheel", "sourceHandle": "burst", "target": "meg-dr-burst" },
+    { "id": "e6", "source": "meg-dr-wheel", "sourceHandle": "free", "target": "meg-dr-free" },
+    {
+      "id": "e-meg-dr-intro-to-meg-dr-emo-spin",
+      "source": "meg-dr-intro",
+      "target": "meg-dr-emo-spin"
+    },
+    {
+      "id": "e-meg-dr-emo-spin-to-meg-dr-wheel",
+      "source": "meg-dr-emo-spin",
+      "target": "meg-dr-wheel"
+    },
+    {
+      "id": "e-meg-dr-wheel-to-meg-dr-emo-double",
+      "source": "meg-dr-wheel",
+      "target": "meg-dr-emo-double",
+      "sourceHandle": "double"
+    },
+    {
+      "id": "e-meg-dr-emo-double-to-meg-dr-double",
+      "source": "meg-dr-emo-double",
+      "target": "meg-dr-double"
+    },
+    {
+      "id": "e-meg-dr-wheel-to-meg-dr-emo-kiss",
+      "source": "meg-dr-wheel",
+      "target": "meg-dr-emo-kiss",
+      "sourceHandle": "kiss"
+    },
+    {
+      "id": "e-meg-dr-emo-kiss-to-meg-dr-attr-kiss",
+      "source": "meg-dr-emo-kiss",
+      "target": "meg-dr-attr-kiss"
+    },
+    {
+      "id": "e-meg-dr-attr-kiss-to-meg-dr-kiss",
+      "source": "meg-dr-attr-kiss",
+      "target": "meg-dr-kiss"
+    }
+  ]
+}

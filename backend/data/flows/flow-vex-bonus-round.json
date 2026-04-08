@@ -163,7 +163,7 @@
         "label": "Guess the Number",
         "min": 1,
         "max": 10,
-        "guesses": 3,
+        "maxAttempts": 3,
         "preMessageEnabled": true,
         "preMessage": "The number is locked in my mind... Make your first guess!",
         "preMessageSuppressLlm": true

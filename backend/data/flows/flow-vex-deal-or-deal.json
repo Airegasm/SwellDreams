@@ -8,7 +8,7 @@
   "updatedAt": 1705000000000,
   "nodes": [
     {
-      "id": "vex-dd-btn",
+      "id": "vex-dod-btn",
       "type": "button_press",
       "position": {
         "x": 300,
@@ -23,7 +23,7 @@
       }
     },
     {
-      "id": "vex-dd-random",
+      "id": "vex-dod-random",
       "type": "random_number",
       "position": {
         "x": 300,
@@ -37,7 +37,7 @@
       }
     },
     {
-      "id": "vex-dd-offer",
+      "id": "vex-dod-offer",
       "type": "action",
       "position": {
         "x": 300,
@@ -53,7 +53,7 @@
       }
     },
     {
-      "id": "vex-dd-choice",
+      "id": "vex-dod-choice",
       "type": "simple_ab",
       "position": {
         "x": 300,
@@ -69,7 +69,7 @@
       }
     },
     {
-      "id": "vex-dd-deal-msg",
+      "id": "vex-dod-deal-msg",
       "type": "action",
       "position": {
         "x": 50,
@@ -85,7 +85,7 @@
       }
     },
     {
-      "id": "vex-dd-deal-pulse",
+      "id": "vex-dod-deal-pulse",
       "type": "action",
       "position": {
         "x": 50,
@@ -107,7 +107,7 @@
       }
     },
     {
-      "id": "vex-dd-nodeal-msg",
+      "id": "vex-dod-nodeal-msg",
       "type": "action",
       "position": {
         "x": 550,
@@ -123,7 +123,7 @@
       }
     },
     {
-      "id": "vex-dd-dice",
+      "id": "vex-dod-dice",
       "type": "dice_roll",
       "position": {
         "x": 550,
@@ -159,7 +159,7 @@
       }
     },
     {
-      "id": "vex-dd-lucky",
+      "id": "vex-dod-lucky",
       "type": "action",
       "position": {
         "x": 300,
@@ -175,7 +175,7 @@
       }
     },
     {
-      "id": "vex-dd-neutral-msg",
+      "id": "vex-dod-neutral-msg",
       "type": "action",
       "position": {
         "x": 550,
@@ -191,7 +191,7 @@
       }
     },
     {
-      "id": "vex-dd-neutral-device",
+      "id": "vex-dod-neutral-device",
       "type": "action",
       "position": {
         "x": 550,
@@ -215,7 +215,7 @@
       }
     },
     {
-      "id": "vex-dd-unlucky-msg",
+      "id": "vex-dod-unlucky-msg",
       "type": "action",
       "position": {
         "x": 800,
@@ -231,7 +231,7 @@
       }
     },
     {
-      "id": "vex-dd-slots",
+      "id": "vex-dod-slots",
       "type": "slot_machine",
       "position": {
         "x": 800,
@@ -278,7 +278,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-jackpot-msg",
+      "id": "vex-dod-slots-jackpot-msg",
       "type": "action",
       "position": {
         "x": 600,
@@ -294,7 +294,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-jackpot-device",
+      "id": "vex-dod-slots-jackpot-device",
       "type": "action",
       "position": {
         "x": 600,
@@ -317,7 +317,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-partial-msg",
+      "id": "vex-dod-slots-partial-msg",
       "type": "action",
       "position": {
         "x": 800,
@@ -333,7 +333,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-partial-device",
+      "id": "vex-dod-slots-partial-device",
       "type": "action",
       "position": {
         "x": 800,
@@ -357,7 +357,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-lose-msg",
+      "id": "vex-dod-slots-lose-msg",
       "type": "action",
       "position": {
         "x": 1000,
@@ -373,7 +373,7 @@
       }
     },
     {
-      "id": "vex-dd-slots-lose-device",
+      "id": "vex-dod-slots-lose-device",
       "type": "action",
       "position": {
         "x": 1000,
@@ -395,7 +395,7 @@
       }
     },
     {
-      "id": "vex-dd-emo-offer",
+      "id": "vex-dod-emo-offer",
       "type": "action",
       "position": {
         "x": 325,
@@ -408,7 +408,7 @@
       }
     },
     {
-      "id": "vex-dd-emo-gamble",
+      "id": "vex-dod-emo-gamble",
       "type": "action",
       "position": {
         "x": 575,
@@ -421,7 +421,7 @@
       }
     },
     {
-      "id": "vex-dd-emo-unlucky",
+      "id": "vex-dod-emo-unlucky",
       "type": "action",
       "position": {
         "x": 825,
@@ -434,7 +434,7 @@
       }
     },
     {
-      "id": "vex-dd-attr-unlucky",
+      "id": "vex-dod-attr-unlucky",
       "type": "action",
       "position": {
         "x": 825,
@@ -451,121 +451,121 @@
   "edges": [
     {
       "id": "e1",
-      "source": "vex-dd-btn",
-      "target": "vex-dd-random"
+      "source": "vex-dod-btn",
+      "target": "vex-dod-random"
     },
     {
       "id": "e2",
-      "source": "vex-dd-random",
-      "target": "vex-dd-offer"
+      "source": "vex-dod-random",
+      "target": "vex-dod-offer"
     },
     {
       "id": "e4",
-      "source": "vex-dd-choice",
+      "source": "vex-dod-choice",
       "sourceHandle": "a",
-      "target": "vex-dd-deal-msg"
+      "target": "vex-dod-deal-msg"
     },
     {
       "id": "e5",
-      "source": "vex-dd-choice",
+      "source": "vex-dod-choice",
       "sourceHandle": "b",
-      "target": "vex-dd-nodeal-msg"
+      "target": "vex-dod-nodeal-msg"
     },
     {
       "id": "e6",
-      "source": "vex-dd-deal-msg",
-      "target": "vex-dd-deal-pulse"
+      "source": "vex-dod-deal-msg",
+      "target": "vex-dod-deal-pulse"
     },
     {
       "id": "e8",
-      "source": "vex-dd-dice",
+      "source": "vex-dod-dice",
       "sourceHandle": "lucky",
-      "target": "vex-dd-lucky"
+      "target": "vex-dod-lucky"
     },
     {
       "id": "e9",
-      "source": "vex-dd-dice",
+      "source": "vex-dod-dice",
       "sourceHandle": "neutral",
-      "target": "vex-dd-neutral-msg"
+      "target": "vex-dod-neutral-msg"
     },
     {
       "id": "e10",
-      "source": "vex-dd-dice",
+      "source": "vex-dod-dice",
       "sourceHandle": "unlucky",
-      "target": "vex-dd-unlucky-msg"
+      "target": "vex-dod-unlucky-msg"
     },
     {
       "id": "e11",
-      "source": "vex-dd-neutral-msg",
-      "target": "vex-dd-neutral-device"
+      "source": "vex-dod-neutral-msg",
+      "target": "vex-dod-neutral-device"
     },
     {
       "id": "e13",
-      "source": "vex-dd-slots",
+      "source": "vex-dod-slots",
       "sourceHandle": "jackpot",
-      "target": "vex-dd-slots-jackpot-msg"
+      "target": "vex-dod-slots-jackpot-msg"
     },
     {
       "id": "e14",
-      "source": "vex-dd-slots",
+      "source": "vex-dod-slots",
       "sourceHandle": "partial-win",
-      "target": "vex-dd-slots-partial-msg"
+      "target": "vex-dod-slots-partial-msg"
     },
     {
       "id": "e15",
-      "source": "vex-dd-slots",
+      "source": "vex-dod-slots",
       "sourceHandle": "lose",
-      "target": "vex-dd-slots-lose-msg"
+      "target": "vex-dod-slots-lose-msg"
     },
     {
       "id": "e16",
-      "source": "vex-dd-slots-jackpot-msg",
-      "target": "vex-dd-slots-jackpot-device"
+      "source": "vex-dod-slots-jackpot-msg",
+      "target": "vex-dod-slots-jackpot-device"
     },
     {
       "id": "e17",
-      "source": "vex-dd-slots-partial-msg",
-      "target": "vex-dd-slots-partial-device"
+      "source": "vex-dod-slots-partial-msg",
+      "target": "vex-dod-slots-partial-device"
     },
     {
       "id": "e18",
-      "source": "vex-dd-slots-lose-msg",
-      "target": "vex-dd-slots-lose-device"
+      "source": "vex-dod-slots-lose-msg",
+      "target": "vex-dod-slots-lose-device"
     },
     {
-      "id": "e-vex-dd-offer-to-vex-dd-emo-offer",
-      "source": "vex-dd-offer",
-      "target": "vex-dd-emo-offer"
+      "id": "e-vex-dod-offer-to-vex-dod-emo-offer",
+      "source": "vex-dod-offer",
+      "target": "vex-dod-emo-offer"
     },
     {
-      "id": "e-vex-dd-emo-offer-to-vex-dd-choice",
-      "source": "vex-dd-emo-offer",
-      "target": "vex-dd-choice"
+      "id": "e-vex-dod-emo-offer-to-vex-dod-choice",
+      "source": "vex-dod-emo-offer",
+      "target": "vex-dod-choice"
     },
     {
-      "id": "e-vex-dd-nodeal-msg-to-vex-dd-emo-gamble",
-      "source": "vex-dd-nodeal-msg",
-      "target": "vex-dd-emo-gamble"
+      "id": "e-vex-dod-nodeal-msg-to-vex-dod-emo-gamble",
+      "source": "vex-dod-nodeal-msg",
+      "target": "vex-dod-emo-gamble"
     },
     {
-      "id": "e-vex-dd-emo-gamble-to-vex-dd-dice",
-      "source": "vex-dd-emo-gamble",
-      "target": "vex-dd-dice"
+      "id": "e-vex-dod-emo-gamble-to-vex-dod-dice",
+      "source": "vex-dod-emo-gamble",
+      "target": "vex-dod-dice"
     },
     {
-      "id": "e-vex-dd-unlucky-msg-to-vex-dd-emo-unlucky",
-      "source": "vex-dd-unlucky-msg",
-      "target": "vex-dd-emo-unlucky"
+      "id": "e-vex-dod-unlucky-msg-to-vex-dod-emo-unlucky",
+      "source": "vex-dod-unlucky-msg",
+      "target": "vex-dod-emo-unlucky"
     },
     {
-      "id": "e-vex-dd-emo-unlucky-to-vex-dd-attr-unlucky",
-      "source": "vex-dd-emo-unlucky",
-      "target": "vex-dd-attr-unlucky"
+      "id": "e-vex-dod-emo-unlucky-to-vex-dod-attr-unlucky",
+      "source": "vex-dod-emo-unlucky",
+      "target": "vex-dod-attr-unlucky"
     },
     {
-      "id": "e-vex-dd-attr-unlucky-to-vex-dd-slots",
-      "source": "vex-dd-attr-unlucky",
-      "target": "vex-dd-slots"
+      "id": "e-vex-dod-attr-unlucky-to-vex-dod-slots",
+      "source": "vex-dod-attr-unlucky",
+      "target": "vex-dod-slots"
     }
   ]
 }
