@@ -230,6 +230,7 @@ class EventEngine {
     this.llmService = llmService;
     this.activeFlows = new Map();
     this.flowStates = new Map();
+    this.flowVariables = new Map();
     this.variables = {};
     this.executionHistory = [];
     this.timers = new Map();
@@ -5351,6 +5352,7 @@ class EventEngine {
     // Clear ALL maps and state
     this.activeFlows.clear();
     this.flowStates.clear();
+    this.flowVariables.clear();
     this.timers.clear();
     this.variables = {};
     this.executionHistory = [];
@@ -5424,6 +5426,7 @@ class EventEngine {
 
     // Clear variables
     this.variables = {};
+    this.flowVariables.clear();
 
     // Clear execution history
     this.executionHistory = [];
