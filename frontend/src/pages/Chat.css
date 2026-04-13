@@ -3716,6 +3716,58 @@
   pointer-events: none;
 }
 
+/* Character Pump Toggle Button */
+.char-pump-toggle {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  padding: 3px 8px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  border-radius: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+.char-pump-toggle.pump-off {
+  background: rgba(30, 10, 10, 0.85);
+  color: #ff4444;
+  border-color: #ff4444;
+  text-shadow: 0 0 4px rgba(255, 68, 68, 0.5);
+}
+
+.char-pump-toggle.pump-off:hover {
+  background: rgba(60, 15, 15, 0.9);
+  box-shadow: 0 0 8px rgba(255, 68, 68, 0.3);
+}
+
+.char-pump-toggle.pump-on {
+  background: rgba(10, 30, 10, 0.85);
+  color: #44ff44;
+  border-color: #44ff44;
+  text-shadow: 0 0 4px rgba(68, 255, 68, 0.5);
+  animation: pump-on-pulse 2s ease-in-out infinite;
+}
+
+.char-pump-toggle.pump-on:hover {
+  background: rgba(15, 60, 15, 0.9);
+  box-shadow: 0 0 8px rgba(68, 255, 68, 0.3);
+}
+
+@keyframes pump-on-pulse {
+  0%, 100% { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 8px rgba(68, 255, 68, 0.4); }
+}
+
 .char-capacity-gauge {
   width: 48px;
   height: 48px;

@@ -2047,6 +2047,22 @@ function Chat() {
               )}
             </div>
           )}
+          {/* Character Pump Toggle Button - top center of portrait, right of gauge */}
+          {activeCharacter?.isPumpable && (
+            <button
+              className={`char-pump-toggle ${sessionState.characterInflating ? 'pump-on' : 'pump-off'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (sessionState.characterInflating) {
+                  sendWsMessage('character_inflate_stop', {});
+                } else {
+                  sendWsMessage('character_inflate_start', {});
+                }
+              }}
+            >
+              PUMP: {sessionState.characterInflating ? 'ON' : 'OFF'}
+            </button>
+          )}
           {/* AI Pump Timer Overlay - bottom left of portrait */}
           {activeCharacter?.isPumpable && sessionState.characterInflating && (
             <div className="char-pump-timer-overlay">

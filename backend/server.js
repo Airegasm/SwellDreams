@@ -117,15 +117,24 @@ const CORS_OPTIONS = {
       return;
     }
 
-    // Extract IP from origin (e.g., "http://100.64.0.1:3000" -> "100.64.0.1")
-    const originMatch = origin.match(/^https?:\/\/([^:\/]+)/);
-    const originIp = originMatch ? originMatch[1] : null;
+    // Extract host and port from origin (e.g., "http://100.64.0.1:8889" -> host "100.64.0.1", port "8889")
+    const originMatch = origin.match(/^https?:\/\/([^:\/]+)(?::(\d+))?/);
+    const originHost = originMatch ? originMatch[1] : null;
+    const originPort = originMatch ? originMatch[2] : null;
 
-    if (originIp && remoteSettings.whitelistedIps.includes(originIp)) {
+    // Allow same-origin: if the origin port matches this server's port, it's our own frontend
+    if (originPort === String(PORT)) {
       callback(null, true);
-    } else {
-      callback(new Error('IP not in whitelist'));
+      return;
     }
+
+    // Allow if the origin host matches any whitelisted IP
+    if (originHost && remoteSettings.whitelistedIps.includes(originHost)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('IP not in whitelist'));
   },
   credentials: true
 };
