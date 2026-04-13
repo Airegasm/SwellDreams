@@ -36,6 +36,73 @@
   border: 1px solid rgba(255, 193, 7, 0.4);
 }
 
+/* List Toolbar — search + sort */
+.list-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.list-search {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-input, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--border-color, #444);
+  border-radius: var(--border-radius, 4px);
+  color: var(--text-primary, #eee);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.list-search::placeholder {
+  color: var(--text-secondary, #888);
+}
+
+.list-search:focus {
+  border-color: var(--accent-primary, #00ff88);
+}
+
+.list-sort {
+  padding: 6px 8px;
+  background: var(--bg-input, rgba(0, 0, 0, 0.3));
+  border: 1px solid var(--border-color, #444);
+  border-radius: var(--border-radius, 4px);
+  color: var(--text-primary, #eee);
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.list-sort:focus {
+  border-color: var(--accent-primary, #00ff88);
+}
+
+/* Favorite Star Button */
+.favorite-star {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  color: #555;
+  transition: color 0.2s ease, transform 0.15s ease;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.favorite-star:hover {
+  color: #ffd700;
+  transform: scale(1.2);
+}
+
+.favorite-star.active {
+  color: #ffd700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+}
+
 /* Card-style list items */
 .list-item.card-style {
   flex-direction: column;

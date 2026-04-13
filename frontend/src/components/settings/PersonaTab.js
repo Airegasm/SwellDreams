@@ -11,14 +11,33 @@ function PersonaTab() {
   const { showError, showSuccess } = useError();
   const [showEditorModal, setShowEditorModal] = useState(false);
   const [editingPersona, setEditingPersona] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
   const listRef = useRef(null);
 
-  // Sort personas with active one first
-  const sortedPersonas = [...personas].sort((a, b) => {
-    if (a.id === settings.activePersonaId) return -1;
-    if (b.id === settings.activePersonaId) return 1;
-    return 0;
-  });
+  const toggleFavorite = async (persona) => {
+    try {
+      await api.updatePersona(persona.id, { ...persona, isFavorite: !persona.isFavorite });
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  // Filter and sort personas
+  const sortedPersonas = [...personas]
+    .filter(p => !searchQuery || p.displayName?.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (a.id === settings.activePersonaId) return -1;
+      if (b.id === settings.activePersonaId) return 1;
+      switch (sortBy) {
+        case 'az': return (a.displayName || '').localeCompare(b.displayName || '');
+        case 'za': return (b.displayName || '').localeCompare(a.displayName || '');
+        case 'recent': return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+        case 'oldest': return (a.createdAt || 0) - (b.createdAt || 0);
+        case 'favorites': return (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0);
+        default: return 0;
+      }
+    });
 
   const handleNew = () => {
     setEditingPersona(null);
@@ -113,9 +132,26 @@ function PersonaTab() {
         </button>
       </div>
 
+      <div className="list-toolbar">
+        <input
+          type="text"
+          className="list-search"
+          placeholder="Search personas..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <select className="list-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="recent">Most Recent</option>
+          <option value="oldest">Oldest First</option>
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
+          <option value="favorites">Favorites</option>
+        </select>
+      </div>
+
       <div className="list" ref={listRef}>
-        {personas.length === 0 ? (
-          <p className="text-muted">No personas yet. Create one to get started!</p>
+        {sortedPersonas.length === 0 ? (
+          <p className="text-muted">{searchQuery ? 'No personas match your search.' : 'No personas yet. Create one to get started!'}</p>
         ) : (
           sortedPersonas.map((persona) => (
             <div
@@ -123,6 +159,13 @@ function PersonaTab() {
               className={`list-item card-style ${settings.activePersonaId === persona.id ? 'active' : ''}`}
             >
               <div className="card-header">
+                <button
+                  className={`favorite-star ${persona.isFavorite ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(persona); }}
+                  title={persona.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {persona.isFavorite ? '★' : '☆'}
+                </button>
                 {persona.avatar ? (
                   <img
                     src={persona.avatar}

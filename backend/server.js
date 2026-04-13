@@ -1315,6 +1315,21 @@ async function saveCharacterAsync(char, forceCustom = false) {
   await imageStorage.saveCharacterJson(processedChar, isDefault);
   updateCharIndex(processedChar, isDefault ? 'default' : 'custom');
 
+  // If this is a default character, also sync to factory backup so changes persist across restarts
+  if (isDefault) {
+    const FACTORY_DIR = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
+    const sourceDir = path.join(CHARS_DEFAULT_DIR, char.id);
+    if (fs.existsSync(sourceDir)) {
+      fs.mkdirSync(FACTORY_DIR, { recursive: true });
+      // Copy char.json to factory
+      const srcJson = path.join(sourceDir, 'char.json');
+      if (fs.existsSync(srcJson)) {
+        fs.copyFileSync(srcJson, path.join(FACTORY_DIR, 'char.json'));
+      }
+      console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
+    }
+  }
+
   // Clean up old flat file if it exists
   if (fs.existsSync(oldCustomPath)) {
     try { fs.unlinkSync(oldCustomPath); } catch (e) {}
@@ -1340,6 +1355,14 @@ function saveCharacter(char, forceCustom = false) {
   const targetPath = path.join(charDir, 'char.json');
   fs.writeFileSync(targetPath, JSON.stringify(char, null, 2));
   updateCharIndex(char, isDefault ? 'default' : 'custom');
+
+  // Sync default characters to factory backup
+  if (isDefault) {
+    const factoryDir = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
+    fs.mkdirSync(factoryDir, { recursive: true });
+    fs.copyFileSync(targetPath, path.join(factoryDir, 'char.json'));
+    console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
+  }
 }
 
 // Delete character file + remove from index

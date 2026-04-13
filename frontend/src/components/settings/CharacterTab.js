@@ -28,16 +28,36 @@ function CharacterTab() {
   const [newCharType, setNewCharType] = useState('single');
   const [showMultiCharEditor, setShowMultiCharEditor] = useState(false);
   const [editingMultiChar, setEditingMultiChar] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
   const v2v3FileInputRef = useRef(null);
 
-  // Sort characters with active one first
-  const sortedCharacters = [...characters].sort((a, b) => {
-    if (a.id === settings.activeCharacterId) return -1;
-    if (b.id === settings.activeCharacterId) return 1;
-    return 0;
-  });
+  const toggleFavorite = async (character) => {
+    try {
+      await api.updateCharacter(character.id, { ...character, isFavorite: !character.isFavorite });
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  // Filter and sort characters
+  const sortedCharacters = [...characters]
+    .filter(c => !searchQuery || c.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      // Active always first
+      if (a.id === settings.activeCharacterId) return -1;
+      if (b.id === settings.activeCharacterId) return 1;
+      switch (sortBy) {
+        case 'az': return (a.name || '').localeCompare(b.name || '');
+        case 'za': return (b.name || '').localeCompare(a.name || '');
+        case 'recent': return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
+        case 'oldest': return (a.createdAt || 0) - (b.createdAt || 0);
+        case 'favorites': return (b.isFavorite ? 1 : 0) - (a.isFavorite ? 1 : 0);
+        default: return 0;
+      }
+    });
 
   const handleNew = () => {
     setNewCharType('single');
@@ -385,9 +405,26 @@ function CharacterTab() {
         </button>
       </div>
 
+      <div className="list-toolbar">
+        <input
+          type="text"
+          className="list-search"
+          placeholder="Search characters..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <select className="list-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="recent">Most Recent</option>
+          <option value="oldest">Oldest First</option>
+          <option value="az">A → Z</option>
+          <option value="za">Z → A</option>
+          <option value="favorites">Favorites</option>
+        </select>
+      </div>
+
       <div className="list" ref={listRef}>
-        {characters.length === 0 ? (
-          <p className="text-muted">No characters yet. Create one to get started!</p>
+        {sortedCharacters.length === 0 ? (
+          <p className="text-muted">{searchQuery ? 'No characters match your search.' : 'No characters yet. Create one to get started!'}</p>
         ) : (
           sortedCharacters.map((character) => (
             <div
@@ -395,6 +432,13 @@ function CharacterTab() {
               className={`list-item card-style ${settings.activeCharacterId === character.id ? 'active' : ''}`}
             >
               <div className="card-header">
+                <button
+                  className={`favorite-star ${character.isFavorite ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(character); }}
+                  title={character.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  {character.isFavorite ? '★' : '☆'}
+                </button>
                 {character.avatar ? (
                   <img
                     src={character.avatar}
