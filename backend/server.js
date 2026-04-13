@@ -3144,7 +3144,7 @@ async function executeTrigger(trigger, source, character, settings) {
 
       case 'set_player_capacity':
         sessionState.capacity = Math.max(0, parseInt(trigger.value) || 0);
-        broadcast('capacity_update', { capacity: sessionState.capacity });
+        broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
         break;
 
       case 'set_char_capacity':
@@ -4055,7 +4055,8 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
   broadcast('auto_capacity_update', {
     capacity: totalCapacity,
     pain: pain,
-    isOverInflating: totalCapacity > 100
+    isOverInflating: totalCapacity > 100,
+    preInflationGateMet: sessionState.preInflationGateMet
   });
 
   // Check device monitors for capacity-based stop conditions
@@ -5918,7 +5919,7 @@ async function handleWsMessage(ws, type, data) {
         }
       }
 
-      broadcast('capacity_update', { capacity: sessionState.capacity });
+      broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
 
       // Auto-link capacity to pain if enabled (defaults to true if not set)
       if (capacitySettings.globalCharacterControls?.autoLinkCapacityToPain !== false) {

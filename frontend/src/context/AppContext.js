@@ -239,7 +239,11 @@ export function AppProvider({ children }) {
         break;
 
       case 'capacity_update':
-        setSessionState(prev => ({ ...prev, capacity: data.capacity }));
+        setSessionState(prev => ({
+          ...prev,
+          capacity: data.capacity,
+          preInflationGateMet: data.preInflationGateMet ?? prev.preInflationGateMet
+        }));
         break;
 
       case 'pain_update':
@@ -265,7 +269,8 @@ export function AppProvider({ children }) {
           ...prev,
           capacity: data.capacity,
           pain: data.pain,
-          isOverInflating: data.isOverInflating
+          isOverInflating: data.isOverInflating,
+          preInflationGateMet: data.preInflationGateMet ?? prev.preInflationGateMet
         }));
         break;
 
