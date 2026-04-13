@@ -2616,21 +2616,6 @@ Write only the scenario description itself, no explanations.`;
                   <div className="form-hint">Affects AI behavior when character capacity reaches 60% or higher.</div>
                 </div>
 
-                <div className="story-field auto-reply-field" style={{ marginTop: '1rem' }}>
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={formData.charInflateAutoLoadControls || false}
-                      onChange={(e) => setFormData(prev => ({ ...prev, charInflateAutoLoadControls: e.target.checked }))}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                  <div className="auto-reply-text">
-                    <span className="auto-reply-label">Auto Load Basic Controls</span>
-                    <span className="auto-reply-hint">Automatically assigns the "Basic Character Inflation Controls" flow (Inflate, Stop, Reset, 50%) to this character's button menu</span>
-                  </div>
-                </div>
-
                 <div style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   <strong style={{ color: 'var(--text-primary)' }}>System Variables</strong>
                   <div style={{ marginTop: '6px', lineHeight: 1.6 }}>
