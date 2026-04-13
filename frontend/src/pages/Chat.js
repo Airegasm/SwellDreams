@@ -1383,6 +1383,14 @@ function Chat() {
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
           />
+          {/* Pump Status Overlay - on divider bar, right of gauge */}
+          {Object.keys(pumpStatus).length > 0 && (
+            <div className="pump-status-overlay">
+              {Object.entries(pumpStatus).map(([deviceIp, status]) => (
+                <PumpStatusItem key={deviceIp} deviceIp={deviceIp} status={status} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Persona Button Menu - Static section below portrait */}
@@ -2443,14 +2451,7 @@ function Chat() {
         </div>
       )}
 
-      {/* Pump Status Overlay - floats over bottom-left area */}
-      {Object.keys(pumpStatus).length > 0 && (
-        <div className="pump-status-overlay">
-          {Object.entries(pumpStatus).map(([deviceIp, status]) => (
-            <PumpStatusItem key={deviceIp} deviceIp={deviceIp} status={status} />
-          ))}
-        </div>
-      )}
+      {/* Pump Status Overlay - moved to left sidebar divider area */}
 
     </div>
   );
