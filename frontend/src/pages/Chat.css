@@ -3517,14 +3517,17 @@
    ============================================ */
 .pump-status-overlay {
   position: absolute;
-  bottom: -38px;
-  left: 80px;
-  right: 4px;
-  z-index: 501;
+  bottom: -48px;
+  left: 90px;
+  right: 0;
+  height: 84px;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   pointer-events: none;
+  padding: 0 8px;
 }
 
 .pump-status-item {
@@ -3558,8 +3561,8 @@
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .pump-status-overlay {
-    left: 70px;
-    bottom: -34px;
+    left: 80px;
+    bottom: -48px;
   }
 
   .pump-status-item {
