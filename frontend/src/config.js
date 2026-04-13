@@ -6,9 +6,16 @@
 // API Configuration
 const API_PORT = process.env.REACT_APP_API_PORT || 8889;
 const API_HOST = window.location.hostname;
+const IS_SECURE = window.location.protocol === 'https:';
 
-export const API_BASE = `http://${API_HOST}:${API_PORT}`;
-export const WS_URL = `ws://${API_HOST}:${API_PORT}`;
+// Use same-origin when served from the backend port, otherwise cross-origin to API port
+const SAME_ORIGIN = String(window.location.port) === String(API_PORT);
+export const API_BASE = SAME_ORIGIN
+  ? `${window.location.protocol}//${API_HOST}:${API_PORT}`
+  : `${IS_SECURE ? 'https' : 'http'}://${API_HOST}:${API_PORT}`;
+export const WS_URL = SAME_ORIGIN
+  ? `${IS_SECURE ? 'wss' : 'ws'}://${API_HOST}:${API_PORT}`
+  : `${IS_SECURE ? 'wss' : 'ws'}://${API_HOST}:${API_PORT}`;
 
 // Timing Configuration
 export const CONFIG = {
