@@ -24,6 +24,7 @@ const goveeService = require('./services/govee-service');
 const tuyaService = require('./services/tuya-service');
 const wyzeService = require('./services/wyze-service');
 const tapoService = require('./services/tapo-service');
+const kasaKlapService = require('./services/kasa-klap-service');
 const haService = require('./services/homeassistant-service');
 const aiDeviceControl = require('./services/ai-device-control');
 const imageStorage = require('./services/image-storage');
@@ -5612,6 +5613,15 @@ if (startupSettings.tapoEmail && startupSettings.tapoPassword) {
   console.log('[Startup] Tapo credentials loaded');
 }
 
+// Load Kasa 1.1.x+ credentials from settings if saved
+if (startupSettings.kasaKlapEmail && startupSettings.kasaKlapPassword) {
+  kasaKlapService.setCredentials(
+    startupSettings.kasaKlapEmail,
+    startupSettings.kasaKlapPassword
+  );
+  console.log('[Startup] Kasa 1.1.x+ credentials loaded');
+}
+
 // Load Home Assistant credentials from settings if saved
 if (startupSettings.haUrl && startupSettings.haToken) {
   haService.setCredentials(
@@ -9634,6 +9644,13 @@ app.post('/api/updates/install', async (req, res) => {
       console.log('[Updates] Reset Tapo Python ready state');
     } catch (e) { /* Tapo service may not be loaded */ }
 
+    // Reset Kasa 1.1.x+ service Python ready state
+    try {
+      const kasaKlapService = require('./services/kasa-klap-service');
+      kasaKlapService.pythonReady = null;
+      console.log('[Updates] Reset Kasa 1.1.x+ Python ready state');
+    } catch (e) { /* Kasa 1.1.x+ service may not be loaded */ }
+
     // Check if package.json changed (need to reinstall deps)
     const changedFiles = execSync('git diff --name-only HEAD~1 HEAD', { cwd: projectRoot, encoding: 'utf8' });
     const needsBackendInstall = changedFiles.includes('backend/package.json');
@@ -11229,6 +11246,8 @@ app.post('/api/devices/:ip/on', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
     } else if (brand === 'tapo') {
       device = { ip: deviceIdOrIp, brand: 'tapo' };
+    } else if (brand === 'kasa-klap') {
+      device = { ip: deviceIdOrIp, brand: 'kasa-klap' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
@@ -11277,6 +11296,8 @@ app.post('/api/devices/:ip/off', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
     } else if (brand === 'tapo') {
       device = { ip: deviceIdOrIp, brand: 'tapo' };
+    } else if (brand === 'kasa-klap') {
+      device = { ip: deviceIdOrIp, brand: 'kasa-klap' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
@@ -11311,6 +11332,8 @@ app.get('/api/devices/:ip/state', async (req, res) => {
       device = { deviceId: deviceIdOrIp, brand: 'tuya' };
     } else if (brand === 'tapo') {
       device = { ip: deviceIdOrIp, brand: 'tapo' };
+    } else if (brand === 'kasa-klap') {
+      device = { ip: deviceIdOrIp, brand: 'kasa-klap' };
     } else if (childId) {
       device = { ip: deviceIdOrIp, childId, brand: 'tplink' };
     }
@@ -11804,6 +11827,140 @@ app.get('/api/tapo/devices/:ip/state', async (req, res) => {
     res.json({ state, relay_state: state === 'on' ? 1 : 0 });
   } catch (error) {
     console.error('[Tapo] Failed to get device state:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Kasa 1.1.x+ (TP-Link Kasa devices on KLAP firmware) ---
+
+// Connect to Kasa 1.1.x+ (save credentials)
+app.post('/api/kasa-klap/connect', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  kasaKlapService.setCredentials(email, password);
+
+  try {
+    const success = await kasaKlapService.testConnection();
+
+    if (success) {
+      // Save encrypted credentials to settings
+      const settings = loadData(DATA_FILES.settings) || {};
+      settings.kasaKlapEmail = encrypt(email);
+      settings.kasaKlapPassword = encrypt(password);
+      saveData(DATA_FILES.settings, settings);
+      console.log('[Kasa 1.1.x+] Credentials saved and connection verified');
+      res.json({ success: true, message: 'Connected to Kasa 1.1.x+' });
+    } else {
+      kasaKlapService.clearCredentials();
+      res.status(401).json({ error: 'Invalid credentials or connection failed' });
+    }
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Connect error:', error);
+    kasaKlapService.clearCredentials();
+    res.status(401).json({ error: error.message || 'Connection failed' });
+  }
+});
+
+// Check Kasa 1.1.x+ connection status
+app.get('/api/kasa-klap/status', (req, res) => {
+  res.json({ connected: kasaKlapService.isConnected() });
+});
+
+// Disconnect from Kasa 1.1.x+ (clear credentials)
+app.post('/api/kasa-klap/disconnect', (req, res) => {
+  kasaKlapService.clearCredentials();
+  // Remove from settings
+  const settings = loadData(DATA_FILES.settings) || {};
+  delete settings.kasaKlapEmail;
+  delete settings.kasaKlapPassword;
+  saveData(DATA_FILES.settings, settings);
+  console.log('[Kasa 1.1.x+] Credentials cleared');
+  res.json({ success: true, message: 'Disconnected from Kasa 1.1.x+' });
+});
+
+// Discover Kasa 1.1.x+ devices on the local network
+app.get('/api/kasa-klap/devices', async (req, res) => {
+  if (!kasaKlapService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Kasa 1.1.x+' });
+  }
+
+  try {
+    const timeout = parseInt(req.query.timeout, 10) || 5;
+    const devices = await kasaKlapService.listDevices(timeout);
+    res.json({ devices });
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Failed to discover devices:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Kasa 1.1.x+ device info by IP
+app.get('/api/kasa-klap/devices/:ip/info', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!kasaKlapService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Kasa 1.1.x+' });
+  }
+
+  try {
+    const info = await kasaKlapService.getDeviceInfo(ip);
+    res.json(info);
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Failed to get device info:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Kasa 1.1.x+ device on
+app.post('/api/kasa-klap/devices/:ip/on', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!kasaKlapService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Kasa 1.1.x+' });
+  }
+
+  try {
+    await kasaKlapService.turnOn(ip);
+    res.json({ success: true, state: 'on' });
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Failed to turn on device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Turn Kasa 1.1.x+ device off
+app.post('/api/kasa-klap/devices/:ip/off', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!kasaKlapService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Kasa 1.1.x+' });
+  }
+
+  try {
+    await kasaKlapService.turnOff(ip);
+    res.json({ success: true, state: 'off' });
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Failed to turn off device:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get Kasa 1.1.x+ device state
+app.get('/api/kasa-klap/devices/:ip/state', async (req, res) => {
+  const { ip } = req.params;
+
+  if (!kasaKlapService.isConnected()) {
+    return res.status(401).json({ error: 'Not connected to Kasa 1.1.x+' });
+  }
+
+  try {
+    const state = await kasaKlapService.getPowerState(ip);
+    res.json({ state, relay_state: state === 'on' ? 1 : 0 });
+  } catch (error) {
+    console.error('[Kasa 1.1.x+] Failed to get device state:', error);
     res.status(500).json({ error: error.message });
   }
 });

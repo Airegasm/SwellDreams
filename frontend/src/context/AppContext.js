@@ -1273,6 +1273,38 @@ export function AppProvider({ children }) {
       `${API_BASE}/api/tapo/devices/${encodeURIComponent(ip)}/info`
     ),
 
+    // Kasa 1.1.x+ devices (TP-Link Kasa on KLAP firmware 1.1.x and newer)
+    connectKasaKlap: (email, password) => apiFetch(`${API_BASE}/api/kasa-klap/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    }),
+
+    getKasaKlapStatus: () => apiFetch(`${API_BASE}/api/kasa-klap/status`),
+
+    disconnectKasaKlap: () => apiFetch(`${API_BASE}/api/kasa-klap/disconnect`, {
+      method: 'POST'
+    }),
+
+    scanKasaKlapDevices: (timeout = 5) => apiFetch(
+      `${API_BASE}/api/kasa-klap/devices?timeout=${encodeURIComponent(timeout)}`
+    ),
+
+    kasaKlapDeviceOn: (ip) => apiFetch(`${API_BASE}/api/kasa-klap/devices/${encodeURIComponent(ip)}/on`, {
+      method: 'POST'
+    }),
+
+    kasaKlapDeviceOff: (ip) => apiFetch(`${API_BASE}/api/kasa-klap/devices/${encodeURIComponent(ip)}/off`, {
+      method: 'POST'
+    }),
+
+    getKasaKlapDeviceState: (ip) => apiFetch(
+      `${API_BASE}/api/kasa-klap/devices/${encodeURIComponent(ip)}/state`
+    ),
+
+    getKasaKlapDeviceInfo: (ip) => apiFetch(
+      `${API_BASE}/api/kasa-klap/devices/${encodeURIComponent(ip)}/info`
+    ),
+
     // Checkpoint profiles
     getCheckpointProfiles: () => apiFetch(`${API_BASE}/api/checkpoint-profiles`),
     createCheckpointProfile: (type, name, checkpoints, checkpointTriggers) => apiFetch(`${API_BASE}/api/checkpoint-profiles`, {

@@ -1,6 +1,6 @@
 /**
  * Device Service - Multi-brand smart device management
- * Supports: TP-Link Kasa, Govee, Tuya, Wyze, Tapo
+ * Supports: TP-Link Kasa (Legacy + 1.1.x+ KLAP), Govee, Tuya, Wyze, Tapo, Home Assistant
  */
 
 const { spawn } = require('child_process');
@@ -10,6 +10,7 @@ const tuyaService = require('./tuya-service');
 const kasaService = require('./kasa-service');
 const wyzeService = require('./wyze-service');
 const tapoService = require('./tapo-service');
+const kasaKlapService = require('./kasa-klap-service');
 const haService = require('./homeassistant-service');
 const { safeJsonParse } = require('../utils/errors');
 const { createLogger } = require('../utils/logger');
@@ -292,6 +293,18 @@ class DeviceService {
   }
 
   /**
+   * Scan network for Kasa 1.1.x+ (KLAP firmware) devices
+   */
+  async scanNetworkKlap(timeout = 10) {
+    try {
+      return await kasaKlapService.listDevices(timeout);
+    } catch (error) {
+      log.error('KLAP scan error:', error.message);
+      return [];
+    }
+  }
+
+  /**
    * Get child outlets for multi-outlet devices (power strips like HS300)
    * @param {string} ip - Device IP address
    * @returns {Object} { is_strip, children: [{id, index, alias, state, relay_state}] }
@@ -402,7 +415,21 @@ class DeviceService {
         return result;
       }
 
-      // Default: TPLink Kasa (native Node.js implementation)
+      if (device?.brand === 'kasa-klap') {
+        const state = await kasaKlapService.getPowerState(device.ip);
+        const result = {
+          state,
+          relay_state: state === 'on' ? 1 : 0
+        };
+        this.deviceStates.set(device.ip, {
+          state: result.state,
+          relayState: result.relay_state,
+          lastUpdate: Date.now()
+        });
+        return result;
+      }
+
+      // Default: TPLink Kasa Legacy (native Node.js implementation)
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
       });
@@ -503,7 +530,19 @@ class DeviceService {
         return { success: true, state: 'on' };
       }
 
-      // Default: TPLink Kasa (native Node.js implementation)
+      if (device?.brand === 'kasa-klap') {
+        await kasaKlapService.turnOn(device.ip);
+        this.deviceStates.set(device.ip, {
+          state: 'on',
+          relayState: 1,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
+        this.startPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'on' };
+      }
+
+      // Default: TPLink Kasa Legacy (native Node.js implementation)
       console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
@@ -615,7 +654,19 @@ class DeviceService {
         return { success: true, state: 'off' };
       }
 
-      // Default: TPLink Kasa (native Node.js implementation)
+      if (device?.brand === 'kasa-klap') {
+        await kasaKlapService.turnOff(device.ip);
+        this.deviceStates.set(device.ip, {
+          state: 'off',
+          relayState: 0,
+          lastUpdate: Date.now()
+        });
+        this.emitEvent('device_off', { ip: device.ip, device });
+        this.stopPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'off' };
+      }
+
+      // Default: TPLink Kasa Legacy (native Node.js implementation)
       console.log(`[DeviceService] Routing to NATIVE KASA: ip=${device?.ip || ipOrDeviceId}, childId=${device?.childId}`);
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId

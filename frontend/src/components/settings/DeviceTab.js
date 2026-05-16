@@ -76,6 +76,17 @@ function DeviceTab() {
   const [tapoConnecting, setTapoConnecting] = useState(false);
   const [tapoError, setTapoError] = useState(null);
 
+  // Kasa 1.1.x+ state (TP-Link Kasa on KLAP firmware 1.1.x and newer)
+  const [kasaKlapConnected, setKasaKlapConnected] = useState(false);
+  const [kasaKlapEmail, setKasaKlapEmail] = useState('');
+  const [kasaKlapPassword, setKasaKlapPassword] = useState('');
+  const [hasKasaKlapCredentials, setHasKasaKlapCredentials] = useState(false);
+  const [kasaKlapManualIp, setKasaKlapManualIp] = useState('');
+  const [discoveredKasaKlap, setDiscoveredKasaKlap] = useState([]);
+  const [scanningKasaKlap, setScanningKasaKlap] = useState(false);
+  const [kasaKlapConnecting, setKasaKlapConnecting] = useState(false);
+  const [kasaKlapError, setKasaKlapError] = useState(null);
+
   // Matter state
   const [matterPairingCode, setMatterPairingCode] = useState('');
   const [matterDeviceName, setMatterDeviceName] = useState('');
@@ -105,6 +116,7 @@ function DeviceTab() {
     tuya: false,
     wyze: false,
     tapo: false,
+    kasaKlap: false,
     homeassistant: false,
     matter: false
   });
@@ -146,6 +158,14 @@ function DeviceTab() {
         console.error('Failed to check Tapo status:', error);
       }
     };
+    const checkKasaKlapStatus = async () => {
+      try {
+        const status = await api.getKasaKlapStatus();
+        setKasaKlapConnected(status.connected);
+      } catch (error) {
+        console.error('Failed to check Kasa 1.1.x+ status:', error);
+      }
+    };
     const checkHaStatus = async () => {
       try {
         const status = await api.getHomeAssistantStatus();
@@ -169,6 +189,9 @@ function DeviceTab() {
         if (settings.hasTapoCredentials !== undefined) {
           setHasTapoCredentials(settings.hasTapoCredentials);
         }
+        if (settings.hasKasaKlapCredentials !== undefined) {
+          setHasKasaKlapCredentials(settings.hasKasaKlapCredentials);
+        }
         if (settings.hasHaCredentials !== undefined) {
           setHasHaCredentials(settings.hasHaCredentials);
         }
@@ -180,6 +203,7 @@ function DeviceTab() {
     checkTuyaStatus();
     checkWyzeStatus();
     checkTapoStatus();
+    checkKasaKlapStatus();
     checkHaStatus();
     checkStoredKeys();
   }, [api]);
@@ -830,6 +854,115 @@ function DeviceTab() {
     }
   };
 
+  // Kasa 1.1.x+ handlers
+  const handleKasaKlapDisconnect = async () => {
+    try {
+      await api.disconnectKasaKlap();
+      setKasaKlapConnected(false);
+      setDiscoveredKasaKlap([]);
+      setKasaKlapError(null);
+    } catch (error) {
+      console.error('Kasa 1.1.x+ disconnect failed:', error);
+    }
+  };
+
+  const handleKasaKlapConnect = async () => {
+    if (!kasaKlapEmail.trim() || !kasaKlapPassword.trim()) return;
+    setKasaKlapConnecting(true);
+    setKasaKlapError(null);
+    try {
+      const result = await api.connectKasaKlap(kasaKlapEmail.trim(), kasaKlapPassword.trim());
+      if (result.success) {
+        setKasaKlapConnected(true);
+        setKasaKlapEmail('');
+        setKasaKlapPassword('');
+        setHasKasaKlapCredentials(true);
+      } else {
+        setKasaKlapError(result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Kasa 1.1.x+ connect failed:', error);
+      setKasaKlapError(error.message || 'Failed to connect to Kasa 1.1.x+');
+    }
+    setKasaKlapConnecting(false);
+  };
+
+  const handleKasaKlapScan = async () => {
+    setScanningKasaKlap(true);
+    setKasaKlapError(null);
+    try {
+      const result = await api.scanKasaKlapDevices();
+      const found = result.devices || [];
+      const configuredIps = new Set(
+        devices.filter(d => d.brand === 'kasa-klap').map(d => d.ip)
+      );
+      const newDevices = found.filter(d => !configuredIps.has(d.ip));
+      setDiscoveredKasaKlap(newDevices);
+      if (newDevices.length === 0) {
+        setKasaKlapError(found.length > 0
+          ? 'All discovered devices are already configured.'
+          : 'No Kasa 1.1.x+ devices found on the network.');
+      }
+    } catch (error) {
+      console.error('Kasa 1.1.x+ scan failed:', error);
+      setKasaKlapError(error.message || 'Failed to scan devices');
+    }
+    setScanningKasaKlap(false);
+  };
+
+  const handleKasaKlapManualAdd = async () => {
+    if (!kasaKlapManualIp.trim()) return;
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    setKasaKlapError(null);
+    try {
+      const info = await api.getKasaKlapDeviceInfo(kasaKlapManualIp.trim());
+      await api.addDevice({
+        ip: kasaKlapManualIp.trim(),
+        name: info.alias || `Kasa ${kasaKlapManualIp}`,
+        label: info.alias || `Kasa ${kasaKlapManualIp}`,
+        deviceType: 'PUMP',
+        brand: 'kasa-klap'
+      });
+      setKasaKlapManualIp('');
+    } catch (error) {
+      console.error('Failed to add Kasa 1.1.x+ device:', error);
+      setKasaKlapError(error.message || 'Device not reachable or not a Kasa 1.1.x+ device');
+    }
+  };
+
+  const handleAddKasaKlapDevice = async (klapDevice) => {
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    try {
+      await api.addDevice({
+        ip: klapDevice.ip,
+        name: klapDevice.alias || `Kasa ${klapDevice.ip}`,
+        label: klapDevice.alias || `Kasa ${klapDevice.ip}`,
+        deviceType: 'PUMP',
+        brand: 'kasa-klap'
+      });
+      setDiscoveredKasaKlap(discoveredKasaKlap.filter(d => d.ip !== klapDevice.ip));
+    } catch (error) {
+      console.error('Failed to add Kasa 1.1.x+ device:', error);
+    }
+  };
+
+  const handleTestKasaKlapDevice = async (device) => {
+    try {
+      await api.kasaKlapDeviceOn(device.ip);
+      setTimeout(async () => {
+        await api.kasaKlapDeviceOff(device.ip);
+      }, 2000);
+    } catch (error) {
+      console.error('Kasa 1.1.x+ test failed:', error);
+    }
+  };
+
   // Home Assistant handlers
   const handleHaDisconnect = async () => {
     try {
@@ -1080,7 +1213,7 @@ function DeviceTab() {
               <div key={device.id} className="configured-device-item">
                 <div className="device-badges">
                   <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'homeassistant' ? 'HA' : device.brand === 'matter' ? 'Matter' : 'TPLink'}
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'kasa-klap' ? 'Kasa 1.1.x+' : device.brand === 'homeassistant' ? 'HA' : device.brand === 'matter' ? 'Matter' : 'Kasa Legacy'}
                   </span>
                   {device.childId && (
                     <span className="device-brand-badge brand-strip">Strip</span>
@@ -1146,7 +1279,7 @@ function DeviceTab() {
                   </button>
                   <button
                     className="btn btn-sm btn-secondary"
-                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : device.brand === 'tapo' ? handleTestTapoDevice(device) : device.brand === 'homeassistant' ? handleTestHaDevice(device) : handleTestDevice(device.ip, device.childId)}
+                    onClick={() => device.brand === 'govee' ? handleTestGoveeDevice(device) : device.brand === 'tuya' ? handleTestTuyaDevice(device) : device.brand === 'wyze' ? handleTestWyzeDevice(device) : device.brand === 'tapo' ? handleTestTapoDevice(device) : device.brand === 'kasa-klap' ? handleTestKasaKlapDevice(device) : device.brand === 'homeassistant' ? handleTestHaDevice(device) : handleTestDevice(device.ip, device.childId)}
                   >
                     Test
                   </button>
@@ -1664,6 +1797,109 @@ function DeviceTab() {
                     </button>
                   </div>
                   {tapoError && <div className="discovery-error">{tapoError}</div>}
+                </>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* Kasa 1.1.x+ Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('kasaKlap')}>
+              <span>TP-Link Kasa 1.1.x+ (KLAP Firmware - HS103, etc.)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                {kasaKlapConnected && <span className="connection-badge connected">Connected</span>}
+                <span className="collapse-icon">{expandedSections.kasaKlap ? '▼' : '▶'}</span>
+              </div>
+            </div>
+            {expandedSections.kasaKlap && (
+            <div className="settings-subsection-content">
+              {!kasaKlapConnected ? (
+                <div className="integration-connect-form">
+                  <p className="form-hint">For Kasa devices on firmware 1.1.x and newer, where TP-Link disabled the legacy port-9999 protocol. Uses the authenticated KLAP protocol via python-kasa.</p>
+                  <div className="connect-row">
+                    <input
+                      type="email"
+                      value={kasaKlapEmail}
+                      onChange={(e) => setKasaKlapEmail(e.target.value)}
+                      placeholder={hasKasaKlapCredentials ? 'Credentials saved - enter new to replace' : 'TP-Link Email'}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <input
+                      type="password"
+                      value={kasaKlapPassword}
+                      onChange={(e) => setKasaKlapPassword(e.target.value)}
+                      placeholder={hasKasaKlapCredentials ? 'Enter new password' : 'TP-Link Password'}
+                      onKeyDown={(e) => e.key === 'Enter' && handleKasaKlapConnect()}
+                    />
+                  </div>
+                  <div className="connect-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleKasaKlapConnect}
+                      disabled={kasaKlapConnecting || !kasaKlapEmail.trim() || !kasaKlapPassword.trim()}
+                    >
+                      {kasaKlapConnecting ? 'Connecting...' : 'Connect'}
+                    </button>
+                  </div>
+                  {hasKasaKlapCredentials && <p className="api-key-status">Credentials are securely stored (encrypted)</p>}
+                  {kasaKlapError && <div className="discovery-error">{kasaKlapError}</div>}
+                  <p className="form-hint">Use your TP-Link account credentials (same as the Kasa app).</p>
+                </div>
+              ) : (
+                <>
+                  <div className="integration-connected">
+                    <div className="connect-row" style={{ marginBottom: '8px' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleKasaKlapScan}
+                        disabled={scanningKasaKlap}
+                      >
+                        {scanningKasaKlap ? 'Scanning...' : 'Scan for Devices'}
+                      </button>
+                    </div>
+                    {discoveredKasaKlap.length > 0 && (
+                      <div style={{ marginBottom: '8px' }}>
+                        {discoveredKasaKlap.map((d) => (
+                          <div
+                            key={d.ip}
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', gap: '8px' }}
+                          >
+                            <span>
+                              {d.alias || d.ip}{' '}
+                              <span className="text-muted">({d.model || 'Kasa'} - {d.ip})</span>
+                            </span>
+                            <button className="btn btn-primary btn-sm" onClick={() => handleAddKasaKlapDevice(d)}>
+                              Add
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="form-hint" style={{ marginBottom: '8px' }}>
+                      Or add a device manually by its local IP address.
+                    </p>
+                    <div className="manual-add-form" style={{ marginBottom: '8px' }}>
+                      <input
+                        type="text"
+                        value={kasaKlapManualIp}
+                        onChange={(e) => setKasaKlapManualIp(e.target.value)}
+                        placeholder="Device IP (e.g., 192.168.1.100)"
+                        onKeyDown={(e) => e.key === 'Enter' && handleKasaKlapManualAdd()}
+                      />
+                      <button className="btn btn-primary btn-sm" onClick={handleKasaKlapManualAdd}>
+                        Add Device
+                      </button>
+                    </div>
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={handleKasaKlapDisconnect}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                  {kasaKlapError && <div className="discovery-error">{kasaKlapError}</div>}
                 </>
               )}
             </div>

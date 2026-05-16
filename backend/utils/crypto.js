@@ -221,6 +221,14 @@ function encryptSettings(settings) {
     encrypted.tapoPassword = encrypt(encrypted.tapoPassword);
   }
 
+  // Encrypt Kasa 1.1.x+ credentials
+  if (encrypted.kasaKlapEmail) {
+    encrypted.kasaKlapEmail = encrypt(encrypted.kasaKlapEmail);
+  }
+  if (encrypted.kasaKlapPassword) {
+    encrypted.kasaKlapPassword = encrypt(encrypted.kasaKlapPassword);
+  }
+
   return encrypted;
 }
 
@@ -267,6 +275,14 @@ function decryptSettings(settings) {
   }
   if (decrypted.tapoPassword) {
     decrypted.tapoPassword = decrypt(decrypted.tapoPassword);
+  }
+
+  // Decrypt Kasa 1.1.x+ credentials
+  if (decrypted.kasaKlapEmail) {
+    decrypted.kasaKlapEmail = decrypt(decrypted.kasaKlapEmail);
+  }
+  if (decrypted.kasaKlapPassword) {
+    decrypted.kasaKlapPassword = decrypt(decrypted.kasaKlapPassword);
   }
 
   // Decrypt Home Assistant token
@@ -318,6 +334,12 @@ function maskSettingsForResponse(settings) {
     masked.hasTapoCredentials = hasApiKey(masked.tapoEmail) && hasApiKey(masked.tapoPassword);
     masked.tapoEmail = '';
     masked.tapoPassword = '';
+  }
+  if (masked.kasaKlapEmail || masked.kasaKlapPassword) {
+    masked.kasaKlapEmailMasked = maskApiKey(masked.kasaKlapEmail);
+    masked.hasKasaKlapCredentials = hasApiKey(masked.kasaKlapEmail) && hasApiKey(masked.kasaKlapPassword);
+    masked.kasaKlapEmail = '';
+    masked.kasaKlapPassword = '';
   }
   if (masked.haUrl || masked.haToken) {
     masked.haUrlMasked = maskApiKey(masked.haUrl);

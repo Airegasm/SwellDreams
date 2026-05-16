@@ -1,16 +1,20 @@
 /**
- * Native Node.js TP-Link Kasa Smart Device Service
+ * Kasa Legacy - Native Node.js TP-Link Kasa Smart Device Service
  * Replaces Python subprocess calls with direct TCP communication
  *
  * Protocol: XOR autokey cipher with initial key of 171
  * Port: 9999 (TCP for commands, UDP for discovery)
+ *
+ * NOTE: This is the LEGACY protocol. Kasa devices on firmware 1.1.x and
+ * newer have the port-9999 protocol disabled by TP-Link - use the
+ * "Kasa 1.1.x+" service (kasa-klap-service.js) for those devices.
  */
 
 const net = require('net');
 const dgram = require('dgram');
 const { createLogger } = require('../utils/logger');
 
-const log = createLogger('Kasa');
+const log = createLogger('Kasa Legacy');
 
 const KASA_PORT = 9999;
 const DEFAULT_TIMEOUT = 5000;
