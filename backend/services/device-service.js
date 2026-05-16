@@ -12,6 +12,9 @@ const wyzeService = require('./wyze-service');
 const tapoService = require('./tapo-service');
 const kasaKlapService = require('./kasa-klap-service');
 const haService = require('./homeassistant-service');
+const shellyService = require('./shelly-service');
+const esphomeService = require('./esphome-service');
+const tasmotaService = require('./tasmota-service');
 const { safeJsonParse } = require('../utils/errors');
 const { createLogger } = require('../utils/logger');
 
@@ -429,6 +432,27 @@ class DeviceService {
         return result;
       }
 
+      if (device?.brand === 'shelly') {
+        const state = await shellyService.getPowerState(device.ip);
+        const result = { state, relay_state: state === 'on' ? 1 : 0 };
+        this.deviceStates.set(device.ip, { state: result.state, relayState: result.relay_state, lastUpdate: Date.now() });
+        return result;
+      }
+
+      if (device?.brand === 'esphome') {
+        const state = await esphomeService.getPowerState(device.ip, device.entityId);
+        const result = { state, relay_state: state === 'on' ? 1 : 0 };
+        this.deviceStates.set(device.ip, { state: result.state, relayState: result.relay_state, lastUpdate: Date.now() });
+        return result;
+      }
+
+      if (device?.brand === 'tasmota') {
+        const state = await tasmotaService.getPowerState(device.ip);
+        const result = { state, relay_state: state === 'on' ? 1 : 0 };
+        this.deviceStates.set(device.ip, { state: result.state, relayState: result.relay_state, lastUpdate: Date.now() });
+        return result;
+      }
+
       // Default: TPLink Kasa Legacy (native Node.js implementation)
       const kasaDevice = new kasaService.KasaDevice(device?.ip || ipOrDeviceId, {
         childId: device?.childId
@@ -537,6 +561,30 @@ class DeviceService {
           relayState: 1,
           lastUpdate: Date.now()
         });
+        this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
+        this.startPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'on' };
+      }
+
+      if (device?.brand === 'shelly') {
+        await shellyService.turnOn(device.ip);
+        this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
+        this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
+        this.startPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'on' };
+      }
+
+      if (device?.brand === 'esphome') {
+        await esphomeService.turnOn(device.ip, device.entityId);
+        this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
+        this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
+        this.startPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'on' };
+      }
+
+      if (device?.brand === 'tasmota') {
+        await tasmotaService.turnOn(device.ip);
+        this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
         return { success: true, state: 'on' };
@@ -661,6 +709,30 @@ class DeviceService {
           relayState: 0,
           lastUpdate: Date.now()
         });
+        this.emitEvent('device_off', { ip: device.ip, device });
+        this.stopPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'off' };
+      }
+
+      if (device?.brand === 'shelly') {
+        await shellyService.turnOff(device.ip);
+        this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
+        this.emitEvent('device_off', { ip: device.ip, device });
+        this.stopPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'off' };
+      }
+
+      if (device?.brand === 'esphome') {
+        await esphomeService.turnOff(device.ip, device.entityId);
+        this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
+        this.emitEvent('device_off', { ip: device.ip, device });
+        this.stopPumpRuntimeTracking(device.ip, device);
+        return { success: true, state: 'off' };
+      }
+
+      if (device?.brand === 'tasmota') {
+        await tasmotaService.turnOff(device.ip);
+        this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
         return { success: true, state: 'off' };

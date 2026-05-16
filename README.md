@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v4.0.0 — Open Beta</h3>
+<h3 align="center">SwellDreams v4.2.0 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v4.0.0 "Open Beta"**
+**v4.2.0 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -118,13 +118,25 @@ Each device can be calibrated to establish a baseline — the system learns how 
 
 ### Supported Brands
 
+> **⚠️ Cloud outlets are being phased out.** SwellDreams is moving toward local-network-only smart outlets. The cloud-connected outlets (Govee, Tuya) will be **gradually deprecated** — their manufacturers keep changing their cloud APIs and pushing third-party tools out of support, rapid on/off cycling risks rate-limiting or an account ban, and every command pays an internet round-trip of delay. New installs should use one of the recommended local outlets below.
+
+**Local-network outlets — recommended** (no account, no cloud, no rate limits):
+
+| Outlet | Connection | Notes & where to buy |
+|--------|-----------|----------------------|
+| **KAUF** | ESPHome (local HTTP) | ✅ The main recommended outlet — ships with ESPHome, fully local, no account, no flashing. Buy: [kaufha.com/plf12](https://kaufha.com/plf12/) |
+| **Shelly** | Local HTTP API | No account, no cloud. ⚠️ Currently and periodically out of stock — check availability before relying on it. Buy: [us.shelly.com](https://us.shelly.com/collections/smart-plugs) |
+| **Athom (Tindie)** | Tasmota / ESPHome (local) | Plugs pre-flashed with Tasmota or ESPHome. ⚠️ Ships from Shenzhen — expect long shipping times. Buy: [tindie.com/stores/athom](https://www.tindie.com/stores/athom/) |
+| **TP-Link Kasa (Legacy)** | Local network (native TCP, port 9999) | Older Kasa plugs (e.g. the HS103). ⚠️ Disable firmware auto-updates in the Kasa app — a 1.1.x+ firmware update removes the legacy local protocol. |
+
+**Other devices** (existing integrations — cloud outlets here are being phased out):
+
 | Brand | Connection | Status |
 |-------|-----------|--------|
-| **TP-Link Kasa** | Local network (native TCP) | Supported |
 | **TP-Link Tapo** | Local network (Python bridge) | Out of service — manufacturer KLAP encryption changes currently block third-party control |
 | **Home Assistant** | REST API (local network) | Supported — bridge for Tapo and any other HA-managed switch entities |
-| **Govee** | Cloud API | Supported |
-| **Tuya / Smart Life** | Cloud API | Supported — includes Globe, Treatlife, Gosund, Teckin, and other Tuya-based brands |
+| **Govee** | Cloud API | Supported — being phased out |
+| **Tuya / Smart Life** | Cloud API | Supported — being phased out; includes Globe, Treatlife, Gosund, Teckin, and other Tuya-based brands |
 | **Simulated** | None | Built-in testing mode, no hardware required |
 
 ---

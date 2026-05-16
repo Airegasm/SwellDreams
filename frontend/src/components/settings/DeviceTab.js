@@ -108,9 +108,21 @@ function DeviceTab() {
   const [haConnecting, setHaConnecting] = useState(false);
   const [haError, setHaError] = useState(null);
 
+  // Local-only outlets (Shelly / ESPHome / Tasmota)
+  const [shellyIp, setShellyIp] = useState('');
+  const [esphomeIp, setEsphomeIp] = useState('');
+  const [esphomeEntity, setEsphomeEntity] = useState('');
+  const [tasmotaIp, setTasmotaIp] = useState('');
+  const [localError, setLocalError] = useState(null);
+  const [localScanning, setLocalScanning] = useState(false);
+  const [discoveredLocal, setDiscoveredLocal] = useState([]);
+
   // Collapsible section states
   const [expandedSections, setExpandedSections] = useState({
     discovery: false,
+    kauf: false,
+    shelly: false,
+    tindie: false,
     tplink: false,
     govee: false,
     tuya: false,
@@ -789,6 +801,50 @@ function DeviceTab() {
     }
   };
 
+  // Add a local-only outlet (Shelly / ESPHome / Tasmota) by IP.
+  const handleAddLocalDevice = async (brand, ip, entity) => {
+    const addr = (ip || '').trim();
+    if (!addr) return;
+    if (devices.length >= MAX_DEVICES) {
+      alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
+      return;
+    }
+    setLocalError(null);
+    try {
+      const nameByBrand = { shelly: 'Shelly', esphome: 'ESPHome', tasmota: 'Tasmota' };
+      await api.addDevice({
+        ip: addr,
+        name: `${nameByBrand[brand] || brand} ${addr}`,
+        label: `${nameByBrand[brand] || brand} ${addr}`,
+        deviceType: 'PUMP',
+        brand,
+        ...(brand === 'esphome' && entity && entity.trim() ? { entityId: entity.trim() } : {}),
+      });
+      setShellyIp('');
+      setEsphomeIp('');
+      setEsphomeEntity('');
+      setTasmotaIp('');
+    } catch (error) {
+      console.error(`Failed to add ${brand} device:`, error);
+      setLocalError(error.message || 'Device not reachable');
+    }
+  };
+
+  // mDNS discovery of local-only plugs (Shelly + ESPHome).
+  const handleLocalScan = async () => {
+    setLocalScanning(true);
+    setLocalError(null);
+    try {
+      const res = await fetch('/api/devices/scan/local', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Scan failed');
+      setDiscoveredLocal(data.devices || []);
+    } catch (error) {
+      setLocalError(error.message || 'Scan failed');
+    }
+    setLocalScanning(false);
+  };
+
   const handleAddTapoDevice = async (tapoDevice) => {
     if (devices.length >= MAX_DEVICES) {
       alert(`Maximum ${MAX_DEVICES} devices allowed. Remove a device before adding more.`);
@@ -1319,6 +1375,119 @@ function DeviceTab() {
         {expandedSections.discovery && (
         <div className="settings-section-content">
 
+          {/* Cloud phase-out notice */}
+          <div style={{ border: '1px solid var(--warning-color)', borderRadius: '6px', padding: '12px', margin: '0 0 16px' }}>
+            ⚠️ <strong>Cloud outlets are being phased out.</strong> SwellDreams is moving to local-network-only smart outlets. Cloud-connected outlets (Wyze, Govee, Tuya) will be gradually deprecated: their manufacturers keep changing their cloud APIs and we have to keep chasing those changes; rapid on/off cycling risks rate-limiting or an outright ban from the vendor's servers; and every command pays an unnecessary internet round-trip of delay. The local outlets listed first have none of these problems.
+          </div>
+
+          {/* SECTION 1: Local-network outlets */}
+          <div style={{ fontWeight: 600, fontSize: '1.05em', margin: '4px 0 8px' }}>
+            Local-Network Outlets <span style={{ fontWeight: 400, opacity: 0.7 }}>— recommended</span>
+          </div>
+          <div className="discovery-actions" style={{ marginBottom: '8px' }}>
+            <button className="btn btn-primary" onClick={handleLocalScan} disabled={localScanning}>
+              {localScanning ? 'Scanning...' : 'Scan for local outlets'}
+            </button>
+          </div>
+          {discoveredLocal.length > 0 && (
+            <div style={{ marginBottom: '8px' }}>
+              {discoveredLocal.map((d) => (
+                <div key={d.ip} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                  <span><code>{d.ip}</code> <span style={{ opacity: 0.7 }}>{d.name} · {d.brand}</span></span>
+                  <button className="btn btn-primary btn-sm" onClick={() => handleAddLocalDevice(d.brand, d.ip)}>Add</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* KAUF Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('kauf')}>
+              <span>KAUF — recommended</span>
+              <span className="collapse-icon">{expandedSections.kauf ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.kauf && (
+            <div className="settings-subsection-content">
+              <p className="form-hint"><strong>✅ The main recommended local outlet.</strong> KAUF plugs ship with ESPHome — fully local, no account, no cloud, no flashing. The switch entity defaults to <code>relay</code> (correct for KAUF) — leave Entity blank.</p>
+              <p className="form-hint">🔗 Buy: <a href="https://kaufha.com/plf12/" target="_blank" rel="noopener noreferrer">kaufha.com/plf12</a></p>
+              <div className="manual-add-form" style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  value={esphomeIp}
+                  onChange={(e) => setEsphomeIp(e.target.value)}
+                  placeholder="Device IP (e.g., 192.168.1.100)"
+                />
+                <input
+                  type="text"
+                  value={esphomeEntity}
+                  onChange={(e) => setEsphomeEntity(e.target.value)}
+                  placeholder="Entity (optional, default: relay)"
+                />
+                <button className="btn btn-primary btn-sm" onClick={() => handleAddLocalDevice('esphome', esphomeIp, esphomeEntity)}>
+                  Add Device
+                </button>
+              </div>
+              {localError && <div className="discovery-error">{localError}</div>}
+            </div>
+            )}
+          </div>
+
+          {/* Shelly Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('shelly')}>
+              <span>Shelly</span>
+              <span className="collapse-icon">{expandedSections.shelly ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.shelly && (
+            <div className="settings-subsection-content">
+              <p className="form-hint">Shelly plugs control over a local HTTP API — no account, no cloud.</p>
+              <p className="form-hint" style={{ color: 'var(--warning-color)' }}>⚠️ Shelly plugs are currently and periodically out of stock — check availability before relying on them.</p>
+              <p className="form-hint">🔗 Buy: <a href="https://us.shelly.com/collections/smart-plugs" target="_blank" rel="noopener noreferrer">us.shelly.com/collections/smart-plugs</a></p>
+              <div className="manual-add-form" style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  value={shellyIp}
+                  onChange={(e) => setShellyIp(e.target.value)}
+                  placeholder="Device IP (e.g., 192.168.1.100)"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLocalDevice('shelly', shellyIp)}
+                />
+                <button className="btn btn-primary btn-sm" onClick={() => handleAddLocalDevice('shelly', shellyIp)}>
+                  Add Device
+                </button>
+              </div>
+              {localError && <div className="discovery-error">{localError}</div>}
+            </div>
+            )}
+          </div>
+
+          {/* Tindie (Athom) Sub-collapsible */}
+          <div className="settings-subsection-collapsible">
+            <div className="settings-subsection-header" onClick={() => toggleSection('tindie')}>
+              <span>Tindie (Athom)</span>
+              <span className="collapse-icon">{expandedSections.tindie ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.tindie && (
+            <div className="settings-subsection-content">
+              <p className="form-hint">Athom sells plugs pre-flashed with Tasmota or ESPHome — fully local. Add a Tasmota plug below; for the ESPHome variant, use the KAUF section's form.</p>
+              <p className="form-hint" style={{ color: 'var(--warning-color)' }}>⚠️ Ships from Shenzhen — expect long shipping times.</p>
+              <p className="form-hint">🔗 Buy: <a href="https://www.tindie.com/stores/athom/" target="_blank" rel="noopener noreferrer">tindie.com/stores/athom</a></p>
+              <div className="manual-add-form" style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  value={tasmotaIp}
+                  onChange={(e) => setTasmotaIp(e.target.value)}
+                  placeholder="Tasmota device IP"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddLocalDevice('tasmota', tasmotaIp)}
+                />
+                <button className="btn btn-primary btn-sm" onClick={() => handleAddLocalDevice('tasmota', tasmotaIp)}>
+                  Add Device
+                </button>
+              </div>
+              {localError && <div className="discovery-error">{localError}</div>}
+            </div>
+            )}
+          </div>
+
           {/* TPLink Sub-collapsible */}
           <div className="settings-subsection-collapsible">
             <div className="settings-subsection-header" onClick={() => toggleSection('tplink')}>
@@ -1428,6 +1597,11 @@ function DeviceTab() {
               )}
             </div>
             )}
+          </div>
+
+          {/* SECTION 2: Other devices */}
+          <div style={{ fontWeight: 600, fontSize: '1.05em', margin: '16px 0 8px' }}>
+            Other Devices <span style={{ fontWeight: 400, opacity: 0.7 }}>— cloud &amp; existing integrations</span>
           </div>
 
           {/* Govee Sub-collapsible */}

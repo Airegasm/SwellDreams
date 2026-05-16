@@ -11049,6 +11049,39 @@ app.post('/api/devices/scan', deviceScanLimiter, async (req, res) => {
   }
 });
 
+// mDNS discovery of local-only smart plugs (Shelly + ESPHome). Tasmota is
+// omitted — its mDNS advertising is unreliable, so it is added by IP.
+app.post('/api/devices/scan/local', deviceScanLimiter, async (req, res) => {
+  let Bonjour;
+  try {
+    ({ Bonjour } = require('bonjour-service'));
+  } catch {
+    return res.status(500).json({ error: 'bonjour-service not installed' });
+  }
+  try {
+    const found = new Map();
+    const bonjour = new Bonjour();
+    const collect = (brand) => (service) => {
+      const ip = (service.addresses || []).find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a));
+      if (ip && !found.has(ip)) {
+        found.set(ip, { ip, brand, name: service.name || service.host || ip });
+      }
+    };
+    const browsers = [
+      bonjour.find({ type: 'shelly' }, collect('shelly')),
+      bonjour.find({ type: 'esphomelib' }, collect('esphome')),
+    ];
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    try {
+      browsers.forEach((b) => { if (b && b.stop) b.stop(); });
+      bonjour.destroy();
+    } catch {}
+    res.json({ devices: [...found.values()] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/devices', (req, res) => {
   const devices = loadData(DATA_FILES.devices) || [];
   const newDevice = {
