@@ -818,8 +818,9 @@
 
   .flow-editor-page {
     flex-direction: column;
-    height: calc(100vh - var(--mobile-nav-height));
-    top: var(--mobile-nav-height);
+    /* Leave room for the mobile nav AND the flow toolbar (Save/Undo/etc.) below it */
+    height: calc(100vh - var(--mobile-nav-height) - 48px);
+    top: calc(var(--mobile-nav-height) + 48px);
   }
 
   .flow-editor-page::before {
@@ -832,9 +833,21 @@
     font-size: var(--font-size-sm);
   }
 
-  /* Hide flow header center on mobile - tools are in a condensed toolbar */
+  /* Show the flow toolbar on mobile as a compact, icon-only bar below the nav
+     so Save / Undo / Redo / Organize / Export stay reachable. */
   .flow-header-center {
+    display: flex;
+    top: var(--mobile-nav-height);
+    height: 48px;
+  }
+
+  /* Icon-only buttons to fit narrow screens */
+  .flow-header-center .header-tool-btn span {
     display: none;
+  }
+
+  .flow-header-center .header-tool-btn {
+    padding: var(--spacing-xs);
   }
 
   .flow-sidebar {

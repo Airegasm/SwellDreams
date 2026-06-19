@@ -1401,6 +1401,30 @@ function FlowEditor() {
     }
   }, [clipboard]);
 
+  // Shared node factory used by both drag-drop and tap-to-add (mobile).
+  const createFlowNode = useCallback((type, subtype, position) => {
+    const template = NODE_TEMPLATES[type]?.[subtype] || NODE_TEMPLATES[type]?.default || { label: type };
+    const nodeId = getId();
+    return {
+      id: nodeId,
+      type,
+      position,
+      data: {
+        ...template,
+        devices,
+        globalReminders,
+        characterReminders,
+        characterButtons,
+        multiCharMembers,
+        personaButtons,
+        flowVariables,
+        flowVariableValues,
+        onChange: (field, value) => updateNodeData(nodeId, field, value),
+        onTest: () => handleTestNode(nodeId)
+      }
+    };
+  }, [devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, handleTestNode]);
+
   const onDrop = useCallback(
     (event) => {
       event.preventDefault();
@@ -1417,38 +1441,43 @@ function FlowEditor() {
         y: event.clientY
       });
 
-      const template = NODE_TEMPLATES[type]?.[subtype] || NODE_TEMPLATES[type]?.default || { label: type };
-
-      const nodeId = getId();
-      const newNode = {
-        id: nodeId,
-        type,
-        position,
-        data: {
-          ...template,
-          devices,
-          globalReminders,
-          characterReminders,
-          characterButtons,
-          multiCharMembers,
-          personaButtons,
-          flowVariables,
-          flowVariableValues,
-          onChange: (field, value) => updateNodeData(nodeId, field, value),
-          onTest: () => handleTestNode(nodeId)
-        }
-      };
-
-      setNodes((nds) => nds.concat(newNode));
+      setNodes((nds) => nds.concat(createFlowNode(type, subtype, position)));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
+    [reactFlowInstance, setNodes, createFlowNode, nodes, edges, pushSnapshot]
   );
+
+  // Tap-to-add: native HTML5 drag doesn't fire on touch devices, so tapping a
+  // palette node drops it near the center of the visible canvas instead.
+  const addNodeAtCenter = useCallback((type, subtype) => {
+    if (!type) return;
+    pushSnapshot(nodes, edges, 'add_node');
+
+    let position = { x: 120 + Math.random() * 160, y: 120 + Math.random() * 160 };
+    if (reactFlowInstance && reactFlowWrapper.current) {
+      const rect = reactFlowWrapper.current.getBoundingClientRect();
+      position = reactFlowInstance.screenToFlowPosition({
+        x: rect.left + rect.width / 2 + (Math.random() * 80 - 40),
+        y: rect.top + rect.height / 2 + (Math.random() * 80 - 40)
+      });
+    }
+
+    setNodes((nds) => nds.concat(createFlowNode(type, subtype, position)));
+  }, [reactFlowInstance, setNodes, createFlowNode, nodes, edges, pushSnapshot]);
 
   const onDragStart = (event, nodeType, subtype) => {
     event.dataTransfer.setData('application/reactflow/type', nodeType);
     event.dataTransfer.setData('application/reactflow/subtype', subtype);
     event.dataTransfer.effectAllowed = 'move';
   };
+
+  // Props shared by every palette node: draggable on desktop, tappable on touch.
+  const palProps = (type, subtype) => ({
+    draggable: true,
+    onDragStart: (e) => onDragStart(e, type, subtype),
+    onClick: () => addNodeAtCenter(type, subtype),
+    role: 'button',
+    title: 'Tap to add, or drag onto the canvas'
+  });
 
   const handleSaveFlow = async () => {
     if (!flowName.trim()) return;
@@ -1855,16 +1884,14 @@ function FlowEditor() {
               <div
                 key={key}
                 className="palette-node trigger"
-                draggable
-                onDragStart={(e) => onDragStart(e, 'trigger', key)}
+                {...palProps('trigger', key)}
               >
                 {template.label}
               </div>
             ))}
             <div
               className="palette-node trigger"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'button_press', 'default')}
+              {...palProps('button_press', 'default')}
             >
               Button Press
             </div>
@@ -1878,8 +1905,7 @@ function FlowEditor() {
               <div
                 key={key}
                 className="palette-node action"
-                draggable
-                onDragStart={(e) => onDragStart(e, 'action', key)}
+                {...palProps('action', key)}
               >
                 {template.label}
               </div>
@@ -1892,15 +1918,13 @@ function FlowEditor() {
           <div className="node-palette">
             <div
               className="palette-node capacity-ai-message"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'capacity_ai_message', 'default')}
+              {...palProps('capacity_ai_message', 'default')}
             >
               Capacity AI Message
             </div>
             <div
               className="palette-node capacity-player-message"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'capacity_player_message', 'default')}
+              {...palProps('capacity_player_message', 'default')}
             >
               Capacity Player Message
             </div>
@@ -1912,99 +1936,85 @@ function FlowEditor() {
           <div className="node-palette">
             <div
               className="palette-node condition"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'condition', 'default')}
+              {...palProps('condition', 'default')}
             >
               Condition
             </div>
             <div
               className="palette-node branch"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'branch', 'conditional')}
+              {...palProps('branch', 'conditional')}
             >
               Conditional Branch
             </div>
             <div
               className="palette-node branch"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'branch', 'random')}
+              {...palProps('branch', 'random')}
             >
               Random Branch
             </div>
             <div
               className="palette-node player-choice"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'player_choice', 'default')}
+              {...palProps('player_choice', 'default')}
             >
               Player Choice
             </div>
             <div
               className="palette-node player-choice"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'choose_multi', 'default')}
+              {...palProps('choose_multi', 'default')}
             >
               Choose Multi
             </div>
             <div
               className="palette-node simple-ab"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'simple_ab', 'default')}
+              {...palProps('simple_ab', 'default')}
             >
               Simple A/B
             </div>
             <div
               className="palette-node pause-resume"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'pause_resume', 'default')}
+              {...palProps('pause_resume', 'default')}
             >
               Pause/Resume
             </div>
             <div
               className="palette-node input"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'input', 'default')}
+              {...palProps('input', 'default')}
             >
               User Input
             </div>
             <div
               className="palette-node delay"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'delay', 'default')}
+              {...palProps('delay', 'default')}
             >
               Delay
             </div>
             <div
               className="palette-node random-number"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'random_number', 'default')}
+              {...palProps('random_number', 'default')}
             >
               🎲 Random Number
             </div>
             <div
               className="palette-node loop"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'loop', 'default')}
+              {...palProps('loop', 'default')}
             >
               🔄 Loop
             </div>
             <div
               className="palette-node switch"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'switch', 'default')}
+              {...palProps('switch', 'default')}
             >
               ⑃ Switch
             </div>
             <div
               className="palette-node counter"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'counter', 'default')}
+              {...palProps('counter', 'default')}
             >
               🔢 Counter
             </div>
             <div
               className="palette-node session-timer"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'sessionTimer', 'default')}
+              {...palProps('sessionTimer', 'default')}
             >
               ⏱️ Session Timer
             </div>
@@ -2016,8 +2026,7 @@ function FlowEditor() {
           <div className="node-palette">
             <div
               className="palette-node comment"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'comment', 'default')}
+              {...palProps('comment', 'default')}
             >
               📝 Comment
             </div>
@@ -2029,71 +2038,61 @@ function FlowEditor() {
           <div className="node-palette">
             <div
               className="palette-node prize-wheel"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'prize_wheel', 'default')}
+              {...palProps('prize_wheel', 'default')}
             >
               🎡 Prize Wheel
             </div>
             <div
               className="palette-node dice-roll"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'dice_roll', 'default')}
+              {...palProps('dice_roll', 'default')}
             >
               🎲 Dice Roll
             </div>
             <div
               className="palette-node coin-flip"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'coin_flip', 'default')}
+              {...palProps('coin_flip', 'default')}
             >
               🪙 Coin Flip
             </div>
             <div
               className="palette-node card-draw"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'card_draw', 'default')}
+              {...palProps('card_draw', 'default')}
             >
               🃏 Card Draw
             </div>
             <div
               className="palette-node rps"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'rps', 'default')}
+              {...palProps('rps', 'default')}
             >
               ✊ Rock Paper Scissors
             </div>
             <div
               className="palette-node number-guess"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'number_guess', 'default')}
+              {...palProps('number_guess', 'default')}
             >
               🔢 Number Guess
             </div>
             <div
               className="palette-node timer-challenge"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'timer_challenge', 'default')}
+              {...palProps('timer_challenge', 'default')}
             >
               ⏱️ Timer Challenge
             </div>
             <div
               className="palette-node slot-machine"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'slot_machine', 'default')}
+              {...palProps('slot_machine', 'default')}
             >
               🎰 Slot Machine
             </div>
             <div
               className="palette-node simon-challenge"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'simon_challenge', 'default')}
+              {...palProps('simon_challenge', 'default')}
             >
               🧠 Simon Challenge
             </div>
             <div
               className="palette-node reflex-challenge"
-              draggable
-              onDragStart={(e) => onDragStart(e, 'reflex_challenge', 'default')}
+              {...palProps('reflex_challenge', 'default')}
             >
               🎯 Reflex Challenge
             </div>

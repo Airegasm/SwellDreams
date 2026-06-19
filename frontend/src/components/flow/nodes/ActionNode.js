@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
+import { API_BASE } from '../../../config';
+import { apiFetch } from '../../../utils/api';
 import ActionWrapper from './ActionWrapper';
 import NumberInput from './NumberInput';
 import MemberTargetPicker from '../../common/MemberTargetPicker';
@@ -23,6 +25,17 @@ const getDeviceKey = (device) => {
 };
 
 function ActionNode({ data, selected }) {
+  // Trigger sets for the "Fire Trigger Set" action — fetched on demand.
+  const [triggerSets, setTriggerSets] = React.useState([]);
+  React.useEffect(() => {
+    if (data.actionType !== 'trigger_set') return;
+    let cancelled = false;
+    apiFetch(`${API_BASE}/api/trigger-sets`)
+      .then(d => { if (!cancelled) setTriggerSets(Array.isArray(d) ? d : (d?.triggerSets || [])); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [data.actionType]);
+
   const renderConfig = () => {
     switch (data.actionType) {
       case 'send_message':
@@ -781,6 +794,23 @@ function ActionNode({ data, selected }) {
         return (
           <div className="node-config">
             <div className="node-hint">Deactivates the AI pump — stops the timer and hides the overlay. Does nothing if the character isn't pumpable.</div>
+          </div>
+        );
+
+      case 'trigger_set':
+        return (
+          <div className="node-config">
+            <select
+              value={data.triggerSetId || ''}
+              onChange={(e) => data.onChange?.('triggerSetId', e.target.value)}
+              className="node-select"
+            >
+              <option value="">Select Trigger Set</option>
+              {triggerSets.map(ts => (
+                <option key={ts.id} value={ts.id}>{ts.name}</option>
+              ))}
+            </select>
+            <div className="node-hint">Fires every trigger in the selected set against the active character/session.</div>
           </div>
         );
 

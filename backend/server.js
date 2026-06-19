@@ -10131,7 +10131,8 @@ function getInstructorActiveTerms(character, recentMessages) {
     if (!groupIds.includes(g.id)) continue;
     for (const t of (g.terms || [])) {
       if (!t || !t.definition || !t.term) continue;
-      const keys = (Array.isArray(t.keys) && t.keys.length ? t.keys : [t.term]).filter(Boolean);
+      // The term itself plus any extra comma-separated keys all trigger the entry
+      const keys = [t.term, ...(Array.isArray(t.keys) ? t.keys : [])].filter(Boolean);
       terms.push({
         name: t.term,
         text: `${t.term}: ${t.definition}`,
@@ -10165,19 +10166,36 @@ function saveDictionary(data) {
   fs.writeFileSync(DICTIONARY_PATH, JSON.stringify(data, null, 2));
 }
 
-// Build the always-on dictionary block from every enabled group/term.
+// Build the dictionary block. Terms with no trigger words are always-on; terms
+// with comma-separated trigger words are keyword-gated against recent messages.
+// Routed through the reminder engine so multiple matching phrases activate
+// multiple entries in a single generation.
 function buildDictionaryPrompt() {
   const groups = loadDictionary().groups || [];
-  const lines = [];
+  const reminders = [];
   for (const g of groups) {
     if (g.enabled === false) continue;
     for (const t of (g.terms || [])) {
       if (!t || !t.term || !t.definition) continue;
-      lines.push(`- ${t.term}: ${t.definition}`);
+      if (t.enabled === false) continue; // per-term toggle
+      const keys = Array.isArray(t.keys) ? t.keys.filter(Boolean) : [];
+      reminders.push({
+        name: t.term,
+        text: `- ${t.term}: ${t.definition}`,
+        constant: keys.length === 0, // no trigger words => always-on
+        keys,
+        caseSensitive: !!t.caseSensitive,
+        enabled: true,
+        priority: 100,
+        scanDepth: 10
+      });
     }
   }
-  if (!lines.length) return '';
-  return `Dictionary (always applies):\n${lines.join('\n')}\n\n`;
+  if (!reminders.length) return '';
+  const recentMessages = reminderEngine.extractRecentMessages(sessionState?.chatHistory || [], 10);
+  const active = reminderEngine.getActiveReminders(reminders, recentMessages);
+  if (!active.length) return '';
+  return `Dictionary:\n${active.map(r => r.text).join('\n')}\n\n`;
 }
 
 function buildChatContext(character, settings) {

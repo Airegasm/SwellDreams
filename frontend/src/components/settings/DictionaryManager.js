@@ -34,7 +34,7 @@ function DictionaryManager() {
   const startEdit = (g) => {
     setForm({
       name: g.name || '',
-      terms: (g.terms || []).map(t => ({ id: t.id || termId(), term: t.term || '', definition: t.definition || '' })),
+      terms: (g.terms || []).map(t => ({ id: t.id || termId(), term: t.term || '', definition: t.definition || '', enabled: t.enabled !== false, keys: Array.isArray(t.keys) ? t.keys.join(', ') : (t.keys || '') })),
     });
     setEditingId(g.id);
   };
@@ -45,7 +45,7 @@ function DictionaryManager() {
   };
 
   const addTermRow = () => {
-    setForm(prev => ({ ...prev, terms: [...prev.terms, { id: termId(), term: '', definition: '' }] }));
+    setForm(prev => ({ ...prev, terms: [...prev.terms, { id: termId(), term: '', definition: '', enabled: true, keys: '' }] }));
   };
   const updateTermRow = (id, field, value) => {
     setForm(prev => ({ ...prev, terms: prev.terms.map(t => (t.id === id ? { ...t, [field]: value } : t)) }));
@@ -59,7 +59,7 @@ function DictionaryManager() {
     if (!name) { showError('Group name is required'); return; }
     const terms = form.terms
       .filter(t => t.term.trim() && t.definition.trim())
-      .map(t => ({ id: t.id, term: t.term.trim(), definition: t.definition.trim() }));
+      .map(t => ({ id: t.id, term: t.term.trim(), definition: t.definition.trim(), enabled: t.enabled !== false, keys: (t.keys || '').split(',').map(k => k.trim()).filter(Boolean) }));
     try {
       if (editingId === 'new') {
         await api.createDictionaryGroup(name, terms, true);
@@ -97,8 +97,8 @@ function DictionaryManager() {
   return (
     <div>
       <p className="section-description">
-        Always-on, global definitions injected into every character's prompt. Group related terms; each enabled group's
-        terms are always provided to the AI (no keyword trigger required).
+        Global definitions injected into every character's prompt (no keyword trigger required). Toggle whole groups
+        or individual terms on/off — only enabled terms in enabled groups are sent to the AI.
       </p>
 
       {editingId && (
@@ -116,7 +116,14 @@ function DictionaryManager() {
           <label>Terms</label>
           {form.terms.length === 0 && <p className="section-hint">No terms yet. Add one below.</p>}
           {form.terms.map(t => (
-            <div key={t.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px' }}>
+            <div key={t.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px', opacity: t.enabled === false ? 0.5 : 1 }}>
+              <input
+                type="checkbox"
+                checked={t.enabled !== false}
+                onChange={(e) => updateTermRow(t.id, 'enabled', e.target.checked)}
+                title={t.enabled === false ? 'Disabled — not sent to the AI' : 'Enabled'}
+                style={{ flex: '0 0 auto' }}
+              />
               <input
                 type="text"
                 style={{ flex: '0 0 30%' }}
@@ -130,6 +137,14 @@ function DictionaryManager() {
                 value={t.definition}
                 onChange={(e) => updateTermRow(t.id, 'definition', e.target.value)}
                 placeholder="definition"
+              />
+              <input
+                type="text"
+                style={{ flex: '0 0 22%' }}
+                value={t.keys || ''}
+                onChange={(e) => updateTermRow(t.id, 'keys', e.target.value)}
+                placeholder="trigger words (comma-sep, blank = always-on)"
+                title="Comma-separated trigger words/phrases. Leave blank for always-on. Any match injects this term; multiple matches inject multiple terms."
               />
               <button className="btn btn-sm btn-danger" onClick={() => removeTermRow(t.id)}>Del</button>
             </div>

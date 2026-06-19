@@ -276,6 +276,11 @@ function FlowTab() {
                   <td>Variable type, Variable name, Operation, Value</td>
                 </tr>
                 <tr>
+                  <td><strong>Fire Trigger Set</strong></td>
+                  <td>Runs every trigger in a saved Trigger Set against the active character/session — the same bundles managed on the Triggers page.</td>
+                  <td>Trigger Set selector</td>
+                </tr>
+                <tr>
                   <td><strong>Toggle Reminder</strong></td>
                   <td>Enable, disable, or update a reminder</td>
                   <td>Reminder selector, Action (enable/disable/update), New text</td>
