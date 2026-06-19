@@ -2,6 +2,24 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.3.0] - 2026-06-19
+
+### Added
+- **Per-character data for Multi-Char cards** — Group members are no longer just name/description/personality:
+  - **Per-member personality attributes** rolled independently each turn and injected inline with each member's current drive; targetable at runtime by checkpoint triggers, the Triggers page, and the flow `set_attribute` node via a visual member picker.
+  - Per-member **gender** (pronouns in the prompt) and **portrait** (placeholder slot).
+  - **Import a single-char card** as a new member (copies name/description/personality/gender/avatar/example-dialogues/attributes).
+  - **Speak/mute toggle** — an overlay of member chips over the portrait; muted members stay in the scene but the prompt won't write for them this turn.
+- **Checkpoint injections** — Each capacity range gains a main theme plus probabilistic pop-up injections (% chance, per-session max-appearances) with optional actions: a Primary Pump run (timed/cycle), a Set-Variable, or an inline Player Choice (per-choice pump/var + response). Available on single, multichar, and instructor checkpoints. A "Show/Hide All" spoilers button was added to every checkpoint tab.
+- **Instructor pre-reqs + per-card checkpoint profiles** — The instructor 0% range is now an ordered, drag-arrangeable list of mandatory player-choice steps (each choice can load a checkpoint profile and/or set a variable), timed at session-start or after the first player message; the inflation gate holds until answered. The 1–100% ranges live in multiple **named checkpoint profiles** selected at runtime by a pre-req choice (e.g. "What pump?" → loads that pump's profile). Backward compatible via a synthesized Default profile.
+- **Dictionary** — Per-term enable toggles and optional **comma-separated trigger words** per term (blank = always-on); keyword-gated terms route through the reminder engine so multiple matching phrases activate multiple entries in one generation.
+- **Built-in "Inflation Assistant"** — A ships-with-the-app immutable instructor profile + default instructor card (female), plus a default "Inflation Tools" dictionary group (bulb/bike/compressor/aquarium/fluid/enema-bag) with definitions. Instructors auto-respond by default.
+- **Mistral v7 (Tekken) template** and an expanded sampler/token panel (Ban EOS, logit_bias, banned strings, seed, override-server-samplers, n_keep, `top_n_sigma` fix) across KoboldCpp + llama.cpp.
+
+### Changed / Fixed
+- **Trigger dropdowns** now use readable, theme-consistent styling (was an unreadable hardcoded background); trigger rows wrap and the Triggers page stacks on mobile.
+- **Dictionary editor** redesigned into clean stacked term cards (was a cramped single-row layout, broken on mobile and desktop).
+
 ## [v5.2.0] - 2026-06-19
 
 ### Added

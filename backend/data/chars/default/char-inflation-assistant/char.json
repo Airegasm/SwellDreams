@@ -2,7 +2,9 @@
   "id": "char-inflation-assistant",
   "name": "Inflation Assistant",
   "gender": "female",
-  "instructor": { "enabled": true },
+  "instructor": {
+    "enabled": true
+  },
   "immutable": true,
   "mission": "Guide the user through a safe, comfortable inflation session: pick the right tool, set up correctly, inflate gradually while monitoring capacity and comfort, and release safely.",
   "avatar": "",
@@ -32,5 +34,22 @@
   ],
   "activeStoryId": "story-1",
   "createdAt": 1705000000000,
-  "updatedAt": 1705000000000
+  "updatedAt": 1705000000000,
+  "isPumpable": false,
+  "characterCalibrationTime": 60,
+  "charBurstPercent": 100,
+  "charSyncCalibrationWithPlayer": false,
+  "charInflateKnowledge": "unaware",
+  "charInflateDesire": "neutral",
+  "charPopDesire": "terrified",
+  "charInflateAutoLoadControls": false,
+  "charStagedPortraits": {},
+  "desireToInflateOthers": "none",
+  "desireToPopOthers": "none",
+  "sessionDefaults": {
+    "capacity": 0,
+    "pain": 0,
+    "emotion": "neutral",
+    "capacityModifier": 1
+  }
 }
