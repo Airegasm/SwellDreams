@@ -2898,6 +2898,10 @@
   justify-content: center;
   align-items: flex-start;
   padding-top: 0;
+  /* Safety net: if the modal is taller than the viewport (mobile portrait), scroll the overlay
+     so nothing — including the bottom action buttons — is ever cut off. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calibration-modal {
@@ -2909,6 +2913,10 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
+  /* Never taller than the screen — so the body below can scroll instead of pushing the
+     bottom buttons off-screen. dvh tracks the real visible area on mobile browsers. */
+  max-height: 100vh;
+  max-height: 100dvh;
   overflow: hidden;
   animation: slideDownModal 0.3s ease-out;
   display: flex;
@@ -2960,7 +2968,12 @@
 
 .calibration-modal-body {
   padding: var(--spacing-lg);
+  /* Take the remaining height under the fixed header and scroll internally. min-height:0 is
+     required for a flex child to be allowed to shrink below its content and actually scroll. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--skin-section-bg, url('../../assets/card-bg.png'));
   background-size: cover;
   background-position: center;
