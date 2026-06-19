@@ -146,41 +146,40 @@
 .prereq-initvar-row select { flex: 0 0 auto; width: auto; }
 .prereq-initvar-row input { flex: 1 1 90px; min-width: 0; }
 
-/* Manual-pump pacing fields (per checkpoint range, bulb/bike profiles) */
+/* Pump-pacing fields (per checkpoint range). Grid with auto-fit + minmax(min(100%,…))
+   gives two columns when there's room and collapses to ONE full-width column when there
+   isn't — no media query, and it can never overflow the container. */
 .pump-pacing-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 10px;
-  flex-wrap: wrap;
   margin-top: 8px;
 }
 .pump-pacing-field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  flex: 1 1 160px;
+  gap: 4px;
   min-width: 0;
-  font-size: 0.78rem;
-  color: var(--text-muted, #9ca3af);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #222;
 }
-.pump-pacing-field input {
+/* High specificity (.character-modal-body … input[type="number"]) so this BEATS the
+   generic light-theme input rule above; explicit visible box on the white modal body. */
+.character-modal-body .pump-pacing-field input[type="number"] {
   width: 100%;
-  padding: 6px 8px;
-  background-color: var(--bg-secondary, #1a1c1f);
-  color: var(--text-primary, #f3f4f6);
-  border: 1px solid var(--border-color, #3a3d45);
-  border-radius: 4px;
-  font-size: 0.85rem;
+  box-sizing: border-box; /* padding+border INSIDE the width — can't spill off-screen */
+  min-height: 42px;
+  padding: 8px 10px;
+  font-size: 16px; /* readable + avoids iOS focus-zoom */
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 2px solid #6b7280; /* clearly visible against the white modal */
+  border-radius: 6px;
 }
-.pump-pacing-field input:focus {
+.character-modal-body .pump-pacing-field input[type="number"]:focus {
   outline: none;
-  border-color: var(--accent-primary, #10b981);
-}
-@media (max-width: 768px) {
-  /* Stack the two fields full-width so each input box sits clearly under its label
-     (the modal's other mobile rules use this same 768px breakpoint) */
-  .pump-pacing-row { flex-direction: column; gap: 8px; }
-  .pump-pacing-field { flex: 1 1 100%; width: 100%; }
-  .pump-pacing-field input { font-size: 16px; }
+  border-color: #0d47a1;
 }
 
 /* Modal Body - Card background matching Settings */
@@ -1723,6 +1722,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-sm);
+}
+
+.checkpoint-header > label {
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .checkpoint-spoiler-toggle {

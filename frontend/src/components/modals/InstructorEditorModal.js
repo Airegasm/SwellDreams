@@ -40,6 +40,17 @@ function buildInitialData(character) {
     Object.keys(cps).forEach(k => { if (k !== '0') ranges[k] = cps[k]; });
     checkpointProfiles = [{ id: 'default', name: 'Default', ranges }];
   }
+  // Checkpoint triggers are PER-PROFILE. Older cards stored a single shared set on the
+  // story — migrate it onto the default profile once (only if no profile has triggers yet).
+  {
+    const storyTrig = story?.checkpointTriggers || {};
+    const anyProfileHasTriggers = checkpointProfiles.some(p => p.checkpointTriggers && Object.keys(p.checkpointTriggers).length);
+    const defId = story?.defaultCheckpointProfileId || checkpointProfiles[0].id;
+    checkpointProfiles = checkpointProfiles.map(p => ({
+      ...p,
+      checkpointTriggers: p.checkpointTriggers || ((!anyProfileHasTriggers && p.id === defId) ? storyTrig : {}),
+    }));
+  }
 
   return {
     name: character?.name || '',
@@ -49,6 +60,7 @@ function buildInitialData(character) {
     instructorProfileId: character?.instructorProfileId || '',
     instructorLibraryGroupIds: character?.instructorLibraryGroupIds || [],
     ignoreDictionary: character?.ignoreDictionary || false,
+    ignoreTokenSwapping: character?.ignoreTokenSwapping || false,
     defaultPumpType: character?.defaultPumpType || 'electric',
     story: {
       id: story?.id || 'story-1',
@@ -181,17 +193,6 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
     }));
   };
 
-  // ---- Checkpoint triggers ----
-  const triggersFor = (key) => formData.story.checkpointTriggers?.[`player-${key}`] || [];
-  const setTriggers = (key, items) => {
-    updateStory('checkpointTriggers', { ...(formData.story.checkpointTriggers || {}), [`player-${key}`]: items });
-  };
-  const addTrigger = (key) => setTriggers(key, [...triggersFor(key), { id: newTriggerId(), type: '', value: '' }]);
-  const updateTrigger = (key, idx, updated) => {
-    const items = [...triggersFor(key)]; items[idx] = updated; setTriggers(key, items);
-  };
-  const removeTrigger = (key, idx) => setTriggers(key, triggersFor(key).filter((_, i) => i !== idx));
-
   // ---- Checkpoint profiles (1-100% sets selected by a pre-req) ----
   const cpProfiles = formData.story.checkpointProfiles || [];
   const selProfId = selectedProfileId || formData.story.defaultCheckpointProfileId || cpProfiles[0]?.id;
@@ -222,6 +223,18 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
     const val = raw === '' ? undefined : (parseInt(raw, 10) || 0);
     updateProfileRange(key, { ...cur, [field]: val });
   };
+
+  // ---- Checkpoint triggers (PER-PROFILE, like ranges/injections) ----
+  const triggersFor = (key) => selProfile?.checkpointTriggers?.[`player-${key}`] || [];
+  const setTriggers = (key, items) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId
+    ? { ...p, checkpointTriggers: { ...(p.checkpointTriggers || {}), [`player-${key}`]: items } }
+    : p)));
+  const addTrigger = (key) => setTriggers(key, [...triggersFor(key), { id: newTriggerId(), type: '', value: '' }]);
+  const updateTrigger = (key, idx, updated) => {
+    const items = [...triggersFor(key)]; items[idx] = updated; setTriggers(key, items);
+  };
+  const removeTrigger = (key, idx) => setTriggers(key, triggersFor(key).filter((_, i) => i !== idx));
+
   const RANGES_1_100 = CHECKPOINT_RANGES.filter(r => r.key !== '0');
 
   // ---- Save ----
@@ -240,6 +253,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       instructorProfileId: formData.instructorProfileId,
       instructorLibraryGroupIds: formData.instructorLibraryGroupIds,
       ignoreDictionary: !!formData.ignoreDictionary,
+      ignoreTokenSwapping: !!formData.ignoreTokenSwapping,
       defaultPumpType: formData.defaultPumpType || 'electric',
       autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
@@ -343,6 +357,11 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               Ignore main Dictionary (Use Card Library Only)
             </label>
             <p className="section-hint">When checked, the global Dictionary is not injected for this instructor — only its assigned Library term groups apply.</p>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
+              <input type="checkbox" checked={!!formData.ignoreTokenSwapping} onChange={(e) => setFormData(prev => ({ ...prev, ignoreTokenSwapping: e.target.checked }))} />
+              Ignore token swapping
+            </label>
+            <p className="section-hint">When checked, the global Token Switching word-replacement rules are not applied to this instructor's replies.</p>
           </div>
 
           <div className="form-group">

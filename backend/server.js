@@ -3355,7 +3355,10 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (!activeCharacter) return;
 
   const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-  const checkpointTriggers = activeStory?.checkpointTriggers;
+  // Instructor checkpoint triggers are per-profile; everyone else uses the story-level set.
+  const checkpointTriggers = isInstructor(activeCharacter)
+    ? (getInstructorActiveProfile(activeCharacter)?.checkpointTriggers || {})
+    : activeStory?.checkpointTriggers;
   if (!checkpointTriggers) return;
 
   const triggers = checkpointTriggers[triggerKey];
@@ -4143,10 +4146,25 @@ function substituteAllVariables(text, context = {}) {
  * Each rule has a trigger word and comma-separated replacements.
  * Occurrences of the trigger word are randomly replaced with one of the alternatives.
  */
+// True when the active character is an instructor that opted out of token swapping.
+function activeCharIgnoresTokenSwap(settings) {
+  try {
+    const id = settings?.activeCharacterId;
+    if (!id) return false;
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const ch = chars.find(c => c.id === id);
+    return !!(ch && isInstructor(ch) && ch.ignoreTokenSwapping);
+  } catch (e) {
+    return false;
+  }
+}
+
 function applyTokenSwitching(text, settings) {
   if (!text) return text;
   const rules = settings?.tokenSwitching;
   if (!rules || !Array.isArray(rules) || rules.length === 0) return text;
+  // Instructors can opt out of global token swapping.
+  if (activeCharIgnoresTokenSwap(settings)) return text;
 
   let result = text;
   for (const rule of rules) {
