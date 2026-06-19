@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
+import TriggerBlockComposer from '../../common/TriggerBlockComposer';
 import { API_BASE } from '../../../config';
 import { apiFetch } from '../../../utils/api';
 import ActionWrapper from './ActionWrapper';
@@ -800,17 +801,12 @@ function ActionNode({ data, selected }) {
       case 'trigger_set':
         return (
           <div className="node-config">
-            <select
-              value={data.triggerSetId || ''}
-              onChange={(e) => data.onChange?.('triggerSetId', e.target.value)}
-              className="node-select"
-            >
-              <option value="">Select Trigger Set</option>
-              {triggerSets.map(ts => (
-                <option key={ts.id} value={ts.id}>{ts.name}</option>
-              ))}
-            </select>
-            <div className="node-hint">Fires every trigger in the selected set against the active character/session.</div>
+            <TriggerBlockComposer
+              value={data.blocks || []}
+              onChange={(v) => data.onChange?.('blocks', v)}
+              triggerSets={triggerSets}
+            />
+            <div className="node-hint">Sequential blocks fire all their triggers in order; random blocks fire one at random. Compose from any saved Trigger Sets.</div>
           </div>
         );
 

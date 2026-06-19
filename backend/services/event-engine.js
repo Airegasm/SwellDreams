@@ -776,9 +776,11 @@ class EventEngine {
       }
 
       case 'trigger_set': {
-        nodeStep.details = data.triggerSetId ? 'Fire Trigger Set' : 'Fire Trigger Set (none selected)';
+        const blocks = Array.isArray(data.blocks) ? data.blocks : null;
+        nodeStep.details = (blocks?.length || data.triggerSetId) ? 'Fire Trigger Set' : 'Fire Trigger Set (none configured)';
         this.emitTestStep(nodeStep);
-        if (data.triggerSetId) await this.broadcast('fire_trigger_set', { triggerSetId: data.triggerSetId });
+        if (blocks?.length) await this.broadcast('fire_trigger_set', { blocks });
+        else if (data.triggerSetId) await this.broadcast('fire_trigger_set', { triggerSetId: data.triggerSetId });
         return true;
       }
 
@@ -4442,12 +4444,15 @@ class EventEngine {
       }
 
       case 'trigger_set': {
-        const setId = data.triggerSetId;
-        if (setId) {
-          console.log(`[EventEngine] Executing trigger_set action: ${setId}`);
-          await this.broadcast('fire_trigger_set', { triggerSetId: setId });
+        const blocks = Array.isArray(data.blocks) ? data.blocks : null;
+        if (blocks && blocks.length) {
+          console.log(`[EventEngine] Executing trigger_set action: ${blocks.length} block(s)`);
+          await this.broadcast('fire_trigger_set', { blocks });
+        } else if (data.triggerSetId) {
+          console.log(`[EventEngine] Executing trigger_set action: ${data.triggerSetId}`);
+          await this.broadcast('fire_trigger_set', { triggerSetId: data.triggerSetId });
         } else {
-          console.log('[EventEngine] trigger_set: No trigger set selected');
+          console.log('[EventEngine] trigger_set: nothing configured');
         }
         actionResult = true;
         break;

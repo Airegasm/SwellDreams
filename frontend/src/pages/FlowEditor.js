@@ -146,7 +146,7 @@ const NODE_TEMPLATES = {
     set_attribute: { label: 'Set Attribute', actionType: 'set_attribute', attribute: '', attributeValue: 50, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     char_inflate_start: { label: 'Activate AI Pump', actionType: 'char_inflate_start', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     char_inflate_stop: { label: 'Deactivate AI Pump', actionType: 'char_inflate_stop', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
-    trigger_set: { label: 'Fire Trigger Set', actionType: 'trigger_set', triggerSetId: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
+    trigger_set: { label: 'Fire Trigger Set', actionType: 'trigger_set', triggerSetId: '', blocks: [], preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 }
   },
   condition: {
     default: {

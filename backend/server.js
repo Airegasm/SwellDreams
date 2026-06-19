@@ -5756,8 +5756,13 @@ STRICT RULES:
     console.log('[CharInflation] Deactivate broadcast received');
     stopCharacterInflation();
   } else if (type === 'fire_trigger_set') {
-    // Flow "Fire Trigger Set" action — run the saved trigger set server-side.
-    if (data?.triggerSetId) {
+    // Flow "Fire Trigger Set" action — fire its trigger blocks, or a whole saved set (legacy).
+    const s = loadData(DATA_FILES.settings) || {};
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const ch = chars.find(c => c.id === s?.activeCharacterId);
+    if (Array.isArray(data?.blocks) && data.blocks.length) {
+      await fireTriggerBlocks(data.blocks, 'flow', ch, s);
+    } else if (data?.triggerSetId) {
       const r = await fireTriggerSetById(data.triggerSetId);
       console.log(`[Flow] fire_trigger_set ${data.triggerSetId}:`, r);
     }
@@ -10893,7 +10898,7 @@ function getInstructorActiveTerms(character, recentMessages) {
       });
     }
   }
-  return reminderEngine.getActiveReminders(terms, recentMessages);
+  return reminderEngine.getActiveEntries(terms, recentMessages, { maxRecursion: 3 });
 }
 
 // ===== Global Dictionary =====
@@ -10941,7 +10946,8 @@ function buildDictionaryPrompt() {
   }
   if (!reminders.length) return '';
   const recentMessages = reminderEngine.extractRecentMessages(sessionState?.chatHistory || [], 10);
-  const active = reminderEngine.getActiveReminders(reminders, recentMessages);
+  // Full lorebook engine: secondary-key logic, probability, recursion, inclusion groups.
+  const active = reminderEngine.getActiveEntries(reminders, recentMessages, { maxRecursion: 3 });
   if (!active.length) return '';
   return `Dictionary:\n${active.map(r => r.text).join('\n')}\n\n`;
 }
@@ -11150,14 +11156,21 @@ function buildChatContext(character, settings) {
       }
     }
 
-    // Add active reminders (using reminder engine for keyword-based activation)
+    // Active lore via the unified engine. Local Library = card-embedded (constantReminders
+    // + story.library) + persona-embedded; merged with global reminders. One pipeline.
+    const activeStoryLore = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+    const localLibrary = [
+      ...(character.constantReminders || []),
+      ...(activeStoryLore?.library || []),
+      ...(activePersona?.constantReminders || activePersona?.library || []),
+    ];
     const activeRemindersChat = reminderEngine.getMergedActiveReminders(
-      character.constantReminders || [],
+      localLibrary,
       settings.globalReminders || [],
       recentMessagesChat
     );
     if (activeRemindersChat.length > 0) {
-      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Reminders');
+      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Lore');
     }
   }
 
@@ -12139,6 +12152,33 @@ async function fireTriggerSetById(setId) {
     }
   }
   return { name: set.name, fired, failed };
+}
+
+// Resolve a block trigger entry: an inline trigger object, or a {setId, triggerId} reference
+// into a saved Trigger Set.
+function resolveBlockTrigger(t, sets) {
+  if (!t) return null;
+  if (t.setId && t.triggerId != null && t.triggerId !== '') {
+    const arr = sets.find(s => s.id === t.setId)?.triggers || [];
+    return arr.find(tr => tr.id === t.triggerId) || arr[Number(t.triggerId)] || null;
+  }
+  return t.type ? t : null;
+}
+
+// Fire an ordered list of trigger blocks. Sequential blocks fire all their triggers in order;
+// random blocks fire exactly one trigger picked at random. Shared by buttons + the flow node.
+async function fireTriggerBlocks(blocks, source, character, settings) {
+  if (!Array.isArray(blocks)) return;
+  const sets = loadData(DATA_FILES.triggerSets) || [];
+  for (const block of blocks) {
+    if (!block) continue;
+    let toFire = (block.triggers || []).map(t => resolveBlockTrigger(t, sets)).filter(Boolean);
+    if (block.type === 'random' && toFire.length) toFire = [toFire[Math.floor(Math.random() * toFire.length)]];
+    for (const trg of toFire) {
+      try { await executeTrigger(trg, source, character, settings); }
+      catch (e) { console.error('[TriggerBlocks] trigger failed:', e?.message || e); }
+    }
+  }
 }
 
 app.post('/api/trigger-sets/:id/fire', async (req, res) => {
