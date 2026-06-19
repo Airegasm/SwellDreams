@@ -67,9 +67,9 @@ export function MiniRPS({ interactive, onResult }) {
   return (
     <div className="pv">
       <div className="pv-rps">
-        <div className={`pv-hand ${busy ? 'shake' : ''}`}>{RPS[p]}</div>
+        <div className={`pv-hand ${busy ? 'shake' : ''} ${res === 'Win' ? 'win' : res === 'Lose' ? 'lose' : ''}`}>{RPS[p]}</div>
         <span className="pv-vs">vs</span>
-        <div className={`pv-hand flip ${busy ? 'shake' : ''}`}>{RPS[c]}</div>
+        <div className={`pv-hand flip ${busy ? 'shake' : ''} ${res === 'Lose' ? 'win' : res === 'Win' ? 'lose' : ''}`}>{RPS[c]}</div>
       </div>
       {res && <div className={`pv-result r-${res.toLowerCase()}`}>{res}</div>}
       {interactive && <button className="pv-btn" onClick={play} disabled={busy}>{busy ? 'Throwing…' : 'Throw'}</button>}
@@ -278,7 +278,7 @@ export function MiniSimon({ config = {}, interactive, onResult }) {
     <div className="pv">
       <div className="pv-simon">
         {SIMON_PADS.map((p, i) => (
-          <div key={p.k} className="pv-pad" style={{ background: p.c, opacity: lit === i ? 1 : 0.4 }} />
+          <div key={p.k} className={`pv-pad ${lit === i ? 'lit' : ''}`} style={{ background: p.c, '--pad-c': p.c }} />
         ))}
       </div>
       {interactive && <button className="pv-btn" onClick={demo} disabled={busy}>{busy ? 'Watch…' : 'Demo sequence'}</button>}
@@ -295,7 +295,9 @@ export function MiniReflex({ config = {}, interactive, onResult }) {
   const [round, setRound] = useState(0);
   const [hits, setHits] = useState(0);
   const [active, setActive] = useState(false);
+  const [flash, setFlash] = useState(false);
   const tRef = useRef(0);
+  const fRef = useRef(0);
 
   const place = useCallback((r, h) => {
     if (r >= rounds) {
@@ -314,15 +316,18 @@ export function MiniReflex({ config = {}, interactive, onResult }) {
   };
   const hit = () => {
     clearTimeout(tRef.current);
+    setFlash(true);
+    clearTimeout(fRef.current);
+    fRef.current = window.setTimeout(() => setFlash(false), 140);
     const h = hits + 1, r = round + 1;
     setHits(h); setRound(r);
     place(r, h);
   };
-  useEffect(() => () => clearTimeout(tRef.current), []);
+  useEffect(() => () => { clearTimeout(tRef.current); clearTimeout(fRef.current); }, []);
 
   return (
     <div className="pv">
-      <div className="pv-reflex">
+      <div className={`pv-reflex ${flash ? 'flash' : ''}`}>
         {pos && <button className="pv-target" style={{ left: `${pos.x}%`, top: `${pos.y}%`, width: dia, height: dia }} onClick={hit} />}
         {!active && <span className="pv-reflex-hint">tap targets fast</span>}
       </div>

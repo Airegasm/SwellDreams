@@ -42,8 +42,11 @@
 
 /* RPS */
 .pv-rps { display: flex; align-items: center; gap: 16px; }
-.pv-hand { font-size: 3.4rem; line-height: 1; }
+.pv-hand { font-size: 3.4rem; line-height: 1; border-radius: 16px; padding: 4px 8px; transition: box-shadow 0.25s, transform 0.25s; }
 .pv-hand.flip { transform: scaleX(-1); }
+.pv-hand.win { box-shadow: 0 0 0 3px #4ade80, 0 0 18px rgba(74,222,128,0.6); transform: scale(1.12); }
+.pv-hand.flip.win { transform: scaleX(-1) scale(1.12); }
+.pv-hand.lose { opacity: 0.45; }
 .pv-vs { color: #9aa3af; font-weight: 700; }
 .shake { animation: pv-shake 0.22s infinite; }
 @keyframes pv-shake { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
@@ -99,14 +102,19 @@
 
 /* Simon */
 .pv-simon { display: grid; grid-template-columns: repeat(2, 64px); grid-template-rows: repeat(2, 64px); gap: 8px; }
-.pv-pad { border-radius: 12px; transition: opacity 0.12s; }
+.pv-pad { border-radius: 12px; opacity: 0.4; transition: opacity 0.12s, transform 0.12s, box-shadow 0.12s; }
+.pv-pad.lit { opacity: 1; transform: scale(1.06); box-shadow: 0 0 18px var(--pad-c), inset 0 0 12px rgba(255,255,255,0.5); }
 
 /* Reflex */
 .pv-reflex {
   position: relative; width: 200px; height: 160px; background: #14161a;
   border: 2px solid var(--pv-accent); border-radius: 12px; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s;
 }
-.pv-target { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9ec4, #ef4444); border: 0; cursor: pointer; box-shadow: 0 0 12px rgba(239,68,68,0.7); }
+.pv-reflex.flash { background: #243524; }
+.pv-target { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff9ec4, #ef4444); border: 0; cursor: pointer; box-shadow: 0 0 12px rgba(239,68,68,0.7); animation: pv-target-pop 0.18s ease, pv-target-pulse 0.9s ease-in-out infinite 0.18s; }
+@keyframes pv-target-pop { from { transform: translate(-50%, -50%) scale(0.3); } to { transform: translate(-50%, -50%) scale(1); } }
+@keyframes pv-target-pulse { 0%, 100% { box-shadow: 0 0 12px rgba(239,68,68,0.7); } 50% { box-shadow: 0 0 20px rgba(239,68,68,1); } }
 .pv-reflex-hint { color: #6b7280; font-size: 0.8rem; }
 .pv-reflex-meta { color: #9aa3af; font-size: 0.82rem; }
