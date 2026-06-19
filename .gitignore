@@ -79,3 +79,4 @@ CLAUDE.md
 # Matter SDK and build artifacts
 connectedhomeip/
 c:SwellDreamsbackendbinchip-tool/
+backend/data/trigger-trees.json

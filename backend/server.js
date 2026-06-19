@@ -14465,6 +14465,50 @@ app.delete('/api/dictionary/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Trigger Trees (global library — nested-block scripting; see plan typed-dazzling-nygaard.md) ---
+const TRIGGER_TREES_PATH = path.join(DATA_DIR, 'trigger-trees.json');
+function loadTriggerTrees() {
+  try { return JSON.parse(fs.readFileSync(TRIGGER_TREES_PATH, 'utf8')); } catch (e) { return { trees: [] }; }
+}
+function saveTriggerTrees(data) { fs.writeFileSync(TRIGGER_TREES_PATH, JSON.stringify(data, null, 2)); }
+
+app.get('/api/trigger-trees', (req, res) => res.json(loadTriggerTrees()));
+
+app.post('/api/trigger-trees', (req, res) => {
+  const { name, nodes, tag, source } = req.body;
+  if (!name || typeof name !== 'string') return res.status(400).json({ error: 'name required' });
+  const data = loadTriggerTrees();
+  if (!Array.isArray(data.trees)) data.trees = [];
+  const id = `tree-${Date.now()}`;
+  data.trees.push({ id, name, tag: tag || '', source: source || '', builtIn: false, nodes: Array.isArray(nodes) ? nodes : [] });
+  saveTriggerTrees(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/trigger-trees/:id', (req, res) => {
+  const { name, nodes, tag, source } = req.body;
+  const data = loadTriggerTrees();
+  const idx = (data.trees || []).findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Tree not found' });
+  if (data.trees[idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in trees' });
+  if (name !== undefined) data.trees[idx].name = name;
+  if (nodes !== undefined) data.trees[idx].nodes = Array.isArray(nodes) ? nodes : [];
+  if (tag !== undefined) data.trees[idx].tag = tag;
+  if (source !== undefined) data.trees[idx].source = source;
+  saveTriggerTrees(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/trigger-trees/:id', (req, res) => {
+  const data = loadTriggerTrees();
+  const idx = (data.trees || []).findIndex(t => t.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Tree not found' });
+  if (data.trees[idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in trees' });
+  data.trees.splice(idx, 1);
+  saveTriggerTrees(data);
+  res.json({ success: true });
+});
+
 // --- Persona Checkpoint Profiles (separate from character profiles) ---
 
 const PERSONA_CHECKPOINT_PROFILES_PATH = path.join(DATA_DIR, 'persona-checkpoint-profiles.json');
