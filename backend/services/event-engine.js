@@ -5306,6 +5306,11 @@ class EventEngine {
       result = result.replace(/\[Pain\]/gi, painLabel);
       result = result.replace(/\[Feeling\]/gi, painLabel); // Legacy support
       result = result.replace(/\[Emotion\]/gi, this.sessionState.emotion ?? 'neutral');
+      // Instructor pump session variables
+      result = result.replace(/\[BulbCurrent\]/gi, this.sessionState.bulbCurrent ?? 0);
+      result = result.replace(/\[BikeCurrent\]/gi, this.sessionState.bikeCurrent ?? 0);
+      result = result.replace(/\[PumpType\]/gi, this.sessionState.pumpType || 'electric');
+      result = result.replace(/\[PumpInit\]/gi, this.sessionState.pumpInit || 'auto');
     }
 
     // Most-recent Player Choice label (persists until the next choice is made).

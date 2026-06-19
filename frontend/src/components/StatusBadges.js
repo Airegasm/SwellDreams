@@ -13,6 +13,7 @@ function StatusBadges({
   onCapacityModifierChange,
   personaName,
   useAutoCapacity,
+  hidePainEmotion,
 }) {
   const emotionRef = useRef(null);
   const painRef = useRef(null);
@@ -186,6 +187,7 @@ function StatusBadges({
 
       {/* Emotion + Pain badges and mode indicator */}
       <div className="badges-row-container">
+        {!hidePainEmotion && (
         <div className="badges-left-stack">
           {/* Emotion Badge */}
           <div
@@ -246,6 +248,7 @@ function StatusBadges({
             )}
           </div>
         </div>
+        )}
 
       </div>
     </div>

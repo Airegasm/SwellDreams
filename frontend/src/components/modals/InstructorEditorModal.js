@@ -49,6 +49,7 @@ function buildInitialData(character) {
     instructorProfileId: character?.instructorProfileId || '',
     instructorLibraryGroupIds: character?.instructorLibraryGroupIds || [],
     ignoreDictionary: character?.ignoreDictionary || false,
+    defaultPumpType: character?.defaultPumpType || 'electric',
     story: {
       id: story?.id || 'story-1',
       name: story?.name || 'Mission',
@@ -66,8 +67,10 @@ function buildInitialData(character) {
 }
 
 function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
-  const { api } = useApp();
+  const { api, settings } = useApp();
   const [activeTab, setActiveTab] = useState('basic');
+  const [bulbMaxField, setBulbMaxField] = useState('');
+  const [bikeMaxField, setBikeMaxField] = useState('');
   const [formData, setFormData] = useState(() => buildInitialData(character));
   const [profiles, setProfiles] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -98,6 +101,23 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   useEffect(() => {
     if (isOpen) loadAssignables();
   }, [isOpen, loadAssignables]);
+
+  // BulbMax/BikeMax mirror the Smart Devices › Manual Devices fields (same settings.systemVariables).
+  useEffect(() => {
+    const sv = settings?.systemVariables || {};
+    setBulbMaxField(sv.BulbMax ?? '');
+    setBikeMaxField(sv.BikeMax ?? '');
+  }, [settings?.systemVariables]);
+
+  const saveMaxField = (which, raw) => {
+    const clean = String(raw).replace(/[^0-9]/g, '');
+    const sv = { ...(settings?.systemVariables || {}) };
+    if (which === 'bulb') sv.BulbMax = clean === '' ? '' : Number(clean);
+    else sv.BikeMax = clean === '' ? '' : Number(clean);
+    api.updateSettings({ systemVariables: sv }).catch(() => {});
+  };
+
+  const setProfilePumpType = (pumpType) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, pumpType } : p)));
 
   if (!isOpen) return null;
 
@@ -208,6 +228,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       instructorProfileId: formData.instructorProfileId,
       instructorLibraryGroupIds: formData.instructorLibraryGroupIds,
       ignoreDictionary: !!formData.ignoreDictionary,
+      defaultPumpType: formData.defaultPumpType || 'electric',
       autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
       stories: [story],
@@ -260,6 +281,16 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <select value={formData.gender} onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}>
               {GENDERS.map(g => <option key={g || 'none'} value={g}>{g ? g.charAt(0).toUpperCase() + g.slice(1) : '— Unspecified —'}</option>)}
             </select>
+          </div>
+
+          <div className="form-group">
+            <label>Default Pump Type</label>
+            <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData(prev => ({ ...prev, defaultPumpType: e.target.value }))}>
+              <option value="electric">Auto / Electric (E-STOP)</option>
+              <option value="bulb">Manual / Bulb (PUMP)</option>
+              <option value="bike">Manual / Bike (PUMP)</option>
+            </select>
+            <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it. Auto→E-STOP button, Manual→PUMP button.</p>
           </div>
 
           <div className="form-group">
@@ -345,6 +376,22 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         {/* ===== Checkpoints ===== */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
+          {/* ===== Manual pump maxes (mirror of Smart Devices › Manual Devices) ===== */}
+          <h4>Manual Pump Maxes</h4>
+          <p className="section-hint">Max average pumps to full capacity. Shared with Smart Devices › Manual Devices — editing here updates both.</p>
+          <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <label>Bulb Pump Max</label>
+              <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+            </div>
+            <div>
+              <label>Bicycle Pump Max</label>
+              <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+            </div>
+          </div>
+
+          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
+
           {/* ===== Pre-Requirements ===== */}
           <h4>Pre-Requirements (before inflation)</h4>
           <p className="section-hint">Ordered, mandatory questions shown before inflation begins — drag to reorder. Each choice can load a checkpoint profile and/or set a variable. The instructor won't start the pump until these are answered.</p>
@@ -385,6 +432,17 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <button type="button" className="btn btn-sm btn-secondary" onClick={addProfile}>+ Profile</button>
             <button type="button" className="btn btn-sm btn-secondary" onClick={setDefaultProfile} disabled={selProfId === formData.story.defaultCheckpointProfileId}>Set Default</button>
             <button type="button" className="btn btn-sm btn-danger" onClick={deleteProfile} disabled={cpProfiles.length <= 1}>Delete</button>
+          </div>
+
+          <div className="form-group" style={{ marginTop: 8 }}>
+            <label>Pump Type for “{selProfile?.name || 'this profile'}”</label>
+            <select value={selProfile?.pumpType || ''} onChange={(e) => setProfilePumpType(e.target.value)}>
+              <option value="">— Inherit card default —</option>
+              <option value="electric">Auto / Electric (E-STOP)</option>
+              <option value="bulb">Manual / Bulb (PUMP)</option>
+              <option value="bike">Manual / Bike (PUMP)</option>
+            </select>
+            <p className="section-hint">When a pre-req choice loads this profile, it sets the session pump mode (overrides the card default).</p>
           </div>
 
           {RANGES_1_100.map(({ key, label, hint }) => (

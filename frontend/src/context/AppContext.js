@@ -298,6 +298,14 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, emotion: data.emotion }));
         break;
 
+      case 'pump_mode_update':
+        setSessionState(prev => ({ ...prev, pumpType: data.pumpType, pumpInit: data.pumpInit }));
+        break;
+
+      case 'pump_vars_update':
+        setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
+        break;
+
       case 'auto_capacity_update':
         setSessionState(prev => ({
           ...prev,

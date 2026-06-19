@@ -4085,6 +4085,12 @@ function substituteAllVariables(text, context = {}) {
     result = result.replace(new RegExp(`\\[${k}\\]`, 'gi'), v);
   }
 
+  // Instructor pump session variables
+  result = result.replace(/\[BulbCurrent\]/gi, sessionState.bulbCurrent ?? 0);
+  result = result.replace(/\[BikeCurrent\]/gi, sessionState.bikeCurrent ?? 0);
+  result = result.replace(/\[PumpType\]/gi, sessionState.pumpType || 'electric');
+  result = result.replace(/\[PumpInit\]/gi, sessionState.pumpInit || 'auto');
+
   // Token Switching — replace overused LLM words with random alternatives
   result = applyTokenSwitching(result, settings);
   result = applyTokenRemovals(result, settings);
@@ -6958,6 +6964,10 @@ async function handleWsMessage(ws, type, data) {
       await handleCheckpointChoice(data.choiceId);
       break;
 
+    case 'manual_pump':
+      await handleManualPump();
+      break;
+
     case 'toggle_member_mute': {
       // Toggle whether a multichar member can speak/reply this session
       const list = new Set(sessionState.mutedMembers || []);
@@ -7499,6 +7509,7 @@ async function handleSwipeMessage(data) {
       sessionState.activeAttributes = attrResult.active;
       rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
+      if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
       const context = applyCharacterGuidance(
         buildChatContext(activeCharacter, settings),
         activeCharacter,
@@ -7801,6 +7812,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       sessionState.activeAttributes = attrResult.active;
       rollCheckpointInjections(character);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'button' });
+      if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
       // Build context with button instruction
       const context = buildChatContext(character, settings);
@@ -8148,6 +8160,7 @@ async function handleChatMessage(data) {
       sessionState.activeAttributes = attrResult.active;
       rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
+      if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
       // Build context
       const context = buildChatContext(activeCharacter, settings);
@@ -8720,6 +8733,7 @@ async function generateAIResponseAfterBlocking() {
     sessionState.activeAttributes = attrResult.active;
     rollCheckpointInjections(activeCharacter);
     if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
+    if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
     const context = buildChatContext(activeCharacter, settings);
     console.log('[Media] Generating AI response after blocking ended...');
@@ -8850,6 +8864,7 @@ async function handleSpecialGenerate(data) {
       sessionState.activeAttributes = attrResult.active;
       rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
+      if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
     }
 
     // P1: character-voice guided responses use the SAME full context as a normal
@@ -9541,16 +9556,30 @@ function getActiveCharacterCheckpointObj(character) {
 // Successful rolls add their text to sessionState.activeCheckpointInjections (read by
 // the prompt builders) and fire their optional action. Called once per generation,
 // alongside rollAttributes.
+// Normalize a Message/Response slot to { text, llmEnhance }. Legacy plain strings -> enhanced.
+function injMsg(slot, legacy) {
+  if (slot && typeof slot === 'object') return { text: (slot.text || '').trim(), llmEnhance: slot.llmEnhance !== false };
+  return { text: ((typeof slot === 'string' ? slot : legacy) || '').trim(), llmEnhance: true };
+}
+
 function rollCheckpointInjections(character) {
   sessionState.activeCheckpointInjections = [];
   if (!sessionState.checkpointInjectionCounts) sessionState.checkpointInjectionCounts = {};
   const counts = sessionState.checkpointInjectionCounts;
 
-  // A response carried from a prior checkpoint player-choice is injected once.
-  if (sessionState.pendingCheckpointResponse) {
-    sessionState.activeCheckpointInjections.push(sessionState.pendingCheckpointResponse);
-    sessionState.pendingCheckpointResponse = null;
-  }
+  // Deliver a message slot: enhanced -> woven into this reply; verbatim -> replaces the reply.
+  const deliver = (msg) => {
+    if (!msg.text) return;
+    if (msg.llmEnhance) sessionState.activeCheckpointInjections.push(msg.text);
+    else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply
+      ? `${sessionState.pendingVerbatimReply}\n${msg.text}` : msg.text;
+  };
+
+  // Responses queued on a prior turn are delivered now (the "next turn" for injection responses).
+  const carried = sessionState.pendingCheckpointResponses || [];
+  sessionState.pendingCheckpointResponses = [];
+  for (const r of carried) deliver(injMsg(r));
+  if (sessionState.pendingCheckpointResponse) { deliver(injMsg(sessionState.pendingCheckpointResponse)); sessionState.pendingCheckpointResponse = null; } // legacy
 
   const injections = [];
   const player = getActiveCheckpoint(character, sessionState.capacity || 0);
@@ -9558,17 +9587,34 @@ function rollCheckpointInjections(character) {
   const charCp = getActiveCharacterCheckpointObj(character);
   if (charCp?.injections?.length) injections.push(...charCp.injections);
 
+  const nextResponses = [];
   for (const inj of injections) {
-    if (!inj || inj.enabled === false || !inj.text) continue;
+    if (!inj || inj.enabled === false) continue;
+    const message = injMsg(inj.message, inj.text);
+    if (!message.text) continue;
     const max = (inj.maxAppearances === undefined || inj.maxAppearances === null) ? -1 : inj.maxAppearances;
     if (max >= 0 && (counts[inj.id] || 0) >= max) continue;
     const chance = Number(inj.chance);
     if (!(chance > 0) || Math.random() * 100 >= chance) continue;
 
     counts[inj.id] = (counts[inj.id] || 0) + 1;
-    sessionState.activeCheckpointInjections.push(inj.text);
+    deliver(message);
     fireCheckpointInjectionAction(inj.action);
+    const resp = injMsg(inj.response);
+    if (resp.text) nextResponses.push(resp);
   }
+  sessionState.pendingCheckpointResponses = nextResponses;
+}
+
+// Verbatim injection messages replace the whole reply: post them directly (no LLM) and
+// signal callers to skip normal generation. Returns true if a reply was delivered.
+async function deliverPendingVerbatimReply() {
+  const text = sessionState.pendingVerbatimReply;
+  if (!text) return false;
+  sessionState.pendingVerbatimReply = null;
+  await eventEngine.broadcast('ai_message', { content: text, suppressLlm: true });
+  broadcast('generating_stop', {});
+  return true;
 }
 
 // Render the rolled injections as a prompt block (empty when none rolled).
@@ -9583,6 +9629,10 @@ function fireCheckpointInjectionAction(action) {
   if (!action || !action.type) return;
   if (action.type === 'pump') {
     firePrimaryPump(action).catch(err => console.error('[Checkpoint] pump action failed:', err?.message || err));
+  } else if (action.type === 'set_variable') {
+    if (action.variable) {
+      eventEngine.applySetVariable(action.varType || 'custom', action.variable, action.operation || 'set', action.value);
+    }
   } else if (action.type === 'player_choice') {
     presentCheckpointChoice(action);
   }
@@ -9593,7 +9643,7 @@ function presentCheckpointChoice(action) {
   if (!action || !Array.isArray(action.choices) || !action.choices.length) return;
   const choices = action.choices.slice(0, 4)
     .filter(c => c && c.label)
-    .map(c => ({ id: c.id, label: c.label, action: c.action || null, response: c.response || '' }));
+    .map(c => ({ id: c.id, label: c.label, action: c.action || null, setVar: c.setVar || null, response: c.response || null }));
   if (!choices.length) return;
   sessionState.pendingCheckpointChoice = { choices };
   broadcast('checkpoint_choice', { choices: choices.map(c => ({ id: c.id, label: c.label })) });
@@ -9612,7 +9662,14 @@ async function handleCheckpointChoice(choiceId) {
   if (choice.action?.type === 'pump') {
     await firePrimaryPump(choice.action).catch(err => console.error('[Checkpoint] choice pump failed:', err?.message || err));
   }
-  if (choice.response) sessionState.pendingCheckpointResponse = choice.response;
+  if (choice.setVar?.variable) {
+    eventEngine.applySetVariable(choice.setVar.varType || 'custom', choice.setVar.variable, choice.setVar.operation || 'set', choice.setVar.value);
+  }
+  // Choice response fires immediately as a reply (verbatim or LLM-enhanced), not next turn.
+  const resp = injMsg(choice.response);
+  if (resp.text) {
+    await eventEngine.broadcast('ai_message', { content: resp.text, suppressLlm: resp.llmEnhance === false });
+  }
 }
 
 // ===== Instructor pre-req sequence =====
@@ -9658,7 +9715,14 @@ async function handlePrereqChoice(choiceId) {
     if (choice.setVar?.variable) {
       eventEngine.applySetVariable('custom', choice.setVar.variable, choice.setVar.operation, choice.setVar.value);
     }
-    if (choice.loadProfileId) sessionState.activeCheckpointProfileId = choice.loadProfileId;
+    if (choice.loadProfileId) {
+      sessionState.activeCheckpointProfileId = choice.loadProfileId;
+      // Changing the active profile may flip the pump mode (auto/electric <-> manual/bulb/bike).
+      const s = loadData(DATA_FILES.settings) || {};
+      const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const ch = chars.find(c => c.id === s.activeCharacterId);
+      if (ch) applyActivePumpType(ch);
+    }
   }
   p.index++;
   if (p.index >= p.steps.length) finishPrereqs();
@@ -9754,6 +9818,46 @@ function getInstructorActiveProfileRanges(character) {
   const activeId = sessionState.activeCheckpointProfileId || activeStory.defaultCheckpointProfileId || profiles[0].id;
   const prof = profiles.find(p => p.id === activeId) || profiles[0];
   return prof?.ranges || {};
+}
+
+// Set the session pump mode (type + derived init) from the active instructor checkpoint
+// profile, falling back to the card default. electric => auto/E-STOP, bulb/bike => manual/PUMP.
+function applyActivePumpType(character) {
+  let pumpType = character?.defaultPumpType || 'electric';
+  if (isInstructor(character)) {
+    const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+    const profiles = Array.isArray(activeStory?.checkpointProfiles) ? activeStory.checkpointProfiles : [];
+    const activeId = sessionState.activeCheckpointProfileId || activeStory?.defaultCheckpointProfileId;
+    const prof = profiles.find(p => p.id === activeId);
+    if (prof?.pumpType) pumpType = prof.pumpType;
+  }
+  if (!['electric', 'bulb', 'bike'].includes(pumpType)) pumpType = 'electric';
+  sessionState.pumpType = pumpType;
+  sessionState.pumpInit = pumpType === 'electric' ? 'auto' : 'manual';
+  broadcast('pump_mode_update', { pumpType: sessionState.pumpType, pumpInit: sessionState.pumpInit });
+}
+
+// A manual pump press (bulb/bike): bump the count, add the per-pump capacity %, and record
+// context for the next instructor reply. Electric/auto pumps are device-driven, not counted here.
+async function handleManualPump() {
+  const type = sessionState.pumpType;
+  if (type !== 'bulb' && type !== 'bike') return;
+  const sv = (loadData(DATA_FILES.settings) || {}).systemVariables || {};
+  const max = type === 'bulb' ? Number(sv.BulbMax) : Number(sv.BikeMax);
+  const perPump = max > 0 ? 100 / max : 0;
+  if (type === 'bulb') sessionState.bulbCurrent = (sessionState.bulbCurrent || 0) + 1;
+  else sessionState.bikeCurrent = (sessionState.bikeCurrent || 0) + 1;
+  const before = sessionState.capacity || 0;
+  sessionState.capacity = Math.max(0, Math.min(100, before + perPump));
+  if (!sessionState.preInflationGateMet && sessionState.capacity > 0) sessionState.preInflationGateMet = true;
+  const added = Math.round((sessionState.capacity - before) * 100) / 100;
+  const cap = Math.round(sessionState.capacity);
+  const count = type === 'bulb' ? sessionState.bulbCurrent : sessionState.bikeCurrent;
+  sessionState.pendingPumpContext = sessionState.pendingPumpContext || [];
+  sessionState.pendingPumpContext.push(`Player operated the ${type} pump (pump #${count}); added ${added}% — capacity is now ${cap}%.`);
+  broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
+  broadcast('pump_vars_update', { bulbCurrent: sessionState.bulbCurrent, bikeCurrent: sessionState.bikeCurrent });
+  autosaveSession();
 }
 
 function getActiveCheckpoint(character, capacity) {
@@ -10591,6 +10695,12 @@ function buildChatContext(character, settings) {
     const painLabelNow = painLabelsInstr[sessionState.pain || 0] || 'None';
     systemPrompt += `\nCurrent capacity: ${capacityNow}%. Pain: ${painLabelNow} (${sessionState.pain || 0}/10).\n`;
 
+    // Manual pump activity since the last reply (consumed once).
+    if (sessionState.pendingPumpContext?.length) {
+      systemPrompt += `\nPump activity since your last reply:\n${sessionState.pendingPumpContext.map(s => `- ${s}`).join('\n')}\n`;
+      sessionState.pendingPumpContext = [];
+    }
+
     const activeTerms = getInstructorActiveTerms(character, recentMessagesChat);
     if (activeTerms.length > 0) {
       systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeTerms, 'Known Terms');
@@ -11068,6 +11178,16 @@ app.post('/api/settings', async (req, res) => {
 
   // Merge new settings, preserving encrypted keys if not provided
   const settings = { ...oldSettings, ...req.body };
+
+  // Pre-compute per-pump capacity contributions from the manual-device maxes so they're
+  // resolvable as [BulbAmountPerPump] / [BikeAmountPerPump] in prompts and flows.
+  if (settings.systemVariables && typeof settings.systemVariables === 'object') {
+    const sv = settings.systemVariables;
+    const bulbMax = Number(sv.BulbMax);
+    const bikeMax = Number(sv.BikeMax);
+    sv.BulbAmountPerPump = bulbMax > 0 ? Math.round((100 / bulbMax) * 100) / 100 : 0;
+    sv.BikeAmountPerPump = bikeMax > 0 ? Math.round((100 / bikeMax) * 100) / 100 : 0;
+  }
 
   // Encrypt any new API keys provided in the request
   if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
@@ -15097,6 +15217,12 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
   sessionState.activeCheckpointProfileId = null;
+  // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
+  sessionState.bulbCurrent = 0;
+  sessionState.bikeCurrent = 0;
+  sessionState.pendingPumpContext = [];
+  sessionState.pumpType = 'electric';
+  sessionState.pumpInit = 'auto';
 
   console.log(`[Session Reset] Initial values - capacity: ${sessionState.capacity}, pain: ${sessionState.pain}, emotion: ${sessionState.emotion}, capacityModifier: ${sessionState.capacityModifier}`);
 
@@ -15169,6 +15295,8 @@ app.post('/api/session/reset', async (req, res) => {
         if ((aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
         }
+        // Set the session pump mode from the active checkpoint profile (or the card default).
+        applyActivePumpType(activeCharacter);
       }
     }
 

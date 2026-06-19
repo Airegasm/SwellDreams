@@ -50,6 +50,7 @@
 .ci-injection-top,
 .ci-action-row,
 .ci-pump-fields,
+.ci-var-fields,
 .ci-choice-row {
   display: flex;
   align-items: center;
@@ -58,6 +59,24 @@
 }
 
 .ci-injection-text { flex: 1; min-width: 120px; }
+.ci-var-name { width: 110px; }
+.ci-var-value { width: 70px; }
+
+.ci-msg-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ci-msg-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  width: 56px;
+  flex: 0 0 auto;
+}
+.ci-msg-text { flex: 1; min-width: 120px; }
 
 .ci-num {
   display: inline-flex;
@@ -109,3 +128,26 @@
   flex: 0 0 auto;
 }
 .ci-del:hover { background: #dc2626; }
+
+/* --- Mobile: stack the cramped control rows so nothing overflows --- */
+@media (max-width: 768px) {
+  /* Injection text gets its own full-width row; the %/max/× controls wrap below it. */
+  .checkpoint-injections .ci-injection-text { flex: 1 1 100%; min-width: 0; }
+  .checkpoint-injections .ci-msg-text { flex: 1 1 100%; min-width: 0; }
+  .checkpoint-injections .ci-msg-label { width: auto; }
+
+  /* Let selects/inputs shrink to fit instead of forcing horizontal overflow. */
+  .ci-action-row select,
+  .ci-pump-fields select,
+  .ci-var-fields select { flex: 0 1 auto; min-width: 0; }
+  .ci-var-fields .ci-var-name { flex: 1 1 120px; width: auto; min-width: 0; }
+  .ci-var-fields .ci-var-value { flex: 0 1 80px; width: auto; min-width: 0; }
+
+  /* 16px text inputs avoid iOS auto-zoom on focus. */
+  .checkpoint-injections input[type="text"],
+  .checkpoint-injections input[type="number"],
+  .checkpoint-injections select,
+  .checkpoint-injections textarea { font-size: 16px; }
+
+  .ci-num input { width: 56px; }
+}

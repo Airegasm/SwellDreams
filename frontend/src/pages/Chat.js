@@ -1369,6 +1369,7 @@ function Chat() {
           }}
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+          hidePainEmotion={isInstructor(activeCharacter)}
         />
       </div>
 
@@ -1408,6 +1409,7 @@ function Chat() {
             }}
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+            hidePainEmotion={isInstructor(activeCharacter)}
           />
           {/* Pump Status Overlay - on divider bar, right of status badges */}
           {Object.keys(pumpStatus).length > 0 && (
@@ -1903,16 +1905,28 @@ function Chat() {
                 >😈</button>
               </div>
 
-              {/* Mobile E-STOP button - centered */}
-              <button
-                type="button"
-                className={`mobile-estop-btn mobile-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
-                onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
-                disabled={controlMode === 'simulated'}
-                title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}
-              >
-                {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
-              </button>
+              {/* Mobile E-STOP button — becomes PUMP for manual (bulb/bike) instructor mode */}
+              {isInstructor(activeCharacter) && sessionState.pumpInit === 'manual' ? (
+                <button
+                  type="button"
+                  className="mobile-estop-btn mobile-only pump"
+                  onClick={() => sendWsMessage('manual_pump', {})}
+                  disabled={sessionLoading}
+                  title={`Pump (${sessionState.pumpType || 'manual'})`}
+                >
+                  PUMP
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`mobile-estop-btn mobile-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+                  onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
+                  disabled={controlMode === 'simulated'}
+                  title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}
+                >
+                  {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
+                </button>
+              )}
 
             </div>
           </div>
@@ -2015,6 +2029,8 @@ function Chat() {
                   disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking || sessionLoading}
                   title="Send as Persona"
                 >↖</button>
+                {/* "Send as Character" is meaningless for Instructors (simple speak/instruct) */}
+                {!isInstructor(activeCharacter) && (
                 <button
                   type="button"
                   className="action-btn send-character-btn"
@@ -2022,6 +2038,7 @@ function Chat() {
                   onClick={handleSendAsCharacter}
                   title="Send as Character"
                 >↖</button>
+                )}
               </div>
             </div>
           </div>
