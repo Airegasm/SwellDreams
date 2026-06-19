@@ -447,6 +447,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             steps={formData.story.prereqs || []}
             onChange={(s) => updateStory('prereqs', s)}
             profiles={cpProfiles}
+            defaultPumpType={formData.defaultPumpType}
           />
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
@@ -510,59 +511,60 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                 </button>
               </div>
               {hint && <p className="section-hint">{hint}</p>}
+              {/* Pump-pacing config lives OUTSIDE the spoiler blur — it's setup, not RP content */}
+              {isManualPump && (
+                <div className="pump-pacing-row">
+                  <label className="pump-pacing-field" title="How many messages must pass after a batch before the instructor may request more pumping">
+                    <span>Messages between pump batches</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
+                      onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="pump-pacing-field" title="Max pump operations the instructor may request in a single reply (one batch)">
+                    <span>Maximum pumps per batch</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
+                      onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                </div>
+              )}
+              {isAutoPump && (
+                <div className="pump-pacing-row">
+                  <label className="pump-pacing-field" title="How many replies between automatic [pump on] events. Skips if the pump is already running.">
+                    <span>Messages between ON</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
+                      onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value)}
+                      placeholder="0 = off"
+                    />
+                  </label>
+                  <label className="pump-pacing-field" title="How long the pump stays ON each time, in seconds (auto-off).">
+                    <span>Maximum pump ON (secs)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
+                      onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value)}
+                      placeholder="5"
+                    />
+                  </label>
+                </div>
+              )}
               <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
                 <CheckpointInjections
                   value={selProfile?.ranges?.[key]}
                   onChange={(obj) => updateProfileRange(key, obj)}
                 />
-                {isManualPump && (
-                  <div className="pump-pacing-row">
-                    <label className="pump-pacing-field" title="How many messages must pass after a batch before the instructor may request more pumping">
-                      <span>Messages between pump batches</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
-                        onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value)}
-                        placeholder="0"
-                      />
-                    </label>
-                    <label className="pump-pacing-field" title="Max pump operations the instructor may request in a single reply (one batch)">
-                      <span>Maximum pumps per batch</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
-                        onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value)}
-                        placeholder="0"
-                      />
-                    </label>
-                  </div>
-                )}
-                {isAutoPump && (
-                  <div className="pump-pacing-row">
-                    <label className="pump-pacing-field" title="How many replies between automatic [pump on] events. Skips if the pump is already running.">
-                      <span>Messages between ON</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
-                        onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value)}
-                        placeholder="0 = off"
-                      />
-                    </label>
-                    <label className="pump-pacing-field" title="How long the pump stays ON each time, in seconds (auto-off).">
-                      <span>Maximum pump ON (secs)</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
-                        onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value)}
-                        placeholder="5"
-                      />
-                    </label>
-                  </div>
-                )}
                 <div className="checkpoint-triggers">
                   {triggersFor(key).map((trigger, tIdx) => (
                     <TriggerRow

@@ -77,6 +77,30 @@
   white-space: nowrap;
 }
 
+.prereq-pump-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.prereq-pump-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
+}
+.prereq-pump-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+}
+.prereq-pump-num input { width: 56px; }
+.prereq-pump-row select { flex: 0 0 auto; width: auto; }
+
 .prereq-add,
 .prereq-add-sm {
   align-self: flex-start;

@@ -175,6 +175,9 @@
   border-color: var(--accent-primary, #10b981);
 }
 @media (max-width: 640px) {
+  /* Stack the two fields full-width so each input box sits clearly under its label */
+  .pump-pacing-row { flex-direction: column; gap: 8px; }
+  .pump-pacing-field { flex: 1 1 100%; width: 100%; }
   .pump-pacing-field input { font-size: 16px; }
 }
 

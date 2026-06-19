@@ -9785,6 +9785,11 @@ async function handlePrereqChoice(choiceId) {
       const ch = chars.find(c => c.id === s.activeCharacterId);
       if (ch) applyActivePumpType(ch);
     }
+    // Optional pump run when an automatic profile is loaded (timed or cycle).
+    if (choice.pump) {
+      await firePrimaryPump({ mode: choice.pump.mode, duration: choice.pump.duration, cycles: choice.pump.cycles })
+        .catch(err => console.error('[Prereq] pump action failed:', err?.message || err));
+    }
     // Per-choice instructor response (verbatim or LLM-enhanced), fired immediately.
     const resp = injMsg(choice.response);
     if (resp.text) {

@@ -5,8 +5,15 @@ const nid = (p) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}
 
 // Ordered, drag-arrangeable list of mandatory pre-req choice steps. Each choice may
 // load a checkpoint profile and/or set a variable.
-function PrereqEditor({ steps = [], onChange, profiles = [] }) {
+function PrereqEditor({ steps = [], onChange, profiles = [], defaultPumpType = 'electric' }) {
   const [dragIdx, setDragIdx] = useState(null);
+
+  // A loaded profile is "automatic" when its effective pump type (its own override,
+  // else the card default) is electric — those can fire the primary pump on pick.
+  const profileIsAuto = (id) => {
+    const p = profiles.find(pr => pr.id === id);
+    return (p?.pumpType || defaultPumpType || 'electric') === 'electric';
+  };
 
   const set = (s) => onChange(s);
   const addStep = () => set([...steps, { id: nid('pq'), prompt: '', choices: [{ id: nid('pc'), label: '' }] }]);
@@ -107,6 +114,30 @@ function PrereqEditor({ steps = [], onChange, profiles = [] }) {
                   LLM enhance
                 </label>
               </div>
+              {c.loadProfileId && profileIsAuto(c.loadProfileId) && (
+                <div className="prereq-pump-row">
+                  <label className="prereq-pump-toggle" title="Run the primary pump when this choice is picked">
+                    <input
+                      type="checkbox"
+                      checked={!!c.pump}
+                      onChange={(e) => updChoice(si, ci, { pump: e.target.checked ? { mode: 'timed', duration: 5, cycles: 3 } : undefined })}
+                    />
+                    pump on
+                  </label>
+                  {c.pump && (
+                    <>
+                      <select value={c.pump.mode || 'timed'} onChange={(e) => updChoice(si, ci, { pump: { ...c.pump, mode: e.target.value } })}>
+                        <option value="timed">Timed</option>
+                        <option value="cycle">Cycle</option>
+                      </select>
+                      <label className="prereq-pump-num">secs<input type="number" min={1} value={c.pump.duration ?? 5} onChange={(e) => updChoice(si, ci, { pump: { ...c.pump, duration: parseInt(e.target.value) || 1 } })} /></label>
+                      {c.pump.mode === 'cycle' && (
+                        <label className="prereq-pump-num">×<input type="number" min={1} value={c.pump.cycles ?? 3} onChange={(e) => updChoice(si, ci, { pump: { ...c.pump, cycles: parseInt(e.target.value) || 1 } })} /></label>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {step.choices.length < 4 && (
