@@ -44,7 +44,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
   };
 
   // Modal pages that need exit animation before navigation
-  const MODAL_PAGES = ['/personas', '/characters', '/media-album', '/settings', '/screenplay'];
+  const MODAL_PAGES = ['/personas', '/characters', '/media-album', '/settings'];
 
   // Check if current page is a modal page
   const isOnModalPage = () => {
@@ -70,12 +70,6 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
     } else {
       navigate(targetPath);
     }
-  };
-
-  // Handle ScreenPlay navigation
-  const handleScreenPlayClick = (e) => {
-    e.preventDefault();
-    navigateWithAnimation('/screenplay');
   };
 
   // Handle generic nav click that needs exit animation
@@ -179,13 +173,6 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
         >
           Media Album
         </NavLink>
-
-        <button
-          className={`hamburger-menu-item ${location.pathname === '/screenplay' ? 'active' : ''}`}
-          onClick={handleScreenPlayClick}
-        >
-          ScreenPlay
-        </button>
 
         <NavLink
           to="/triggers"

@@ -5,7 +5,6 @@ import { useError } from './context/ErrorContext';
 import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import FlowEditor from './pages/FlowEditor';
-import ScreenPlay from './pages/ScreenPlay';
 import Help from './pages/Help';
 import Personas from './pages/Personas';
 import Characters from './pages/Characters';
@@ -540,16 +539,6 @@ function App() {
           } />
           <Route path="/triggers" element={<div className="center-modal-overlay"><Triggers /></div>} />
           <Route path="/flows" element={<FlowEditor />} />
-          <Route path="/screenplay" element={
-            <div className="center-modal-overlay">
-              <ScreenPlay />
-            </div>
-          } />
-          <Route path="/screenplay/:tab" element={
-            <div className="center-modal-overlay">
-              <ScreenPlay />
-            </div>
-          } />
           <Route path="/settings" element={
             <div className="center-modal-overlay">
               <Settings />
