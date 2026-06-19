@@ -1168,6 +1168,23 @@ async function timedPumpOn(id, device, durationSeconds) {
   serverTimedPumpTimers.set(id, timer);
 }
 
+// Fire the primary pump for a checkpoint-injection action ({mode:'timed'|'cycle', duration, cycles}).
+async function firePrimaryPump(action) {
+  if (!action) return;
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  if (!pump) return;
+  const id = resolveControlId(pump);
+  const dur = Number(action.duration) || 5;
+  if (action.mode === 'cycle') {
+    const cycles = Number(action.cycles) || 3;
+    await deviceService.startCycle(id, { duration: dur, interval: dur, cycles }, pump);
+  } else {
+    await timedPumpOn(id, pump, dur);
+  }
+  broadcast('ai_device_control', { device: 'pump', action: action.mode || 'timed', deviceName: pump.label || pump.name || 'Pump' });
+}
+
 /**
  * Resolve the identifier used to start/stop a cycle or control a device.
  * Cloud brands key on deviceId; local/IP brands key on ip. Home Assistant keys
@@ -6920,6 +6937,10 @@ async function handleWsMessage(ws, type, data) {
       );
       break;
 
+    case 'checkpoint_choice_response':
+      await handleCheckpointChoice(data.choiceId);
+      break;
+
     case 'toggle_member_mute': {
       // Toggle whether a multichar member can speak/reply this session
       const list = new Set(sessionState.mutedMembers || []);
@@ -7459,6 +7480,7 @@ async function handleSwipeMessage(data) {
       // For character messages — roll personality attributes
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
+      rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
       const context = applyCharacterGuidance(
         buildChatContext(activeCharacter, settings),
@@ -7760,6 +7782,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       // Roll personality attributes for button-triggered message
       const attrResult = rollAttributes(character);
       sessionState.activeAttributes = attrResult.active;
+      rollCheckpointInjections(character);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'button' });
 
       // Build context with button instruction
@@ -8097,6 +8120,7 @@ async function handleChatMessage(data) {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
+      rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
 
       // Build context
@@ -8668,6 +8692,7 @@ async function generateAIResponseAfterBlocking() {
     // Roll personality attributes for post-blocking response
     const attrResult = rollAttributes(activeCharacter);
     sessionState.activeAttributes = attrResult.active;
+    rollCheckpointInjections(activeCharacter);
     if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
 
     const context = buildChatContext(activeCharacter, settings);
@@ -8797,6 +8822,7 @@ async function handleSpecialGenerate(data) {
     if (!isPlayerVoice) {
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
+      rollCheckpointInjections(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
     }
 
@@ -9468,22 +9494,98 @@ function getActiveCharacterCheckpoint(character) {
   if (!checkpoints) return null;
 
   const capacity = sessionState.characterCapacity || 0;
-  let rangeKey;
-  if (capacity <= 0) rangeKey = '0';
-  else if (capacity <= 10) rangeKey = '1-10';
-  else if (capacity <= 20) rangeKey = '11-20';
-  else if (capacity <= 30) rangeKey = '21-30';
-  else if (capacity <= 40) rangeKey = '31-40';
-  else if (capacity <= 50) rangeKey = '41-50';
-  else if (capacity <= 60) rangeKey = '51-60';
-  else if (capacity <= 70) rangeKey = '61-70';
-  else if (capacity <= 80) rangeKey = '71-80';
-  else if (capacity <= 90) rangeKey = '81-90';
-  else if (capacity <= 100) rangeKey = '91-100';
-  else rangeKey = '100+';
-
-  const text = checkpoints[rangeKey]?.trim();
+  const rangeKey = capacityRangeKey(capacity);
+  const cp = normalizeCheckpoint(checkpoints[rangeKey]);
+  const text = cp.mainTheme?.trim();
   return text || null;
+}
+
+// Character-checkpoint object (mainTheme + injections) for the active char range.
+function getActiveCharacterCheckpointObj(character) {
+  if (!character?.isPumpable) return null;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const checkpoints = activeStory?.characterCheckpoints;
+  if (!checkpoints) return null;
+  const rangeKey = capacityRangeKey(sessionState.characterCapacity || 0);
+  return { ...normalizeCheckpoint(checkpoints[rangeKey]), rangeKey: 'char-' + rangeKey };
+}
+
+// Roll the active range's checkpoint injections for THIS generation. Each injection
+// rolls its % chance, capped by a per-session max-appearances (-1 = unlimited).
+// Successful rolls add their text to sessionState.activeCheckpointInjections (read by
+// the prompt builders) and fire their optional action. Called once per generation,
+// alongside rollAttributes.
+function rollCheckpointInjections(character) {
+  sessionState.activeCheckpointInjections = [];
+  if (!sessionState.checkpointInjectionCounts) sessionState.checkpointInjectionCounts = {};
+  const counts = sessionState.checkpointInjectionCounts;
+
+  // A response carried from a prior checkpoint player-choice is injected once.
+  if (sessionState.pendingCheckpointResponse) {
+    sessionState.activeCheckpointInjections.push(sessionState.pendingCheckpointResponse);
+    sessionState.pendingCheckpointResponse = null;
+  }
+
+  const injections = [];
+  const player = getActiveCheckpoint(character, sessionState.capacity || 0);
+  if (player?.injections?.length) injections.push(...player.injections);
+  const charCp = getActiveCharacterCheckpointObj(character);
+  if (charCp?.injections?.length) injections.push(...charCp.injections);
+
+  for (const inj of injections) {
+    if (!inj || inj.enabled === false || !inj.text) continue;
+    const max = (inj.maxAppearances === undefined || inj.maxAppearances === null) ? -1 : inj.maxAppearances;
+    if (max >= 0 && (counts[inj.id] || 0) >= max) continue;
+    const chance = Number(inj.chance);
+    if (!(chance > 0) || Math.random() * 100 >= chance) continue;
+
+    counts[inj.id] = (counts[inj.id] || 0) + 1;
+    sessionState.activeCheckpointInjections.push(inj.text);
+    fireCheckpointInjectionAction(inj.action);
+  }
+}
+
+// Render the rolled injections as a prompt block (empty when none rolled).
+function checkpointInjectionsBlock() {
+  const inj = sessionState.activeCheckpointInjections || [];
+  if (!inj.length) return '';
+  return `\n=== STAGE EVENTS (THIS MESSAGE) ===\nWeave the following into this reply naturally:\n${inj.map(t => `- ${t}`).join('\n')}\n=== END STAGE EVENTS ===\n`;
+}
+
+// Fire an injection's optional action: a Primary Pump run or an inline player choice.
+function fireCheckpointInjectionAction(action) {
+  if (!action || !action.type) return;
+  if (action.type === 'pump') {
+    firePrimaryPump(action).catch(err => console.error('[Checkpoint] pump action failed:', err?.message || err));
+  } else if (action.type === 'player_choice') {
+    presentCheckpointChoice(action);
+  }
+}
+
+// Show an inline player choice for a checkpoint injection (reuses the choice modal).
+function presentCheckpointChoice(action) {
+  if (!action || !Array.isArray(action.choices) || !action.choices.length) return;
+  const choices = action.choices.slice(0, 4)
+    .filter(c => c && c.label)
+    .map(c => ({ id: c.id, label: c.label, action: c.action || null, response: c.response || '' }));
+  if (!choices.length) return;
+  sessionState.pendingCheckpointChoice = { choices };
+  broadcast('checkpoint_choice', { choices: choices.map(c => ({ id: c.id, label: c.label })) });
+}
+
+// Resolve a checkpoint player-choice pick: fire the choice's pump action and queue its
+// response to be injected on the NEXT generation.
+async function handleCheckpointChoice(choiceId) {
+  const pending = sessionState.pendingCheckpointChoice;
+  if (!pending) return;
+  const choice = (pending.choices || []).find(c => c.id === choiceId);
+  sessionState.pendingCheckpointChoice = null;
+  broadcast('checkpoint_choice_clear', {});
+  if (!choice) return;
+  if (choice.action?.type === 'pump') {
+    await firePrimaryPump(choice.action).catch(err => console.error('[Checkpoint] choice pump failed:', err?.message || err));
+  }
+  if (choice.response) sessionState.pendingCheckpointResponse = choice.response;
 }
 
 /**
@@ -9535,28 +9637,44 @@ function getPersonaCharacterCheckpoint(persona) {
   return checkpoints[rangeKey]?.trim() || null;
 }
 
+// Normalize a checkpoint value: a legacy plain string becomes { mainTheme, injections: [] }.
+function normalizeCheckpoint(val) {
+  if (!val) return { mainTheme: '', injections: [] };
+  if (typeof val === 'string') return { mainTheme: val, injections: [] };
+  return { mainTheme: val.mainTheme || '', injections: Array.isArray(val.injections) ? val.injections : [] };
+}
+
+// Map a capacity to its checkpoint range key.
+function capacityRangeKey(capacity) {
+  if (capacity <= 0) return '0';
+  if (capacity <= 10) return '1-10';
+  if (capacity <= 20) return '11-20';
+  if (capacity <= 30) return '21-30';
+  if (capacity <= 40) return '31-40';
+  if (capacity <= 50) return '41-50';
+  if (capacity <= 60) return '51-60';
+  if (capacity <= 70) return '61-70';
+  if (capacity <= 80) return '71-80';
+  if (capacity <= 90) return '81-90';
+  if (capacity <= 100) return '91-100';
+  return '100+';
+}
+
 function getActiveCheckpoint(character, capacity) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const checkpoints = activeStory?.checkpoints;
   if (!checkpoints) return null;
 
-  let rangeKey;
-  if (capacity <= 0) rangeKey = '0';
-  else if (capacity <= 10) rangeKey = '1-10';
-  else if (capacity <= 20) rangeKey = '11-20';
-  else if (capacity <= 30) rangeKey = '21-30';
-  else if (capacity <= 40) rangeKey = '31-40';
-  else if (capacity <= 50) rangeKey = '41-50';
-  else if (capacity <= 60) rangeKey = '51-60';
-  else if (capacity <= 70) rangeKey = '61-70';
-  else if (capacity <= 80) rangeKey = '71-80';
-  else if (capacity <= 90) rangeKey = '81-90';
-  else if (capacity <= 100) rangeKey = '91-100';
-  else rangeKey = '100+';
-
-  const text = checkpoints[rangeKey]?.trim();
-  const preInflation = checkpoints['0']?.trim();
-  return { text: text || null, preInflation: (capacity <= 0 && preInflation) ? preInflation : null };
+  const rangeKey = capacityRangeKey(capacity);
+  const cp = normalizeCheckpoint(checkpoints[rangeKey]);
+  const text = cp.mainTheme?.trim();
+  const preInflation = normalizeCheckpoint(checkpoints['0']).mainTheme?.trim();
+  return {
+    text: text || null,
+    preInflation: (capacity <= 0 && preInflation) ? preInflation : null,
+    injections: cp.injections,
+    rangeKey
+  };
 }
 
 /**
@@ -9923,6 +10041,7 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     if (checkpointSpecial?.text) {
       systemPrompt += `\n=== MANDATORY — INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointSpecial.text}\n=== END STAGE DIRECTION ===\n`;
     }
+    systemPrompt += checkpointInjectionsBlock();
     const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
     if (charCheckpointSpecial) {
       systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this. Do NOT describe ${character.name}'s inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointSpecial}\n=== END STAGE DIRECTION ===\n`;
@@ -10198,6 +10317,70 @@ function buildDictionaryPrompt() {
   return `Dictionary:\n${active.map(r => r.text).join('\n')}\n\n`;
 }
 
+// ===== Built-in defaults (seeded once on startup) =====
+const BUILTIN_INSTRUCTOR_PROFILE_ID = 'instr-builtin-inflation-assistant';
+
+// Immutable, ships-with-the-app instructor profile.
+function ensureDefaultInstructorProfiles() {
+  const data = loadInstructorProfiles();
+  if (!Array.isArray(data.profiles)) data.profiles = [];
+  if (data.profiles.some(p => p.id === BUILTIN_INSTRUCTOR_PROFILE_ID)) return;
+  data.profiles.unshift({
+    id: BUILTIN_INSTRUCTOR_PROFILE_ID,
+    name: 'Inflation Assistant',
+    builtIn: true,
+    prompt: `You are the user's Inflation Assistant: a calm, knowledgeable, safety-first operator who guides them through air- or fluid-based belly inflation sessions using their own equipment.
+
+Your job:
+- Help select the right tool for the session and confirm it is set up correctly.
+- Walk the user through inflation in small, controlled increments; never rush.
+- Continuously check the user's stated capacity, comfort, and pain. Slow down or stop the moment they report tightness, pain, dizziness, or nausea.
+- Talk them through holding safely and through a slow, complete release at the end.
+- Answer tool and technique questions accurately and briefly.
+
+Safety is non-negotiable and overrides everything else:
+- A manual hardware shutoff (valve, clamp, or power disconnect) must be within the user's reach at all times. Confirm this before starting.
+- Never instruct the user to exceed a safe limit, hold past discomfort, or ignore a stop signal. If they ask you to, refuse and explain the risk.
+- Use only clean, body-safe equipment; for fluid, body-safe fluid at a comfortable temperature.
+- If the user reports pain, dizziness, faintness, or anything alarming, instruct an immediate stop and release, and tell them to seek help if it does not resolve.
+- You are not a medical professional; for any health concern, tell the user to consult one.`
+  });
+  saveInstructorProfiles(data);
+  console.log('[Startup] Seeded built-in instructor profile: Inflation Assistant');
+}
+
+// Default (mutable) global dictionary group of inflation tools.
+function ensureDefaultDictionary() {
+  const data = loadDictionary();
+  if (!Array.isArray(data.groups)) data.groups = [];
+  const GROUP_ID = 'dict-builtin-inflation-tools';
+  if (data.groups.some(g => g.id === GROUP_ID)) return;
+  data.groups.push({
+    id: GROUP_ID,
+    name: 'Inflation Tools',
+    enabled: true,
+    terms: [
+      { id: 'it-bulb', term: 'Bulb pump', keys: ['bulb pump', 'squeeze bulb', 'bulb'], enabled: true,
+        definition: 'A handheld squeeze-bulb (like a blood-pressure bulb) that pushes a small burst of air with each squeeze. Very low volume and highly controllable — good for slow, precise inflation, but tiring over long sessions. How to operate: connect the bulb to the tube, then squeeze and release rhythmically — each squeeze adds a small puff of air. Pause between squeezes to check comfort, and open the release valve to let air back out.' },
+      { id: 'it-bike', term: 'Bike/bicycle pump', keys: ['bike pump', 'bicycle pump', 'hand pump', 'floor pump'], enabled: true,
+        definition: 'A manual hand or floor pump made for tires, repurposed for air. Moves a moderate volume of air per stroke; a built-in gauge helps track pressure. Use a steady, controlled pace. How to operate: connect the hose securely, then push the handle in slow, full strokes while watching the gauge. Add a few strokes, pause to assess capacity and comfort, then open the bleed valve to release.' },
+      { id: 'it-compressor', term: 'Air compressor', keys: ['air compressor', 'compressor'], enabled: true,
+        definition: 'A powered pump that delivers high air volume and pressure quickly. Powerful and fast — only use with a pressure regulator/relief and extreme caution, since over-inflation happens fast. A hardware shutoff within reach is mandatory. How to operate: set the regulator to a low pressure first, attach the hose, and add air in short bursts via the trigger/valve — never a continuous flow. Keep the relief/bleed valve and shutoff within reach so you can vent instantly.' },
+      { id: 'it-aquarium', term: 'Aquarium pump', keys: ['aquarium pump', 'fish tank pump', 'air pump'], enabled: true,
+        definition: 'A small electric air pump made for fish tanks. Provides gentle, continuous low-pressure airflow — slow and forgiving, good for gradual top-ups, with a limited maximum pressure. How to operate: connect the airline and power it on for continuous low-pressure air. Use an inline valve or hose clamp to start, stop, and release; pinch or open the line to control the rate.' },
+      { id: 'it-fluid', term: 'Water/fluid/enema pump', keys: ['water pump', 'fluid pump', 'enema pump'], enabled: true,
+        definition: 'A pump that introduces water or fluid instead of air. Fluid adds weight and behaves differently from air; use clean, body-safe fluid at a comfortable temperature and inflate at a slow, controlled rate. How to operate: prime the line with clean, body-safe fluid at a comfortable temperature, attach the nozzle, and pump slowly. Stop often to assess, and open the clamp/valve to drain when finished.' },
+      { id: 'it-enemabag', term: 'Enema bag', keys: ['enema bag', 'gravity bag'], enabled: true,
+        definition: "A gravity-fed bag with a hose and nozzle that introduces water or fluid using the bag's height for pressure. Flow is controlled by how high the bag hangs and by the hose clamp — raise it slowly and use the clamp to pause. How to operate: fill with body-safe fluid, hang it, and raise it slowly to increase pressure; open the hose clamp to start the flow. Lower the bag or close the clamp to pause, and open it to drain." }
+    ]
+  });
+  saveDictionary(data);
+  console.log('[Startup] Seeded default dictionary group: Inflation Tools');
+}
+
+ensureDefaultInstructorProfiles();
+ensureDefaultDictionary();
+
 function buildChatContext(character, settings) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -10380,6 +10563,9 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
     console.log(`[Checkpoints] Injecting CHARACTER checkpoint at ${sessionState.characterCapacity}%: ${charCheckpointChat.substring(0, 60)}...`);
     systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S INFLATION STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this guidance for ${character.name}'s current inflation level. Do NOT describe their inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointChat}\n=== END STAGE DIRECTION ===\n`;
   }
+
+  // Checkpoint injections rolled for this generation (pop-up stage events)
+  systemPrompt += checkpointInjectionsBlock();
 
   // Final style anchor
   systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
@@ -11940,6 +12126,11 @@ app.put('/api/characters/:id', async (req, res) => {
 app.delete('/api/characters/:id', (req, res) => {
   if (!isSafeId(req.params.id)) {
     return res.status(400).json({ error: 'Invalid character id' });
+  }
+  // Block deletion of immutable (ships-with-the-app) characters
+  const existingChar = (isPerCharStorageActive() ? loadCharacter(req.params.id) : (loadData(DATA_FILES.characters) || []).find(c => c.id === req.params.id));
+  if (existingChar?.immutable) {
+    return res.status(400).json({ error: 'Cannot delete a built-in character' });
   }
   if (isPerCharStorageActive()) {
     deleteCharacterFile(req.params.id);

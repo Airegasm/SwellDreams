@@ -1822,3 +1822,14 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* Checkpoint tab header with Show/Hide All button */
+.checkpoint-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.checkpoint-showall {
+  margin-left: auto;
+}

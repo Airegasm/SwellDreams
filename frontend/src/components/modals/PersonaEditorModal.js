@@ -1132,6 +1132,13 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 >
                   Character's Inflation
                 </button>
+                <button type="button" className="btn btn-sm btn-secondary checkpoint-showall" onClick={() => {
+                  const anyShown = Object.values(visibleCheckpoints).some(Boolean);
+                  if (anyShown) { setVisibleCheckpoints({}); return; }
+                  const v = {};
+                  ['0','1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'].forEach(k => { v[`p-player-${k}`] = true; v[`p-char-${k}`] = true; });
+                  setVisibleCheckpoints(v);
+                }}>Show/Hide All</button>
               </div>
 
               {/* Player's own inflation checkpoints */}

@@ -59,6 +59,10 @@ function InstructorSettingsTab() {
     setProfileForm({ name: '', prompt: '' });
   };
 
+  // True when the open profile form is a built-in (ships-with-the-app) profile: viewable, read-only.
+  const editingProfileBuiltIn = editingProfileId && editingProfileId !== 'new'
+    && !!profiles.find(p => p.id === editingProfileId)?.builtIn;
+
   const saveProfile = async () => {
     const name = profileForm.name.trim();
     if (!name) { showError('Profile name is required'); return; }
@@ -184,6 +188,11 @@ function InstructorSettingsTab() {
 
         {editingProfileId && (
           <div className="card-style" style={{ padding: '16px', marginBottom: '16px' }}>
+            {editingProfileBuiltIn && (
+              <p className="text-muted" style={{ marginTop: 0 }}>
+                Built-in profile — read-only. Copy the text into a new profile to customize it.
+              </p>
+            )}
             <div className="form-group">
               <label>Name</label>
               <input
@@ -191,20 +200,28 @@ function InstructorSettingsTab() {
                 value={profileForm.name}
                 onChange={(e) => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. Clinical Handler"
+                readOnly={editingProfileBuiltIn}
               />
             </div>
             <div className="form-group">
               <label>System Prompt</label>
               <textarea
-                rows={6}
+                rows={editingProfileBuiltIn ? 16 : 6}
                 value={profileForm.prompt}
                 onChange={(e) => setProfileForm(prev => ({ ...prev, prompt: e.target.value }))}
                 placeholder="Describe how this instructor speaks and operates. Keep it direct and mission-focused."
+                readOnly={editingProfileBuiltIn}
               />
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary btn-sm" onClick={cancelProfile}>Cancel</button>
-              <button className="btn btn-primary btn-sm" onClick={saveProfile}>Save Profile</button>
+              {editingProfileBuiltIn ? (
+                <button className="btn btn-secondary btn-sm" onClick={cancelProfile}>Close</button>
+              ) : (
+                <>
+                  <button className="btn btn-secondary btn-sm" onClick={cancelProfile}>Cancel</button>
+                  <button className="btn btn-primary btn-sm" onClick={saveProfile}>Save Profile</button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -220,7 +237,8 @@ function InstructorSettingsTab() {
                   {p.prompt ? <div className="list-item-meta">{p.prompt.slice(0, 120)}{p.prompt.length > 120 ? '…' : ''}</div> : null}
                 </div>
                 <div className="list-item-actions">
-                  <button className="btn btn-sm btn-secondary" onClick={() => startEditProfile(p)}>Edit</button>
+                  {p.builtIn && <span className="badge-builtin" title="Ships with the app — read-only">Built-in</span>}
+                  <button className="btn btn-sm btn-secondary" onClick={() => startEditProfile(p)}>{p.builtIn ? 'View' : 'Edit'}</button>
                   <button className="btn btn-sm btn-danger" onClick={() => deleteProfile(p)} disabled={p.builtIn}>Delete</button>
                 </div>
               </div>

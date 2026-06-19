@@ -5,6 +5,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
+import CheckpointInjections from '../common/CheckpointInjections';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 import './MultiCharEditorModal.css';
@@ -2337,7 +2338,16 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              <h4>Capacity Checkpoints</h4>
+              <div className="checkpoint-tab-header">
+                <h4>Capacity Checkpoints</h4>
+                <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
+                  const anyShown = Object.values(visibleCheckpoints).some(Boolean);
+                  if (anyShown) { setVisibleCheckpoints({}); return; }
+                  const v = {};
+                  ['0','1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'].forEach(k => { v[k] = true; });
+                  setVisibleCheckpoints(v);
+                }}>Show/Hide All</button>
+              </div>
               <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
 
               {[
@@ -2367,14 +2377,9 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                   {hint && <p className="section-hint">{hint}</p>}
                   <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
-                    <textarea
-                      value={activeStory?.checkpoints?.[key] || ''}
-                      onChange={(e) => updateStoryField('checkpoints', {
-                        ...(activeStory?.checkpoints || {}),
-                        [key]: e.target.value
-                      })}
-                      placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                      rows={3}
+                    <CheckpointInjections
+                      value={activeStory?.checkpoints?.[key]}
+                      onChange={(obj) => updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: obj })}
                     />
                   </div>
                   {/* Checkpoint triggers */}

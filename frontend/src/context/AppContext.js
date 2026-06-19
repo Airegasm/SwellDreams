@@ -78,6 +78,9 @@ export function AppProvider({ children }) {
   // Choose Multi (multi-select) state
   const [chooseMultiData, setChooseMultiData] = useState(null);
 
+  // Checkpoint injection player-choice state
+  const [checkpointChoiceData, setCheckpointChoiceData] = useState(null);
+
   // Simple A/B choice state
   const [simpleABData, setSimpleABData] = useState(null);
 
@@ -355,6 +358,7 @@ export function AppProvider({ children }) {
         // Clear all flow modals/popups on session reset
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setCheckpointChoiceData(null);
         setSimpleABData(null);
         setChallengeData(null);
         setInputData(null);
@@ -366,6 +370,7 @@ export function AppProvider({ children }) {
         // Clear all flow modals/popups on new session
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setCheckpointChoiceData(null);
         setSimpleABData(null);
         setChallengeData(null);
         setInputData(null);
@@ -381,6 +386,14 @@ export function AppProvider({ children }) {
 
       case 'choose_multi':
         setChooseMultiData(data);
+        break;
+
+      case 'checkpoint_choice':
+        setCheckpointChoiceData(data);
+        break;
+
+      case 'checkpoint_choice_clear':
+        setCheckpointChoiceData(null);
         break;
 
       case 'member_mute_update':
@@ -737,6 +750,7 @@ export function AppProvider({ children }) {
         setChallengeData(null);
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setCheckpointChoiceData(null);
         setSimpleABData(null);
         // Notify user if this was an automatic failsafe trigger
         if (data.automatic) {
@@ -845,6 +859,12 @@ export function AppProvider({ children }) {
 
     setChooseMultiData(null);
   }, [chooseMultiData, sendWsMessage]);
+
+  // Respond to a checkpoint injection player choice
+  const respondCheckpointChoice = useCallback((choice) => {
+    sendWsMessage('checkpoint_choice_response', { choiceId: choice.id });
+    setCheckpointChoiceData(null);
+  }, [sendWsMessage]);
 
   // Toggle whether a multichar member can speak this session
   const toggleMemberMute = useCallback((memberId, muted) => {
@@ -1809,6 +1829,8 @@ export function AppProvider({ children }) {
     handlePlayerChoice,
     chooseMultiData,
     handleChooseMulti,
+    checkpointChoiceData,
+    respondCheckpointChoice,
     toggleMemberMute,
 
     // Simple A/B Choice

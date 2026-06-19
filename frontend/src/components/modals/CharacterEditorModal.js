@@ -6,6 +6,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
+import CheckpointInjections from '../common/CheckpointInjections';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 
@@ -3009,6 +3010,13 @@ Write only the scenario description itself, no explanations.`;
                     >
                       Character Capacity
                     </button>
+                    <button type="button" className="btn btn-sm btn-secondary checkpoint-showall" onClick={() => {
+                      const anyShown = Object.values(visibleCheckpoints).some(Boolean);
+                      if (anyShown) { setVisibleCheckpoints({}); return; }
+                      const v = {};
+                      ['0','1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'].forEach(k => { v[`player-${k}`] = true; v[`char-${k}`] = true; });
+                      setVisibleCheckpoints(v);
+                    }}>Show/Hide All</button>
                   </div>
 
                   {/* Player Capacity Checkpoints */}
@@ -3067,17 +3075,12 @@ Write only the scenario description itself, no explanations.`;
                           </div>
                           {hint && <p className="section-hint">{hint}</p>}
                           <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
-                            <textarea
-                              value={activeStory?.checkpoints?.[key] || ''}
-                              onChange={(e) => {
-                                updateStoryField('checkpoints', {
-                                  ...(activeStory?.checkpoints || {}),
-                                  [key]: e.target.value
-                                });
+                            <CheckpointInjections
+                              value={activeStory?.checkpoints?.[key]}
+                              onChange={(obj) => {
+                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: obj });
                                 setProfileDirty(prev => ({ ...prev, player: true }));
                               }}
-                              placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                              rows={3}
                             />
                           </div>
                           {/* Checkpoint triggers */}
@@ -3161,17 +3164,12 @@ Write only the scenario description itself, no explanations.`;
                           </div>
                           {hint && <p className="section-hint">{hint}</p>}
                           <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`char-${key}`] ? 'revealed' : ''}`}>
-                            <textarea
-                              value={activeStory?.characterCheckpoints?.[key] || ''}
-                              onChange={(e) => {
-                                updateStoryField('characterCheckpoints', {
-                                  ...(activeStory?.characterCheckpoints || {}),
-                                  [key]: e.target.value
-                                });
+                            <CheckpointInjections
+                              value={activeStory?.characterCheckpoints?.[key]}
+                              onChange={(obj) => {
+                                updateStoryField('characterCheckpoints', { ...(activeStory?.characterCheckpoints || {}), [key]: obj });
                                 setProfileDirty(prev => ({ ...prev, character: true }));
                               }}
-                              placeholder={key === '0' ? 'e.g. Character is unaware of what inflation feels like...' : `Guidance for character at ${label} capacity...`}
-                              rows={3}
                             />
                           </div>
                           {/* Checkpoint triggers */}
@@ -3254,17 +3252,12 @@ Write only the scenario description itself, no explanations.`;
                       </div>
                       {hint && <p className="section-hint">{hint}</p>}
                       <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
-                        <textarea
-                          value={activeStory?.checkpoints?.[key] || ''}
-                          onChange={(e) => {
-                            updateStoryField('checkpoints', {
-                              ...(activeStory?.checkpoints || {}),
-                              [key]: e.target.value
-                            });
+                        <CheckpointInjections
+                          value={activeStory?.checkpoints?.[key]}
+                          onChange={(obj) => {
+                            updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: obj });
                             setProfileDirty(prev => ({ ...prev, player: true }));
                           }}
-                          placeholder={key === '0' ? 'e.g. Establish trust and comfort before any inflation begins...' : `Guidance for ${label} capacity...`}
-                          rows={3}
                         />
                       </div>
                       <div className="checkpoint-triggers">

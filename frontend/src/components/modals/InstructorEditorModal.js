@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import TriggerRow from '../common/TriggerRow';
+import CheckpointInjections from '../common/CheckpointInjections';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
 
@@ -295,7 +296,16 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         {/* ===== Checkpoints ===== */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
-          <h4>Capacity Checkpoints</h4>
+          <div className="checkpoint-tab-header">
+            <h4>Capacity Checkpoints</h4>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
+              const anyShown = Object.values(visibleCheckpoints).some(Boolean);
+              if (anyShown) { setVisibleCheckpoints({}); return; }
+              const v = {};
+              CHECKPOINT_RANGES.forEach(({ key }) => { v[key] = true; });
+              setVisibleCheckpoints(v);
+            }}>Show/Hide All</button>
+          </div>
           <p className="section-hint">Per-range instructions and triggers as the player's capacity rises. Triggers can fire device actions, flows, and more.</p>
           {CHECKPOINT_RANGES.map(({ key, label, hint }) => (
             <div className="form-group checkpoint-field" key={key}>
@@ -311,11 +321,9 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               </div>
               {hint && <p className="section-hint">{hint}</p>}
               <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
-                <textarea
-                  value={formData.story.checkpoints?.[key] || ''}
-                  onChange={(e) => updateStory('checkpoints', { ...(formData.story.checkpoints || {}), [key]: e.target.value })}
-                  placeholder="Instruction the AI should follow at this capacity range…"
-                  rows={2}
+                <CheckpointInjections
+                  value={formData.story.checkpoints?.[key]}
+                  onChange={(obj) => updateStory('checkpoints', { ...(formData.story.checkpoints || {}), [key]: obj })}
                 />
                 <div className="checkpoint-triggers">
                   {triggersFor(key).map((trigger, tIdx) => (

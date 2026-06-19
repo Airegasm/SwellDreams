@@ -1,0 +1,111 @@
+.checkpoint-injections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.checkpoint-injections .ci-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.checkpoint-injections .ci-main-theme {
+  width: 100%;
+}
+
+.ci-injections-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.ci-add,
+.ci-add-sm {
+  background: transparent;
+  border: 1px solid var(--accent-primary, #10b981);
+  color: var(--accent-primary, #10b981);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ci-add:hover,
+.ci-add-sm:hover { background: rgba(16, 185, 129, 0.15); }
+
+.ci-injection {
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 6px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ci-injection.disabled { opacity: 0.55; }
+
+.ci-injection-top,
+.ci-action-row,
+.ci-pump-fields,
+.ci-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ci-injection-text { flex: 1; min-width: 120px; }
+
+.ci-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--text-muted, #9ca3af);
+}
+.ci-num input { width: 52px; }
+
+.ci-action-row label,
+.ci-pump-fields label { font-size: 11px; color: var(--text-muted, #9ca3af); }
+
+.ci-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px dashed var(--border-color, #3a3d45);
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.ci-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ci-choice input[type="text"] { width: 100%; }
+.ci-choice-row input[type="text"] { flex: 1; }
+
+.ci-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ci-del {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  width: 20px;
+  height: 20px;
+  font-size: 13px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.ci-del:hover { background: #dc2626; }

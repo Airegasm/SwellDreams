@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
-import { API_BASE, CONFIG } from '../config';
+import { API_BASE, CONFIG, isInstructor } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
@@ -82,7 +82,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -648,12 +648,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || chooseMultiData || simpleABData || challengeData) {
+    if (inputData || playerChoiceData || chooseMultiData || checkpointChoiceData || simpleABData || challengeData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, chooseMultiData, simpleABData, challengeData]);
+  }, [inputData, playerChoiceData, chooseMultiData, checkpointChoiceData, simpleABData, challengeData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -1788,6 +1788,23 @@ function Chat() {
             </div>
           )}
 
+          {/* Inline checkpoint injection player choice */}
+          {checkpointChoiceData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Choice</span>
+              </div>
+              <div className="choice-inline-container">
+                <PlayerChoiceModal
+                  choiceData={checkpointChoiceData}
+                  onChoice={respondCheckpointChoice}
+                  subContext={subContext}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Inline Choose Multi (multi-select) display */}
           {chooseMultiData && (
             <div className="message message-choice">
@@ -1973,6 +1990,8 @@ function Chat() {
             {/* Action Buttons Stack */}
             <div className="input-action-stack">
               <div className="action-stack-top">
+                {/* Guided Impersonate is meaningless for Instructors (simple speak/instruct, no roleplay) */}
+                {!isInstructor(activeCharacter) && (
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
@@ -1980,6 +1999,7 @@ function Chat() {
                   onClick={isGenerating ? handleCancelGeneration : () => handleGuidedGenerate('guided_impersonate')}
                   title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
+                )}
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}

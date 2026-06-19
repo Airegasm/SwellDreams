@@ -52,6 +52,10 @@ function CharacterTab() {
       // Active always first
       if (a.id === settings.activeCharacterId) return -1;
       if (b.id === settings.activeCharacterId) return 1;
+      // Pin immutable, ships-with-the-app cards (e.g. Inflation Assistant) near the top
+      // so they're easy to find regardless of sort mode / timestamps.
+      if (a.immutable && !b.immutable) return -1;
+      if (b.immutable && !a.immutable) return 1;
       switch (sortBy) {
         case 'az': return (a.name || '').localeCompare(b.name || '');
         case 'za': return (b.name || '').localeCompare(a.name || '');
