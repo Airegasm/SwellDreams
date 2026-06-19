@@ -9,8 +9,7 @@ import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
 
 const CHECKPOINT_RANGES = [
-  { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. The instructor will not activate the pump until these are satisfied.' },
-  { key: '1-10', label: '1–10%' },
+  { key: '1-10', label: '0–10%' },
   { key: '11-20', label: '11–20%' },
   { key: '21-30', label: '21–30%' },
   { key: '31-40', label: '31–40%' },

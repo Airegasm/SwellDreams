@@ -2388,8 +2388,7 @@ Write only the scenario description itself, no explanations.`;
               <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
 
               {[
-                { key: '0', label: '0% — Pre-Inflation', hint: 'Requirements that must be met before inflation begins. When filled, the AI is told not to activate the pump until these conditions are satisfied.' },
-                { key: '1-10', label: '1–10%' },
+                { key: '1-10', label: '0–10%' },
                 { key: '11-20', label: '11–20%' },
                 { key: '21-30', label: '21–30%' },
                 { key: '31-40', label: '31–40%' },

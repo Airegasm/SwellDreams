@@ -3327,8 +3327,7 @@ const firedCheckpointTriggers = new Set();
  * Get the range key for a capacity value
  */
 function capacityToRangeKey(capacity) {
-  if (capacity <= 0) return '0';
-  if (capacity <= 10) return '1-10';
+  if (capacity <= 10) return '1-10'; // first range now starts at 0% (no separate pre-inflation gate)
   if (capacity <= 20) return '11-20';
   if (capacity <= 30) return '21-30';
   if (capacity <= 40) return '31-40';
@@ -3339,6 +3338,19 @@ function capacityToRangeKey(capacity) {
   if (capacity <= 90) return '81-90';
   if (capacity <= 100) return '91-100';
   return '100+';
+}
+
+// A range's triggers may be a legacy flat array (treated as all-sequential) or the new
+// { sequential, random } shape. Always returns the normalized shape.
+function normalizeRangeTriggers(val) {
+  if (Array.isArray(val)) return { sequential: val, random: [] };
+  if (val && typeof val === 'object') {
+    return {
+      sequential: Array.isArray(val.sequential) ? val.sequential : [],
+      random: Array.isArray(val.random) ? val.random : [],
+    };
+  }
+  return { sequential: [], random: [] };
 }
 
 /**
@@ -3368,7 +3380,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
     : activeStory?.checkpointTriggers;
   if (!checkpointTriggers) return;
 
-  const triggers = checkpointTriggers[triggerKey];
+  const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
   if (!triggers || triggers.length === 0) return;
 
   // Mark as fired
@@ -3400,7 +3412,7 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   const persona = settings?.activePersonaId ? loadPersona(settings.activePersonaId) : null;
   if (!persona?.checkpointTriggers) return;
 
-  const triggers = persona.checkpointTriggers[triggerKey];
+  const triggers = normalizeRangeTriggers(persona.checkpointTriggers[triggerKey]).sequential;
   if (!triggers || triggers.length === 0) return;
 
   // Character checkpoint precedence: if a character checkpoint trigger already fired
@@ -3409,7 +3421,7 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
-  const charTriggers = activeStory?.checkpointTriggers?.[charTriggerKey] || [];
+  const charTriggers = normalizeRangeTriggers(activeStory?.checkpointTriggers?.[charTriggerKey]).sequential;
   const charTriggerTypes = new Set(charTriggers.map(t => t.type));
 
   // Filter persona triggers: skip any type that character already handles for this range
@@ -10045,8 +10057,7 @@ function normalizeCheckpoint(val) {
 
 // Map a capacity to its checkpoint range key.
 function capacityRangeKey(capacity) {
-  if (capacity <= 0) return '0';
-  if (capacity <= 10) return '1-10';
+  if (capacity <= 10) return '1-10'; // first range now starts at 0% (no separate pre-inflation gate)
   if (capacity <= 20) return '11-20';
   if (capacity <= 30) return '21-30';
   if (capacity <= 40) return '31-40';
@@ -10146,12 +10157,21 @@ function getActiveCheckpoint(character, capacity) {
   if (!checkpoints) return null;
 
   const rangeKey = capacityRangeKey(capacity);
-  const cp = normalizeCheckpoint(checkpoints[rangeKey]);
+  let cp = normalizeCheckpoint(checkpoints[rangeKey]);
+  // Fold the legacy 0% range into the new first range (0–10%) at read time so existing
+  // pre-inflation guidance isn't lost now that the separate 0% gate is removed. Only used
+  // as a fallback when the first range is empty — never duplicates.
+  if (rangeKey === '1-10' && checkpoints['0']) {
+    const zero = normalizeCheckpoint(checkpoints['0']);
+    if (!cp.mainTheme && zero.mainTheme) cp = { ...cp, mainTheme: zero.mainTheme };
+    if ((!cp.injections || !cp.injections.length) && zero.injections?.length) cp = { ...cp, injections: zero.injections };
+  }
   const text = cp.mainTheme?.trim();
-  const preInflation = isInstr ? null : normalizeCheckpoint(checkpoints['0']).mainTheme?.trim();
+  // The separate 0% pre-inflation gate is gone — the first range starts at 0%, and gating
+  // is handled by Pre-Fill. preInflation is retained as always-null for caller compatibility.
   return {
     text: text || null,
-    preInflation: (capacity <= 0 && preInflation) ? preInflation : null,
+    preInflation: null,
     injections: cp.injections,
     maxPumpsPerBatch: cp.maxPumpsPerBatch,
     messagesBetweenBatches: cp.messagesBetweenBatches,
@@ -15604,14 +15624,9 @@ app.post('/api/session/reset', async (req, res) => {
         const hasPrereqs = Array.isArray(activeStory?.prereqs) && activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
         sessionState.preInflationGateMet = !hasPrereqs;
       } else {
-        const preInflationText = normalizeCheckpoint(activeStory?.checkpoints?.['0']).mainTheme?.trim();
-        if (preInflationText) {
-          sessionState.preInflationGateMet = false;
-          gateActive = true;
-          console.log('[Pre-Inflation Gate] Gate CLOSED — 0% checkpoint has requirements. LLM pump commands blocked until capacity > 0.');
-        } else {
-          sessionState.preInflationGateMet = true;
-        }
+        // The separate 0% pre-inflation gate is gone — without Pre-Fill, standard cards
+        // start ungated (gating is now Pre-Fill's job).
+        sessionState.preInflationGateMet = true;
       }
     } else {
       sessionState.preInflationGateMet = true;
