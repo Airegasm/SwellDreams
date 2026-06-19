@@ -694,6 +694,21 @@
     padding: var(--spacing-sm);
   }
 
+  /* Connection rows: the desktop 4-column grid (label + 3 fields) overflows on
+     narrow screens and pushes the last field (e.g. Chat Template) off-screen.
+     Stack everything to full width so all selects stay reachable. */
+  .connection-row {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-field,
+  .connection-field-twothirds,
+  .connection-field-third,
+  .connection-field-onethird-buttons {
+    grid-column: span 1;
+    width: 100%;
+  }
+
   /* Device controls */
   .device-controls {
     width: 100%;

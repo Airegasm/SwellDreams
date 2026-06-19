@@ -11,6 +11,13 @@ All notable changes to SwellDreams will be documented in this file.
   - **Instructor Library** — A keyword-triggered term dictionary grouped into named bundles. A term's definition is injected only when the player uses that term (reuses the reminder engine's keyword activation). Multiple groups can be assigned to a card (`/api/instructor-library`, stored in `instructor-library.json`).
   - **Slim editor** — New Instructor editor with portrait, name, gender, mission, assigned profile, assigned library groups, welcome message(s), and per-capacity **Checkpoints** (with full trigger rows for device/flow actions).
   - **Prompt construction** — Instructors get a terse system prompt (identity + mission + profile + hard "no roleplay prose" directive). They receive raw capacity/pain awareness so checkpoint device actions still work, but none of the belly-state descriptive scaffolding.
+- **Global Dictionary** — A new always-on, global term dictionary under Global States (between Token Switching and Global Reminders). Groups of term/definition pairs (with per-group and per-term enable toggles) are injected into every character's prompt — no keyword trigger and not assigned per-card (`/api/dictionary`, stored in `dictionary.json`).
+- **Inflation Pre-Req (Met/Unmet) trigger** — A trigger action that forces the per-session pre-inflation gate status. Available as a checkpoint trigger, button trigger, and on the Triggers page.
+- **Fire Trigger Set flow action** — A new flow Action node that runs every trigger in a saved Trigger Set against the active character/session.
+
+### Fixed
+- **Mobile: Flow editor** — The toolbar (Save / Undo / Redo / Organize / Export) is shown again on mobile as a compact bar instead of being hidden, and palette nodes can be tapped to add to the canvas (native drag-and-drop doesn't fire on touch).
+- **Mobile: Model settings** — Connection rows now stack on narrow screens, so the Chat Template selector (and other fields) are no longer pushed off-screen.
 
 ## [v5.1.0] - 2026-06-19
 
