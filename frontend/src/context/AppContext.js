@@ -1759,16 +1759,14 @@ export function AppProvider({ children }) {
           }
         }
 
-        // Warn if the chosen model has dropped off the grid (empty = "any", always fine).
+        // Horde's model list only includes models with active workers and churns
+        // constantly, so a momentarily-absent selection is NOT an error — the job
+        // just queues until a worker picks it up (or the user chose "Any"). Log it,
+        // but never raise the model_unavailable toast (that's for OpenRouter, where a
+        // missing model is permanent). Raising it here read as "Horde disconnected".
         const selectedModel = settings?.llm?.hordeModel;
         if (selectedModel && models.length > 0 && !models.some(m => m.id === selectedModel)) {
-          console.warn(`[AppContext] Selected AI Horde model "${selectedModel}" has no workers online`);
-          window.dispatchEvent(new CustomEvent('model_unavailable', {
-            detail: {
-              modelId: selectedModel,
-              message: `The model "${selectedModel}" currently has no workers on AI Horde. It will fall back to any available model, or pick a new one in Settings > Model.`
-            }
-          }));
+          console.warn(`[AppContext] AI Horde model "${selectedModel}" has no workers online right now; it will queue or fall back to any worker.`);
         }
       } catch (e) {
         console.error('[AppContext] Failed to auto-connect to AI Horde:', e.message);

@@ -480,11 +480,27 @@ function ModelTab() {
         if (loadedSettings.hordeApiKeyMasked) {
           setHordeApiKeyMasked(loadedSettings.hordeApiKeyMasked);
         }
-        // If AI Horde is the active endpoint, hydrate the cached model list.
+        // If AI Horde is the active endpoint, restore the connection: hydrate the
+        // cached model list, or reconnect (stored key / anonymous) if the cache is
+        // empty (e.g. after a server restart). Without this the panel shows "Connect"
+        // every time the menu is reopened even though Horde is configured.
         if (loadedSettings.llm?.endpointStandard === 'aihorde') {
           try {
+            let models = [];
             const hm = await apiFetch(`${API_BASE}/api/horde/models`);
-            if (hm.models && hm.models.length > 0) setHordeModels(hm.models);
+            if (hm.models && hm.models.length > 0) {
+              models = hm.models;
+            } else {
+              const data = await apiFetch(`${API_BASE}/api/horde/reconnect`, { method: 'POST', body: '{}' });
+              if (data.success) models = data.models;
+            }
+            if (models.length > 0) {
+              setHordeModels(models);
+              setConnectionStatus('online');
+              const sel = loadedSettings.llm.hordeModel;
+              const selModel = sel && models.find(m => m.id === sel);
+              setModelStatus(selModel ? selModel.name : sel ? sel : `${models.length} models available`);
+            }
           } catch (_) { /* non-fatal */ }
         }
       } catch (error) {

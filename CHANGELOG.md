@@ -2,6 +2,12 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.7.2] - 2026-06-19
+
+### Fixed
+- **AI Horde showing "disconnected" after reopening Settings** — The Model tab now restores the live connection (and reconnects if the server's model cache was cleared) when the menu is reopened, instead of reverting to a "Connect" state every time.
+- **Spurious "model no longer available" error on AI Horde** — Horde's model list only includes models with active workers and changes constantly, so a momentarily-absent selection no longer raises an error toast; the request simply queues or falls back to any available worker.
+
 ## [v5.7.0] - 2026-06-19
 
 ### Added
