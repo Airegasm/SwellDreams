@@ -15005,6 +15005,107 @@ app.delete('/api/trigger-trees/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// --- Trigger Tree export / import (portability with fire_tree transitive closure + dedup) ---
+
+// Collect fire_tree targetIds + fire_flow flowIds referenced anywhere in a node tree.
+function collectTreeRefs(nodes, treeIds, flowIds) {
+  for (const n of (nodes || [])) {
+    if (!n) continue;
+    if (n.type === 'fire_tree' && n.params?.treeId) treeIds.add(n.params.treeId);
+    if (n.type === 'fire_flow' && n.params?.flowId) flowIds.add(n.params.flowId);
+    if (n.children) collectTreeRefs(n.children, treeIds, flowIds);
+  }
+}
+
+// Deterministic content hash of a tree's NODES (volatile node.id stripped; goto/label identity
+// is the NAME in params, which IS hashed). name/tag/source excluded so a re-tagged twin dedups.
+function sortKeysDeep(o) {
+  if (Array.isArray(o)) return o.map(sortKeysDeep);
+  if (o && typeof o === 'object') { const r = {}; for (const k of Object.keys(o).sort()) r[k] = sortKeysDeep(o[k]); return r; }
+  return o;
+}
+function canonNodes(nodes) {
+  return (nodes || []).map(n => ({ kind: n.kind, type: n.type, once: !!n.once, params: sortKeysDeep(n.params || {}), children: canonNodes(n.children) }));
+}
+function treeContentHash(tree) {
+  return require('crypto').createHash('sha256').update(JSON.stringify(canonNodes(tree.nodes))).digest('hex');
+}
+
+// Rewrite fire_tree refs through an old->new id map (only embedded deps; builtin/external unchanged).
+function remapTreeRefs(nodes, idMap) {
+  return (nodes || []).map(n => {
+    let params = n.params;
+    if (n.type === 'fire_tree' && n.params?.treeId && idMap.has(n.params.treeId)) params = { ...n.params, treeId: idMap.get(n.params.treeId) };
+    return { ...n, params, children: n.children ? remapTreeRefs(n.children, idMap) : n.children };
+  });
+}
+
+// Export a tree + its transitive fire_tree closure. Built-in deps are listed (never embedded);
+// fire_flow flowIds are listed (flows have their own export pipeline, not bundled here).
+app.get('/api/trigger-trees/:id/export', (req, res) => {
+  const data = loadTriggerTrees();
+  const byId = new Map((data.trees || []).map(t => [t.id, t]));
+  const root = byId.get(req.params.id);
+  if (!root) return res.status(404).json({ error: 'Tree not found' });
+  const trees = [], requiresBuiltIns = new Set(), flowRefs = new Set(), visited = new Set();
+  const walk = (tree) => {
+    if (!tree || visited.has(tree.id)) return;
+    visited.add(tree.id);
+    trees.push(tree);
+    const tids = new Set(), fids = new Set();
+    collectTreeRefs(tree.nodes, tids, fids);
+    fids.forEach(f => flowRefs.add(f));
+    for (const tid of tids) {
+      const dep = byId.get(tid);
+      if (!dep) continue;
+      if (dep.builtIn) { requiresBuiltIns.add(dep.id); continue; } // ships with app — never embed
+      walk(dep);
+    }
+  };
+  walk(root);
+  res.json({ format: 'swelldreams-trigger-tree', version: 1, rootId: root.id, trees, requiresBuiltIns: [...requiresBuiltIns], flowRefs: [...flowRefs] });
+});
+
+// Import an envelope into the recipient library: fresh ids, content-dedup (reuse identical
+// trees), fire_tree refs rewritten, built-in refs left to re-link by their stable id. Processes
+// in DEPENDENCY ORDER so a shared subtree dedups before its parents are hashed.
+app.post('/api/trigger-trees/import', (req, res) => {
+  const env = req.body;
+  if (!env || env.format !== 'swelldreams-trigger-tree' || !Array.isArray(env.trees)) return res.status(400).json({ error: 'Invalid envelope' });
+  const data = loadTriggerTrees();
+  if (!Array.isArray(data.trees)) data.trees = [];
+  const localByHash = new Map();
+  for (const t of data.trees) if (!t.builtIn) localByHash.set(treeContentHash(t), t.id);
+
+  const envById = new Map(env.trees.map(t => [t.id, t]));
+  const order = [], seen = new Set();
+  const visit = (id) => {
+    if (seen.has(id)) return; seen.add(id);
+    const t = envById.get(id); if (!t) return;
+    const deps = new Set(), fl = new Set(); collectTreeRefs(t.nodes, deps, fl);
+    for (const d of deps) if (envById.has(d)) visit(d); // deps (leaves) first
+    order.push(t);
+  };
+  for (const t of env.trees) visit(t.id);
+
+  const idMap = new Map(); // envelope id -> local id
+  let added = 0, reused = 0;
+  for (const t of order) {
+    const rewritten = remapTreeRefs(t.nodes, idMap); // deps already have local ids
+    const hash = treeContentHash({ nodes: rewritten });
+    const existing = localByHash.get(hash);
+    if (existing) { idMap.set(t.id, existing); reused++; continue; }
+    const newId = `tree-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    data.trees.push({ id: newId, name: t.name || 'Imported Tree', tag: t.tag || '', source: t.source || 'imported', builtIn: false, nodes: rewritten });
+    localByHash.set(hash, newId);
+    idMap.set(t.id, newId);
+    added++;
+  }
+  saveTriggerTrees(data);
+  const missingBuiltIns = (env.requiresBuiltIns || []).filter(id => !data.trees.some(t => t.id === id));
+  res.json({ success: true, rootId: idMap.get(env.rootId) || null, added, reused, missingBuiltIns, flowRefs: env.flowRefs || [] });
+});
+
 // TEMP step-2 smoke endpoint for the Trigger Tree walker — guard/remove before prod.
 // Seeds optional state, snapshots+restores the reply sinks (so it's non-destructive to a live
 // reply), runs the tree, and returns what it produced. firedTreeNodes is intentionally left

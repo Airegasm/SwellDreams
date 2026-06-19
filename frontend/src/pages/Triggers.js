@@ -251,6 +251,30 @@ function Triggers() {
     catch (err) { console.error('Failed to delete tree', err); }
   };
 
+  const handleExportTree = async (id) => {
+    try {
+      const env = await api.exportTriggerTree(id);
+      const blob = new Blob([JSON.stringify(env, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(trees.find(t => t.id === id)?.name || 'tree').replace(/[^a-z0-9]+/gi, '_')}.tree.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { console.error('Export failed', err); }
+  };
+  const handleImportTree = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const env = JSON.parse(await file.text());
+      const res = await api.importTriggerTree(env);
+      await loadTrees(res?.rootId || undefined);
+      if (res?.missingBuiltIns?.length) window.alert(`Imported (${res.added} new, ${res.reused} reused). Missing built-in trees: ${res.missingBuiltIns.join(', ')}`);
+    } catch (err) { console.error('Import failed', err); window.alert('Import failed: ' + (err.message || err)); }
+    e.target.value = '';
+  };
+
   const filteredTrees = trees.filter(t => {
     if (!treeFilter.trim()) return true;
     const q = treeFilter.toLowerCase();
@@ -279,6 +303,10 @@ function Triggers() {
             <div className="triggers-layout">
               <div className="triggers-list-col">
                 <button type="button" className="btn btn-primary" onClick={handleNewTree} style={{ width: '100%' }}>+ New Tree</button>
+                <label className="btn btn-sm btn-secondary" style={{ width: '100%', textAlign: 'center', cursor: 'pointer', marginTop: 4 }}>
+                  Import Tree…
+                  <input type="file" accept="application/json,.json" onChange={handleImportTree} style={{ display: 'none' }} />
+                </label>
                 <input type="text" value={treeFilter} onChange={(e) => setTreeFilter(e.target.value)} placeholder="filter by name / tag / source" style={{ width: '100%', margin: '6px 0' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {filteredTrees.length === 0 && <div style={{ opacity: 0.6, fontSize: '0.85rem', padding: '8px' }}>No library trees{treeFilter ? ' match' : ' yet'}.</div>}
@@ -295,6 +323,9 @@ function Triggers() {
                 {selectedTree && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {selectedTree.builtIn && <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>🔒 Built-in tree — read-only.</div>}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleExportTree(selectedTree.id)} title="Export this tree + its fire_tree closure">Export…</button>
+                    </div>
                     <div className="form-group" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <input type="text" value={selectedTree.name || ''} disabled={selectedTree.builtIn} onChange={(e) => mutateTree(selectedTree.id, t => ({ ...t, name: e.target.value }))} placeholder="tree name" style={{ flex: 2, minWidth: 160 }} />
                       <input type="text" value={selectedTree.tag || ''} disabled={selectedTree.builtIn} onChange={(e) => mutateTree(selectedTree.id, t => ({ ...t, tag: e.target.value }))} placeholder="tag / folder" style={{ flex: 1, minWidth: 100 }} />

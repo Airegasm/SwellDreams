@@ -1450,6 +1450,10 @@ export function AppProvider({ children }) {
     deleteTriggerTree: (id) => apiFetch(`${API_BASE}/api/trigger-trees/${id}`, {
       method: 'DELETE'
     }),
+    exportTriggerTree: (id) => apiFetch(`${API_BASE}/api/trigger-trees/${id}/export`),
+    importTriggerTree: (envelope) => apiFetch(`${API_BASE}/api/trigger-trees/import`, {
+      method: 'POST', body: JSON.stringify(envelope)
+    }),
 
     // Instructor profiles (named system-prompt briefs assignable to Instructor cards)
     getInstructorProfiles: () => apiFetch(`${API_BASE}/api/instructor-profiles`),
