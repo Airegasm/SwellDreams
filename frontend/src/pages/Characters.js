@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CharacterTab from '../components/settings/CharacterTab';
+import InstructorSettingsTab from '../components/settings/InstructorSettingsTab';
 import './Settings.css';
+
+const CHARACTER_TABS = [
+  { id: 'select', label: 'Character Select' },
+  { id: 'instructor', label: 'Instructor Settings' },
+];
 
 function Characters() {
   const navigate = useNavigate();
   const [animationState, setAnimationState] = useState('entering');
+  const [activeTab, setActiveTab] = useState('select');
   const isExiting = useRef(false);
 
   useEffect(() => {
@@ -54,8 +61,19 @@ function Characters() {
             &times;
           </button>
         </div>
+        <div className="tabs">
+          {CHARACTER_TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`tab ${activeTab === t.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="tab-content">
-          <CharacterTab />
+          {activeTab === 'select' ? <CharacterTab /> : <InstructorSettingsTab />}
         </div>
       </div>
     </>

@@ -82,7 +82,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -2013,6 +2013,26 @@ function Chat() {
         {/* Character Portrait */}
         <div className={`entity-portrait-large ${characterHidden ? 'portrait-hidden' : ''}`}>
           <PortraitDisplay portrait={characterPortraitData} alt={activeCharacter?.name} />
+          {/* Multichar speak/mute overlay — stacked member names; click the bubble to mute */}
+          {activeCharacter?.multiChar?.enabled && (activeCharacter.multiChar.characters || []).length > 0 && (
+            <div className="multichar-mute-overlay">
+              {activeCharacter.multiChar.characters.map(m => {
+                const muted = (sessionState.mutedMembers || []).includes(m.id);
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    className={`multichar-mute-chip ${muted ? 'muted' : ''}`}
+                    onClick={() => toggleMemberMute(m.id, !muted)}
+                    title={muted ? `${m.name} is silent — click to let them speak` : `${m.name} can speak — click to silence`}
+                  >
+                    <span className="multichar-mute-name">{m.name || 'Character'}</span>
+                    <span className="multichar-mute-bubble">{muted ? '🚫' : '💬'}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {/* Visibility toggle */}
           <button
             className={`portrait-visibility-toggle ${characterHidden ? 'hidden' : ''}`}

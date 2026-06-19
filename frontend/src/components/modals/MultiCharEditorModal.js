@@ -72,7 +72,7 @@ function migrateStoryToV2(story, character) {
 }
 
 function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
-  const { flows, devices, settings, personas, api } = useApp();
+  const { flows, devices, settings, personas, api, characters } = useApp();
 
   const systemGlobalReminders = settings?.globalReminders || [];
 
@@ -692,6 +692,51 @@ Write only the scenario description itself, no explanations.`;
     });
   };
 
+  // Import an existing single-char card as a new member (name/desc/personality/
+  // gender/portrait/example dialogues + its attributes onto the active story).
+  const handleImportCharacter = (charId) => {
+    const src = (characters || []).find(c => c.id === charId && !c.multiChar?.enabled);
+    if (!src) return;
+    const srcStory = src.stories?.find(s => s.id === src.activeStoryId) || src.stories?.[0];
+    const newId = `mc-${Date.now()}`;
+    const newMember = {
+      id: newId,
+      name: src.name || '',
+      description: src.description || '',
+      personality: src.personality || '',
+      gender: src.gender || '',
+      portrait: src.avatar || '',
+      exampleDialogues: (srcStory?.exampleDialogues || src.exampleDialogues || [])
+        .map(e => ({ user: e.user || '', character: e.character || '' }))
+    };
+    const importedAttrs = { ...(srcStory?.attributes || {}) };
+    setFormData(prev => {
+      const chars = [...(prev.multiChar?.characters || []), newMember];
+      const activeStoryId = prev.activeStoryId || prev.stories?.[0]?.id;
+      const stories = (prev.stories || []).map(s =>
+        s.id === activeStoryId
+          ? { ...s, memberAttributes: { ...(s.memberAttributes || {}), [newId]: importedAttrs } }
+          : s
+      );
+      return { ...prev, multiChar: { ...prev.multiChar, characters: chars }, stories };
+    });
+    setSelectedCharIndex((formData.multiChar?.characters || []).length); // focus the new member
+  };
+
+  // Per-member attribute write (active story's memberAttributes[memberId])
+  const updateMemberAttribute = (memberId, trait, value) => {
+    setFormData(prev => {
+      const activeStoryId = prev.activeStoryId || prev.stories?.[0]?.id;
+      const stories = (prev.stories || []).map(s => {
+        if (s.id !== activeStoryId) return s;
+        const ma = { ...(s.memberAttributes || {}) };
+        ma[memberId] = { ...(ma[memberId] || {}), [trait]: value };
+        return { ...s, memberAttributes: ma };
+      });
+      return { ...prev, stories };
+    });
+  };
+
   // Story management
   const handleStoryChange = (storyId) => {
     setSelectedStoryId(storyId);
@@ -1297,6 +1342,17 @@ Write only the scenario description itself, no explanations.`;
                     <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddMultiChar}>
                       + Add Character
                     </button>
+                    <select
+                      className="multi-char-selector"
+                      value=""
+                      onChange={(e) => { if (e.target.value) handleImportCharacter(e.target.value); e.target.value = ''; }}
+                      style={{ marginTop: '0.4rem' }}
+                    >
+                      <option value="">+ Import from single-char card…</option>
+                      {(characters || []).filter(c => !c.multiChar?.enabled).map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1327,6 +1383,39 @@ Write only the scenario description itself, no explanations.`;
                     onChange={(e) => handleMultiCharFieldChange(selectedCharIndex, 'personality', e.target.value)}
                     placeholder={`Personality traits for ${multiChars[selectedCharIndex]?.name || 'this character'}...`}
                   />
+                </div>
+
+                {/* Per-member gender + portrait (placeholder) */}
+                <div className="form-group" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+                  <div style={{ flex: '0 0 auto' }}>
+                    <label>Gender</label>
+                    <select
+                      value={multiChars[selectedCharIndex]?.gender || ''}
+                      onChange={(e) => handleMultiCharFieldChange(selectedCharIndex, 'gender', e.target.value)}
+                    >
+                      <option value="">Unspecified (they/them)</option>
+                      <option value="male">Male (he/him)</option>
+                      <option value="female">Female (she/her)</option>
+                      <option value="nonbinary">Non-binary (they/them)</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label>Portrait (placeholder)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => handleMultiCharFieldChange(selectedCharIndex, 'portrait', reader.result);
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    {multiChars[selectedCharIndex]?.portrait && (
+                      <img src={multiChars[selectedCharIndex].portrait} alt="portrait" style={{ height: 48, marginTop: 4, borderRadius: 4 }} />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -2299,7 +2388,7 @@ Write only the scenario description itself, no explanations.`;
                       }} title="Add trigger">+</button>
                     </div>
                     {(activeStory?.checkpointTriggers?.[key] || []).map((trigger, tIdx) => (
-                      <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false}
+                      <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false} members={multiChars}
                         reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
                         onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[key] || [])]; items[tIdx] = updated; ct[key] = items; updateStoryField('checkpointTriggers', ct); }}
                         onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[key] = (ct[key] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
@@ -2314,33 +2403,50 @@ Write only the scenario description itself, no explanations.`;
           {/* Attributes Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              <h4>Personality Attributes</h4>
-              <p className="section-hint">Each attribute has a chance to activate per message. When active, it injects personality-driving instructions for that response. Multiple attributes can fire simultaneously.</p>
+              <h4>Personality Attributes (per character)</h4>
+              <p className="section-hint">Each member rolls their own attributes per message. When active, the trait's personality drive is injected for that character. Pick a character to set their probabilities. Triggers and flow nodes can target a specific member at runtime.</p>
 
-              {[
-                { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
-                { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
-                { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
-                { key: 'sensual', label: 'Sensual', hint: 'Be caring, tender, and amorous. Focus on intimacy and connection.' },
-                { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
-              ].map(({ key, label, hint }) => (
-                <div className="form-group" key={key}>
-                  <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
-                  <p className="section-hint">{hint}</p>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={activeStory?.attributes?.[key] || 0}
-                    onChange={(e) => updateStoryField('attributes', {
-                      ...(activeStory?.attributes || {}),
-                      [key]: parseInt(e.target.value)
-                    })}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              ))}
+              <div className="form-group">
+                <label>Character</label>
+                <select
+                  className="multi-char-selector"
+                  value={selectedCharIndex}
+                  onChange={(e) => setSelectedCharIndex(parseInt(e.target.value))}
+                >
+                  {multiChars.map((mc, i) => (
+                    <option key={mc.id} value={i}>{mc.name || `Character ${i + 1}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              {(() => {
+                const attrMemberId = multiChars[selectedCharIndex]?.id;
+                const memberAttrs = activeStory?.memberAttributes?.[attrMemberId] || {};
+                const groupAttrs = activeStory?.attributes || {};
+                const getVal = (key) => memberAttrs[key] ?? groupAttrs[key] ?? 0;
+                return [
+                  { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
+                  { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
+                  { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
+                  { key: 'sensual', label: 'Sensual', hint: 'Be caring, tender, and amorous. Focus on intimacy and connection.' },
+                  { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
+                ].map(({ key, label, hint }) => (
+                  <div className="form-group" key={key}>
+                    <label>{label}: {getVal(key)}%</label>
+                    <p className="section-hint">{hint}</p>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={getVal(key)}
+                      onChange={(e) => updateMemberAttribute(attrMemberId, key, parseInt(e.target.value))}
+                      style={{ width: '100%' }}
+                      disabled={!attrMemberId}
+                    />
+                  </div>
+                ));
+              })()}
             </div>
           </div>
 

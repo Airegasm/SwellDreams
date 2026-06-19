@@ -3459,8 +3459,9 @@ async function executeTrigger(trigger, source, character, settings) {
       case 'set_attribute': {
         const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
         if (activeStory && trigger.trait) {
-          activeStory.attributes = activeStory.attributes || {};
-          activeStory.attributes[trigger.trait] = trigger.value ?? 50;
+          // For multichar, trigger.targetMember routes to that member's attributes
+          const store = resolveAttributeStore(activeStory, trigger.targetMember);
+          store[trigger.trait] = trigger.value ?? 50;
           await saveCharacterAsync(character);
         }
         break;
@@ -3493,11 +3494,11 @@ async function executeTrigger(trigger, source, character, settings) {
       case 'nudge_attribute': {
         const nudgeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
         if (nudgeStory && trigger.trait) {
-          nudgeStory.attributes = nudgeStory.attributes || {};
-          const current = nudgeStory.attributes[trigger.trait] ?? 50;
-          nudgeStory.attributes[trigger.trait] = Math.max(0, Math.min(100, current + (parseInt(trigger.value) || 0)));
+          const store = resolveAttributeStore(nudgeStory, trigger.targetMember);
+          const current = store[trigger.trait] ?? 50;
+          store[trigger.trait] = Math.max(0, Math.min(100, current + (parseInt(trigger.value) || 0)));
           await saveCharacterAsync(character);
-          console.log(`[Trigger/${source}] Nudged char ${trigger.trait}: ${current} → ${nudgeStory.attributes[trigger.trait]}`);
+          console.log(`[Trigger/${source}] Nudged char ${trigger.trait}${trigger.targetMember ? ` (${trigger.targetMember})` : ''}: ${current} → ${store[trigger.trait]}`);
         }
         break;
       }
@@ -4875,7 +4876,9 @@ async function sendWelcomeMessage(character, settings) {
         'the player';
       const substituteVarsWelcome = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
       let systemPrompt;
-      if (character.multiChar?.enabled) {
+      if (isInstructor(character)) {
+        systemPrompt = buildInstructorSystemPrompt(character, playerName, substituteVarsWelcome);
+      } else if (character.multiChar?.enabled) {
         systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVarsWelcome);
       } else {
         systemPrompt = `You are ${character.name}. ${character.description}\n`;
@@ -4890,6 +4893,9 @@ async function sendWelcomeMessage(character, settings) {
       if (scenario) {
         systemPrompt += `Scenario: ${scenario}\n\n`;
       }
+
+      // Always-on global dictionary (applies to every character/session)
+      systemPrompt += buildDictionaryPrompt();
 
       // Add active reminders (using reminder engine for keyword-based activation)
       const memSettingsAutoReply = getChatMemorySettings(settings);
@@ -4921,16 +4927,20 @@ async function sendWelcomeMessage(character, settings) {
       const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
       const painLabel = painLabels[painLevel] || 'None';
 
-      systemPrompt += `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
-      systemPrompt += `${playerName}'s belly is at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-      systemPrompt += `${playerName}'s pain/discomfort level is EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
-      systemPrompt += `STRICT RULES:\n`;
-      systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-      systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
-      systemPrompt += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage\n`;
-      systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
-      systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
-      systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+      if (isInstructor(character)) {
+        systemPrompt += `\nCurrent capacity: ${capacity}%. Pain: ${painLabel} (${painLevel}/10).\n\n`;
+      } else {
+        systemPrompt += `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
+        systemPrompt += `${playerName}'s belly is at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
+        systemPrompt += `${playerName}'s pain/discomfort level is EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
+        systemPrompt += `STRICT RULES:\n`;
+        systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
+        systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
+        systemPrompt += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage\n`;
+        systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
+        systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
+        systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+      }
 
       // Inject pre-inflation checkpoint for welcome message
       const checkpointWelcome = getActiveCheckpoint(character, capacity);
@@ -4938,7 +4948,11 @@ async function sendWelcomeMessage(character, settings) {
         systemPrompt += `=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointWelcome.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n\n`;
       }
 
-      systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
+      if (isInstructor(character)) {
+        systemPrompt += `Deliver the opening instruction to the player. Stay terse, direct, and on-mission — do not embellish. Base it on this template:\n\n"${welcomeMsg.text}"`;
+      } else {
+        systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
+      }
 
       const result = await llmService.generate({
         prompt: `${character.name}:`,
@@ -6889,6 +6903,18 @@ async function handleWsMessage(ws, type, data) {
         data.selectedIds
       );
       break;
+
+    case 'toggle_member_mute': {
+      // Toggle whether a multichar member can speak/reply this session
+      const list = new Set(sessionState.mutedMembers || []);
+      if (data.muted === true) list.add(data.memberId);
+      else if (data.muted === false) list.delete(data.memberId);
+      else if (list.has(data.memberId)) list.delete(data.memberId);
+      else list.add(data.memberId);
+      sessionState.mutedMembers = Array.from(list);
+      broadcast('member_mute_update', { mutedMembers: sessionState.mutedMembers });
+      break;
+    }
 
     case 'challenge_result':
       // Pass full result data object (outputId, rollTotal, slots, segmentLabel, etc.)
@@ -9174,8 +9200,54 @@ function buildPersonaDispositionContext(persona, playerName) {
   return `Player's inflation drives: ${parts.join('. ')}.\n`;
 }
 
+// Pronoun string for a per-member gender (multichar). Empty when unset.
+function genderPronoun(gender) {
+  switch ((gender || '').toLowerCase()) {
+    case 'male': return 'he/him';
+    case 'female': return 'she/her';
+    case 'nonbinary': case 'nb': case 'they': return 'they/them';
+    default: return '';
+  }
+}
+
+// Resolve which attribute object a mutation targets: a specific multichar member
+// (story.memberAttributes[id]) or the shared/group story attributes.
+function resolveAttributeStore(story, targetMember) {
+  if (targetMember && targetMember !== 'group' && targetMember !== 'all') {
+    story.memberAttributes = story.memberAttributes || {};
+    story.memberAttributes[targetMember] = story.memberAttributes[targetMember] || {};
+    return story.memberAttributes[targetMember];
+  }
+  story.attributes = story.attributes || {};
+  return story.attributes;
+}
+
 function rollAttributes(character) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+
+  // Multichar: roll each member independently into sessionState.multiCharAttributes.
+  // Each member uses its own memberAttributes profile, falling back to the shared
+  // story attributes when it has none. The single activeAttributes is left empty
+  // (the per-member block in buildMultiCharSystemPrompt replaces it).
+  if (character?.multiChar?.enabled && sessionState) {
+    const memberAttrs = activeStory?.memberAttributes || {};
+    const fallback = activeStory?.attributes || {};
+    const byMember = {};
+    const rolls = [];
+    for (const m of (character.multiChar.characters || [])) {
+      const attrs = (memberAttrs[m.id] && Object.keys(memberAttrs[m.id]).length) ? memberAttrs[m.id] : fallback;
+      const active = [];
+      for (const [trait, chance] of Object.entries(attrs)) {
+        if (chance > 0 && Math.random() * 100 < chance) active.push(trait);
+      }
+      byMember[m.id] = active;
+      if (active.length) rolls.push({ member: m.name, traits: active });
+    }
+    sessionState.multiCharAttributes = byMember;
+    return { active: [], rolls, multiChar: true };
+  }
+  if (sessionState) sessionState.multiCharAttributes = null;
+
   const attributes = activeStory?.attributes;
   if (!attributes) return { active: [], rolls: [] };
   const active = [];
@@ -9921,20 +9993,44 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
 
 // Build system prompt for multi-character cards
 function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
-  const chars = character.multiChar.characters;
-  const names = chars.map(c => c.name).join(', ');
+  const chars = character.multiChar.characters || [];
+  const muted = new Set(sessionState?.mutedMembers || []);
+  const activeChars = chars.filter(c => !muted.has(c.id));
+  const silentChars = chars.filter(c => muted.has(c.id));
+  // If every member is muted, fall back to all (avoid an empty cast).
+  const speakable = activeChars.length ? activeChars : chars;
+  const names = speakable.map(c => c.name).join(', ');
 
   let prompt = `You are a collaborative fiction writer portraying: ${names}.\n`;
   prompt += `Write realistic, natural roleplay. Use "dialogue in quotes" and *actions/descriptions in asterisks*. Break responses into short paragraphs.\n\n`;
   prompt += `CHARACTERS:\n`;
   for (const c of chars) {
-    prompt += `- ${c.name}: ${substituteVars(c.description)}\n`;
+    const pron = genderPronoun(c.gender);
+    const silent = muted.has(c.id) && speakable !== chars;
+    prompt += `- ${c.name}${pron ? ` (${pron})` : ''}${silent ? ' [PRESENT BUT SILENT THIS TURN]' : ''}: ${substituteVars(c.description)}\n`;
     if (c.personality) {
       prompt += `  Personality: ${substituteVars(c.personality)}\n`;
+    }
+    // Per-member current personality drive (rolled this turn)
+    const active = sessionState?.multiCharAttributes?.[c.id] || [];
+    if (active.length && !silent) {
+      const labels = active.map(t => t.charAt(0).toUpperCase() + t.slice(1));
+      prompt += `  RIGHT NOW ${c.name} is driven by ${labels.join(', ')}: ${active.map(t => ATTRIBUTE_PROMPTS[t]).filter(Boolean).join(' ')}\n`;
+    }
+    // Per-member voice examples
+    if (Array.isArray(c.exampleDialogues) && c.exampleDialogues.length) {
+      const ex = c.exampleDialogues.slice(0, 2)
+        .filter(e => e && (e.user || e.character))
+        .map(e => `    ${playerName}: ${substituteVars(e.user || '')}\n    ${c.name}: ${substituteVars(e.character || '')}`)
+        .join('\n');
+      if (ex) prompt += `  Voice example:\n${ex}\n`;
     }
   }
   prompt += `\nRULES:\n`;
   prompt += `- Write ONLY for ${names}. NEVER write dialogue or actions for ${playerName}.\n`;
+  if (silentChars.length && speakable !== chars) {
+    prompt += `- Do NOT write dialogue or actions for ${silentChars.map(c => c.name).join(', ')} this turn — they are present in the scene but silent.\n`;
+  }
   prompt += `- Attribute dialogue and actions to characters by name.\n`;
   prompt += `- Keep dialogue natural and concise — people speak in short sentences, not paragraphs.\n`;
   prompt += `\nCONVERSATION DYNAMICS (important):\n`;
@@ -9946,6 +10042,126 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   prompt += `- Avoid the pattern of every character commenting on the same thing in sequence. Real groups don't take orderly turns.\n`;
   prompt += `\n`;
   return prompt;
+}
+
+// ===== Instructor character type =====
+// Instructor cards are stored as ordinary characters marked with instructor.enabled.
+// They speak only in direct, non-embellished, mission-specific instructions (no RP prose).
+function isInstructor(character) {
+  return !!character?.instructor?.enabled;
+}
+
+const INSTRUCTOR_PROFILES_PATH = path.join(DATA_DIR, 'instructor-profiles.json');
+const INSTRUCTOR_LIBRARY_PATH = path.join(DATA_DIR, 'instructor-library.json');
+
+function loadInstructorProfiles() {
+  try {
+    return JSON.parse(fs.readFileSync(INSTRUCTOR_PROFILES_PATH, 'utf8'));
+  } catch (e) {
+    return { profiles: [] };
+  }
+}
+
+function saveInstructorProfiles(data) {
+  fs.writeFileSync(INSTRUCTOR_PROFILES_PATH, JSON.stringify(data, null, 2));
+}
+
+function loadInstructorLibrary() {
+  try {
+    return JSON.parse(fs.readFileSync(INSTRUCTOR_LIBRARY_PATH, 'utf8'));
+  } catch (e) {
+    return { groups: [] };
+  }
+}
+
+function saveInstructorLibrary(data) {
+  fs.writeFileSync(INSTRUCTOR_LIBRARY_PATH, JSON.stringify(data, null, 2));
+}
+
+// Build the terse instructor system prompt: identity + mission + assigned profile + hard
+// behavioral constraints. No belly-state prose is added by this function (see callers).
+function buildInstructorSystemPrompt(character, playerName, substituteVars) {
+  const name = character.name || 'Instructor';
+  let p = `You are ${name}`;
+  if (character.gender) p += `, ${character.gender}`;
+  p += `.\n`;
+  if (character.mission) {
+    p += `Mission: ${substituteVars(character.mission)}\n`;
+  }
+  if (character.instructorProfileId) {
+    const profile = (loadInstructorProfiles().profiles || []).find(pr => pr.id === character.instructorProfileId);
+    if (profile && profile.prompt) {
+      p += `\n${substituteVars(profile.prompt)}\n`;
+    }
+  }
+  p += `\n=== INSTRUCTOR DIRECTIVE (MANDATORY) ===\n`;
+  p += `You are an instructor/operator, not a roleplay character. Speak ONLY in direct, non-embellished, mission-specific instructions and clarifications to ${playerName}.\n`;
+  p += `- No narration, no scene-setting, no prose, no internal monologue.\n`;
+  p += `- No asterisk actions (*...*), no emotive description, no embellishment.\n`;
+  p += `- Output only what the instructor would say aloud: commands, corrections, confirmations, and concise answers.\n`;
+  p += `- Stay strictly on mission. Be terse and precise.\n`;
+  p += `=== END INSTRUCTOR DIRECTIVE ===\n\n`;
+  return p;
+}
+
+// Keyword-triggered term lookup: assigned library groups -> reminder-shaped objects ->
+// reminder engine keyword activation. Returns active reminder-shaped entries.
+function getInstructorActiveTerms(character, recentMessages) {
+  const groupIds = character.instructorLibraryGroupIds || [];
+  if (!groupIds.length) return [];
+  const groups = loadInstructorLibrary().groups || [];
+  const terms = [];
+  for (const g of groups) {
+    if (!groupIds.includes(g.id)) continue;
+    for (const t of (g.terms || [])) {
+      if (!t || !t.definition || !t.term) continue;
+      const keys = (Array.isArray(t.keys) && t.keys.length ? t.keys : [t.term]).filter(Boolean);
+      terms.push({
+        name: t.term,
+        text: `${t.term}: ${t.definition}`,
+        constant: false,
+        keys,
+        caseSensitive: !!t.caseSensitive,
+        enabled: true,
+        priority: 100,
+        scanDepth: 10
+      });
+    }
+  }
+  return reminderEngine.getActiveReminders(terms, recentMessages);
+}
+
+// ===== Global Dictionary =====
+// Always-on, global term definitions injected into every character's system prompt.
+// Same group/term structure as the Instructor Library, but never keyword-gated and not
+// assigned per-card — it applies to all sessions.
+const DICTIONARY_PATH = path.join(DATA_DIR, 'dictionary.json');
+
+function loadDictionary() {
+  try {
+    return JSON.parse(fs.readFileSync(DICTIONARY_PATH, 'utf8'));
+  } catch (e) {
+    return { groups: [] };
+  }
+}
+
+function saveDictionary(data) {
+  fs.writeFileSync(DICTIONARY_PATH, JSON.stringify(data, null, 2));
+}
+
+// Build the always-on dictionary block from every enabled group/term.
+function buildDictionaryPrompt() {
+  const groups = loadDictionary().groups || [];
+  const lines = [];
+  for (const g of groups) {
+    if (g.enabled === false) continue;
+    for (const t of (g.terms || [])) {
+      if (!t || !t.term || !t.definition) continue;
+      lines.push(`- ${t.term}: ${t.definition}`);
+    }
+  }
+  if (!lines.length) return '';
+  return `Dictionary (always applies):\n${lines.join('\n')}\n\n`;
 }
 
 function buildChatContext(character, settings) {
@@ -10007,7 +10223,9 @@ function buildChatContext(character, settings) {
 
   // Build system prompt from character
   let systemPrompt;
-  if (character.multiChar?.enabled) {
+  if (isInstructor(character)) {
+    systemPrompt = buildInstructorSystemPrompt(character, playerName, substituteVars);
+  } else if (character.multiChar?.enabled) {
     systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
   } else {
     systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
@@ -10018,6 +10236,9 @@ function buildChatContext(character, settings) {
   if (scenario) {
     systemPrompt += `Scenario: ${substituteVars(scenario)}\n\n`;
   }
+
+  // Always-on global dictionary (applies to every character/session)
+  systemPrompt += buildDictionaryPrompt();
 
   // Add player info if available
   if (activePersona) {
@@ -10042,29 +10263,44 @@ function buildChatContext(character, settings) {
 
   // Add player's current physical/emotional state
   const playerLabel = activePersona?.displayName || 'The player';
-  systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
-  systemPrompt += buildCharacterInflationContext(character);
-
-  systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
-
-  // Add recent challenge result if available
-  if (sessionState.lastChallengeResult) {
-    const cr = sessionState.lastChallengeResult;
-    const isRecent = (Date.now() - cr.timestamp) < 60000;
-    if (isRecent) {
-      systemPrompt += `\nChallenge just occurred: ${cr.typeName} — ${playerLabel} ${cr.description}. React to this outcome.\n`;
-    }
-  }
-
-  // Add active reminders (using reminder engine for keyword-based activation)
   const recentMessagesChat = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
-  const activeRemindersChat = reminderEngine.getMergedActiveReminders(
-    character.constantReminders || [],
-    settings.globalReminders || [],
-    recentMessagesChat
-  );
-  if (activeRemindersChat.length > 0) {
-    systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Reminders');
+
+  if (isInstructor(character)) {
+    // Instructors get raw capacity awareness (so they can command device/checkpoint actions)
+    // but none of the belly-state prose. Terms are keyword-activated from assigned library groups.
+    const capacityNow = Math.round(sessionState.capacity || 0);
+    const painLabelsInstr = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
+    const painLabelNow = painLabelsInstr[sessionState.pain || 0] || 'None';
+    systemPrompt += `\nCurrent capacity: ${capacityNow}%. Pain: ${painLabelNow} (${sessionState.pain || 0}/10).\n`;
+
+    const activeTerms = getInstructorActiveTerms(character, recentMessagesChat);
+    if (activeTerms.length > 0) {
+      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeTerms, 'Known Terms');
+    }
+  } else {
+    systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
+    systemPrompt += buildCharacterInflationContext(character);
+
+    systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
+
+    // Add recent challenge result if available
+    if (sessionState.lastChallengeResult) {
+      const cr = sessionState.lastChallengeResult;
+      const isRecent = (Date.now() - cr.timestamp) < 60000;
+      if (isRecent) {
+        systemPrompt += `\nChallenge just occurred: ${cr.typeName} — ${playerLabel} ${cr.description}. React to this outcome.\n`;
+      }
+    }
+
+    // Add active reminders (using reminder engine for keyword-based activation)
+    const activeRemindersChat = reminderEngine.getMergedActiveReminders(
+      character.constantReminders || [],
+      settings.globalReminders || [],
+      recentMessagesChat
+    );
+    if (activeRemindersChat.length > 0) {
+      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Reminders');
+    }
   }
 
   // Author note is injected into the chat history at configurable depth (see below),
@@ -13100,6 +13336,129 @@ app.delete('/api/checkpoint-profiles/:id', (req, res) => {
   if (profiles[type][idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in profiles' });
   profiles[type].splice(idx, 1);
   saveCheckpointProfiles(profiles);
+  res.json({ success: true });
+});
+
+// --- Instructor Profiles (named system-prompt briefs assignable to Instructor cards) ---
+// loadInstructorProfiles/saveInstructorProfiles are declared near buildInstructorSystemPrompt.
+
+app.get('/api/instructor-profiles', (req, res) => {
+  res.json(loadInstructorProfiles());
+});
+
+app.post('/api/instructor-profiles', (req, res) => {
+  const { name, prompt } = req.body;
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ error: 'name required' });
+  }
+  const data = loadInstructorProfiles();
+  if (!Array.isArray(data.profiles)) data.profiles = [];
+  const id = `instr-${Date.now()}`;
+  data.profiles.push({ id, name, prompt: prompt || '', builtIn: false });
+  saveInstructorProfiles(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/instructor-profiles/:id', (req, res) => {
+  const { name, prompt } = req.body;
+  const data = loadInstructorProfiles();
+  const idx = (data.profiles || []).findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (data.profiles[idx].builtIn) return res.status(400).json({ error: 'Cannot modify built-in profiles' });
+  if (name !== undefined) data.profiles[idx].name = name;
+  if (prompt !== undefined) data.profiles[idx].prompt = prompt;
+  saveInstructorProfiles(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/instructor-profiles/:id', (req, res) => {
+  const data = loadInstructorProfiles();
+  const idx = (data.profiles || []).findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Profile not found' });
+  if (data.profiles[idx].builtIn) return res.status(400).json({ error: 'Cannot delete built-in profiles' });
+  data.profiles.splice(idx, 1);
+  saveInstructorProfiles(data);
+  res.json({ success: true });
+});
+
+// --- Instructor Library (keyword-triggered term groups assignable to Instructor cards) ---
+// loadInstructorLibrary/saveInstructorLibrary are declared near buildInstructorSystemPrompt.
+
+app.get('/api/instructor-library', (req, res) => {
+  res.json(loadInstructorLibrary());
+});
+
+app.post('/api/instructor-library', (req, res) => {
+  const { name, terms } = req.body;
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ error: 'name required' });
+  }
+  const data = loadInstructorLibrary();
+  if (!Array.isArray(data.groups)) data.groups = [];
+  const id = `lib-${Date.now()}`;
+  data.groups.push({ id, name, terms: Array.isArray(terms) ? terms : [] });
+  saveInstructorLibrary(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/instructor-library/:id', (req, res) => {
+  const { name, terms } = req.body;
+  const data = loadInstructorLibrary();
+  const idx = (data.groups || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Term group not found' });
+  if (name !== undefined) data.groups[idx].name = name;
+  if (terms !== undefined) data.groups[idx].terms = Array.isArray(terms) ? terms : [];
+  saveInstructorLibrary(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/instructor-library/:id', (req, res) => {
+  const data = loadInstructorLibrary();
+  const idx = (data.groups || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Term group not found' });
+  data.groups.splice(idx, 1);
+  saveInstructorLibrary(data);
+  res.json({ success: true });
+});
+
+// --- Global Dictionary (always-on, global term definitions) ---
+// loadDictionary/saveDictionary are declared near buildDictionaryPrompt.
+
+app.get('/api/dictionary', (req, res) => {
+  res.json(loadDictionary());
+});
+
+app.post('/api/dictionary', (req, res) => {
+  const { name, terms, enabled } = req.body;
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ error: 'name required' });
+  }
+  const data = loadDictionary();
+  if (!Array.isArray(data.groups)) data.groups = [];
+  const id = `dict-${Date.now()}`;
+  data.groups.push({ id, name, enabled: enabled !== false, terms: Array.isArray(terms) ? terms : [] });
+  saveDictionary(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/dictionary/:id', (req, res) => {
+  const { name, terms, enabled } = req.body;
+  const data = loadDictionary();
+  const idx = (data.groups || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Term group not found' });
+  if (name !== undefined) data.groups[idx].name = name;
+  if (terms !== undefined) data.groups[idx].terms = Array.isArray(terms) ? terms : [];
+  if (enabled !== undefined) data.groups[idx].enabled = enabled;
+  saveDictionary(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/dictionary/:id', (req, res) => {
+  const data = loadDictionary();
+  const idx = (data.groups || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Term group not found' });
+  data.groups.splice(idx, 1);
+  saveDictionary(data);
   res.json({ success: true });
 });
 

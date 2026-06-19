@@ -2,6 +2,16 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.2.0] - 2026-06-19
+
+### Added
+- **Instructor character type** — A third card type alongside Single and Multi-Char. Instructors do not perform story-style roleplay; they speak only in direct, non-embellished, mission-specific instructions (a fantasy operator/handler voice). Instructor cards appear in the same character list (Instructor badge) and run sessions like any character.
+  - **Character page tabs** — The Characters page now has **Character Select** (all existing cards, including Instructors) and a new **Instructor Settings** tab.
+  - **Instructor Profiles** — Named system-prompt briefs that define how an instructor behaves and performs; one profile is assignable per Instructor card. Managed under Instructor Settings (`/api/instructor-profiles`, stored in `instructor-profiles.json`).
+  - **Instructor Library** — A keyword-triggered term dictionary grouped into named bundles. A term's definition is injected only when the player uses that term (reuses the reminder engine's keyword activation). Multiple groups can be assigned to a card (`/api/instructor-library`, stored in `instructor-library.json`).
+  - **Slim editor** — New Instructor editor with portrait, name, gender, mission, assigned profile, assigned library groups, welcome message(s), and per-capacity **Checkpoints** (with full trigger rows for device/flow actions).
+  - **Prompt construction** — Instructors get a terse system prompt (identity + mission + profile + hard "no roleplay prose" directive). They receive raw capacity/pain awareness so checkpoint device actions still work, but none of the belly-state descriptive scaffolding.
+
 ## [v5.1.0] - 2026-06-19
 
 ### Added

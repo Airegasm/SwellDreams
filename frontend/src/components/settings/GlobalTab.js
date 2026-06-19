@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
+import DictionaryManager from './DictionaryManager';
 import './SettingsTabs.css';
 
 function GlobalTab() {
@@ -691,6 +692,7 @@ function GlobalTab() {
     chatMemory: false,
     authorNote: false,
     tokenSwitching: false,
+    dictionary: false,
     reminders: false,
     flows: false,
     remote: false
@@ -1789,6 +1791,19 @@ function GlobalTab() {
           </div>
         </div>
       )}
+
+      {/* Dictionary Section */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('dictionary')}>
+          <span>Dictionary</span>
+          <span className="collapse-icon">{expandedSections.dictionary ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.dictionary && (
+        <div className="settings-section-content">
+          <DictionaryManager />
+        </div>
+        )}
+      </div>
 
       {/* Global Reminders Section */}
       <div className="settings-section-collapsible">

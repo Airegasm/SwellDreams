@@ -2,10 +2,11 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
-import { API_BASE } from '../../config';
+import { API_BASE, isInstructor } from '../../config';
 import { apiFetch } from '../../utils/api';
 import CharacterEditorModal from '../modals/CharacterEditorModal';
 import MultiCharEditorModal from '../modals/MultiCharEditorModal';
+import InstructorEditorModal from '../modals/InstructorEditorModal';
 import './SettingsTabs.css';
 
 function CharacterTab() {
@@ -28,6 +29,8 @@ function CharacterTab() {
   const [newCharType, setNewCharType] = useState('single');
   const [showMultiCharEditor, setShowMultiCharEditor] = useState(false);
   const [editingMultiChar, setEditingMultiChar] = useState(null);
+  const [showInstructorEditor, setShowInstructorEditor] = useState(false);
+  const [editingInstructor, setEditingInstructor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const listRef = useRef(null);
@@ -69,6 +72,9 @@ function CharacterTab() {
     if (newCharType === 'multi') {
       setEditingMultiChar(null);
       setShowMultiCharEditor(true);
+    } else if (newCharType === 'instructor') {
+      setEditingInstructor(null);
+      setShowInstructorEditor(true);
     } else {
       setEditingCharacter(null);
       setShowEditorModal(true);
@@ -76,12 +82,30 @@ function CharacterTab() {
   };
 
   const handleEdit = (character) => {
-    if (character.multiChar?.enabled) {
+    if (isInstructor(character)) {
+      setEditingInstructor(character);
+      setShowInstructorEditor(true);
+    } else if (character.multiChar?.enabled) {
       setEditingMultiChar(character);
       setShowMultiCharEditor(true);
     } else {
       setEditingCharacter(character);
       setShowEditorModal(true);
+    }
+  };
+
+  const handleSaveInstructor = async (characterData) => {
+    try {
+      if (editingInstructor) {
+        await api.updateCharacter(editingInstructor.id, characterData);
+      } else {
+        await api.createCharacter(characterData);
+      }
+      setShowInstructorEditor(false);
+      setEditingInstructor(null);
+    } catch (error) {
+      console.error('Failed to save instructor:', error);
+      alert('Failed to save instructor. Please try again.');
     }
   };
 
@@ -455,11 +479,14 @@ function CharacterTab() {
                     <div className="list-item-name">
                       {character.name}
                     </div>
+                    {isInstructor(character) && (
+                      <span className="multi-char-badge">Instructor</span>
+                    )}
                     {character.multiChar?.enabled && (<>
                       <span className="multi-char-badge">Multi-Char</span>
                       <span className="early-access-badge">Early Access Beta</span>
                     </>)}
-                    {character.isPumpable && !character.multiChar?.enabled && (
+                    {character.isPumpable && !character.multiChar?.enabled && !isInstructor(character) && (
                       <span className="pumpable-badge">Pumpable</span>
                     )}
                     {settings.activeCharacterId === character.id && (
@@ -467,9 +494,11 @@ function CharacterTab() {
                     )}
                   </div>
                   <div className="list-item-meta">
-                    {character.multiChar?.enabled
-                      ? character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')
-                      : character.description}
+                    {isInstructor(character)
+                      ? (character.mission || 'Instructor')
+                      : character.multiChar?.enabled
+                        ? character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')
+                        : character.description}
                   </div>
                 </div>
                 <div className="use-button-column">
@@ -543,6 +572,13 @@ function CharacterTab() {
         character={editingMultiChar}
       />
 
+      <InstructorEditorModal
+        isOpen={showInstructorEditor}
+        onClose={() => setShowInstructorEditor(false)}
+        onSave={handleSaveInstructor}
+        character={editingInstructor}
+      />
+
       {/* New Character Type Selector */}
       {showTypeSelector && (
         <div className="modal-overlay" onClick={() => setShowTypeSelector(false)}>
@@ -570,6 +606,16 @@ function CharacterTab() {
                   onChange={() => setNewCharType('multi')}
                 />
                 <span><strong>Multi-Char (beta)</strong> — A group of characters in one card</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="newCharType"
+                  value="instructor"
+                  checked={newCharType === 'instructor'}
+                  onChange={() => setNewCharType('instructor')}
+                />
+                <span><strong>Instructor</strong> — Direct, mission-focused instructions only (no roleplay)</span>
               </label>
             </div>
             <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

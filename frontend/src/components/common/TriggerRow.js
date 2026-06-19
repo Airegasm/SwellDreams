@@ -1,6 +1,7 @@
 import React from 'react';
 import { EMOTIONS } from '../../constants/stateValues';
 import { API_BASE } from '../../config';
+import MemberTargetPicker from './MemberTargetPicker';
 
 const DESIRE_OPTIONS = [
   { value: 'terrified', label: 'Terrified' },
@@ -127,7 +128,11 @@ function getTriggerTypes(isPumpable) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [] }) {
+function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [] }) {
+  // Reusable "target character" picker for multichar attribute triggers
+  const renderMemberTarget = (update) => members.length > 0 ? (
+    <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
+  ) : null;
   const [typeSearch, setTypeSearch] = React.useState('');
   const [typeOpen, setTypeOpen] = React.useState(false);
   const typeRef = React.useRef(null);
@@ -201,6 +206,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
       case 'set_attribute':
         return (
           <>
+            {renderMemberTarget(update)}
             <select value={trigger.trait || 'dominant'} onChange={(e) => update('trait', e.target.value)} style={{ width: '100px' }}>
               {ATTRIBUTE_KEYS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
             </select>
@@ -223,6 +229,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
       case 'nudge_attribute':
         return (
           <>
+            {renderMemberTarget(update)}
             <select value={trigger.trait || 'dominant'} onChange={(e) => update('trait', e.target.value)} style={{ width: '100px' }}>
               {ATTRIBUTE_KEYS.map(k => <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>)}
             </select>

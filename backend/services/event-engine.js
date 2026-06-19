@@ -4393,9 +4393,19 @@ class EventEngine {
           break;
         }
 
+        // Route to a specific multichar member's attributes when targetMember is set
         attrStory.attributes = attrStory.attributes || {};
-        const oldValue = attrStory.attributes[attrKey] || 0;
-        attrStory.attributes[attrKey] = clampedAttrValue;
+        const attrTarget = data.targetMember;
+        let attrStore;
+        if (attrTarget && attrTarget !== 'group' && attrTarget !== 'all') {
+          attrStory.memberAttributes = attrStory.memberAttributes || {};
+          attrStory.memberAttributes[attrTarget] = attrStory.memberAttributes[attrTarget] || {};
+          attrStore = attrStory.memberAttributes[attrTarget];
+        } else {
+          attrStore = attrStory.attributes;
+        }
+        const oldValue = attrStore[attrKey] || 0;
+        attrStore[attrKey] = clampedAttrValue;
 
         if (this.storageHelpers?.saveCharacter) {
           this.storageHelpers.saveCharacter(attrCharacter);

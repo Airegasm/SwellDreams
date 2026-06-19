@@ -114,6 +114,9 @@ export const WS_MESSAGE_TYPES = {
   ERROR: 'error',
 };
 
+// Character type helper — Instructor cards are stored as characters marked instructor.enabled
+export const isInstructor = (c) => !!c?.instructor?.enabled;
+
 // Sensation values
 export const SENSATIONS = ['normal', 'mild', 'moderate', 'intense', 'overwhelming'];
 

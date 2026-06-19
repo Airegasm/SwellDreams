@@ -3,6 +3,7 @@ import { Handle, Position } from '@xyflow/react';
 import { EMOTIONS, PAIN_SCALE } from '../../../constants/stateValues';
 import ActionWrapper from './ActionWrapper';
 import NumberInput from './NumberInput';
+import MemberTargetPicker from '../../common/MemberTargetPicker';
 import './Nodes.css';
 
 // Helper to create unique device identifier (handles power strip outlets with same IP)
@@ -735,8 +736,14 @@ function ActionNode({ data, selected }) {
           { key: 'sexual', label: 'Sexual' }
         ];
 
+        const mcMembers = data.multiCharMembers || [];
         return (
           <div className="node-config">
+            <MemberTargetPicker
+              members={mcMembers}
+              value={data.targetMember || ''}
+              onChange={(v) => data.onChange?.('targetMember', v)}
+            />
             <select
               value={data.attribute || ''}
               onChange={(e) => data.onChange?.('attribute', e.target.value)}

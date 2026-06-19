@@ -31,6 +31,9 @@ backend/data/screenplay/actors-index.json
 backend/data/screenplay/plays-index.json
 backend/data/sessions.json
 backend/data/personas.json
+backend/data/instructor-profiles.json
+backend/data/instructor-library.json
+backend/data/dictionary.json
 
 # Machine identity / dev markers
 backend/data/.machine-key

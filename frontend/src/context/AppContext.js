@@ -383,6 +383,10 @@ export function AppProvider({ children }) {
         setChooseMultiData(data);
         break;
 
+      case 'member_mute_update':
+        setSessionState(prev => ({ ...prev, mutedMembers: data.mutedMembers || [] }));
+        break;
+
       case 'simple_ab':
         setSimpleABData(data);
         break;
@@ -841,6 +845,11 @@ export function AppProvider({ children }) {
 
     setChooseMultiData(null);
   }, [chooseMultiData, sendWsMessage]);
+
+  // Toggle whether a multichar member can speak this session
+  const toggleMemberMute = useCallback((memberId, muted) => {
+    sendWsMessage('toggle_member_mute', { memberId, muted });
+  }, [sendWsMessage]);
 
   // Handle simple A/B choice response
   const handleSimpleAB = useCallback((choiceId) => {
@@ -1402,6 +1411,42 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
+    // Instructor profiles (named system-prompt briefs assignable to Instructor cards)
+    getInstructorProfiles: () => apiFetch(`${API_BASE}/api/instructor-profiles`),
+    createInstructorProfile: (name, prompt) => apiFetch(`${API_BASE}/api/instructor-profiles`, {
+      method: 'POST', body: JSON.stringify({ name, prompt })
+    }),
+    updateInstructorProfile: (id, name, prompt) => apiFetch(`${API_BASE}/api/instructor-profiles/${id}`, {
+      method: 'PUT', body: JSON.stringify({ name, prompt })
+    }),
+    deleteInstructorProfile: (id) => apiFetch(`${API_BASE}/api/instructor-profiles/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Instructor library (keyword-triggered term groups assignable to Instructor cards)
+    getInstructorLibrary: () => apiFetch(`${API_BASE}/api/instructor-library`),
+    createInstructorTermGroup: (name, terms) => apiFetch(`${API_BASE}/api/instructor-library`, {
+      method: 'POST', body: JSON.stringify({ name, terms })
+    }),
+    updateInstructorTermGroup: (id, name, terms) => apiFetch(`${API_BASE}/api/instructor-library/${id}`, {
+      method: 'PUT', body: JSON.stringify({ name, terms })
+    }),
+    deleteInstructorTermGroup: (id) => apiFetch(`${API_BASE}/api/instructor-library/${id}`, {
+      method: 'DELETE'
+    }),
+
+    // Global dictionary (always-on, global term definitions)
+    getDictionary: () => apiFetch(`${API_BASE}/api/dictionary`),
+    createDictionaryGroup: (name, terms, enabled) => apiFetch(`${API_BASE}/api/dictionary`, {
+      method: 'POST', body: JSON.stringify({ name, terms, enabled })
+    }),
+    updateDictionaryGroup: (id, payload) => apiFetch(`${API_BASE}/api/dictionary/${id}`, {
+      method: 'PUT', body: JSON.stringify(payload)
+    }),
+    deleteDictionaryGroup: (id) => apiFetch(`${API_BASE}/api/dictionary/${id}`, {
+      method: 'DELETE'
+    }),
+
     // Home Assistant devices (bridge for Tapo and other HA-managed devices)
     connectHomeAssistant: (url, token) => apiFetch(`${API_BASE}/api/homeassistant/connect`, {
       method: 'POST',
@@ -1764,6 +1809,7 @@ export function AppProvider({ children }) {
     handlePlayerChoice,
     chooseMultiData,
     handleChooseMulti,
+    toggleMemberMute,
 
     // Simple A/B Choice
     simpleABData,

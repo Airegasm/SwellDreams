@@ -621,6 +621,7 @@ function FlowEditor() {
   const activeCharacter = characters?.find(c => c.id === settings?.activeCharacterId);
   const characterReminders = activeCharacter?.constantReminders || [];
   const characterButtons = activeCharacter?.buttons || [];
+  const multiCharMembers = activeCharacter?.multiChar?.enabled ? (activeCharacter.multiChar.characters || []) : [];
   const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
   const personaButtons = activePersona?.buttons || [];
 
@@ -838,7 +839,7 @@ function FlowEditor() {
 
     // Strip runtime handlers from nodes before sending
     const cleanNodes = currentNodes.map(n => {
-      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = n.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, multiCharMembers: _mcm, personaButtons: _pb, flowVariables: _fv, ...cleanData } = n.data;
       return { ...n, data: cleanData };
     });
 
@@ -891,6 +892,7 @@ function FlowEditor() {
         globalReminders,
         characterReminders,
         characterButtons,
+        multiCharMembers,
         personaButtons,
         flowVariables,
         flowVariableValues,
@@ -901,7 +903,7 @@ function FlowEditor() {
 
     setNodes((nds) => nds.concat(newNode));
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
 
   const handleUnlinkAll = useCallback(() => {
     if (!contextMenu) return;
@@ -1119,6 +1121,7 @@ function FlowEditor() {
             globalReminders,
             characterReminders,
             characterButtons,
+            multiCharMembers,
             personaButtons,
             flowVariables,
             flowVariableValues,
@@ -1151,6 +1154,7 @@ function FlowEditor() {
           globalReminders,
           characterReminders,
           characterButtons,
+          multiCharMembers,
           personaButtons,
           flowVariables,
           flowVariableValues,
@@ -1161,7 +1165,7 @@ function FlowEditor() {
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
@@ -1425,6 +1429,7 @@ function FlowEditor() {
           globalReminders,
           characterReminders,
           characterButtons,
+          multiCharMembers,
           personaButtons,
           flowVariables,
           flowVariableValues,
@@ -1435,7 +1440,7 @@ function FlowEditor() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -1449,7 +1454,7 @@ function FlowEditor() {
 
     // Strip runtime data from nodes before saving (devices, reminders, etc are added at load time)
     const cleanNodes = nodes.map(node => {
-      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, multiCharMembers: _mcm, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
       return { ...node, data: cleanData };
     });
 
@@ -1531,6 +1536,7 @@ function FlowEditor() {
         globalReminders,
         characterReminders,
         characterButtons,
+        multiCharMembers,
         personaButtons,
         flowVariables,
         flowVariableValues,
@@ -1543,7 +1549,7 @@ function FlowEditor() {
     setEdges(flow.edges || []);
     setGroups(flow.groups || []);
     setShowLoadModal(false);
-  }, [api, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, clearHistory]);
+  }, [api, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, clearHistory]);
 
   const handleNewFlow = () => {
     // Reset draft state
@@ -1630,7 +1636,7 @@ function FlowEditor() {
       const draftKey = getDraftKey();
       // Strip runtime data from nodes before saving
       const cleanNodes = nodes.map(node => {
-        const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
+        const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, multiCharMembers: _mcm, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
         return { ...node, data: cleanData };
       });
       const draft = {
@@ -1666,6 +1672,7 @@ function FlowEditor() {
               globalReminders,
               characterReminders,
               characterButtons,
+              multiCharMembers,
               personaButtons,
               flowVariables,
               flowVariableValues,
@@ -1686,7 +1693,7 @@ function FlowEditor() {
       }
     }
     draftInitialized.current = true;
-  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges]);
+  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, multiCharMembers, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges]);
 
   // Clear draft on successful save
   const clearFlowDraft = useCallback(() => {
@@ -1716,7 +1723,7 @@ function FlowEditor() {
 
     // Strip runtime data from nodes before exporting
     const cleanNodes = nodes.map(node => {
-      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
+      const { onChange, onTest, devices: _d, globalReminders: _gr, characterReminders: _cr, characterButtons: _cb, multiCharMembers: _mcm, personaButtons: _pb, flowVariables: _fv, ...cleanData } = node.data;
       return { ...node, data: cleanData };
     });
 
