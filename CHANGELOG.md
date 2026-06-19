@@ -2,6 +2,28 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.0.0] - 2026-06-18
+
+### Added
+- **Set Variable operations** — Set Variable action node gains an operation dropdown (Set / Increase / Decrease / Multiply / Divide). Math options appear automatically for numeric variables; string variables only get Set. Numbers stay numeric so math works end-to-end.
+- **Persistent `[Choice]`** — The selected Player Choice label now persists and is referenceable anywhere later in the flow (live and in flow-test mode).
+- **Nested / dynamic variables** — Variable references resolve recursively (innermost-first), so names can be built dynamically: `[Flow:[Choice]]`, `[Flow:[Choice]_score]`, `[Flow:[Capacity]bonus]`. Works in both reads and in the Set Variable name/value fields; supports names with spaces.
+- **Player Choice node overhaul** — Removed the 4-choice cap (unlimited choices now render); multi-column node layout (settings column + paired choice columns); per-choice **Set Variables** with full CRUD and the same Set/Inc/Dec/Mult/Div operations, applied when a choice is selected.
+- **Trigger Sets** — Named, reusable bundles of triggers managed on a new **Triggers** page (create / save / rename / delete). Fire an entire set at once via the API, or attach it to a button with the new **Run Trigger Set** button action — available in the Character, Multi-Character, and Persona editors.
+- **New trigger types** — **System Message** (inject a system message into the chat) and **Set Flow Variable** (Set / Inc / Dec / Mult / Div a flow variable, sharing the new variable engine including nested/dynamic names) added to the checkpoint & button trigger system.
+- **Mistral v7 (Tekken) chat template** — `[SYSTEM_PROMPT]…[/SYSTEM_PROMPT][INST]…[/INST]` for Mistral Small 3.x and finetunes (Skyfall, etc.), alongside the existing Mistral v0.2+ template.
+- **Sampler & token control expansion (KoboldCpp + llama.cpp)**:
+  - **Ban EOS Token** — `use_default_badwordsids` (KoboldCpp) / `ignore_eos` (llama.cpp), exposed as an outcome-labeled toggle separate from stop strings.
+  - **`logit_bias`** — per-token-ID bias/bans on both backends; numeric banned tokens auto-convert to bans on llama.cpp.
+  - **Banned Strings** — KoboldCpp anti-slop phrase suppression.
+  - **Seed**, **Skip special tokens**, **Add BOS token**, and llama.cpp **`n_keep`** (retain leading prompt tokens on context overflow).
+  - **Override Server Samplers** — per-profile toggle to send only prompt/limits/stop/EOS and defer sampler control to the server's launched profile (for llama-server / managed clusters).
+
+### Fixed
+- **`top_n_sigma` was a dead control** — the UI slider and profile field existed but the value was never sent to any backend; now wired to KoboldCpp (`nsigma`) and llama.cpp (`top_n_sigma`).
+- **`presence_penalty` / `frequency_penalty` missing on KoboldCpp** — were only sent on the llama.cpp/OpenAI paths; now sent to KoboldCpp for parity.
+- **Implicit EOS ban on KoboldCpp** — EOS control is now sent explicitly (default: allowed), preventing mysterious run-on/cut replies from server-side defaults.
+
 ## [v4.0.0] - 2026-04-07
 
 ### Added

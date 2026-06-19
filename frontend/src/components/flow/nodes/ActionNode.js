@@ -416,7 +416,26 @@ function ActionNode({ data, selected }) {
           { value: 'pain', label: '[Pain]' },
           { value: 'emotion', label: '[Emotion]' }
         ];
-        const flowVars = data.flowVariables || [];
+        const flowVarValues = data.flowVariableValues || {};
+
+        // Determine whether the targeted variable holds a number. Numbers get
+        // the math operations (Inc/Dec/Mult/Div); strings only get Set.
+        const isNumericTarget = (() => {
+          if (data.varType !== 'custom') {
+            // System vars: capacity & pain are numeric, emotion is a string
+            return data.variable === 'capacity' || data.variable === 'pain';
+          }
+          if (!data.variable) return false;
+          // Custom var: infer from its declared initial value. Unknown/blank
+          // declarations are treated as numeric so math stays available.
+          const init = flowVarValues[data.variable];
+          if (init === undefined || init === '') return true;
+          const str = String(init).trim();
+          return str !== '' && !isNaN(str);
+        })();
+
+        const operation = data.operation || 'set';
+        const isMath = isNumericTarget && operation !== 'set';
 
         return (
           <div className="node-config">
@@ -456,8 +475,31 @@ function ActionNode({ data, selected }) {
               </select>
             )}
 
-            {/* Value Input - changes based on system variable type */}
-            {data.varType !== 'custom' && data.variable === 'capacity' ? (
+            {/* Operation Dropdown - only for numeric variables */}
+            {isNumericTarget && (
+              <select
+                value={operation}
+                onChange={(e) => data.onChange?.('operation', e.target.value)}
+                className="node-select"
+              >
+                <option value="set">Set to</option>
+                <option value="inc">Increase by (+)</option>
+                <option value="dec">Decrease by (−)</option>
+                <option value="mult">Multiply by (×)</option>
+                <option value="div">Divide by (÷)</option>
+              </select>
+            )}
+
+            {/* Value Input - amount for math ops, otherwise per-variable input */}
+            {isMath ? (
+              <NumberInput
+                value={data.value}
+                onChange={(val) => data.onChange?.('value', val)}
+                defaultValue={0}
+                placeholder="Amount"
+                allowFloat={true}
+              />
+            ) : data.varType !== 'custom' && data.variable === 'capacity' ? (
               <div className="config-row">
                 <NumberInput
                   value={data.value}

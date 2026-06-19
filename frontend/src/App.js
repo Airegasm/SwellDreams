@@ -10,6 +10,7 @@ import Help from './pages/Help';
 import Personas from './pages/Personas';
 import Characters from './pages/Characters';
 import MediaAlbum from './pages/MediaAlbum';
+import Triggers from './pages/Triggers';
 import HamburgerMenu from './components/HamburgerMenu';
 import HelpPanel from './components/HelpPanel';
 import SaveSessionModal from './components/modals/SaveSessionModal';
@@ -453,7 +454,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v4.1.2</span>
+      <span className="version-badge">v5.0.0</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -537,6 +538,7 @@ function App() {
               <MediaAlbum />
             </div>
           } />
+          <Route path="/triggers" element={<div className="center-modal-overlay"><Triggers /></div>} />
           <Route path="/flows" element={<FlowEditor />} />
           <Route path="/screenplay" element={
             <div className="center-modal-overlay">

@@ -5,7 +5,7 @@ function PlayerChoiceModal({ choiceData, onChoice, subContext, compact = false }
   if (!choiceData) return null;
 
   const { description, choices } = choiceData;
-  const limitedChoices = choices.slice(0, 4); // Max 4 choices
+  const limitedChoices = choices; // No cap — render all configured choices
 
   return (
     <div className={`player-choice-panel ${compact ? 'compact' : ''}`}>

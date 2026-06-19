@@ -272,8 +272,8 @@ function FlowTab() {
                 </tr>
                 <tr>
                   <td><strong>Set Variable</strong></td>
-                  <td>Update a system or flow variable</td>
-                  <td>Variable type, Variable name, New value</td>
+                  <td>Set or do math on a system or flow variable (Set / Increase / Decrease / Multiply / Divide). Math options appear automatically for numeric variables.</td>
+                  <td>Variable type, Variable name, Operation, Value</td>
                 </tr>
                 <tr>
                   <td><strong>Toggle Reminder</strong></td>
@@ -723,6 +723,26 @@ function FlowTab() {
               [Flow:questPhase] - Track story progression<br />
               [Flow:intensity] - Store a numeric value for device control<br />
               [Flow:playerChoice] - Remember a player's decision
+            </div>
+
+            <h4 className="subsection-header">Player Choice</h4>
+            <p>
+              After a <strong>Player Choice</strong> node, the selected option's label is available
+              everywhere downstream as <span className="variable-tag">[Choice]</span> (it persists until
+              the next choice is made).
+            </p>
+
+            <h4 className="subsection-header">Nested / Dynamic Variables</h4>
+            <p>
+              References can be nested — inner brackets resolve first, so you can build a variable
+              name dynamically from another variable, with optional literal text concatenated. This
+              works in both reads and in the <code>set_variable</code> name and value fields.
+            </p>
+            <div className="code-example">
+              [Flow:[Choice]] - value of the variable named by the current choice<br />
+              [Flow:[Choice]_score] - e.g. Choice "red" → reads [Flow:red_score]<br />
+              [Flow:[Capacity]bonus] - name built from a system variable + text<br />
+              Set name = score_[Choice] - writes to a per-choice variable
             </div>
 
             <h4 className="subsection-header">Using in Conditions</h4>

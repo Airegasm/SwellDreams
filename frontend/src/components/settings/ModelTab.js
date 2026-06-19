@@ -696,7 +696,8 @@ function ModelTab() {
                     <option value="chatml">ChatML</option>
                     <option value="llama">Llama 2</option>
                     <option value="llama3">Llama 3</option>
-                    <option value="mistral">Mistral</option>
+                    <option value="mistral">Mistral (v0.2+)</option>
+                    <option value="mistral-tekken">Mistral v7 (Tekken)</option>
                     <option value="alpaca">Alpaca</option>
                     <option value="vicuna">Vicuna</option>
                     <option value="gemma2">Gemma 2</option>
@@ -1177,6 +1178,24 @@ function ModelTab() {
         {expandedSections.advancedControl && (
         <div className="settings-section-content">
 
+          {/* Override server samplers — when off, SwellDreams sends only
+              prompt/limits/stop/EOS so the server's launched sampler profile
+              governs (e.g. llama-server / LlamaHerder). */}
+          <div className="form-group">
+            <label className="checkbox-inline">
+              <input
+                type="checkbox"
+                checked={llmSettings.overrideSamplers !== false}
+                onChange={(e) => updateSetting('overrideSamplers', e.target.checked)}
+              />
+              <span>Override server samplers</span>
+            </label>
+            <span className="form-hint">
+              On: send SwellDreams' sampler settings every request. Off: send only prompt, token limits,
+              stop strings &amp; EOS — let the server's own sampler profile govern (for llama-server / LlamaHerder users).
+            </span>
+          </div>
+
           {/* Sub-collapsible: DRY Repetition Penalty */}
           <div className="settings-subsection-collapsible">
             <div className="settings-subsection-header" onClick={() => toggleSection('dryPenalty')}>
@@ -1389,7 +1408,7 @@ function ModelTab() {
           {/* Sub-collapsible: Stop Sequences & Token Control */}
           <div className="settings-subsection-collapsible">
             <div className="settings-subsection-header" onClick={() => toggleSection('stopSequences')}>
-              <span>Stop Sequences & Token Control</span>
+              <span>Stop Sequences, Tokens & Generation</span>
               <span className="collapse-icon">{expandedSections.stopSequences ? '▼' : '▶'}</span>
             </div>
             {expandedSections.stopSequences && (
@@ -1424,7 +1443,44 @@ function ModelTab() {
                   }}
                   placeholder="e.g., [, ], <|"
                 />
-                <span className="form-hint">Comma-separated tokens to ban from generation</span>
+                <span className="form-hint">Comma-separated. KoboldCpp accepts strings; on llama.cpp only numeric token IDs are banned (text entries are ignored).</span>
+              </div>
+              <div className="form-group">
+                <label>Banned Strings (Anti-Slop)</label>
+                <input
+                  type="text"
+                  value={(llmSettings.bannedStrings || []).join(', ')}
+                  onChange={(e) => {
+                    const strings = e.target.value
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(s => s.length > 0);
+                    updateSetting('bannedStrings', strings);
+                  }}
+                  placeholder="e.g., shivers down, ministrations"
+                />
+                <span className="form-hint">KoboldCpp only — phrases the model backtracks &amp; avoids (distinct from stop strings, which halt).</span>
+              </div>
+              <div className="form-group">
+                <label>Custom Token Bias / Bans (logit_bias)</label>
+                <input
+                  type="text"
+                  value={(llmSettings.logitBias || []).map(p => `${p[0]}:${p[1]}`).join(', ')}
+                  onChange={(e) => {
+                    const pairs = e.target.value
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(s => s.includes(':'))
+                      .map(s => {
+                        const [id, bias] = s.split(':').map(x => x.trim());
+                        return [parseInt(id), Number(bias)];
+                      })
+                      .filter(p => !Number.isNaN(p[0]) && !Number.isNaN(p[1]));
+                    updateSetting('logitBias', pairs);
+                  }}
+                  placeholder="tokenId:bias  e.g. 128009:-100, 5618:2"
+                />
+                <span className="form-hint">Per-token-ID bias (both backends). Use a large negative bias (e.g. -100) to hard-ban a token.</span>
               </div>
               <div className="form-group">
                 <label>Grammar (GBNF)</label>
@@ -1436,6 +1492,66 @@ function ModelTab() {
                   style={{ width: '100%', fontFamily: 'monospace', fontSize: 'var(--font-size-sm)' }}
                 />
                 <span className="form-hint">GBNF grammar to constrain output format (JSON, etc.)</span>
+              </div>
+
+              {/* Generation / tokenization controls — sampler-level token flags,
+                  deliberately separate from the stop-string list above. */}
+              <div className="settings-divider" />
+              <div className="form-group">
+                <label className="checkbox-inline">
+                  <input
+                    type="checkbox"
+                    checked={llmSettings.banEosToken === true}
+                    onChange={(e) => updateSetting('banEosToken', e.target.checked)}
+                  />
+                  <span>Ban EOS Token (don't let the model end its own turn)</span>
+                </label>
+                <span className="form-hint">
+                  Forces generation to run to the token limit / a stop string instead of stopping at the model's
+                  end-of-turn token. Useful for story/continuation modes; usually OFF for chat. This is a sampler flag,
+                  NOT a stop string.
+                </span>
+              </div>
+              <div className="form-group">
+                <label className="checkbox-inline">
+                  <input
+                    type="checkbox"
+                    checked={llmSettings.skipSpecialTokens !== false}
+                    onChange={(e) => updateSetting('skipSpecialTokens', e.target.checked)}
+                  />
+                  <span>Skip special tokens in output (KoboldCpp)</span>
+                </label>
+              </div>
+              <div className="form-group">
+                <label className="checkbox-inline">
+                  <input
+                    type="checkbox"
+                    checked={llmSettings.addBosToken !== false}
+                    onChange={(e) => updateSetting('addBosToken', e.target.checked)}
+                  />
+                  <span>Add BOS token (KoboldCpp)</span>
+                </label>
+                <span className="form-hint">Turn off if your prompt template already injects a BOS marker (avoids double-BOS).</span>
+              </div>
+              <div className="form-group">
+                <label>Seed</label>
+                <input
+                  type="number"
+                  value={llmSettings.seed ?? -1}
+                  onChange={(e) => updateSetting('seed', parseInt(e.target.value))}
+                  placeholder="-1"
+                />
+                <span className="form-hint">-1 = random each generation. Set a fixed value for reproducible output.</span>
+              </div>
+              <div className="form-group">
+                <label>Keep Leading Tokens (n_keep, llama.cpp)</label>
+                <input
+                  type="number"
+                  value={llmSettings.nKeep ?? 0}
+                  onChange={(e) => updateSetting('nKeep', parseInt(e.target.value))}
+                  placeholder="0"
+                />
+                <span className="form-hint">Leading prompt tokens (e.g. system prompt / character card) to retain when context overflows. 0 = none, -1 = all.</span>
               </div>
             </div>
             )}

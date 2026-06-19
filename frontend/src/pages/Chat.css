@@ -3558,15 +3558,25 @@
   text-shadow: 0 0 8px var(--accent-primary);
 }
 
-/* Mobile adjustments */
+/* Mobile: pump status floats in bottom-right corner */
 @media (max-width: 768px) {
   .pump-status-overlay {
-    left: 80px;
-    bottom: -48px;
+    position: fixed;
+    bottom: 80px;
+    right: 10px;
+    left: auto;
+    height: auto;
+    width: auto;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--accent-primary);
+    border-radius: 6px;
+    padding: 6px 12px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   }
 
   .pump-status-item {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
   }
 
   .pump-status-time {

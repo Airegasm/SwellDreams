@@ -188,6 +188,14 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
         </button>
 
         <NavLink
+          to="/triggers"
+          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/triggers')}
+        >
+          Triggers
+        </NavLink>
+
+        <NavLink
           to="/flows"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
           onClick={(e) => handleNavClick(e, '/flows')}

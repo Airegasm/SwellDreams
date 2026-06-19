@@ -775,13 +775,27 @@ class EventEngine {
       case 'set_variable': {
         const varType = data.varType || 'flow';
         const varName = data.variable || data.variableName;
+        const operation = data.operation || 'set';
         const varValue = this.substituteVariables(String(data.value || data.variableValue || ''));
 
+        const opSymbols = { set: '=', inc: '+=', dec: '-=', mult: '*=', div: '/=' };
+        const opSymbol = opSymbols[operation] || '=';
+
         if (varType === 'flow' && varName) {
-          this.flowVariables.set(`${flow.id}:${varName}`, varValue);
+          const current = this.flowVariables.get(`${flow.id}:${varName}`);
+          let newValue = varValue;
+          if (operation !== 'set') {
+            const a = parseFloat(current); const b = parseFloat(varValue);
+            const x = isNaN(a) ? 0 : a; const y = isNaN(b) ? 0 : b;
+            if (operation === 'inc') newValue = x + y;
+            else if (operation === 'dec') newValue = x - y;
+            else if (operation === 'mult') newValue = x * y;
+            else if (operation === 'div') newValue = y !== 0 ? x / y : x;
+          }
+          this.flowVariables.set(`${flow.id}:${varName}`, newValue);
         }
 
-        nodeStep.details = `Set Variable: ${varName} = ${varValue}`;
+        nodeStep.details = `Set Variable: ${varName} ${opSymbol} ${varValue}`;
         this.emitTestStep(nodeStep);
         return true;
       }
@@ -890,6 +904,17 @@ class EventEngine {
     });
 
     if (firstChoice) {
+      // Persist [Choice] in test mode too, mirroring live handlePlayerChoice
+      this.variables['Choice'] = firstChoice.label || firstChoice.id;
+
+      // Apply the choice's variable operations in test mode as well
+      if (firstChoice.setVariablesEnabled && Array.isArray(firstChoice.variableOps)) {
+        for (const op of firstChoice.variableOps) {
+          if (!op || !op.variable) continue;
+          this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+        }
+      }
+
       this.emitTestStep({
         type: 'choice_selected',
         label: `Auto-selected: "${firstChoice.label || firstChoice.id}"`,
@@ -4011,58 +4036,13 @@ class EventEngine {
         break;
 
       case 'set_variable': {
-        // Set either a system variable or a custom flow variable
-        const varType = data.varType || 'system';
-        const variable = data.variable;
-        const value = data.value;
-
-        if (!variable) {
-          console.log('[EventEngine] set_variable: No variable specified');
-          actionResult = false;
-          break;
-        }
-
-        if (varType === 'custom') {
-          // Set a custom flow variable
-          this.variables[variable] = this.evaluateExpression(value);
-          // Sync to sessionState for frontend access
-          if (this.sessionState) {
-            this.sessionState.flowVariables = this.sessionState.flowVariables || {};
-            this.sessionState.flowVariables[variable] = this.variables[variable];
-          }
-          console.log(`[EventEngine] Set flow variable [Flow:${variable}] = ${this.variables[variable]}`);
-        } else {
-          // Set a system variable - update sessionState and broadcast
-          if (variable === 'capacity') {
-            const numValue = parseInt(value) || 0;
-            const clampedValue = Math.max(0, Math.min(100, numValue));
-            if (this.sessionState) {
-              this.sessionState.capacity = clampedValue;
-              this.broadcast('capacity_update', { capacity: clampedValue });
-              console.log(`[EventEngine] Set system variable [Capacity] = ${clampedValue}`);
-            }
-          } else if (variable === 'pain' || variable === 'feeling') {
-            // Handle both new 'pain' and legacy 'feeling' variable names
-            const numValue = parseInt(value) || 0;
-            const clampedValue = Math.max(0, Math.min(10, numValue));
-            if (this.sessionState) {
-              this.sessionState.pain = clampedValue;
-              this.broadcast('pain_update', { pain: clampedValue });
-              console.log(`[EventEngine] Set system variable [Pain] = ${clampedValue}`);
-            }
-          } else if (variable === 'emotion') {
-            if (this.sessionState) {
-              this.sessionState.emotion = value;
-              this.broadcast('emotion_update', { emotion: value });
-              console.log(`[EventEngine] Set system variable [Emotion] = ${value}`);
-            }
-          } else {
-            console.log(`[EventEngine] set_variable: Unknown system variable "${variable}"`);
-            actionResult = false;
-            break;
-          }
-        }
-        actionResult = true;
+        // Set a system or custom variable via the shared helper
+        actionResult = this.applySetVariable(
+          data.varType || 'system',
+          data.variable,
+          data.operation,
+          data.value
+        );
         break;
       }
 
@@ -4419,6 +4399,14 @@ class EventEngine {
   async handlePlayerChoice(nodeId, choiceId, choiceLabel) {
     console.log(`[EventEngine] Player chose: "${choiceLabel}" (${choiceId}) for node ${nodeId}`);
 
+    // Persist the chosen label so [Choice] (and nested forms like
+    // [Flow:[Choice]]) resolve anywhere later in the chain, until the next choice.
+    this.variables['Choice'] = choiceLabel;
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables['Choice'] = choiceLabel;
+    }
+
     // Skip message generation for Simple A/B choices - they're silent
     const isSimpleAB = this.pendingPlayerChoice?.isSimpleAB === true;
     if (isSimpleAB) {
@@ -4431,6 +4419,15 @@ class EventEngine {
     const playerResponse = choiceInfo?.playerResponse || '';
     const playerResponseEnabled = choiceInfo?.playerResponseEnabled === true;
     const playerResponseSuppressLlm = choiceInfo?.playerResponseSuppressLlm === true;
+
+    // Apply this choice's variable operations (set/inc/dec/mult/div) before the
+    // flow continues, so [Choice] and any vars are up to date downstream.
+    if (choiceInfo?.setVariablesEnabled && Array.isArray(choiceInfo.variableOps)) {
+      for (const op of choiceInfo.variableOps) {
+        if (!op || !op.variable) continue;
+        this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+      }
+    }
 
     // Generate persona message for the choice (only for Player Choice, not Simple A/B)
     // Skip if playerResponseEnabled is false
@@ -4913,9 +4910,106 @@ class EventEngine {
    * Substitute variables in text
    * Supports: [Player], [Char], [Capacity], [Feeling], [Emotion], [Flow:varname], and legacy {varname}
    */
+  /**
+   * Set/update a system or custom variable, applying an operation
+   * (set / inc / dec / mult / div). Name and value support nested variable
+   * references. Shared by the set_variable action and Player Choice var ops.
+   * Returns true on success, false if the variable was missing/unknown.
+   */
+  applySetVariable(varType, rawVariable, operation, rawValue) {
+    operation = operation || 'set';
+    varType = varType || 'custom';
+
+    // Resolve nested references in the target name (e.g. "[Choice]",
+    // "score_[Choice]", "[Flow:[Choice]]") and in the value.
+    const variable = this.substituteVariables(String(rawVariable ?? '')).trim();
+    const value = this.evaluateExpression(this.substituteVariables(String(rawValue ?? '')));
+
+    if (!variable) {
+      console.log('[EventEngine] applySetVariable: No variable specified');
+      return false;
+    }
+
+    // For math ops both operands are coerced to numbers; "set" returns the
+    // incoming value as-is so strings pass through unchanged.
+    const applyOperation = (current, incoming) => {
+      if (operation === 'set') return incoming;
+      const curNum = parseFloat(current);
+      const valNum = parseFloat(incoming);
+      const a = isNaN(curNum) ? 0 : curNum;
+      const b = isNaN(valNum) ? 0 : valNum;
+      switch (operation) {
+        case 'inc': return a + b;
+        case 'dec': return a - b;
+        case 'mult': return a * b;
+        case 'div': return b !== 0 ? a / b : a;
+        default: return incoming;
+      }
+    };
+
+    if (varType === 'custom') {
+      this.variables[variable] = applyOperation(this.variables[variable], value);
+      if (this.sessionState) {
+        this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+        this.sessionState.flowVariables[variable] = this.variables[variable];
+      }
+      console.log(`[EventEngine] Set flow variable [Flow:${variable}] = ${this.variables[variable]} (${operation})`);
+      return true;
+    }
+
+    // System variable - update sessionState and broadcast
+    if (variable === 'capacity') {
+      const current = this.sessionState?.capacity ?? 0;
+      const numValue = parseInt(applyOperation(current, value)) || 0;
+      const clampedValue = Math.max(0, Math.min(100, numValue));
+      if (this.sessionState) {
+        this.sessionState.capacity = clampedValue;
+        this.broadcast('capacity_update', { capacity: clampedValue });
+      }
+      console.log(`[EventEngine] Set system variable [Capacity] = ${clampedValue} (${operation})`);
+      return true;
+    } else if (variable === 'pain' || variable === 'feeling') {
+      const current = this.sessionState?.pain ?? 0;
+      const numValue = parseInt(applyOperation(current, value)) || 0;
+      const clampedValue = Math.max(0, Math.min(10, numValue));
+      if (this.sessionState) {
+        this.sessionState.pain = clampedValue;
+        this.broadcast('pain_update', { pain: clampedValue });
+      }
+      console.log(`[EventEngine] Set system variable [Pain] = ${clampedValue} (${operation})`);
+      return true;
+    } else if (variable === 'emotion') {
+      if (this.sessionState) {
+        this.sessionState.emotion = value;
+        this.broadcast('emotion_update', { emotion: value });
+      }
+      console.log(`[EventEngine] Set system variable [Emotion] = ${value}`);
+      return true;
+    }
+
+    console.log(`[EventEngine] applySetVariable: Unknown system variable "${variable}"`);
+    return false;
+  }
+
   substituteVariables(text) {
     if (!text) return text;
 
+    // Resolve repeatedly so nested references collapse from the inside out,
+    // e.g. [Flow:[Choice]] -> [Flow:red] -> <value of red>, or
+    // [Flow:[Choice]_score] -> [Flow:red_score] -> <value>. Capped to avoid
+    // infinite loops from self-referential variables.
+    let result = String(text);
+    let prev;
+    let iterations = 0;
+    do {
+      prev = result;
+      result = this._substituteVariablesPass(result);
+    } while (result !== prev && ++iterations < 10);
+
+    return result;
+  }
+
+  _substituteVariablesPass(text) {
     let result = text;
 
     // System variables from session state
@@ -4936,15 +5030,22 @@ class EventEngine {
       result = result.replace(/\[Emotion\]/gi, this.sessionState.emotion ?? 'neutral');
     }
 
+    // Most-recent Player Choice label (persists until the next choice is made).
+    // Resolved before [Flow:...] so [Flow:[Choice]] uses it as a variable name.
+    result = result.replace(/\[Choice\]/gi, this.variables['Choice'] ?? '');
+
     // Challenge result variables (persist until next challenge of same type)
     result = result.replace(/\[Segments\]/gi, this.variables['Segments'] || '');  // All wheel segment labels
     result = result.replace(/\[Segment\]/gi, this.variables['Segment'] || '');    // Winning segment label
     result = result.replace(/\[Roll\]/gi, this.variables['Roll'] || '');          // Dice total rolled
     result = result.replace(/\[Slots\]/gi, this.variables['Slots'] || '');        // Slot machine symbols
 
-    // Flow variables - [Flow:varname] syntax
-    result = result.replace(/\[Flow:(\w+)\]/gi, (match, varName) => {
-      return this.variables[varName] !== undefined ? this.variables[varName] : match;
+    // Flow variables - [Flow:varname] syntax. The name may contain spaces or
+    // be built dynamically by an inner substitution on a prior pass (e.g. a
+    // choice label like "Big Red"); brackets are excluded so it stops cleanly.
+    result = result.replace(/\[Flow:([^[\]]+)\]/gi, (match, varName) => {
+      const key = varName.trim();
+      return this.variables[key] !== undefined ? this.variables[key] : match;
     });
 
     // Legacy {varname} pattern (backwards compatibility)

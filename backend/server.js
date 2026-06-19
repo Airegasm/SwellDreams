@@ -942,7 +942,8 @@ const DATA_FILES = {
   connectionProfiles: path.join(DATA_DIR, 'connection-profiles.json'),
   remoteSettings: path.join(DATA_DIR, 'remote-settings.json'),
   calibrations: path.join(DATA_DIR, 'calibrations.json'),
-  deviceLabels: path.join(DATA_DIR, 'device-labels.json')
+  deviceLabels: path.join(DATA_DIR, 'device-labels.json'),
+  triggerSets: path.join(DATA_DIR, 'trigger-sets.json')
 };
 
 // Helper to get calibration/label key for a device (ip or ip:childId)
@@ -3331,6 +3332,25 @@ async function executeTrigger(trigger, source, character, settings) {
             activeStory[field] = activeStory[field].filter(id => id !== trigger.reminderId);
           }
           await saveCharacterAsync(character);
+        }
+        break;
+      }
+
+      case 'system_message': {
+        const content = substituteAllVariables(trigger.content || '');
+        if (content) {
+          const msg = { id: uuidv4(), content, sender: 'system', characterId: character?.id, characterName: character?.name, timestamp: Date.now() };
+          sessionState.chatHistory.push(msg);
+          broadcast('chat_message', msg);
+          autosaveSession();
+        }
+        break;
+      }
+
+      case 'flow_var': {
+        if (trigger.variable) {
+          eventEngine.applySetVariable('custom', trigger.variable, trigger.operation || 'set', trigger.value);
+          console.log(`[Trigger/${source}] flow_var ${trigger.variable} ${trigger.operation || 'set'} ${trigger.value}`);
         }
         break;
       }
@@ -7077,6 +7097,10 @@ async function handleExecuteButton(data) {
           await handleButtonLinkToFlow(action, characterId, buttonId || eventId);
           break;
 
+        case 'run_trigger_set':
+          await handleButtonRunTriggerSet(action, characterId);
+          break;
+
         // Legacy action types
         case 'stop_cycle':
           await handleButtonStopCycle(action);
@@ -7095,6 +7119,21 @@ async function handleExecuteButton(data) {
   }
 
   console.log('[Button] Button execution completed');
+}
+
+async function handleButtonRunTriggerSet(action, characterId) {
+  const setId = action.config?.triggerSetId;
+  if (!setId) { console.log('[Button] No triggerSetId specified for run_trigger_set'); return; }
+  const sets = loadData(DATA_FILES.triggerSets) || [];
+  const set = sets.find(s => s.id === setId);
+  if (!set) { console.log(`[Button] Trigger set ${setId} not found`); return; }
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === (characterId || settings?.activeCharacterId));
+  console.log(`[Button] Running trigger set "${set.name}" (${(set.triggers || []).length} triggers)`);
+  for (const trigger of (set.triggers || [])) {
+    await executeTrigger(trigger, 'button', character, settings);
+  }
 }
 
 async function handleButtonSendMessage(action, characterId, personaId) {
@@ -10165,6 +10204,52 @@ app.delete('/api/personas/:id', (req, res) => {
   const allPersonas = loadAllPersonas();
   broadcast('personas_update', allPersonas);
   res.json({ success: true });
+});
+
+// --- Trigger Sets (global, button-assignable) ---
+app.get('/api/trigger-sets', (req, res) => {
+  res.json(loadData(DATA_FILES.triggerSets) || []);
+});
+app.post('/api/trigger-sets', (req, res) => {
+  const sets = loadData(DATA_FILES.triggerSets) || [];
+  const newSet = { id: uuidv4(), name: req.body.name || 'New Trigger Set', triggers: req.body.triggers || [], createdAt: Date.now(), updatedAt: Date.now() };
+  sets.push(newSet);
+  saveData(DATA_FILES.triggerSets, sets);
+  broadcast('trigger_sets_update', sets);
+  res.json(newSet);
+});
+app.put('/api/trigger-sets/:id', (req, res) => {
+  const sets = loadData(DATA_FILES.triggerSets) || [];
+  const idx = sets.findIndex(s => s.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Trigger set not found' });
+  sets[idx] = { ...sets[idx], ...req.body, id: sets[idx].id, updatedAt: Date.now() };
+  saveData(DATA_FILES.triggerSets, sets);
+  broadcast('trigger_sets_update', sets);
+  res.json(sets[idx]);
+});
+app.delete('/api/trigger-sets/:id', (req, res) => {
+  let sets = loadData(DATA_FILES.triggerSets) || [];
+  sets = sets.filter(s => s.id !== req.params.id);
+  saveData(DATA_FILES.triggerSets, sets);
+  broadcast('trigger_sets_update', sets);
+  res.json({ success: true });
+});
+app.post('/api/trigger-sets/:id/fire', async (req, res) => {
+  try {
+    const sets = loadData(DATA_FILES.triggerSets) || [];
+    const set = sets.find(s => s.id === req.params.id);
+    if (!set) return res.status(404).json({ error: 'Trigger set not found' });
+    const settings = loadData(DATA_FILES.settings) || {};
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const character = characters.find(c => c.id === settings?.activeCharacterId);
+    for (const trigger of (set.triggers || [])) {
+      await executeTrigger(trigger, 'trigger-set', character, settings);
+    }
+    res.json({ success: true, fired: (set.triggers || []).length });
+  } catch (err) {
+    console.error('Error firing trigger set:', err);
+    res.status(500).json({ error: err.message || 'Failed to fire trigger set' });
+  }
 });
 
 // --- Import Character Card (V2/V3/SwellD PNG) ---

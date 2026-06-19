@@ -134,7 +134,7 @@ const NODE_TEMPLATES = {
     start_cycle: { label: 'Start Cycle', actionType: 'start_cycle', device: '', duration: 5, interval: 10, cycles: 0, untilType: 'forever', untilValue: null, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     stop_cycle: { label: 'Stop Cycle', actionType: 'stop_cycle', device: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     pulse_pump: { label: 'Pulse Pump', actionType: 'pulse_pump', device: '', pulses: 3, preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
-    set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
+    set_variable: { label: 'Set Variable', actionType: 'set_variable', varType: 'system', variable: '', value: '', operation: 'set', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     toggle_reminder: { label: 'Toggle Reminder', actionType: 'toggle_reminder', reminderId: '', action: 'enable', newText: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     toggle_button: { label: 'Toggle Button', actionType: 'toggle_button', buttonId: '', action: 'enable', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
     show_image: { label: 'Show Image', actionType: 'show_image', tag: '', preMessageEnabled: false, preMessage: '', preMessageSuppressLlm: false, preMessageTarget: 'character', preDelay: 0, postMessageEnabled: false, postMessage: '', postMessageSuppressLlm: false, postMessageTarget: 'character', postDelay: 0 },
@@ -651,6 +651,25 @@ function FlowEditor() {
     return Array.from(variableNames).sort();
   }, [flows, nodes]);
 
+  // Map of custom variable name -> declared initial value (used to infer
+  // whether a variable holds a number or a string for the Set Variable node)
+  const flowVariableValues = useMemo(() => {
+    const values = {};
+    const collect = (node) => {
+      if (node.type === 'trigger' && node.data?.triggerType === 'new_session' && node.data?.initialVariables) {
+        node.data.initialVariables.forEach(v => {
+          if (v.name && values[v.name] === undefined) values[v.name] = v.value ?? '';
+        });
+      }
+      if (node.type === 'action' && node.data?.actionType === 'declare_variable' && node.data?.name) {
+        if (values[node.data.name] === undefined) values[node.data.name] = node.data.value ?? '';
+      }
+    };
+    (flows || []).forEach(flow => (flow.nodes || []).forEach(collect));
+    (nodes || []).forEach(collect);
+    return values;
+  }, [flows, nodes]);
+
   // Undo/Redo history
   const {
     pushSnapshot,
@@ -860,6 +879,7 @@ function FlowEditor() {
         characterButtons,
         personaButtons,
         flowVariables,
+        flowVariableValues,
         onChange: (field, value) => updateNodeData(newNodeId, field, value),
         onTest: () => handleTestNode(newNodeId)
       }
@@ -867,7 +887,7 @@ function FlowEditor() {
 
     setNodes((nds) => nds.concat(newNode));
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, closeContextMenu, handleTestNode]);
 
   const handleUnlinkAll = useCallback(() => {
     if (!contextMenu) return;
@@ -1087,6 +1107,7 @@ function FlowEditor() {
             characterButtons,
             personaButtons,
             flowVariables,
+            flowVariableValues,
             onChange: (field, value) => updateNodeData(newNodeId, field, value),
             onTest: () => handleTestNode(newNodeId)
           }
@@ -1118,6 +1139,7 @@ function FlowEditor() {
           characterButtons,
           personaButtons,
           flowVariables,
+          flowVariableValues,
           onChange: (field, value) => updateNodeData(newNodeId, field, value),
           onTest: () => handleTestNode(newNodeId)
         }
@@ -1125,7 +1147,7 @@ function FlowEditor() {
       setNodes((nds) => nds.concat(newNode));
     }
     closeContextMenu();
-  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
+  }, [clipboard, contextMenu, reactFlowInstance, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, closeContextMenu, nodes, edges, pushSnapshot, handleTestNode]);
 
   // Organize/Auto-layout nodes
   const handleOrganizeNodes = useCallback(() => {
@@ -1391,6 +1413,7 @@ function FlowEditor() {
           characterButtons,
           personaButtons,
           flowVariables,
+          flowVariableValues,
           onChange: (field, value) => updateNodeData(nodeId, field, value),
           onTest: () => handleTestNode(nodeId)
         }
@@ -1398,7 +1421,7 @@ function FlowEditor() {
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
+    [reactFlowInstance, setNodes, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, nodes, edges, pushSnapshot, handleTestNode]
   );
 
   const onDragStart = (event, nodeType, subtype) => {
@@ -1496,6 +1519,7 @@ function FlowEditor() {
         characterButtons,
         personaButtons,
         flowVariables,
+        flowVariableValues,
         onChange: (field, value) => updateNodeData(node.id, field, value),
         onTest: () => handleTestNode(node.id)
       }
@@ -1505,7 +1529,7 @@ function FlowEditor() {
     setEdges(flow.edges || []);
     setGroups(flow.groups || []);
     setShowLoadModal(false);
-  }, [api, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges, clearHistory]);
+  }, [api, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges, clearHistory]);
 
   const handleNewFlow = () => {
     // Reset draft state
@@ -1630,6 +1654,7 @@ function FlowEditor() {
               characterButtons,
               personaButtons,
               flowVariables,
+              flowVariableValues,
               onChange: (field, value) => updateNodeData(node.id, field, value),
               onTest: () => handleTestNode(node.id)
             }
@@ -1647,7 +1672,7 @@ function FlowEditor() {
       }
     }
     draftInitialized.current = true;
-  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, updateNodeData, setNodes, setEdges]);
+  }, [selectedFlow, getDraftKey, devices, globalReminders, characterReminders, characterButtons, personaButtons, flowVariables, flowVariableValues, updateNodeData, setNodes, setEdges]);
 
   // Clear draft on successful save
   const clearFlowDraft = useCallback(() => {

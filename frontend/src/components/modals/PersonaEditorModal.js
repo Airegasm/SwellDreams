@@ -85,6 +85,8 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const [showButtonForm, setShowButtonForm] = useState(false);
   const [editingButtonId, setEditingButtonId] = useState(null);
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [], enabled: true });
+  const [triggerSets, setTriggerSets] = useState([]);
+  useEffect(() => { if (isOpen && typeof api.getTriggerSets === 'function') { api.getTriggerSets().then(setTriggerSets).catch(() => {}); } }, [isOpen]);
 
   // Dropdown selections
   const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
@@ -977,6 +979,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                                 <option value="turn_on">Turn On Device</option>
                                 <option value="cycle">Cycle Device</option>
                                 <option value="link_to_flow">Link to Flow</option>
+                                <option value="run_trigger_set">Run Trigger Set</option>
                               </select>
                               {action.type === 'message' && (
                                 <textarea
@@ -1007,6 +1010,12 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                                 <select value={action.config.flowId || ''} onChange={(e) => handleUpdateAction(index, 'flowId', e.target.value)}>
                                   <option value="">Select Flow...</option>
                                   {flows?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                              )}
+                              {action.type === 'run_trigger_set' && (
+                                <select value={action.config.triggerSetId || ''} onChange={(e) => handleUpdateAction(index, 'triggerSetId', e.target.value)}>
+                                  <option value="">Select Trigger Set...</option>
+                                  {triggerSets.map(ts => <option key={ts.id} value={ts.id}>{ts.name}</option>)}
                                 </select>
                               )}
                             </div>

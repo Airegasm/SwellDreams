@@ -295,6 +295,8 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
   const [showButtonForm, setShowButtonForm] = useState(false);
   const [editingButtonId, setEditingButtonId] = useState(null);
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
+  const [triggerSets, setTriggerSets] = useState([]);
+  useEffect(() => { if (isOpen && typeof api.getTriggerSets === 'function') { api.getTriggerSets().then(setTriggerSets).catch(() => {}); } }, [isOpen]);
   const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
   const [showReminderForm, setShowReminderForm] = useState(false);
   const [editingReminderId, setEditingReminderId] = useState(null);
@@ -2181,6 +2183,7 @@ Write only the scenario description itself, no explanations.`;
                                 <option value="turn_on">Turn On Device</option>
                                 <option value="cycle">Cycle Device</option>
                                 <option value="link_to_flow">Link to Flow</option>
+                                <option value="run_trigger_set">Run Trigger Set</option>
                               </select>
                               {action.type === 'message' && (
                                 <textarea value={action.config.text || ''}
@@ -2209,6 +2212,12 @@ Write only the scenario description itself, no explanations.`;
                                 <select value={action.config.flowId || ''} onChange={(e) => handleUpdateAction(index, 'flowId', e.target.value)}>
                                   <option value="">Select Flow...</option>
                                   {flows?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                              )}
+                              {action.type === 'run_trigger_set' && (
+                                <select value={action.config.triggerSetId || ''} onChange={(e) => handleUpdateAction(index, 'triggerSetId', e.target.value)}>
+                                  <option value="">Select Trigger Set...</option>
+                                  {triggerSets.map(ts => <option key={ts.id} value={ts.id}>{ts.name}</option>)}
                                 </select>
                               )}
                             </div>

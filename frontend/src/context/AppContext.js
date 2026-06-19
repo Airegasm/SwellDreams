@@ -915,6 +915,23 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
+    // Trigger Sets
+    getTriggerSets: () => apiFetch(`${API_BASE}/api/trigger-sets`),
+    createTriggerSet: (data) => apiFetch(`${API_BASE}/api/trigger-sets`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    updateTriggerSet: (id, data) => apiFetch(`${API_BASE}/api/trigger-sets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    deleteTriggerSet: (id) => apiFetch(`${API_BASE}/api/trigger-sets/${id}`, {
+      method: 'DELETE'
+    }),
+    fireTriggerSet: (id) => apiFetch(`${API_BASE}/api/trigger-sets/${id}/fire`, {
+      method: 'POST'
+    }),
+
     // Characters
     getCharacters: () => apiFetch(`${API_BASE}/api/characters`),
 

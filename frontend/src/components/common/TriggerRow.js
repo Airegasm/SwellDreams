@@ -56,6 +56,8 @@ function getTriggerTypes(isPumpable) {
   const types = [
     { value: 'impersonate', label: 'Player Impersonate' },
     { value: 'ai_message', label: 'Char AI Message' },
+    { value: 'system_message', label: 'System Message' },
+    { value: 'flow_var', label: 'Set Flow Variable' },
   ];
 
   if (isPumpable) {
@@ -157,6 +159,29 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         return (
           <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
             placeholder="Optional context..." style={{ flex: 1, minWidth: '80px' }} />
+        );
+
+      case 'system_message':
+        return (
+          <input type="text" value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
+            placeholder="System message text..." style={{ flex: 1, minWidth: '120px' }} />
+        );
+
+      case 'flow_var':
+        return (
+          <>
+            <input type="text" value={trigger.variable || ''} onChange={(e) => update('variable', e.target.value)}
+              placeholder="Variable" style={{ width: '110px' }} />
+            <select value={trigger.operation || 'set'} onChange={(e) => update('operation', e.target.value)} style={{ width: '95px' }}>
+              <option value="set">Set =</option>
+              <option value="inc">Inc +=</option>
+              <option value="dec">Dec −=</option>
+              <option value="mult">Mult ×=</option>
+              <option value="div">Div ÷=</option>
+            </select>
+            <input type="text" value={trigger.value ?? ''} onChange={(e) => update('value', e.target.value)}
+              placeholder="Value" style={{ width: '70px' }} />
+          </>
         );
 
       case 'toggle_pump_always':

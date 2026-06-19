@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v4.2.0 — Open Beta</h3>
+<h3 align="center">SwellDreams v5.0.0 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v4.2.0 "Open Beta"**
+**v5.0.0 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -73,6 +73,7 @@ When using local backends, SwellDreams formats prompts using the correct chat te
 | **Llama 2** | `[INST]` / `<<SYS>>` | Llama 2 Instruct |
 | **Llama 3** | `<\|start_header_id\|>` | Llama 3 / 3.1 / 3.2 / 3.3 Instruct |
 | **Mistral** | `[INST]` (v0.2+) | Mistral, Mixtral |
+| **Mistral v7 (Tekken)** | `[SYSTEM_PROMPT]` / `[INST]` | Mistral Small 3.x, Skyfall & finetunes |
 | **Gemma 2** | `<start_of_turn>` / `<end_of_turn>` | Gemma 2 Instruct |
 | **Gemma 3** | `<start_of_turn>` with system role | Gemma 3 Instruct |
 | **Alpaca** | `### Instruction` / `### Response` | Alpaca-format fine-tunes |
@@ -84,10 +85,12 @@ When using local backends, SwellDreams formats prompts using the correct chat te
 
 Full control over generation quality with an extensive sampler configuration panel:
 
-- **Core Samplers** — Temperature, Top-K, Top-P, Typical-P, Min-P, Top-A, TFS, Top N-Sigma
-- **Repetition Control** — Repetition penalty, frequency penalty, presence penalty with configurable range and slope
+- **Core Samplers** — Temperature, Top-K, Top-P, Typical-P, Min-P, Top-A, TFS, Top N-Sigma (fully wired to both KoboldCpp and llama.cpp)
+- **Repetition Control** — Repetition penalty, frequency penalty, presence penalty with configurable range and slope (now sent on both backends)
 - **Advanced Samplers** — DRY repetition penalty, XTC sampling, quadratic smoothing, dynamic temperature, Mirostat (modes 1 and 2)
-- **Token Control** — Custom stop sequences, banned tokens, GBNF grammar constraints, custom sampler execution order
+- **Token Control** — Custom stop sequences, banned tokens, banned strings (anti-slop), per-token-ID `logit_bias` bias/bans, GBNF grammar constraints, custom sampler execution order
+- **Generation & Tokenization** — Ban EOS token (run past the model's end-of-turn), skip special tokens, add BOS token, fixed seed, and llama.cpp `n_keep` for preserving the character card on context overflow
+- **Override Server Samplers** — Per-profile toggle: send SwellDreams' full sampler set, or only prompt/limits/stop/EOS and let the server's own launched sampler profile govern (for llama-server / managed setups)
 - **Convenience** — Lock samplers to prevent accidental changes, one-click neutralize to reset all values, per-connection profile presets
 
 ---
@@ -172,7 +175,8 @@ Each device can be calibrated to establish a baseline — the system learns how 
 - **Author note** — high-priority persistent instruction field in global settings
 - **Token switching** — replace overused LLM words with random alternatives. Define trigger word → comma-separated replacements in Settings > Global. Applied to every AI response with case-preserving whole-word matching.
 - **Character inflation ("Pumpable")** — characters can be inflation targets with their own capacity gauge, pain emoji, staged portraits, burst threshold, and full AI context awareness. Controlled via flow nodes (start/stop/set capacity) with configurable calibration time, knowledge level (unaware→expert), desire to be inflated (terrified→obsessed), and desire to be popped (terrified→eager). Auto-load basic controls option assigns ready-made button flows.
-- **Custom buttons** — quick-action buttons with send message, device control, cycle device, and flow linking actions. Dynamically togglable via flows.
+- **Custom buttons** — quick-action buttons with send message, device control, cycle device, flow linking, and run-trigger-set actions. Dynamically togglable via flows.
+- **Trigger Sets** — named, reusable bundles of triggers managed on a dedicated Triggers page (create, save, rename, delete). Fire an entire set at once from a button (Run Trigger Set action) or via the API. Trigger rows support actions including player impersonate, AI message, **system message**, **set flow variable** (Set/Inc/Dec/Mult/Div), device control, and capacity/state changes.
 - **[Gender] smart pronoun system** — context-aware pronoun variable that resolves to he/she/they based on persona gender and grammatical position
 - **Built-in characters** — Luna (romantic partner), Mistress Scarlett (dominatrix), Vex (gameshow host), Dr. Iris Chen (researcher), Research Team Alpha (multi-char medical team) — each with pre-built flows
 - **V2/V3 Tavern import** — full conversion of SillyTavern/TavernAI character cards (PNG and JSON) including lorebook entries, alternate greetings, and avatar extraction. Batch import of multiple files at once with per-file error handling. Post-import guidance modal.

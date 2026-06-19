@@ -83,14 +83,16 @@
 .favorite-star {
   background: none;
   border: none;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 6px;
   line-height: 1;
-  color: #555;
+  color: #888;
   transition: color 0.2s ease, transform 0.15s ease;
   flex-shrink: 0;
   align-self: center;
+  position: relative;
+  z-index: 2;
 }
 
 .favorite-star:hover {
@@ -100,7 +102,7 @@
 
 .favorite-star.active {
   color: #ffd700;
-  text-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
 }
 
 /* Card-style list items */
@@ -1436,6 +1438,11 @@
   align-items: center;
   gap: 4px;
   cursor: pointer;
+}
+
+.settings-divider {
+  border-top: 1px solid var(--border-color);
+  margin: 12px 0 8px;
 }
 
 .checkbox-inline input[type="checkbox"] {

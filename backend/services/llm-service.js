@@ -20,7 +20,7 @@ let llamaCppCapsCacheUrl = null;
 const DEFAULT_SETTINGS = {
   llmUrl: '',
   apiType: 'auto',  // 'auto', 'text_completion', 'chat_completion'
-  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'llama3', 'mistral', 'alpaca', 'vicuna', 'gemma2', 'gemma3', 'jinja'
+  promptTemplate: 'none',  // 'none', 'chatml', 'llama', 'llama3', 'mistral', 'mistral-tekken', 'alpaca', 'vicuna', 'gemma2', 'gemma3', 'jinja'
   maxTokens: 150,
   contextTokens: 8192,
   streaming: false,
@@ -59,8 +59,17 @@ const DEFAULT_SETTINGS = {
   mirostatEta: 0.1,        // Mirostat learning rate
   // Stop sequences and token control (defaults help prevent role confusion)
   stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
-  bannedTokens: [],        // Banned token strings
-  grammar: ''              // GBNF grammar string (empty = disabled)
+  bannedTokens: [],        // Banned token strings (KoboldCpp banned_tokens)
+  bannedStrings: [],       // KoboldCpp anti-slop literal phrases (generation backtracks)
+  logitBias: [],           // Array of [tokenId, bias] pairs (per-token steering / hard bans)
+  grammar: '',             // GBNF grammar string (empty = disabled)
+  // Generation / tokenization controls (NOT samplers — sent even when overrideSamplers is off)
+  overrideSamplers: true,  // false = send only prompt/limits/stop/EOS, letting the server's launched profile govern samplers (e.g. llama-server / LlamaHerder)
+  banEosToken: false,      // true = forbid the model's EOS token so it runs to max/stop. Kobold use_default_badwordsids / llama.cpp ignore_eos
+  skipSpecialTokens: true, // strip special tokens from returned text (KoboldCpp skip_special_tokens)
+  addBosToken: true,       // prepend the model BOS token (KoboldCpp add_bos_token)
+  seed: -1,                // RNG seed (-1 = random). Kobold sampler_seed / llama.cpp seed
+  nKeep: 0                 // llama.cpp: leading prompt tokens to retain on context overflow (0 = none, -1 = all)
 };
 
 /**
@@ -131,6 +140,17 @@ function wrapWithTemplate(systemPrompt, prompt, template) {
       }
       return mistral;
 
+    case 'mistral-tekken':
+      // Mistral v7 "Tekken" format: dedicated [SYSTEM_PROMPT] block, no spaces
+      // inside [INST]. Used by Mistral Small 3.x and finetunes (e.g. Skyfall).
+      // BOS (<s>) is added by the tokenizer server-side, so it is omitted here.
+      let tekken = '';
+      if (systemPrompt) {
+        tekken += `[SYSTEM_PROMPT]${systemPrompt}[/SYSTEM_PROMPT]`;
+      }
+      tekken += `[INST]${prompt}[/INST]`;
+      return tekken;
+
     case 'alpaca':
       // Alpaca format
       let alpaca = '';
@@ -200,6 +220,7 @@ function getTemplateStopTokens(template) {
       return ['<|eot_id|>'];
     case 'llama':
     case 'mistral':
+    case 'mistral-tekken':
       return ['</s>'];
     case 'alpaca':
       return ['### Instruction:', '### Input:'];
@@ -211,65 +232,57 @@ function getTemplateStopTokens(template) {
 }
 
 /**
+ * Convert a [[tokenId, bias], ...] list into KoboldCpp's logit_bias object form
+ * ({ "tokenId": bias }). Returns null if there is nothing to send.
+ */
+function toKoboldLogitBias(logitBias) {
+  if (!Array.isArray(logitBias) || logitBias.length === 0) return null;
+  const obj = {};
+  for (const entry of logitBias) {
+    if (!Array.isArray(entry) || entry.length < 2) continue;
+    const id = parseInt(entry[0]);
+    const bias = Number(entry[1]);
+    if (Number.isNaN(id) || Number.isNaN(bias)) continue;
+    obj[id] = bias;
+  }
+  return Object.keys(obj).length ? obj : null;
+}
+
+/**
+ * Normalize a [[tokenId, bias], ...] list for llama.cpp (array of [id, number]).
+ * Returns null if there is nothing to send.
+ */
+function toLlamaLogitBias(logitBias) {
+  if (!Array.isArray(logitBias) || logitBias.length === 0) return null;
+  const out = [];
+  for (const entry of logitBias) {
+    if (!Array.isArray(entry) || entry.length < 2) continue;
+    const id = parseInt(entry[0]);
+    const bias = Number(entry[1]);
+    if (Number.isNaN(id) || Number.isNaN(bias)) continue;
+    out.push([id, bias]);
+  }
+  return out.length ? out : null;
+}
+
+/**
  * Build request body for KoboldCpp (text completion)
  */
 function buildTextCompletionRequest(prompt, settings) {
   const body = {
     prompt: prompt,
     max_length: settings.maxTokens,
-    max_context_length: settings.contextTokens,
-    temperature: settings.temperature,
-    top_p: settings.topP,
-    top_k: settings.topK,
-    typical: settings.typicalP,
-    min_p: settings.minP,
-    tfs: settings.tfs,
-    top_a: settings.topA,
-    rep_pen: settings.repetitionPenalty,
-    rep_pen_range: settings.repPenRange,
-    rep_pen_slope: settings.repPenSlope
+    max_context_length: settings.contextTokens
   };
 
-  // Add sampler order if specified
-  if (settings.samplerOrder && settings.samplerOrder.length > 0) {
-    body.sampler_order = settings.samplerOrder;
-  }
-
-  // KoboldCpp advanced samplers - DRY repetition penalty
-  if (settings.dryMultiplier && settings.dryMultiplier > 0) {
-    body.dry_multiplier = settings.dryMultiplier;
-    body.dry_base = settings.dryBase || 1.75;
-    body.dry_allowed_length = settings.dryAllowedLength || 2;
-    body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
-    if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
-      body.dry_sequence_breakers = settings.drySequenceBreakers;
-    }
-  }
-
-  // KoboldCpp XTC (Exclude Top Choices)
-  if (settings.xtcProbability && settings.xtcProbability > 0) {
-    body.xtc_threshold = settings.xtcThreshold || 0.1;
-    body.xtc_probability = settings.xtcProbability;
-  }
-
-  // KoboldCpp Smoothing
-  if (settings.smoothingFactor && settings.smoothingFactor > 0) {
-    body.smoothing_factor = settings.smoothingFactor;
-    body.smoothing_curve = settings.smoothingCurve || 1;
-  }
-
-  // Dynamic Temperature
-  if (settings.dynaTempRange && settings.dynaTempRange > 0) {
-    body.dynatemp_range = settings.dynaTempRange;
-    body.dynatemp_exponent = settings.dynaTempExponent || 1;
-  }
-
-  // Mirostat
-  if (settings.mirostat && settings.mirostat > 0) {
-    body.mirostat = settings.mirostat;
-    body.mirostat_tau = settings.mirostatTau || 5;
-    body.mirostat_eta = settings.mirostatEta || 0.1;
-  }
+  // --- Generation / tokenization controls (NOT samplers) ---
+  // Always sent so they apply even when deferring samplers to the server.
+  // EOS control: KoboldCpp historically defaults use_default_badwordsids to
+  // true (which BANS EOS and causes run-on replies), so send it explicitly.
+  body.use_default_badwordsids = !!settings.banEosToken;
+  if (settings.addBosToken !== undefined) body.add_bos_token = settings.addBosToken !== false;
+  if (settings.skipSpecialTokens !== undefined) body.skip_special_tokens = settings.skipSpecialTokens !== false;
+  if (typeof settings.seed === 'number' && settings.seed >= 0) body.sampler_seed = settings.seed;
 
   // Stop sequences — merge user-defined + template-specific stop tokens
   const templateStops = getTemplateStopTokens(settings.promptTemplate);
@@ -279,30 +292,101 @@ function buildTextCompletionRequest(prompt, settings) {
     body.stop_sequence = allStops;
   }
 
-  // Banned tokens
+  // Token / string control
   if (settings.bannedTokens && settings.bannedTokens.length > 0) {
     body.banned_tokens = settings.bannedTokens;
   }
+  if (settings.bannedStrings && settings.bannedStrings.length > 0) {
+    body.banned_strings = settings.bannedStrings; // KoboldCpp anti-slop
+  }
+  const koboldLogitBias = toKoboldLogitBias(settings.logitBias);
+  if (koboldLogitBias) body.logit_bias = koboldLogitBias;
 
   // Grammar (GBNF)
   if (settings.grammar && settings.grammar.trim()) {
     body.grammar = settings.grammar.trim();
   }
 
-  // Neutralize samplers if requested
-  if (settings.neutralizeSamplers) {
-    body.temperature = 1;
-    body.top_p = 1;
-    body.top_k = 0;
-    body.typical = 1;
-    body.min_p = 0;
-    body.tfs = 1;
-    body.top_a = 0;
-    body.rep_pen = 1;
-    // Also disable advanced samplers
-    delete body.dry_multiplier;
-    delete body.xtc_probability;
-    delete body.smoothing_factor;
+  // --- Samplers ---
+  // Skipped entirely when overrideSamplers is false, so the server's launched
+  // sampler profile governs (useful for llama.cpp/KoboldCpp configured upstream).
+  if (settings.overrideSamplers !== false) {
+    body.temperature = settings.temperature;
+    body.top_p = settings.topP;
+    body.top_k = settings.topK;
+    body.typical = settings.typicalP;
+    body.min_p = settings.minP;
+    body.tfs = settings.tfs;
+    body.top_a = settings.topA;
+    body.rep_pen = settings.repetitionPenalty;
+    body.rep_pen_range = settings.repPenRange;
+    body.rep_pen_slope = settings.repPenSlope;
+    body.presence_penalty = settings.presencePenalty;
+    body.frequency_penalty = settings.frequencyPenalty;
+
+    // Top N-Sigma (KoboldCpp field: nsigma)
+    if (settings.topNsigma && settings.topNsigma > 0) {
+      body.nsigma = settings.topNsigma;
+    }
+
+    // Sampler order
+    if (settings.samplerOrder && settings.samplerOrder.length > 0) {
+      body.sampler_order = settings.samplerOrder;
+    }
+
+    // DRY repetition penalty
+    if (settings.dryMultiplier && settings.dryMultiplier > 0) {
+      body.dry_multiplier = settings.dryMultiplier;
+      body.dry_base = settings.dryBase || 1.75;
+      body.dry_allowed_length = settings.dryAllowedLength || 2;
+      body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
+      if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
+        body.dry_sequence_breakers = settings.drySequenceBreakers;
+      }
+    }
+
+    // XTC (Exclude Top Choices)
+    if (settings.xtcProbability && settings.xtcProbability > 0) {
+      body.xtc_threshold = settings.xtcThreshold || 0.1;
+      body.xtc_probability = settings.xtcProbability;
+    }
+
+    // Smoothing
+    if (settings.smoothingFactor && settings.smoothingFactor > 0) {
+      body.smoothing_factor = settings.smoothingFactor;
+      body.smoothing_curve = settings.smoothingCurve || 1;
+    }
+
+    // Dynamic Temperature
+    if (settings.dynaTempRange && settings.dynaTempRange > 0) {
+      body.dynatemp_range = settings.dynaTempRange;
+      body.dynatemp_exponent = settings.dynaTempExponent || 1;
+    }
+
+    // Mirostat
+    if (settings.mirostat && settings.mirostat > 0) {
+      body.mirostat = settings.mirostat;
+      body.mirostat_tau = settings.mirostatTau || 5;
+      body.mirostat_eta = settings.mirostatEta || 0.1;
+    }
+
+    // Neutralize samplers if requested
+    if (settings.neutralizeSamplers) {
+      body.temperature = 1;
+      body.top_p = 1;
+      body.top_k = 0;
+      body.typical = 1;
+      body.min_p = 0;
+      body.tfs = 1;
+      body.top_a = 0;
+      body.rep_pen = 1;
+      body.nsigma = 0;
+      body.presence_penalty = 0;
+      body.frequency_penalty = 0;
+      delete body.dry_multiplier;
+      delete body.xtc_probability;
+      delete body.smoothing_factor;
+    }
   }
 
   return body;
@@ -1288,26 +1372,16 @@ function buildLlamaCppRequest(prompt, settings) {
   const body = {
     prompt: prompt,
     n_predict: settings.maxTokens || 150,
-    temperature: settings.temperature ?? 0.92,
-    top_k: settings.topK ?? 0,
-    top_p: settings.topP ?? 0.92,
-    min_p: settings.minP ?? 0.08,
-    typical_p: settings.typicalP ?? 1,
-    tfs_z: settings.tfs ?? 1,
-    top_a: settings.topA ?? 0,
-    repeat_penalty: settings.repetitionPenalty ?? 1.05,
-    repeat_last_n: settings.repPenRange ?? 2048,
-    frequency_penalty: settings.frequencyPenalty ?? 0,
-    presence_penalty: settings.presencePenalty ?? 0,
     cache_prompt: true,
     special: true  // Parse special tokens (e.g. <start_of_turn>) in template-wrapped prompts
   };
 
-  // Mirostat
-  if (settings.mirostat && settings.mirostat > 0) {
-    body.mirostat = settings.mirostat;
-    body.mirostat_tau = settings.mirostatTau || 5;
-    body.mirostat_eta = settings.mirostatEta || 0.1;
+  // --- Generation / tokenization controls (NOT samplers) ---
+  // EOS control: ignore_eos=true forbids the model's end token (run to limit/stop)
+  body.ignore_eos = !!settings.banEosToken;
+  if (typeof settings.seed === 'number' && settings.seed >= 0) body.seed = settings.seed;
+  if (typeof settings.nKeep === 'number' && (settings.nKeep > 0 || settings.nKeep === -1)) {
+    body.n_keep = settings.nKeep; // retain leading prompt tokens (e.g. char card) on overflow
   }
 
   // Stop sequences — merge user-defined + template-specific stop tokens
@@ -1323,43 +1397,83 @@ function buildLlamaCppRequest(prompt, settings) {
     body.grammar = settings.grammar.trim();
   }
 
-  // Dynamic Temperature
-  if (settings.dynaTempRange && settings.dynaTempRange > 0) {
-    body.dynatemp_range = settings.dynaTempRange;
-    body.dynatemp_exponent = settings.dynaTempExponent || 1;
-  }
-
-  // DRY repetition penalty
-  if (settings.dryMultiplier && settings.dryMultiplier > 0) {
-    body.dry_multiplier = settings.dryMultiplier;
-    body.dry_base = settings.dryBase || 1.75;
-    body.dry_allowed_length = settings.dryAllowedLength || 2;
-    body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
-    if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
-      body.dry_sequence_breakers = settings.drySequenceBreakers;
+  // Token bans — llama.cpp uses numeric token IDs via logit_bias (no string bans).
+  // Combine the explicit logitBias pairs with any numeric bannedTokens entries.
+  const llamaBias = toLlamaLogitBias(settings.logitBias) || [];
+  if (Array.isArray(settings.bannedTokens)) {
+    for (const t of settings.bannedTokens) {
+      if (/^\d+$/.test(String(t).trim())) llamaBias.push([parseInt(t), false]);
     }
   }
+  if (llamaBias.length) body.logit_bias = llamaBias;
 
-  // XTC (Exclude Top Choices)
-  if (settings.xtcProbability && settings.xtcProbability > 0) {
-    body.xtc_probability = settings.xtcProbability;
-    body.xtc_threshold = settings.xtcThreshold || 0.1;
-  }
+  // --- Samplers ---
+  // Skipped entirely when overrideSamplers is false, so the server's launched
+  // sampler profile governs (e.g. llama-server / LlamaHerder configured upstream).
+  if (settings.overrideSamplers !== false) {
+    body.temperature = settings.temperature ?? 0.92;
+    body.top_k = settings.topK ?? 0;
+    body.top_p = settings.topP ?? 0.92;
+    body.min_p = settings.minP ?? 0.08;
+    body.typical_p = settings.typicalP ?? 1;
+    body.tfs_z = settings.tfs ?? 1;
+    body.top_a = settings.topA ?? 0;
+    body.repeat_penalty = settings.repetitionPenalty ?? 1.05;
+    body.repeat_last_n = settings.repPenRange ?? 2048;
+    body.frequency_penalty = settings.frequencyPenalty ?? 0;
+    body.presence_penalty = settings.presencePenalty ?? 0;
 
-  // Neutralize samplers if requested
-  if (settings.neutralizeSamplers) {
-    body.temperature = 1;
-    body.top_p = 1;
-    body.top_k = 0;
-    body.typical_p = 1;
-    body.min_p = 0;
-    body.tfs_z = 1;
-    body.top_a = 0;
-    body.repeat_penalty = 1;
-    body.frequency_penalty = 0;
-    body.presence_penalty = 0;
-    delete body.dry_multiplier;
-    delete body.xtc_probability;
+    // Top N-Sigma (llama.cpp field: top_n_sigma)
+    if (settings.topNsigma && settings.topNsigma > 0) {
+      body.top_n_sigma = settings.topNsigma;
+    }
+
+    // Mirostat
+    if (settings.mirostat && settings.mirostat > 0) {
+      body.mirostat = settings.mirostat;
+      body.mirostat_tau = settings.mirostatTau || 5;
+      body.mirostat_eta = settings.mirostatEta || 0.1;
+    }
+
+    // Dynamic Temperature
+    if (settings.dynaTempRange && settings.dynaTempRange > 0) {
+      body.dynatemp_range = settings.dynaTempRange;
+      body.dynatemp_exponent = settings.dynaTempExponent || 1;
+    }
+
+    // DRY repetition penalty
+    if (settings.dryMultiplier && settings.dryMultiplier > 0) {
+      body.dry_multiplier = settings.dryMultiplier;
+      body.dry_base = settings.dryBase || 1.75;
+      body.dry_allowed_length = settings.dryAllowedLength || 2;
+      body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
+      if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
+        body.dry_sequence_breakers = settings.drySequenceBreakers;
+      }
+    }
+
+    // XTC (Exclude Top Choices)
+    if (settings.xtcProbability && settings.xtcProbability > 0) {
+      body.xtc_probability = settings.xtcProbability;
+      body.xtc_threshold = settings.xtcThreshold || 0.1;
+    }
+
+    // Neutralize samplers if requested
+    if (settings.neutralizeSamplers) {
+      body.temperature = 1;
+      body.top_p = 1;
+      body.top_k = 0;
+      body.typical_p = 1;
+      body.min_p = 0;
+      body.tfs_z = 1;
+      body.top_a = 0;
+      body.top_n_sigma = 0;
+      body.repeat_penalty = 1;
+      body.frequency_penalty = 0;
+      body.presence_penalty = 0;
+      delete body.dry_multiplier;
+      delete body.xtc_probability;
+    }
   }
 
   return body;
@@ -1546,6 +1660,8 @@ module.exports = {
   buildOpenRouterRequest,
   generateOpenRouter,
   testOpenRouterConnection,
+  // request builders (exported for testing)
+  buildTextCompletionRequest,
   // llama.cpp
   buildLlamaCppRequest,
   generateLlamaCpp
