@@ -608,18 +608,8 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
           })()}
 
           {RANGES_1_100.map(({ key, label, hint }) => (
-            <div className="form-group checkpoint-field" key={key}>
-              <div className="checkpoint-header">
-                <label>{label}</label>
-                <button
-                  type="button"
-                  className="checkpoint-spoiler-toggle"
-                  onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [key]: !prev[key] }))}
-                >
-                  <span className="spoiler-label">{visibleCheckpoints[key] ? 'Hide' : 'Show'}</span>
-                </button>
-              </div>
-              {hint && <p className="section-hint">{hint}</p>}
+            <CollapsibleSection key={key} title={label} subtitle={hint}
+              open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
               {/* Pump-pacing config lives OUTSIDE the spoiler blur — it's setup, not RP content.
                   Uses the exact same field pattern as the (working) Bulb/Bike Max inputs. */}
               {isManualPump && (
@@ -658,7 +648,6 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   </div>
                 </div>
               )}
-              <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
                 <label className="ci-label">Main theme</label>
                 <textarea
                   className="ci-main-theme"
@@ -689,8 +678,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                     </div>
                   );
                 })()}
-              </div>
-            </div>
+            </CollapsibleSection>
           ))}
         </div>
 

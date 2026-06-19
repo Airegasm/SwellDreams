@@ -2433,19 +2433,8 @@ Write only the scenario description itself, no explanations.`;
                 { key: '91-100', label: '91–100%' },
                 { key: '100+', label: '100%+ — Over-Inflation' }
               ].map(({ key, label, hint }) => (
-                <div className="form-group checkpoint-field" key={key}>
-                  <div className="checkpoint-header">
-                    <label>{label}</label>
-                    <button type="button" className="checkpoint-spoiler-toggle"
-                      onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [key]: !prev[key] }))}
-                      title={visibleCheckpoints[key] ? 'Hide' : 'Show'}
-                    >
-                      <span className="spoiler-eye">{visibleCheckpoints[key] ? '\u{1F441}' : '\u{1F441}\u200D\u{1F5E8}'}</span>
-                      <span className="spoiler-label">{visibleCheckpoints[key] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
-                    </button>
-                  </div>
-                  {hint && <p className="section-hint">{hint}</p>}
-                  <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
+                <CollapsibleSection key={key} title={label} subtitle={hint}
+                  open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
                     <label className="ci-label">Main theme</label>
                     <textarea
                       className="ci-main-theme"
@@ -2472,8 +2461,7 @@ Write only the scenario description itself, no explanations.`;
                       onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
                       defaultName={`Range ${key}`} source={`from card: ${formData.name || 'multichar'}`}
                       rowProps={{ triggerSets, isPumpable: false, members: multiChars, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                  </div>
-                </div>
+                </CollapsibleSection>
               ))}
             </div>
           </div>

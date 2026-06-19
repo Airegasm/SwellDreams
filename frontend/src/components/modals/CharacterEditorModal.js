@@ -3145,21 +3145,8 @@ Write only the scenario description itself, no explanations.`;
                         { key: '91-100', label: '91–100%' },
                         { key: '100+', label: '100%+ — Over-Inflation' }
                       ].map(({ key, label, hint }) => (
-                        <div className="form-group checkpoint-field" key={key}>
-                          <div className="checkpoint-header">
-                            <label>{label}</label>
-                            <button
-                              type="button"
-                              className="checkpoint-spoiler-toggle"
-                              onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: !prev[`player-${key}`] }))}
-                              title={visibleCheckpoints[`player-${key}`] ? 'Hide' : 'Show'}
-                            >
-                              <span className="spoiler-eye">{visibleCheckpoints[`player-${key}`] ? '👁' : '👁‍🗨'}</span>
-                              <span className="spoiler-label">{visibleCheckpoints[`player-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
-                            </button>
-                          </div>
-                          {hint && <p className="section-hint">{hint}</p>}
-                          <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
+                        <CollapsibleSection key={key} title={label} subtitle={hint}
+                          open={!!visibleCheckpoints[`player-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: v }))}>
                             <label className="ci-label">Main theme</label>
                             <textarea
                               className="ci-main-theme"
@@ -3186,8 +3173,7 @@ Write only the scenario description itself, no explanations.`;
                               onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
                               defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
                               rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                          </div>
-                        </div>
+                        </CollapsibleSection>
                       ))}
                     </>
                   )}
@@ -3232,21 +3218,8 @@ Write only the scenario description itself, no explanations.`;
                         { key: '91-100', label: '91–100%' },
                         { key: '100+', label: '100%+ — Over-Inflation' }
                       ].map(({ key, label, hint }) => (
-                        <div className="form-group checkpoint-field" key={key}>
-                          <div className="checkpoint-header">
-                            <label>{label}</label>
-                            <button
-                              type="button"
-                              className="checkpoint-spoiler-toggle"
-                              onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`char-${key}`]: !prev[`char-${key}`] }))}
-                              title={visibleCheckpoints[`char-${key}`] ? 'Hide' : 'Show'}
-                            >
-                              <span className="spoiler-eye">{visibleCheckpoints[`char-${key}`] ? '👁' : '👁‍🗨'}</span>
-                              <span className="spoiler-label">{visibleCheckpoints[`char-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
-                            </button>
-                          </div>
-                          {hint && <p className="section-hint">{hint}</p>}
-                          <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`char-${key}`] ? 'revealed' : ''}`}>
+                        <CollapsibleSection key={key} title={label} subtitle={hint}
+                          open={!!visibleCheckpoints[`char-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`char-${key}`]: v }))}>
                             <label className="ci-label">Main theme</label>
                             <textarea
                               className="ci-main-theme"
@@ -3273,8 +3246,7 @@ Write only the scenario description itself, no explanations.`;
                               onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`char-${key}`]: r } })}
                               defaultName={`Char Range ${key}`} source={`from card: ${formData.name || 'character'}`}
                               rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                          </div>
-                        </div>
+                        </CollapsibleSection>
                       ))}
                     </>
                   )}
@@ -3318,21 +3290,8 @@ Write only the scenario description itself, no explanations.`;
                     { key: '91-100', label: '91–100%' },
                     { key: '100+', label: '100%+ — Over-Inflation' }
                   ].map(({ key, label, hint }) => (
-                    <div className="form-group checkpoint-field" key={key}>
-                      <div className="checkpoint-header">
-                        <label>{label}</label>
-                        <button
-                          type="button"
-                          className="checkpoint-spoiler-toggle"
-                          onClick={() => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: !prev[`player-${key}`] }))}
-                          title={visibleCheckpoints[`player-${key}`] ? 'Hide' : 'Show'}
-                        >
-                          <span className="spoiler-eye">{visibleCheckpoints[`player-${key}`] ? '👁' : '👁‍🗨'}</span>
-                          <span className="spoiler-label">{visibleCheckpoints[`player-${key}`] ? 'Hide Spoiler' : 'Show Spoiler'}</span>
-                        </button>
-                      </div>
-                      {hint && <p className="section-hint">{hint}</p>}
-                      <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
+                    <CollapsibleSection key={key} title={label} subtitle={hint}
+                      open={!!visibleCheckpoints[`player-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: v }))}>
                         <label className="ci-label">Main theme</label>
                         <textarea
                           className="ci-main-theme"
@@ -3359,8 +3318,7 @@ Write only the scenario description itself, no explanations.`;
                           onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
                           defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
                           rowProps={{ triggerSets, isPumpable: false, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                      </div>
-                    </div>
+                    </CollapsibleSection>
                   ))}
                 </>
               )}
