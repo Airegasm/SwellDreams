@@ -113,7 +113,10 @@ function CheckpointInjections({ value, onChange }) {
   const mainTheme = cp.mainTheme || '';
   const injections = Array.isArray(cp.injections) ? cp.injections : [];
 
-  const emit = (patch) => onChange({ mainTheme, injections, ...patch });
+  // Preserve any sibling fields on the range object (e.g. manual-pump pacing) so editing
+  // the theme/injections here doesn't drop them.
+  const rest = (value && typeof value === 'object') ? value : {};
+  const emit = (patch) => onChange({ ...rest, mainTheme, injections, ...patch });
   const setInjections = (inj) => emit({ injections: inj });
   const addInjection = () => setInjections([...injections, { id: newId('inj'), message: { text: '', llmEnhance: true }, response: { text: '', llmEnhance: true }, enabled: true, chance: 50, maxAppearances: -1, action: null }]);
   const upd = (i, patch) => setInjections(injections.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));

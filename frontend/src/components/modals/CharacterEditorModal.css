@@ -146,6 +146,38 @@
 .prereq-initvar-row select { flex: 0 0 auto; width: auto; }
 .prereq-initvar-row input { flex: 1 1 90px; min-width: 0; }
 
+/* Manual-pump pacing fields (per checkpoint range, bulb/bike profiles) */
+.pump-pacing-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.pump-pacing-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 160px;
+  font-size: 0.78rem;
+  color: var(--text-muted, #9ca3af);
+}
+.pump-pacing-field input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--bg-secondary, #1a1c1f);
+  color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.pump-pacing-field input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
+}
+@media (max-width: 640px) {
+  .pump-pacing-field input { font-size: 16px; }
+}
+
 /* Modal Body - Card background matching Settings */
 .character-modal-body {
   padding: var(--spacing-lg);

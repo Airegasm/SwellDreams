@@ -119,6 +119,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   };
 
   const setProfilePumpType = (pumpType) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, pumpType } : p)));
+  const setProfileRules = (rules) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, rules } : p)));
 
   if (!isOpen) return null;
 
@@ -211,6 +212,16 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   };
   const setDefaultProfile = () => updateStory('defaultCheckpointProfileId', selProfId);
   const updateProfileRange = (key, obj) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, ranges: { ...(p.ranges || {}), [key]: obj } } : p)));
+  // Effective pump type for the selected profile (profile override, else card default).
+  // Bulb/bike are manual pumps the player operates by hand → expose per-range pacing.
+  const effPumpType = selProfile?.pumpType || formData.defaultPumpType || 'electric';
+  const isManualPump = effPumpType === 'bulb' || effPumpType === 'bike';
+  const isAutoPump = effPumpType === 'electric';
+  const setRangeField = (key, field, raw) => {
+    const cur = selProfile?.ranges?.[key] || { mainTheme: '', injections: [] };
+    const val = raw === '' ? undefined : (parseInt(raw, 10) || 0);
+    updateProfileRange(key, { ...cur, [field]: val });
+  };
   const RANGES_1_100 = CHECKPOINT_RANGES.filter(r => r.key !== '0');
 
   // ---- Save ----
@@ -475,6 +486,17 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">When a pre-req choice loads this profile, it sets the session pump mode (overrides the card default).</p>
           </div>
 
+          <div className="form-group" style={{ marginTop: 8 }}>
+            <label>Rules for “{selProfile?.name || 'this profile'}”</label>
+            <textarea
+              value={selProfile?.rules || ''}
+              onChange={(e) => setProfileRules(e.target.value)}
+              placeholder="Profile-specific behaviour rules — appended to the instructor's mission/profile section while this profile is active (e.g. bike-pump safety limits, tone, pacing). Supports [Flow:Name], [Capacity], etc."
+              rows={4}
+            />
+            <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges). Appended to the inflation profile/mission block in the prompt.</p>
+          </div>
+
           {RANGES_1_100.map(({ key, label, hint }) => (
             <div className="form-group checkpoint-field" key={key}>
               <div className="checkpoint-header">
@@ -493,6 +515,54 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   value={selProfile?.ranges?.[key]}
                   onChange={(obj) => updateProfileRange(key, obj)}
                 />
+                {isManualPump && (
+                  <div className="pump-pacing-row">
+                    <label className="pump-pacing-field" title="How many messages must pass after a batch before the instructor may request more pumping">
+                      <span>Messages between pump batches</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
+                        onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value)}
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="pump-pacing-field" title="Max pump operations the instructor may request in a single reply (one batch)">
+                      <span>Maximum pumps per batch</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
+                        onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value)}
+                        placeholder="0"
+                      />
+                    </label>
+                  </div>
+                )}
+                {isAutoPump && (
+                  <div className="pump-pacing-row">
+                    <label className="pump-pacing-field" title="How many replies between automatic [pump on] events. Skips if the pump is already running.">
+                      <span>Messages between ON</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
+                        onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value)}
+                        placeholder="0 = off"
+                      />
+                    </label>
+                    <label className="pump-pacing-field" title="How long the pump stays ON each time, in seconds (auto-off).">
+                      <span>Maximum pump ON (secs)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
+                        onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value)}
+                        placeholder="5"
+                      />
+                    </label>
+                  </div>
+                )}
                 <div className="checkpoint-triggers">
                   {triggersFor(key).map((trigger, tIdx) => (
                     <TriggerRow

@@ -1185,6 +1185,43 @@ async function firePrimaryPump(action) {
   broadcast('ai_device_control', { device: 'pump', action: action.mode || 'timed', deviceName: pump.label || pump.name || 'Pump' });
 }
 
+// Auto-pump pacing for electric/auto instructor ranges. Drives [pump on] on a paced
+// cadence: every N assistant replies ("messages between ON") it turns the pump on for the
+// range's "maximum pump ON (secs)" (auto-off via timedPumpOn). Skips entirely — no pump-on,
+// no message/trigger — if the pump is already running or pacing isn't configured for the
+// active range. Runs before generation so the pump is moving while the model writes.
+async function executeAutoPumpPacing(character, isFlowChain) {
+  if (isFlowChain) return;
+  if (sessionState.pumpType !== 'electric') return;            // manual pumps use batch pacing
+  if (!sessionState.preInflationGateMet) return;               // respect the pre-inflation gate
+  const cp = getActiveCheckpoint(character, sessionState.capacity || 0);
+  const gap = parseInt(cp?.messagesBetweenOn);
+  if (!(gap > 0)) return;                                      // pacing disabled for this range
+
+  // Capacity ceiling (unless over-inflation is allowed).
+  const settings = loadData(DATA_FILES.settings) || {};
+  const allowOver = settings?.globalCharacterControls?.allowOverInflation;
+  if (!allowOver && (sessionState.capacity || 0) >= 100) return;
+
+  // Count this reply; only fire once the gap is reached.
+  sessionState.messagesSincePumpOn = (sessionState.messagesSincePumpOn || 0) + 1;
+  if (sessionState.messagesSincePumpOn < gap) return;
+
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  if (!pump) return;
+  const id = resolveControlId(pump);
+  // Already running (a timed-on is in flight) → skip without resetting the counter.
+  if (serverTimedPumpTimers.has(id)) return;
+
+  const maxSecs = parseInt(cp?.maxPumpOnSecs);
+  const dur = (maxSecs > 0) ? maxSecs : 5;
+  await timedPumpOn(id, pump, dur);
+  sessionState.messagesSincePumpOn = 0;
+  broadcast('ai_device_control', { device: 'pump', action: 'timed', deviceName: pump.label || pump.name || 'Pump' });
+  console.log(`[AutoPumpPacing] [pump on] for ${dur}s (every ${gap} msgs) at ${sessionState.capacity}%`);
+}
+
 /**
  * Resolve the identifier used to start/stop a cycle or control a device.
  * Cloud brands key on deviceId; local/IP brands key on ip. Home Assistant keys
@@ -8153,6 +8190,8 @@ async function handleChatMessage(data) {
 
     // Pump on every reply — fire before LLM generates so pump runs during generation
     await executePumpOnEveryReply('', activeCharacter, false);
+    // Per-range auto-pump pacing (electric instructor ranges)
+    await executeAutoPumpPacing(activeCharacter, false);
 
     try {
       // Roll personality attributes for this message
@@ -8855,6 +8894,7 @@ async function handleSpecialGenerate(data) {
   // Pump on every reply — fire before LLM generates
   if (!isPlayerVoice) {
     await executePumpOnEveryReply('', activeCharacter, false);
+    await executeAutoPumpPacing(activeCharacter, false);
   }
 
   try {
@@ -9809,7 +9849,16 @@ function getPersonaCharacterCheckpoint(persona) {
 function normalizeCheckpoint(val) {
   if (!val) return { mainTheme: '', injections: [] };
   if (typeof val === 'string') return { mainTheme: val, injections: [] };
-  return { mainTheme: val.mainTheme || '', injections: Array.isArray(val.injections) ? val.injections : [] };
+  return {
+    mainTheme: val.mainTheme || '',
+    injections: Array.isArray(val.injections) ? val.injections : [],
+    // Manual-pump pacing (bulb/bike instructor ranges) — carried through for the prompt.
+    maxPumpsPerBatch: val.maxPumpsPerBatch,
+    messagesBetweenBatches: val.messagesBetweenBatches,
+    // Auto-pump pacing (electric instructor ranges) — system-driven [pump on] cadence.
+    maxPumpOnSecs: val.maxPumpOnSecs,
+    messagesBetweenOn: val.messagesBetweenOn,
+  };
 }
 
 // Map a capacity to its checkpoint range key.
@@ -9845,6 +9894,17 @@ function getInstructorActiveProfileRanges(character) {
   const activeId = sessionState.activeCheckpointProfileId || activeStory.defaultCheckpointProfileId || profiles[0].id;
   const prof = profiles.find(p => p.id === activeId) || profiles[0];
   return prof?.ranges || {};
+}
+
+// Resolve the currently-active instructor checkpoint profile object (for its rules,
+// pumpType, name). Returns null for non-instructors / when no profiles exist.
+function getInstructorActiveProfile(character) {
+  if (!isInstructor(character)) return null;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const profiles = Array.isArray(activeStory?.checkpointProfiles) ? activeStory.checkpointProfiles : [];
+  if (!profiles.length) return null;
+  const activeId = sessionState.activeCheckpointProfileId || activeStory?.defaultCheckpointProfileId || profiles[0].id;
+  return profiles.find(p => p.id === activeId) || profiles[0];
 }
 
 // Set the session pump mode (type + derived init) from the active instructor checkpoint
@@ -9903,8 +9963,28 @@ function getActiveCheckpoint(character, capacity) {
     text: text || null,
     preInflation: (capacity <= 0 && preInflation) ? preInflation : null,
     injections: cp.injections,
+    maxPumpsPerBatch: cp.maxPumpsPerBatch,
+    messagesBetweenBatches: cp.messagesBetweenBatches,
+    maxPumpOnSecs: cp.maxPumpOnSecs,
+    messagesBetweenOn: cp.messagesBetweenOn,
     rangeKey
   };
+}
+
+// Manual-pump pacing directive for the active range (bulb/bike instructors only).
+// Tells the LLM how many pump operations it may request per batch and how long to
+// wait between batches. Returns '' for electric/auto pumps or when no limits are set.
+function manualPumpBatchBlock(cp) {
+  if (!cp) return '';
+  if (sessionState.pumpType !== 'bulb' && sessionState.pumpType !== 'bike') return '';
+  const maxPumps = parseInt(cp.maxPumpsPerBatch);
+  const gap = parseInt(cp.messagesBetweenBatches);
+  if (!(maxPumps > 0) && !(gap > 0)) return '';
+  let s = `\n=== MANUAL PUMP PACING (${sessionState.capacity}%) ===\n`;
+  if (maxPumps > 0) s += `- In a single reply you may instruct the player to operate the ${sessionState.pumpType} pump at most ${maxPumps} time(s) — one "batch".\n`;
+  if (gap > 0) s += `- After a batch, do NOT request more pumping for at least ${gap} message(s); let the player rest/respond before the next batch.\n`;
+  s += `=== END MANUAL PUMP PACING ===\n`;
+  return s;
 }
 
 /**
@@ -10271,6 +10351,7 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     if (checkpointSpecial?.text) {
       systemPrompt += `\n=== MANDATORY — INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointSpecial.text}\n=== END STAGE DIRECTION ===\n`;
     }
+    systemPrompt += manualPumpBatchBlock(checkpointSpecial);
     systemPrompt += checkpointInjectionsBlock();
     const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
     if (charCheckpointSpecial) {
@@ -10458,6 +10539,11 @@ function buildInstructorSystemPrompt(character, playerName, substituteVars) {
     if (profile && profile.prompt) {
       p += `\n${substituteVars(profile.prompt)}\n`;
     }
+  }
+  // Profile-specific rules from the active checkpoint profile (e.g. bike-pump limits/tone).
+  const activeProfile = getInstructorActiveProfile(character);
+  if (activeProfile?.rules && activeProfile.rules.trim()) {
+    p += `\nProfile rules (${activeProfile.name || 'active profile'}):\n${substituteVars(activeProfile.rules.trim())}\n`;
   }
   p += `\n=== INSTRUCTOR DIRECTIVE (MANDATORY) ===\n`;
   p += `You are an instructor/operator, not a roleplay character. Speak ONLY in direct, non-embellished, mission-specific instructions and clarifications to ${playerName}.\n`;
@@ -10795,6 +10881,7 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
     console.log(`[Checkpoints] Injecting PLAYER checkpoint at ${sessionState.capacity}%: ${checkpointChat.text.substring(0, 60)}...`);
     systemPrompt += `\n=== MANDATORY — PLAYER INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance for the player's current inflation level. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointChat.text}\n=== END STAGE DIRECTION ===\n`;
   }
+  systemPrompt += manualPumpBatchBlock(checkpointChat);
 
   const charCheckpointChat = getActiveCharacterCheckpoint(character);
   if (charCheckpointChat) {
@@ -15238,6 +15325,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.characterInflationBaseCapacity = 0;
   // Reset checkpoint-injection + instructor pre-req state
   sessionState.checkpointInjectionCounts = {};
+  sessionState.messagesSincePumpOn = 0; // Auto-pump pacing counter
   sessionState.activeCheckpointInjections = [];
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingCheckpointResponse = null;
