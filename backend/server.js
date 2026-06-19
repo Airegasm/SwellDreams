@@ -3312,7 +3312,8 @@ const sessionState = {
   characterCapacity: 0, // 0-100% simulated inflation for the AI character
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
-  firedTreeNodes: new Set() // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
+  firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
+  pendingTreeChoice: null // Armed when a tree player_choice suspends; { choices, ctxSnapshot, after }
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -9935,6 +9936,7 @@ async function runActiveRangeTrees(character, settings) {
   };
 
   await runAxis('player', sessionState.capacity || 0);
+  if (sessionState.pendingTreeChoice) return; // player_choice suspended — don't run the char axis
   if (!isInstructor(character) && character.isPumpable) await runAxis('char', sessionState.characterCapacity || 0);
 }
 
@@ -9949,6 +9951,7 @@ async function runReplyScopes(character) {
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
+  if (sessionState.pendingTreeChoice) return; // a player_choice suspended the turn — stop further scopes
   try { await runActiveAlwaysOn(character, settings); }
   catch (e) { console.error('[runReplyScopes] always-on failed:', e?.message || e); }
 }
@@ -10053,14 +10056,53 @@ function presentCheckpointChoice(action) {
   broadcast('checkpoint_choice', { choices: choices.map(c => ({ id: c.id, label: c.label })) });
 }
 
+// Resume a suspended Trigger Tree player_choice on the player's pick. Runs the chosen option's
+// body, then the post-choice same-level continuation (`after`) captured at suspend time — both
+// in 'standalone' delivery (post immediately, like the legacy choice response). Clears the armed
+// state FIRST so a nested player_choice in the body can re-arm cleanly and a double-click can't
+// double-fire. Same entry the real WS click takes (via handleCheckpointChoice dispatch).
+async function resumeTreeChoice(choiceId) {
+  const pend = sessionState.pendingTreeChoice;
+  if (!pend) return;
+  const chosen = (pend.choices || []).find(c => c.id === choiceId);
+  const after = pend.after, snap = pend.ctxSnapshot || {};
+  sessionState.pendingTreeChoice = null;
+  broadcast('checkpoint_choice_clear', {});
+  if (!chosen) return; // stale/invalid pick — already dismissed
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes, // live Set, never serialized
+    labels: new Map()
+  };
+  let sig;
+  try { sig = await runTree(chosen.body || [], ctx); }
+  catch (e) { console.error('[resumeTreeChoice] body failed:', e?.message || e); }
+  if (sig) return; // body re-armed a nested choice (or a goto bubbled out) — stop here
+  if (Array.isArray(after) && after.length) {
+    try { await runTree(after, ctx); } // post-choice fall-through at the choice's own level
+    catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
+  }
+}
+
 // Resolve a checkpoint player-choice pick: fire the choice's pump action and queue its
 // response to be injected on the NEXT generation. Pre-req sequences are routed first.
 async function handleCheckpointChoice(choiceId) {
   if (sessionState.pendingPrereqs) return handlePrereqChoice(choiceId);
+  if (sessionState.pendingTreeChoice) return resumeTreeChoice(choiceId); // Trigger Tree player_choice resume
   const pending = sessionState.pendingCheckpointChoice;
   if (!pending) return;
   const choice = (pending.choices || []).find(c => c.id === choiceId);
   sessionState.pendingCheckpointChoice = null;
+  sessionState.pendingTreeChoice = null;
   broadcast('checkpoint_choice_clear', {});
   if (!choice) return;
   if (choice.action?.type === 'pump') {
@@ -12358,7 +12400,8 @@ function resolveBlockTrigger(t, sets) {
 // runNode/runTree return undefined in step 2; the `if (sig) return sig` plumbing reserves a
 // control sentinel ({__control:...}) so step-3 player_choice/label/goto slot in with no refactor.
 const MAX_TREE_DEPTH = 64;
-const TREE_STUB_TYPES = new Set(['player_choice', 'label', 'goto', 'fire_tree', 'fire_flow', 'repeat']);
+const MAX_GOTO_ITERS = 10000; // per-frame cap so a pathological goto-loop can't spin forever
+const TREE_STUB_TYPES = new Set(['fire_tree', 'fire_flow', 'repeat']);
 
 function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
 function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
@@ -12416,6 +12459,10 @@ async function runNode(node, ctx) {
     console.log(`[runTree] node type '${type}' not yet implemented (later step) — skipping`);
     return;
   }
+
+  // ----- Control-flow leaves (scope-local label/goto) — before the generic action path -----
+  if (type === 'label') return; // pure marker; a goto in the same list targets it. No effect, no once.
+  if (type === 'goto') return { __control: 'goto', name: node.params?.name }; // runTree repositions to the label
 
   // ----- Actions (leaves) -----
   if (node.kind === 'action') {
@@ -12489,6 +12536,27 @@ async function runNode(node, ctx) {
         return await runTree(node.children || [], child);
       }
 
+      case 'player_choice': {
+        // Re-entrancy guard: if a tree choice is already armed (the walker may re-run before the
+        // click), suspend again without clobbering it.
+        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'player_choice' };
+        const opts = (node.children || [])
+          .filter(c => c && c.kind === 'container' && c.type === 'choice' && c.params?.label)
+          .slice(0, 4);
+        if (!opts.length) return; // nothing to present — clean fall-through, do not consume once/suspend
+        markTreeOnce(node, ctx); // presenting IS the effect; a once choice presents once per session
+        sessionState.pendingTreeChoice = {
+          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [] })),
+          ctxSnapshot: {
+            treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
+            delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+          },
+          after: null // innermost sibling tail, filled by runTree as the suspend bubbles
+        };
+        broadcast('checkpoint_choice', { description: node.params?.prompt || '', choices: opts.map(c => ({ id: c.id, label: c.params.label })), tree: true });
+        return { __control: 'suspend', reason: 'player_choice' };
+      }
+
       default:
         console.log(`[runTree] unknown container type '${type}' (node ${node.id}) — skipping`);
         return;
@@ -12511,16 +12579,43 @@ async function runNode(node, ctx) {
 }
 
 // Walk a node LIST top-to-bottom (sequence = drag order). One bad node degrades to a skip;
-// siblings still run. A returned control sentinel short-circuits the rest (reserved for step 3).
+// siblings still run. Index-based so control sentinels can re-position:
+//  - {__control:'goto',name}: jump to a 'label' marker IN THIS list (resume after it); if the
+//    label isn't here, bubble up to an enclosing frame. Per-frame loop cap via MAX_GOTO_ITERS.
+//  - {__control:'suspend'}: a player_choice suspended the turn. Capture THIS list's remaining
+//    siblings as the post-choice continuation (innermost frame only — `after == null` guard),
+//    then bubble to runTreeScope so the turn ends.
 async function runTree(nodes, ctx) {
   if (ctx.depth > MAX_TREE_DEPTH) { console.warn('[runTree] max depth exceeded — aborting subtree'); return; }
   if (!Array.isArray(nodes)) return;
-  for (const node of nodes) {
-    if (!node || typeof node !== 'object') continue;
+  let i = 0, gotoBudget = 0;
+  while (i < nodes.length) {
+    const node = nodes[i];
+    if (!node || typeof node !== 'object') { i++; continue; }
     let sig;
     try { sig = await runNode(node, ctx); }
-    catch (e) { console.error(`[runTree] node ${node?.id}(${node?.type}) failed:`, e?.message || e); continue; }
-    if (sig) return sig;
+    catch (e) { console.error(`[runTree] node ${node?.id}(${node?.type}) failed:`, e?.message || e); i++; continue; }
+    if (sig) {
+      if (sig.__control === 'goto') {
+        if (!sig.name) { console.warn('[runTree] goto with empty name — skipping'); i++; continue; } // never match a blank label
+        const target = nodes.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === sig.name);
+        if (target >= 0) {
+          if (++gotoBudget > MAX_GOTO_ITERS) { console.warn(`[runTree] goto loop cap hit for '${sig.name}' — aborting frame`); return; }
+          i = target + 1; // resume AFTER the label marker
+          continue;
+        }
+        return sig; // label not in THIS list — bubble up to an enclosing frame
+      }
+      if (sig.__control === 'suspend') {
+        // Capture the innermost same-level continuation for post-choice fall-through.
+        if (sessionState.pendingTreeChoice && sessionState.pendingTreeChoice.after == null) {
+          sessionState.pendingTreeChoice.after = nodes.slice(i + 1);
+        }
+        return sig;
+      }
+      return sig; // any other sentinel bubbles unchanged
+    }
+    i++;
   }
 }
 
@@ -14868,18 +14963,24 @@ app.post('/api/trigger-trees/:id/run', async (req, res) => {
 
     const savedInj = sessionState.activeCheckpointInjections;
     const savedVerb = sessionState.pendingVerbatimReply;
+    const savedChoice = sessionState.pendingTreeChoice;
     sessionState.activeCheckpointInjections = [];
     sessionState.pendingVerbatimReply = null;
-    await runTreeScope(tree, req.body?.scopeKey || 'debug', character, settings);
+    sessionState.pendingTreeChoice = null;
+    await runTreeScope(tree, req.body?.scopeKey || 'debug', character, settings, { delivery: req.body?.delivery });
+    const ptc = sessionState.pendingTreeChoice;
     const result = {
       woven: sessionState.activeCheckpointInjections.slice(),
       pendingVerbatimReply: sessionState.pendingVerbatimReply || null,
+      pendingTreeChoice: ptc ? { choices: ptc.choices.map(c => ({ id: c.id, label: c.label })), hasAfter: Array.isArray(ptc.after) && ptc.after.length > 0 } : null,
       firedOnceKeys: Array.from(sessionState.firedTreeNodes).filter(k => k.startsWith(`${tree.id}::`)),
       capacity: sessionState.capacity, pain: sessionState.pain, emotion: sessionState.emotion,
       flowVariables: { ...eventEngine.variables }
     };
     sessionState.activeCheckpointInjections = savedInj;
     sessionState.pendingVerbatimReply = savedVerb;
+    sessionState.pendingTreeChoice = savedChoice; // non-destructive: restore prior armed choice
+    if (ptc) broadcast('checkpoint_choice_clear', {}); // dismiss the phantom modal this debug run raised
     res.json({ success: true, treeId: tree.id, ...result });
   } catch (err) {
     console.error('[debug runTree] failed:', err);
@@ -16187,6 +16288,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.repliesSinceManualPump = 999; // Manual-pump pacing counter (high = not cooling)
   sessionState.activeCheckpointInjections = [];
   sessionState.pendingCheckpointChoice = null;
+  sessionState.pendingTreeChoice = null;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
@@ -16284,8 +16386,9 @@ app.post('/api/session/reset', async (req, res) => {
       // seeds the first step.
       const preFillStarted = startPreFill(activeCharacter);
       if (isInstr) {
-        // Legacy modal pre-reqs only run when Pre-Fill is NOT in use.
-        if (!preFillStarted && (aStory?.prereqTiming || 'session_start') === 'session_start') {
+        // Legacy modal pre-reqs only run when Pre-Fill is NOT in use — and NOT if the Session
+        // Start tree already suspended on a player_choice (avoid two choice families armed at once).
+        if (!preFillStarted && !sessionState.pendingTreeChoice && (aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
         }
         // Set the session pump mode from the active checkpoint profile (or the card default).

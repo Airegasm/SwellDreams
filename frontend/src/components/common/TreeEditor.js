@@ -37,6 +37,7 @@ const ADD_GROUPS = [
     label: 'Containers', items: [
       { kind: 'container', type: 'group', label: 'Group' },
       { kind: 'container', type: 'if', label: 'If / Else' },
+      { kind: 'container', type: 'player_choice', label: 'Player Choice' },
       { kind: 'container', type: 'chance', label: 'Chance (%)' },
       { kind: 'container', type: 'random', label: 'Random (one of)' },
       { kind: 'container', type: 'keyword_gate', label: 'Keyword Gate' },
@@ -48,6 +49,12 @@ const ADD_GROUPS = [
     ]
   },
   {
+    label: 'Control', items: [
+      { kind: 'action', type: 'label', label: 'Label (jump target)' },
+      { kind: 'action', type: 'goto', label: 'Go To (jump)' },
+    ]
+  },
+  {
     label: 'Actions', items: [
       { kind: 'action', type: '', label: 'Action…' },
     ]
@@ -55,18 +62,21 @@ const ADD_GROUPS = [
 ];
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
-const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword']); // not 'if' (children are branches)
+const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword']); // not if/player_choice (special children)
 
 function makeCond() { return { varType: 'flow', variable: '', operator: '==', value: '' }; }
 function makeBranch(isElse = false) {
   return { id: rid('br'), kind: 'container', type: 'branch', params: isElse ? { else: true } : { match: 'all', conditions: [makeCond()] }, children: [] };
 }
+function makeChoice() { return { id: rid('ch'), kind: 'container', type: 'choice', params: { label: 'Option' }, children: [] }; }
 function makeNode(kind, type) {
   const node = { id: rid(), kind, type, params: {} };
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
+  if (type === 'player_choice') node.children = [makeChoice()];
   if (type === 'chance') node.params.chance = 50;
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
+  if (type === 'label' || type === 'goto') node.params.name = '';
   return node;
 }
 
@@ -76,12 +86,15 @@ function summarize(node) {
   const p = node.params || {};
   if (node.kind === 'action') {
     if (!t) return '(choose action…)';
+    if (t === 'label') return `Label: ${p.name || '(unnamed)'}`;
+    if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'Flow'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
   }
   if (t === 'group') return `Group · ${(node.children || []).length} item(s)`;
   if (t === 'if') return `If / Else · ${(node.children || []).filter(b => b && b.type === 'branch').length} branch(es)`;
+  if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
   if (t === 'keyword_gate') return `Keyword Gate: ${(p.keys || []).join(', ') || '(none)'}`;
@@ -206,10 +219,58 @@ function IfBlock({ node, onChange, rowProps }) {
   );
 }
 
+// One option within a player_choice: a label + its body (the subtree run when picked).
+function ChoiceBlock({ choice, onChange, onRemove, rowProps }) {
+  return (
+    <div className="tree-branch">
+      <div className="tree-branch-head">
+        <span className="tree-branch-label">Option</span>
+        <input type="text" value={choice.params?.label || ''} onChange={(e) => onChange({ ...choice, params: { ...(choice.params || {}), label: e.target.value } })} placeholder="button label" style={{ flex: 1 }} />
+        <button type="button" className="tree-x" onClick={onRemove} title="Remove option">×</button>
+      </div>
+      <div className="tree-branch-body">
+        <NodeList nodes={choice.children || []} onChange={(next) => onChange({ ...choice, children: next })} rowProps={rowProps} />
+      </div>
+    </div>
+  );
+}
+
+// player_choice body: an optional prompt + up to 4 options (each a choice sub-list). Suspends
+// the turn at runtime; the chosen option's body + same-level fall-through run on the player's pick.
+function PlayerChoiceBlock({ node, onChange, rowProps }) {
+  const choices = (node.children || []).filter(c => c && c.type === 'choice');
+  const setChoices = (next) => onChange({ ...node, children: next });
+  return (
+    <div className="tree-if">
+      <label className="tree-field">
+        <span>Prompt (optional)</span>
+        <input type="text" value={node.params?.prompt || ''} onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), prompt: e.target.value } })} placeholder="question shown above the options" />
+      </label>
+      {choices.map((c, i) => (
+        <ChoiceBlock key={c.id || i} choice={c}
+          onChange={(u) => setChoices(choices.map((x, idx) => idx === i ? u : x))}
+          onRemove={() => setChoices(choices.filter((_, idx) => idx !== i))}
+          rowProps={rowProps} />
+      ))}
+      {choices.length < 4 && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
+    </div>
+  );
+}
+
 // Per-node body: the type-specific param editor + (for containers) a nested child list.
 function NodeBody({ node, onChange, rowProps }) {
   const t = node.type;
   const setParams = (patch) => onChange({ ...node, params: { ...(node.params || {}), ...patch } });
+
+  // Control-flow leaves (label/goto) — simple name editors, NOT the TriggerRow action path.
+  if (t === 'label' || t === 'goto') {
+    return (
+      <label className="tree-field tree-field-inline">
+        <span>{t === 'label' ? 'Label name' : 'Go to label'}</span>
+        <input type="text" value={node.params?.name || ''} onChange={(e) => setParams({ name: e.target.value })} placeholder="name" />
+      </label>
+    );
+  }
 
   if (node.kind === 'action') {
     // Adapter: a TriggerRow edits { id, type, ...params }; split back into { type, params }.
@@ -225,6 +286,7 @@ function NodeBody({ node, onChange, rowProps }) {
   }
 
   if (t === 'if') return <IfBlock node={node} onChange={onChange} rowProps={rowProps} />;
+  if (t === 'player_choice') return <PlayerChoiceBlock node={node} onChange={onChange} rowProps={rowProps} />;
 
   // Keyword params shared by keyword_gate (container) and keyword (event).
   const keywordParams = (t === 'keyword_gate' || t === 'keyword') && (
