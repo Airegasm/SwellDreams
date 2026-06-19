@@ -5,8 +5,30 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import './ModelTab.css';
 
-// Reusable Slider component
+// Reusable Slider component — the value box is editable. You can type freely (including
+// leaving it blank while mid-edit); on blur, a blank/invalid entry resolves to 0.
 function Slider({ label, value, onChange, min, max, step = 0.01, defaultValue, info }) {
+  // draft === null  → not editing, show the live `value`.
+  // draft is a string → user is typing; show their raw text verbatim (don't coerce).
+  const [draft, setDraft] = useState(null);
+  const display = draft !== null ? draft : (value ?? '');
+
+  const handleType = (raw) => {
+    setDraft(raw);
+    // Live-update the slider only when the text is already a complete number.
+    // Partial/blank entries ('', '-', '.', '-.') are left alone so typing isn't fought.
+    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
+    const n = parseFloat(raw);
+    if (!Number.isNaN(n)) onChange(n);
+  };
+
+  const commit = () => {
+    if (draft === null) return;
+    const n = parseFloat(draft);
+    onChange(Number.isNaN(n) ? 0 : n); // blank/invalid → 0 on click-out
+    setDraft(null);
+  };
+
   return (
     <div className="slider-container">
       <div className="slider-header">
@@ -14,12 +36,20 @@ function Slider({ label, value, onChange, min, max, step = 0.01, defaultValue, i
           {label}
           {info && <span className="info-icon" title={info}>?</span>}
         </span>
-        <span className="slider-value">{value}</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          className="slider-value slider-value-input"
+          value={display}
+          onChange={(e) => handleType(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        />
       </div>
       <input
         type="range"
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => { setDraft(null); onChange(parseFloat(e.target.value)); }}
         min={min}
         max={max}
         step={step}

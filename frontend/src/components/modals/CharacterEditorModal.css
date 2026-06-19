@@ -146,41 +146,22 @@
 .prereq-initvar-row select { flex: 0 0 auto; width: auto; }
 .prereq-initvar-row input { flex: 1 1 90px; min-width: 0; }
 
-/* Pump-pacing fields (per checkpoint range). Grid with auto-fit + minmax(min(100%,…))
-   gives two columns when there's room and collapses to ONE full-width column when there
-   isn't — no media query, and it can never overflow the container. */
-.pump-pacing-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: 10px;
-  margin-top: 8px;
-}
-.pump-pacing-field {
+/* Instructor example-dialogue rows */
+.instr-example-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #222;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
 }
-/* High specificity (.character-modal-body … input[type="number"]) so this BEATS the
-   generic light-theme input rule above; explicit visible box on the white modal body. */
-.character-modal-body .pump-pacing-field input[type="number"] {
-  width: 100%;
-  box-sizing: border-box; /* padding+border INSIDE the width — can't spill off-screen */
-  min-height: 42px;
-  padding: 8px 10px;
-  font-size: 16px; /* readable + avoids iOS focus-zoom */
-  background-color: #ffffff;
-  color: #1a1a1a;
-  border: 2px solid #6b7280; /* clearly visible against the white modal */
-  border-radius: 6px;
+.instr-example-row input { flex: 1; min-width: 0; box-sizing: border-box; }
+@media (max-width: 768px) {
+  .instr-example-row { flex-wrap: wrap; }
+  .instr-example-row input { flex: 1 1 100%; }
 }
-.character-modal-body .pump-pacing-field input[type="number"]:focus {
-  outline: none;
-  border-color: #0d47a1;
-}
+
+/* Pump-pacing inputs reuse the same field pattern as the Bulb/Bike Max inputs
+   (plain .form-group flex + the standard .character-modal-body input styling),
+   so there's no custom CSS to keep here. */
 
 /* Modal Body - Card background matching Settings */
 .character-modal-body {

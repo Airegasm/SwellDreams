@@ -58,83 +58,67 @@
   flex-wrap: wrap;
 }
 
-/* Top row: On | "Injection N" | Chance | Max | (delete pushed right) */
+/* Header row: "Injection N"   On ☑   (× delete pushed right) */
 .ci-injection-top {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-color, #3a3d45);
 }
 .ci-injection-num {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted, #9ca3af);
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 .ci-injection-top .ci-del { margin-left: auto; }
 .ci-enabled { font-weight: 600; }
 
-/* Consistent dark, readable form controls across all injection fields */
-.checkpoint-injections input[type="text"],
-.checkpoint-injections input[type="number"],
+/* Box-sizing only — let each modal's own theme style the colors. Prevents overflow. */
+.checkpoint-injections input,
 .checkpoint-injections select,
 .checkpoint-injections textarea {
-  box-sizing: border-box; /* padding+border stay INSIDE the width so fields can't spill off-screen */
+  box-sizing: border-box;
   max-width: 100%;
-  background-color: var(--bg-secondary, #1a1c1f);
-  color: var(--text-primary, #f3f4f6);
-  border: 1px solid var(--border-color, #3a3d45);
-  border-radius: 4px;
-  padding: 5px 7px;
-  font-size: 12px;
-}
-/* Flex rows must be allowed to shrink below their content so wrapping kicks in */
-.checkpoint-injections .ci-injection-top,
-.checkpoint-injections .ci-action-row,
-.checkpoint-injections .ci-pump-fields,
-.checkpoint-injections .ci-var-fields,
-.checkpoint-injections .ci-choice-row,
-.checkpoint-injections .ci-msg-field { min-width: 0; }
-.checkpoint-injections input:focus,
-.checkpoint-injections select:focus,
-.checkpoint-injections textarea:focus {
-  outline: none;
-  border-color: var(--accent-primary, #10b981);
-}
-/* Native option list — force dark (some browsers ignore the select bg) */
-.checkpoint-injections select option {
-  background-color: #1a1c1f;
-  color: #f3f4f6;
 }
 
-.ci-injection-text { flex: 1; min-width: 120px; }
 .ci-var-name { width: 110px; }
 .ci-var-value { width: 70px; }
 
-.ci-msg-field {
+/* Chance % / Max — same simple pattern as the Bulb/Bike Max inputs */
+.ci-num-row {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 16px;
   flex-wrap: wrap;
 }
-.ci-msg-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted, #9ca3af);
-  text-transform: uppercase;
-  width: 56px;
-  flex: 0 0 auto;
+.ci-num-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
-.ci-msg-text { flex: 1; min-width: 120px; }
-
-.ci-num {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.ci-num-field > label {
   font-size: 11px;
-  color: var(--text-muted, #9ca3af);
-  white-space: nowrap;
+  font-weight: 600;
+  margin: 0;
 }
-.ci-num input { width: 56px; flex: 0 0 auto; }
+
+/* Message / Response: label on its own line, then the text box and its LLM
+   checkbox locked together on one row (they never wrap apart). */
+.ci-msg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ci-msg-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin: 0;
+}
+.ci-msg-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ci-msg-input-row .ci-msg-text { flex: 1; min-width: 0; }
+.ci-msg-input-row .ci-inline-check { flex: 0 0 auto; }
 
 .ci-action-row label,
 .ci-pump-fields label { font-size: 11px; color: var(--text-muted, #9ca3af); }
@@ -178,13 +162,8 @@
 }
 .ci-del:hover { background: #dc2626; }
 
-/* --- Mobile: stack the cramped control rows so nothing overflows --- */
+/* --- Mobile --- */
 @media (max-width: 768px) {
-  /* Injection text gets its own full-width row; the %/max/× controls wrap below it. */
-  .checkpoint-injections .ci-injection-text { flex: 1 1 100%; min-width: 0; }
-  .checkpoint-injections .ci-msg-text { flex: 1 1 100%; min-width: 0; }
-  .checkpoint-injections .ci-msg-label { width: auto; }
-
   /* Let selects/inputs shrink to fit instead of forcing horizontal overflow. */
   .ci-action-row select,
   .ci-pump-fields select,
@@ -193,10 +172,7 @@
   .ci-var-fields .ci-var-value { flex: 0 1 80px; width: auto; min-width: 0; }
 
   /* 16px text inputs avoid iOS auto-zoom on focus. */
-  .checkpoint-injections input[type="text"],
-  .checkpoint-injections input[type="number"],
+  .checkpoint-injections input,
   .checkpoint-injections select,
   .checkpoint-injections textarea { font-size: 16px; }
-
-  .ci-num input { width: 56px; }
 }

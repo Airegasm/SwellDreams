@@ -1,0 +1,133 @@
+.prefill-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prefill-enable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prefill-step {
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prefill-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prefill-drag { cursor: grab; color: var(--text-muted, #9ca3af); user-select: none; flex: 0 0 auto; }
+.prefill-step-num {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted, #9ca3af);
+}
+.prefill-step-head .prefill-del { margin-left: auto; }
+
+.prefill-instruction { width: 100%; box-sizing: border-box; resize: vertical; }
+.prefill-enh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+  align-self: flex-start;
+}
+
+.prefill-triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-left: 2px solid var(--accent-primary, #10b981);
+  background: rgba(16, 185, 129, 0.05);
+  border-radius: 4px;
+}
+.prefill-trigger {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prefill-words { width: 100%; box-sizing: border-box; }
+.prefill-trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.prefill-trigger-row select { flex: 0 1 auto; min-width: 0; }
+.prefill-var-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.prefill-setvar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.prefill-setvar input { flex: 1 1 80px; min-width: 0; box-sizing: border-box; }
+.prefill-setvar select { flex: 0 0 auto; width: auto; }
+.prefill-response { width: 100%; box-sizing: border-box; }
+
+.prefill-add,
+.prefill-add-sm {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--accent-primary, #10b981);
+  color: var(--accent-primary, #10b981);
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.prefill-add:hover,
+.prefill-add-sm:hover { background: rgba(16, 185, 129, 0.15); }
+
+.prefill-del,
+.prefill-del-sm {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.prefill-del-sm { width: 18px; height: 18px; font-size: 12px; }
+.prefill-del:hover, .prefill-del-sm:hover { background: #dc2626; }
+
+/* Readable inputs on the (light) modal body */
+.prefill-step input[type="text"],
+.prefill-step textarea,
+.prefill-step select {
+  background-color: #fff;
+  color: #1a1a1a;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+@media (max-width: 768px) {
+  .prefill-step input[type="text"],
+  .prefill-step textarea,
+  .prefill-step select { font-size: 16px; }
+}

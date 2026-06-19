@@ -7,6 +7,7 @@ import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import CheckpointInjections from '../common/CheckpointInjections';
+import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 
@@ -69,6 +70,7 @@ function migrateStoryToV2(story, character) {
     scenarios,
     activeScenarioId: finalScId,
     exampleDialogues: story.exampleDialogues || [],
+    preFill: story.preFill && typeof story.preFill === 'object' ? story.preFill : { enabled: false, steps: [] },
     autoReplyEnabled: story.autoReplyEnabled ?? character?.autoReplyEnabled ?? false,
     allowLlmDeviceAccess: story.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
     assignedFlows: story.assignedFlows || character?.assignedFlows || [],
@@ -169,6 +171,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         name: character.name || '',
         gender: character.gender || '',
         responseTokens: character.responseTokens ?? '',
+        historyDepth: character.historyDepth ?? '',
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
@@ -225,6 +228,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       name: '',
       gender: '',
       responseTokens: '',
+      historyDepth: '',
       avatar: '',
       description: '',
       personality: '',
@@ -1759,6 +1763,18 @@ Write only the scenario description itself, no explanations.`;
                 </div>
 
                 <div className="form-group">
+                  <label>Chat History Depth (overrides global)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.historyDepth ?? ''}
+                    onChange={(e) => setFormData({ ...formData, historyDepth: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="Leave blank to use the global setting"
+                  />
+                  <p className="section-hint">Prior messages this character sees. Leave blank for full scene memory; lower only if you want a tighter, less history-driven character.</p>
+                </div>
+
+                <div className="form-group">
                   <label>Description</label>
                   <textarea
                     value={formData.description}
@@ -3020,6 +3036,15 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
+              {/* Pre-Fill: optional gated intro before any inflation */}
+              <h4>Pre-Fill (gated intro — no pump)</h4>
+              <PreFillEditor
+                value={activeStory?.preFill}
+                onChange={(pf) => updateStoryField('preFill', pf)}
+                profiles={[]}
+                isInstructor={false}
+              />
+              <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
               {formData.isPumpable ? (
                 <>
                   {/* Sub-tab switcher for pumpable characters */}

@@ -5246,8 +5246,9 @@ eventEngine.setBroadcast(async (type, data) => {
           // Use guided impersonation context for player voice
           context = buildSpecialContext('guided_impersonate', data.content, activeCharacter, activePersona, settings);
         } else {
-          // Use character context for character voice
-          context = buildChatContext(activeCharacter, settings);
+          // Lean enhance context (character voice + current state + 2-message tail) — this
+          // line is its own directive, so it doesn't need the full per-turn context.
+          context = buildLeanEnhanceContext(activeCharacter, activePersona, settings, 2);
         }
 
         // Build challenge-specific instruction if this is from a challenge node
@@ -5329,6 +5330,9 @@ If announcing the result, say "${result}" - not something else.
           // For player voice, buildSpecialContext already set up the context
           // Just add the action instruction and capacity
           context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nELABORATE on this action with vivid detail, physical sensations, emotions, and reactions. Do NOT just repeat the action verbatim - expand it into a full, immersive message. Ignore previous conversation flow.\n=== END CRITICAL INSTRUCTION ===`;
+        } else if (isInstructor(activeCharacter)) {
+          // Instructors deliver terse spoken instruction — never "immersive roleplay".
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next message MUST deliver this as a direct spoken instruction: "${data.content}"${capacityStateInstruction}\nRephrase it naturally in your own words as the instructor. No "quotes", no *actions*, no narration. Be terse.\n=== END CRITICAL INSTRUCTION ===`;
         } else {
           // For character voice, add full instruction
           context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityInstruction}${capacityStateInstruction}\nELABORATE on this action with vivid detail, physical descriptions, character reactions, and in-character dialogue. Do NOT just repeat the action verbatim - expand it into a full, immersive roleplay message. Ignore previous conversation flow.\n=== END CRITICAL INSTRUCTION ===`;
@@ -5412,6 +5416,8 @@ If announcing the result, say "${result}" - not something else.
 
         // Apply variable substitution to final result
         finalText = substituteAllVariables(finalText);
+        // Instructors never roleplay — strip asterisk actions / quoted dialogue here too.
+        if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
 
         // Strip device tags from flow-generated messages to prevent LLM from interfering with flow device control
         if (data.flowId) {
@@ -8094,6 +8100,20 @@ async function handleButtonAdjustCapacity(action) {
  * @param {boolean} isCharacterResponse - True if this should be character text, false for player
  * @returns {string} - Cleaned text
  */
+// Instructors speak only as a terse operator — never roleplay. Strip *asterisk actions*
+// and unwrap "quoted dialogue" so it (a) reads as direct instruction and (b) never enters
+// chat history, where the model would otherwise copy its own RP style on the next turn.
+function stripInstructorRoleplay(text) {
+  if (!text) return text;
+  let t = text;
+  t = t.replace(/\*[^*\n]*\*/g, ''); // remove *action* spans
+  t = t.replace(/\*/g, '');          // remove any stray asterisks
+  t = t.replace(/[“”„"]/g, '');      // unwrap quoted dialogue (keep the words, drop the quotes)
+  // Tidy whitespace left behind.
+  t = t.replace(/[ \t]{2,}/g, ' ').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t;
+}
+
 function stripCrossRoleContent(text, stopSequences = [], isCharacterResponse = true) {
   if (!text) return text;
 
@@ -8142,6 +8162,12 @@ async function handleChatMessage(data) {
     if (aStory?.prereqTiming === 'after_first_message') {
       startInstructorPrereqs(activeCharacter);
     }
+  }
+
+  // Pre-Fill: a player message may advance/branch/exit the gated intro before we generate,
+  // so the reply reflects the new step (or the freshly-started pump phase).
+  if (activeCharacter && sender === 'player' && sessionState.preFillActive) {
+    scanPreFill(activeCharacter, content);
   }
 
   // Summarize overflow messages before building context (non-blocking on failure)
@@ -8278,6 +8304,12 @@ async function handleChatMessage(data) {
         // Strip any cross-role content that slipped through
         finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
         aiMessage.content = substituteAllVariables(finalText);
+        // Instructors never roleplay — strip asterisk actions / quoted dialogue before
+        // it's broadcast (via stream_complete) and saved to history.
+        if (isInstructor(activeCharacter)) {
+          aiMessage.content = stripInstructorRoleplay(aiMessage.content);
+          sessionState.repliesSinceManualPump = Math.min((sessionState.repliesSinceManualPump ?? 999) + 1, 9999);
+        }
 
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
@@ -8472,6 +8504,10 @@ async function handleChatMessage(data) {
       if (!useStreaming) {
         // Apply variable substitution to final text
         finalText = substituteAllVariables(finalText);
+        if (isInstructor(activeCharacter)) {
+          finalText = stripInstructorRoleplay(finalText);
+          sessionState.repliesSinceManualPump = Math.min((sessionState.repliesSinceManualPump ?? 999) + 1, 9999);
+        }
 
         // Process AI device commands (e.g., [pump on], [vibe off])
         const devices = loadData(DATA_FILES.devices) || [];
@@ -9268,6 +9304,41 @@ Keep responses SHORT and focused (2-3 sentences max).
   return { systemPrompt, prompt };
 }
 
+// Lean context for enhancing a single line (trigger "Char AI Message", LLM-enhanced
+// injection/choice/prereq responses). Character voice + current capacity + a SHORT history
+// tail for coherence — but none of the full checkpoint/dictionary/device/persona stack, so
+// the enhanced line stays focused on its own text instead of drifting into the scene.
+function buildLeanEnhanceContext(character, persona, settings, historyTail = 2) {
+  const playerName = persona?.displayName || 'the player';
+  const sub = (t) => substituteAllVariables(t || '', { playerName, characterName: character.name });
+
+  let systemPrompt;
+  if (isInstructor(character)) {
+    systemPrompt = `You are ${character.name}${character.gender ? `, ${character.gender}` : ''}.\n`;
+    if (character.mission) systemPrompt += `Mission: ${sub(character.mission)}\n`;
+    systemPrompt += `Speak ONLY as the instructor: a direct spoken instruction. No "quoted dialogue", no *actions*, no narration, no prose.\n`;
+  } else {
+    systemPrompt = `You are ${character.name}. ${sub(character.description)}\n`;
+    if (character.personality) systemPrompt += `Personality: ${sub(character.personality)}\n`;
+    systemPrompt += `Write ONLY as ${character.name} — never write for ${playerName}.\n`;
+  }
+  const capacity = Math.round(sessionState.capacity || 0);
+  systemPrompt += `\nCurrent capacity: ${capacity}%.\n`;
+
+  // Short history tail (option B) — just enough recent context for coherence.
+  let prompt = '';
+  const tail = (sessionState.chatHistory || [])
+    .filter(m => m && m.sender !== 'system' && !m.excludeFromContext)
+    .slice(-Math.max(0, historyTail));
+  for (const m of tail) {
+    const who = m.sender === 'player' ? playerName : character.name;
+    prompt += `${who}: ${m.content}\n`;
+  }
+  prompt += `${character.name}:`;
+
+  return { systemPrompt, prompt };
+}
+
 const ATTRIBUTE_PROMPTS = {
   dominant: 'Take control of the situation. Be assertive, commanding, and decisive. Direct the scene rather than following.',
   sadistic: 'Be cruel, teasing, and take pleasure in discomfort. Push boundaries and enjoy reactions.',
@@ -9766,6 +9837,83 @@ function applyInstructorInitVars(character) {
   if (initVars.length) console.log(`[Instructor] Seeded ${initVars.length} session-start variable(s)`);
 }
 
+// ===== Pre-Fill: card-level gated intro phase (no pumping until a trigger exits it) =====
+function getPreFillConfig(character) {
+  const story = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const pf = story?.preFill;
+  if (!pf || !pf.enabled) return null;
+  const steps = Array.isArray(pf.steps) ? pf.steps.filter(s => s && s.id) : [];
+  return steps.length ? { steps } : null;
+}
+
+// Enter pre-fill at session start (all card types). Closes the inflation gate.
+function startPreFill(character) {
+  const pf = getPreFillConfig(character);
+  if (!pf) { sessionState.preFillActive = false; sessionState.preFillStepId = null; return false; }
+  sessionState.preFillActive = true;
+  sessionState.preFillStepId = pf.steps[0].id;
+  sessionState.preFillNote = null;
+  sessionState.preInflationGateMet = false; // strict: no pumping during pre-fill
+  console.log(`[PreFill] Started (${pf.steps.length} step(s)) — gate closed`);
+  return true;
+}
+
+function getPreFillStep(character) {
+  if (!sessionState.preFillActive) return null;
+  const pf = getPreFillConfig(character);
+  if (!pf) return null;
+  return pf.steps.find(s => s.id === sessionState.preFillStepId) || pf.steps[0];
+}
+
+// Hard directive + current-step instruction injected every turn while in pre-fill.
+function preFillBlock(character) {
+  const step = getPreFillStep(character);
+  if (!step) return '';
+  const instr = injMsg(step.instruction);
+  let s = `\n=== PRE-FILL PHASE (MANDATORY — NO PUMPING) ===\n`;
+  s += `Inflation has NOT started. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. There is zero pumping in this phase.\n`;
+  if (instr.text) s += `Current goal: ${substituteAllVariables(instr.text)}\n`;
+  s += `Converse naturally toward that goal. This phase only advances when the player says the required phrase — never advance it yourself.\n`;
+  if (sessionState.preFillNote) {
+    s += `A transition just happened — work this into your reply: ${substituteAllVariables(sessionState.preFillNote)}\n`;
+  }
+  s += `=== END PRE-FILL PHASE ===\n`;
+  return s;
+}
+
+// Scan a player message against the current step's triggers; advance/branch/exit on first match.
+function scanPreFill(character, playerText) {
+  if (!sessionState.preFillActive || !playerText) return;
+  const step = getPreFillStep(character);
+  if (!step) return;
+  const text = String(playerText).toLowerCase();
+  sessionState.preFillNote = null;
+  for (const trig of (step.triggers || [])) {
+    const words = String(trig.words || '').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+    if (!words.length) continue;
+    if (!words.some(w => text.includes(w))) continue;
+    // First match wins.
+    if (trig.setVar?.variable) {
+      eventEngine.applySetVariable(trig.setVar.varType || 'custom', trig.setVar.variable, trig.setVar.operation || 'set', trig.setVar.value);
+    }
+    const resp = injMsg(trig.response);
+    if (resp.text) sessionState.preFillNote = resp.text;
+    if (trig.exit) {
+      sessionState.preFillActive = false;
+      sessionState.preFillStepId = null;
+      sessionState.preInflationGateMet = true;
+      if (isInstructor(character) && trig.loadProfileId) sessionState.activeCheckpointProfileId = trig.loadProfileId;
+      applyActivePumpType(character);
+      broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+      console.log(`[PreFill] Exit → pump phase${trig.loadProfileId ? ` (profile ${trig.loadProfileId})` : ''}`);
+    } else if (trig.goto) {
+      sessionState.preFillStepId = trig.goto;
+      console.log(`[PreFill] Advance → step ${trig.goto}`);
+    }
+    return;
+  }
+}
+
 function startInstructorPrereqs(character) {
   if (!isInstructor(character)) return false;
   if (sessionState.pendingPrereqs || sessionState.prereqsDone) return false;
@@ -9961,6 +10109,7 @@ function applyActivePumpType(character) {
 // A manual pump press (bulb/bike): bump the count, add the per-pump capacity %, and record
 // context for the next instructor reply. Electric/auto pumps are device-driven, not counted here.
 async function handleManualPump() {
+  if (sessionState.preFillActive) { console.log('[ManualPump] Blocked — pre-fill phase (no pumping)'); return; }
   const type = sessionState.pumpType;
   if (type !== 'bulb' && type !== 'bike') return;
   const sv = (loadData(DATA_FILES.settings) || {}).systemVariables || {};
@@ -9974,6 +10123,7 @@ async function handleManualPump() {
   const added = Math.round((sessionState.capacity - before) * 100) / 100;
   const cap = Math.round(sessionState.capacity);
   const count = type === 'bulb' ? sessionState.bulbCurrent : sessionState.bikeCurrent;
+  sessionState.repliesSinceManualPump = 0; // player pumped → start the between-batch cooldown
   sessionState.pendingPumpContext = sessionState.pendingPumpContext || [];
   sessionState.pendingPumpContext.push(`Player operated the ${type} pump (pump #${count}); added ${added}% — capacity is now ${cap}%.`);
   broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
@@ -10020,9 +10170,24 @@ function manualPumpBatchBlock(cp) {
   const maxPumps = parseInt(cp.maxPumpsPerBatch);
   const gap = parseInt(cp.messagesBetweenBatches);
   if (!(maxPumps > 0) && !(gap > 0)) return '';
+  // Stateful: the server tracks replies since the player last pumped, so we hand the
+  // model a concrete "may pump / cooldown" state instead of asking it to count turns
+  // (which LLMs can't do reliably).
+  const since = sessionState.repliesSinceManualPump ?? 999;
+  const cooling = gap > 0 && since < gap;
   let s = `\n=== MANUAL PUMP PACING (${sessionState.capacity}%) ===\n`;
-  if (maxPumps > 0) s += `- In a single reply you may instruct the player to operate the ${sessionState.pumpType} pump at most ${maxPumps} time(s) — one "batch".\n`;
-  if (gap > 0) s += `- After a batch, do NOT request more pumping for at least ${gap} message(s); let the player rest/respond before the next batch.\n`;
+  if (cooling) {
+    const left = gap - since;
+    s += `- COOLDOWN: the player pumped recently. Do NOT instruct ANY pumping for the next ${left} repl${left === 1 ? 'y' : 'ies'}. Give other guidance, check-ins, or corrections instead.\n`;
+  } else {
+    if (maxPumps > 0) {
+      s += `- You MAY instruct the player to operate the ${sessionState.pumpType} pump now.\n`;
+      s += `- HARD LIMIT: ask for at most ${maxPumps} pump${maxPumps === 1 ? '' : 's'} in this instruction. Do NOT exceed ${maxPumps}, and do NOT imply continuous/unlimited pumping.\n`;
+    } else {
+      s += `- You may instruct the player to operate the ${sessionState.pumpType} pump now.\n`;
+    }
+    if (gap > 0) s += `- After they pump, you must NOT instruct pumping again for ${gap} repl${gap === 1 ? 'y' : 'ies'}.\n`;
+  }
   s += `=== END MANUAL PUMP PACING ===\n`;
   return s;
 }
@@ -10393,6 +10558,7 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     }
     systemPrompt += manualPumpBatchBlock(checkpointSpecial);
     systemPrompt += checkpointInjectionsBlock();
+    systemPrompt += preFillBlock(character);
     const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
     if (charCheckpointSpecial) {
       systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this. Do NOT describe ${character.name}'s inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointSpecial}\n=== END STAGE DIRECTION ===\n`;
@@ -10815,24 +10981,28 @@ function buildChatContext(character, settings) {
     systemPrompt += buildDictionaryPrompt();
   }
 
-  // Add player info if available
+  // Add player info if available. Instructors only need the player's NAME/pronouns —
+  // appearance, personality, and inflation-disposition prose are scene flavor a terse,
+  // checkpoint-driven operator doesn't use, so they're skipped to keep the prompt lean.
   if (activePersona) {
     systemPrompt += `The player is ${activePersona.displayName}`;
     if (activePersona.pronouns) {
       systemPrompt += ` (${activePersona.pronouns})`;
     }
     systemPrompt += '.\n';
-    if (activePersona.appearance) {
-      systemPrompt += `Player appearance: ${activePersona.appearance}\n`;
+    if (!isInstructor(character)) {
+      if (activePersona.appearance) {
+        systemPrompt += `Player appearance: ${activePersona.appearance}\n`;
+      }
+      if (activePersona.personality) {
+        systemPrompt += `Player personality: ${activePersona.personality}\n`;
+      }
+      if (activePersona.relationshipWithInflation) {
+        systemPrompt += `Player's additional inflation context: ${activePersona.relationshipWithInflation}\n`;
+      }
+      systemPrompt += buildPersonaInflationContext(activePersona, activePersona.displayName || 'The player');
+      systemPrompt += buildPersonaDispositionContext(activePersona, activePersona.displayName || 'The player');
     }
-    if (activePersona.personality) {
-      systemPrompt += `Player personality: ${activePersona.personality}\n`;
-    }
-    if (activePersona.relationshipWithInflation) {
-      systemPrompt += `Player's additional inflation context: ${activePersona.relationshipWithInflation}\n`;
-    }
-    systemPrompt += buildPersonaInflationContext(activePersona, activePersona.displayName || 'The player');
-    systemPrompt += buildPersonaDispositionContext(activePersona, activePersona.displayName || 'The player');
     systemPrompt += '\n';
   }
 
@@ -10932,12 +11102,25 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   // Checkpoint injections rolled for this generation (pop-up stage events)
   systemPrompt += checkpointInjectionsBlock();
 
-  // Final style anchor
-  systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
+  // Pre-Fill gated-intro directive (no pumping; drives toward the current step)
+  systemPrompt += preFillBlock(character);
 
-  // Build prompt from recent chat history
+  // Final style anchor — the LAST line carries the most weight for recency-biased
+  // models, so instructors get the OPPOSITE of the roleplay anchor (this line was the
+  // main reason instructors slipped into quoted dialogue / *actions*).
+  if (isInstructor(character)) {
+    systemPrompt += `\nRespond ONLY as the instructor speaking aloud: direct commands, corrections, and answers. No "quoted dialogue", no *asterisk actions*, no narration, no prose.\n`;
+  } else {
+    systemPrompt += `\nWrite "dialogue" and *actions*. Short paragraphs, natural speech. Show don't tell.\n`;
+  }
+
+  // Build prompt from recent chat history. A card may override the global depth
+  // (instructors especially want a short window — their authoritative state is the
+  // freshly-rebuilt checkpoint/pacing injections, not the back-and-forth).
   const memSettingsChat = getChatMemorySettings(settings);
-  const recentMessages = sessionState.chatHistory.slice(-memSettingsChat.chatHistoryDepth);
+  const cardDepth = Number(character?.historyDepth);
+  const effectiveDepth = cardDepth > 0 ? cardDepth : memSettingsChat.chatHistoryDepth;
+  const recentMessages = sessionState.chatHistory.slice(-effectiveDepth);
   let prompt = '';
 
   // Inject rolling summary of older messages if available
@@ -15366,11 +15549,15 @@ app.post('/api/session/reset', async (req, res) => {
   // Reset checkpoint-injection + instructor pre-req state
   sessionState.checkpointInjectionCounts = {};
   sessionState.messagesSincePumpOn = 0; // Auto-pump pacing counter
+  sessionState.repliesSinceManualPump = 999; // Manual-pump pacing counter (high = not cooling)
   sessionState.activeCheckpointInjections = [];
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
+  sessionState.preFillActive = false;
+  sessionState.preFillStepId = null;
+  sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
   sessionState.bulbCurrent = 0;
@@ -15408,7 +15595,11 @@ app.post('/api/session/reset', async (req, res) => {
 
     if (activeCharacter && sessionState.capacity === 0) {
       const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-      if (isInstructor(activeCharacter)) {
+      if (getPreFillConfig(activeCharacter)) {
+        // Pre-Fill takes precedence for ALL card types — gate stays closed through the
+        // entire gated intro; startPreFill() (below) manages the step state.
+        sessionState.preInflationGateMet = false;
+      } else if (isInstructor(activeCharacter)) {
         // Instructors gate on their pre-req sequence (the prereq choices ARE the gate)
         const hasPrereqs = Array.isArray(activeStory?.prereqs) && activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
         sessionState.preInflationGateMet = !hasPrereqs;
@@ -15443,14 +15634,15 @@ app.post('/api/session/reset', async (req, res) => {
     // Send welcome message first
     if (activeCharacter) {
       await sendWelcomeMessage(activeCharacter, settings);
-      // Instructor pre-reqs: kick off the sequence at session start (or after the
-      // first player message, handled in handleChatMessage).
+      // Pre-Fill (gated intro) takes precedence for every card type — start it right after
+      // the welcome. It closes the gate and seeds the first step.
+      const preFillStarted = startPreFill(activeCharacter);
       if (isInstructor(activeCharacter)) {
         const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-        // Seed session-start setup variables before any pre-req questions run,
-        // regardless of when the questions themselves are asked.
+        // Seed session-start setup variables.
         applyInstructorInitVars(activeCharacter);
-        if ((aStory?.prereqTiming || 'session_start') === 'session_start') {
+        // Legacy modal pre-reqs only run when Pre-Fill is NOT in use.
+        if (!preFillStarted && (aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
         }
         // Set the session pump mode from the active checkpoint profile (or the card default).

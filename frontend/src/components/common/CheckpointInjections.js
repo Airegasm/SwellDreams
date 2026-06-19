@@ -13,18 +13,20 @@ function MsgField({ label, value, onChange, placeholder }) {
   const v = value || { text: '', llmEnhance: true };
   return (
     <div className="ci-msg-field">
-      <span className="ci-msg-label">{label}</span>
-      <input
-        type="text"
-        className="ci-msg-text"
-        value={v.text || ''}
-        onChange={(e) => onChange({ ...v, text: e.target.value })}
-        placeholder={placeholder}
-      />
-      <label className="ci-inline-check" title="LLM Enhance — let the AI rewrite/weave this. Uncheck to use it verbatim.">
-        <input type="checkbox" checked={v.llmEnhance !== false} onChange={(e) => onChange({ ...v, llmEnhance: e.target.checked })} />
-        LLM
-      </label>
+      <label className="ci-msg-label">{label}</label>
+      <div className="ci-msg-input-row">
+        <input
+          type="text"
+          className="ci-msg-text"
+          value={v.text || ''}
+          onChange={(e) => onChange({ ...v, text: e.target.value })}
+          placeholder={placeholder}
+        />
+        <label className="ci-inline-check" title="LLM Enhance — let the AI rewrite/weave this. Uncheck to use it verbatim.">
+          <input type="checkbox" checked={v.llmEnhance !== false} onChange={(e) => onChange({ ...v, llmEnhance: e.target.checked })} />
+          LLM
+        </label>
+      </div>
     </div>
   );
 }
@@ -149,14 +151,26 @@ function CheckpointInjections({ value, onChange }) {
       {injections.map((inj, i) => (
         <div className={`ci-injection ${inj.enabled === false ? 'disabled' : ''}`} key={inj.id || i}>
           <div className="ci-injection-top">
+            <span className="ci-injection-num">Injection {i + 1}</span>
             <label className="ci-inline-check ci-enabled" title="Enable this injection">
               <input type="checkbox" checked={inj.enabled !== false} onChange={(e) => upd(i, { enabled: e.target.checked })} />
               On
             </label>
-            <span className="ci-injection-num">Injection {i + 1}</span>
-            <label className="ci-num" title="% chance per message">Chance %<input type="number" min={0} max={100} value={inj.chance ?? 50} onChange={(e) => upd(i, { chance: parseInt(e.target.value) || 0 })} /></label>
-            <label className="ci-num" title="Max appearances per session (-1 = unlimited)">Max<input type="number" min={-1} value={inj.maxAppearances ?? -1} onChange={(e) => upd(i, { maxAppearances: parseInt(e.target.value) })} /></label>
             <button type="button" className="ci-del" onClick={() => rm(i)} title="Remove injection">×</button>
+          </div>
+          <div className="ci-num-row">
+            <div className="ci-num-field">
+              <label title="% chance per message">Chance %</label>
+              <input type="text" inputMode="numeric" value={inj.chance ?? 50}
+                onChange={(e) => upd(i, { chance: parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0 })}
+                placeholder="50" style={{ maxWidth: 90 }} />
+            </div>
+            <div className="ci-num-field">
+              <label title="Max appearances per session (-1 = unlimited)">Max (-1 = ∞)</label>
+              <input type="text" inputMode="numeric" value={inj.maxAppearances ?? -1}
+                onChange={(e) => { const n = parseInt(e.target.value.replace(/[^0-9-]/g, ''), 10); upd(i, { maxAppearances: Number.isNaN(n) ? -1 : n }); }}
+                placeholder="-1" style={{ maxWidth: 90 }} />
+            </div>
           </div>
           <MsgField label="Message" value={normMsg(inj.message, inj.text)} onChange={(m) => upd(i, { message: m, text: undefined })} placeholder="Delivered this message…" />
           <MsgField label="Response" value={normMsg(inj.response)} onChange={(m) => upd(i, { response: m })} placeholder="Delivered next message (optional)…" />

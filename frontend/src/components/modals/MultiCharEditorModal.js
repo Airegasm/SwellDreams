@@ -6,6 +6,7 @@ import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import CheckpointInjections from '../common/CheckpointInjections';
+import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 import './MultiCharEditorModal.css';
@@ -62,6 +63,7 @@ function migrateStoryToV2(story, character) {
     scenarios,
     activeScenarioId: finalScId,
     exampleDialogues: story.exampleDialogues || [],
+    preFill: story.preFill && typeof story.preFill === 'object' ? story.preFill : { enabled: false, steps: [] },
     autoReplyEnabled: story.autoReplyEnabled ?? character?.autoReplyEnabled ?? false,
     allowLlmDeviceAccess: story.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
     assignedFlows: story.assignedFlows || character?.assignedFlows || [],
@@ -173,6 +175,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       return {
         name: character.name || '',
         responseTokens: character.responseTokens ?? '',
+        historyDepth: character.historyDepth ?? '',
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
@@ -227,6 +230,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
     return {
       name: '',
       responseTokens: '',
+      historyDepth: '',
       avatar: '',
       description: '',
       personality: '',
@@ -1328,6 +1332,17 @@ Write only the scenario description itself, no explanations.`;
                   />
                 </div>
 
+                <div className="form-group">
+                  <label>Chat History Depth (overrides global)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.historyDepth ?? ''}
+                    onChange={(e) => setFormData({ ...formData, historyDepth: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="Leave blank to use the global setting"
+                  />
+                </div>
+
                 {/* Character Names */}
                 <div className="form-group">
                   <label>Characters</label>
@@ -2351,6 +2366,15 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
+              {/* Pre-Fill: optional gated intro before any inflation */}
+              <h4>Pre-Fill (gated intro — no pump)</h4>
+              <PreFillEditor
+                value={activeStory?.preFill}
+                onChange={(pf) => updateStoryField('preFill', pf)}
+                profiles={[]}
+                isInstructor={false}
+              />
+              <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
               <div className="checkpoint-tab-header">
                 <h4>Capacity Checkpoints</h4>
                 <button type="button" className="btn btn-sm btn-secondary" onClick={() => {

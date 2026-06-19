@@ -183,6 +183,22 @@
   text-align: center;
 }
 
+/* Editable value box */
+.slider-value-input {
+  width: 64px;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color, #3a3d45);
+  cursor: text;
+}
+.slider-value-input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
+}
+/* Hide native number spinners (in case type changes) */
+.slider-value-input::-webkit-outer-spin-button,
+.slider-value-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
 /* .info-icon is now defined globally in App.css */
 
 input[type="range"] {

@@ -2004,8 +2004,6 @@ function Chat() {
             {/* Action Buttons Stack */}
             <div className="input-action-stack">
               <div className="action-stack-top">
-                {/* Guided Impersonate is meaningless for Instructors (simple speak/instruct, no roleplay) */}
-                {!isInstructor(activeCharacter) && (
                 <button
                   type="button"
                   className={`action-btn impersonate-action-btn ${isGenerating ? 'generating' : ''}`}
@@ -2013,7 +2011,6 @@ function Chat() {
                   onClick={isGenerating ? handleCancelGeneration : () => handleGuidedGenerate('guided_impersonate')}
                   title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : "Guided Impersonate (continue as you)"}
                 >🤖</button>
-                )}
                 <button
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}

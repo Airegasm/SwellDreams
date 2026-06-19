@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { API_BASE } from '../../config';
+import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import CheckpointInjections from '../common/CheckpointInjections';
-import PrereqEditor from '../common/PrereqEditor';
+import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
 
@@ -63,6 +65,8 @@ function buildInitialData(character) {
     ignoreTokenSwapping: character?.ignoreTokenSwapping || false,
     defaultPumpType: character?.defaultPumpType || 'electric',
     responseTokens: character?.responseTokens ?? '',
+    historyDepth: character?.historyDepth ?? '',
+    exampleDialogues: Array.isArray(character?.exampleDialogues) ? character.exampleDialogues : [],
     story: {
       id: story?.id || 'story-1',
       name: story?.name || 'Mission',
@@ -70,10 +74,12 @@ function buildInitialData(character) {
       activeWelcomeMessageId: story?.activeWelcomeMessageId || welcomeMessages[0]?.id,
       checkpoints: story?.checkpoints || {},
       checkpointTriggers: story?.checkpointTriggers || {},
+      skinId: story?.skinId || '',
       allowLlmDeviceAccess: story?.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
       prereqs: Array.isArray(story?.prereqs) ? story.prereqs : [],
       prereqTiming: story?.prereqTiming || 'session_start',
       prereqInitVars: Array.isArray(story?.prereqInitVars) ? story.prereqInitVars : [],
+      preFill: story?.preFill && typeof story.preFill === 'object' ? story.preFill : { enabled: false, steps: [] },
       checkpointProfiles,
       defaultCheckpointProfileId: story?.defaultCheckpointProfileId || checkpointProfiles[0].id,
     },
@@ -92,6 +98,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
   const [selectedProfileId, setSelectedProfileId] = useState(null);
+  const [availableSkins, setAvailableSkins] = useState([]);
   const fileInputRef = useRef(null);
 
   // Re-seed form whenever the modal is (re)opened for a different card.
@@ -101,6 +108,13 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       setActiveTab('basic');
     }
   }, [isOpen, character]);
+
+  // Load available skins for the background/skin dropdown.
+  useEffect(() => {
+    if (isOpen) {
+      apiFetch(`${API_BASE}/api/display-settings`).then(data => setAvailableSkins(data?.skins || [])).catch(() => {});
+    }
+  }, [isOpen]);
 
   const loadAssignables = useCallback(async () => {
     try {
@@ -257,6 +271,8 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       ignoreTokenSwapping: !!formData.ignoreTokenSwapping,
       defaultPumpType: formData.defaultPumpType || 'electric',
       responseTokens: formData.responseTokens === '' || formData.responseTokens == null ? undefined : Number(formData.responseTokens),
+      historyDepth: formData.historyDepth === '' || formData.historyDepth == null ? undefined : Number(formData.historyDepth),
+      exampleDialogues: (formData.exampleDialogues || []).filter(d => d && (d.user || d.character)),
       autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
       stories: [story],
@@ -334,9 +350,39 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
           </div>
 
           <div className="form-group">
+            <label>Chat History Depth (overrides global)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={formData.historyDepth ?? ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, historyDepth: e.target.value.replace(/[^0-9]/g, '') }))}
+              placeholder="Blank = global. Instructors do well at ~4–8"
+              style={{ maxWidth: 220 }}
+            />
+            <p className="section-hint">How many prior messages this instructor sees. Lower = leaner, faster, and it leans on the checkpoint state instead of repeating chat history.</p>
+          </div>
+
+          <div className="form-group">
             <label>Mission</label>
             <textarea rows={3} value={formData.mission} onChange={(e) => setFormData(prev => ({ ...prev, mission: e.target.value }))}
               placeholder="The objective this instructor is driving toward. Stated plainly." />
+          </div>
+
+          <div className="form-group">
+            <label>Example Dialogues (teach the instructor's voice)</label>
+            <p className="section-hint">Player line → ideal instructor reply. These anchor the terse, no-roleplay instruction style and curb drift. They're style examples, not part of the running conversation.</p>
+            {(formData.exampleDialogues || []).map((d, i) => {
+              const upd = (patch) => setFormData(prev => ({ ...prev, exampleDialogues: (prev.exampleDialogues || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)) }));
+              const rm = () => setFormData(prev => ({ ...prev, exampleDialogues: (prev.exampleDialogues || []).filter((_, idx) => idx !== i) }));
+              return (
+                <div key={i} className="instr-example-row">
+                  <input type="text" value={d.user || ''} onChange={(e) => upd({ user: e.target.value })} placeholder="Player says…" />
+                  <input type="text" value={d.character || ''} onChange={(e) => upd({ character: e.target.value })} placeholder="Instructor responds…" />
+                  <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
+                </div>
+              );
+            })}
+            <button type="button" className="prereq-add-sm" onClick={() => setFormData(prev => ({ ...prev, exampleDialogues: [...(prev.exampleDialogues || []), { user: '', character: '' }] }))}>+ Example</button>
           </div>
 
           <div className="form-group">
@@ -346,6 +392,17 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <p className="section-hint">Defines how the instructor behaves and performs. Manage profiles in the Instructor Settings tab.</p>
+          </div>
+
+          <div className="form-group">
+            <label>Session Background / Skin</label>
+            <select value={formData.story.skinId || ''} onChange={(e) => updateStory('skinId', e.target.value || '')}>
+              <option value="">SwellDreams (Default)</option>
+              {availableSkins.filter(s => s.id !== 'swelldreams-default').map(s => (
+                <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Built-in)' : ''}</option>
+              ))}
+            </select>
+            <p className="section-hint">Automatically switch to this background/skin when starting a session with this instructor.</p>
           </div>
 
           <div className="form-group">
@@ -437,18 +494,17 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
 
-          {/* ===== Pre-Requirements ===== */}
-          <h4>Pre-Requirements (before inflation)</h4>
-          <p className="section-hint">Ordered, mandatory questions shown before inflation begins — drag to reorder. Each choice can load a checkpoint profile and/or set a variable. The instructor won't start the pump until these are answered.</p>
-          <div className="form-group">
-            <label>When to ask</label>
-            <select value={formData.story.prereqTiming || 'session_start'} onChange={(e) => updateStory('prereqTiming', e.target.value)}>
-              <option value="session_start">At session start</option>
-              <option value="after_first_message">After the first player message</option>
-            </select>
-          </div>
+          {/* ===== Pre-Fill (gated intro, no pump) ===== */}
+          <h4>Pre-Fill (gated intro — no pump)</h4>
+          <PreFillEditor
+            value={formData.story.preFill}
+            onChange={(pf) => updateStory('preFill', pf)}
+            profiles={cpProfiles}
+            isInstructor={true}
+          />
+
           {/* Session-start Flow variable seeding */}
-          <div className="form-group">
+          <div className="form-group" style={{ marginTop: 12 }}>
             <label>Initial Setup Variables (session start)</label>
             <p className="section-hint">Flow/system variables seeded once when the session begins, before any questions. Read them anywhere with [Flow:Name] (or [Capacity]/[Pain]/[Emotion]).</p>
             {(formData.story.prereqInitVars || []).map((v, i) => {
@@ -475,13 +531,6 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             })}
             <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
           </div>
-
-          <PrereqEditor
-            steps={formData.story.prereqs || []}
-            onChange={(s) => updateStory('prereqs', s)}
-            profiles={cpProfiles}
-            defaultPumpType={formData.defaultPumpType}
-          />
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
 
@@ -544,53 +593,42 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                 </button>
               </div>
               {hint && <p className="section-hint">{hint}</p>}
-              {/* Pump-pacing config lives OUTSIDE the spoiler blur — it's setup, not RP content */}
+              {/* Pump-pacing config lives OUTSIDE the spoiler blur — it's setup, not RP content.
+                  Uses the exact same field pattern as the (working) Bulb/Bike Max inputs. */}
               {isManualPump && (
-                <div className="pump-pacing-row">
-                  <label className="pump-pacing-field" title="How many messages must pass after a batch before the instructor may request more pumping">
-                    <span>MSG / Batch</span>
-                    <input
-                      type="number"
-                      min={0}
+                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+                  <div>
+                    <label title="How many messages must pass after a batch before the instructor may request more pumping">MSG / Batch</label>
+                    <input type="text" inputMode="numeric"
                       value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
-                      onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value)}
-                      placeholder="0"
-                    />
-                  </label>
-                  <label className="pump-pacing-field" title="Max pump operations the instructor may request in a single reply (one batch)">
-                    <span>Max Pump / Batch</span>
-                    <input
-                      type="number"
-                      min={0}
+                      onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="0" style={{ maxWidth: 120 }} />
+                  </div>
+                  <div>
+                    <label title="Max pump operations the instructor may request in a single reply (one batch)">Max Pump / Batch</label>
+                    <input type="text" inputMode="numeric"
                       value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
-                      onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value)}
-                      placeholder="0"
-                    />
-                  </label>
+                      onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="0" style={{ maxWidth: 120 }} />
+                  </div>
                 </div>
               )}
               {isAutoPump && (
-                <div className="pump-pacing-row">
-                  <label className="pump-pacing-field" title="How many replies between automatic [pump on] events. Skips if the pump is already running.">
-                    <span>MSG / ON</span>
-                    <input
-                      type="number"
-                      min={0}
+                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+                  <div>
+                    <label title="How many replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
+                    <input type="text" inputMode="numeric"
                       value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
-                      onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value)}
-                      placeholder="0 = off"
-                    />
-                  </label>
-                  <label className="pump-pacing-field" title="How long the pump stays ON each time, in seconds (auto-off).">
-                    <span>Max Pump ON (s)</span>
-                    <input
-                      type="number"
-                      min={0}
+                      onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="0 = off" style={{ maxWidth: 120 }} />
+                  </div>
+                  <div>
+                    <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
+                    <input type="text" inputMode="numeric"
                       value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
-                      onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value)}
-                      placeholder="5"
-                    />
-                  </label>
+                      onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="5" style={{ maxWidth: 120 }} />
+                  </div>
                 </div>
               )}
               <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
