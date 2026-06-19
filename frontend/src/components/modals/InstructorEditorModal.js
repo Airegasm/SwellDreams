@@ -608,6 +608,20 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges). Appended to the inflation profile/mission block in the prompt.</p>
           </div>
 
+          {/* ===== Always-On Trigger Tree (per profile) — runs every reply while active ===== */}
+          {(() => {
+            const aRef = selProfile?.treeRefs?.alwaysOn || {};
+            const setAlways = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: { ...aRef, inline: { id: aRef.inline?.id || `tree-ao-${Date.now()}`, name: aRef.inline?.name || 'Always On', nodes: next } } } }
+              : p));
+            return (
+              <div className="form-group" style={{ marginTop: 4 }}>
+                <div className="rte-head"><strong>Always-On Script</strong> <span className="section-hint">trigger tree; runs every reply while this profile is active (recurring nodes fire each turn, once nodes fire once)</span></div>
+                <TreeEditor value={aRef.inline?.nodes || []} onChange={setAlways} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} />
+              </div>
+            );
+          })()}
+
           {RANGES_1_100.map(({ key, label, hint }) => (
             <div className="form-group checkpoint-field" key={key}>
               <div className="checkpoint-header">

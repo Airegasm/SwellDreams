@@ -9889,19 +9889,36 @@ function evalBranch(branch) {
   return match === 'any' ? conds.some(test) : conds.every(test);
 }
 
+// Resolve a character's scope tree-refs container ({ sessionStart?, alwaysOn?, ranges? }) —
+// per active checkpoint PROFILE for instructors, per active STORY otherwise. Single source of
+// truth mirroring how the legacy roller picks `ct` (getInstructorActiveProfile vs activeStory).
+function resolveScopeRefs(character) {
+  if (!character) return {};
+  if (isInstructor(character)) return getInstructorActiveProfile(character)?.treeRefs || {};
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  return activeStory?.treeRefs || {};
+}
+
+// Inline-ref helper: returns the inline tree iff it has a non-empty node list, else null.
+function inlineTreeOf(ref) {
+  return (ref?.inline && Array.isArray(ref.inline.nodes) && ref.inline.nodes.length) ? ref.inline : null;
+}
+
+// Run the Always-On tree scope IN-REPLY every reply (recurring ambient guidance/triggers),
+// composed after the range trees. Resolved like the range scope. Inline ref only in v1.
+async function runActiveAlwaysOn(character, settings) {
+  const tree = inlineTreeOf(resolveScopeRefs(character).alwaysOn);
+  if (tree) await runTreeScope(tree, 'alwaysOn', character, settings, { delivery: 'inReply' });
+}
+
 // Run the active Capacity-Range tree scope(s) IN-REPLY (woven/verbatim into this turn).
-// Resolves treeRefs.ranges the same way the legacy roller picks `ct`: per active checkpoint
-// PROFILE for instructors, per active STORY otherwise. Carry-over matches the legacy roll
-// (nearest DEFINING range <= current capacity; a defining ref = inline tree with non-empty
-// nodes). Player axis always; char axis only for pumpable non-instructors. v1: inline refs
-// only — {treeId} library refs no-op until step 4.
+// Carry-over matches the legacy roll (nearest DEFINING range <= current capacity; a defining
+// ref = inline tree with non-empty nodes). Player axis always; char axis only for pumpable
+// non-instructors. v1: inline refs only — {treeId} library refs no-op until step 4.
 async function runActiveRangeTrees(character, settings) {
   if (!character) return;
   const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
-  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  const refs = isInstructor(character)
-    ? (getInstructorActiveProfile(character)?.treeRefs?.ranges || {})
-    : (activeStory?.treeRefs?.ranges || {});
+  const refs = resolveScopeRefs(character).ranges || {};
 
   const runAxis = async (prefix, capacity) => {
     const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
@@ -9922,9 +9939,9 @@ async function runActiveRangeTrees(character, settings) {
 }
 
 // Single per-turn entry point for all IN-REPLY producers. Owns the ONE activeCheckpointInjections
-// reset, then runs each producer in order so they COMPOSE into the same array (legacy random
-// blocks first, then the Capacity-Range tree scope; future Always-On slots in after). The 5
-// gen-loop call sites await this, then flush any verbatim via deliverPendingVerbatimReply.
+// reset, then runs each producer in order so they COMPOSE into the same array: legacy random
+// blocks, then the Capacity-Range tree scope, then the Always-On tree scope. The 5 gen-loop
+// call sites await this, then flush any verbatim via deliverPendingVerbatimReply.
 async function runReplyScopes(character) {
   sessionState.activeCheckpointInjections = [];
   if (!character) return;
@@ -9932,6 +9949,8 @@ async function runReplyScopes(character) {
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
+  try { await runActiveAlwaysOn(character, settings); }
+  catch (e) { console.error('[runReplyScopes] always-on failed:', e?.message || e); }
 }
 
 // block-set carries over into higher ranges that define no blocks of their own.
