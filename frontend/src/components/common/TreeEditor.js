@@ -1,6 +1,24 @@
 import React, { useState } from 'react';
 import TriggerRow from './TriggerRow';
+import { API_BASE } from '../../config';
 import './TreeEditor.css';
+
+// fire_tree target picker: lazy-loads the global library so any tree (incl. built-ins) can be fired.
+function FireTreeEditor({ node, setParams }) {
+  const [trees, setTrees] = React.useState(null);
+  React.useEffect(() => {
+    fetch(`${API_BASE}/api/trigger-trees`).then(r => r.json()).then(d => setTrees(d?.trees || [])).catch(() => setTrees([]));
+  }, []);
+  return (
+    <label className="tree-field">
+      <span>Library tree to fire</span>
+      <select value={node.params?.treeId || ''} onChange={(e) => setParams({ treeId: e.target.value })}>
+        <option value="">select a library tree…</option>
+        {(trees || []).map(t => <option key={t.id} value={t.id}>{t.name}{t.builtIn ? ' (built-in)' : ''}</option>)}
+      </select>
+    </label>
+  );
+}
 
 // Reusable nested-block Trigger Tree editor (collapsible outline; see plan
 // typed-dazzling-nygaard.md). ONE component, context-driven: pass a character's
@@ -55,11 +73,19 @@ const ADD_GROUPS = [
     ]
   },
   {
+    label: 'Flow', items: [
+      { kind: 'action', type: 'fire_tree', label: 'Fire Tree (library)' },
+      { kind: 'action', type: 'fire_flow', label: 'Fire Flow (escape hatch)' },
+    ]
+  },
+  {
     label: 'Actions', items: [
       { kind: 'action', type: '', label: 'Action…' },
     ]
   },
 ];
+
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
 const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword']); // not if/player_choice (special children)
@@ -77,6 +103,8 @@ function makeNode(kind, type) {
   if (type === 'chance') node.params.chance = 50;
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
+  if (type === 'fire_tree') node.params.treeId = '';
+  if (type === 'fire_flow') { node.params.flowId = ''; node.params.flowActionLabel = ''; }
   return node;
 }
 
@@ -88,6 +116,8 @@ function summarize(node) {
     if (!t) return '(choose action…)';
     if (t === 'label') return `Label: ${p.name || '(unnamed)'}`;
     if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
+    if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
+    if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'Flow'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
@@ -269,6 +299,15 @@ function NodeBody({ node, onChange, rowProps }) {
         <span>{t === 'label' ? 'Label name' : 'Go to label'}</span>
         <input type="text" value={node.params?.name || ''} onChange={(e) => setParams({ name: e.target.value })} placeholder="name" />
       </label>
+    );
+  }
+  if (t === 'fire_tree') return <FireTreeEditor node={node} setParams={setParams} />;
+  if (t === 'fire_flow') {
+    return (
+      <div className="tree-params">
+        <label className="tree-field"><span>Flow ID</span><input type="text" value={node.params?.flowId || ''} onChange={(e) => setParams({ flowId: e.target.value })} placeholder="flow id" /></label>
+        <label className="tree-field"><span>FlowAction (Button-Press) label</span><input type="text" value={node.params?.flowActionLabel || ''} onChange={(e) => setParams({ flowActionLabel: e.target.value })} placeholder="button-press label to enter at" /></label>
+      </div>
     );
   }
 

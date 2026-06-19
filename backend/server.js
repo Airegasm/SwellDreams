@@ -9900,23 +9900,38 @@ function resolveScopeRefs(character) {
   return activeStory?.treeRefs || {};
 }
 
-// Inline-ref helper: returns the inline tree iff it has a non-empty node list, else null.
-function inlineTreeOf(ref) {
-  return (ref?.inline && Array.isArray(ref.inline.nodes) && ref.inline.nodes.length) ? ref.inline : null;
+// Per-turn index of the global tree library (id -> Tree). Built ONCE per turn in runReplyScopes
+// and threaded via ctx so {treeId} scope refs and fire_tree hops resolve without re-reading disk.
+function buildTreeIndex() {
+  const m = new Map();
+  for (const t of (loadTriggerTrees().trees || [])) m.set(t.id, t);
+  return m;
+}
+
+// Resolve a scope ref to a runnable Tree: an inline tree (unchanged path) OR a library {treeId}
+// lookup. Returns null (never throws) on missing/empty so the walker degrades to a skip.
+function resolveRefTree(ref, treeIndex) {
+  if (ref?.inline && Array.isArray(ref.inline.nodes) && ref.inline.nodes.length) return ref.inline;
+  if (ref?.treeId) {
+    const t = (treeIndex || buildTreeIndex()).get(ref.treeId);
+    if (t && Array.isArray(t.nodes) && t.nodes.length) return t;
+    console.warn(`[runTree] scope ref treeId '${ref.treeId}' not in library or empty — skipping`);
+  }
+  return null;
 }
 
 // Run the Always-On tree scope IN-REPLY every reply (recurring ambient guidance/triggers),
-// composed after the range trees. Resolved like the range scope. Inline ref only in v1.
-async function runActiveAlwaysOn(character, settings) {
-  const tree = inlineTreeOf(resolveScopeRefs(character).alwaysOn);
-  if (tree) await runTreeScope(tree, 'alwaysOn', character, settings, { delivery: 'inReply' });
+// composed after the range trees. Resolves inline OR {treeId} library refs.
+async function runActiveAlwaysOn(character, settings, treeIndex) {
+  const tree = resolveRefTree(resolveScopeRefs(character).alwaysOn, treeIndex);
+  if (tree) await runTreeScope(tree, 'alwaysOn', character, settings, { delivery: 'inReply', treeIndex });
 }
 
 // Run the active Capacity-Range tree scope(s) IN-REPLY (woven/verbatim into this turn).
 // Carry-over matches the legacy roll (nearest DEFINING range <= current capacity; a defining
-// ref = inline tree with non-empty nodes). Player axis always; char axis only for pumpable
-// non-instructors. v1: inline refs only — {treeId} library refs no-op until step 4.
-async function runActiveRangeTrees(character, settings) {
+// ref = an inline OR {treeId} ref resolving to a non-empty tree). Player axis always; char axis
+// only for pumpable non-instructors.
+async function runActiveRangeTrees(character, settings, treeIndex) {
   if (!character) return;
   const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
   const refs = resolveScopeRefs(character).ranges || {};
@@ -9924,15 +9939,15 @@ async function runActiveRangeTrees(character, settings) {
   const runAxis = async (prefix, capacity) => {
     const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
     if (curIdx < 0) return;
-    let key = null;
+    let tree = null, key = null;
     for (let i = curIdx; i >= 0; i--) {
-      const r = refs[`${prefix}-${ORDER[i]}`];
-      if (r?.inline && Array.isArray(r.inline.nodes) && r.inline.nodes.length) { key = ORDER[i]; break; }
+      tree = resolveRefTree(refs[`${prefix}-${ORDER[i]}`], treeIndex);
+      if (tree) { key = ORDER[i]; break; }
     }
-    if (key === null) return;
+    if (!tree) return;
     // scopeKey uses the carried-over DEFINING key (not raw capacity) so `once` nodes are
     // stable while in-band and only re-arm when the defining range changes.
-    await runTreeScope(refs[`${prefix}-${key}`].inline, `range:${prefix}:${key}`, character, settings, { delivery: 'inReply' });
+    await runTreeScope(tree, `range:${prefix}:${key}`, character, settings, { delivery: 'inReply', treeIndex });
   };
 
   await runAxis('player', sessionState.capacity || 0);
@@ -9948,11 +9963,12 @@ async function runReplyScopes(character) {
   sessionState.activeCheckpointInjections = [];
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
+  const treeIndex = buildTreeIndex(); // one library read per turn; threaded into every scope/fire_tree hop
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
-  try { await runActiveRangeTrees(character, settings); }
+  try { await runActiveRangeTrees(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
   if (sessionState.pendingTreeChoice) return; // a player_choice suspended the turn — stop further scopes
-  try { await runActiveAlwaysOn(character, settings); }
+  try { await runActiveAlwaysOn(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] always-on failed:', e?.message || e); }
 }
 
@@ -12401,7 +12417,7 @@ function resolveBlockTrigger(t, sets) {
 // control sentinel ({__control:...}) so step-3 player_choice/label/goto slot in with no refactor.
 const MAX_TREE_DEPTH = 64;
 const MAX_GOTO_ITERS = 10000; // per-frame cap so a pathological goto-loop can't spin forever
-const TREE_STUB_TYPES = new Set(['fire_tree', 'fire_flow', 'repeat']);
+const TREE_STUB_TYPES = new Set(['repeat']);
 
 function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
 function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
@@ -12463,6 +12479,37 @@ async function runNode(node, ctx) {
   // ----- Control-flow leaves (scope-local label/goto) — before the generic action path -----
   if (type === 'label') return; // pure marker; a goto in the same list targets it. No effect, no once.
   if (type === 'goto') return { __control: 'goto', name: node.params?.name }; // runTree repositions to the label
+
+  // ----- fire_tree: run another library tree as a subroutine (cycle-guarded recursion) -----
+  if (type === 'fire_tree') {
+    const targetId = node.params?.treeId;
+    if (!targetId) { console.warn(`[runTree] fire_tree node ${node.id} has no treeId`); return; }
+    if (ctx.visited.has(targetId)) { console.warn(`[runTree] fire_tree cycle: '${targetId}' already on the stack — skipping`); return; } // skip, do not consume once
+    const target = (ctx.treeIndex || buildTreeIndex()).get(targetId);
+    if (!target || !Array.isArray(target.nodes) || !target.nodes.length) { console.warn(`[runTree] fire_tree target '${targetId}' missing/empty — skipping`); return; }
+    if (ctx.depth + 1 > MAX_TREE_DEPTH) { console.warn(`[runTree] fire_tree '${targetId}' exceeds max depth — skipping`); return; }
+    markTreeOnce(node, ctx); // firing IS the effect — a once fire_tree fires once per scope
+    const child = {
+      ...ctx,
+      treeId: target.id, // re-root: the fired tree's once-keys live under ITS id
+      scopeKey: `${ctx.scopeKey}>fire:${target.id}`, // nested per call-site -> independent once-sets
+      depth: ctx.depth + 1, // CONTINUE depth (shared 64 budget bounds acyclic fan-out)
+      visited: new Set([...ctx.visited, target.id]), // copy = DFS stack (A>B>A blocked; A>B then A>C allowed)
+      source: `tree:${target.id}`,
+      labels: new Map() // labels are scope-local — fired tree gets a fresh frame
+    };
+    return await runTree(target.nodes, child); // inherits delivery/character/settings/firedSet; sentinels bubble
+  }
+
+  // ----- fire_flow: escape hatch to the flow engine (fire-and-forget; reuses the button->flow path) -----
+  if (type === 'fire_flow') {
+    const flowId = node.params?.flowId, label = node.params?.flowActionLabel;
+    if (!flowId || !label) { console.warn(`[runTree] fire_flow node ${node.id} needs flowId + flowActionLabel`); return; }
+    markTreeOnce(node, ctx); // firing is the effect
+    Promise.resolve(handleButtonLinkToFlow({ config: { flowId, flowActionLabel: label } }, ctx.character?.id, `tree:${ctx.treeId}`))
+      .catch(e => console.error(`[runTree] fire_flow '${flowId}' failed:`, e?.message || e));
+    return; // NOT awaited — flows pace over turns + own their suspend channel; awaiting risks deadlock
+  }
 
   // ----- Actions (leaves) -----
   if (node.kind === 'action') {
@@ -12633,9 +12680,10 @@ async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
     depth: 0,
     delivery: opts.delivery || 'inReply',
     source: `tree:${treeId}`,
-    visited: new Set([treeId]), // reserved for step-5 fire_tree cycle guard
+    visited: new Set([treeId]), // DFS stack for the fire_tree cycle guard
+    treeIndex: opts.treeIndex || null, // per-turn library index for fire_tree hops (null -> lazy buildTreeIndex)
     firedSet: sessionState.firedTreeNodes,
-    labels: new Map() // reserved for step-3 label/goto
+    labels: new Map() // scope-local label/goto frame
   };
   try { await runTree(tree.nodes, ctx); }
   catch (e) { console.error('[runTree] scope failed:', e?.message || e); }
@@ -16370,7 +16418,8 @@ app.post('/api/session/reset', async (req, res) => {
       const isInstr = isInstructor(activeCharacter);
       const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
       const ssRef = isInstr ? aStory?.treeRefs?.sessionStart : null;
-      const ssTree = (ssRef?.inline && Array.isArray(ssRef.inline.nodes) && ssRef.inline.nodes.length) ? ssRef.inline : null;
+      const ssTreeIndex = isInstr ? buildTreeIndex() : null;
+      const ssTree = resolveRefTree(ssRef, ssTreeIndex); // inline OR {treeId} library ref
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
       if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
@@ -16380,7 +16429,7 @@ app.post('/api/session/reset', async (req, res) => {
       if (isInstr) {
         applyInstructorInitVars(activeCharacter); // seed session-start setup variables
         // Standalone delivery: ai_message posts immediately, like the welcome.
-        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone' });
+        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone', treeIndex: ssTreeIndex });
       }
       // Pre-Fill (gated intro) takes precedence for every card type. It closes the gate and
       // seeds the first step.
