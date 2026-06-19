@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import TriggerRow from '../components/common/TriggerRow';
+import TreeEditor from '../components/common/TreeEditor';
 import './Settings.css';
 
 function Triggers() {
@@ -20,6 +21,14 @@ function Triggers() {
   const pendingPayloads = useRef(new Map());
 
   const selectedSet = sets.find(s => s.id === selectedId) || null;
+
+  // --- Trigger Library (global nested-block trees) ---
+  const [mode, setMode] = useState('sets'); // 'sets' | 'library'
+  const [trees, setTrees] = useState([]);
+  const [selectedTreeId, setSelectedTreeId] = useState(null);
+  const [treeFilter, setTreeFilter] = useState('');
+  const treeSaveTimers = useRef(new Map());
+  const selectedTree = trees.find(t => t.id === selectedTreeId) || null;
 
   // Entrance animation
   useEffect(() => {
@@ -202,6 +211,52 @@ function Triggers() {
     api.fireTriggerSet(selectedSet.id).catch(err => console.error('Failed to fire trigger set', err));
   };
 
+  // --- Library handlers ---
+  const loadTrees = useCallback(async (selectAfter) => {
+    try {
+      const data = await api.getTriggerTrees();
+      const arr = data?.trees || [];
+      setTrees(arr);
+      if (selectAfter) setSelectedTreeId(selectAfter);
+      else setSelectedTreeId(prev => (prev && arr.some(t => t.id === prev) ? prev : (arr[0]?.id || null)));
+    } catch (err) { console.error('Failed to load trigger trees', err); setTrees([]); }
+  }, [api]);
+
+  useEffect(() => { loadTrees(); }, [loadTrees]);
+
+  const persistTree = useCallback((id, patch) => {
+    const existing = treeSaveTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      treeSaveTimers.current.delete(id);
+      api.updateTriggerTree(id, patch).catch(err => console.error('Failed to save tree', err));
+    }, 600);
+    treeSaveTimers.current.set(id, timer);
+  }, [api]);
+
+  const mutateTree = (id, updater) => {
+    let updated = null;
+    setTrees(prev => prev.map(t => { if (t.id !== id) return t; updated = updater(t); return updated; }));
+    if (updated && !updated.builtIn) persistTree(id, { name: updated.name, nodes: updated.nodes, tag: updated.tag, source: updated.source });
+  };
+
+  const handleNewTree = async () => {
+    try { const created = await api.createTriggerTree('New Trigger Tree', [], '', ''); await loadTrees(created?.id); }
+    catch (err) { console.error('Failed to create tree', err); }
+  };
+  const handleDeleteTree = async (id, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Delete this library tree?')) return;
+    try { await api.deleteTriggerTree(id); if (selectedTreeId === id) setSelectedTreeId(null); await loadTrees(); }
+    catch (err) { console.error('Failed to delete tree', err); }
+  };
+
+  const filteredTrees = trees.filter(t => {
+    if (!treeFilter.trim()) return true;
+    const q = treeFilter.toLowerCase();
+    return [t.name, t.tag, t.source].some(v => (v || '').toLowerCase().includes(q));
+  });
+
   return (
     <>
       <div className={`modal-sidebar-dimming ${animationState}`}>
@@ -210,12 +265,49 @@ function Triggers() {
       </div>
       <div className={`settings-page page modal-slide-down ${animationState}`}>
         <div className="page-header">
-          <h1>Triggers - Reusable Trigger Sets</h1>
-          <button className="header-close-btn" onClick={handleClose} title="Back to Chat">
+          <h1>Triggers</h1>
+          <div style={{ display: 'flex', gap: 4, marginLeft: 16 }}>
+            <button type="button" className={`btn btn-sm ${mode === 'sets' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('sets')}>Trigger Sets</button>
+            <button type="button" className={`btn btn-sm ${mode === 'library' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setMode('library')}>Trigger Library</button>
+          </div>
+          <button className="header-close-btn" onClick={handleClose} title="Back to Chat" style={{ marginLeft: 'auto' }}>
             &times;
           </button>
         </div>
         <div className="tab-content">
+          {mode === 'library' && (
+            <div className="triggers-layout">
+              <div className="triggers-list-col">
+                <button type="button" className="btn btn-primary" onClick={handleNewTree} style={{ width: '100%' }}>+ New Tree</button>
+                <input type="text" value={treeFilter} onChange={(e) => setTreeFilter(e.target.value)} placeholder="filter by name / tag / source" style={{ width: '100%', margin: '6px 0' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {filteredTrees.length === 0 && <div style={{ opacity: 0.6, fontSize: '0.85rem', padding: '8px' }}>No library trees{treeFilter ? ' match' : ' yet'}.</div>}
+                  {filteredTrees.map(t => (
+                    <div key={t.id} onClick={() => setSelectedTreeId(t.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', padding: '8px 10px', borderRadius: '6px', cursor: 'pointer', background: t.id === selectedTreeId ? 'rgba(100,149,237,0.2)' : 'var(--bg-tertiary, #2a2d31)', border: '1px solid var(--border-color, #3a3d45)' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>{t.name || 'Untitled'}{t.builtIn ? ' 🔒' : ''}{t.tag ? ` · ${t.tag}` : ''}</span>
+                      {!t.builtIn && <button type="button" className="btn-remove" title="Delete tree" onClick={(e) => handleDeleteTree(t.id, e)}>−</button>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="triggers-editor-col">
+                {!selectedTree && <div style={{ opacity: 0.6, padding: '20px', fontSize: '0.9rem' }}>Select a library tree, or create one. Library trees are card-agnostic — reference them from a character's scope sections (Assign from Library).</div>}
+                {selectedTree && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {selectedTree.builtIn && <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>🔒 Built-in tree — read-only.</div>}
+                    <div className="form-group" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <input type="text" value={selectedTree.name || ''} disabled={selectedTree.builtIn} onChange={(e) => mutateTree(selectedTree.id, t => ({ ...t, name: e.target.value }))} placeholder="tree name" style={{ flex: 2, minWidth: 160 }} />
+                      <input type="text" value={selectedTree.tag || ''} disabled={selectedTree.builtIn} onChange={(e) => mutateTree(selectedTree.id, t => ({ ...t, tag: e.target.value }))} placeholder="tag / folder" style={{ flex: 1, minWidth: 100 }} />
+                      <input type="text" value={selectedTree.source || ''} disabled={selectedTree.builtIn} onChange={(e) => mutateTree(selectedTree.id, t => ({ ...t, source: e.target.value }))} placeholder="source (e.g. from card: X)" style={{ flex: 1, minWidth: 120 }} />
+                    </div>
+                    {/* Agnostic editor: NO card-specific rowProps (no profiles/members) — enforces portability. */}
+                    <TreeEditor value={selectedTree.nodes || []} onChange={(nodes) => mutateTree(selectedTree.id, t => ({ ...t, nodes }))} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {mode === 'sets' && (
           <div className="triggers-layout">
             {/* Left: list of trigger sets */}
             <div className="triggers-list-col">
@@ -325,6 +417,7 @@ function Triggers() {
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
     </>

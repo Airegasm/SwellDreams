@@ -1439,6 +1439,18 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
+    // Trigger Trees (global nested-block library; assignable/forkable into card scope refs)
+    getTriggerTrees: () => apiFetch(`${API_BASE}/api/trigger-trees`),
+    createTriggerTree: (name, nodes, tag, source) => apiFetch(`${API_BASE}/api/trigger-trees`, {
+      method: 'POST', body: JSON.stringify({ name, nodes, tag, source })
+    }),
+    updateTriggerTree: (id, patch) => apiFetch(`${API_BASE}/api/trigger-trees/${id}`, {
+      method: 'PUT', body: JSON.stringify(patch)
+    }),
+    deleteTriggerTree: (id) => apiFetch(`${API_BASE}/api/trigger-trees/${id}`, {
+      method: 'DELETE'
+    }),
+
     // Instructor profiles (named system-prompt briefs assignable to Instructor cards)
     getInstructorProfiles: () => apiFetch(`${API_BASE}/api/instructor-profiles`),
     createInstructorProfile: (name, prompt) => apiFetch(`${API_BASE}/api/instructor-profiles`, {
