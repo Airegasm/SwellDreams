@@ -12358,7 +12358,15 @@ async function runNode(node, ctx) {
     const p = node.params || {};
     try {
       if (type === 'ai_message') {
-        deliverTreeMsg(p.context, p.llmEnhance); // weave/verbatim, NOT executeTrigger (avoids double-post)
+        // Delivery depends on context. In-reply (default, mid-turn): weave/verbatim into the
+        // reply being built. Standalone (e.g. Session Start, before any reply turn): post
+        // immediately like the welcome — executeTrigger's ai_message case handles verbatim
+        // (post as-typed) vs enhanced (generate then post). Avoids a double-post mid-turn.
+        if (ctx.delivery === 'standalone') {
+          await executeTrigger({ type, ...p }, ctx.source, ctx.character, ctx.settings);
+        } else {
+          deliverTreeMsg(p.context, p.llmEnhance);
+        }
       } else if (type === 'set_variable') {
         eventEngine.applySetVariable(p.varType || 'custom', p.variable, p.operation || 'set', p.value); // mirrors fireCheckpointInjectionAction
       } else {
@@ -12452,16 +12460,20 @@ async function runTree(nodes, ctx) {
 }
 
 // Entry point: run a tree for a given scope. Builds the per-run ctx (firedSet references the
-// session once-set so 'once' persists across runs within a session).
-async function runTreeScope(tree, scopeKey, character, settings) {
+// session once-set so 'once' persists across runs within a session). opts.delivery controls
+// ai_message: 'inReply' (default, weave/verbatim into the current reply) or 'standalone'
+// (post immediately — used by Session Start, which runs before any reply turn).
+async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
   if (!tree || !Array.isArray(tree.nodes)) return;
+  const treeId = tree.id || `inline:${scopeKey || 'default'}`;
   const ctx = {
     character, settings,
-    treeId: tree.id,
+    treeId,
     scopeKey: scopeKey || 'default',
     depth: 0,
-    source: `tree:${tree.id}`,
-    visited: new Set([tree.id]), // reserved for step-5 fire_tree cycle guard
+    delivery: opts.delivery || 'inReply',
+    source: `tree:${treeId}`,
+    visited: new Set([treeId]), // reserved for step-5 fire_tree cycle guard
     firedSet: sessionState.firedTreeNodes,
     labels: new Map() // reserved for step-3 label/goto
   };
@@ -16186,14 +16198,24 @@ app.post('/api/session/reset', async (req, res) => {
 
     // Send welcome message first
     if (activeCharacter) {
-      await sendWelcomeMessage(activeCharacter, settings);
+      // Session Start tree (instructor scope for now). Resolved BEFORE the welcome so its
+      // "Override Character Welcome Message" tickbox can suppress the built-in welcome.
+      const isInstr = isInstructor(activeCharacter);
+      const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+      const ssRef = isInstr ? aStory?.treeRefs?.sessionStart : null;
+      const ssTree = (ssRef?.inline && Array.isArray(ssRef.inline.nodes) && ssRef.inline.nodes.length) ? ssRef.inline : null;
+      const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
+
+      if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
       // Pre-Fill (gated intro) takes precedence for every card type — start it right after
       // the welcome. It closes the gate and seeds the first step.
       const preFillStarted = startPreFill(activeCharacter);
-      if (isInstructor(activeCharacter)) {
-        const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+      if (isInstr) {
         // Seed session-start setup variables.
         applyInstructorInitVars(activeCharacter);
+        // Run the Session Start tree (standalone delivery: ai_message posts immediately, like
+        // the welcome). Runs after init-vars so its conditions can read seeded variables.
+        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone' });
         // Legacy modal pre-reqs only run when Pre-Fill is NOT in use.
         if (!preFillStarted && (aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
