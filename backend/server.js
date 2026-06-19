@@ -16207,15 +16207,18 @@ app.post('/api/session/reset', async (req, res) => {
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
       if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
-      // Pre-Fill (gated intro) takes precedence for every card type — start it right after
-      // the welcome. It closes the gate and seeds the first step.
+      // Order: Welcome → Session Start → Pre-Fill (per plan). The Session Start tree runs
+      // (after its setup vars) BEFORE Pre-Fill starts, so it can set the pump type / swap the
+      // checkpoint profile that Pre-Fill and the gate then build on.
+      if (isInstr) {
+        applyInstructorInitVars(activeCharacter); // seed session-start setup variables
+        // Standalone delivery: ai_message posts immediately, like the welcome.
+        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone' });
+      }
+      // Pre-Fill (gated intro) takes precedence for every card type. It closes the gate and
+      // seeds the first step.
       const preFillStarted = startPreFill(activeCharacter);
       if (isInstr) {
-        // Seed session-start setup variables.
-        applyInstructorInitVars(activeCharacter);
-        // Run the Session Start tree (standalone delivery: ai_message posts immediately, like
-        // the welcome). Runs after init-vars so its conditions can read seeded variables.
-        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone' });
         // Legacy modal pre-reqs only run when Pre-Fill is NOT in use.
         if (!preFillStarted && (aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);

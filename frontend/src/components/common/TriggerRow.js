@@ -131,7 +131,7 @@ function getTriggerTypes(isPumpable) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [], profiles = [] }) {
+function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [], profiles = [] }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -469,7 +469,7 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         )}
       </div>
       {renderParams()}
-      <button type="button" className="btn-remove" onClick={onRemove}>−</button>
+      {!hideRemove && <button type="button" className="btn-remove" onClick={onRemove}>−</button>}
     </div>
   );
 }

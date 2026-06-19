@@ -4,6 +4,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
+import TreeEditor from '../common/TreeEditor';
 import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
@@ -79,6 +80,7 @@ function buildInitialData(character) {
       prereqTiming: story?.prereqTiming || 'session_start',
       prereqInitVars: Array.isArray(story?.prereqInitVars) ? story.prereqInitVars : [],
       preFill: story?.preFill && typeof story.preFill === 'object' ? story.preFill : { enabled: false, steps: [] },
+      treeRefs: story?.treeRefs && typeof story.treeRefs === 'object' ? story.treeRefs : {},
       checkpointProfiles,
       defaultCheckpointProfileId: story?.defaultCheckpointProfileId || checkpointProfiles[0].id,
     },
@@ -530,6 +532,33 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             })}
             <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
           </div>
+
+          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
+
+          {/* ===== Session Start Script (Trigger Tree) ===== */}
+          {(() => {
+            const ssRef = formData.story?.treeRefs?.sessionStart || {};
+            const setSS = (patch) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), sessionStart: { ...ssRef, ...patch } });
+            const nodes = ssRef.inline?.nodes || [];
+            const setNodes = (next) => setSS({ inline: { id: ssRef.inline?.id || `tree-ss-${Date.now()}`, name: ssRef.inline?.name || 'Session Start', nodes: next } });
+            return (
+              <div className="form-group" style={{ marginTop: 4 }}>
+                <h4 style={{ marginBottom: 4 }}>Session Start Script</h4>
+                <p className="section-hint">Runs once when the session opens, after the welcome and setup variables. Use it to set profiles, post opening messages (verbatim or LLM-enhanced), or seed state. References this card's checkpoint profiles.</p>
+                <label className="tree-check" style={{ marginBottom: 8 }}>
+                  <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setSS({ overrideWelcome: e.target.checked })} />
+                  &nbsp;Override Character Welcome Message (suppress the built-in welcome and let this script open the scene)
+                </label>
+                <TreeEditor
+                  value={nodes}
+                  onChange={setNodes}
+                  triggerSets={triggerSets}
+                  profiles={cpProfiles}
+                  isPumpable={false}
+                />
+              </div>
+            );
+          })()}
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
 
