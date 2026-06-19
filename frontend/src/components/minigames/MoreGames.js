@@ -9,10 +9,12 @@ export function MiniCoin({ config = {}, interactive, onResult }) {
   const tails = config.tailsLabel || 'Tails';
   const [rot, setRot] = useState(0);
   const [flipping, setFlipping] = useState(false);
+  const [landed, setLanded] = useState(null);
   const accum = useRef(0);
 
   const flip = () => {
     if (flipping) return;
+    setLanded(null);
     const isHeads = Math.random() * 100 < (Number(config.headsWeight) ?? 50);
     const landing = isHeads ? 0 : 180;
     const cur = accum.current % 360;
@@ -20,12 +22,12 @@ export function MiniCoin({ config = {}, interactive, onResult }) {
     accum.current = next;
     setRot(next);
     setFlipping(true);
-    window.setTimeout(() => { setFlipping(false); onResult && onResult(isHeads ? heads : tails, isHeads ? 'Player' : 'Character'); }, 1500);
+    window.setTimeout(() => { setFlipping(false); setLanded(isHeads ? 'Player' : 'Character'); onResult && onResult(isHeads ? heads : tails, isHeads ? 'Player' : 'Character'); }, 1500);
   };
 
   return (
     <div className="pv">
-      <div className="pv-coin-wrap">
+      <div className={`pv-coin-wrap ${landed ? 'landed' : ''}`}>
         <div className="pv-coin" style={{ transform: `rotateX(${rot}deg)`, transition: flipping ? 'transform 1.5s cubic-bezier(.2,.75,.2,1)' : 'none' }}>
           <div className="pv-coin-face pv-coin-h">{heads}</div>
           <div className="pv-coin-face pv-coin-t">{tails}</div>
@@ -162,11 +164,21 @@ export function MiniTimer({ config = {}, interactive, onResult }) {
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   const R = 52, C = 2 * Math.PI * R;
+  // Colour shifts with progress. Precision: green only inside the target window near
+  // the end; otherwise straight time-pressure green → amber → red.
+  let ringColor = '#7b3fd6';
+  if (config.precisionMode) {
+    const win = (Number(config.precisionWindow) || 1) / duration;
+    const d = Math.abs(pct - 1);
+    ringColor = d <= win * 0.3 ? '#4ade80' : d <= win ? '#fbbf24' : '#f87171';
+  } else {
+    ringColor = pct < 0.5 ? '#4ade80' : pct < 0.8 ? '#fbbf24' : '#f87171';
+  }
   return (
     <div className="pv">
       <svg className="pv-ring" viewBox="0 0 120 120">
         <circle cx="60" cy="60" r={R} className="pv-ring-bg" />
-        <circle cx="60" cy="60" r={R} className="pv-ring-fg" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
+        <circle cx="60" cy="60" r={R} className="pv-ring-fg" style={{ stroke: ringColor }} strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
         <text x="60" y="66" textAnchor="middle" className="pv-ring-txt">{(duration * (1 - pct)).toFixed(1)}s</text>
       </svg>
       {interactive && (running
@@ -186,27 +198,31 @@ export function MiniNumberGuess({ config = {}, interactive, onResult }) {
   const [left, setLeft] = useState(maxAttempts);
   const [feedback, setFeedback] = useState('');
   const [done, setDone] = useState(false);
+  const [anim, setAnim] = useState('');
+  const animRef = useRef(0);
 
-  const reset = () => { setTarget(min + Math.floor(Math.random() * (max - min + 1))); setLeft(maxAttempts); setFeedback(''); setGuess(''); setDone(false); };
+  const reset = () => { setTarget(min + Math.floor(Math.random() * (max - min + 1))); setLeft(maxAttempts); setFeedback(''); setGuess(''); setDone(false); setAnim(''); };
   useEffect(reset, [config.min, config.max, config.maxAttempts]); // eslint-disable-line
+  const pulse = (cls) => { setAnim(''); clearTimeout(animRef.current); animRef.current = window.setTimeout(() => setAnim(cls), 10); };
+  useEffect(() => () => clearTimeout(animRef.current), []);
 
   const submit = () => {
     if (done) { reset(); return; }
     const g = parseInt(guess, 10);
     if (Number.isNaN(g)) return;
     const remaining = left - 1;
-    if (g === target) { setFeedback('Correct!'); setDone(true); onResult && onResult('Correct'); return; }
+    if (g === target) { setFeedback('Correct!'); setDone(true); pulse('good'); onResult && onResult('Correct'); return; }
     if (remaining <= 0) {
       const res = close > 0 && Math.abs(g - target) <= close ? 'Close' : 'Failed';
-      setFeedback(`${res} — it was ${target}`); setDone(true); onResult && onResult(res); return;
+      setFeedback(`${res} — it was ${target}`); setDone(true); pulse('bad'); onResult && onResult(res); return;
     }
-    setLeft(remaining); setFeedback(g < target ? 'Higher ↑' : 'Lower ↓'); setGuess('');
+    setLeft(remaining); setFeedback(g < target ? 'Higher ↑' : 'Lower ↓'); setGuess(''); pulse('bad');
   };
 
   return (
     <div className="pv pv-guess">
       <div className="pv-guess-range">{min} – {max}</div>
-      <div className="pv-guess-row">
+      <div className={`pv-guess-row ${anim}`}>
         <input type="text" inputMode="numeric" value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, ''))} placeholder="?" disabled={!interactive || done} />
         {interactive && <button className="pv-btn sm" onClick={submit}>{done ? 'Again' : 'Guess'}</button>}
       </div>
