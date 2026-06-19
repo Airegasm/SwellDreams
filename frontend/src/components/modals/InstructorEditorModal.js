@@ -4,7 +4,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
-import TreeEditor from '../common/TreeEditor';
+import ScopeTreeSection from '../common/ScopeTreeSection';
 import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
@@ -538,24 +538,19 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
           {/* ===== Session Start Script (Trigger Tree) ===== */}
           {(() => {
             const ssRef = formData.story?.treeRefs?.sessionStart || {};
-            const setSS = (patch) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), sessionStart: { ...ssRef, ...patch } });
-            const nodes = ssRef.inline?.nodes || [];
-            const setNodes = (next) => setSS({ inline: { id: ssRef.inline?.id || `tree-ss-${Date.now()}`, name: ssRef.inline?.name || 'Session Start', nodes: next } });
+            // Merge the new ref shape (inline|treeId) while PRESERVING the overrideWelcome sibling flag.
+            const setRef = (nextRef) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), sessionStart: { overrideWelcome: ssRef.overrideWelcome, ...nextRef } });
             return (
               <div className="form-group" style={{ marginTop: 4 }}>
                 <h4 style={{ marginBottom: 4 }}>Session Start Script</h4>
-                <p className="section-hint">Runs once when the session opens, after the welcome and setup variables. Use it to set profiles, post opening messages (verbatim or LLM-enhanced), or seed state. References this card's checkpoint profiles.</p>
+                <p className="section-hint">Runs once when the session opens, after the welcome and setup variables. Set profiles, post opening messages, or seed state.</p>
                 <label className="tree-check" style={{ marginBottom: 8 }}>
-                  <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setSS({ overrideWelcome: e.target.checked })} />
+                  <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setRef({ ...ssRef, overrideWelcome: e.target.checked })} />
                   &nbsp;Override Character Welcome Message (suppress the built-in welcome and let this script open the scene)
                 </label>
-                <TreeEditor
-                  value={nodes}
-                  onChange={setNodes}
-                  triggerSets={triggerSets}
-                  profiles={cpProfiles}
-                  isPumpable={false}
-                />
+                <ScopeTreeSection label="" hint="" refValue={ssRef} onChange={setRef} defaultName="Session Start"
+                  source={`from card: ${formData.name || 'instructor'}`}
+                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
               </div>
             );
           })()}
@@ -611,13 +606,15 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
           {/* ===== Always-On Trigger Tree (per profile) — runs every reply while active ===== */}
           {(() => {
             const aRef = selProfile?.treeRefs?.alwaysOn || {};
-            const setAlways = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: { ...aRef, inline: { id: aRef.inline?.id || `tree-ao-${Date.now()}`, name: aRef.inline?.name || 'Always On', nodes: next } } } }
+            const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: nextRef } }
               : p));
             return (
               <div className="form-group" style={{ marginTop: 4 }}>
-                <div className="rte-head"><strong>Always-On Script</strong> <span className="section-hint">trigger tree; runs every reply while this profile is active (recurring nodes fire each turn, once nodes fire once)</span></div>
-                <TreeEditor value={aRef.inline?.nodes || []} onChange={setAlways} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} />
+                <ScopeTreeSection label="Always-On Script" hint="runs every reply while this profile is active (recurring nodes each turn, once nodes once)"
+                  refValue={aRef} onChange={setRef} defaultName="Always On"
+                  source={`from card: ${formData.name || 'instructor'}`}
+                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
               </div>
             );
           })()}
@@ -692,14 +689,15 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                 {/* Capacity-Range Trigger Tree (per profile, player axis) — runs in-reply while in range */}
                 {(() => {
                   const rRef = selProfile?.treeRefs?.ranges?.[`player-${key}`] || {};
-                  const setRangeTree = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-                    ? { ...p, treeRefs: { ...(p.treeRefs || {}), ranges: { ...(p.treeRefs?.ranges || {}),
-                        [`player-${key}`]: { ...rRef, inline: { id: rRef.inline?.id || `tree-rng-${key}-${Date.now()}`, name: rRef.inline?.name || `Range ${key}`, nodes: next } } } } }
+                  const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+                    ? { ...p, treeRefs: { ...(p.treeRefs || {}), ranges: { ...(p.treeRefs?.ranges || {}), [`player-${key}`]: nextRef } } }
                     : p));
                   return (
                     <div style={{ marginTop: 8 }}>
-                      <div className="rte-head"><strong>Range Script</strong> <span className="section-hint">trigger tree; runs each reply while in this range (once nodes fire once per range)</span></div>
-                      <TreeEditor value={rRef.inline?.nodes || []} onChange={setRangeTree} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} />
+                      <ScopeTreeSection label="Range Script" hint="runs each reply while in this range (once nodes fire once per range)"
+                        refValue={rRef} onChange={setRef} defaultName={`Range ${key}`}
+                        source={`from card: ${formData.name || 'instructor'}`}
+                        rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
                     </div>
                   );
                 })()}
