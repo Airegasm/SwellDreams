@@ -216,9 +216,9 @@ function Triggers() {
           </button>
         </div>
         <div className="tab-content">
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+          <div className="triggers-layout">
             {/* Left: list of trigger sets */}
-            <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="triggers-list-col">
               <button type="button" className="btn btn-primary" onClick={handleNewSet} style={{ width: '100%' }}>
                 + New Set
               </button>
@@ -262,7 +262,7 @@ function Triggers() {
             </div>
 
             {/* Right: editor */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="triggers-editor-col">
               {!selectedSet && (
                 <div style={{ opacity: 0.6, padding: '20px', fontSize: '0.9rem' }}>
                   Select a trigger set on the left, or create a new one.

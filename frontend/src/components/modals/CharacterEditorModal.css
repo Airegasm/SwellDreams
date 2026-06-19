@@ -1730,17 +1730,50 @@
 .post-welcome-trigger-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--spacing-xs);
-  padding: 4px 6px;
+  padding: 6px;
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
 }
 
-.post-welcome-trigger-row select {
+/* On narrow screens, let the fixed-width fields shrink and wrap cleanly */
+@media (max-width: 640px) {
+  .post-welcome-trigger-row select,
+  .post-welcome-trigger-row input {
+    width: auto !important;
+    min-width: 84px;
+    flex: 1 1 84px;
+  }
+  .post-welcome-trigger-row .trigger-type-picker {
+    flex: 1 1 100%;
+    min-width: 0 !important;
+  }
+}
+
+.post-welcome-trigger-row select,
+.post-welcome-trigger-row input {
   flex: 1;
-  padding: 3px 6px;
+  min-width: 0;
+  padding: 4px 6px;
   font-size: var(--font-size-sm);
+  background-color: var(--bg-secondary, #1a1c1f);
+  color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+}
+
+/* Native dropdown list — keep it dark + readable (some browsers ignore select bg) */
+.post-welcome-trigger-row select option {
+  background-color: #1a1c1f;
+  color: #f3f4f6;
+}
+
+.post-welcome-trigger-row select:focus,
+.post-welcome-trigger-row input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
 }
 
 .drag-handle {

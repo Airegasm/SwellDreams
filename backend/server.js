@@ -3520,6 +3520,16 @@ async function executeTrigger(trigger, source, character, settings) {
         broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
         break;
 
+      case 'set_pre_req': {
+        // Force the pre-inflation gate status for this session. "met" opens the gate
+        // (LLM pump commands allowed); "unmet" re-arms it (blocks pump until capacity > 0
+        // or a later trigger marks it met).
+        sessionState.preInflationGateMet = (trigger.value !== 'unmet');
+        broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
+        console.log(`[Trigger/${source}] Pre-inflation gate set to ${sessionState.preInflationGateMet ? 'MET' : 'UNMET'}`);
+        break;
+      }
+
       case 'set_char_capacity':
         sessionState.characterCapacity = Math.max(0, Math.min(200, parseInt(trigger.value) || 0));
         broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
@@ -5604,6 +5614,12 @@ STRICT RULES:
   } else if (type === 'character_inflate_stop') {
     console.log('[CharInflation] Deactivate broadcast received');
     stopCharacterInflation();
+  } else if (type === 'fire_trigger_set') {
+    // Flow "Fire Trigger Set" action — run the saved trigger set server-side.
+    if (data?.triggerSetId) {
+      const r = await fireTriggerSetById(data.triggerSetId);
+      console.log(`[Flow] fire_trigger_set ${data.triggerSetId}:`, r);
+    }
   } else {
     // For other message types, broadcast normally
     broadcast(type, data);
@@ -11231,29 +11247,37 @@ app.delete('/api/trigger-sets/:id', (req, res) => {
   broadcast('trigger_sets_update', sets);
   res.json({ success: true });
 });
+// Fire every trigger in a saved trigger set against the active character/session.
+// Shared by the REST endpoint and the flow "Fire Trigger Set" action.
+async function fireTriggerSetById(setId) {
+  const sets = loadData(DATA_FILES.triggerSets) || [];
+  const set = sets.find(s => s.id === setId);
+  if (!set) return { error: 'Trigger set not found' };
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId);
+  const triggers = set.triggers || [];
+  let fired = 0;
+  let failed = 0;
+  // Wrap each trigger so one bad trigger doesn't abort the whole sequence.
+  for (const trigger of triggers) {
+    try {
+      await executeTrigger(trigger, 'trigger-set', character, settings);
+      fired++;
+    } catch (tErr) {
+      failed++;
+      console.error('Error executing trigger in set:', tErr);
+    }
+  }
+  return { name: set.name, fired, failed };
+}
+
 app.post('/api/trigger-sets/:id/fire', async (req, res) => {
   try {
     if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid trigger set id' });
-    const sets = loadData(DATA_FILES.triggerSets) || [];
-    const set = sets.find(s => s.id === req.params.id);
-    if (!set) return res.status(404).json({ error: 'Trigger set not found' });
-    const settings = loadData(DATA_FILES.settings) || {};
-    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-    const character = characters.find(c => c.id === settings?.activeCharacterId);
-    const triggers = set.triggers || [];
-    let fired = 0;
-    let failed = 0;
-    // Wrap each trigger so one bad trigger doesn't abort the whole sequence.
-    for (const trigger of triggers) {
-      try {
-        await executeTrigger(trigger, 'trigger-set', character, settings);
-        fired++;
-      } catch (tErr) {
-        failed++;
-        console.error('Error executing trigger in set:', tErr);
-      }
-    }
-    res.json({ success: true, fired, failed });
+    const result = await fireTriggerSetById(req.params.id);
+    if (result.error) return res.status(404).json({ error: result.error });
+    res.json({ success: true, fired: result.fired, failed: result.failed });
   } catch (err) {
     console.error('Error firing trigger set:', err);
     res.status(500).json({ error: err.message || 'Failed to fire trigger set' });

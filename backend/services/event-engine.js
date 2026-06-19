@@ -775,6 +775,13 @@ class EventEngine {
         return true;
       }
 
+      case 'trigger_set': {
+        nodeStep.details = data.triggerSetId ? 'Fire Trigger Set' : 'Fire Trigger Set (none selected)';
+        this.emitTestStep(nodeStep);
+        if (data.triggerSetId) await this.broadcast('fire_trigger_set', { triggerSetId: data.triggerSetId });
+        return true;
+      }
+
       case 'set_variable': {
         // Use the SAME production path as live execution so test and live agree.
         // Legacy default 'flow' maps to the production 'custom' flow-variable type.
@@ -4430,6 +4437,18 @@ class EventEngine {
       case 'char_inflate_stop': {
         console.log('[EventEngine] Executing char_inflate_stop action');
         await this.broadcast('character_inflate_stop', {});
+        actionResult = true;
+        break;
+      }
+
+      case 'trigger_set': {
+        const setId = data.triggerSetId;
+        if (setId) {
+          console.log(`[EventEngine] Executing trigger_set action: ${setId}`);
+          await this.broadcast('fire_trigger_set', { triggerSetId: setId });
+        } else {
+          console.log('[EventEngine] trigger_set: No trigger set selected');
+        }
         actionResult = true;
         break;
       }

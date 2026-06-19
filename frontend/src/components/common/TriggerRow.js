@@ -73,6 +73,7 @@ function getTriggerTypes(isPumpable) {
     { value: 'set_attribute', label: 'Set Char Attribute' },
     { value: 'set_persona_attribute', label: 'Set Player Attribute' },
     { value: 'set_player_capacity', label: 'Set Player Capacity' },
+    { value: 'set_pre_req', label: 'Inflation Pre-Req (Met/Unmet)' },
   );
 
   if (isPumpable) {
@@ -272,6 +273,14 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
         return (
           <input type="number" min={0} max={10} value={trigger.value ?? 0} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
             style={{ width: '50px' }} title="0-10" />
+        );
+
+      case 'set_pre_req':
+        return (
+          <select value={trigger.value || 'met'} onChange={(e) => update('value', e.target.value)} style={{ width: '90px' }} title="Pre-inflation gate status">
+            <option value="met">Met</option>
+            <option value="unmet">Unmet</option>
+          </select>
         );
 
       case 'set_emotion':

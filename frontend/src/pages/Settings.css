@@ -107,3 +107,35 @@
 .tab-content::-webkit-scrollbar-corner {
   border-radius: var(--border-radius);
 }
+
+/* ===== Triggers page (Trigger Sets) ===== */
+.triggers-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.triggers-list-col {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.triggers-editor-col {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Stack the list above the editor on narrow screens */
+@media (max-width: 720px) {
+  .triggers-layout {
+    flex-direction: column;
+  }
+  .triggers-list-col {
+    width: 100%;
+    max-height: 30vh;
+    overflow-y: auto;
+  }
+}
