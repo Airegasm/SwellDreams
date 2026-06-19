@@ -82,13 +82,14 @@ export function MiniSlots({ config = {}, interactive, onResult }) {
   const symbols = (config.symbols && config.symbols.length) ? config.symbols : ['🍒', '🍋', '🔔', '⭐', '7️⃣'];
   const [reels, setReels] = useState([0, 0, 0]);
   const [spin, setSpin] = useState(false);
+  const [won, setWon] = useState(false);
   const timers = useRef([]);
 
   useEffect(() => () => timers.current.forEach(clearInterval), []);
 
   const play = () => {
     if (spin) return;
-    setSpin(true);
+    setSpin(true); setWon(false);
     const finals = [0, 1, 2].map(() => Math.floor(Math.random() * symbols.length));
     [0, 1, 2].forEach((col, idx) => {
       const iv = window.setInterval(() => setReels(r => { const n = [...r]; n[col] = Math.floor(Math.random() * symbols.length); return n; }), 70);
@@ -103,6 +104,7 @@ export function MiniSlots({ config = {}, interactive, onResult }) {
             const counts = {}; vals.forEach(v => { counts[v] = (counts[v] || 0) + 1; });
             const max = Math.max(...Object.values(counts));
             const tier = (config.exits || []).find(e => (e.pattern === 'three-of-a-kind' && max === 3) || ((e.pattern === 'two-of-a-kind' || e.pattern === 'any-pair') && max >= 2));
+            if (tier) setWon(true);
             onResult && onResult(tier ? tier.label : 'No Win');
           }, 250);
         }
@@ -112,7 +114,7 @@ export function MiniSlots({ config = {}, interactive, onResult }) {
 
   return (
     <div className="pv">
-      <div className="pv-slots">
+      <div className={`pv-slots ${won ? 'won' : ''}`}>
         {reels.map((i, col) => <div key={col} className={`pv-reel ${spin ? 'spinning' : ''}`}>{symbols[i]}</div>)}
       </div>
       {interactive && <button className="pv-btn" onClick={play} disabled={spin}>{spin ? 'Spinning…' : 'Pull'}</button>}
@@ -242,8 +244,10 @@ export function MiniCardDraw({ config = {}, interactive, onResult }) {
 
   return (
     <div className="pv">
-      <div className={`pv-card ${flipping ? 'flipping' : ''} ${card?.suit.c || ''}`}>
-        {card ? <><span className="pv-card-rank">{card.rank}</span><span className="pv-card-suit">{card.suit.s}</span></> : <span className="pv-card-back">🂠</span>}
+      <div className="pv-card-wrap">
+        <div className={`pv-card ${flipping ? 'flipping' : ''} ${card?.suit.c || ''}`}>
+          {card ? <><span className="pv-card-rank">{card.rank}</span><span className="pv-card-suit">{card.suit.s}</span></> : <span className="pv-card-back">🂠</span>}
+        </div>
       </div>
       {interactive && <button className="pv-btn" onClick={draw} disabled={flipping}>Draw</button>}
     </div>

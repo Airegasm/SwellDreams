@@ -11,18 +11,19 @@ const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY
 const saveStore = (list) => localStorage.setItem(STORE_KEY, JSON.stringify(list));
 
 // ---- per-type live preview ----
-function Preview({ type, config }) {
+function Preview({ type, config, onResult }) {
+  const r = (result, winner, note) => onResult && onResult({ result, winner, note });
   switch (type) {
-    case 'prize_wheel': return <MiniWheel segments={config.segments || []} size={240} interactive />;
-    case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} size={84} interactive />;
-    case 'coin_flip': return <MiniCoin config={config} interactive />;
-    case 'rps': return <MiniRPS config={config} interactive />;
-    case 'slot_machine': return <MiniSlots config={config} interactive />;
-    case 'timer_challenge': return <MiniTimer config={config} interactive />;
-    case 'number_guess': return <MiniNumberGuess config={config} interactive />;
-    case 'card_draw': return <MiniCardDraw config={config} interactive />;
-    case 'simon_challenge': return <MiniSimon config={config} interactive />;
-    case 'reflex_challenge': return <MiniReflex config={config} interactive />;
+    case 'prize_wheel': return <MiniWheel segments={config.segments || []} size={240} interactive onResult={(seg) => r(seg.label)} />;
+    case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} exits={config.exits || []} size={84} interactive onResult={(label, total) => r(label, null, `rolled ${total}`)} />;
+    case 'coin_flip': return <MiniCoin config={config} interactive onResult={(res, w) => r(res, w)} />;
+    case 'rps': return <MiniRPS config={config} interactive onResult={(res, w) => r(res, w)} />;
+    case 'slot_machine': return <MiniSlots config={config} interactive onResult={(res) => r(res)} />;
+    case 'timer_challenge': return <MiniTimer config={config} interactive onResult={(res) => r(res)} />;
+    case 'number_guess': return <MiniNumberGuess config={config} interactive onResult={(res) => r(res)} />;
+    case 'card_draw': return <MiniCardDraw config={config} interactive onResult={(res) => r(res)} />;
+    case 'simon_challenge': return <MiniSimon config={config} interactive onResult={(res) => r(res)} />;
+    case 'reflex_challenge': return <MiniReflex config={config} interactive onResult={(res) => r(res)} />;
     default: {
       const def = gameDef(type);
       return <div className="mg-preview-stub"><div className="mg-preview-glyph">{def.icon}</div><div className="mg-preview-name">{def.name}</div></div>;
@@ -198,8 +199,10 @@ function MiniGames() {
   const navigate = useNavigate();
   const [games, setGames] = useState(loadStore);
   const [selectedId, setSelectedId] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
 
   useEffect(() => { saveStore(games); }, [games]);
+  useEffect(() => { setLastResult(null); }, [selectedId]);
 
   const selected = games.find(g => g.id === selectedId) || null;
 
@@ -272,11 +275,21 @@ function MiniGames() {
 
               <div className="mg-editor-grid">
                 <div className="mg-preview-pane">
-                  <Preview type={selected.type} config={selected.config} />
+                  <Preview key={selected.id} type={selected.type} config={selected.config} onResult={setLastResult} />
+                  {lastResult && (
+                    <div className="mg-last">
+                      <span className="mg-last-label">Result</span>
+                      <strong>{lastResult.result}</strong>
+                      {lastResult.winner && <span className="mg-last-winner">winner: {lastResult.winner}</span>}
+                      {lastResult.note && <span className="mg-last-note">({lastResult.note})</span>}
+                    </div>
+                  )}
                   <div className="mg-exits-readout">
                     <div className="mg-exits-title">Exits → trigger gotos</div>
                     <div className="mg-exits-chips">
-                      {exitsFor(selected.type, selected.config).map((x, i) => <span key={i} className="mg-exit-chip">{x}</span>)}
+                      {exitsFor(selected.type, selected.config).map((x, i) => (
+                        <span key={i} className={`mg-exit-chip ${lastResult?.result === x ? 'hit' : ''}`}>{x}</span>
+                      ))}
                     </div>
                     <div className="mg-vars">
                       Sets <code>[GameResult]</code>{gameDef(selected.type).competitive && <> + <code>[GameWinner]</code></>}

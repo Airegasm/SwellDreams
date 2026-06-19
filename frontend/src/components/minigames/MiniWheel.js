@@ -39,6 +39,7 @@ function weightedPick(segments) {
 function MiniWheel({ segments = [], size = 240, interactive = false, onResult }) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
+  const [winIndex, setWinIndex] = useState(-1);
   const accumRef = useRef(0);
   const segs = segments.length ? segments : [{ label: '—', color: '#3a3d45', weight: 1 }];
   const N = segs.length;
@@ -52,9 +53,11 @@ function MiniWheel({ segments = [], size = 240, interactive = false, onResult })
     const next = accumRef.current + (((landing % 360) - (accumRef.current % 360) + 360) % 360) + 360 * 5;
     accumRef.current = next;
     setSpinning(true);
+    setWinIndex(-1);
     setRotation(next);
     window.setTimeout(() => {
       setSpinning(false);
+      setWinIndex(target);
       onResult && onResult(segs[target], target);
     }, 4200);
   }, [spinning, N, slice, segs, onResult]);
@@ -75,7 +78,10 @@ function MiniWheel({ segments = [], size = 240, interactive = false, onResult })
         >
           {segs.map((s, i) => (
             <path key={`w-${i}`} d={wedgePath(CX, CY, R, i * slice, (i + 1) * slice)}
-              fill={s.color || '#7b3fd6'} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" />
+              fill={s.color || '#7b3fd6'}
+              className={winIndex === i ? 'mini-wheel-win' : ''}
+              stroke={winIndex === i ? '#fff' : 'rgba(0,0,0,0.25)'}
+              strokeWidth={winIndex === i ? '2' : '0.6'} />
           ))}
           {segs.map((s, i) => {
             const rot = i * slice + slice / 2;

@@ -16,6 +16,12 @@
   will-change: transform;
 }
 
+.mini-wheel-win { animation: mini-wheel-win-pulse 0.9s ease-in-out 2; }
+@keyframes mini-wheel-win-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5) drop-shadow(0 0 6px rgba(255,255,255,0.8)); }
+}
+
 .mini-wheel-spin {
   background: #7b3fd6;
   color: #fff;

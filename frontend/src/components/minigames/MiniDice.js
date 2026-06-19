@@ -14,11 +14,12 @@ const DICE = [dice1, dice2, dice3, dice4, dice5, dice6];
 
 /**
  * @param {number} diceCount
- * @param {boolean} interactive  show a Roll button + report the total
- * @param {function} onResult(total, faces[])
+ * @param {Array} exits  [{ label, min, max }] — total is mapped to its range label
+ * @param {boolean} interactive  show a Roll button + report the result
+ * @param {function} onResult(rangeLabel, total)
  * @param {number} size  px per die
  */
-function MiniDice({ diceCount = 2, interactive = false, onResult, size = 84 }) {
+function MiniDice({ diceCount = 2, exits = [], interactive = false, onResult, size = 84 }) {
   const count = Math.max(1, Math.min(6, Number(diceCount) || 1));
   const [faces, setFaces] = useState(() => Array.from({ length: count }, () => 1));
   const [rollId, setRollId] = useState(0);
@@ -36,9 +37,11 @@ function MiniDice({ diceCount = 2, interactive = false, onResult, size = 84 }) {
     setRolling(true);
     window.setTimeout(() => {
       setRolling(false);
-      onResult && onResult(next.reduce((a, b) => a + b, 0), next);
+      const total = next.reduce((a, b) => a + b, 0);
+      const range = (exits || []).find(e => total >= Number(e.min) && total <= Number(e.max));
+      onResult && onResult(range ? range.label : String(total), total);
     }, 1600);
-  }, [rolling, count, onResult]);
+  }, [rolling, count, exits, onResult]);
 
   return (
     <div className="mini-dice">

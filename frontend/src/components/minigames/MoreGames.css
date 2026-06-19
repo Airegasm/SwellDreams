@@ -51,7 +51,9 @@
 @keyframes pv-shake-f { 0%,100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-10px); } }
 
 /* Slots */
-.pv-slots { display: flex; gap: 8px; background: #14161a; padding: 12px; border-radius: 12px; border: 2px solid var(--pv-accent); }
+.pv-slots { display: flex; gap: 8px; background: #14161a; padding: 12px; border-radius: 12px; border: 2px solid var(--pv-accent); transition: box-shadow 0.2s, border-color 0.2s; }
+.pv-slots.won { border-color: #4ade80; box-shadow: 0 0 22px rgba(74, 222, 128, 0.7); animation: pv-slots-win 0.4s ease 2; }
+@keyframes pv-slots-win { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.35); } }
 .pv-reel {
   width: 64px; height: 80px; display: flex; align-items: center; justify-content: center;
   font-size: 2.4rem; background: #20242b; border-radius: 8px; overflow: hidden;
@@ -80,11 +82,13 @@
 .pv-attempts { color: #9aa3af; }
 
 /* Card */
+.pv-card-wrap { perspective: 700px; }
 .pv-card {
   width: 96px; height: 134px; border-radius: 12px; background: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   box-shadow: 0 8px 22px rgba(0,0,0,0.45); position: relative;
-  transition: transform 0.35s; color: #111;
+  transition: transform 0.35s cubic-bezier(.4,.1,.3,1); color: #111;
+  transform-style: preserve-3d;
 }
 .pv-card.flipping { transform: rotateY(90deg); }
 .pv-card.red { color: #dc2626; }
