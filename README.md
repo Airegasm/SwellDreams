@@ -28,7 +28,7 @@ Think of it as an AI game master that doesn't just talk — it *does things*.
 
 ChatSD is the core conversational module. It pairs a full-featured AI chat system with a powerful automation layer, giving you control over every aspect of the experience. Characters are built using the **SwellD character card format** — supporting single-character and multi-character cards — with full import and conversion support for **Tavern-based V2/V3 spec** cards (PNG and JSON), including lorebooks and world info entries that convert into SwellDreams' native reminder system.
 
-Characters are highly configurable: each card supports multiple stories with independent scenarios, welcome messages, example dialogues, per-story personality attributes with probability-based activation, capacity checkpoints that shift the AI's behavior at different intensity levels, session defaults, story progression mode with auto-generated player responses, and a full lorebook system with constant and keyword-triggered reminders at both character and global scope. The AI itself connects to any local LLM backend (llama.cpp, KoboldCpp), OpenRouter, or any OpenAI-compatible API, with streaming responses, guided impersonation, and LLM-enhanced text expansion for character authoring. Media support allows embedding images, video, and audio directly into conversations and automation sequences.
+Characters are highly configurable: each card supports multiple stories with independent scenarios, welcome messages, example dialogues, per-story personality attributes with probability-based activation, capacity checkpoints that shift the AI's behavior at different intensity levels, session defaults, story progression mode with auto-generated player responses, and a full lorebook system with constant and keyword-triggered reminders at both character and global scope. The AI itself connects to any local LLM backend (llama.cpp, KoboldCpp), OpenRouter, the free AI Horde grid, or any OpenAI-compatible API, with streaming responses, guided impersonation, and LLM-enhanced text expansion for character authoring. Media support allows embedding images, video, and audio directly into conversations and automation sequences.
 
 ### ScreenPlay
 
@@ -61,7 +61,9 @@ ScreenPlay's Storyboard is a hierarchical, logic-tree-based CYOA system. Stories
 
 ## LLM Enhancement
 
-SwellDreams connects to any local or cloud LLM backend through a flexible connection system. Point it at a **llama.cpp** or **KoboldCpp** server running on your local network, connect to **OpenRouter** for cloud model access, or use any **OpenAI-compatible API** endpoint. The system auto-detects your API type (text completion vs. chat completion) based on the endpoint URL, or you can set it manually.
+SwellDreams connects to any local or cloud LLM backend through a flexible connection system. Point it at a **llama.cpp** or **KoboldCpp** server running on your local network, connect to **OpenRouter** for cloud model access, tap the free crowdsourced **AI Horde** grid, or use any **OpenAI-compatible API** endpoint. The system auto-detects your API type (text completion vs. chat completion) based on the endpoint URL, or you can set it manually.
+
+**AI Horde** is a free, community-run inference grid ([aihorde.net](https://aihorde.net)) — no local hardware or paid API required. Leave the key blank to use the anonymous tier, or register for a key for faster queue priority. Pick a specific model or let it route to any available worker; requests are submitted and polled to completion automatically. Because it's a raw text-completion backend, your selected chat template still applies.
 
 ### Chat Templates
 

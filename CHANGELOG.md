@@ -2,6 +2,15 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.7.0] - 2026-06-19
+
+### Added
+- **AI Horde LLM provider** — A new endpoint option in Settings > Model alongside OpenAI/KoboldCpp/llama.cpp/OpenRouter. AI Horde ([aihorde.net](https://aihorde.net)) is a free, crowdsourced inference grid — no local hardware or paid API needed.
+  - **Anonymous or keyed** — Leave the key blank to use the anonymous tier, or enter a registered key for faster queue priority (stored encrypted at rest).
+  - **Live model picker** — Browse available text models with worker count, queue depth, and ETA; choose a specific model or **"Any model"** to route to the fastest available worker.
+  - **Async submit-and-poll** — Requests are submitted to the grid and polled to completion automatically, with a timeout that cancels stuck jobs. No native streaming (the response is delivered once complete); the standard KoboldAI sampler set and your chosen chat template both apply.
+- **MiniGames page** — A new main-menu workbench for authoring reusable minigame configs: prize wheel, dice, coin flip, rock-paper-scissors, slots, timer, number guess, card draw, Simon, and reflex. Each game is a two-pane editor (live animated preview + mechanics/exits) that writes its outcome to `[GameResult]` (and `[GameWinner]` for competitive games), with named exits ready to bind to a future "Call MiniGame" character trigger. Wheel/dice animations ported from PumpDirect.
+
 ## [v5.3.0] - 2026-06-19
 
 ### Added
