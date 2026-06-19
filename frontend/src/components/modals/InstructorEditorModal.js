@@ -515,7 +515,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               {isManualPump && (
                 <div className="pump-pacing-row">
                   <label className="pump-pacing-field" title="How many messages must pass after a batch before the instructor may request more pumping">
-                    <span>Messages between pump batches</span>
+                    <span>MSG / Batch</span>
                     <input
                       type="number"
                       min={0}
@@ -525,7 +525,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                     />
                   </label>
                   <label className="pump-pacing-field" title="Max pump operations the instructor may request in a single reply (one batch)">
-                    <span>Maximum pumps per batch</span>
+                    <span>Max Pump / Batch</span>
                     <input
                       type="number"
                       min={0}
@@ -539,7 +539,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               {isAutoPump && (
                 <div className="pump-pacing-row">
                   <label className="pump-pacing-field" title="How many replies between automatic [pump on] events. Skips if the pump is already running.">
-                    <span>Messages between ON</span>
+                    <span>MSG / ON</span>
                     <input
                       type="number"
                       min={0}
@@ -549,7 +549,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                     />
                   </label>
                   <label className="pump-pacing-field" title="How long the pump stays ON each time, in seconds (auto-off).">
-                    <span>Maximum pump ON (secs)</span>
+                    <span>Max Pump ON (s)</span>
                     <input
                       type="number"
                       min={0}
