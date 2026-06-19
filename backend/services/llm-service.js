@@ -1509,6 +1509,10 @@ function hordeRequest(method, path, apiKey, body) {
   return new Promise((resolve, reject) => {
     const url = new URL(`${HORDE_API_URL}${path}`);
     const bodyStr = body ? JSON.stringify(body) : null;
+    const keyKind = (!apiKey || apiKey === HORDE_ANON_KEY) ? 'anonymous' : 'keyed';
+    // Surface the exact upstream URL being hit so connection/generation traffic is
+    // visible in the backend log (and whether a request even leaves the machine).
+    console.log(`[Horde] → ${method} ${url.href} (${keyKind})`);
     const options = {
       hostname: url.hostname,
       path: url.pathname + url.search,
@@ -1526,6 +1530,7 @@ function hordeRequest(method, path, apiKey, body) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
+        console.log(`[Horde] ← ${res.statusCode} ${method} ${url.pathname}`);
         try {
           resolve({ status: res.statusCode, body: data ? JSON.parse(data) : {} });
         } catch (e) {
@@ -1535,7 +1540,12 @@ function hordeRequest(method, path, apiKey, body) {
     });
     activeRequests.add(req);
     req.on('close', () => activeRequests.delete(req));
-    req.on('error', reject);
+    req.on('error', (err) => {
+      // A network/DNS/TLS failure means the request never reached Horde — log it
+      // explicitly so a blocked egress (firewall, no internet) is obvious.
+      console.error(`[Horde] ✗ ${method} ${url.href} failed: ${err.message} (${err.code || 'no code'})`);
+      reject(err);
+    });
     if (bodyStr) req.write(bodyStr);
     req.end();
   });
@@ -1591,24 +1601,34 @@ async function testHordeConnection(apiKey) {
  * Map internal sampler settings to AI Horde's KoboldAI-style params object.
  */
 function buildHordeParams(settings) {
+  // AI Horde validates EVERY param against a strict range and rejects the whole
+  // request (HTTP 400 "validation failed") if any is out of bounds — including
+  // values KoboldCpp / llama.cpp accept happily (max_length < 16, top_k > 100,
+  // rep_pen < 1, etc.). Clamp each to Horde's accepted range so a sampler profile
+  // borrowed from a local backend can't silently break generation.
+  const clamp = (v, lo, hi, dflt) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return dflt;
+    return Math.min(Math.max(n, lo), hi);
+  };
+
   const params = {
-    // Horde caps: max_length (output) ≤ 512; max_context_length must be ≥ 512.
-    max_context_length: Math.min(Math.max(Number(settings.contextTokens) || 4096, 512), 32768),
-    max_length: Math.min(clampMaxTokens(settings.maxTokens) || 200, 512),
+    max_context_length: Math.round(clamp(settings.contextTokens, 80, 32768, 4096)),
+    max_length: Math.round(clamp(clampMaxTokens(settings.maxTokens) || 200, 16, 512, 200)),
     n: 1
   };
 
   if (settings.overrideSamplers !== false) {
-    params.temperature = settings.temperature ?? 0.92;
-    params.top_p = settings.topP ?? 0.92;
-    params.top_k = settings.topK ?? 0;
-    params.top_a = settings.topA ?? 0;
-    params.typical = settings.typicalP ?? 1;
-    params.tfs = settings.tfs ?? 1;
-    params.min_p = settings.minP ?? 0;
-    params.rep_pen = settings.repetitionPenalty ?? 1.05;
-    params.rep_pen_range = settings.repPenRange ?? 1024;
-    params.rep_pen_slope = settings.repPenSlope ?? 1;
+    params.temperature = clamp(settings.temperature ?? 0.92, 0, 5, 0.92);
+    params.top_p = clamp(settings.topP ?? 0.92, 0.001, 1, 0.92);
+    params.top_k = Math.round(clamp(settings.topK ?? 0, 0, 100, 0));
+    params.top_a = clamp(settings.topA ?? 0, 0, 1, 0);
+    params.typical = clamp(settings.typicalP ?? 1, 0, 1, 1);
+    params.tfs = clamp(settings.tfs ?? 1, 0, 1, 1);
+    params.min_p = clamp(settings.minP ?? 0, 0, 1, 0);
+    params.rep_pen = clamp(settings.repetitionPenalty ?? 1.05, 1, 3, 1.05);
+    params.rep_pen_range = Math.round(clamp(settings.repPenRange ?? 1024, 0, 4096, 1024));
+    params.rep_pen_slope = clamp(settings.repPenSlope ?? 1, 0, 10, 1);
     if (settings.samplerOrder && settings.samplerOrder.length > 0) {
       params.sampler_order = settings.samplerOrder;
     }
@@ -1634,6 +1654,9 @@ function buildHordeParams(settings) {
 async function generateHorde(options) {
   const { prompt, messages, systemPrompt, settings } = options;
   const apiKey = settings.hordeApiKey || HORDE_ANON_KEY;
+  // Entry marker — if you DON'T see this when sending, the request was blocked
+  // upstream by the "LLM configured" gate, not by Horde or the network.
+  console.log(`[Horde] generateHorde() entered — model="${settings.hordeModel || '(any)'}", key=${apiKey === HORDE_ANON_KEY ? 'anonymous' : 'keyed'}, endpoint=${HORDE_API_URL}`);
 
   // Flatten chat messages → raw prompt and apply the instruct template.
   let userPrompt = prompt || '';
@@ -1658,8 +1681,14 @@ async function generateHorde(options) {
   // 1. Submit the async job.
   const submit = await hordeRequest('POST', '/generate/text/async', apiKey, requestBody);
   if (submit.status !== 202 || !submit.body || !submit.body.id) {
-    const msg = (submit.body && (submit.body.message
-      || (submit.body.errors && JSON.stringify(submit.body.errors)))) || `HTTP ${submit.status}`;
+    // Horde puts per-field reasons in `errors`; include both so a 400 validation
+    // failure names the offending param instead of just "validation failed".
+    const parts = [];
+    if (submit.body && submit.body.message) parts.push(submit.body.message);
+    if (submit.body && submit.body.errors) parts.push(JSON.stringify(submit.body.errors));
+    const msg = parts.join(' — ') || `HTTP ${submit.status}`;
+    console.error(`[Horde] ✗ generate rejected (HTTP ${submit.status}): ${msg}`);
+    console.error(`[Horde] params sent: ${JSON.stringify(requestBody.params)}`);
     throw new Error(`AI Horde request rejected: ${msg}`);
   }
   const jobId = submit.body.id;

@@ -214,8 +214,11 @@ function Chat() {
   const isLlmConfigured = () => {
     const llm = settings?.llm;
     if (!llm) return false;
-    // Check for standard LLM URL or OpenRouter
-    return llm.llmUrl || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey);
+    // Configured = a URL backend, OpenRouter with a key, or AI Horde (which works
+    // anonymously, so no key is required).
+    return llm.llmUrl
+      || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey)
+      || llm.endpointStandard === 'aihorde';
   };
 
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);

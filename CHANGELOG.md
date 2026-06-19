@@ -2,6 +2,16 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.7.3] - 2026-06-19
+
+### Fixed
+- **AI Horde "Input payload validation failed" / failed generations** — AI Horde validates every sampler param against a strict range and rejects the entire request if any is out of bounds (e.g. `max_length` < 16, `top_k` > 100, `rep_pen` < 1) — values KoboldCpp/llama.cpp accept fine. All params sent to Horde are now clamped to its accepted ranges, so a sampler profile borrowed from a local backend no longer breaks generation.
+- **AI Horde treated as "not configured" without a key** — The anonymous tier (blank key) is valid, so AI Horde no longer requires an API key to count as configured (frontend send checks + backend generation gates).
+
+### Added
+- **Default "AI Horde (Free Cloud)" connection profile** — Seeded on startup with anonymous access and Horde-safe sampler values, so it works out of the box without manual setup.
+- **AI Horde request logging** — The backend now logs every Horde endpoint it calls (connect, submit, poll) with the exact URL and response status, plus the offending field on a validation rejection, to make connection/generation issues diagnosable.
+
 ## [v5.7.2] - 2026-06-19
 
 ### Fixed

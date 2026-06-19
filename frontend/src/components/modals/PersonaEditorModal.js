@@ -110,9 +110,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
 
   // Check if LLM is configured
   const isLlmConfigured = useMemo(() => {
-    const llm = settings?.llm;
-    if (!llm) return false;
-    return llm.llmUrl || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey);
+    return llm.llmUrl
+      || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey)
+      || llm.endpointStandard === 'aihorde';
   }, [settings?.llm?.llmUrl, settings?.llm?.endpointStandard, settings?.llm?.openRouterApiKey]);
 
   // Memoize computed values

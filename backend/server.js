@@ -2948,6 +2948,60 @@ function ensureDefaultConnectionProfiles() {
       openRouterApiKey: '',
       openRouterModel: '',
       isDefault: false
+    },
+    {
+      // Free crowdsourced cloud inference (aihorde.net). Works anonymously out of
+      // the box (blank key). All sampler values are kept inside AI Horde's accepted
+      // ranges so generation never trips its strict payload validation.
+      id: 'default-aihorde',
+      name: 'AI Horde (Free Cloud)',
+      llmUrl: '',
+      apiType: 'text_completion',
+      endpointStandard: 'aihorde',
+      promptTemplate: 'alpaca',
+      supportsSystemRole: true,
+      maxTokens: 200,          // Horde max_length: 16–512
+      contextTokens: 4096,     // Horde max_context_length: 80–32768
+      streaming: false,        // Horde has no token streaming (delivered on completion)
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 150,
+      temperature: 0.75,       // 0–5
+      topK: 0,                 // 0–100
+      topP: 0.92,              // 0.001–1
+      typicalP: 1,             // 0–1
+      minP: 0.05,              // 0–1
+      topA: 0,                 // 0–1
+      tfs: 1,                  // 0–1
+      topNsigma: 0,
+      repetitionPenalty: 1.1,  // 1–3
+      repPenRange: 1024,       // 0–4096
+      repPenSlope: 0.7,        // 0–10
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 0,
+      drySequenceBreakers: [],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      openRouterApiKey: '',
+      openRouterModel: '',
+      hordeApiKey: '',
+      hordeModel: '',
+      isDefault: false
     }
   ];
 
@@ -5268,7 +5322,7 @@ eventEngine.setBroadcast(async (type, data) => {
     // If LLM is available, enhance the message
     const hasLlmConfig = settings?.llm?.llmUrl ||
       (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
     if (hasLlmConfig && data.content) {
       llmState.isGenerating = true;
       broadcast('generating_start', { characterName: speakerName, isPlayerVoice });
@@ -5634,7 +5688,7 @@ If announcing the result, say "${result}" - not something else.
     // If LLM is available, enhance the message
     const hasLlmConfig = settings?.llm?.llmUrl ||
       (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
     if (hasLlmConfig && data.content && activeCharacter) {
       llmState.isGenerating = true;
       broadcast('generating_start', { characterName: playerName, isPlayerVoice: true });
@@ -7418,7 +7472,7 @@ async function handleClearChat(data) {
     if (messageBlock.trim()) {
       const hasLlmConfig = settings?.llm?.llmUrl ||
         (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
 
       if (hasLlmConfig) {
         try {
@@ -7572,7 +7626,7 @@ async function handleSwipeMessage(data) {
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
   if (!activeCharacter || !hasLlmConfig) return;
 
   const useStreaming = settings.llm?.streaming === true;
@@ -7939,7 +7993,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
   // Use LLM enhancement if available
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
   if (hasLlmConfig && instructionText) {
     // Create placeholder message with "..."
     const placeholderMessage = {
@@ -8316,7 +8370,7 @@ async function handleChatMessage(data) {
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
 
   console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, hasLlmConfig=${hasLlmConfig ? 'yes' : 'no'}`);
 
@@ -8905,7 +8959,7 @@ async function generateAIResponseAfterBlocking() {
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
 
   if (!activeCharacter || !hasLlmConfig) {
     console.log('[Media] No character or LLM configured - skipping post-blocking response');
@@ -9026,7 +9080,7 @@ async function handleSpecialGenerate(data) {
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
 
   if (!activeCharacter || !hasLlmConfig) {
     broadcast('error', { message: 'No character or LLM configured' });
@@ -9303,7 +9357,7 @@ async function handleImpersonateRequest(data) {
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
 
   if (!activeCharacter || !hasLlmConfig) {
     broadcast('error', { message: 'No character or LLM configured' });
@@ -10503,7 +10557,7 @@ async function summarizeOverflowMessages(settings) {
   // Check if LLM is available
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
-      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
+      (settings?.llm?.endpointStandard === 'aihorde');
   if (!hasLlmConfig) return;
 
   // Format the new messages for summarization

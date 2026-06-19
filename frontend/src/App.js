@@ -271,7 +271,9 @@ function App() {
   const isLlmConfigured = () => {
     const llm = settings?.llm;
     if (!llm) return false;
-    return llm.llmUrl || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey);
+    return llm.llmUrl
+      || (llm.endpointStandard === 'openrouter' && llm.openRouterApiKey)
+      || llm.endpointStandard === 'aihorde';
   };
 
   // Get active profile name
@@ -454,7 +456,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v5.7.2</span>
+      <span className="version-badge">v5.7.3</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
