@@ -6242,8 +6242,11 @@ wss.on('connection', async (ws) => {
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     sessionState.characterName = activeCharacter?.name || null;
-    // Sync character's autoReplyEnabled to session state
-    sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
+    // Sync character's autoReplyEnabled to session state. Instructors auto-respond
+    // by default (overridable by setting autoReplyEnabled:false on the card).
+    sessionState.autoReply = isInstructor(activeCharacter)
+      ? (activeCharacter?.autoReplyEnabled ?? true)
+      : (activeCharacter?.autoReplyEnabled || false);
   }
   if (settings?.activePersonaId) {
     const personas = loadAllPersonas() || [];

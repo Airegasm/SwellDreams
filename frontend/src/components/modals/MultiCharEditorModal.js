@@ -1418,6 +1418,64 @@ Write only the scenario description itself, no explanations.`;
                     )}
                   </div>
                 </div>
+
+                {/* Example Dialogues — shown under the per-member gender/portrait */}
+                <div className="story-field">
+                  <label>Example Dialogues</label>
+                  <div className="dialogues-list">
+                    {(activeStory?.exampleDialogues || []).map((dialogue, i) => (
+                      <div key={i} className="dialogue-item">
+                        {editingDialogueIndex === i ? (
+                          <div className="dialogue-edit-form">
+                            <input
+                              type="text"
+                              placeholder="Player says..."
+                              value={editDialogue.user}
+                              onChange={(e) => setEditDialogue({ ...editDialogue, user: e.target.value })}
+                            />
+                            <textarea
+                              placeholder={`${multiChars[0]?.name || 'Luna'}: "Hey there!"\n${multiChars[1]?.name || 'Kai'}: *waves silently*`}
+                              value={editDialogue.response}
+                              onChange={(e) => setEditDialogue({ ...editDialogue, response: e.target.value })}
+                              rows={3}
+                            />
+                            <div className="dialogue-edit-actions">
+                              <button type="button" className="btn btn-sm btn-primary" onClick={handleSaveEditDialogue}>Save</button>
+                              <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelEditDialogue}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="dialogue-content">
+                              <p><strong>Player:</strong> {dialogue.user}</p>
+                              <p style={{ whiteSpace: 'pre-wrap' }}>{dialogue.response || dialogue.character}</p>
+                            </div>
+                            <div className="dialogue-actions">
+                              <button type="button" className="btn-icon btn-edit-small" onClick={() => handleStartEditDialogue(i)} title="Edit">✏️</button>
+                              <button type="button" className="btn-icon btn-delete-small" onClick={() => handleRemoveDialogue(i)} title="Delete">🗑️</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="add-dialogue" style={{ flexDirection: 'column' }}>
+                    <input
+                      type="text"
+                      placeholder="Player says..."
+                      value={newDialogue.user}
+                      onChange={(e) => setNewDialogue({ ...newDialogue, user: e.target.value })}
+                    />
+                    <textarea
+                      placeholder={`${multiChars[0]?.name || 'Luna'}: "Hey there!"\n${multiChars[1]?.name || 'Kai'}: *waves silently*`}
+                      value={newDialogue.response}
+                      onChange={(e) => setNewDialogue({ ...newDialogue, response: e.target.value })}
+                      rows={3}
+                      style={{ width: '100%' }}
+                    />
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue} style={{ alignSelf: 'flex-end' }}>Add</button>
+                  </div>
+                </div>
               </div>
 
               <div className="editor-right">
@@ -1742,64 +1800,6 @@ Write only the scenario description itself, no explanations.`;
                     placeholder="Current situation/scenario..."
                     rows={2}
                   />
-                </div>
-
-                {/* Example Dialogues — Multi-char version */}
-                <div className="story-field">
-                  <label>Example Dialogues</label>
-                  <div className="dialogues-list">
-                    {(activeStory?.exampleDialogues || []).map((dialogue, i) => (
-                      <div key={i} className="dialogue-item">
-                        {editingDialogueIndex === i ? (
-                          <div className="dialogue-edit-form">
-                            <input
-                              type="text"
-                              placeholder="Player says..."
-                              value={editDialogue.user}
-                              onChange={(e) => setEditDialogue({ ...editDialogue, user: e.target.value })}
-                            />
-                            <textarea
-                              placeholder={`${multiChars[0]?.name || 'Luna'}: "Hey there!"\n${multiChars[1]?.name || 'Kai'}: *waves silently*`}
-                              value={editDialogue.response}
-                              onChange={(e) => setEditDialogue({ ...editDialogue, response: e.target.value })}
-                              rows={3}
-                            />
-                            <div className="dialogue-edit-actions">
-                              <button type="button" className="btn btn-sm btn-primary" onClick={handleSaveEditDialogue}>Save</button>
-                              <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelEditDialogue}>Cancel</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="dialogue-content">
-                              <p><strong>Player:</strong> {dialogue.user}</p>
-                              <p style={{ whiteSpace: 'pre-wrap' }}>{dialogue.response || dialogue.character}</p>
-                            </div>
-                            <div className="dialogue-actions">
-                              <button type="button" className="btn-icon btn-edit-small" onClick={() => handleStartEditDialogue(i)} title="Edit">✏️</button>
-                              <button type="button" className="btn-icon btn-delete-small" onClick={() => handleRemoveDialogue(i)} title="Delete">🗑️</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="add-dialogue" style={{ flexDirection: 'column' }}>
-                    <input
-                      type="text"
-                      placeholder="Player says..."
-                      value={newDialogue.user}
-                      onChange={(e) => setNewDialogue({ ...newDialogue, user: e.target.value })}
-                    />
-                    <textarea
-                      placeholder={`${multiChars[0]?.name || 'Luna'}: "Hey there!"\n${multiChars[1]?.name || 'Kai'}: *waves silently*`}
-                      value={newDialogue.response}
-                      onChange={(e) => setNewDialogue({ ...newDialogue, response: e.target.value })}
-                      rows={3}
-                      style={{ width: '100%' }}
-                    />
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue} style={{ alignSelf: 'flex-end' }}>Add</button>
-                  </div>
                 </div>
 
                 {/* Associated Flows */}

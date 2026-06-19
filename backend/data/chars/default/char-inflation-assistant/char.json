@@ -12,7 +12,7 @@
   "instructorLibraryGroupIds": [],
   "allowLlmDeviceAccess": false,
   "startingEmotion": "neutral",
-  "autoReplyEnabled": false,
+  "autoReplyEnabled": true,
   "stories": [
     {
       "id": "story-1",

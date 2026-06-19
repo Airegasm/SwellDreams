@@ -168,6 +168,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       personality: '',
       instructorProfileId: formData.instructorProfileId,
       instructorLibraryGroupIds: formData.instructorLibraryGroupIds,
+      autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
       stories: [story],
       activeStoryId: story.id,

@@ -167,6 +167,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
 
       return {
         name: character.name || '',
+        gender: character.gender || '',
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
@@ -221,6 +222,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
 
     return {
       name: '',
+      gender: '',
       avatar: '',
       description: '',
       personality: '',
@@ -1728,6 +1730,19 @@ Write only the scenario description itself, no explanations.`;
                     placeholder="Character name"
                     required
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Gender</label>
+                  <select
+                    value={formData.gender || ''}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  >
+                    <option value="">Unspecified (they/them)</option>
+                    <option value="male">Male (he/him)</option>
+                    <option value="female">Female (she/her)</option>
+                    <option value="nonbinary">Non-binary (they/them)</option>
+                  </select>
                 </div>
 
                 <div className="form-group">

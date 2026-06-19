@@ -3609,3 +3609,55 @@
   color: #c7254e;
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
+
+/* ===== Dictionary term editor (Global tab) ===== */
+.dict-term {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.dict-term.disabled { opacity: 0.55; }
+
+.dict-term-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dict-term-enable {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.dict-term-name { flex: 1; min-width: 0; }
+.dict-term-del {
+  flex: 0 0 auto;
+  width: 28px;
+  padding: 2px 0;
+  line-height: 1;
+  font-size: 16px;
+}
+.dict-term-keys,
+.dict-term-def { width: 100%; }
+
+/* Readable inputs regardless of theme */
+.dict-term input[type="text"],
+.dict-term textarea {
+  background: var(--bg-secondary, #1a1c1f);
+  color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+.dict-term textarea { resize: vertical; min-height: 44px; }
+.dict-term input:focus,
+.dict-term textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
+}

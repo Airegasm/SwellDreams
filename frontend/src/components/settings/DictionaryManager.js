@@ -116,37 +116,39 @@ function DictionaryManager() {
           <label>Terms</label>
           {form.terms.length === 0 && <p className="section-hint">No terms yet. Add one below.</p>}
           {form.terms.map(t => (
-            <div key={t.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px', opacity: t.enabled === false ? 0.5 : 1 }}>
-              <input
-                type="checkbox"
-                checked={t.enabled !== false}
-                onChange={(e) => updateTermRow(t.id, 'enabled', e.target.checked)}
-                title={t.enabled === false ? 'Disabled — not sent to the AI' : 'Enabled'}
-                style={{ flex: '0 0 auto' }}
-              />
-              <input
-                type="text"
-                style={{ flex: '0 0 30%' }}
-                value={t.term}
-                onChange={(e) => updateTermRow(t.id, 'term', e.target.value)}
-                placeholder="term"
-              />
-              <input
-                type="text"
-                style={{ flex: 1 }}
-                value={t.definition}
-                onChange={(e) => updateTermRow(t.id, 'definition', e.target.value)}
-                placeholder="definition"
-              />
+            <div key={t.id} className={`dict-term ${t.enabled === false ? 'disabled' : ''}`}>
+              <div className="dict-term-head">
+                <label className="dict-term-enable" title={t.enabled === false ? 'Disabled — not sent to the AI' : 'Enabled'}>
+                  <input
+                    type="checkbox"
+                    checked={t.enabled !== false}
+                    onChange={(e) => updateTermRow(t.id, 'enabled', e.target.checked)}
+                  />
+                </label>
+                <input
+                  type="text"
+                  className="dict-term-name"
+                  value={t.term}
+                  onChange={(e) => updateTermRow(t.id, 'term', e.target.value)}
+                  placeholder="Term (e.g. bike pump)"
+                />
+                <button className="btn btn-sm btn-danger dict-term-del" onClick={() => removeTermRow(t.id)} title="Remove term">×</button>
+              </div>
               <input
                 type="text"
-                style={{ flex: '0 0 22%' }}
+                className="dict-term-keys"
                 value={t.keys || ''}
                 onChange={(e) => updateTermRow(t.id, 'keys', e.target.value)}
-                placeholder="trigger words (comma-sep, blank = always-on)"
+                placeholder="Trigger words, comma-separated (blank = always-on)"
                 title="Comma-separated trigger words/phrases. Leave blank for always-on. Any match injects this term; multiple matches inject multiple terms."
               />
-              <button className="btn btn-sm btn-danger" onClick={() => removeTermRow(t.id)}>Del</button>
+              <textarea
+                className="dict-term-def"
+                rows={2}
+                value={t.definition}
+                onChange={(e) => updateTermRow(t.id, 'definition', e.target.value)}
+                placeholder="Definition"
+              />
             </div>
           ))}
           <button className="btn btn-sm btn-secondary" onClick={addTermRow}>+ Add Term</button>
