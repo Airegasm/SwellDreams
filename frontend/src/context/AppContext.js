@@ -1741,6 +1741,42 @@ export function AppProvider({ children }) {
     autoConnectOpenRouter();
   }, [settings?.llm?.endpointStandard, settings?.llm?.openRouterApiKey, settings?.llm?.openRouterModel]);
 
+  // Auto-connect to AI Horde when app loads if configured. Uses the reconnect
+  // endpoint (stored key / anonymous) so the plaintext key isn't required here.
+  useEffect(() => {
+    const autoConnectHorde = async () => {
+      if (settings?.llm?.endpointStandard !== 'aihorde') return;
+      try {
+        let models = [];
+        const cachedData = await apiFetch(`${API_BASE}/api/horde/models`);
+        if (cachedData.models && cachedData.models.length > 0) {
+          models = cachedData.models;
+        } else {
+          const data = await apiFetch(`${API_BASE}/api/horde/reconnect`, { method: 'POST', body: '{}' });
+          if (data.success) {
+            console.log(`[AppContext] AI Horde connected, ${data.models.length} models available`);
+            models = data.models;
+          }
+        }
+
+        // Warn if the chosen model has dropped off the grid (empty = "any", always fine).
+        const selectedModel = settings?.llm?.hordeModel;
+        if (selectedModel && models.length > 0 && !models.some(m => m.id === selectedModel)) {
+          console.warn(`[AppContext] Selected AI Horde model "${selectedModel}" has no workers online`);
+          window.dispatchEvent(new CustomEvent('model_unavailable', {
+            detail: {
+              modelId: selectedModel,
+              message: `The model "${selectedModel}" currently has no workers on AI Horde. It will fall back to any available model, or pick a new one in Settings > Model.`
+            }
+          }));
+        }
+      } catch (e) {
+        console.error('[AppContext] Failed to auto-connect to AI Horde:', e.message);
+      }
+    };
+    autoConnectHorde();
+  }, [settings?.llm?.endpointStandard, settings?.llm?.hordeModel]);
+
   // Wrapper for setControlMode that also notifies backend
   const setControlMode = useCallback((mode) => {
     setControlModeInternal(mode);

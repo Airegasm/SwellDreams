@@ -804,6 +804,11 @@ async function generate(options) {
     return generateOpenRouter({ prompt, messages, systemPrompt, settings: mergedSettings });
   }
 
+  // Check if using AI Horde
+  if (mergedSettings.endpointStandard === 'aihorde') {
+    return generateHorde({ prompt, messages, systemPrompt, settings: mergedSettings });
+  }
+
   // Check if using llama.cpp native
   if (mergedSettings.endpointStandard === 'llamacpp') {
     return generateLlamaCpp({ prompt, messages, systemPrompt, settings: mergedSettings });
@@ -890,6 +895,15 @@ async function generateStream(options) {
     if (onToken) onToken(token, fullText);
     if (onChunk) onChunk(token, fullText);
   };
+
+  // AI Horde has no streaming API — generate fully, then emit as a single chunk
+  // so the streaming UI path still works. (Checked before the llmUrl guard since
+  // Horde is keyed, not URL-based.)
+  if (mergedSettings.endpointStandard === 'aihorde') {
+    const result = await generateHorde({ prompt, messages, systemPrompt, settings: mergedSettings });
+    emitToken(result.text, result.text);
+    return result;
+  }
 
   if (!mergedSettings.llmUrl) {
     throw new Error('LLM URL not configured');
@@ -1476,6 +1490,220 @@ async function testOpenRouterConnection(apiKey) {
 }
 
 // ============================================
+// AI Horde Support
+// ============================================
+// AI Horde (aihorde.net) is a crowdsourced inference grid. Text generation is
+// ASYNC: submit a job, then poll its status until a volunteer worker finishes.
+// It speaks raw text-completion (KoboldAI param names) — not chat — so we flatten
+// messages and apply the instruct template, same as the KoboldCpp path.
+
+const HORDE_API_URL = 'https://aihorde.net/api/v2';
+const HORDE_CLIENT_AGENT = 'SwellDreams:5.x:https://swelldreams.app';
+const HORDE_ANON_KEY = '0000000000';
+
+/**
+ * Low-level AI Horde HTTP helper. Resolves { status, body } (body parsed JSON);
+ * never throws on non-2xx so callers can branch on status.
+ */
+function hordeRequest(method, path, apiKey, body) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(`${HORDE_API_URL}${path}`);
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'apikey': apiKey || HORDE_ANON_KEY,
+        'Client-Agent': HORDE_CLIENT_AGENT
+      }
+    };
+    if (bodyStr) options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, body: data ? JSON.parse(data) : {} });
+        } catch (e) {
+          reject(new Error(`Failed to parse AI Horde response (HTTP ${res.statusCode})`));
+        }
+      });
+    });
+    activeRequests.add(req);
+    req.on('close', () => activeRequests.delete(req));
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
+/**
+ * Fetch available text models from AI Horde, sorted by worker availability.
+ * @returns {Promise<Array>} [{ id, name, count, queued, eta, performance }]
+ */
+async function fetchHordeModels(apiKey) {
+  console.log('[LLM] Fetching AI Horde text models...');
+  const { status, body } = await hordeRequest('GET', '/status/models?type=text', apiKey);
+  if (status !== 200 || !Array.isArray(body)) {
+    throw new Error((body && body.message) || `AI Horde returned HTTP ${status}`);
+  }
+  const models = body
+    .filter(m => m && m.name)
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .map(m => ({
+      id: m.name,
+      name: m.name,
+      count: m.count || 0,
+      queued: m.queued || 0,
+      eta: m.eta || 0,
+      performance: m.performance || 0
+    }));
+  console.log(`[LLM] Fetched ${models.length} AI Horde text models`);
+  return models;
+}
+
+/**
+ * Test an AI Horde key — fetches the model list (always works, even anonymously)
+ * and resolves the username for non-anonymous keys.
+ */
+async function testHordeConnection(apiKey) {
+  try {
+    const models = await fetchHordeModels(apiKey);
+    let username = null;
+    if (apiKey && apiKey !== HORDE_ANON_KEY) {
+      try {
+        const u = await hordeRequest('GET', '/find_user', apiKey);
+        if (u.status === 200 && u.body && u.body.username) username = u.body.username;
+      } catch (_) { /* key still usable for anonymous-tier gen; non-fatal */ }
+    }
+    return { success: true, models, username };
+  } catch (error) {
+    console.error('[LLM] AI Horde connection test failed:', error.message);
+    return { success: false, models: [], error: error.message };
+  }
+}
+
+/**
+ * Map internal sampler settings to AI Horde's KoboldAI-style params object.
+ */
+function buildHordeParams(settings) {
+  const params = {
+    // Horde caps: max_length (output) ≤ 512; max_context_length must be ≥ 512.
+    max_context_length: Math.min(Math.max(Number(settings.contextTokens) || 4096, 512), 32768),
+    max_length: Math.min(clampMaxTokens(settings.maxTokens) || 200, 512),
+    n: 1
+  };
+
+  if (settings.overrideSamplers !== false) {
+    params.temperature = settings.temperature ?? 0.92;
+    params.top_p = settings.topP ?? 0.92;
+    params.top_k = settings.topK ?? 0;
+    params.top_a = settings.topA ?? 0;
+    params.typical = settings.typicalP ?? 1;
+    params.tfs = settings.tfs ?? 1;
+    params.min_p = settings.minP ?? 0;
+    params.rep_pen = settings.repetitionPenalty ?? 1.05;
+    params.rep_pen_range = settings.repPenRange ?? 1024;
+    params.rep_pen_slope = settings.repPenSlope ?? 1;
+    if (settings.samplerOrder && settings.samplerOrder.length > 0) {
+      params.sampler_order = settings.samplerOrder;
+    }
+    if (settings.neutralizeSamplers) {
+      params.temperature = 1; params.top_p = 1; params.top_k = 0; params.top_a = 0;
+      params.typical = 1; params.tfs = 1; params.min_p = 0; params.rep_pen = 1;
+    }
+  }
+
+  // Stop sequences — merge user-defined + template tokens (KoboldAI naming).
+  const templateStops = getTemplateStopTokens(settings.promptTemplate);
+  const userStops = settings.stopSequences || [];
+  const allStops = [...new Set([...userStops, ...templateStops])];
+  if (allStops.length > 0) params.stop_sequence = allStops;
+
+  return params;
+}
+
+/**
+ * Generate text via AI Horde (submit async job, then poll to completion).
+ * @returns {Promise<{text: string, apiType: string}>}
+ */
+async function generateHorde(options) {
+  const { prompt, messages, systemPrompt, settings } = options;
+  const apiKey = settings.hordeApiKey || HORDE_ANON_KEY;
+
+  // Flatten chat messages → raw prompt and apply the instruct template.
+  let userPrompt = prompt || '';
+  if (!userPrompt && messages && messages.length > 0) {
+    userPrompt = messages.map(m => {
+      if (m.role === 'system') return m.content;
+      if (m.role === 'user') return `User: ${m.content}`;
+      if (m.role === 'assistant') return `Assistant: ${m.content}`;
+      return m.content;
+    }).join('\n');
+  }
+  const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, settings.promptTemplate);
+
+  const requestBody = {
+    prompt: fullPrompt,
+    params: buildHordeParams(settings),
+    trusted_workers: false
+  };
+  // Empty/absent models = "any available worker".
+  if (settings.hordeModel) requestBody.models = [settings.hordeModel];
+
+  // 1. Submit the async job.
+  const submit = await hordeRequest('POST', '/generate/text/async', apiKey, requestBody);
+  if (submit.status !== 202 || !submit.body || !submit.body.id) {
+    const msg = (submit.body && (submit.body.message
+      || (submit.body.errors && JSON.stringify(submit.body.errors)))) || `HTTP ${submit.status}`;
+    throw new Error(`AI Horde request rejected: ${msg}`);
+  }
+  const jobId = submit.body.id;
+  log.info(`[Horde] Submitted text job ${jobId}`);
+
+  // 2. Poll until done / faulted / timeout.
+  const POLL_MS = 2000;
+  const MAX_MS = (Number(settings.hordeTimeout) || 180) * 1000;
+  const started = Date.now();
+  let text = '';
+  while (true) {
+    await new Promise(r => setTimeout(r, POLL_MS));
+    const status = await hordeRequest('GET', `/generate/text/status/${jobId}`, apiKey);
+    if (status.status === 404) {
+      throw new Error('AI Horde job expired or was cancelled');
+    } else if (status.status === 200) {
+      const s = status.body || {};
+      if (s.faulted) throw new Error('AI Horde generation faulted (worker error)');
+      if (s.done) {
+        const gen = (s.generations && s.generations[0]) || null;
+        text = gen ? (gen.text || '') : '';
+        if (gen && gen.model) log.info(`[Horde] Job ${jobId} fulfilled by ${gen.model}`);
+        break;
+      }
+    }
+    if (Date.now() - started > MAX_MS) {
+      try { await hordeRequest('DELETE', `/generate/text/status/${jobId}`, apiKey); } catch (_) {}
+      throw new Error(`AI Horde timed out after ${Math.round(MAX_MS / 1000)}s waiting for a worker`);
+    }
+  }
+
+  // Strip reasoning tags then trim.
+  text = (text || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .trim();
+  if (settings.trimIncompleteSentences !== false && text) {
+    text = trimIncompleteSentences(text);
+  }
+
+  return { text, apiType: 'aihorde' };
+}
+
+// ============================================
 // llama.cpp Native Support
 // ============================================
 
@@ -1803,6 +2031,12 @@ module.exports = {
   buildOpenRouterRequest,
   generateOpenRouter,
   testOpenRouterConnection,
+  // AI Horde
+  HORDE_API_URL,
+  fetchHordeModels,
+  buildHordeParams,
+  generateHorde,
+  testHordeConnection,
   // request builders (exported for testing)
   buildTextCompletionRequest,
   // llama.cpp

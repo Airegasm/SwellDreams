@@ -5267,7 +5267,8 @@ eventEngine.setBroadcast(async (type, data) => {
 
     // If LLM is available, enhance the message
     const hasLlmConfig = settings?.llm?.llmUrl ||
-      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
     if (hasLlmConfig && data.content) {
       llmState.isGenerating = true;
       broadcast('generating_start', { characterName: speakerName, isPlayerVoice });
@@ -5632,7 +5633,8 @@ If announcing the result, say "${result}" - not something else.
 
     // If LLM is available, enhance the message
     const hasLlmConfig = settings?.llm?.llmUrl ||
-      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+      (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
     if (hasLlmConfig && data.content && activeCharacter) {
       llmState.isGenerating = true;
       broadcast('generating_start', { characterName: playerName, isPlayerVoice: true });
@@ -7415,7 +7417,8 @@ async function handleClearChat(data) {
 
     if (messageBlock.trim()) {
       const hasLlmConfig = settings?.llm?.llmUrl ||
-        (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+        (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
 
       if (hasLlmConfig) {
         try {
@@ -7568,7 +7571,8 @@ async function handleSwipeMessage(data) {
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
   if (!activeCharacter || !hasLlmConfig) return;
 
   const useStreaming = settings.llm?.streaming === true;
@@ -7934,7 +7938,8 @@ async function handleButtonSendMessage(action, characterId, personaId) {
 
   // Use LLM enhancement if available
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
   if (hasLlmConfig && instructionText) {
     // Create placeholder message with "..."
     const placeholderMessage = {
@@ -8310,7 +8315,8 @@ async function handleChatMessage(data) {
 
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
 
   console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, hasLlmConfig=${hasLlmConfig ? 'yes' : 'no'}`);
 
@@ -8898,7 +8904,8 @@ async function generateAIResponseAfterBlocking() {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
 
   if (!activeCharacter || !hasLlmConfig) {
     console.log('[Media] No character or LLM configured - skipping post-blocking response');
@@ -9018,7 +9025,8 @@ async function handleSpecialGenerate(data) {
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
 
   if (!activeCharacter || !hasLlmConfig) {
     broadcast('error', { message: 'No character or LLM configured' });
@@ -9294,7 +9302,8 @@ async function handleImpersonateRequest(data) {
 
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
 
   if (!activeCharacter || !hasLlmConfig) {
     broadcast('error', { message: 'No character or LLM configured' });
@@ -10493,7 +10502,8 @@ async function summarizeOverflowMessages(settings) {
 
   // Check if LLM is available
   const hasLlmConfig = settings?.llm?.llmUrl ||
-    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey);
+    (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
+      (settings?.llm?.endpointStandard === 'aihorde' && settings?.llm?.hordeApiKey);
   if (!hasLlmConfig) return;
 
   // Format the new messages for summarization
@@ -11835,6 +11845,11 @@ app.post('/api/settings', async (req, res) => {
     // Keep existing encrypted key if not provided
     settings.openRouterApiKey = oldSettings.openRouterApiKey;
   }
+  if (req.body.hordeApiKey && req.body.hordeApiKey !== '') {
+    settings.hordeApiKey = encrypt(req.body.hordeApiKey);
+  } else if (!req.body.hordeApiKey) {
+    settings.hordeApiKey = oldSettings.hordeApiKey;
+  }
   if (req.body.goveeApiKey && req.body.goveeApiKey !== '') {
     settings.goveeApiKey = encrypt(req.body.goveeApiKey);
   } else if (!req.body.goveeApiKey) {
@@ -12011,6 +12026,11 @@ app.post('/api/settings/llm', (req, res) => {
   if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
     settings.openRouterApiKey = encrypt(req.body.openRouterApiKey);
   }
+  // Encrypt AI Horde API key if provided (top-level copy for reconnect/masking;
+  // the plaintext working copy lives in settings.llm for generation).
+  if (req.body.hordeApiKey && req.body.hordeApiKey !== '') {
+    settings.hordeApiKey = encrypt(req.body.hordeApiKey);
+  }
 
   saveData(DATA_FILES.settings, settings);
   broadcast('settings_update', maskSettingsForResponse(settings));
@@ -12109,6 +12129,52 @@ app.post('/api/openrouter/reconnect', async (req, res) => {
 // Get cached OpenRouter models
 app.get('/api/openrouter/models', (req, res) => {
   const models = global.openRouterModels || [];
+  res.json({ models });
+});
+
+// --- AI Horde ---
+
+// Connect to AI Horde and fetch text models. An empty key is treated as the
+// anonymous tier (Horde key '0000000000').
+app.post('/api/horde/connect', async (req, res) => {
+  try {
+    const apiKey = (req.body.apiKey && req.body.apiKey.trim()) || '0000000000';
+    console.log('[Horde] Testing connection...');
+    const result = await llmService.testHordeConnection(apiKey);
+    if (result.success) {
+      global.hordeModels = result.models;
+      console.log(`[Horde] Connected${result.username ? ` as ${result.username}` : ' (anonymous)'}, ${result.models.length} text models available`);
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('[Horde] Connection error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reconnect to AI Horde using the stored API key
+app.post('/api/horde/reconnect', async (req, res) => {
+  try {
+    const settings = loadData(DATA_FILES.settings) || {};
+    // Fall back to anonymous if no key is stored.
+    const apiKey = settings.hordeApiKey ? decrypt(settings.hordeApiKey) : '0000000000';
+    console.log('[Horde] Reconnecting with stored key...');
+    const result = await llmService.testHordeConnection(apiKey);
+    if (result.success) {
+      global.hordeModels = result.models;
+      if (settings.hordeApiKey) result.maskedKey = maskApiKey(apiKey);
+      console.log(`[Horde] Reconnected, ${result.models.length} text models available`);
+    }
+    res.json(result);
+  } catch (error) {
+    console.error('[Horde] Reconnection error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get cached AI Horde models
+app.get('/api/horde/models', (req, res) => {
+  const models = global.hordeModels || [];
   res.json({ models });
 });
 
@@ -12975,6 +13041,11 @@ function maskConnectionProfiles(profiles) {
       masked.hasOpenRouterApiKey = hasApiKey(masked.openRouterApiKey);
       masked.openRouterApiKey = ''; // Don't send actual key
     }
+    if (masked.hordeApiKey) {
+      masked.hordeApiKeyMasked = maskApiKey(masked.hordeApiKey);
+      masked.hasHordeApiKey = hasApiKey(masked.hordeApiKey);
+      masked.hordeApiKey = ''; // Don't send actual key
+    }
     return masked;
   });
 }
@@ -12998,6 +13069,9 @@ app.post('/api/connection-profiles', (req, res) => {
   if (newProfile.openRouterApiKey) {
     newProfile.openRouterApiKey = encrypt(newProfile.openRouterApiKey);
   }
+  if (newProfile.hordeApiKey) {
+    newProfile.hordeApiKey = encrypt(newProfile.hordeApiKey);
+  }
 
   profiles.push(newProfile);
   saveData(DATA_FILES.connectionProfiles, profiles);
@@ -13020,6 +13094,11 @@ app.put('/api/connection-profiles/:id', (req, res) => {
     profiles[index].openRouterApiKey = encrypt(req.body.openRouterApiKey);
   } else if (!req.body.openRouterApiKey) {
     profiles[index].openRouterApiKey = oldProfile.openRouterApiKey;
+  }
+  if (req.body.hordeApiKey && req.body.hordeApiKey !== '') {
+    profiles[index].hordeApiKey = encrypt(req.body.hordeApiKey);
+  } else if (!req.body.hordeApiKey) {
+    profiles[index].hordeApiKey = oldProfile.hordeApiKey;
   }
 
   saveData(DATA_FILES.connectionProfiles, profiles);
@@ -13051,6 +13130,11 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
   // Re-encrypt the API key for storage
   if (openRouterApiKey) {
     settings.openRouterApiKey = encrypt(openRouterApiKey);
+  }
+  // hordeApiKey stays inside settings.llm (plaintext working copy for generation);
+  // also keep an encrypted top-level copy for reconnect/masking.
+  if (llmSettings.hordeApiKey) {
+    settings.hordeApiKey = encrypt(llmSettings.hordeApiKey);
   }
 
   saveData(DATA_FILES.settings, settings);

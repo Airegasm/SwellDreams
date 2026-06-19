@@ -190,6 +190,9 @@ function encryptSettings(settings) {
   if (encrypted.openRouterApiKey) {
     encrypted.openRouterApiKey = encrypt(encrypted.openRouterApiKey);
   }
+  if (encrypted.hordeApiKey) {
+    encrypted.hordeApiKey = encrypt(encrypted.hordeApiKey);
+  }
   if (encrypted.goveeApiKey) {
     encrypted.goveeApiKey = encrypt(encrypted.goveeApiKey);
   }
@@ -250,6 +253,9 @@ function decryptSettings(settings) {
   // Decrypt API keys
   if (decrypted.openRouterApiKey) {
     decrypted.openRouterApiKey = decrypt(decrypted.openRouterApiKey);
+  }
+  if (decrypted.hordeApiKey) {
+    decrypted.hordeApiKey = decrypt(decrypted.hordeApiKey);
   }
   if (decrypted.goveeApiKey) {
     decrypted.goveeApiKey = decrypt(decrypted.goveeApiKey);
@@ -314,6 +320,11 @@ function maskSettingsForResponse(settings) {
     masked.hasOpenRouterApiKey = hasApiKey(masked.openRouterApiKey);
     masked.openRouterApiKey = ''; // Don't send actual key
   }
+  if (masked.hordeApiKey) {
+    masked.hordeApiKeyMasked = maskApiKey(masked.hordeApiKey);
+    masked.hasHordeApiKey = hasApiKey(masked.hordeApiKey);
+    masked.hordeApiKey = ''; // Don't send actual key
+  }
   if (masked.goveeApiKey) {
     masked.goveeApiKeyMasked = maskApiKey(masked.goveeApiKey);
     masked.hasGoveeApiKey = hasApiKey(masked.goveeApiKey);
@@ -368,6 +379,9 @@ function encryptConnectionProfile(profile) {
   if (encrypted.openRouterApiKey) {
     encrypted.openRouterApiKey = encrypt(encrypted.openRouterApiKey);
   }
+  if (encrypted.hordeApiKey) {
+    encrypted.hordeApiKey = encrypt(encrypted.hordeApiKey);
+  }
 
   return encrypted;
 }
@@ -384,6 +398,9 @@ function decryptConnectionProfile(profile) {
 
   if (decrypted.openRouterApiKey) {
     decrypted.openRouterApiKey = decrypt(decrypted.openRouterApiKey);
+  }
+  if (decrypted.hordeApiKey) {
+    decrypted.hordeApiKey = decrypt(decrypted.hordeApiKey);
   }
 
   return decrypted;

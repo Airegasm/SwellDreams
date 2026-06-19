@@ -91,6 +91,16 @@ function ModelTab() {
   const [openRouterConnecting, setOpenRouterConnecting] = useState(false);
   const [openRouterError, setOpenRouterError] = useState(null);
 
+  // AI Horde state
+  const [hordeApiKey, setHordeApiKey] = useState('');
+  const [hasHordeApiKey, setHasHordeApiKey] = useState(settings.hasHordeApiKey || false);
+  const [hordeApiKeyMasked, setHordeApiKeyMasked] = useState(settings.hordeApiKeyMasked || '');
+  const [hordeModels, setHordeModels] = useState([]);
+  const [selectedHordeModel, setSelectedHordeModel] = useState(settings.llm?.hordeModel || '');
+  const [hordeUsername, setHordeUsername] = useState(null);
+  const [hordeConnecting, setHordeConnecting] = useState(false);
+  const [hordeError, setHordeError] = useState(null);
+
   // Collapsible section states (collapsed by default)
   const [expandedSections, setExpandedSections] = useState({
     connection: true, // Keep connection expanded by default
@@ -119,7 +129,8 @@ function ModelTab() {
       const { activeProfileId, ...toProfile } = settingsObj;
       const profile = connectionProfiles.find(p => p.id === selectedProfileId);
       await api.updateConnectionProfile(selectedProfileId, {
-        name: profile?.name, ...toProfile, endpointStandard, openRouterApiKey, openRouterModel: selectedOpenRouterModel
+        name: profile?.name, ...toProfile, endpointStandard, openRouterApiKey, openRouterModel: selectedOpenRouterModel,
+        hordeModel: selectedHordeModel
       });
     }
   };
@@ -265,6 +276,7 @@ function ModelTab() {
     setConnectionStatus('offline');
     setModelStatus('');
     setOpenRouterError(null);
+    setHordeError(null);
 
     // Auto-populate URL if empty or still set to another backend's default
     const currentUrl = llmSettings.llmUrl || '';
@@ -275,7 +287,8 @@ function ModelTab() {
     setLlmSettings(newSettings);
     try {
       await persistSettings(newSettings);
-      if (value !== 'openrouter' && newUrl) {
+      // Keyed providers (OpenRouter / AI Horde) connect via their own button, not a URL test.
+      if (value !== 'openrouter' && value !== 'aihorde' && newUrl) {
         handleTest();
       }
     } catch (error) {
@@ -358,6 +371,65 @@ function ModelTab() {
     }
   };
 
+  // Connect to AI Horde (blank key = anonymous tier)
+  const handleHordeConnect = async () => {
+    const isReconnect = !hordeApiKey.trim() && hasHordeApiKey;
+    setHordeConnecting(true);
+    setHordeError(null);
+    try {
+      const endpoint = isReconnect
+        ? `${API_BASE}/api/horde/reconnect`
+        : `${API_BASE}/api/horde/connect`;
+      const result = await apiFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: isReconnect ? '{}' : JSON.stringify({ apiKey: hordeApiKey.trim() })
+      });
+
+      if (result.success) {
+        setHordeModels(result.models);
+        setHordeUsername(result.username || null);
+        setConnectionStatus('online');
+        setModelStatus(`${result.models.length} models available`);
+        if (hordeApiKey.trim()) {
+          setHasHordeApiKey(true);
+          // Persist the (plaintext) working key into settings.llm + encrypt top-level.
+          const newSettings = { ...llmSettings, endpointStandard: 'aihorde', hordeApiKey: hordeApiKey.trim() };
+          setLlmSettings(newSettings);
+          await persistSettings(newSettings);
+          setHordeApiKey('');
+        }
+      } else {
+        setHordeError(result.error || 'Connection failed');
+        setConnectionStatus('offline');
+      }
+    } catch (error) {
+      setHordeError(error.message);
+      setConnectionStatus('offline');
+    }
+    setHordeConnecting(false);
+  };
+
+  // Handle AI Horde model selection ('' = any available worker)
+  const handleHordeModelSelect = async (model) => {
+    const id = model ? model.id : '';
+    setSelectedHordeModel(id);
+    const newSettings = { ...llmSettings, hordeModel: id };
+    setLlmSettings(newSettings);
+    setModelStatus(model ? model.name : 'Any model');
+    try {
+      await persistSettings(newSettings);
+    } catch (error) {
+      console.error('Failed to save Horde model selection:', error);
+    }
+  };
+
+  // Filter AI Horde models by the shared search box
+  const filteredHordeModels = hordeModels.filter(m => {
+    if (!modelSearchQuery.trim()) return true;
+    return (m.name || '').toLowerCase().includes(modelSearchQuery.toLowerCase());
+  });
+
   // Filter and sort OpenRouter models
   const sortedOpenRouterModels = [...openRouterModels]
     .filter(model => {
@@ -391,6 +463,9 @@ function ModelTab() {
           if (loadedSettings.llm.openRouterModel) {
             setSelectedOpenRouterModel(loadedSettings.llm.openRouterModel);
           }
+          if (loadedSettings.llm.hordeModel !== undefined) {
+            setSelectedHordeModel(loadedSettings.llm.hordeModel || '');
+          }
         }
         // Handle masked API key info
         if (loadedSettings.hasOpenRouterApiKey !== undefined) {
@@ -398,6 +473,19 @@ function ModelTab() {
         }
         if (loadedSettings.openRouterApiKeyMasked) {
           setOpenRouterApiKeyMasked(loadedSettings.openRouterApiKeyMasked);
+        }
+        if (loadedSettings.hasHordeApiKey !== undefined) {
+          setHasHordeApiKey(loadedSettings.hasHordeApiKey);
+        }
+        if (loadedSettings.hordeApiKeyMasked) {
+          setHordeApiKeyMasked(loadedSettings.hordeApiKeyMasked);
+        }
+        // If AI Horde is the active endpoint, hydrate the cached model list.
+        if (loadedSettings.llm?.endpointStandard === 'aihorde') {
+          try {
+            const hm = await apiFetch(`${API_BASE}/api/horde/models`);
+            if (hm.models && hm.models.length > 0) setHordeModels(hm.models);
+          } catch (_) { /* non-fatal */ }
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -524,9 +612,33 @@ function ModelTab() {
         if (profileSettings.openRouterModel) {
           setSelectedOpenRouterModel(profileSettings.openRouterModel);
         }
+        setSelectedHordeModel(profileSettings.hordeModel || '');
 
         // Auto-connect based on endpoint type
-        if (newEndpoint === 'openrouter' && profileSettings.openRouterApiKey) {
+        if (newEndpoint === 'aihorde') {
+          try {
+            let models = [];
+            const cached = await apiFetch(`${API_BASE}/api/horde/models`);
+            if (cached.models && cached.models.length > 0) {
+              models = cached.models;
+            } else {
+              setHordeConnecting(true);
+              const data = await apiFetch(`${API_BASE}/api/horde/reconnect`, { method: 'POST', body: '{}' });
+              setHordeConnecting(false);
+              if (data.success) models = data.models;
+            }
+            if (models.length > 0) {
+              setHordeModels(models);
+              setConnectionStatus('online');
+              setModelStatus(`${models.length} models available`);
+            } else {
+              setConnectionStatus('offline');
+            }
+          } catch (e) {
+            setHordeConnecting(false);
+            setConnectionStatus('offline');
+          }
+        } else if (newEndpoint === 'openrouter' && profileSettings.openRouterApiKey) {
           // Connect to OpenRouter
           try {
             const data = await apiFetch(`${API_BASE}/api/openrouter/models`);
@@ -748,10 +860,10 @@ function ModelTab() {
               </div>
             )}
 
-            {/* Row 2: Endpoint, API Type, Template (for non-OpenRouter) */}
+            {/* Row 2: Endpoint, API Type, Template (for URL-based backends) */}
             <div className="connection-row">
               <label>Endpoint</label>
-              {endpointStandard !== 'openrouter' ? (
+              {endpointStandard !== 'openrouter' && endpointStandard !== 'aihorde' ? (
                 <>
                   <select
                     value={endpointStandard}
@@ -762,6 +874,7 @@ function ModelTab() {
                     <option value="kobold">KoboldCPP</option>
                     <option value="llamacpp">Llama.cpp</option>
                     <option value="openrouter">OpenRouter</option>
+                    <option value="aihorde">AI Horde</option>
                   </select>
                   <select
                     value={llmSettings.apiType || 'auto'}
@@ -790,6 +903,37 @@ function ModelTab() {
                     <option value="jinja">Jinja (Server)</option>
                   </select>
                 </>
+              ) : endpointStandard === 'aihorde' ? (
+                <>
+                  <select
+                    value={endpointStandard}
+                    onChange={(e) => handleEndpointStandardChange(e.target.value)}
+                    className="connection-field-half"
+                  >
+                    <option value="openai">OpenAI Compatible</option>
+                    <option value="kobold">KoboldCPP</option>
+                    <option value="llamacpp">Llama.cpp</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="aihorde">AI Horde</option>
+                  </select>
+                  {/* Horde is raw text-completion: the instruct template still matters. */}
+                  <select
+                    value={llmSettings.promptTemplate || 'none'}
+                    onChange={(e) => updateSetting('promptTemplate', e.target.value)}
+                    className="connection-field-half"
+                  >
+                    <option value="none">No Template</option>
+                    <option value="chatml">ChatML</option>
+                    <option value="llama">Llama 2</option>
+                    <option value="llama3">Llama 3</option>
+                    <option value="mistral">Mistral (v0.2+)</option>
+                    <option value="mistral-tekken">Mistral v7 (Tekken)</option>
+                    <option value="alpaca">Alpaca</option>
+                    <option value="vicuna">Vicuna</option>
+                    <option value="gemma2">Gemma 2</option>
+                    <option value="gemma3">Gemma 3</option>
+                  </select>
+                </>
               ) : (
                 <select
                   value={endpointStandard}
@@ -800,6 +944,7 @@ function ModelTab() {
                   <option value="kobold">KoboldCPP</option>
                   <option value="llamacpp">Llama.cpp</option>
                   <option value="openrouter">OpenRouter</option>
+                  <option value="aihorde">AI Horde</option>
                 </select>
               )}
             </div>
@@ -878,6 +1023,85 @@ function ModelTab() {
                   />
                 </div>
               </>
+            ) : endpointStandard === 'aihorde' ? (
+              <>
+                <div className="connection-row">
+                  <label>API Key</label>
+                  <input
+                    type="password"
+                    value={hordeApiKey}
+                    onChange={(e) => setHordeApiKey(e.target.value)}
+                    placeholder={hasHordeApiKey ? `Key saved (${hordeApiKeyMasked || '****'}) — enter new to replace` : 'Horde key (blank = anonymous)'}
+                    className="connection-field-twothirds"
+                  />
+                  <div className="connection-field-onethird-buttons">
+                    <button
+                      className={`btn btn-sm ${connectionStatus === 'online' && hordeModels.length > 0 ? 'btn-success' : 'btn-primary'}`}
+                      onClick={handleHordeConnect}
+                      disabled={hordeConnecting}
+                    >
+                      {hordeConnecting ? 'Connecting...' : connectionStatus === 'online' && hordeModels.length > 0 ? 'Connected' : (hasHordeApiKey && !hordeApiKey.trim() ? 'Reconnect' : 'Connect')}
+                    </button>
+                  </div>
+                </div>
+                <div className="connection-row">
+                  <label></label>
+                  <span className="form-hint">
+                    Free crowdsourced inference via <strong>aihorde.net</strong>. A blank key uses the anonymous tier (slower, lower priority). Register at aihorde.net for a key and faster queue.
+                    {hordeUsername && <> Signed in as <strong>{hordeUsername}</strong>.</>}
+                  </span>
+                </div>
+                {hasHordeApiKey && (
+                  <div className="connection-row">
+                    <label></label>
+                    <span className="api-key-status">API key is securely stored (encrypted)</span>
+                  </div>
+                )}
+                {hordeError && (
+                  <div className="connection-row">
+                    <label></label>
+                    <span className="connection-error">{hordeError}</span>
+                  </div>
+                )}
+                <div className="connection-row token-row">
+                  <label>Response</label>
+                  <input
+                    type="number"
+                    value={llmSettings.maxTokens || 150}
+                    onChange={(e) => updateSetting('maxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={512}
+                  />
+                  <label className="checkbox-inline">
+                    <input
+                      type="checkbox"
+                      checked={llmSettings.streaming ?? true}
+                      onChange={(e) => updateSetting('streaming', e.target.checked)}
+                    />
+                    <span>Streaming</span>
+                  </label>
+                </div>
+                <div className="connection-row token-row">
+                  <label>Impersonate</label>
+                  <input
+                    type="number"
+                    value={llmSettings.impersonateMaxTokens || llmSettings.maxTokens || 150}
+                    onChange={(e) => updateSetting('impersonateMaxTokens', parseInt(e.target.value))}
+                    min={1}
+                    max={512}
+                  />
+                </div>
+                <div className="connection-row token-row">
+                  <label>Context</label>
+                  <input
+                    type="number"
+                    value={llmSettings.contextTokens || 4096}
+                    onChange={(e) => updateSetting('contextTokens', parseInt(e.target.value))}
+                    min={512}
+                    max={32768}
+                  />
+                </div>
+              </>
             ) : (
               <>
                 <div className="connection-row">
@@ -951,6 +1175,58 @@ function ModelTab() {
           </div>
           )}
         </div>
+
+        {/* AI Horde Models List (samplers fall through to the standard section below) */}
+        {endpointStandard === 'aihorde' && hordeModels.length > 0 && (
+          <div className="settings-section-collapsible">
+            <div className="settings-section-header" onClick={() => toggleSection('models')}>
+              <span>Models ({filteredHordeModels.length}{modelSearchQuery ? ` of ${hordeModels.length}` : ''})</span>
+              <span className="collapse-icon">{expandedSections.models ? '▼' : '▶'}</span>
+            </div>
+            {expandedSections.models && (
+              <div className="settings-section-content">
+                <div className="model-search-container" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                  <input
+                    type="text"
+                    value={modelSearchQuery}
+                    onChange={(e) => setModelSearchQuery(e.target.value)}
+                    placeholder="Search models..."
+                    className="model-search-input"
+                  />
+                  {modelSearchQuery && (
+                    <button className="model-search-clear" onClick={() => setModelSearchQuery('')} title="Clear search">×</button>
+                  )}
+                </div>
+                <div className="openrouter-models-list">
+                  <div
+                    className={`openrouter-model-item ${!selectedHordeModel ? 'selected' : ''}`}
+                    onClick={() => handleHordeModelSelect(null)}
+                  >
+                    <div className="model-info">
+                      <span className="model-name">Any model</span>
+                      <span className="model-id">fastest available worker</span>
+                    </div>
+                  </div>
+                  {filteredHordeModels.map(model => (
+                    <div
+                      key={model.id}
+                      className={`openrouter-model-item ${selectedHordeModel === model.id ? 'selected' : ''}`}
+                      onClick={() => handleHordeModelSelect(model)}
+                    >
+                      <div className="model-info">
+                        <span className="model-name">{model.name}</span>
+                        <span className="model-id">{model.count} worker{model.count === 1 ? '' : 's'}{model.queued ? ` · ${model.queued} queued` : ''}</span>
+                      </div>
+                      <div className="model-meta">
+                        <span className="model-context">{model.count > 0 ? `~${Math.max(1, Math.round(model.eta))}s eta` : 'offline'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* OpenRouter Settings */}
         {endpointStandard === 'openrouter' ? (
