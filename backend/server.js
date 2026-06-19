@@ -9804,21 +9804,9 @@ function rollCheckpointRandomTriggers(character) {
     ? (getInstructorActiveProfile(character)?.checkpointTriggers || {})
     : (activeStory?.checkpointTriggers || {});
 
-  const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
-  const curIdx = ORDER.indexOf(capacityToRangeKey(sessionState.capacity || 0));
-  // Nearest defining range <= current capacity that has random blocks (carry-over rule).
-  let definingRange = null;
-  for (let i = curIdx; i >= 0; i--) {
-    if (normalizeRangeTriggers(ct[`player-${ORDER[i]}`]).random.length) { definingRange = ORDER[i]; break; }
-  }
-  if (!definingRange) { sessionState.activeRandomRangeKey = null; return; }
-
-  // Reset per-block budgets only when the active defining range changes (carry-over keeps them).
-  if (sessionState.activeRandomRangeKey !== definingRange) {
-    sessionState.activeRandomRangeKey = definingRange;
-    sessionState.randomBlockBudget = {};
-  }
+  const triggerSets = loadData(DATA_FILES.triggerSets) || [];
   const budget = sessionState.randomBlockBudget || (sessionState.randomBlockBudget = {});
+  const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
 
   const deliverMsg = (text, llmEnhance) => {
     const t = (text || '').trim();
@@ -9836,22 +9824,33 @@ function rollCheckpointRandomTriggers(character) {
     }
   };
 
-  const blocks = normalizeRangeTriggers(ct[`player-${definingRange}`]).random;
-  const triggerSets = loadData(DATA_FILES.triggerSets) || [];
-  for (const block of blocks) {
-    if (!block || !block.id) continue;
-    const cap = (block.repeats === undefined || block.repeats === null || Number(block.repeats) < 0) ? Infinity : Number(block.repeats);
-    if ((budget[block.id] || 0) >= cap) continue;
-    const chance = Number(block.chance);
-    if (!(chance > 0) || Math.random() * 100 >= chance) continue;
-    budget[block.id] = (budget[block.id] || 0) + 1;
-    if (block.mode === 'set') {
-      const trgs = triggerSets.find(s => s.id === block.setId)?.triggers || [];
-      if (trgs.length) fireTrigger(trgs[Math.floor(Math.random() * trgs.length)]);
-    } else {
-      for (const t of (block.triggers || [])) fireTrigger(t);
+  // Roll one capacity axis (player or char). Per-block repeats persist per session (keyed by
+  // block id); carry-over uses the nearest defining range <= current capacity for that axis.
+  const rollAxis = (prefix, capacity) => {
+    const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
+    let definingRange = null;
+    for (let i = curIdx; i >= 0; i--) {
+      if (normalizeRangeTriggers(ct[`${prefix}-${ORDER[i]}`]).random.length) { definingRange = ORDER[i]; break; }
     }
-  }
+    if (!definingRange) return;
+    for (const block of normalizeRangeTriggers(ct[`${prefix}-${definingRange}`]).random) {
+      if (!block || !block.id) continue;
+      const cap = (block.repeats === undefined || block.repeats === null || Number(block.repeats) < 0) ? Infinity : Number(block.repeats);
+      if ((budget[block.id] || 0) >= cap) continue;
+      const chance = Number(block.chance);
+      if (!(chance > 0) || Math.random() * 100 >= chance) continue;
+      budget[block.id] = (budget[block.id] || 0) + 1;
+      if (block.mode === 'set') {
+        const trgs = triggerSets.find(s => s.id === block.setId)?.triggers || [];
+        if (trgs.length) fireTrigger(trgs[Math.floor(Math.random() * trgs.length)]);
+      } else {
+        for (const t of (block.triggers || [])) fireTrigger(t);
+      }
+    }
+  };
+
+  rollAxis('player', sessionState.capacity || 0);
+  if (!isInstructor(character) && character.isPumpable) rollAxis('char', sessionState.characterCapacity || 0);
 }
 
 // Verbatim injection messages replace the whole reply: post them directly (no LLM) and
