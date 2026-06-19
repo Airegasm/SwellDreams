@@ -9949,6 +9949,12 @@ async function handleManualPump() {
   sessionState.pendingPumpContext.push(`Player operated the ${type} pump (pump #${count}); added ${added}% — capacity is now ${cap}%.`);
   broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
   broadcast('pump_vars_update', { bulbCurrent: sessionState.bulbCurrent, bikeCurrent: sessionState.bikeCurrent });
+  // Fire checkpoint triggers if this press crossed into a new capacity range (mirrors the
+  // auto-capacity path so manual pumping reaches checkpoints just like electric does).
+  await executeCheckpointTriggers('player', before, sessionState.capacity)
+    .catch(err => console.error('[ManualPump] checkpoint triggers failed:', err?.message || err));
+  await executePersonaCheckpointTriggers('player', before, sessionState.capacity)
+    .catch(err => console.error('[ManualPump] persona checkpoint triggers failed:', err?.message || err));
   autosaveSession();
 }
 
