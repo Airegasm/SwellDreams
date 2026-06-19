@@ -9,6 +9,7 @@ import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
+import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -3047,34 +3048,33 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              {/* Pre-Fill: optional gated intro before any inflation */}
-              <h4>Pre-Fill (gated intro — no pump)</h4>
-              <PreFillEditor
-                value={activeStory?.preFill}
-                onChange={(pf) => updateStoryField('preFill', pf)}
-                profiles={[]}
-                isInstructor={false}
-              />
-              <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
-
-              {/* ===== Trigger Tree Scopes (story-level) ===== */}
+              {/* ===== Session-open scope sections (collapsible) ===== */}
               {(() => {
                 const treeRefs = activeStory?.treeRefs || {};
                 const setScope = (scope, nextRef) => updateStoryField('treeRefs', { ...treeRefs, [scope]: nextRef });
                 const rp = { triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders };
+                const nodeCount = (ref) => ref?.inline?.nodes?.length ? `${ref.inline.nodes.length} block(s)` : ref?.treeId ? 'linked' : '';
                 return (
-                  <div style={{ marginBottom: 12 }}>
-                    <label className="tree-check" style={{ marginBottom: 8 }}>
-                      <input type="checkbox" checked={!!treeRefs.sessionStart?.overrideWelcome} onChange={(e) => setScope('sessionStart', { ...(treeRefs.sessionStart || {}), overrideWelcome: e.target.checked })} />
-                      &nbsp;Override Character Welcome Message (let the Session Start script open the scene)
-                    </label>
-                    <ScopeTreeSection label="Session Start Script" hint="runs once at session open"
-                      refValue={treeRefs.sessionStart} onChange={(r) => setScope('sessionStart', { overrideWelcome: treeRefs.sessionStart?.overrideWelcome, ...r })}
-                      defaultName="Session Start" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
-                    <ScopeTreeSection label="Always-On Script" hint="runs every reply (recurring each turn, once nodes once)"
-                      refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
-                      defaultName="Always On" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
-                  </div>
+                  <>
+                    <CollapsibleSection title="Session Start" subtitle="runs once at session open" defaultOpen badge={nodeCount(treeRefs.sessionStart)}>
+                      <label className="tree-check" style={{ marginBottom: 8, display: 'block' }}>
+                        <input type="checkbox" checked={!!treeRefs.sessionStart?.overrideWelcome} onChange={(e) => setScope('sessionStart', { ...(treeRefs.sessionStart || {}), overrideWelcome: e.target.checked })} />
+                        &nbsp;Override Character Welcome Message (let the Session Start script open the scene)
+                      </label>
+                      <ScopeTreeSection label="" hint="" refValue={treeRefs.sessionStart}
+                        onChange={(r) => setScope('sessionStart', { overrideWelcome: treeRefs.sessionStart?.overrideWelcome, ...r })}
+                        defaultName="Session Start" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Intro" subtitle="gated intro — no pump until released" badge={activeStory?.preFill?.enabled ? 'on' : ''}>
+                      <PreFillEditor value={activeStory?.preFill} onChange={(pf) => updateStoryField('preFill', pf)} profiles={[]} isInstructor={false} />
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Always-On" subtitle="runs every reply (recurring each turn, once nodes once)" badge={nodeCount(treeRefs.alwaysOn)}>
+                      <ScopeTreeSection label="" hint="" refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
+                        defaultName="Always On" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                    </CollapsibleSection>
+                  </>
                 );
               })()}
               <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />

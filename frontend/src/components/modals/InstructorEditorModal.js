@@ -5,6 +5,7 @@ import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
+import CollapsibleSection from '../common/CollapsibleSection';
 import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
@@ -495,63 +496,50 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
 
-          {/* ===== Pre-Fill (gated intro, no pump) ===== */}
-          <h4>Pre-Fill (gated intro — no pump)</h4>
-          <PreFillEditor
-            value={formData.story.preFill}
-            onChange={(pf) => updateStory('preFill', pf)}
-            profiles={cpProfiles}
-            isInstructor={true}
-          />
-
-          {/* Session-start Flow variable seeding */}
-          <div className="form-group" style={{ marginTop: 12 }}>
-            <label>Initial Setup Variables (session start)</label>
-            <p className="section-hint">Flow/system variables seeded once when the session begins. Reference them anywhere with [Flow:Name]. System: only <strong>capacity</strong> is settable here. Read-only refs you can nest into a value (e.g. set a Flow var to <code>[BulbCurrent]</code>): <code>[BulbCurrent]</code>, <code>[BikeCurrent]</code>, <code>[BulbMax]</code>, <code>[BikeMax]</code>, <code>[PumpType]</code> — these can be referenced but not set.</p>
-            {(formData.story.prereqInitVars || []).map((v, i) => {
-              const upd = (patch) => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
-              const rm = () => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).filter((_, idx) => idx !== i));
-              return (
-                <div className="prereq-initvar-row" key={v.id || i}>
-                  <select value={v.varType || 'custom'} onChange={(e) => upd({ varType: e.target.value })} title="Variable type">
-                    <option value="custom">Flow</option>
-                    <option value="system">System</option>
-                  </select>
-                  <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity' : 'variable'} />
-                  <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
-                    <option value="set">Set</option>
-                    <option value="inc">+</option>
-                    <option value="dec">−</option>
-                    <option value="mult">×</option>
-                    <option value="div">÷</option>
-                  </select>
-                  <input type="text" value={v.value || ''} onChange={(e) => upd({ value: e.target.value })} placeholder="value" />
-                  <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
-                </div>
-              );
-            })}
-            <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
-          </div>
-
-          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
-
-          {/* ===== Session Start Script (Trigger Tree) ===== */}
+          {/* ===== Session-open scope sections (collapsible) ===== */}
           {(() => {
             const ssRef = formData.story?.treeRefs?.sessionStart || {};
             // Merge the new ref shape (inline|treeId) while PRESERVING the overrideWelcome sibling flag.
             const setRef = (nextRef) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), sessionStart: { overrideWelcome: ssRef.overrideWelcome, ...nextRef } });
+            const nodeCount = (r) => r?.inline?.nodes?.length ? `${r.inline.nodes.length} block(s)` : r?.treeId ? 'linked' : '';
             return (
-              <div className="form-group" style={{ marginTop: 4 }}>
-                <h4 style={{ marginBottom: 4 }}>Session Start Script</h4>
-                <p className="section-hint">Runs once when the session opens, after the welcome and setup variables. Set profiles, post opening messages, or seed state.</p>
-                <label className="tree-check" style={{ marginBottom: 8 }}>
-                  <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setRef({ ...ssRef, overrideWelcome: e.target.checked })} />
-                  &nbsp;Override Character Welcome Message (suppress the built-in welcome and let this script open the scene)
-                </label>
-                <ScopeTreeSection label="" hint="" refValue={ssRef} onChange={setRef} defaultName="Session Start"
-                  source={`from card: ${formData.name || 'instructor'}`}
-                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-              </div>
+              <>
+                <CollapsibleSection title="Session Start" subtitle="runs once at session open" defaultOpen badge={nodeCount(ssRef)}>
+                  <label className="tree-check" style={{ marginBottom: 8, display: 'block' }}>
+                    <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setRef({ ...ssRef, overrideWelcome: e.target.checked })} />
+                    &nbsp;Override Character Welcome Message (suppress the built-in welcome and let this script open the scene)
+                  </label>
+                  <ScopeTreeSection label="" hint="" refValue={ssRef} onChange={setRef} defaultName="Session Start"
+                    source={`from card: ${formData.name || 'instructor'}`} rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
+                </CollapsibleSection>
+
+                <CollapsibleSection title="Initial Setup Variables" subtitle="Flow/system vars seeded once at session start" badge={(formData.story.prereqInitVars || []).length || ''}>
+                  <p className="section-hint">Reference them anywhere with [Flow:Name]. System: only <strong>capacity</strong> is settable. Read-only refs you can nest into a value: <code>[BulbCurrent]</code>, <code>[BikeCurrent]</code>, <code>[BulbMax]</code>, <code>[BikeMax]</code>, <code>[PumpType]</code>.</p>
+                  {(formData.story.prereqInitVars || []).map((v, i) => {
+                    const upd = (patch) => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+                    const rm = () => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).filter((_, idx) => idx !== i));
+                    return (
+                      <div className="prereq-initvar-row" key={v.id || i}>
+                        <select value={v.varType || 'custom'} onChange={(e) => upd({ varType: e.target.value })} title="Variable type">
+                          <option value="custom">Flow</option>
+                          <option value="system">System</option>
+                        </select>
+                        <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity' : 'variable'} />
+                        <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
+                          <option value="set">Set</option><option value="inc">+</option><option value="dec">−</option><option value="mult">×</option><option value="div">÷</option>
+                        </select>
+                        <input type="text" value={v.value || ''} onChange={(e) => upd({ value: e.target.value })} placeholder="value" />
+                        <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
+                      </div>
+                    );
+                  })}
+                  <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
+                </CollapsibleSection>
+
+                <CollapsibleSection title="Intro" subtitle="gated intro — no pump until released" badge={formData.story.preFill?.enabled ? 'on' : ''}>
+                  <PreFillEditor value={formData.story.preFill} onChange={(pf) => updateStory('preFill', pf)} profiles={cpProfiles} isInstructor={true} />
+                </CollapsibleSection>
+              </>
             );
           })()}
 
