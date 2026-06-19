@@ -172,6 +172,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
 
       return {
         name: character.name || '',
+        responseTokens: character.responseTokens ?? '',
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
@@ -225,6 +226,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
 
     return {
       name: '',
+      responseTokens: '',
       avatar: '',
       description: '',
       personality: '',
@@ -1312,6 +1314,17 @@ Write only the scenario description itself, no explanations.`;
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Group display name"
                     required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Individual Response Tokens (overrides global)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.responseTokens ?? ''}
+                    onChange={(e) => setFormData({ ...formData, responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="Leave blank to use the global setting"
                   />
                 </div>
 

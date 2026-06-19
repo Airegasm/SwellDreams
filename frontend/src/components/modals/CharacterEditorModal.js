@@ -168,6 +168,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       return {
         name: character.name || '',
         gender: character.gender || '',
+        responseTokens: character.responseTokens ?? '',
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
@@ -223,6 +224,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     return {
       name: '',
       gender: '',
+      responseTokens: '',
       avatar: '',
       description: '',
       personality: '',
@@ -1743,6 +1745,17 @@ Write only the scenario description itself, no explanations.`;
                     <option value="female">Female (she/her)</option>
                     <option value="nonbinary">Non-binary (they/them)</option>
                   </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Individual Response Tokens (overrides global)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.responseTokens ?? ''}
+                    onChange={(e) => setFormData({ ...formData, responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="Leave blank to use the global setting"
+                  />
                 </div>
 
                 <div className="form-group">

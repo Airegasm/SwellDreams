@@ -62,6 +62,7 @@ function buildInitialData(character) {
     ignoreDictionary: character?.ignoreDictionary || false,
     ignoreTokenSwapping: character?.ignoreTokenSwapping || false,
     defaultPumpType: character?.defaultPumpType || 'electric',
+    responseTokens: character?.responseTokens ?? '',
     story: {
       id: story?.id || 'story-1',
       name: story?.name || 'Mission',
@@ -255,6 +256,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       ignoreDictionary: !!formData.ignoreDictionary,
       ignoreTokenSwapping: !!formData.ignoreTokenSwapping,
       defaultPumpType: formData.defaultPumpType || 'electric',
+      responseTokens: formData.responseTokens === '' || formData.responseTokens == null ? undefined : Number(formData.responseTokens),
       autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
       stories: [story],
@@ -317,6 +319,18 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               <option value="bike">Manual / Bike (PUMP)</option>
             </select>
             <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it. Auto→E-STOP button, Manual→PUMP button.</p>
+          </div>
+
+          <div className="form-group">
+            <label>Individual Response Tokens (overrides global)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={formData.responseTokens ?? ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, responseTokens: e.target.value.replace(/[^0-9]/g, '') }))}
+              placeholder="Leave blank to use the global setting"
+              style={{ maxWidth: 220 }}
+            />
           </div>
 
           <div className="form-group">

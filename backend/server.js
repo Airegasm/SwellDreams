@@ -1132,6 +1132,13 @@ function clampMaxTokens(value, fallback = 320) {
   return Math.min(n, MAX_TOKENS_CEILING);
 }
 
+// Per-character "Individual Response Tokens" override. Returns a patch object to spread
+// over an llm settings object ({ maxTokens } when the card sets responseTokens, else {}).
+function charTokenOverride(character) {
+  const rt = Number(character?.responseTokens);
+  return rt > 0 ? { maxTokens: clampMaxTokens(rt) } : {};
+}
+
 // Tracked server-side "timed pump on" off-timers, keyed by control id. Cleared by
 // emergency stop / watchdog so a scheduled turn-off can never outlive a stop.
 const serverTimedPumpTimers = new Map();
@@ -5059,7 +5066,7 @@ async function sendWelcomeMessage(character, settings) {
       const result = await llmService.generate({
         prompt: `${character.name}:`,
         systemPrompt,
-        settings: settings.llm
+        settings: { ...settings.llm, ...charTokenOverride(character) }
       });
 
       console.log('[WELCOME] LLM result:', JSON.stringify(result).substring(0, 200));
@@ -5338,7 +5345,7 @@ If announcing the result, say "${result}" - not something else.
         console.log('[EventEngine] Generating LLM message based on:', data.content);
 
         // Build LLM settings, applying maxTokensOverride if provided (for short pre-messages)
-        const llmSettings = { ...settings.llm };
+        const llmSettings = { ...settings.llm, ...charTokenOverride(activeCharacter) };
         if (data.maxTokensOverride) {
           llmSettings.maxTokens = clampMaxTokens(data.maxTokensOverride);
           console.log(`[EventEngine] Using maxTokens override: ${llmSettings.maxTokens}`);
@@ -7582,7 +7589,7 @@ async function handleSwipeMessage(data) {
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: settings.llm,
+        settings: { ...settings.llm, ...charTokenOverride(activeCharacter) },
         onToken: (token, fullText) => {
           fullHistory[msgIndex].content = fullText;
           broadcast('stream_token', { messageId: id, token, fullText });
@@ -7594,7 +7601,7 @@ async function handleSwipeMessage(data) {
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: settings.llm
+        settings: { ...settings.llm, ...charTokenOverride(activeCharacter) }
       });
       resultText = result.text;
     }
@@ -7886,7 +7893,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
         prompt: context.prompt,
         messages: context.messages,
         systemPrompt: context.systemPrompt,
-        settings: settings.llm
+        settings: { ...settings.llm, ...charTokenOverride(character) }
       });
 
       // Update placeholder message with actual content (apply variable substitution)
@@ -8244,6 +8251,7 @@ async function handleChatMessage(data) {
         // Merge stop sequences into LLM settings
         const llmSettings = {
           ...settings.llm,
+          ...charTokenOverride(activeCharacter),
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         };
 
@@ -8362,6 +8370,7 @@ async function handleChatMessage(data) {
         // Non-streaming mode - merge stop sequences into settings
         const llmSettings = {
           ...settings.llm,
+          ...charTokenOverride(activeCharacter),
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         };
 
@@ -8414,7 +8423,7 @@ async function handleChatMessage(data) {
           prompt: retryContext.prompt,
           messages: retryContext.messages,
           systemPrompt: retryContext.systemPrompt,
-          settings: settings.llm
+          settings: { ...settings.llm, ...charTokenOverride(activeCharacter) }
         });
         finalText = stripCrossRoleContent(retryResult.text, context.stopSequences, true);
       }
@@ -8814,6 +8823,7 @@ async function generateAIResponseAfterBlocking() {
 
       const llmSettings = {
         ...settings.llm,
+        ...charTokenOverride(activeCharacter),
         stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
       };
 
@@ -8841,6 +8851,7 @@ async function generateAIResponseAfterBlocking() {
     } else {
       const llmSettings = {
         ...settings.llm,
+        ...charTokenOverride(activeCharacter),
         stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
       };
 

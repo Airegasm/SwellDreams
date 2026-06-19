@@ -363,9 +363,17 @@
 .character-modal-body .form-group {
   margin: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* column can shrink — wide nested content can't blow it past the viewport */
   grid-template-rows: auto 1fr;
   gap: 6px;
   min-height: 0;
+}
+
+/* Checkpoint ranges hold complex nested content (injections, triggers) — the grid's
+   auto column would grow to that content and overflow. Use plain block flow so children
+   are always exactly container width and wide rows clip themselves, not their siblings. */
+.character-modal-body .form-group.checkpoint-field {
+  display: block;
 }
 
 .character-modal-body .form-group label {
