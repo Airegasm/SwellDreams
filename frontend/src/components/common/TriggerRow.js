@@ -111,6 +111,7 @@ function getTriggerTypes(isPumpable) {
     { value: 'nudge_attribute', label: 'Nudge Char Attribute (+/-)' },
     { value: 'nudge_persona_attribute', label: 'Nudge Player Attribute (+/-)' },
     { value: 'set_skin', label: 'Set Display Skin' },
+    { value: 'set_instructor_profile', label: 'Set Instructor Profile' },
     { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
   );
@@ -130,7 +131,7 @@ function getTriggerTypes(isPumpable) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [] }) {
+function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [], profiles = [] }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -162,10 +163,30 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
   const renderParams = () => {
     switch (trigger.type) {
       case 'impersonate':
-      case 'ai_message':
         return (
           <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
             placeholder="Optional context..." style={{ flex: 1, minWidth: '80px' }} />
+        );
+
+      case 'ai_message':
+        return (
+          <>
+            <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+              placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
+              <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
+              LLM
+            </label>
+          </>
+        );
+
+      case 'set_instructor_profile':
+        return (
+          <select value={trigger.value || ''} onChange={(e) => update('value', e.target.value)} style={{ flex: 1, minWidth: '120px' }}>
+            <option value="">Select profile…</option>
+            {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         );
 
       case 'system_message':

@@ -146,6 +146,19 @@
 .prereq-initvar-row select { flex: 0 0 auto; width: auto; }
 .prereq-initvar-row input { flex: 1 1 90px; min-width: 0; }
 
+/* Instructor "Options" toggles — aligned column, consistent rows */
+.instr-toggles { display: flex; flex-direction: column; gap: 10px; }
+.instr-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0;
+  font-weight: 500;
+}
+.instr-toggle input[type="checkbox"] { flex: 0 0 auto; margin: 0; }
+.instr-toggle-hint { color: var(--text-muted, #6b7280); font-weight: 400; font-size: 0.85em; }
+
 /* Instructor example-dialogue rows */
 .instr-example-row {
   display: flex;

@@ -5,7 +5,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
-import CheckpointInjections from '../common/CheckpointInjections';
+import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
@@ -2413,28 +2413,27 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                   {hint && <p className="section-hint">{hint}</p>}
                   <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
-                    <CheckpointInjections
-                      value={activeStory?.checkpoints?.[key]}
-                      onChange={(obj) => updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: obj })}
+                    <label className="ci-label">Main theme</label>
+                    <textarea
+                      className="ci-main-theme"
+                      value={(typeof activeStory?.checkpoints?.[key] === 'string' ? activeStory.checkpoints[key] : activeStory?.checkpoints?.[key]?.mainTheme) || ''}
+                      onChange={(e) => {
+                        const cur = activeStory?.checkpoints?.[key];
+                        const obj = (cur && typeof cur === 'object') ? cur : {};
+                        updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
+                      }}
+                      placeholder="Always-on guidance while capacity is in this range…"
+                      rows={2}
                     />
-                  </div>
-                  {/* Checkpoint triggers */}
-                  <div className="checkpoint-triggers">
-                    <div className="checkpoint-triggers-header">
-                      <span className="checkpoint-triggers-label">Triggers</span>
-                      <button type="button" className="btn-icon btn-add" onClick={() => {
-                        const ct = { ...(activeStory?.checkpointTriggers || {}) };
-                        ct[key] = [...(ct[key] || []), { type: 'impersonate', id: Date.now().toString() }];
-                        updateStoryField('checkpointTriggers', ct);
-                      }} title="Add trigger">+</button>
-                    </div>
-                    {(activeStory?.checkpointTriggers?.[key] || []).map((trigger, tIdx) => (
-                      <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={false} members={multiChars}
-                        reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
-                        onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[key] || [])]; items[tIdx] = updated; ct[key] = items; updateStoryField('checkpointTriggers', ct); }}
-                        onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[key] = (ct[key] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
-                      />
-                    ))}
+                    <RangeTriggerEditor
+                      value={activeStory?.checkpointTriggers?.[key]}
+                      onChange={(v) => updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [key]: v })}
+                      triggerSets={triggerSets}
+                      isPumpable={false}
+                      members={multiChars}
+                      reminders={formData.globalReminders || []}
+                      globalReminders={systemGlobalReminders}
+                    />
                   </div>
                 </div>
               ))}

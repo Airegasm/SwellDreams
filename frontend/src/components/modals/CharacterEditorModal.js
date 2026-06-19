@@ -7,6 +7,7 @@ import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import CheckpointInjections from '../common/CheckpointInjections';
+import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
@@ -3127,33 +3128,27 @@ Write only the scenario description itself, no explanations.`;
                           </div>
                           {hint && <p className="section-hint">{hint}</p>}
                           <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[`player-${key}`] ? 'revealed' : ''}`}>
-                            <CheckpointInjections
-                              value={activeStory?.checkpoints?.[key]}
-                              onChange={(obj) => {
-                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: obj });
+                            <label className="ci-label">Main theme</label>
+                            <textarea
+                              className="ci-main-theme"
+                              value={(typeof activeStory?.checkpoints?.[key] === 'string' ? activeStory.checkpoints[key] : activeStory?.checkpoints?.[key]?.mainTheme) || ''}
+                              onChange={(e) => {
+                                const cur = activeStory?.checkpoints?.[key];
+                                const obj = (cur && typeof cur === 'object') ? cur : {};
+                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
                                 setProfileDirty(prev => ({ ...prev, player: true }));
                               }}
+                              placeholder="Always-on guidance while capacity is in this range…"
+                              rows={2}
                             />
-                          </div>
-                          {/* Checkpoint triggers */}
-                          <div className="checkpoint-triggers">
-                            <div className="checkpoint-triggers-header">
-                              <span className="checkpoint-triggers-label">Triggers</span>
-                              <button type="button" className="btn-icon btn-add" onClick={() => {
-                                const trigKey = `player-${key}`;
-                                const ct = { ...(activeStory?.checkpointTriggers || {}) };
-                                ct[trigKey] = [...(ct[trigKey] || []), { type: 'impersonate', id: Date.now().toString() }];
-                                updateStoryField('checkpointTriggers', ct);
-                              }} title="Add trigger">+</button>
-                            </div>
-                            {(activeStory?.checkpointTriggers?.[`player-${key}`] || []).map((trigger, tIdx) => (
-                              <TriggerRow key={trigger.id || tIdx} trigger={trigger} isPumpable={formData.isPumpable}
-                                reminders={formData.globalReminders || []} globalReminders={systemGlobalReminders}
-                                onChange={(updated) => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; items[tIdx] = updated; ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); }}
-                                onRemove={() => { const ct = { ...(activeStory?.checkpointTriggers || {}) }; ct[`player-${key}`] = (ct[`player-${key}`] || []).filter((_, i) => i !== tIdx); updateStoryField('checkpointTriggers', ct); }}
-                                dragProps={{ draggable: true, onDragStart: (e) => e.dataTransfer.setData('text/plain', tIdx.toString()), onDragOver: (e) => e.preventDefault(), onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === tIdx) return; const ct = { ...(activeStory?.checkpointTriggers || {}) }; const items = [...(ct[`player-${key}`] || [])]; const [m] = items.splice(from, 1); items.splice(tIdx, 0, m); ct[`player-${key}`] = items; updateStoryField('checkpointTriggers', ct); } }}
-                              />
-                            ))}
+                            <RangeTriggerEditor
+                              value={activeStory?.checkpointTriggers?.[`player-${key}`]}
+                              onChange={(v) => { updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [`player-${key}`]: v }); setProfileDirty(prev => ({ ...prev, player: true })); }}
+                              triggerSets={triggerSets}
+                              isPumpable={formData.isPumpable}
+                              reminders={formData.globalReminders || []}
+                              globalReminders={systemGlobalReminders}
+                            />
                           </div>
                         </div>
                       ))}

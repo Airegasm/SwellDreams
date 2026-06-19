@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
-import CheckpointInjections from '../common/CheckpointInjections';
+import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
@@ -98,6 +98,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
   const [selectedProfileId, setSelectedProfileId] = useState(null);
   const [availableSkins, setAvailableSkins] = useState([]);
+  const [triggerSets, setTriggerSets] = useState([]);
   const fileInputRef = useRef(null);
 
   // Re-seed form whenever the modal is (re)opened for a different card.
@@ -117,9 +118,10 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
   const loadAssignables = useCallback(async () => {
     try {
-      const [p, g] = await Promise.all([api.getInstructorProfiles(), api.getInstructorLibrary()]);
+      const [p, g, ts] = await Promise.all([api.getInstructorProfiles(), api.getInstructorLibrary(), api.getTriggerSets()]);
       setProfiles(p?.profiles || []);
       setGroups(g?.groups || []);
+      setTriggerSets(Array.isArray(ts) ? ts : (ts?.triggerSets || []));
     } catch (e) {
       // Non-fatal; dropdowns just stay empty.
     }
@@ -237,6 +239,10 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
     const val = raw === '' ? undefined : (parseInt(raw, 10) || 0);
     updateProfileRange(key, { ...cur, [field]: val });
   };
+  const setRangeText = (key, field, val) => {
+    const cur = selProfile?.ranges?.[key] || {};
+    updateProfileRange(key, { ...cur, [field]: val });
+  };
 
   // ---- Checkpoint triggers (PER-PROFILE, like ranges/injections) ----
   const triggersFor = (key) => selProfile?.checkpointTriggers?.[`player-${key}`] || [];
@@ -290,7 +296,6 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         <div className="modal-tabs character-modal-tabs">
           <button className={`modal-tab ${activeTab === 'basic' ? 'active' : ''}`} onClick={() => setActiveTab('basic')}>Basic</button>
-          <button className={`modal-tab ${activeTab === 'welcome' ? 'active' : ''}`} onClick={() => setActiveTab('welcome')}>Welcome</button>
           <button className={`modal-tab ${activeTab === 'checkpoints' ? 'active' : ''}`} onClick={() => setActiveTab('checkpoints')}>Checkpoints</button>
         </div>
 
@@ -421,29 +426,24 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">Assigned terms are injected only when the player uses them (keyword-triggered).</p>
           </div>
 
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <div className="form-group instr-toggles">
+            <label>Options</label>
+            <label className="instr-toggle">
               <input type="checkbox" checked={!!formData.ignoreDictionary} onChange={(e) => setFormData(prev => ({ ...prev, ignoreDictionary: e.target.checked }))} />
-              Ignore main Dictionary (Use Card Library Only)
+              <span>Ignore main Dictionary <span className="instr-toggle-hint">— use card Library only</span></span>
             </label>
-            <p className="section-hint">When checked, the global Dictionary is not injected for this instructor — only its assigned Library term groups apply.</p>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '8px' }}>
+            <label className="instr-toggle">
               <input type="checkbox" checked={!!formData.ignoreTokenSwapping} onChange={(e) => setFormData(prev => ({ ...prev, ignoreTokenSwapping: e.target.checked }))} />
-              Ignore token swapping
+              <span>Ignore token swapping <span className="instr-toggle-hint">— skip global word-replacement rules</span></span>
             </label>
-            <p className="section-hint">When checked, the global Token Switching word-replacement rules are not applied to this instructor's replies.</p>
-          </div>
-
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <label className="instr-toggle">
               <input type="checkbox" checked={!!formData.story.allowLlmDeviceAccess} onChange={(e) => updateStory('allowLlmDeviceAccess', e.target.checked)} />
-              Allow this instructor to issue device commands
+              <span>Allow device commands <span className="instr-toggle-hint">— let this instructor control devices</span></span>
             </label>
           </div>
-        </div>
 
-        {/* ===== Welcome ===== */}
-        <div className="modal-body character-modal-body" style={{ display: activeTab === 'welcome' ? 'block' : 'none' }}>
+          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
+          <h4>Welcome Message</h4>
           <p className="section-hint">The opening instruction(s) delivered when a session starts. Keep them direct and on-mission.</p>
           {formData.story.welcomeMessages.map((w, idx) => (
             <div key={w.id} className="form-group checkpoint-field">
@@ -505,7 +505,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
           {/* Session-start Flow variable seeding */}
           <div className="form-group" style={{ marginTop: 12 }}>
             <label>Initial Setup Variables (session start)</label>
-            <p className="section-hint">Flow/system variables seeded once when the session begins, before any questions. Read them anywhere with [Flow:Name] (or [Capacity]/[Pain]/[Emotion]).</p>
+            <p className="section-hint">Flow/system variables seeded once when the session begins. Reference them anywhere with [Flow:Name]. System: only <strong>capacity</strong> is settable here. Read-only refs you can nest into a value (e.g. set a Flow var to <code>[BulbCurrent]</code>): <code>[BulbCurrent]</code>, <code>[BikeCurrent]</code>, <code>[BulbMax]</code>, <code>[BikeMax]</code>, <code>[PumpType]</code> — these can be referenced but not set.</p>
             {(formData.story.prereqInitVars || []).map((v, i) => {
               const upd = (patch) => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
               const rm = () => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).filter((_, idx) => idx !== i));
@@ -515,7 +515,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                     <option value="custom">Flow</option>
                     <option value="system">System</option>
                   </select>
-                  <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity / pain / emotion' : 'variable'} />
+                  <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity' : 'variable'} />
                   <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
                     <option value="set">Set</option>
                     <option value="inc">+</option>
@@ -631,22 +631,21 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                 </div>
               )}
               <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
-                <CheckpointInjections
-                  value={selProfile?.ranges?.[key]}
-                  onChange={(obj) => updateProfileRange(key, obj)}
+                <label className="ci-label">Main theme</label>
+                <textarea
+                  className="ci-main-theme"
+                  value={selProfile?.ranges?.[key]?.mainTheme || ''}
+                  onChange={(e) => setRangeText(key, 'mainTheme', e.target.value)}
+                  placeholder="Always-on guidance while capacity is in this range…"
+                  rows={2}
                 />
-                <div className="checkpoint-triggers">
-                  {triggersFor(key).map((trigger, tIdx) => (
-                    <TriggerRow
-                      key={trigger.id || tIdx}
-                      trigger={trigger}
-                      isPumpable={false}
-                      onChange={(updated) => updateTrigger(key, tIdx, updated)}
-                      onRemove={() => removeTrigger(key, tIdx)}
-                    />
-                  ))}
-                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => addTrigger(key)}>+ Add Trigger</button>
-                </div>
+                <RangeTriggerEditor
+                  value={triggersFor(key)}
+                  onChange={(v) => setTriggers(key, v)}
+                  triggerSets={triggerSets}
+                  profiles={cpProfiles}
+                  isPumpable={false}
+                />
               </div>
             </div>
           ))}

@@ -3473,6 +3473,18 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'ai_message': {
+        // LLM Enhance off → post the message text verbatim (no generation).
+        if (trigger.llmEnhance === false) {
+          const vtext = (trigger.context || '').trim();
+          if (vtext) {
+            const { v4: uuidv4 } = require('uuid');
+            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterName: character.name, timestamp: Date.now() };
+            sessionState.chatHistory.push(vmsg);
+            broadcast('chat_message', vmsg);
+            autosaveSession();
+          }
+          break;
+        }
         broadcast('generating_start', { characterName: character.name });
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
@@ -3552,6 +3564,18 @@ async function executeTrigger(trigger, source, character, settings) {
           saveDisplaySettings(displayData);
           broadcast('skin_changed', { skinId, skin });
           console.log(`[Trigger/${source}] Set display skin to "${skin.name}"`);
+        }
+        break;
+      }
+
+      case 'set_instructor_profile': {
+        // Switch the active instructor checkpoint profile for this session, which may
+        // also flip the pump mode. Reuses the same flip path as pre-req choices.
+        if (trigger.value) {
+          sessionState.activeCheckpointProfileId = trigger.value;
+          if (isInstructor(character)) applyActivePumpType(character);
+          broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
+          console.log(`[Trigger/${source}] Switched instructor profile to ${trigger.value}`);
         }
         break;
       }
@@ -7587,7 +7611,7 @@ async function handleSwipeMessage(data) {
       // For character messages — roll personality attributes
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointInjections(activeCharacter);
+      rollCheckpointRandomTriggers(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
       const context = applyCharacterGuidance(
@@ -7890,7 +7914,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       // Roll personality attributes for button-triggered message
       const attrResult = rollAttributes(character);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointInjections(character);
+      rollCheckpointRandomTriggers(character);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'button' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -8260,7 +8284,7 @@ async function handleChatMessage(data) {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointInjections(activeCharacter);
+      rollCheckpointRandomTriggers(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -8845,7 +8869,7 @@ async function generateAIResponseAfterBlocking() {
     // Roll personality attributes for post-blocking response
     const attrResult = rollAttributes(activeCharacter);
     sessionState.activeAttributes = attrResult.active;
-    rollCheckpointInjections(activeCharacter);
+    rollCheckpointRandomTriggers(activeCharacter);
     if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
     if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -8979,7 +9003,7 @@ async function handleSpecialGenerate(data) {
     if (!isPlayerVoice) {
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointInjections(activeCharacter);
+      rollCheckpointRandomTriggers(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
     }
@@ -9764,6 +9788,70 @@ function rollCheckpointInjections(character) {
     if (resp.text) nextResponses.push(resp);
   }
   sessionState.pendingCheckpointResponses = nextResponses;
+}
+
+// Roll the active range's RANDOM trigger blocks (the sequential/random model that
+// supersedes injections). Per-block % chance, capped by per-block repeats; the active
+// block-set carries over into higher ranges that define no blocks of their own.
+// ai_message triggers weave into (or verbatim-replace) this reply via the same plumbing
+// injections used; every other trigger fires through executeTrigger.
+function rollCheckpointRandomTriggers(character) {
+  sessionState.activeCheckpointInjections = [];
+  if (!character) return;
+  const settings = loadData(DATA_FILES.settings) || {};
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const ct = isInstructor(character)
+    ? (getInstructorActiveProfile(character)?.checkpointTriggers || {})
+    : (activeStory?.checkpointTriggers || {});
+
+  const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
+  const curIdx = ORDER.indexOf(capacityToRangeKey(sessionState.capacity || 0));
+  // Nearest defining range <= current capacity that has random blocks (carry-over rule).
+  let definingRange = null;
+  for (let i = curIdx; i >= 0; i--) {
+    if (normalizeRangeTriggers(ct[`player-${ORDER[i]}`]).random.length) { definingRange = ORDER[i]; break; }
+  }
+  if (!definingRange) { sessionState.activeRandomRangeKey = null; return; }
+
+  // Reset per-block budgets only when the active defining range changes (carry-over keeps them).
+  if (sessionState.activeRandomRangeKey !== definingRange) {
+    sessionState.activeRandomRangeKey = definingRange;
+    sessionState.randomBlockBudget = {};
+  }
+  const budget = sessionState.randomBlockBudget || (sessionState.randomBlockBudget = {});
+
+  const deliverMsg = (text, llmEnhance) => {
+    const t = (text || '').trim();
+    if (!t) return;
+    if (llmEnhance !== false) sessionState.activeCheckpointInjections.push(t);
+    else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply ? `${sessionState.pendingVerbatimReply}\n${t}` : t;
+  };
+  const fireTrigger = (trg) => {
+    if (!trg || !trg.type) return;
+    if (trg.type === 'ai_message') {
+      deliverMsg(trg.context, trg.llmEnhance);
+    } else {
+      Promise.resolve(executeTrigger(trg, 'random-block', character, settings))
+        .catch(e => console.error('[RandomTriggers] trigger failed:', e?.message || e));
+    }
+  };
+
+  const blocks = normalizeRangeTriggers(ct[`player-${definingRange}`]).random;
+  const triggerSets = loadData(DATA_FILES.triggerSets) || [];
+  for (const block of blocks) {
+    if (!block || !block.id) continue;
+    const cap = (block.repeats === undefined || block.repeats === null || Number(block.repeats) < 0) ? Infinity : Number(block.repeats);
+    if ((budget[block.id] || 0) >= cap) continue;
+    const chance = Number(block.chance);
+    if (!(chance > 0) || Math.random() * 100 >= chance) continue;
+    budget[block.id] = (budget[block.id] || 0) + 1;
+    if (block.mode === 'set') {
+      const trgs = triggerSets.find(s => s.id === block.setId)?.triggers || [];
+      if (trgs.length) fireTrigger(trgs[Math.floor(Math.random() * trgs.length)]);
+    } else {
+      for (const t of (block.triggers || [])) fireTrigger(t);
+    }
+  }
 }
 
 // Verbatim injection messages replace the whole reply: post them directly (no LLM) and

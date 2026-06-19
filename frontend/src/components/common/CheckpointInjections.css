@@ -162,6 +162,19 @@
 }
 .ci-del:hover { background: #dc2626; }
 
+/* --- Range trigger editor (sequential + random blocks) --- */
+.range-trigger-editor { display: flex; flex-direction: column; gap: 6px; }
+.rte-head { font-size: 11px; color: var(--text-muted, #9ca3af); margin-bottom: 4px; }
+.rte-block {
+  border: 1px dashed var(--border-color, #3a3d45);
+  border-radius: 4px;
+  padding: 6px;
+  margin-bottom: 6px;
+  background: rgba(16, 185, 129, 0.05);
+}
+.rte-block-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.rte-block-triggers { display: flex; flex-direction: column; gap: 4px; }
+
 /* --- Mobile --- */
 @media (max-width: 768px) {
   /* Let selects/inputs shrink to fit instead of forcing horizontal overflow. */
