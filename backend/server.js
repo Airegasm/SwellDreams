@@ -4933,8 +4933,10 @@ async function sendWelcomeMessage(character, settings) {
         systemPrompt += `Scenario: ${scenario}\n\n`;
       }
 
-      // Always-on global dictionary (applies to every character/session)
-      systemPrompt += buildDictionaryPrompt();
+      // Always-on global dictionary, unless this instructor opts out (Use Card Library Only)
+      if (!(isInstructor(character) && character.ignoreDictionary)) {
+        systemPrompt += buildDictionaryPrompt();
+      }
 
       // Add active reminders (using reminder engine for keyword-based activation)
       const memSettingsAutoReply = getChatMemorySettings(settings);
@@ -8059,6 +8061,15 @@ async function handleChatMessage(data) {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
+  // Instructor pre-reqs configured to start after the first player message
+  if (activeCharacter && sender === 'player' && isInstructor(activeCharacter)
+      && !sessionState.prereqsDone && !sessionState.pendingPrereqs) {
+    const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+    if (aStory?.prereqTiming === 'after_first_message') {
+      startInstructorPrereqs(activeCharacter);
+    }
+  }
+
   // Summarize overflow messages before building context (non-blocking on failure)
   await summarizeOverflowMessages(settings);
 
@@ -9589,8 +9600,9 @@ function presentCheckpointChoice(action) {
 }
 
 // Resolve a checkpoint player-choice pick: fire the choice's pump action and queue its
-// response to be injected on the NEXT generation.
+// response to be injected on the NEXT generation. Pre-req sequences are routed first.
 async function handleCheckpointChoice(choiceId) {
+  if (sessionState.pendingPrereqs) return handlePrereqChoice(choiceId);
   const pending = sessionState.pendingCheckpointChoice;
   if (!pending) return;
   const choice = (pending.choices || []).find(c => c.id === choiceId);
@@ -9601,6 +9613,56 @@ async function handleCheckpointChoice(choiceId) {
     await firePrimaryPump(choice.action).catch(err => console.error('[Checkpoint] choice pump failed:', err?.message || err));
   }
   if (choice.response) sessionState.pendingCheckpointResponse = choice.response;
+}
+
+// ===== Instructor pre-req sequence =====
+// Ordered, mandatory player-choice steps shown before inflation. Each choice may set
+// a variable and/or load a checkpoint profile. The inflation gate stays closed until done.
+function startInstructorPrereqs(character) {
+  if (!isInstructor(character)) return false;
+  if (sessionState.pendingPrereqs || sessionState.prereqsDone) return false;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const steps = (Array.isArray(activeStory?.prereqs) ? activeStory.prereqs : [])
+    .filter(s => s && Array.isArray(s.choices) && s.choices.some(c => c && c.label));
+  // Set the default active profile regardless
+  sessionState.activeCheckpointProfileId = activeStory?.defaultCheckpointProfileId || sessionState.activeCheckpointProfileId || null;
+  if (!steps.length) return false;
+  sessionState.pendingPrereqs = { steps, index: 0 };
+  sessionState.preInflationGateMet = false;
+  presentPrereqStep();
+  return true;
+}
+
+function presentPrereqStep() {
+  const p = sessionState.pendingPrereqs;
+  if (!p || p.index >= p.steps.length) { finishPrereqs(); return; }
+  const step = p.steps[p.index];
+  const choices = (step.choices || []).filter(c => c && c.label).map(c => ({ id: c.id, label: c.label }));
+  broadcast('checkpoint_choice', { description: step.prompt || '', choices, prereq: true });
+}
+
+function finishPrereqs() {
+  sessionState.pendingPrereqs = null;
+  sessionState.prereqsDone = true;
+  sessionState.preInflationGateMet = true;
+  broadcast('checkpoint_choice_clear', {});
+  broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+}
+
+async function handlePrereqChoice(choiceId) {
+  const p = sessionState.pendingPrereqs;
+  if (!p) return;
+  const step = p.steps[p.index];
+  const choice = (step?.choices || []).find(c => c.id === choiceId);
+  if (choice) {
+    if (choice.setVar?.variable) {
+      eventEngine.applySetVariable('custom', choice.setVar.variable, choice.setVar.operation, choice.setVar.value);
+    }
+    if (choice.loadProfileId) sessionState.activeCheckpointProfileId = choice.loadProfileId;
+  }
+  p.index++;
+  if (p.index >= p.steps.length) finishPrereqs();
+  else presentPrereqStep();
 }
 
 /**
@@ -9675,15 +9737,37 @@ function capacityRangeKey(capacity) {
   return '100+';
 }
 
+// Resolve the active checkpoint-profile ranges for an instructor (1-100% sets live
+// in named profiles selected at runtime). Returns null for non-instructors.
+// Migration: if no profiles exist, synthesize a "Default" from legacy checkpoints.
+function getInstructorActiveProfileRanges(character) {
+  if (!isInstructor(character)) return null;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  if (!activeStory) return null;
+  let profiles = Array.isArray(activeStory.checkpointProfiles) ? activeStory.checkpointProfiles : [];
+  if (!profiles.length) {
+    const ranges = {};
+    const cps = activeStory.checkpoints || {};
+    for (const k of Object.keys(cps)) { if (k !== '0') ranges[k] = cps[k]; }
+    profiles = [{ id: 'default', name: 'Default', ranges }];
+  }
+  const activeId = sessionState.activeCheckpointProfileId || activeStory.defaultCheckpointProfileId || profiles[0].id;
+  const prof = profiles.find(p => p.id === activeId) || profiles[0];
+  return prof?.ranges || {};
+}
+
 function getActiveCheckpoint(character, capacity) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  const checkpoints = activeStory?.checkpoints;
+  // Instructors: 1-100% ranges come from the active checkpoint profile; the 0
+  // range (pre-inflation) is handled by the pre-req sequence, not text.
+  const isInstr = isInstructor(character);
+  const checkpoints = isInstr ? getInstructorActiveProfileRanges(character) : activeStory?.checkpoints;
   if (!checkpoints) return null;
 
   const rangeKey = capacityRangeKey(capacity);
   const cp = normalizeCheckpoint(checkpoints[rangeKey]);
   const text = cp.mainTheme?.trim();
-  const preInflation = normalizeCheckpoint(checkpoints['0']).mainTheme?.trim();
+  const preInflation = isInstr ? null : normalizeCheckpoint(checkpoints['0']).mainTheme?.trim();
   return {
     text: text || null,
     preInflation: (capacity <= 0 && preInflation) ? preInflation : null,
@@ -10469,8 +10553,10 @@ function buildChatContext(character, settings) {
     systemPrompt += `Scenario: ${substituteVars(scenario)}\n\n`;
   }
 
-  // Always-on global dictionary (applies to every character/session)
-  systemPrompt += buildDictionaryPrompt();
+  // Always-on global dictionary, unless this instructor opts out (Use Card Library Only)
+  if (!(isInstructor(character) && character.ignoreDictionary)) {
+    systemPrompt += buildDictionaryPrompt();
+  }
 
   // Add player info if available
   if (activePersona) {
@@ -15003,6 +15089,14 @@ app.post('/api/session/reset', async (req, res) => {
   stopCharacterInflation(); // Stop any active character inflation
   sessionState.characterCapacity = 0;
   sessionState.characterInflationBaseCapacity = 0;
+  // Reset checkpoint-injection + instructor pre-req state
+  sessionState.checkpointInjectionCounts = {};
+  sessionState.activeCheckpointInjections = [];
+  sessionState.pendingCheckpointChoice = null;
+  sessionState.pendingCheckpointResponse = null;
+  sessionState.pendingPrereqs = null;
+  sessionState.prereqsDone = false;
+  sessionState.activeCheckpointProfileId = null;
 
   console.log(`[Session Reset] Initial values - capacity: ${sessionState.capacity}, pain: ${sessionState.pain}, emotion: ${sessionState.emotion}, capacityModifier: ${sessionState.capacityModifier}`);
 
@@ -15033,13 +15127,19 @@ app.post('/api/session/reset', async (req, res) => {
 
     if (activeCharacter && sessionState.capacity === 0) {
       const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-      const preInflationText = activeStory?.checkpoints?.['0']?.trim();
-      if (preInflationText) {
-        sessionState.preInflationGateMet = false;
-        gateActive = true;
-        console.log('[Pre-Inflation Gate] Gate CLOSED — 0% checkpoint has requirements. LLM pump commands blocked until capacity > 0.');
+      if (isInstructor(activeCharacter)) {
+        // Instructors gate on their pre-req sequence (the prereq choices ARE the gate)
+        const hasPrereqs = Array.isArray(activeStory?.prereqs) && activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
+        sessionState.preInflationGateMet = !hasPrereqs;
       } else {
-        sessionState.preInflationGateMet = true;
+        const preInflationText = normalizeCheckpoint(activeStory?.checkpoints?.['0']).mainTheme?.trim();
+        if (preInflationText) {
+          sessionState.preInflationGateMet = false;
+          gateActive = true;
+          console.log('[Pre-Inflation Gate] Gate CLOSED — 0% checkpoint has requirements. LLM pump commands blocked until capacity > 0.');
+        } else {
+          sessionState.preInflationGateMet = true;
+        }
       }
     } else {
       sessionState.preInflationGateMet = true;
@@ -15062,6 +15162,14 @@ app.post('/api/session/reset', async (req, res) => {
     // Send welcome message first
     if (activeCharacter) {
       await sendWelcomeMessage(activeCharacter, settings);
+      // Instructor pre-reqs: kick off the sequence at session start (or after the
+      // first player message, handled in handleChatMessage).
+      if (isInstructor(activeCharacter)) {
+        const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+        if ((aStory?.prereqTiming || 'session_start') === 'session_start') {
+          startInstructorPrereqs(activeCharacter);
+        }
+      }
     }
 
     // Then send the gate notice AFTER the welcome message so it isn't buried

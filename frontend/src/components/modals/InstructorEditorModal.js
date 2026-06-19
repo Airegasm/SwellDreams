@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import TriggerRow from '../common/TriggerRow';
 import CheckpointInjections from '../common/CheckpointInjections';
+import PrereqEditor from '../common/PrereqEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
 
@@ -30,6 +31,16 @@ function buildInitialData(character) {
   const welcomeMessages = story?.welcomeMessages?.length
     ? story.welcomeMessages
     : (character?.welcomeMessages?.length ? character.welcomeMessages : [{ id: newWelcomeId(), text: '', llmEnhanced: false }]);
+
+  // Migrate to named checkpoint profiles for the 1-100% ranges.
+  let checkpointProfiles = Array.isArray(story?.checkpointProfiles) ? story.checkpointProfiles : null;
+  if (!checkpointProfiles || !checkpointProfiles.length) {
+    const ranges = {};
+    const cps = story?.checkpoints || {};
+    Object.keys(cps).forEach(k => { if (k !== '0') ranges[k] = cps[k]; });
+    checkpointProfiles = [{ id: 'default', name: 'Default', ranges }];
+  }
+
   return {
     name: character?.name || '',
     gender: character?.gender || '',
@@ -37,6 +48,7 @@ function buildInitialData(character) {
     avatar: character?.avatar || '',
     instructorProfileId: character?.instructorProfileId || '',
     instructorLibraryGroupIds: character?.instructorLibraryGroupIds || [],
+    ignoreDictionary: character?.ignoreDictionary || false,
     story: {
       id: story?.id || 'story-1',
       name: story?.name || 'Mission',
@@ -45,6 +57,10 @@ function buildInitialData(character) {
       checkpoints: story?.checkpoints || {},
       checkpointTriggers: story?.checkpointTriggers || {},
       allowLlmDeviceAccess: story?.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
+      prereqs: Array.isArray(story?.prereqs) ? story.prereqs : [],
+      prereqTiming: story?.prereqTiming || 'session_start',
+      checkpointProfiles,
+      defaultCheckpointProfileId: story?.defaultCheckpointProfileId || checkpointProfiles[0].id,
     },
   };
 }
@@ -58,6 +74,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   const [showCropModal, setShowCropModal] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+  const [selectedProfileId, setSelectedProfileId] = useState(null);
   const fileInputRef = useRef(null);
 
   // Re-seed form whenever the modal is (re)opened for a different card.
@@ -153,6 +170,28 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   };
   const removeTrigger = (key, idx) => setTriggers(key, triggersFor(key).filter((_, i) => i !== idx));
 
+  // ---- Checkpoint profiles (1-100% sets selected by a pre-req) ----
+  const cpProfiles = formData.story.checkpointProfiles || [];
+  const selProfId = selectedProfileId || formData.story.defaultCheckpointProfileId || cpProfiles[0]?.id;
+  const selProfile = cpProfiles.find(p => p.id === selProfId) || cpProfiles[0];
+  const setCpProfiles = (list) => updateStory('checkpointProfiles', list);
+  const addProfile = () => {
+    const id = `prof-${Date.now()}`;
+    setCpProfiles([...cpProfiles, { id, name: `Profile ${cpProfiles.length + 1}`, ranges: {} }]);
+    setSelectedProfileId(id);
+  };
+  const renameProfile = (name) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, name } : p)));
+  const deleteProfile = () => {
+    if (cpProfiles.length <= 1) return;
+    const rest = cpProfiles.filter(p => p.id !== selProfId);
+    setCpProfiles(rest);
+    if (formData.story.defaultCheckpointProfileId === selProfId) updateStory('defaultCheckpointProfileId', rest[0].id);
+    setSelectedProfileId(rest[0].id);
+  };
+  const setDefaultProfile = () => updateStory('defaultCheckpointProfileId', selProfId);
+  const updateProfileRange = (key, obj) => setCpProfiles(cpProfiles.map(p => (p.id === selProfId ? { ...p, ranges: { ...(p.ranges || {}), [key]: obj } } : p)));
+  const RANGES_1_100 = CHECKPOINT_RANGES.filter(r => r.key !== '0');
+
   // ---- Save ----
   const handleSave = () => {
     if (!formData.name.trim()) { alert('Name is required'); return; }
@@ -168,6 +207,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       personality: '',
       instructorProfileId: formData.instructorProfileId,
       instructorLibraryGroupIds: formData.instructorLibraryGroupIds,
+      ignoreDictionary: !!formData.ignoreDictionary,
       autoReplyEnabled: character?.autoReplyEnabled ?? true,
       allowLlmDeviceAccess: story.allowLlmDeviceAccess,
       stories: [story],
@@ -256,6 +296,14 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={!!formData.ignoreDictionary} onChange={(e) => setFormData(prev => ({ ...prev, ignoreDictionary: e.target.checked }))} />
+              Ignore main Dictionary (Use Card Library Only)
+            </label>
+            <p className="section-hint">When checked, the global Dictionary is not injected for this instructor — only its assigned Library term groups apply.</p>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
               <input type="checkbox" checked={!!formData.story.allowLlmDeviceAccess} onChange={(e) => updateStory('allowLlmDeviceAccess', e.target.checked)} />
               Allow this instructor to issue device commands
             </label>
@@ -297,18 +345,49 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         {/* ===== Checkpoints ===== */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
+          {/* ===== Pre-Requirements ===== */}
+          <h4>Pre-Requirements (before inflation)</h4>
+          <p className="section-hint">Ordered, mandatory questions shown before inflation begins — drag to reorder. Each choice can load a checkpoint profile and/or set a variable. The instructor won't start the pump until these are answered.</p>
+          <div className="form-group">
+            <label>When to ask</label>
+            <select value={formData.story.prereqTiming || 'session_start'} onChange={(e) => updateStory('prereqTiming', e.target.value)}>
+              <option value="session_start">At session start</option>
+              <option value="after_first_message">After the first player message</option>
+            </select>
+          </div>
+          <PrereqEditor
+            steps={formData.story.prereqs || []}
+            onChange={(s) => updateStory('prereqs', s)}
+            profiles={cpProfiles}
+          />
+
+          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
+
+          {/* ===== Checkpoint Profiles (1-100%) ===== */}
           <div className="checkpoint-tab-header">
-            <h4>Capacity Checkpoints</h4>
+            <h4>Checkpoint Profiles (1–100%)</h4>
             <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
               const anyShown = Object.values(visibleCheckpoints).some(Boolean);
               if (anyShown) { setVisibleCheckpoints({}); return; }
               const v = {};
-              CHECKPOINT_RANGES.forEach(({ key }) => { v[key] = true; });
+              RANGES_1_100.forEach(({ key }) => { v[key] = true; });
               setVisibleCheckpoints(v);
             }}>Show/Hide All</button>
           </div>
-          <p className="section-hint">Per-range instructions and triggers as the player's capacity rises. Triggers can fire device actions, flows, and more.</p>
-          {CHECKPOINT_RANGES.map(({ key, label, hint }) => (
+          <p className="section-hint">Each profile is a full 1–100% checkpoint set. A pre-req choice loads the matching profile; the Default applies otherwise.</p>
+          <div className="checkpoint-profile-bar">
+            <select value={selProfId || ''} onChange={(e) => setSelectedProfileId(e.target.value)}>
+              {cpProfiles.map(p => (
+                <option key={p.id} value={p.id}>{p.name}{p.id === formData.story.defaultCheckpointProfileId ? ' (default)' : ''}</option>
+              ))}
+            </select>
+            <input type="text" value={selProfile?.name || ''} onChange={(e) => renameProfile(e.target.value)} placeholder="Profile name" style={{ flex: 1, minWidth: 100 }} />
+            <button type="button" className="btn btn-sm btn-secondary" onClick={addProfile}>+ Profile</button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={setDefaultProfile} disabled={selProfId === formData.story.defaultCheckpointProfileId}>Set Default</button>
+            <button type="button" className="btn btn-sm btn-danger" onClick={deleteProfile} disabled={cpProfiles.length <= 1}>Delete</button>
+          </div>
+
+          {RANGES_1_100.map(({ key, label, hint }) => (
             <div className="form-group checkpoint-field" key={key}>
               <div className="checkpoint-header">
                 <label>{label}</label>
@@ -323,8 +402,8 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               {hint && <p className="section-hint">{hint}</p>}
               <div className={`checkpoint-spoiler-wrap ${visibleCheckpoints[key] ? 'revealed' : ''}`}>
                 <CheckpointInjections
-                  value={formData.story.checkpoints?.[key]}
-                  onChange={(obj) => updateStory('checkpoints', { ...(formData.story.checkpoints || {}), [key]: obj })}
+                  value={selProfile?.ranges?.[key]}
+                  onChange={(obj) => updateProfileRange(key, obj)}
                 />
                 <div className="checkpoint-triggers">
                   {triggersFor(key).map((trigger, tIdx) => (
