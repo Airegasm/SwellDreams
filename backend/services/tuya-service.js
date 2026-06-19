@@ -78,7 +78,14 @@ class TuyaService {
       console.log('[Tuya] Using cached token');
       return this.accessToken;
     }
+    // Coalesce concurrent token requests (cold-start stampede) into ONE fetch.
+    if (this._tokenPromise) return this._tokenPromise;
+    this._tokenPromise = this._fetchAccessToken();
+    try { return await this._tokenPromise; }
+    finally { this._tokenPromise = null; }
+  }
 
+  async _fetchAccessToken() {
     console.log('[Tuya] Requesting new access token...');
     const t = Date.now().toString();
     const method = 'GET';
@@ -255,16 +262,21 @@ class TuyaService {
       console.log(`[Tuya] Using cached state for ${deviceId}: ${cached.state}`);
       return cached.state;
     }
+    // Coalesce concurrent reads for the same device (multi-client / cold-start) into ONE call.
+    if (!this._inflight) this._inflight = new Map();
+    if (this._inflight.has(deviceId)) return this._inflight.get(deviceId);
 
-    const status = await this.getDeviceStatus(deviceId);
-    const switchStatus = status.find(s => s.code === 'switch_1' || s.code === 'switch');
-    const state = switchStatus ? (switchStatus.value ? 'on' : 'off') : 'unknown';
-
-    // Cache the result
-    this.stateCache.set(deviceId, { state, timestamp: Date.now() });
-    console.log(`[Tuya] Cached state for ${deviceId}: ${state}`);
-
-    return state;
+    const p = (async () => {
+      const status = await this.getDeviceStatus(deviceId);
+      const switchStatus = status.find(s => s.code === 'switch_1' || s.code === 'switch');
+      const state = switchStatus ? (switchStatus.value ? 'on' : 'off') : 'unknown';
+      this.stateCache.set(deviceId, { state, timestamp: Date.now() });
+      console.log(`[Tuya] Cached state for ${deviceId}: ${state}`);
+      return state;
+    })();
+    this._inflight.set(deviceId, p);
+    try { return await p; }
+    finally { this._inflight.delete(deviceId); }
   }
 
   async testConnection() {

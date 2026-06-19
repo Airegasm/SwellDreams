@@ -161,17 +161,22 @@ class GoveeService {
     // Serve a recent cached state to avoid a cloud call on every UI poll.
     const cached = this.stateCache.get(deviceId);
     if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL_MS) return cached.state;
+    // Coalesce concurrent reads for the same device into ONE cloud call.
+    if (!this._inflight) this._inflight = new Map();
+    if (this._inflight.has(deviceId)) return this._inflight.get(deviceId);
 
-    const state = await this.getDeviceState(deviceId, sku);
-
-    // Find the on_off capability in the response
-    const powerCap = state.capabilities?.find(
-      cap => cap.type === 'devices.capabilities.on_off' && cap.instance === 'powerSwitch'
-    );
-
-    const result = powerCap ? (powerCap.state?.value === 1 ? 'on' : 'off') : 'unknown';
-    if (result !== 'unknown') this.stateCache.set(deviceId, { state: result, timestamp: Date.now() });
-    return result;
+    const p = (async () => {
+      const state = await this.getDeviceState(deviceId, sku);
+      const powerCap = state.capabilities?.find(
+        cap => cap.type === 'devices.capabilities.on_off' && cap.instance === 'powerSwitch'
+      );
+      const result = powerCap ? (powerCap.state?.value === 1 ? 'on' : 'off') : 'unknown';
+      if (result !== 'unknown') this.stateCache.set(deviceId, { state: result, timestamp: Date.now() });
+      return result;
+    })();
+    this._inflight.set(deviceId, p);
+    try { return await p; }
+    finally { this._inflight.delete(deviceId); }
   }
 
   /**
