@@ -7,6 +7,7 @@ import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
+import ScopeTreeSection from '../common/ScopeTreeSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -3050,6 +3051,28 @@ Write only the scenario description itself, no explanations.`;
                 isInstructor={false}
               />
               <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
+
+              {/* ===== Trigger Tree Scopes (story-level) ===== */}
+              {(() => {
+                const treeRefs = activeStory?.treeRefs || {};
+                const setScope = (scope, nextRef) => updateStoryField('treeRefs', { ...treeRefs, [scope]: nextRef });
+                const rp = { triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders };
+                return (
+                  <div style={{ marginBottom: 12 }}>
+                    <label className="tree-check" style={{ marginBottom: 8 }}>
+                      <input type="checkbox" checked={!!treeRefs.sessionStart?.overrideWelcome} onChange={(e) => setScope('sessionStart', { ...(treeRefs.sessionStart || {}), overrideWelcome: e.target.checked })} />
+                      &nbsp;Override Character Welcome Message (let the Session Start script open the scene)
+                    </label>
+                    <ScopeTreeSection label="Session Start Script" hint="runs once at session open"
+                      refValue={treeRefs.sessionStart} onChange={(r) => setScope('sessionStart', { overrideWelcome: treeRefs.sessionStart?.overrideWelcome, ...r })}
+                      defaultName="Session Start" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                    <ScopeTreeSection label="Always-On Script" hint="runs every reply (recurring each turn, once nodes once)"
+                      refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
+                      defaultName="Always On" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                  </div>
+                );
+              })()}
+              <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
               {formData.isPumpable ? (
                 <>
                   {/* Sub-tab switcher for pumpable characters */}
@@ -3153,6 +3176,11 @@ Write only the scenario description itself, no explanations.`;
                               reminders={formData.globalReminders || []}
                               globalReminders={systemGlobalReminders}
                             />
+                            <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this player range"
+                              refValue={activeStory?.treeRefs?.ranges?.[`player-${key}`]}
+                              onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
+                              defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
+                              rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
                           </div>
                         </div>
                       ))}
@@ -3235,6 +3263,11 @@ Write only the scenario description itself, no explanations.`;
                               reminders={formData.globalReminders || []}
                               globalReminders={systemGlobalReminders}
                             />
+                            <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this char range"
+                              refValue={activeStory?.treeRefs?.ranges?.[`char-${key}`]}
+                              onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`char-${key}`]: r } })}
+                              defaultName={`Char Range ${key}`} source={`from card: ${formData.name || 'character'}`}
+                              rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
                           </div>
                         </div>
                       ))}
@@ -3316,6 +3349,11 @@ Write only the scenario description itself, no explanations.`;
                           reminders={formData.globalReminders || []}
                           globalReminders={systemGlobalReminders}
                         />
+                        <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this range"
+                          refValue={activeStory?.treeRefs?.ranges?.[`player-${key}`]}
+                          onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
+                          defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
+                          rowProps={{ triggerSets, isPumpable: false, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
                       </div>
                     </div>
                   ))}

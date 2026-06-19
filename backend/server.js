@@ -16413,24 +16413,25 @@ app.post('/api/session/reset', async (req, res) => {
 
     // Send welcome message first
     if (activeCharacter) {
-      // Session Start tree (instructor scope for now). Resolved BEFORE the welcome so its
-      // "Override Character Welcome Message" tickbox can suppress the built-in welcome.
+      // Session Start tree (ALL card types). Resolved BEFORE the welcome so its "Override
+      // Character Welcome Message" tickbox can suppress the built-in welcome. resolveScopeRefs
+      // reads the active checkpoint profile for instructors, the active story otherwise.
       const isInstr = isInstructor(activeCharacter);
       const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-      const ssRef = isInstr ? aStory?.treeRefs?.sessionStart : null;
-      const ssTreeIndex = isInstr ? buildTreeIndex() : null;
+      const ssTreeIndex = buildTreeIndex();
+      // Session Start is always STORY-level (it runs at open, before any checkpoint profile is
+      // necessarily active) — unlike Range/Always-On which are per-profile for instructors.
+      const ssRef = aStory?.treeRefs?.sessionStart;
       const ssTree = resolveRefTree(ssRef, ssTreeIndex); // inline OR {treeId} library ref
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
       if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
       // Order: Welcome → Session Start → Pre-Fill (per plan). The Session Start tree runs
-      // (after its setup vars) BEFORE Pre-Fill starts, so it can set the pump type / swap the
-      // checkpoint profile that Pre-Fill and the gate then build on.
-      if (isInstr) {
-        applyInstructorInitVars(activeCharacter); // seed session-start setup variables
-        // Standalone delivery: ai_message posts immediately, like the welcome.
-        if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone', treeIndex: ssTreeIndex });
-      }
+      // (after instructor setup vars) BEFORE Pre-Fill starts, so it can set the pump type / swap
+      // the checkpoint profile that Pre-Fill and the gate then build on.
+      if (isInstr) applyInstructorInitVars(activeCharacter); // seed session-start setup variables (instructor)
+      // Standalone delivery: ai_message posts immediately, like the welcome.
+      if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone', treeIndex: ssTreeIndex });
       // Pre-Fill (gated intro) takes precedence for every card type. It closes the gate and
       // seeds the first step.
       const preFillStarted = startPreFill(activeCharacter);
