@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MiniWheel from '../components/minigames/MiniWheel';
 import MiniDice from '../components/minigames/MiniDice';
+import { MiniCoin, MiniRPS, MiniSlots, MiniTimer, MiniNumberGuess, MiniCardDraw, MiniSimon, MiniReflex } from '../components/minigames/MoreGames';
 import { GAME_TYPES, gameDef, defaultConfig, exitsFor, newId } from '../components/minigames/gameDefs';
 import './MiniGames.css';
 
@@ -11,15 +12,22 @@ const saveStore = (list) => localStorage.setItem(STORE_KEY, JSON.stringify(list)
 
 // ---- per-type live preview ----
 function Preview({ type, config }) {
-  if (type === 'prize_wheel') return <MiniWheel segments={config.segments || []} size={240} interactive />;
-  if (type === 'dice_roll') return <MiniDice diceCount={config.diceCount || 2} size={84} interactive />;
-  const def = gameDef(type);
-  return (
-    <div className="mg-preview-stub">
-      <div className="mg-preview-glyph">{def.icon}</div>
-      <div className="mg-preview-name">{def.name}</div>
-    </div>
-  );
+  switch (type) {
+    case 'prize_wheel': return <MiniWheel segments={config.segments || []} size={240} interactive />;
+    case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} size={84} interactive />;
+    case 'coin_flip': return <MiniCoin config={config} interactive />;
+    case 'rps': return <MiniRPS config={config} interactive />;
+    case 'slot_machine': return <MiniSlots config={config} interactive />;
+    case 'timer_challenge': return <MiniTimer config={config} interactive />;
+    case 'number_guess': return <MiniNumberGuess config={config} interactive />;
+    case 'card_draw': return <MiniCardDraw config={config} interactive />;
+    case 'simon_challenge': return <MiniSimon config={config} interactive />;
+    case 'reflex_challenge': return <MiniReflex config={config} interactive />;
+    default: {
+      const def = gameDef(type);
+      return <div className="mg-preview-stub"><div className="mg-preview-glyph">{def.icon}</div><div className="mg-preview-name">{def.name}</div></div>;
+    }
+  }
 }
 
 // ---- small field helpers ----
