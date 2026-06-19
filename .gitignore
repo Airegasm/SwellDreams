@@ -29,6 +29,29 @@ backend/data/display-settings.json
 backend/data/remote-settings.json
 backend/data/screenplay/actors-index.json
 backend/data/screenplay/plays-index.json
+backend/data/sessions.json
+backend/data/personas.json
+
+# Machine identity / dev markers
+backend/data/.machine-key
+backend/.devmachine
+
+# Runtime media and backups
+backend/data/media/
+backend/data/backup/
+backend/data/*.backup
+backend/data/*.bak
+backend/data/**/*.backup
+backend/data/**/*.bak
+
+# Python caches
+**/__pycache__/
+
+# Process id files
+.pids/
+
+# Stray nested backend dir
+frontend/backend/
 
 # Node modules
 node_modules/

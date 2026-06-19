@@ -299,6 +299,8 @@
         "flow-iris-data-collection",
         "flow-iris-capacity-study",
         "flow-iris-threshold-testing",
+        "flow-iris-reactions",
+        "flow-iris-protocol-start",
         "flow-iris-adaptive-protocol",
         "flow-iris-comparative-analysis",
         "flow-iris-double-blind",
@@ -332,11 +334,11 @@
         "psychopathy": 35,
         "sensuality": 0,
         "sexuality": 0,
-        "dominant": 20,
+        "dominant": 60,
         "sadistic": 12,
         "sensual": 35,
         "sexual": 15,
-        "psychopathic": 50
+        "psychopathic": 70
       },
       "llmMaxOnDuration": 50,
       "llmMaxCycleOnDuration": 20,
@@ -410,6 +412,8 @@
     "flow-iris-data-collection",
     "flow-iris-capacity-study",
     "flow-iris-threshold-testing",
+    "flow-iris-reactions",
+    "flow-iris-protocol-start",
     "flow-iris-adaptive-protocol",
     "flow-iris-comparative-analysis",
     "flow-iris-double-blind",
@@ -443,6 +447,5 @@
     "offsetY": 0
   },
   "pumpOnEveryReply": false,
-  "characterCheckpoints": {},
-  "_isDefault": true
+  "characterCheckpoints": {}
 }

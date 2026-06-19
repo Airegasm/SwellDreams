@@ -1,0 +1,341 @@
+{
+  "id": "372b0341-b57b-4b72-9a64-80c30d086ecc",
+  "name": "The Deal",
+  "description": "Kelly is late on paying Marie rent yet again. Instead of eviction, Marie and Sadie off Kelly a chance to settle her debt.",
+  "location": "Marie and Sadie's house. They rent a bedroom to Kelly who is in college.",
+  "actorRelationships": "Marie and Sadie are a lesbian couple who rent a room to Kelly, a college student.",
+  "actors": [
+    "3d83951a-272d-4471-82ab-4f5c24529b3f",
+    "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+    "e1c31867-6768-40ff-a169-13279ca7c845"
+  ],
+  "playerActorId": null,
+  "authorMode": "2nd-person",
+  "startPageId": "page-1",
+  "pages": {
+    "page-1": {
+      "id": "page-1",
+      "title": "The beginning.",
+      "paragraphs": [
+        {
+          "id": "para-1769685378190",
+          "type": "narration",
+          "data": {
+            "text": "The knock echoes through your room, sharp and insistent. Your stomach tightens with dread; you knew this day would come, but it doesn't make facing it any easier. The sound of Marie's fist against wood is almost accusatory, each rap a silent \"I told you so.\"\n\nYou take a deep breath, steeling yourself, before standing up from your bed. The floorboards creak beneath your feet as you cross the small space, each step leaden with apprehension. Your hand hovers over the doorknob for a moment, fingers trembling slightly, before turning it and pulling the door open.\n\nMarie stands there, arms crossed and expression stern, her eyes boring into yours. She's come for the rent money you don't have. Again.",
+            "llmEnhance": false,
+            "maxTokens": 150
+          }
+        },
+        {
+          "id": "para-1769686026642",
+          "type": "dialogue",
+          "data": {
+            "actorId": "e1c31867-6768-40ff-a169-13279ca7c845",
+            "text": "Listen, Kelly, I've been more than patient with your constant excuses and empty promises. Well, guess what? This shit stops now. I need the rent money, right this second, or something will have to change. Today.",
+            "llmEnhance": false,
+            "maxTokens": 150
+          }
+        },
+        {
+          "id": "para-1769686306844",
+          "type": "narration",
+          "data": {
+            "text": "Sadie walks up behind Marie, wrapping an arm around her livid girlfriend's waist, holding her back a bit.",
+            "llmEnhance": true,
+            "maxTokens": 150
+          }
+        },
+        {
+          "id": "para-1769686366249",
+          "type": "dialogue",
+          "data": {
+            "actorId": "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+            "text": "Kelly, we like you, we really do, but we can't keep letting you live here for free, If you don't have the money, then we need to figure out an arrangement right this second.",
+            "llmEnhance": true,
+            "maxTokens": 220
+          }
+        },
+        {
+          "id": "para-1769686510109",
+          "type": "player_dialogue",
+          "data": {
+            "text": "Girls, I'm really really sorry. I don't have it, but I promise I'll get it soon! Please don't kick me out!",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-1769686790353",
+          "type": "dialogue",
+          "data": {
+            "actorId": "e1c31867-6768-40ff-a169-13279ca7c845",
+            "text": "The only other thing you could offer that we would accept, is your body. Here's the deal, Kelly: You, naked, strapped to our bondage chair, six hours. Agree, and we'll call your debt square. Refuse, and you should start looking for a new place to live.",
+            "llmEnhance": true,
+            "maxTokens": 250
+          }
+        },
+        {
+          "id": "para-1769687032341",
+          "type": "narration",
+          "data": {
+            "text": "Your eyes go wide with shock at the suggestion. They want you tied up and naked? For six hours? You barely know how to react, but you know you are desperate.",
+            "llmEnhance": true,
+            "maxTokens": 160
+          }
+        },
+        {
+          "id": "para-1769687082324",
+          "type": "inline_choice",
+          "data": {
+            "prompt": "What do you say?",
+            "options": [
+              {
+                "text": "What did you have planned for those six hours?",
+                "response": "Marie takes a long drag from her cigarette before extinguishing it. She smirks at Kelly, eyes gleaming with a cruel light. \"Oh, sweetie, I have such delectable plans in store for you,\" she purrs. \"But where would be the fun if I just gave it all away? Let's just say I've got some... unique ways for you to earn what you owe.\"\n\nShe stands up and walks around behind Kelly, running her nails along her shoulders. \"I'm willing to give you a chance to work off your debt, but it won't be easy. So, do we have a deal?\"",
+                "responseActorId": "e1c31867-6768-40ff-a169-13279ca7c845"
+              }
+            ],
+            "continueText": "I guess I don't have a choice...",
+            "continueTargetPageId": "page-1769687406797",
+            "requireAllOptions": false
+          }
+        }
+      ]
+    },
+    "page-1769687406797": {
+      "id": "page-1769687406797",
+      "title": "The Decision",
+      "paragraphs": [
+        {
+          "id": "para-1769687564553",
+          "type": "dialogue",
+          "data": {
+            "actorId": "3d83951a-272d-4471-82ab-4f5c24529b3f",
+            "text": "I guess I don't have much of a choice, huh? *Kelly fidgets nervously, eyes darting between Marie and Sadie* I mean, I suppose so... *bites lower lip, face flushed with embarrassment and apprehension* This isn't going to be some weird, uh, cult stuff is it? *laughs softly, trying to lighten the mood but failing to hide the quiver in her voice* I'm really tight on cash right now, but I don't know if I can handle anything too extreme...*shifts weight from foot to foot, fiddling with the hem of her shirt*",
+            "llmEnhance": false,
+            "maxTokens": 160
+          }
+        },
+        {
+          "id": "para-1769687617167",
+          "type": "dialogue",
+          "data": {
+            "actorId": "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+            "text": "Come on now, let's not be shy! We're all friends here. *She winks playfully and takes your hand, gently guiding you towards the basement door.* I promise it'll be just between us girls. And who knows? *Her eyes twinkle with mischief.* You might even enjoy yourself. Now let's head to the basement and get more comfy, shall we? *She open's Kelly's bedroom door wide.* After you, Kelly. *She gives you a little nudge, encouraging you to descend first.*",
+            "llmEnhance": false,
+            "maxTokens": 160
+          }
+        },
+        {
+          "id": "para-1769688244357",
+          "type": "narration",
+          "data": {
+            "text": "Just then, you remember you bottle of Sexapro in the bathroom medicine cabinet. Maybe if you took a few, the arousal from the powerful aphrodesiac would offset the anxiety of whatever they have planned. It's a risky move, but maybe the outcome is worth it?",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769688351767",
+          "type": "choice",
+          "data": {
+            "prompt": "Ask to use the bathroom before going to the basement?",
+            "choices": [
+              {
+                "text": "Pretend to use the bathroom while taking a double dose of Sexapro.",
+                "targetPageId": "page-1769688461510",
+                "setVar": "sexapro",
+                "setVal": "1"
+              },
+              {
+                "text": "Bad idea. Just keep walking.",
+                "targetPageId": "page-1769688614141",
+                "setVar": "sexapro",
+                "setVal": "0"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-1769688461510": {
+      "id": "page-1769688461510",
+      "title": "The Bathroom",
+      "paragraphs": [
+        {
+          "id": "para-1769688489330",
+          "type": "narration",
+          "data": {
+            "text": "You ask to be excused to the restroom to pee before committing to the six hour arrangement, and the women agree. You duck inside, quickly locking the door and running the sink as you down a handful of the aphrodesiac pills. After fake flushing the toilet, you return to the girls and continue to the basement. A tingly sensation is building in your pussy as the fast acting drug takes hold.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769688622243",
+          "type": "choice",
+          "data": {
+            "prompt": "",
+            "choices": [
+              {
+                "text": "Try your best to hide the effects.",
+                "targetPageId": "page-1769688614141"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-1769688614141": {
+      "id": "page-1769688614141",
+      "title": "The Basement",
+      "paragraphs": [
+        {
+          "id": "para-1769688724555",
+          "type": "narration",
+          "data": {
+            "text": "The door creaks open, revealing a hidden world far removed from the cozy apartment upstairs. The dank basement air gives way to a surprisingly sterile, clinical atmosphere as Marie flicks on the harsh fluorescent lights. The room is dominated by an imposing stainless steel table, padded and adjustable, its surface gleaming under the bright lights. Restraints hang from each corner, ominous and purposeful. \n\nAlong one wall, a neatly organized array of implements catches your eye - whips, floggers, and various unfamiliar toys dangle from hooks, each one promising unique sensations, some pleasurable, others decidedly not.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769689409424",
+          "type": "dialogue",
+          "data": {
+            "actorId": "e1c31867-6768-40ff-a169-13279ca7c845",
+            "text": "Strip down, Kelly, every last stitch. We want you bare as the day you were born. Then take a seat in that chair over there so we can properly secure you. Don't dawdle now, you wouldn't want to keep us waiting any longer than necessary, would you?",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769689555245",
+          "type": "narration",
+          "data": {
+            "text": "With trembling hands, you slowly start unbuttoning your blouse, fingers fumbling with each disk. Your heart pounds against your ribcage as you slide the fabric off your shoulders, letting it drop to the floor. Next, you unzip your skirt, it pooling around your ankles before you step out of it. Hooking your thumbs into the waistband of your panties, you hesitate for a moment, taking a deep breath to steady your nerves. Then, in one swift motion, you pull them down along with your stockings, kicking the bundle of clothes aside until you stand completely nude and vulnerable.\n\nThe cool air of the room prickles against your exposed skin, raising goosebumps as you take a seat in the chair, leaning back on the cold leather. \n\nMarie and Sadie work together to secure your feet and thighs in the stirrups, holding your legs wide open. More straps are tightened around your wrists and above your breasts, until you are completely helpless.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769688928513",
+          "type": "condition",
+          "data": {
+            "variable": "sexapro",
+            "operator": "equals",
+            "value": "1",
+            "truePageId": "page-1769690021022",
+            "falsePageId": "page-1769690339815"
+          }
+        }
+      ]
+    },
+    "page-1769690021022": {
+      "id": "page-1769690021022",
+      "title": "Caught Dripping",
+      "paragraphs": [
+        {
+          "id": "para-1769690771521",
+          "type": "dialogue",
+          "data": {
+            "actorId": "e1c31867-6768-40ff-a169-13279ca7c845",
+            "text": "Sadie, check out her pussy, it's absolutely drenched! Look at how dilated her pupils are, almost like she's in a trance. And her cheeks are flushed all over. I bet if we touched her there right now, she'd cum immediately. This little slut is totally high as hell right now, aren't you, Kelly?",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769690887845",
+          "type": "dialogue",
+          "data": {
+            "actorId": "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+            "text": "Oh, so that's why you rushed off to the little girls' room, eh?\" Sadie said with a knowing smirk, her eyes twinkling mischievously. \"Very sneaky of you, trying to get those pussy juices flowing. But I'm afraid it won't do you much good... if anything, it'll just make things more intense when we begin.\"\n\nShe stepped closer, her voice dropping to a sultry purr. \"I think it's time to get started. Don't you, Marie?\"",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769691033983",
+          "type": "narration",
+          "data": {
+            "text": "As the cool metal restraints dig into your wrists and ankles, anchoring you firmly to the medical table, you can't help but wriggle as the Sexapro kicks into high gear. The sensation of being completely immobilized, laid bare before them, sends a flush of unexpected pleasure crawling up your neck. You feel exposed, vulnerable - not just physically, but emotionally too, as if every secret, every shameful desire is splayed out for them to see.\n\nYour cheeks burn as Sadie calls you out for being high on aphrodesiacs. I wonder how that will work out for you now that they know?",
+            "llmEnhance": true,
+            "maxTokens": 160
+          }
+        },
+        {
+          "id": "para-1769691022339",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-1769690339815"
+          }
+        }
+      ]
+    },
+    "page-1769690339815": {
+      "id": "page-1769690339815",
+      "title": "The Reveal",
+      "paragraphs": [
+        {
+          "id": "para-1769691249322",
+          "type": "narration",
+          "data": {
+            "text": "You shift uncomfortably in your seat, eyes widening as Marie efficiently wheels over a metallic cart. The machine perched atop it hums softly, its purpose still unclear but undeniably ominous. Your heart pounds as you watch her deft hands uncoil a long, rubbery tube snaking from the device's side. It writhes like a serpent as she pulls it taut, the thick nozzle on its end glinting coldly under the harsh fluorescent lights.\n\nMarie moves with practiced precision, attaching the bulbous tip to the tubing with a definitive click that echoes in the tense silence of the room. You swallow hard, mouth suddenly dry, as realization dawns on what that nozzle might be for.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769691363058",
+          "type": "dialogue",
+          "data": {
+            "actorId": "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+            "text": "Sadie looks at you with a playful glint in her eye, leaning back in her chair. She taps her chin thoughtfully. \"Kelly, have you ever heard of something called 'belly inflation'?\" She pauses, letting the words hang in the air as she gauges your reaction, a hint of excitement in her voice.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769691442620",
+          "type": "choice",
+          "data": {
+            "prompt": "Belly inflation?",
+            "choices": [
+              {
+                "text": "What's that?",
+                "targetPageId": "page-1769691652356"
+              },
+              {
+                "text": "What, like an enema? Or something else?",
+                "targetPageId": "page-1769691656876"
+              },
+              {
+                "text": "The Sexapro destroys your inhibitions...",
+                "targetPageId": "page-1769691660476",
+                "condVar": "sexapro",
+                "condVal": "1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-1769691652356": {
+      "id": "page-1769691652356",
+      "title": "The Explanation",
+      "paragraphs": []
+    },
+    "page-1769691656876": {
+      "id": "page-1769691656876",
+      "title": "Sort of like an enema...",
+      "paragraphs": []
+    },
+    "page-1769691660476": {
+      "id": "page-1769691660476",
+      "title": "Plot twist: You want this!",
+      "paragraphs": []
+    }
+  },
+  "createdAt": 1769684472855,
+  "updatedAt": 1769780207656,
+  "inflatee1Capacity": 0,
+  "inflatee2Enabled": false,
+  "inflatee2ActorId": "",
+  "inflatee2Capacity": 0,
+  "maxPainAtFull": 10,
+  "continueMode": "auto",
+  "autoContinueDelay": 6,
+  "dialogAllowance": 4,
+  "enhancementAllowance": 5
+}

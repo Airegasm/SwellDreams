@@ -1,0 +1,357 @@
+{
+  "id": "1f988a79-7b34-4b53-9216-c22701180f70",
+  "name": "Challenge Tester",
+  "description": "Test all challenge event types",
+  "location": "Testing Arena",
+  "actorRelationships": "",
+  "actors": [
+    "actor-jade",
+    "actor-mia",
+    "3d83951a-272d-4471-82ab-4f5c24529b3f"
+  ],
+  "playerActorId": null,
+  "authorMode": "2nd-person",
+  "startPageId": "page-menu",
+  "pages": {
+    "page-menu": {
+      "id": "page-menu",
+      "title": "Challenge Menu",
+      "paragraphs": [
+        {
+          "id": "para-choice",
+          "type": "choice",
+          "data": {
+            "prompt": "Select a challenge to test:",
+            "choices": [
+              {
+                "text": "Prize Wheel",
+                "targetPageId": "page-wheel"
+              },
+              {
+                "text": "Dice Roll",
+                "targetPageId": "page-dice"
+              },
+              {
+                "text": "Coin Flip",
+                "targetPageId": "page-coin"
+              },
+              {
+                "text": "Rock Paper Scissors",
+                "targetPageId": "page-rps"
+              },
+              {
+                "text": "Timer Challenge",
+                "targetPageId": "page-timer"
+              },
+              {
+                "text": "Number Guess",
+                "targetPageId": "page-number"
+              },
+              {
+                "text": "Slot Machine",
+                "targetPageId": "page-slots"
+              },
+              {
+                "text": "Card Draw",
+                "targetPageId": "page-card"
+              },
+              {
+                "text": "Simon Says",
+                "targetPageId": "page-simon"
+              },
+              {
+                "text": "Reflex Challenge",
+                "targetPageId": "page-reflex"
+              },
+              {
+                "text": "Exit",
+                "targetPageId": "page-final"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "page-wheel": {
+      "id": "page-wheel",
+      "title": "Prize Wheel",
+      "paragraphs": [
+        {
+          "id": "para-wheel",
+          "type": "challenge_wheel",
+          "data": {
+            "segments": [
+              {
+                "id": "seg1",
+                "label": "Prize 1",
+                "color": "#ef4444",
+                "weight": 1
+              },
+              {
+                "id": "seg2",
+                "label": "Prize 2",
+                "color": "#3b82f6",
+                "weight": 1
+              },
+              {
+                "id": "seg3",
+                "label": "Prize 3",
+                "color": "#22c55e",
+                "weight": 1
+              },
+              {
+                "id": "seg4",
+                "label": "Prize 4",
+                "color": "#eab308",
+                "weight": 1
+              },
+              {
+                "id": "seg5",
+                "label": "Prize 5",
+                "color": "#a855f7",
+                "weight": 1
+              },
+              {
+                "id": "seg6",
+                "label": "Prize 6",
+                "color": "#ec4899",
+                "weight": 1
+              }
+            ],
+            "resultVariable": "wheelResult"
+          }
+        },
+        {
+          "id": "para-wheel-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-dice": {
+      "id": "page-dice",
+      "title": "Dice Roll",
+      "paragraphs": [
+        {
+          "id": "para-dice",
+          "type": "challenge_dice",
+          "data": {
+            "diceCount": 2,
+            "diceSides": 6,
+            "resultVariable": "diceResult"
+          }
+        },
+        {
+          "id": "para-dice-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-coin": {
+      "id": "page-coin",
+      "title": "Coin Flip",
+      "paragraphs": [
+        {
+          "id": "para-coin",
+          "type": "challenge_coin",
+          "data": {
+            "headsLabel": "Heads",
+            "tailsLabel": "Tails",
+            "resultVariable": "coinResult"
+          }
+        },
+        {
+          "id": "para-coin-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-rps": {
+      "id": "page-rps",
+      "title": "Rock Paper Scissors",
+      "paragraphs": [
+        {
+          "id": "para-rps",
+          "type": "challenge_rps",
+          "data": {
+            "resultVariable": "rpsResult"
+          }
+        },
+        {
+          "id": "para-rps-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-timer": {
+      "id": "page-timer",
+      "title": "Timer Challenge",
+      "paragraphs": [
+        {
+          "id": "para-timer",
+          "type": "challenge_timer",
+          "data": {
+            "targetTime": 5000,
+            "tolerance": 500,
+            "resultVariable": "timerResult"
+          }
+        },
+        {
+          "id": "para-timer-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-number": {
+      "id": "page-number",
+      "title": "Number Guess",
+      "paragraphs": [
+        {
+          "id": "para-number",
+          "type": "challenge_number_guess",
+          "data": {
+            "minNumber": 1,
+            "maxNumber": 10,
+            "maxGuesses": 3,
+            "resultVariable": "numberResult"
+          }
+        },
+        {
+          "id": "para-number-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-slots": {
+      "id": "page-slots",
+      "title": "Slot Machine",
+      "paragraphs": [
+        {
+          "id": "para-slots",
+          "type": "challenge_slots",
+          "data": {
+            "symbols": [
+              "cherries",
+              "lemon",
+              "orange",
+              "grapes",
+              "star",
+              "seven"
+            ],
+            "resultVariable": "slotsResult"
+          }
+        },
+        {
+          "id": "para-slots-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-card": {
+      "id": "page-card",
+      "title": "Card Draw",
+      "paragraphs": [
+        {
+          "id": "para-card",
+          "type": "challenge_card",
+          "data": {
+            "deckType": "standard",
+            "resultVariable": "cardResult"
+          }
+        },
+        {
+          "id": "para-card-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-simon": {
+      "id": "page-simon",
+      "title": "Simon Says",
+      "paragraphs": [
+        {
+          "id": "para-simon",
+          "type": "challenge_simon",
+          "data": {
+            "startingLength": 3,
+            "maxLength": 7,
+            "resultVariable": "simonResult"
+          }
+        },
+        {
+          "id": "para-simon-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-reflex": {
+      "id": "page-reflex",
+      "title": "Reflex Challenge",
+      "paragraphs": [
+        {
+          "id": "para-reflex",
+          "type": "challenge_reflex",
+          "data": {
+            "minDelay": 1000,
+            "maxDelay": 5000,
+            "resultVariable": "reflexResult"
+          }
+        },
+        {
+          "id": "para-reflex-back",
+          "type": "goto_page",
+          "data": {
+            "targetPageId": "page-menu"
+          }
+        }
+      ]
+    },
+    "page-final": {
+      "id": "page-final",
+      "title": "Done",
+      "paragraphs": [
+        {
+          "id": "para-final",
+          "type": "end",
+          "data": {
+            "endingType": "normal",
+            "message": "Testing complete!"
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": 1769752784570,
+  "updatedAt": 1769758577571,
+  "inflatee1Capacity": 0,
+  "inflatee2Enabled": false,
+  "inflatee2ActorId": "",
+  "inflatee2Capacity": 0,
+  "maxPainAtFull": 10
+}

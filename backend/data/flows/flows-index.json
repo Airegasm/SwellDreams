@@ -42,6 +42,12 @@
     "description": "Capacity message nodes for clinical observations"
   },
   {
+    "id": "9ef10b7f-a364-462e-bcde-18118b70fa70",
+    "name": "Amara",
+    "characterId": null,
+    "description": ""
+  },
+  {
     "id": "efce727e-3309-4d48-a23d-d197d2c7a390",
     "name": "Status Report",
     "characterId": null,
@@ -486,6 +492,36 @@
     "description": "Dr. Marsh orders a four-phase calibration protocol. Each phase runs a timed inflation while the team monitors responses. Post-calibration pain assessment determines if the subject needs recalibration or can handle upper-range probing."
   },
   {
+    "id": "flow-megan-dare-roulette",
+    "name": "Dare Roulette",
+    "characterId": null,
+    "description": "Spin the wheel to determine who gets pumped and how much — competitive mutual inflation game"
+  },
+  {
+    "id": "flow-megan-dice-duel",
+    "name": "Dice Duel",
+    "characterId": null,
+    "description": "Roll dice to determine intensity — high roller gets pumped more, with competitive commentary"
+  },
+  {
+    "id": "flow-megan-reactions",
+    "name": "Megan's Reactions",
+    "characterId": null,
+    "description": "Keyword triggers for competitive flirting, trash talk, and mutual inflation banter"
+  },
+  {
+    "id": "flow-megan-session-start",
+    "name": "Megan's Session Start",
+    "characterId": null,
+    "description": "First player message triggers random game selection"
+  },
+  {
+    "id": "flow-megan-truth-or-swell",
+    "name": "Truth or Swell",
+    "characterId": null,
+    "description": "A/B choice between answering a personal question or taking a pump — with coin flip consequences"
+  },
+  {
     "id": "flow-miranda-breathing-exercise",
     "name": "Miranda's Breathing Exercise",
     "characterId": null,
@@ -696,8 +732,8 @@
     "description": "Spin the prize wheel for varied outcomes"
   },
   {
-    "id": "9ef10b7f-a364-462e-bcde-18118b70fa70",
-    "name": "Amara",
+    "id": "eaffb415-04b4-4f22-a618-e4e5abf8f149",
+    "name": "Inflation Orgy (Contest)",
     "characterId": null,
     "description": ""
   }

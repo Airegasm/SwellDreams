@@ -129,7 +129,7 @@
     }
   ],
   "createdAt": 1774850201819,
-  "updatedAt": 1774916557183,
+  "updatedAt": 1776113696020,
   "pumpOnEveryReply": true,
   "charPortraitMedia": {
     "range_5_10": {
@@ -179,5 +179,7 @@
     "offsetX": 0,
     "offsetY": 0
   },
-  "characterCheckpoints": {}
+  "characterCheckpoints": {},
+  "_isDefault": true,
+  "isFavorite": false
 }

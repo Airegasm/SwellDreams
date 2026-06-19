@@ -2,6 +2,23 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.1.0] - 2026-06-19
+
+### Added
+- **Choose Multi node** — New flow node presenting a multi-select checkbox modal; every selected branch fires in parallel, with per-choice variable operations applied on selection.
+
+### Changed
+- **Prompt construction overhaul (chat-completion)** — Fixes 7 prompt-syntax issues found auditing against SillyTavern. Backend only; text-completion (KoboldCpp / llama.cpp) behavior is preserved — only chat-completion consumes the new structured messages.
+  - Guided response / swipe / flow-ai-message paths unified onto `buildChatContext` with a single depth-0 guidance injection (`applyCharacterGuidance`); dropped the stripped-down `buildSpecialContext('guided')` path for character voice.
+  - Chat-completion builders now return a structured `{role, content}` messages array (real user/assistant turns) instead of one flat user block, threaded through every builder-fed generate / generateStream call; OpenRouter path routes through `buildChatMessages` and no longer drops the system prompt.
+  - Consistent history/primer convention using real persona/character names everywhere (removed `[Player]:` / `[Char]:` divergence across action-message, variation, and action-wrapper paths) and fixed a stale double-primer.
+  - Author's Note injected at a configurable chat depth (`authorNoteDepth`, default 4) instead of pinned to the end of the system prompt.
+  - Removed the brittle `toThirdPerson` card rewrite for impersonate; relies on instruction plus name-based stop sequences. Example dialogues use real names with `<START>` separators.
+- **Guidance injection depth** — Guidance is now injected at depth 0 (right before the primer, in the same MANDATORY format checkpoints use) for both character and player voice, fixing Mistral / Tekken-family models that ignored system-block guidance. Finished P3/P1 unification stragglers (action-message, variation, action-wrapper paths, and the flow `ai_message` trigger) onto real names and the unified guided path.
+
+### Fixed / Hardening
+- **Backend hardening** — Atomic file writes, ID validation, request validation middleware, and crypto helpers; updates across device-service, Kasa, Tapo, Tuya, AI device control, image storage, reminder engine, and migration scripts.
+
 ## [v5.0.0] - 2026-06-18
 
 ### Added

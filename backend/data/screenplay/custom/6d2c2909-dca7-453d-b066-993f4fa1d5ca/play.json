@@ -1,0 +1,232 @@
+{
+  "id": "6d2c2909-dca7-453d-b066-993f4fa1d5ca",
+  "name": "The Gameshow",
+  "description": "Kelly and Sadie have been kidnapped, stripped naked, and restrained by the Ringmistress and forced to compete in a dark web death game with extreme consequences.",
+  "location": "An unknown location with an underground makeshift gameshow stage.",
+  "actorRelationships": "Ringmistress is the host of the gameshow that Sadie and Kelly are being forced to compete in.",
+  "actors": [
+    "3d83951a-272d-4471-82ab-4f5c24529b3f",
+    "d933419c-402e-4f83-985e-64c9392331fb",
+    "f16e288e-da30-48fd-baf4-f50a27d1abf9"
+  ],
+  "playerActorId": null,
+  "authorMode": "2nd-person",
+  "startPageId": "page-1",
+  "pages": {
+    "page-1": {
+      "id": "page-1",
+      "title": "The Beginning",
+      "paragraphs": [
+        {
+          "id": "para-1769757883110",
+          "type": "popup",
+          "data": {
+            "message": "This Play was designed around a 520sec max cap calibration.",
+            "okLabel": "Ok",
+            "okAction": "continue",
+            "okTargetPageId": "",
+            "cancelEnabled": true,
+            "cancelLabel": "Cancel",
+            "cancelAction": "exit",
+            "cancelTargetPageId": ""
+          }
+        },
+        {
+          "id": "para-1769699875615",
+          "type": "narration",
+          "data": {
+            "text": "The cold metal of the chair digs into your bare skin as you struggle slightly against the restraints holding your wrists and ankles firmly in place. The bright pink neon lights of the arena flicker and hum, casting harsh shadows across the smooth, white tiled floor. A stark contrast to the soft, dim lighting that usually fills this space. You can feel the slight draft in the room, making goosebumps prickle across your exposed flesh.\n\nYour rectum is still sore from the massive enema nozzle shoved inside by a woman who calls herself the Rigmistress. A long tube connected to it extends to a mysterious machine.\n\nA second tube extends from the machine and trails across the floor, terminating at the nozzle lodged into the ass of the girl beside you. You see her long hair is matted with sweat, clinging to her face and neck. Her chest rises and falls rapidly with each shallow breath, revealing just how nervous and scared she is, much like yourself. Muffled whimpers escape from behind both of your ball gags.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769700128165",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "Welcome, my depraved little puppets, to another twisted installment of The Puppet Show! I am your Ringmistress, here to pull the strings and push the boundaries of what you sick freaks can handle. Tonight, we have two fresh new dolls to play with - Kelly and Sadie. They don't know it yet, but they're about to star in the most extreme reality show of their lives. And let me tell you, the games I have planned will make Big Brother look like a tea party. So settle in, get comfortable, and enjoy the show. These bitches, Kelly and Sadie, are in for the ride of their lives... whether they like it or not. *She places her finger on a button on the podium.*\n\nWhen I press this button, our friend Mr. Blow Up the electronic industrial air compressor, will begin very very very slowly forcing air down those tubes in up those butts, filling those guts and sweling those tummies! Before we start our games, I'll get them to the 30% capacity mark as I explain the goal. This way, they are already feeling that ache and pressure when the challenges start! Ready?\n\n*Ringmistress presses the button. A beep from the machine can be heard, followed by a low hiss.*",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769700517123",
+          "type": "mock_pump",
+          "data": {
+            "target": "inflatee2",
+            "action": "on",
+            "duration": 5000,
+            "intensity": 50,
+            "untilEnabled": true,
+            "untilValue": 30
+          }
+        },
+        {
+          "id": "para-1769700526569",
+          "type": "pump",
+          "data": {
+            "device": "Primary Pump",
+            "action": "on",
+            "duration": 5,
+            "interval": 10,
+            "cycles": 0,
+            "pulses": 3,
+            "untilEnabled": true,
+            "untilValue": 39
+          }
+        },
+        {
+          "id": "para-1769804064315",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "Ooooo listen to those moans! *Ringmistress turns to face Kelly and Sadie, smiling. She walks over to Kelly, leaning over and extending her index finger, pushing it into the fatty area above Kelly's public bone.* Starting to feel a little bit of pressure in that tummy, huh Kels? Don't worry, it's not going to feel like much right now. \n\n*Ringmistress traces her finger to the lower left of Kelly's belly.* Right now, the air is being pumped into your rectum, and eventually it's going to travel up your descending colon. *She drags her finger up the left side of the girls chubby abdomen, and then across the top to the other side.* Then it's going to flow right on past your transverse colon, and then down your ascending colon until it reaches the entrance to your small intestine, which it will not be able to enter quite yet. *She drags her finger down the right side of Kelly's belly and then pulls away, standing upright.* ",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807061649",
+          "type": "narration",
+          "data": {
+            "text": "You begin imagining the air traveling through your innards, curious why this woman knows so much about pumping air up a girl's ass, and more importantly, how much of that air she plans to pump in.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-1769807088564",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "This is the point where the pressure will build evenly in your large intestine, causing it to distend gradually as it pressurizes. As the pressure builds, your tummy is going to begin to bulge, just like blowing up a party balloon! Don't worry, you shouldn't feel your first bit of cramping until we hit that 50% mark, so enjoy these sensations while they last! ",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807118302",
+          "type": "narration",
+          "data": {
+            "text": "Sadie begins to sob through her gag at Ringmistress' description of what's happening to her and Kelly. This draws the sadistic woman's attention, and she happily prances to the side of the helpless girl being inflated next to you. ",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807131578",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "*Ringmistress traces a sharp nail along Sadie's jawline, her eyes gleaming with cruel amusement as she watches tears roll down her cheeks.*\n\nOooh, listen to you whimpering like a little bitch! I've barely even started and you're already reduced to this pathetic state. How utterly delightful!\n\n*She throws her head back with a cackle, her breasts jiggling obscenely beneath the tight fabric of her corset.*\n\nDon't you worry your pretty little head, sweetheart. I promise you, the pain is coming. But I'm not going to give it to you all at once. That would be far too easy, and where's the fun in that?\n",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807152352",
+          "type": "narration",
+          "data": {
+            "text": "Sadie begins to panic even harder as her worst fears are becoming actualized in front of her. It really is going to be as bad, if not worse than she imagined.",
+            "llmEnhance": true
+          }
+        },
+        {
+          "id": "para-1769807354481",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "*laughs sadistically, eyes gleaming with twisted lust.* Oh, you sweet summer children. Don't you see? This isn't about you. It's about ME! About the exquisite, toe-curling pleasure your pain brings me.\n\nWatching those cute little bellies swell up tight, hearing you moan and beg, seeing the desperation in your eyes - it sets my cunt ablaze! I've tried everything else, but nothing gets me off like watching someone else suffer from a nice, slow belly over-inflation.\n\nAnd let's face it, you two were just in the wrong place at the wrong time. Easy targets for my amusement. So buckle up, buttercups! Your tummies are my new personal stressballs!",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807536520",
+          "type": "narration",
+          "data": {
+            "text": "A cold dread washes over your entire body as the Ringmistress' words sink in. The room seems to spin around you, your bare skin prickling with goosebumps. The air grows heavy with an oppressive sense of dread and perversion. In the pit of your stomach, a leaden ball of revulsion and fear churns violently, threatening to bring up the meager contents. Your head pounds, pulse hammering in your temples as you grapple with the horrifying realization that this sadistic woman's sole motivation for tormenting you and Sadie so brutally is her own depraved sexual gratification. The knowledge is physically sickening, making your empty stomach lurch and contract painfully.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807590391",
+          "type": "dialogue",
+          "data": {
+            "actorId": "d933419c-402e-4f83-985e-64c9392331fb",
+            "text": "Speaking of cumming... What do you girls say about having a little fun before things get too serious? I mean, not that you can say anything at all in your current state, so I'll answer for you. *She puts on a high pitched mocking voice.* Yes! I think that's a great idea, Ringmistress!",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807623448",
+          "type": "narration",
+          "data": {
+            "text": "Your stomach churns as you watch the Ringmistress roll out a massive, ornate prize wheel. Its polished surface gleams under the harsh stage lights, reflecting your terrified faces back at you. As she spins it slowly, you lean forward, squinting to make out the prize slots.\n\nYour heart sinks as you realize both your names, Kelly and Sadie, have already been inscribed on several of the segments in bold, black letters. What sick twists of fate has this sadistic game show host in store for you now?\n\nThe wheel slows to a stop with a soft click, one of your names prominently displayed at the top. The Ringmistress grins, her eyes glittering with cruel anticipation of your impending fate.",
+            "llmEnhance": false
+          }
+        },
+        {
+          "id": "para-1769807670028",
+          "type": "challenge_wheel",
+          "data": {
+            "prompt": "Spin the wheel!",
+            "segments": [
+              {
+                "label": "Sadie",
+                "color": "#ff6b6b",
+                "weight": 4,
+                "segmentType": "page",
+                "targetPageId": "page-1769807761969",
+                "duplicates": 4
+              },
+              {
+                "label": "Kelly",
+                "color": "#4ecdc4",
+                "weight": 4,
+                "segmentType": "page",
+                "targetPageId": "page-1769807763055",
+                "duplicates": 4
+              }
+            ],
+            "skipTargetPageId": "page-1",
+            "resultVariable": "",
+            "autoSpin": true
+          }
+        }
+      ]
+    },
+    "page-1769807761969": {
+      "id": "page-1769807761969",
+      "title": "Sadie Wheel1",
+      "paragraphs": [
+        {
+          "id": "para-1769807806432",
+          "type": "end",
+          "data": {
+            "endingType": "normal",
+            "message": "The End"
+          }
+        }
+      ]
+    },
+    "page-1769807763055": {
+      "id": "page-1769807763055",
+      "title": "Kelly Wheel1",
+      "paragraphs": [
+        {
+          "id": "para-1769807812197",
+          "type": "end",
+          "data": {
+            "endingType": "normal",
+            "message": "The End"
+          }
+        }
+      ]
+    }
+  },
+  "createdAt": 1769699491082,
+  "updatedAt": 1769872720325,
+  "inflatee1Capacity": 0,
+  "inflatee2Enabled": true,
+  "inflatee2ActorId": "f16e288e-da30-48fd-baf4-f50a27d1abf9",
+  "inflatee2Capacity": 0,
+  "maxPainAtFull": 10,
+  "continueMode": "auto",
+  "autoContinueDelay": 5,
+  "dialogAllowance": 3,
+  "enhancementAllowance": 5
+}
