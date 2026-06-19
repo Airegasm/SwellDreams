@@ -57,6 +57,8 @@ const DEFAULT_SETTINGS = {
   mirostat: 0,             // Mirostat mode (0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0)
   mirostatTau: 5,          // Mirostat target entropy
   mirostatEta: 0.1,        // Mirostat learning rate
+  // Author's note injection depth (messages from end of transcript; SillyTavern-style)
+  authorNoteDepth: 4,
   // Stop sequences and token control (defaults help prevent role confusion)
   stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
   bannedTokens: [],        // Banned token strings (KoboldCpp banned_tokens)
@@ -1290,17 +1292,9 @@ async function generateOpenRouter(options) {
     console.error('[OpenRouter DEBUG] WARNING: No model selected, using default');
   }
 
-  // Build messages array
-  let chatMessages = messages;
-  if (!chatMessages) {
-    chatMessages = [];
-    if (systemPrompt) {
-      chatMessages.push({ role: 'system', content: systemPrompt });
-    }
-    if (prompt) {
-      chatMessages.push({ role: 'user', content: prompt });
-    }
-  }
+  // Build messages array — always honor systemPrompt, even when a structured
+  // `messages` array is supplied (the builders keep the system prompt separate).
+  const chatMessages = buildChatMessages(systemPrompt, prompt, messages, settings);
 
   console.log(`[OpenRouter DEBUG] Final messages count: ${chatMessages.length}`);
 

@@ -3049,7 +3049,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const impSettings = { ...settings.llm };
         if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
         impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
-        const impResult = await llmService.generate({ prompt: impContext.prompt, systemPrompt: impContext.systemPrompt, settings: impSettings });
+        const impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
         if (impResult.text) {
           let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
           broadcast('generating_stop', {});
@@ -3062,9 +3062,10 @@ async function executeTrigger(trigger, source, character, settings) {
 
       case 'ai_message': {
         broadcast('generating_start', { characterName: character.name });
-        const mode = trigger.context ? 'guided' : 'guided';
-        const aiContext = buildSpecialContext(mode, trigger.context || 'Continue the conversation naturally.', character, activePersona, settings);
-        const aiResult = await llmService.generate({ prompt: aiContext.prompt, systemPrompt: aiContext.systemPrompt, settings: settings.llm });
+        // Character-voice guided generation — use the unified normal builder
+        // + single guidance injection (same path as guided response/swipe)
+        const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
+        const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: settings.llm });
         if (aiResult.text) {
           const { v4: uuidv4 } = require('uuid');
           const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, timestamp: Date.now() };
@@ -4685,7 +4686,7 @@ If announcing the result, say "${result}" - not something else.
         }
 
         // Build instruction based on voice type
-        const speakerTag = isPlayerVoice ? '[Player]' : '[Char]';
+        const actionPlayerName = activePersona?.displayName || 'The player';
         const instruction = `[YOUR NEXT MESSAGE MUST EXPRESS THIS ACTION: ${data.content}]`;
 
         if (isPlayerVoice) {
@@ -4699,11 +4700,11 @@ If announcing the result, say "${result}" - not something else.
 
         // Strip any trailing speaker tag from the context (buildChatContext/buildSpecialContext add one)
         // Then add our instruction followed by the correct speaker tag for this action
-        const speakerPattern = new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${activeCharacter.name}:)\\s*$`);
+        const speakerPattern = new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${activeCharacter.name}:|\\n?${actionPlayerName}:)\\s*$`);
         context.prompt = context.prompt.replace(speakerPattern, '');
 
         // Append instruction to the prompt so it's the last thing before generation
-        context.prompt += `\n\n${instruction}\n${isPlayerVoice ? '[Player]:' : activeCharacter.name + ':'}`;
+        context.prompt += `\n\n${instruction}\n${isPlayerVoice ? actionPlayerName + ':' : activeCharacter.name + ':'}`;
 
         console.log('[EventEngine] Generating LLM message based on:', data.content);
 
@@ -4717,6 +4718,7 @@ If announcing the result, say "${result}" - not something else.
         // Generate enhanced response
         const result = await llmService.generate({
           prompt: context.prompt,
+          messages: context.messages,
           systemPrompt: context.systemPrompt,
           settings: llmSettings
         });
@@ -4752,8 +4754,8 @@ If announcing the result, say "${result}" - not something else.
             variationContext = buildSpecialContext('guided_impersonate', data.content, activeCharacter, activePersona, settings);
             variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be ${activePersona?.displayName || 'the player'} performing this specific action: "${data.content}"${capacityStateInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
             // Strip trailing speaker tag before adding our own
-            variationContext.prompt = variationContext.prompt.replace(/(\n?\[Player\]:|\n?\[Char\]:)\s*$/, '');
-            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n[Player]:`;
+            variationContext.prompt = variationContext.prompt.replace(new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${actionPlayerName}:)\\s*$`), '');
+            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${actionPlayerName}:`;
           } else {
             variationContext = buildChatContext(activeCharacter, settings);
             variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityStateInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
@@ -4765,6 +4767,7 @@ If announcing the result, say "${result}" - not something else.
 
           const retryResult = await llmService.generate({
             prompt: variationContext.prompt,
+            messages: variationContext.messages,
             systemPrompt: variationContext.systemPrompt,
             settings: settings.llm
           });
@@ -4984,6 +4987,7 @@ STRICT RULES:
 
         const result = await llmService.generate({
           prompt: context.prompt,
+          messages: context.messages,
           systemPrompt: context.systemPrompt,
           settings: impersonateSettings
         });
@@ -6867,7 +6871,7 @@ async function handleSwipeMessage(data) {
     sessionState.chatHistory = priorHistory;
 
     const isPlayerMsg = msg.sender === 'player';
-    let systemPrompt, prompt;
+    let systemPrompt, prompt, swipeMessages;
 
     if (isPlayerMsg) {
       // For player messages, use impersonate with guidance if provided
@@ -6876,33 +6880,20 @@ async function handleSwipeMessage(data) {
 
       systemPrompt = impersonateContext.systemPrompt;
       prompt = impersonateContext.prompt;
+      swipeMessages = impersonateContext.messages;
     } else {
       // For character messages — roll personality attributes
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
-      const context = buildChatContext(activeCharacter, settings);
-
+      const context = applyCharacterGuidance(
+        buildChatContext(activeCharacter, settings),
+        activeCharacter,
+        guidanceText
+      );
       systemPrompt = context.systemPrompt;
       prompt = context.prompt;
-
-      if (guidanceText) {
-        // Add guidance to system prompt
-        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
-Your response MUST be about: "${guidanceText}"
-- This is the central focus of your message - not just a suggestion
-- Your entire response should directly address or embody this direction
-- Do NOT repeat the guidance text verbatim, but make it the core subject matter
-- Everything you write should relate back to this guidance`;
-
-        // Inject guidance into prompt before the final speaker tag
-        // buildChatContext ends prompt with "CharName:" — insert guidance before it
-        const speakerSuffix = activeCharacter.multiChar?.enabled ? '[Characters]:' : `${activeCharacter.name}:`;
-        const tagIdx = prompt.lastIndexOf(speakerSuffix);
-        if (tagIdx > 0) {
-          prompt = prompt.slice(0, tagIdx) + `[Direction: ${guidanceText}]\n` + speakerSuffix;
-        }
-      }
+      swipeMessages = context.messages;
     }
 
     let resultText;
@@ -6910,6 +6901,7 @@ Your response MUST be about: "${guidanceText}"
     if (useStreaming) {
       const result = await llmService.generateStream({
         prompt,
+        messages: swipeMessages,
         systemPrompt,
         settings: settings.llm,
         onToken: (token, fullText) => {
@@ -6921,6 +6913,7 @@ Your response MUST be about: "${guidanceText}"
     } else {
       const result = await llmService.generate({
         prompt,
+        messages: swipeMessages,
         systemPrompt,
         settings: settings.llm
       });
@@ -7202,6 +7195,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       // Generate enhanced response
       const result = await llmService.generate({
         prompt: context.prompt,
+        messages: context.messages,
         systemPrompt: context.systemPrompt,
         settings: settings.llm
       });
@@ -7553,6 +7547,7 @@ async function handleChatMessage(data) {
 
         const result = await llmService.generateStream({
           prompt: context.prompt,
+          messages: context.messages,
           systemPrompt: context.systemPrompt,
           settings: llmSettings,
           onToken: (token, fullText) => {
@@ -7662,6 +7657,7 @@ async function handleChatMessage(data) {
 
         const result = await llmService.generate({
           prompt: context.prompt,
+          messages: context.messages,
           systemPrompt: context.systemPrompt,
           settings: llmSettings
         });
@@ -7706,6 +7702,7 @@ async function handleChatMessage(data) {
 
         const retryResult = await llmService.generate({
           prompt: retryContext.prompt,
+          messages: retryContext.messages,
           systemPrompt: retryContext.systemPrompt,
           settings: settings.llm
         });
@@ -8102,6 +8099,7 @@ async function generateAIResponseAfterBlocking() {
 
       finalText = await llmService.generateStream({
         prompt: context.prompt,
+        messages: context.messages,
         systemPrompt: context.systemPrompt,
         settings: llmSettings,
         onChunk: (chunk) => {
@@ -8128,6 +8126,7 @@ async function generateAIResponseAfterBlocking() {
 
       const result = await llmService.generate({
         prompt: context.prompt,
+        messages: context.messages,
         systemPrompt: context.systemPrompt,
         settings: llmSettings
       });
@@ -8203,7 +8202,19 @@ async function handleSpecialGenerate(data) {
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
     }
 
-    const context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+    // P1: character-voice guided responses use the SAME full context as a normal
+    // reply (buildChatContext) plus ONE guidance injection — converging with the
+    // guided-swipe-of-character path. Player voice keeps buildSpecialContext.
+    let context;
+    if (isPlayerVoice) {
+      context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+    } else {
+      context = applyCharacterGuidance(
+        buildChatContext(activeCharacter, settings),
+        activeCharacter,
+        guidedText
+      );
+    }
     const useStreaming = settings.llm?.streaming === true;
 
     let finalText = '';
@@ -8226,8 +8237,12 @@ async function handleSpecialGenerate(data) {
 
       const result = await llmService.generateStream({
         prompt: context.prompt,
+        messages: context.messages,
         systemPrompt: context.systemPrompt,
-        settings: settings.llm,
+        settings: {
+          ...settings.llm,
+          stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+        },
         onToken: (token, fullText) => {
           message.content = fullText;
           broadcast('stream_token', { messageId: message.id, token, fullText });
@@ -8288,8 +8303,12 @@ async function handleSpecialGenerate(data) {
       // Non-streaming mode
       const result = await llmService.generate({
         prompt: context.prompt,
+        messages: context.messages,
         systemPrompt: context.systemPrompt,
-        settings: settings.llm
+        settings: {
+          ...settings.llm,
+          stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+        }
       });
       finalText = result.text;
     }
@@ -8305,13 +8324,26 @@ async function handleSpecialGenerate(data) {
       retryCount++;
       console.log(`[Special Generate] Regenerating (attempt ${retryCount})`);
 
-      const retryContext = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+      let retryContext;
+      if (isPlayerVoice) {
+        retryContext = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+      } else {
+        retryContext = applyCharacterGuidance(
+          buildChatContext(activeCharacter, settings),
+          activeCharacter,
+          guidedText
+        );
+      }
       retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages.';
 
       const retryResult = await llmService.generate({
         prompt: retryContext.prompt,
+        messages: retryContext.messages,
         systemPrompt: retryContext.systemPrompt,
-        settings: settings.llm
+        settings: {
+          ...settings.llm,
+          stopSequences: [...(settings.llm?.stopSequences || []), ...(retryContext.stopSequences || [])]
+        }
       });
       finalText = retryResult.text;
     }
@@ -8441,6 +8473,7 @@ async function handleImpersonateRequest(data) {
 
     const result = await llmService.generate({
       prompt: context.prompt,
+      messages: context.messages,
       systemPrompt: context.systemPrompt,
       settings: impersonateSettings
     });
@@ -8495,8 +8528,8 @@ JUST perform the described action directly, as if starting a new scene focused s
 Keep responses SHORT and focused (2-3 sentences max).
 === END INSTRUCTIONS ===\n`;
 
-  // Minimal prompt - just the speaker tag
-  const prompt = isPlayerVoice ? '[Player]:' : `${character.name}:`;
+  // Minimal prompt - just the speaker tag (real names for a consistent convention)
+  const prompt = isPlayerVoice ? `${playerName}:` : `${character.name}:`;
 
   return { systemPrompt, prompt };
 }
@@ -8994,6 +9027,86 @@ Write ONLY the summary, no preamble or labels.`;
   }
 }
 
+/**
+ * Build chat history in BOTH representations from one loop:
+ *  - flat: "Name: text\n" lines for text-completion `prompt`
+ *  - messages: [{role:'user'|'assistant', content:'Name: text'}] for chat-completion
+ * The author note (globalPrompt) is injected at `authorNoteDepth` from the end
+ * (SillyTavern-style) in both representations. depth>=length => top of transcript.
+ *
+ * @param {Array}  recentMessages - already sliced/ordered oldest->newest
+ * @param {Object} opts
+ * @param {string} opts.playerName     - real persona/player display name
+ * @param {string} opts.characterName  - real character name
+ * @param {boolean} opts.isPlayerVoice - true when generating AS the player (impersonate)
+ * @param {string} [opts.authorNote]   - globalPrompt text (undefined/empty => no note)
+ * @param {number} [opts.authorNoteDepth=4]
+ * @returns {{ flat: string, messages: Array<{role,content}> }}
+ */
+function buildHistoryRepresentations(recentMessages, opts) {
+  const {
+    playerName,
+    characterName,
+    isPlayerVoice = false,
+    authorNote,
+    authorNoteDepth = 4,
+  } = opts;
+
+  // Filter to displayable turns, preserving order.
+  const turns = recentMessages.filter(
+    m => !m.excludeFromContext && m.sender !== 'system'
+  );
+
+  // Author note line (rendered identically in flat + messages as a system-style note).
+  const noteText = authorNote ? `[Author's Note: ${authorNote}]` : null;
+
+  // Insertion index measured from the end. depth 0 => after last turn (handled at primer,
+  // NOT here). For history injection we clamp 1..length; depth>=length => index 0 (top).
+  let insertIdx = -1;
+  if (noteText) {
+    insertIdx = Math.max(0, turns.length - Math.max(1, authorNoteDepth));
+  }
+
+  let flat = '';
+  const messages = [];
+
+  const flushNote = () => {
+    if (!noteText) return;
+    flat += `${noteText}\n`;
+    // In chat-completion, an author note rides as a user-role context line.
+    messages.push({ role: 'user', content: noteText });
+  };
+
+  turns.forEach((msg, i) => {
+    if (noteText && i === insertIdx) flushNote();
+
+    const isPlayerTurn = msg.sender === 'player';
+    const name = isPlayerTurn ? playerName : characterName;
+    const line = `${name}: ${msg.content}`;
+    flat += `${line}\n`;
+
+    // Role is relative to who we are generating AS:
+    //  - character voice: player turns => user, character turns => assistant
+    //  - player voice  : player turns => assistant, character turns => user
+    let role;
+    if (isPlayerVoice) {
+      role = isPlayerTurn ? 'assistant' : 'user';
+    } else {
+      role = isPlayerTurn ? 'user' : 'assistant';
+    }
+    messages.push({ role, content: line });
+  });
+
+  // Note depth >= length (or empty transcript) => top of transcript.
+  if (noteText && (insertIdx >= turns.length || turns.length === 0)) {
+    // prepend
+    flat = `${noteText}\n` + flat;
+    messages.unshift({ role: 'user', content: noteText });
+  }
+
+  return { flat, messages };
+}
+
 function buildSpecialContext(mode, guidedText, character, persona, settings) {
   let systemPrompt = '';
   let prompt = '';
@@ -9002,34 +9115,6 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
   // Substitute variables in character fields (uses global substituteAllVariables)
   const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
-
-  // Convert second-person character descriptions to third-person for impersonate mode
-  // e.g., "You are a doctor" -> "Dr. Elena is a doctor"
-  const toThirdPerson = (text, name) => {
-    if (!text) return text;
-    return text
-      .replace(/\bYou are\b/gi, `${name} is`)
-      .replace(/\bYou're\b/gi, `${name}'s`)
-      .replace(/\bYou have\b/gi, `${name} has`)
-      .replace(/\bYou speak\b/gi, `${name} speaks`)
-      .replace(/\bYou use\b/gi, `${name} uses`)
-      .replace(/\bYou treat\b/gi, `${name} treats`)
-      .replace(/\bYou get\b/gi, `${name} gets`)
-      .replace(/\bYou push\b/gi, `${name} pushes`)
-      .replace(/\bYou love\b/gi, `${name} loves`)
-      .replace(/\bYou view\b/gi, `${name} views`)
-      .replace(/\bYou genuinely\b/gi, `${name} genuinely`)
-      .replace(/\bYou focus\b/gi, `${name} focuses`)
-      .replace(/\bYou maintain\b/gi, `${name} maintains`)
-      .replace(/\bYou approach\b/gi, `${name} approaches`)
-      .replace(/\bYou live\b/gi, `${name} lives`)
-      .replace(/\bYou delight\b/gi, `${name} delights`)
-      .replace(/\bYou ramble\b/gi, `${name} rambles`)
-      .replace(/\bYou laugh\b/gi, `${name} laughs`)
-      .replace(/\bYou document\b/gi, `${name} documents`)
-      .replace(/\bYour\b/g, `${name}'s`)
-      .replace(/\bYou\b/g, name); // Catch remaining "You" as fallback
-  };
 
   // Map capacity percentage to belly description
   const getCapacityDescription = (capacity) => {
@@ -9091,9 +9176,11 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += '\n';
     }
 
-    // Convert character description to third-person to avoid "You are" confusion
-    const charDescThirdPerson = toThirdPerson(substituteVars(character.description), character.name);
-    systemPrompt += `You are interacting with ${character.name}. ${charDescThirdPerson}\n`;
+    // Keep the character card text exactly as written; frame it as context about the
+    // OTHER party so the model never adopts the character's voice.
+    systemPrompt += `You are ${playerName}. ${character.name} is the one you are interacting with; `;
+    systemPrompt += `their description follows for context (do NOT write as ${character.name}):\n`;
+    systemPrompt += `${substituteVars(character.description)}\n`;
     const scenario = getActiveScenario(character);
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
@@ -9114,10 +9201,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
 
-    // Add global prompt / author note
-    if (settings?.globalPrompt) {
-      systemPrompt += `Author Note: ${settings.globalPrompt}\n\n`;
-    }
+    // Author note is injected into the chat history at configurable depth (see below).
 
     systemPrompt += `Write ${playerName}'s next response. Stay in character and be descriptive.\n`;
     systemPrompt += `FORMAT: Use "dialogue in quotes" and *actions in asterisks*. Break longer responses into short paragraphs with line breaks for readability.`;
@@ -9150,10 +9234,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += reminderEngine.buildReminderPrompt(activeRemindersGuided, 'Active Reminders');
     }
 
-    // Add global prompt / author note
-    if (settings?.globalPrompt) {
-      systemPrompt += `Author Note: ${settings.globalPrompt}\n\n`;
-    }
+    // Author note is injected into the chat history at configurable depth (see below).
 
     // Add LLM device control instructions if enabled
     if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
@@ -9221,77 +9302,59 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
     systemPrompt += `Continue from the text provided. Stay in character.`;
   }
 
-  // Build prompt from history using [Player] and [Char] tags
+  // Build prompt from history using REAL names (consistent with buildChatContext).
   const memSettingsSpecial = getChatMemorySettings(settings);
   const recentMessages = sessionState.chatHistory.slice(-memSettingsSpecial.impersonateHistoryDepth);
+  const isPlayerVoiceHist = mode === 'impersonate' || mode === 'guided_impersonate';
 
   // Inject rolling summary of older messages if available
   if (sessionState.chatMemorySummary) {
     prompt += `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]\n\n`;
   }
   prompt += 'Current conversation:\n';
-  recentMessages.forEach(msg => {
-    if (msg.excludeFromContext || msg.sender === 'system') return;
-    if (msg.sender === 'player') {
-      prompt += `[Player]: ${msg.content}\n`;
-    } else {
-      prompt += `[Char]: ${msg.content}\n`;
-    }
+  const specialHistory = buildHistoryRepresentations(recentMessages, {
+    playerName,
+    characterName: character.name,
+    isPlayerVoice: isPlayerVoiceHist,
+    authorNote: settings?.globalPrompt,
+    authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
   });
+  prompt += specialHistory.flat;
 
   // Inject hardcoded physical state preface before every generation
   prompt += buildStatePreface(playerName, character.name, character);
 
-  if (mode === 'guided' || mode === 'guided_impersonate') {
-    const speakerTag = mode === 'guided_impersonate' ? '[Player]' : '[Char]';
-    if (guidedText) {
-      if (mode === 'guided_impersonate') {
-        // Impersonate with context — instruct to write as player using the provided text as basis
-        prompt += `\n[Write your next message from the perspective of ${playerName}, using the following as the basis for the message context: "${guidedText}"]\n`;
-        prompt += `${speakerTag}:`;
-        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
-Write your next response as ${playerName}, using this as the basis for what ${playerName} says and does: "${guidedText}"
-- This is the central focus of your message - not just a suggestion
-- Your entire response should directly address or embody this direction
-- Do NOT repeat the guidance text verbatim, but make it the core subject matter
-- Everything you write should relate back to this guidance`;
-      } else {
-        // Guided character generation
-        prompt += `\n[Direction: ${guidedText}]\n`;
-        prompt += `${speakerTag}:`;
-        systemPrompt += `\n\n**CRITICAL GUIDANCE - THIS IS YOUR PRIMARY DIRECTIVE:**
-Your response MUST be about: "${guidedText}"
-- This is the central focus of your message - not just a suggestion
-- Your entire response should directly address or embody this direction
-- Do NOT repeat the guidance text verbatim, but make it the core subject matter
-- Everything you write should relate back to this guidance`;
-      }
+  // SINGLE guidance injection at depth 0: one system note placed right before the
+  // generation primer. No second copy in the user prompt.
+  const isPlayerVoicePrimer = mode === 'impersonate' || mode === 'guided_impersonate';
+  const primerName = isPlayerVoicePrimer ? playerName : character.name;
+
+  if (guidedText) {
+    if (isPlayerVoicePrimer) {
+      systemPrompt += `\n\n[Guidance — write ${playerName}'s next message so it embodies this, without quoting it verbatim: "${guidedText}"]`;
     } else {
-      if (mode === 'guided_impersonate') {
-        // Pure impersonate (no context text) — instruct to write as player
-        prompt += `\n[Write your next message from the perspective of ${playerName}]\n`;
-        prompt += `${speakerTag}:`;
-      } else {
-        // No guidance - just signal the speaker's turn with a clear newline
-        prompt += `\n${speakerTag}:`;
-      }
+      systemPrompt += `\n\n[Guidance — ${character.name}'s next message must be about this, without quoting it verbatim: "${guidedText}"]`;
     }
-  } else if (mode === 'impersonate') {
-    // For pure impersonate - generate as player
-    prompt += `\n[Write your next message from the perspective of ${playerName}]\n`;
-    prompt += `[Player]:`;
-  } else {
-    // Default - generate as character
-    prompt += `\n[Char]:`;
   }
 
-  // Build stop sequences to prevent cross-role generation
+  // Generation primer uses the REAL speaker name.
+  prompt += `\n${primerName}:`;
+
+  // Build stop sequences to prevent cross-role generation (real-name convention).
   const isPlayerVoice = mode === 'impersonate' || mode === 'guided_impersonate';
   const stopSequences = isPlayerVoice
-    ? [`\n[Char]:`, `\n${character.name}:`, `[Char]:`, `${character.name}:`]
-    : [`\n[Player]:`, `\n${playerName}:`, `[Player]:`, `${playerName}:`];
+    ? [`\n${character.name}:`, `${character.name}:`]
+    : [`\n${playerName}:`, `${playerName}:`];
 
-  return { systemPrompt, prompt, stopSequences, playerName, characterName: character.name };
+  // Structured messages for chat-completion endpoints (text-completion ignores this).
+  const messages = [];
+  if (sessionState.chatMemorySummary) {
+    messages.push({ role: 'user', content: `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]` });
+  }
+  messages.push(...specialHistory.messages);
+  messages.push({ role: 'user', content: buildStatePreface(playerName, character.name, character).trim() });
+
+  return { systemPrompt, prompt, stopSequences, messages, playerName, characterName: character.name };
 }
 
 // Build system prompt for multi-character cards
@@ -9442,10 +9505,8 @@ function buildChatContext(character, settings) {
     systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Reminders');
   }
 
-  // Add global prompt / author note (positioned prominently at end of system prompt)
-  if (settings?.globalPrompt) {
-    systemPrompt += `\n[Author Note: ${settings.globalPrompt}]\n`;
-  }
+  // Author note is injected into the chat history at configurable depth (see below),
+  // not appended to the system prompt.
 
   // Add LLM device control instructions if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
@@ -9502,27 +9563,26 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   }
 
   if (character.exampleDialogues && character.exampleDialogues.length > 0) {
-    prompt += 'Example dialogue:\n';
     if (character.multiChar?.enabled) {
       character.exampleDialogues.forEach(ex => {
-        prompt += `User: ${ex.user}\n${ex.response || ex.character}\n`;
+        prompt += `<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}\n`;
       });
     } else {
       character.exampleDialogues.forEach(ex => {
-        prompt += `User: ${ex.user}\n${character.name}: ${ex.character}\n`;
+        prompt += `<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}\n`;
       });
     }
     prompt += '\nCurrent conversation:\n';
   }
 
-  recentMessages.forEach(msg => {
-    if (msg.excludeFromContext) return;
-    if (msg.sender === 'player') {
-      prompt += `${playerLabel}: ${msg.content}\n`;
-    } else if (msg.sender === 'character') {
-      prompt += `${character.name}: ${msg.content}\n`;
-    }
+  const history = buildHistoryRepresentations(recentMessages, {
+    playerName: playerLabel,
+    characterName: character.name,
+    isPlayerVoice: false,
+    authorNote: settings?.globalPrompt,
+    authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
   });
+  prompt += history.flat;
 
   if (character.multiChar?.enabled) {
     // Analyze recent speaker frequency to encourage diversity
@@ -9556,14 +9616,52 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
   const stopSequences = [
     `\n${playerLabel}:`,
     `${playerLabel}:`,
-    `[Player]:`,
-    `[Char]:`,
   ];
   if (!character.multiChar?.enabled) {
     stopSequences.push(`\n${character.name}:`);
   }
 
-  return { systemPrompt, prompt, stopSequences, playerName: playerLabel, characterName: character.name };
+  // Structured messages for chat-completion endpoints (text-completion ignores this).
+  const messages = [];
+  // Lead-in context (summary + example dialogues), if any, as a single user turn.
+  const leadIn = [];
+  if (sessionState.chatMemorySummary) {
+    leadIn.push(`[Summary of earlier conversation: ${sessionState.chatMemorySummary}]`);
+  }
+  if (character.exampleDialogues && character.exampleDialogues.length > 0) {
+    if (character.multiChar?.enabled) {
+      character.exampleDialogues.forEach(ex => {
+        leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}`);
+      });
+    } else {
+      character.exampleDialogues.forEach(ex => {
+        leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}`);
+      });
+    }
+  }
+  if (leadIn.length > 0) {
+    messages.push({ role: 'user', content: leadIn.join('\n') });
+  }
+  // Conversation turns + author note at depth (from the shared helper).
+  messages.push(...history.messages);
+  // Final state preface as a system-style instruction at depth 0 (right before generation).
+  messages.push({ role: 'user', content: buildStatePreface(playerLabel, character.name, character).trim() });
+
+  return { systemPrompt, prompt, stopSequences, messages, playerName: playerLabel, characterName: character.name };
+}
+
+/**
+ * Take a buildChatContext() result and apply a SINGLE guidance injection for
+ * character-voice guided responses. One system note at depth 0; no prompt-tag copy.
+ * Returns the same shape ({systemPrompt, prompt, stopSequences, messages, ...}).
+ */
+function applyCharacterGuidance(context, character, guidanceText) {
+  if (!guidanceText) return context;
+  const note = `\n\n[Guidance — ${character.name}'s next message must be about this, without quoting it verbatim: "${guidanceText}"]`;
+  context.systemPrompt += note;
+  // Flat prompt: insert nothing extra — the system note carries it. (Keeps the
+  // transcript clean and matches the chat-completion representation.)
+  return context;
 }
 
 // ============================================
