@@ -675,6 +675,20 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   profiles={cpProfiles}
                   isPumpable={false}
                 />
+                {/* Capacity-Range Trigger Tree (per profile, player axis) — runs in-reply while in range */}
+                {(() => {
+                  const rRef = selProfile?.treeRefs?.ranges?.[`player-${key}`] || {};
+                  const setRangeTree = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+                    ? { ...p, treeRefs: { ...(p.treeRefs || {}), ranges: { ...(p.treeRefs?.ranges || {}),
+                        [`player-${key}`]: { ...rRef, inline: { id: rRef.inline?.id || `tree-rng-${key}-${Date.now()}`, name: rRef.inline?.name || `Range ${key}`, nodes: next } } } } }
+                    : p));
+                  return (
+                    <div style={{ marginTop: 8 }}>
+                      <div className="rte-head"><strong>Range Script</strong> <span className="section-hint">trigger tree; runs each reply while in this range (once nodes fire once per range)</span></div>
+                      <TreeEditor value={rRef.inline?.nodes || []} onChange={setRangeTree} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} />
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))}

@@ -7620,7 +7620,7 @@ async function handleSwipeMessage(data) {
       // For character messages — roll personality attributes
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointRandomTriggers(activeCharacter);
+      await runReplyScopes(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
       const context = applyCharacterGuidance(
@@ -7937,7 +7937,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       // Roll personality attributes for button-triggered message
       const attrResult = rollAttributes(character);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointRandomTriggers(character);
+      await runReplyScopes(character);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'button' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -8307,7 +8307,7 @@ async function handleChatMessage(data) {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointRandomTriggers(activeCharacter);
+      await runReplyScopes(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -8892,7 +8892,7 @@ async function generateAIResponseAfterBlocking() {
     // Roll personality attributes for post-blocking response
     const attrResult = rollAttributes(activeCharacter);
     sessionState.activeAttributes = attrResult.active;
-    rollCheckpointRandomTriggers(activeCharacter);
+    await runReplyScopes(activeCharacter);
     if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
     if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
@@ -9026,7 +9026,7 @@ async function handleSpecialGenerate(data) {
     if (!isPlayerVoice) {
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
-      rollCheckpointRandomTriggers(activeCharacter);
+      await runReplyScopes(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'guided' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
     }
@@ -9818,8 +9818,8 @@ function rollCheckpointInjections(character) {
 // Deliver an ai_message into THIS reply: enhanced -> woven via activeCheckpointInjections;
 // verbatim (llmEnhance===false) -> appended to pendingVerbatimReply (replaces the reply).
 // Shared by the checkpoint random-block roller and the Trigger Tree walker. PRODUCER ONLY:
-// it appends/pushes and never resets activeCheckpointInjections (rollCheckpointRandomTriggers
-// is the sole resetter), so callers can compose multiple producers into one reply.
+// it appends/pushes and never resets activeCheckpointInjections (runReplyScopes is the sole
+// per-turn resetter), so callers can compose multiple producers into one reply.
 function deliverTreeMsg(text, llmEnhance) {
   const t = (text || '').trim();
   if (!t) return;
@@ -9889,11 +9889,57 @@ function evalBranch(branch) {
   return match === 'any' ? conds.some(test) : conds.every(test);
 }
 
+// Run the active Capacity-Range tree scope(s) IN-REPLY (woven/verbatim into this turn).
+// Resolves treeRefs.ranges the same way the legacy roller picks `ct`: per active checkpoint
+// PROFILE for instructors, per active STORY otherwise. Carry-over matches the legacy roll
+// (nearest DEFINING range <= current capacity; a defining ref = inline tree with non-empty
+// nodes). Player axis always; char axis only for pumpable non-instructors. v1: inline refs
+// only — {treeId} library refs no-op until step 4.
+async function runActiveRangeTrees(character, settings) {
+  if (!character) return;
+  const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const refs = isInstructor(character)
+    ? (getInstructorActiveProfile(character)?.treeRefs?.ranges || {})
+    : (activeStory?.treeRefs?.ranges || {});
+
+  const runAxis = async (prefix, capacity) => {
+    const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
+    if (curIdx < 0) return;
+    let key = null;
+    for (let i = curIdx; i >= 0; i--) {
+      const r = refs[`${prefix}-${ORDER[i]}`];
+      if (r?.inline && Array.isArray(r.inline.nodes) && r.inline.nodes.length) { key = ORDER[i]; break; }
+    }
+    if (key === null) return;
+    // scopeKey uses the carried-over DEFINING key (not raw capacity) so `once` nodes are
+    // stable while in-band and only re-arm when the defining range changes.
+    await runTreeScope(refs[`${prefix}-${key}`].inline, `range:${prefix}:${key}`, character, settings, { delivery: 'inReply' });
+  };
+
+  await runAxis('player', sessionState.capacity || 0);
+  if (!isInstructor(character) && character.isPumpable) await runAxis('char', sessionState.characterCapacity || 0);
+}
+
+// Single per-turn entry point for all IN-REPLY producers. Owns the ONE activeCheckpointInjections
+// reset, then runs each producer in order so they COMPOSE into the same array (legacy random
+// blocks first, then the Capacity-Range tree scope; future Always-On slots in after). The 5
+// gen-loop call sites await this, then flush any verbatim via deliverPendingVerbatimReply.
+async function runReplyScopes(character) {
+  sessionState.activeCheckpointInjections = [];
+  if (!character) return;
+  const settings = loadData(DATA_FILES.settings) || {};
+  rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
+  try { await runActiveRangeTrees(character, settings); }
+  catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
+}
+
 // block-set carries over into higher ranges that define no blocks of their own.
 // ai_message triggers weave into (or verbatim-replace) this reply via the same plumbing
 // injections used; every other trigger fires through executeTrigger.
 function rollCheckpointRandomTriggers(character) {
-  sessionState.activeCheckpointInjections = [];
+  // NOTE: does NOT reset activeCheckpointInjections — runReplyScopes owns the single per-turn
+  // reset so this roller and the range-tree scope compose into one array. Pure co-producer.
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
