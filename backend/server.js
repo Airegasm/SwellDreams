@@ -9760,16 +9760,6 @@ function getActiveCharacterCheckpoint(character) {
   return text || null;
 }
 
-// Character-checkpoint object (mainTheme + injections) for the active char range.
-function getActiveCharacterCheckpointObj(character) {
-  if (!character?.isPumpable) return null;
-  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  const checkpoints = activeStory?.characterCheckpoints;
-  if (!checkpoints) return null;
-  const rangeKey = capacityRangeKey(sessionState.characterCapacity || 0);
-  return { ...normalizeCheckpoint(checkpoints[rangeKey]), rangeKey: 'char-' + rangeKey };
-}
-
 // Roll the active range's checkpoint injections for THIS generation. Each injection
 // rolls its % chance, capped by a per-session max-appearances (-1 = unlimited).
 // Successful rolls add their text to sessionState.activeCheckpointInjections (read by
@@ -9781,57 +9771,9 @@ function injMsg(slot, legacy) {
   return { text: ((typeof slot === 'string' ? slot : legacy) || '').trim(), llmEnhance: true };
 }
 
-function rollCheckpointInjections(character) {
-  sessionState.activeCheckpointInjections = [];
-  if (!sessionState.checkpointInjectionCounts) sessionState.checkpointInjectionCounts = {};
-  const counts = sessionState.checkpointInjectionCounts;
-
-  // Deliver a message slot: enhanced -> woven into this reply; verbatim -> replaces the reply.
-  const deliver = (msg) => {
-    if (!msg.text) return;
-    if (msg.llmEnhance) sessionState.activeCheckpointInjections.push(msg.text);
-    else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply
-      ? `${sessionState.pendingVerbatimReply}\n${msg.text}` : msg.text;
-  };
-
-  // Responses queued on a prior turn are delivered now (the "next turn" for injection responses).
-  const carried = sessionState.pendingCheckpointResponses || [];
-  sessionState.pendingCheckpointResponses = [];
-  for (const r of carried) deliver(injMsg(r));
-  if (sessionState.pendingCheckpointResponse) { deliver(injMsg(sessionState.pendingCheckpointResponse)); sessionState.pendingCheckpointResponse = null; } // legacy
-
-  const injections = [];
-  const player = getActiveCheckpoint(character, sessionState.capacity || 0);
-  if (player?.injections?.length) injections.push(...player.injections);
-  const charCp = getActiveCharacterCheckpointObj(character);
-  if (charCp?.injections?.length) injections.push(...charCp.injections);
-
-  // Gather eligible injections (enabled, has text, under max-appearances, passed its
-  // own % roll), then deliver exactly ONE chosen uniformly at random. Injections within
-  // a range are mutually exclusive per turn — at most one fires, with no priority order.
-  const candidates = [];
-  for (const inj of injections) {
-    if (!inj || inj.enabled === false) continue;
-    const message = injMsg(inj.message, inj.text);
-    if (!message.text) continue;
-    const max = (inj.maxAppearances === undefined || inj.maxAppearances === null) ? -1 : inj.maxAppearances;
-    if (max >= 0 && (counts[inj.id] || 0) >= max) continue;
-    const chance = Number(inj.chance);
-    if (!(chance > 0) || Math.random() * 100 >= chance) continue;
-    candidates.push({ inj, message });
-  }
-
-  const nextResponses = [];
-  if (candidates.length) {
-    const { inj, message } = candidates[Math.floor(Math.random() * candidates.length)];
-    counts[inj.id] = (counts[inj.id] || 0) + 1;
-    deliver(message);
-    fireCheckpointInjectionAction(inj.action);
-    const resp = injMsg(inj.response);
-    if (resp.text) nextResponses.push(resp);
-  }
-  sessionState.pendingCheckpointResponses = nextResponses;
-}
+// (GC step 6) rollCheckpointInjections removed — dead since the sequential/random block model,
+// now fully superseded by the Trigger Tree scopes (runReplyScopes). injMsg above is retained
+// (still used by handleCheckpointChoice).
 
 // Roll the active range's RANDOM trigger blocks (the sequential/random model that
 // supersedes injections). Per-block % chance, capped by per-block repeats; the active
@@ -10066,30 +10008,8 @@ function checkpointInjectionsBlock() {
   return `\n=== STAGE EVENTS (THIS MESSAGE) ===\nWeave the following into this reply naturally:\n${inj.map(t => `- ${t}`).join('\n')}\n=== END STAGE EVENTS ===\n`;
 }
 
-// Fire an injection's optional action: a Primary Pump run or an inline player choice.
-function fireCheckpointInjectionAction(action) {
-  if (!action || !action.type) return;
-  if (action.type === 'pump') {
-    firePrimaryPump(action).catch(err => console.error('[Checkpoint] pump action failed:', err?.message || err));
-  } else if (action.type === 'set_variable') {
-    if (action.variable) {
-      eventEngine.applySetVariable(action.varType || 'custom', action.variable, action.operation || 'set', action.value);
-    }
-  } else if (action.type === 'player_choice') {
-    presentCheckpointChoice(action);
-  }
-}
-
-// Show an inline player choice for a checkpoint injection (reuses the choice modal).
-function presentCheckpointChoice(action) {
-  if (!action || !Array.isArray(action.choices) || !action.choices.length) return;
-  const choices = action.choices.slice(0, 4)
-    .filter(c => c && c.label)
-    .map(c => ({ id: c.id, label: c.label, action: c.action || null, setVar: c.setVar || null, response: c.response || null }));
-  if (!choices.length) return;
-  sessionState.pendingCheckpointChoice = { choices };
-  broadcast('checkpoint_choice', { choices: choices.map(c => ({ id: c.id, label: c.label })) });
-}
+// (GC step 6) fireCheckpointInjectionAction + presentCheckpointChoice removed — dead with
+// rollCheckpointInjections; player_choice is now handled by the Trigger Tree walker.
 
 // Resume a suspended Trigger Tree player_choice on the player's pick. Runs the chosen option's
 // body, then the post-choice same-level continuation (`after`) captured at suspend time — both
@@ -15106,55 +15026,8 @@ app.post('/api/trigger-trees/import', (req, res) => {
   res.json({ success: true, rootId: idMap.get(env.rootId) || null, added, reused, missingBuiltIns, flowRefs: env.flowRefs || [] });
 });
 
-// TEMP step-2 smoke endpoint for the Trigger Tree walker — guard/remove before prod.
-// Seeds optional state, snapshots+restores the reply sinks (so it's non-destructive to a live
-// reply), runs the tree, and returns what it produced. firedTreeNodes is intentionally left
-// populated across calls (clear via resetOnce or session reset) so 'once' can be demonstrated.
-app.post('/api/trigger-trees/:id/run', async (req, res) => {
-  try {
-    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid tree id' });
-    const data = loadTriggerTrees();
-    const tree = (data.trees || []).find(t => t.id === req.params.id);
-    if (!tree) return res.status(404).json({ error: 'Tree not found' });
-    const settings = loadData(DATA_FILES.settings) || {};
-    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-    const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
-
-    const seed = req.body?.seed || {};
-    if (seed.capacity !== undefined) sessionState.capacity = seed.capacity;
-    if (seed.pain !== undefined) sessionState.pain = seed.pain;
-    if (seed.emotion !== undefined) sessionState.emotion = seed.emotion;
-    if (seed.characterCapacity !== undefined) sessionState.characterCapacity = seed.characterCapacity;
-    if (seed.flowVariables) for (const [k, v] of Object.entries(seed.flowVariables)) eventEngine.applySetVariable('custom', k, 'set', v);
-    if (seed.lastUserText) sessionState.chatHistory.push({ id: uuidv4(), content: seed.lastUserText, sender: 'user', timestamp: Date.now() });
-    if (req.body?.resetOnce) sessionState.firedTreeNodes.clear();
-
-    const savedInj = sessionState.activeCheckpointInjections;
-    const savedVerb = sessionState.pendingVerbatimReply;
-    const savedChoice = sessionState.pendingTreeChoice;
-    sessionState.activeCheckpointInjections = [];
-    sessionState.pendingVerbatimReply = null;
-    sessionState.pendingTreeChoice = null;
-    await runTreeScope(tree, req.body?.scopeKey || 'debug', character, settings, { delivery: req.body?.delivery });
-    const ptc = sessionState.pendingTreeChoice;
-    const result = {
-      woven: sessionState.activeCheckpointInjections.slice(),
-      pendingVerbatimReply: sessionState.pendingVerbatimReply || null,
-      pendingTreeChoice: ptc ? { choices: ptc.choices.map(c => ({ id: c.id, label: c.label })), hasAfter: Array.isArray(ptc.after) && ptc.after.length > 0 } : null,
-      firedOnceKeys: Array.from(sessionState.firedTreeNodes).filter(k => k.startsWith(`${tree.id}::`)),
-      capacity: sessionState.capacity, pain: sessionState.pain, emotion: sessionState.emotion,
-      flowVariables: { ...eventEngine.variables }
-    };
-    sessionState.activeCheckpointInjections = savedInj;
-    sessionState.pendingVerbatimReply = savedVerb;
-    sessionState.pendingTreeChoice = savedChoice; // non-destructive: restore prior armed choice
-    if (ptc) broadcast('checkpoint_choice_clear', {}); // dismiss the phantom modal this debug run raised
-    res.json({ success: true, treeId: tree.id, ...result });
-  } catch (err) {
-    console.error('[debug runTree] failed:', err);
-    res.status(500).json({ error: err.message || 'runTree failed' });
-  }
-});
+// (GC step 6) Removed the temp POST /api/trigger-trees/:id/run smoke endpoint — the walker,
+// scopes, player_choice, fire_tree, and export/import are all shipped + verified.
 
 // --- Persona Checkpoint Profiles (separate from character profiles) ---
 
