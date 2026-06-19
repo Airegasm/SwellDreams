@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
@@ -15,8 +15,47 @@ const MAX_DEVICES = 5;
 
 function DeviceTab() {
   const navigate = useNavigate();
-  const { devices, api } = useApp();
+  const { devices, api, settings } = useApp();
   const { showError } = useError();
+
+  // Manual (non-smart) device max-pump values, persisted to system variables BulbMax / BikeMax.
+  const [bulbMax, setBulbMax] = useState('');
+  const [bikeMax, setBikeMax] = useState('');
+  const sysVarsInit = useRef(false);
+  const sysVarsSaveTimer = useRef(null);
+
+  // Seed once when settings first load (avoid clobbering live typing afterward).
+  useEffect(() => {
+    if (sysVarsInit.current || !settings) return;
+    const sv = settings.systemVariables || {};
+    setBulbMax(sv.BulbMax ?? '');
+    setBikeMax(sv.BikeMax ?? '');
+    sysVarsInit.current = true;
+  }, [settings]);
+
+  // Debounced auto-save of the manual-device system variables.
+  const saveManualDeviceVars = useCallback((nextBulb, nextBike) => {
+    if (sysVarsSaveTimer.current) clearTimeout(sysVarsSaveTimer.current);
+    sysVarsSaveTimer.current = setTimeout(() => {
+      const systemVariables = {
+        ...(settings?.systemVariables || {}),
+        BulbMax: nextBulb === '' ? '' : Number(nextBulb),
+        BikeMax: nextBike === '' ? '' : Number(nextBike),
+      };
+      api.updateSettings({ systemVariables }).catch(() => {});
+    }, 500);
+  }, [api, settings?.systemVariables]);
+
+  const handleBulbMaxChange = (raw) => {
+    const clean = raw.replace(/[^0-9]/g, '');
+    setBulbMax(clean);
+    saveManualDeviceVars(clean, bikeMax);
+  };
+  const handleBikeMaxChange = (raw) => {
+    const clean = raw.replace(/[^0-9]/g, '');
+    setBikeMax(clean);
+    saveManualDeviceVars(bulbMax, clean);
+  };
 
   // Schedule a delayed device-OFF (used by the "test device" flows that pulse a
   // device on for a couple seconds). The delayed OFF runs after the caller's
@@ -1262,6 +1301,44 @@ function DeviceTab() {
   return (
     <div className="settings-tab">
       <h2 className="settings-title">Give SwellDreams the Power to Inflate</h2>
+
+      {/* Manual Devices - non-smart pumps; values persist to system variables BulbMax / BikeMax */}
+      <div className="configured-devices-card">
+        <div className="configured-devices-header">
+          <span>Manual Devices</span>
+        </div>
+        <div className="configured-devices-list">
+          <p className="text-muted" style={{ marginTop: 0 }}>
+            Enter maximum average pumps to maximum capacity with the following:
+          </p>
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label>Bulb Pump</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={bulbMax}
+                onChange={(e) => handleBulbMaxChange(e.target.value)}
+                placeholder="e.g. 120"
+                style={{ maxWidth: '140px' }}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label>Bicycle Pump</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={bikeMax}
+                onChange={(e) => handleBikeMaxChange(e.target.value)}
+                placeholder="e.g. 40"
+                style={{ maxWidth: '140px' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Configured Devices - Non-collapsible card with styled header */}
       <div className="configured-devices-card">

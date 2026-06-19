@@ -5254,6 +5254,9 @@ class EventEngine {
     // [Flow:[Choice]_score] -> [Flow:red_score] -> <value>. Capped to avoid
     // infinite loops from self-referential variables.
     let result = String(text);
+    // Resolve settings-backed system config variables (e.g. [BulbMax], [BikeMax])
+    // once up front — their values are plain and contain no nested references.
+    result = this._substituteSystemConfigVariables(result);
     let prev;
     let iterations = 0;
     do {
@@ -5261,6 +5264,26 @@ class EventEngine {
       result = this._substituteVariablesPass(result);
     } while (result !== prev && ++iterations < 10);
 
+    return result;
+  }
+
+  // settings.systemVariables (e.g. BulbMax / BikeMax) — resolvable as [System:Name] and [Name].
+  _substituteSystemConfigVariables(text) {
+    let sysVars;
+    try {
+      sysVars = (loadData(DATA_FILES.settings) || {}).systemVariables || {};
+    } catch (e) {
+      sysVars = {};
+    }
+    let result = text;
+    result = result.replace(/\[System:(\w+)\]/gi, (match, name) => {
+      const key = Object.keys(sysVars).find(k => k.toLowerCase() === name.toLowerCase());
+      return key && sysVars[key] !== '' && sysVars[key] != null ? sysVars[key] : match;
+    });
+    for (const [k, v] of Object.entries(sysVars)) {
+      if (v === '' || v == null || !/^\w+$/.test(k)) continue;
+      result = result.replace(new RegExp(`\\[${k}\\]`, 'gi'), v);
+    }
     return result;
   }
 

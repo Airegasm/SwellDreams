@@ -4073,6 +4073,18 @@ function substituteAllVariables(text, context = {}) {
       : match;
   });
 
+  // System config variables (settings.systemVariables, e.g. BulbMax / BikeMax).
+  // Resolvable as [System:Name] and directly as [Name].
+  const sysVars = settings?.systemVariables || {};
+  result = result.replace(/\[System:(\w+)\]/gi, (match, varName) => {
+    const key = Object.keys(sysVars).find(k => k.toLowerCase() === varName.toLowerCase());
+    return key && sysVars[key] !== '' && sysVars[key] != null ? sysVars[key] : match;
+  });
+  for (const [k, v] of Object.entries(sysVars)) {
+    if (v === '' || v == null || !/^\w+$/.test(k)) continue;
+    result = result.replace(new RegExp(`\\[${k}\\]`, 'gi'), v);
+  }
+
   // Token Switching — replace overused LLM words with random alternatives
   result = applyTokenSwitching(result, settings);
   result = applyTokenRemovals(result, settings);
