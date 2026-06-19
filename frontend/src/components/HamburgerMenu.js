@@ -175,6 +175,14 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
         </NavLink>
 
         <NavLink
+          to="/minigames"
+          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/minigames')}
+        >
+          MiniGames
+        </NavLink>
+
+        <NavLink
           to="/triggers"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
           onClick={(e) => handleNavClick(e, '/triggers')}

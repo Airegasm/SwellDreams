@@ -1,0 +1,38 @@
+.mini-dice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.mini-dice-cluster {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  align-items: center;
+}
+.mini-dice-cluster.dice-1 { grid-template-columns: 1fr; }
+.mini-dice-cluster.dice-2 { grid-template-columns: repeat(2, 1fr); }
+.mini-dice-cluster.dice-3 { grid-template-columns: repeat(3, 1fr); }
+.mini-dice-cluster.dice-4 { grid-template-columns: repeat(2, 1fr); }
+.mini-dice-cluster.dice-5,
+.mini-dice-cluster.dice-6 { grid-template-columns: repeat(3, 1fr); }
+.mini-dice-cluster.dice-5 .mini-die:nth-child(4) { grid-column: 1 / 2; }
+.mini-dice-cluster.dice-5 .mini-die:nth-child(5) { grid-column: 3 / 4; }
+
+.mini-die { display: flex; align-items: center; justify-content: center; }
+.mini-die svg { width: 100% !important; height: 100% !important; }
+
+.mini-dice-roll {
+  background: #7b3fd6;
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 30px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(123, 63, 214, 0.5);
+}
+.mini-dice-roll:hover { filter: brightness(1.1); }
+.mini-dice-roll:disabled { opacity: 0.6; cursor: progress; }
