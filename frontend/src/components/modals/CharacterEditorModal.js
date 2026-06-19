@@ -1353,7 +1353,9 @@ Write only the scenario description itself, no explanations.`;
 
   const handleEditButton = (button) => {
     setEditingButtonId(button.buttonId);
-    setButtonForm({ ...button });
+    // Deep-clone so edits to actions/config don't leak into formData before Save
+    // and Cancel can fully revert.
+    setButtonForm(JSON.parse(JSON.stringify(button)));
     setShowButtonForm(true);
   };
 
@@ -1413,7 +1415,12 @@ Write only the scenario description itself, no explanations.`;
     if (field === 'type') {
       updatedActions[index] = { type: value, config: {} };
     } else {
-      updatedActions[index].config[field] = value;
+      // Immutable update — clone the action and its config instead of mutating.
+      const current = updatedActions[index];
+      updatedActions[index] = {
+        ...current,
+        config: { ...(current.config || {}), [field]: value }
+      };
     }
     setButtonForm({ ...buttonForm, actions: updatedActions });
   };
@@ -2911,6 +2918,9 @@ Write only the scenario description itself, no explanations.`;
                       {buttonForm.actions.length === 0 ? (
                         <p className="empty-message">No actions yet.</p>
                       ) : (
+                        // TODO: actions have no stable per-action id; using array index as key
+                        // is incorrect for a reorderable list. Add an id at action creation
+                        // (handleAddAction) and key by it instead of index.
                         buttonForm.actions.map((action, index) => (
                           <div key={index} className="action-item">
                             <div className="action-reorder">

@@ -220,8 +220,8 @@ class TuyaService {
       { code: 'switch_1', value: true },
       { code: 'switch', value: true }
     ]);
-    // Update cache immediately with new state
-    this.stateCache.set(deviceId, { state: 'on', timestamp: Date.now() });
+    // Invalidate cache so the next read reflects the real device state.
+    this.stateCache.delete(deviceId);
     return result;
   }
 
@@ -231,8 +231,15 @@ class TuyaService {
       { code: 'switch_1', value: false },
       { code: 'switch', value: false }
     ]);
-    // Update cache immediately with new state
-    this.stateCache.set(deviceId, { state: 'off', timestamp: Date.now() });
+    // Safety-critical: never cache an optimistic "off". Invalidate the cache
+    // and re-read the real relay state so a failed OFF can't be masked.
+    this.stateCache.delete(deviceId);
+    try {
+      const state = await this.getPowerState(deviceId);
+      console.log(`[Tuya] Re-read state after OFF for ${deviceId}: ${state}`);
+    } catch (e) {
+      console.error(`[Tuya] Could not confirm OFF state for ${deviceId}: ${e.message}`);
+    }
     return result;
   }
 

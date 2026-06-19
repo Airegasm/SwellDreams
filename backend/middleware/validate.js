@@ -3,6 +3,7 @@
  */
 
 const validators = require('../utils/validators');
+const { isSafeId } = require('../utils/id-validator');
 
 /**
  * Create validation middleware for request body
@@ -76,7 +77,7 @@ function requireFields(...fields) {
  */
 function validateIdParam(req, res, next) {
   const id = req.params.id;
-  if (!id || typeof id !== 'string' || id.trim() === '') {
+  if (!isSafeId(id)) {
     return res.status(400).json({
       success: false,
       error: 'Invalid or missing ID parameter'

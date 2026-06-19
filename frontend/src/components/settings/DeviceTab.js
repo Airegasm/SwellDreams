@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useError } from '../../context/ErrorContext';
 import './SettingsTabs.css';
 
 const DEVICE_TYPES = [
@@ -15,6 +16,22 @@ const MAX_DEVICES = 5;
 function DeviceTab() {
   const navigate = useNavigate();
   const { devices, api } = useApp();
+  const { showError } = useError();
+
+  // Schedule a delayed device-OFF (used by the "test device" flows that pulse a
+  // device on for a couple seconds). The delayed OFF runs after the caller's
+  // try/catch has already returned, so a rejected OFF would otherwise be silent
+  // and leave the device ON. Wrap it in its own try/catch with showError.
+  const scheduleDeviceOff = useCallback((label, offFn, delay = 2000) => {
+    setTimeout(async () => {
+      try {
+        await offFn();
+      } catch (error) {
+        console.error(`Failed to turn off ${label} after test:`, error);
+        showError(`Failed to turn off ${label} — check the device manually!`);
+      }
+    }, delay);
+  }, [showError]);
   const [scanning, setScanning] = useState(false);
   const [scanCompleted, setScanCompleted] = useState(false);
   const [discovered, setDiscovered] = useState([]);
@@ -516,9 +533,9 @@ function DeviceTab() {
   const handleTestGoveeDevice = async (device) => {
     try {
       await api.goveeDeviceOn(device.deviceId, device.sku);
-      setTimeout(async () => {
-        await api.goveeDeviceOff(device.deviceId, device.sku);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Govee device', () =>
+        api.goveeDeviceOff(device.deviceId, device.sku)
+      );
     } catch (error) {
       console.error('Govee test failed:', error);
     }
@@ -617,9 +634,9 @@ function DeviceTab() {
   const handleTestTuyaDevice = async (device) => {
     try {
       await api.tuyaDeviceOn(device.deviceId);
-      setTimeout(async () => {
-        await api.tuyaDeviceOff(device.deviceId);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Tuya device', () =>
+        api.tuyaDeviceOff(device.deviceId)
+      );
     } catch (error) {
       console.error('Tuya test failed:', error);
     }
@@ -713,9 +730,9 @@ function DeviceTab() {
   const handleTestWyzeDevice = async (device) => {
     try {
       await api.wyzeDeviceOn(device.deviceId, device.model);
-      setTimeout(async () => {
-        await api.wyzeDeviceOff(device.deviceId, device.model);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Wyze device', () =>
+        api.wyzeDeviceOff(device.deviceId, device.model)
+      );
     } catch (error) {
       console.error('Wyze test failed:', error);
     }
@@ -902,9 +919,9 @@ function DeviceTab() {
   const handleTestTapoDevice = async (device) => {
     try {
       await api.tapoDeviceOn(device.ip);
-      setTimeout(async () => {
-        await api.tapoDeviceOff(device.ip);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Tapo device', () =>
+        api.tapoDeviceOff(device.ip)
+      );
     } catch (error) {
       console.error('Tapo test failed:', error);
     }
@@ -1011,9 +1028,9 @@ function DeviceTab() {
   const handleTestKasaKlapDevice = async (device) => {
     try {
       await api.kasaKlapDeviceOn(device.ip);
-      setTimeout(async () => {
-        await api.kasaKlapDeviceOff(device.ip);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Kasa device', () =>
+        api.kasaKlapDeviceOff(device.ip)
+      );
     } catch (error) {
       console.error('Kasa 1.1.x+ test failed:', error);
     }
@@ -1091,9 +1108,9 @@ function DeviceTab() {
   const handleTestHaDevice = async (device) => {
     try {
       await api.haDeviceOn(device.deviceId);
-      setTimeout(async () => {
-        await api.haDeviceOff(device.deviceId);
-      }, 2000);
+      scheduleDeviceOff(device.label || device.name || 'Home Assistant device', () =>
+        api.haDeviceOff(device.deviceId)
+      );
     } catch (error) {
       console.error('Home Assistant test failed:', error);
     }
@@ -1223,9 +1240,7 @@ function DeviceTab() {
     try {
       const options = childId ? { childId } : {};
       await api.deviceOn(ip, options);
-      setTimeout(async () => {
-        await api.deviceOff(ip, options);
-      }, 2000);
+      scheduleDeviceOff(ip, () => api.deviceOff(ip, options));
     } catch (error) {
       console.error('Test failed:', error);
     }

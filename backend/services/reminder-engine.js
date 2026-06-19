@@ -84,8 +84,19 @@ class ReminderEngine {
         if (!key) continue;
         const searchKey = caseSensitive ? key : key.toLowerCase();
 
-        if (text.includes(searchKey)) {
-          return true;
+        // Single-word keys must match on word boundaries to avoid false
+        // positives (e.g. 'ass' inside 'class'). Multi-word keys (containing
+        // whitespace) fall back to substring matching.
+        if (/\s/.test(searchKey)) {
+          if (text.includes(searchKey)) {
+            return true;
+          }
+        } else {
+          const escaped = searchKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const wordRegex = new RegExp(`\\b${escaped}\\b`, caseSensitive ? '' : 'i');
+          if (wordRegex.test(text)) {
+            return true;
+          }
         }
       }
     }

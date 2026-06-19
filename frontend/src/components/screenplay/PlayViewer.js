@@ -64,6 +64,8 @@ function PlayViewer({ playId, onClose }) {
   const sessionStateRef = useRef(sessionState); // Ref for accessing sessionState in callbacks without causing recreates
   const startMockPumpTrackingRef = useRef(null); // Ref to call startMockPumpTracking without dependency
   const stopMockPumpTrackingRef = useRef(null); // Ref to call stopMockPumpTracking without dependency
+  const goToPageRef = useRef(null); // Ref to call latest goToPage without recreating processNextParagraph (avoids stale history writes)
+  const loopMediaTimeoutRef = useRef(null); // Tracks the looping video/audio completion timeout so it can be cleared on next/unmount
   const contentRef = useRef(null);
   const hasAutoStartedRef = useRef(false); // Track if current page has been auto-started
 
@@ -138,6 +140,10 @@ function PlayViewer({ playId, onClose }) {
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
+      }
+      if (loopMediaTimeoutRef.current) {
+        clearTimeout(loopMediaTimeoutRef.current);
+        loopMediaTimeoutRef.current = null;
       }
       mockPumpTrackingActiveRef.current = false; // Clear guard
       // Emergency stop all pumps when component unmounts
@@ -323,20 +329,25 @@ function PlayViewer({ playId, onClose }) {
     const playerActor = getPlayerActor();
     result = result.replace(/\[Player\]/gi, playerActor?.name || 'Player');
 
+    // Read capacity from the ref so this callback's identity does NOT churn every
+    // 1s capacity tick (which would re-render the entire transcript). Live capacity
+    // gauges read inflateeCapacity state directly and update independently.
+    const cap = inflateeCapacityRef.current;
+
     // Inflatee 1 (player) capacities
-    result = result.replace(/\[Capacity\]/gi, String(inflateeCapacity.inflatee1));
-    result = result.replace(/\[Capacity1\]/gi, String(inflateeCapacity.inflatee1));
+    result = result.replace(/\[Capacity\]/gi, String(cap.inflatee1));
+    result = result.replace(/\[Capacity1\]/gi, String(cap.inflatee1));
 
     // Inflatee 2 (mock/NPC) capacity
-    result = result.replace(/\[Capacity_mock\]/gi, String(inflateeCapacity.inflatee2));
-    result = result.replace(/\[Capacity2\]/gi, String(inflateeCapacity.inflatee2));
+    result = result.replace(/\[Capacity_mock\]/gi, String(cap.inflatee2));
+    result = result.replace(/\[Capacity2\]/gi, String(cap.inflatee2));
 
     // Feeling based on capacity (player)
-    const pain1 = calculatePainFromCapacity(inflateeCapacity.inflatee1, play?.maxPainAtFull || 10);
+    const pain1 = calculatePainFromCapacity(cap.inflatee1, play?.maxPainAtFull || 10);
     result = result.replace(/\[Feeling\]/gi, getPainLabel(pain1));
 
     // Feeling for mock inflatee (uses same pain scale)
-    const pain2 = calculatePainFromCapacity(inflateeCapacity.inflatee2, play?.maxPainAtFull || 10);
+    const pain2 = calculatePainFromCapacity(cap.inflatee2, play?.maxPainAtFull || 10);
     result = result.replace(/\[Feeling_mock\]/gi, getPainLabel(pain2));
 
     // Play variables - [Play:varname] syntax
@@ -350,7 +361,7 @@ function PlayViewer({ playId, onClose }) {
     });
 
     return result;
-  }, [variables, inflateeCapacity, getPlayerActor, calculatePainFromCapacity, getPainLabel, play?.maxPainAtFull]);
+  }, [variables, getPlayerActor, calculatePainFromCapacity, getPainLabel, play?.maxPainAtFull]);
 
   /**
    * Evaluate expression for set_variable
@@ -730,7 +741,7 @@ function PlayViewer({ playId, onClose }) {
       case 'goto_page':
         // Jump to another page
         if (para.data.targetPageId) {
-          goToPage(para.data.targetPageId);
+          goToPageRef.current?.(para.data.targetPageId);
         }
         setIsProcessing(false);
         break;
@@ -752,7 +763,7 @@ function PlayViewer({ playId, onClose }) {
           }
 
           if (selectedOutcome.targetPageId) {
-            goToPage(selectedOutcome.targetPageId);
+            goToPageRef.current?.(selectedOutcome.targetPageId);
           }
         }
         setIsProcessing(false);
@@ -795,7 +806,7 @@ function PlayViewer({ playId, onClose }) {
 
         const targetPage = result ? para.data.truePageId : para.data.falsePageId;
         if (targetPage) {
-          goToPage(targetPage);
+          goToPageRef.current?.(targetPage);
           setIsProcessing(false);
         } else {
           // Continue to next paragraph
@@ -1200,9 +1211,9 @@ function PlayViewer({ playId, onClose }) {
               break;
 
             case 'set_variable':
-              // Set a variable
+              // Set a variable (supports expressions like "[Play:count] + 1")
               const varName = child.data.variableName;
-              const varValue = child.data.value;
+              const varValue = evaluateExpression(child.data.value);
               if (varName) {
                 setVariables(prev => ({
                   ...prev,
@@ -1340,6 +1351,12 @@ function PlayViewer({ playId, onClose }) {
     setPendingPageId(null);
     hasAutoStartedRef.current = false; // Reset auto-start flag for new page
   }, [play, currentPageId, currentParaIndex, displayedParagraphs]);
+
+  // Keep a stable ref to the latest goToPage so processNextParagraph can call it
+  // without recreating (and without capturing a stale displayedParagraphs in history)
+  useEffect(() => {
+    goToPageRef.current = goToPage;
+  }, [goToPage]);
 
   // Confirm pending page change (>> button in auto mode)
   const confirmPageChange = useCallback(() => {
@@ -1706,6 +1723,11 @@ function PlayViewer({ playId, onClose }) {
 
   // Handle media completion (video/audio ended or image dismissed)
   const handleMediaComplete = useCallback(() => {
+    // Clear any pending looping-media completion timer so it can't fire twice
+    if (loopMediaTimeoutRef.current) {
+      clearTimeout(loopMediaTimeoutRef.current);
+      loopMediaTimeoutRef.current = null;
+    }
     if (isWaitingForMedia) {
       setIsWaitingForMedia(false);
       // Resume auto-continue by processing next paragraph
@@ -1727,8 +1749,12 @@ function PlayViewer({ playId, onClose }) {
     }
   }, [inflateeCapacity, isWaitingForCapacityGate, capacityGateData]);
 
-  // Render a single paragraph
-  const renderParagraph = (para) => {
+  // Render a single paragraph.
+  // NOTE: this is intentionally NOT dependent on the per-second inflateeCapacity
+  // state. substituteVariables and the capacity_gate bubble read capacity from
+  // inflateeCapacityRef, so the memoized transcript (see renderedTranscript) does
+  // not recompute on every capacity tick. Live capacity gauges read state directly.
+  const renderParagraph = useCallback((para) => {
     const enhancingClass = para.isEnhancing ? ' enhancing' : '';
 
     switch (para.type) {
@@ -1799,7 +1825,7 @@ function PlayViewer({ playId, onClose }) {
 
       case 'capacity_gate':
         const gateTargetName = para.data.target === 'inflatee2' ? 'Inflatee 2' : 'Player';
-        const gateCurrent = inflateeCapacity[para.data.target] || 0;
+        const gateCurrent = inflateeCapacityRef.current[para.data.target] || 0;
         const gateThresholdVal = para.data.threshold || 50;
         const gateIsMet = gateCurrent >= gateThresholdVal;
         return (
@@ -1991,7 +2017,9 @@ function PlayViewer({ playId, onClose }) {
                   // If looping, complete after one full duration
                   if (para.data.loop) {
                     const video = e.target;
-                    setTimeout(() => {
+                    if (loopMediaTimeoutRef.current) clearTimeout(loopMediaTimeoutRef.current);
+                    loopMediaTimeoutRef.current = setTimeout(() => {
+                      loopMediaTimeoutRef.current = null;
                       handleMediaComplete();
                     }, video.duration * 1000);
                   }
@@ -2021,7 +2049,9 @@ function PlayViewer({ playId, onClose }) {
                   onLoadedMetadata={(e) => {
                     if (para.data.loop) {
                       const audio = e.target;
-                      setTimeout(() => {
+                      if (loopMediaTimeoutRef.current) clearTimeout(loopMediaTimeoutRef.current);
+                      loopMediaTimeoutRef.current = setTimeout(() => {
+                        loopMediaTimeoutRef.current = null;
                         handleMediaComplete();
                       }, audio.duration * 1000);
                     }
@@ -2039,7 +2069,15 @@ function PlayViewer({ playId, onClose }) {
       default:
         return null;
     }
-  };
+  }, [substituteVariables, getActor, handleChallengeComplete, handleMediaComplete]);
+
+  // Memoize the rendered transcript so it does NOT recompute on every 1s capacity
+  // tick. It only recomputes when the paragraph list changes or when a relevant
+  // render dependency (variables, actors, handlers) changes via renderParagraph.
+  const renderedTranscript = React.useMemo(
+    () => displayedParagraphs.map(para => renderParagraph(para)),
+    [displayedParagraphs, renderParagraph]
+  );
 
   if (!play) {
     return (
@@ -2097,7 +2135,7 @@ function PlayViewer({ playId, onClose }) {
             )}
 
             <div className="paragraphs-display">
-              {displayedParagraphs.map(para => renderParagraph(para))}
+              {renderedTranscript}
             </div>
 
             {/* Desktop ending display - inline */}

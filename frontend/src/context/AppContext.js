@@ -75,6 +75,9 @@ export function AppProvider({ children }) {
   // Player choice state
   const [playerChoiceData, setPlayerChoiceData] = useState(null);
 
+  // Choose Multi (multi-select) state
+  const [chooseMultiData, setChooseMultiData] = useState(null);
+
   // Simple A/B choice state
   const [simpleABData, setSimpleABData] = useState(null);
 
@@ -107,20 +110,48 @@ export function AppProvider({ children }) {
   // { deviceIp: { type: 'cycle'|'duration', currentCycle, totalCycles, duration, startTime, endTime } }
   const [pumpStatus, setPumpStatus] = useState({});
 
+  // Reconnect timer id (so it can be cleared on unmount to avoid orphaned sockets)
+  const reconnectTimerRef = useRef(null);
+
+  // Outbound message queue — buffers messages sent while the socket is not OPEN
+  // so optimistic UI actions (e.g. character_inflate_stop) aren't silently dropped.
+  const outboundQueueRef = useRef([]);
+
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
+    // Short-circuit if a socket is already connecting or open
+    if (ws.current && (ws.current.readyState === WebSocket.CONNECTING || ws.current.readyState === WebSocket.OPEN)) {
+      return;
+    }
+
     ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
       console.log('[WS] Connected');
       setConnected(true);
+      // Flush any messages buffered while disconnected/reconnecting
+      if (outboundQueueRef.current.length > 0) {
+        console.log(`[WS] Flushing ${outboundQueueRef.current.length} buffered message(s)`);
+        const queued = outboundQueueRef.current;
+        outboundQueueRef.current = [];
+        for (const msg of queued) {
+          try {
+            ws.current.send(JSON.stringify(msg));
+          } catch (e) {
+            console.error('[WS] Failed to flush buffered message:', e);
+          }
+        }
+      }
     };
 
     ws.current.onclose = () => {
       console.log('[WS] Disconnected');
       setConnected(false);
-      // Reconnect after delay
-      setTimeout(connectWebSocket, CONFIG.WS_RECONNECT_DELAY_MS);
+      // Reconnect after delay; store the timer id so cleanup can cancel it
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+      }
+      reconnectTimerRef.current = setTimeout(connectWebSocket, CONFIG.WS_RECONNECT_DELAY_MS);
     };
 
     ws.current.onerror = (error) => {
@@ -323,6 +354,7 @@ export function AppProvider({ children }) {
         setSessionLoading(false);
         // Clear all flow modals/popups on session reset
         setPlayerChoiceData(null);
+        setChooseMultiData(null);
         setSimpleABData(null);
         setChallengeData(null);
         setInputData(null);
@@ -333,6 +365,7 @@ export function AppProvider({ children }) {
         setMessages(data.chatHistory || []);
         // Clear all flow modals/popups on new session
         setPlayerChoiceData(null);
+        setChooseMultiData(null);
         setSimpleABData(null);
         setChallengeData(null);
         setInputData(null);
@@ -344,6 +377,10 @@ export function AppProvider({ children }) {
 
       case 'player_choice':
         setPlayerChoiceData(data);
+        break;
+
+      case 'choose_multi':
+        setChooseMultiData(data);
         break;
 
       case 'simple_ab':
@@ -695,6 +732,7 @@ export function AppProvider({ children }) {
         // Clear any active challenges, choices, or modals to unblock the page
         setChallengeData(null);
         setPlayerChoiceData(null);
+        setChooseMultiData(null);
         setSimpleABData(null);
         // Notify user if this was an automatic failsafe trigger
         if (data.automatic) {
@@ -729,11 +767,17 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Send WebSocket message
+  // Send WebSocket message. If the socket is not OPEN, buffer the message and
+  // flush it on reconnect so optimistic UI updates don't silently desync.
   const sendWsMessage = useCallback((type, data) => {
+    const message = { type, data };
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type, data }));
+      ws.current.send(JSON.stringify(message));
+      return true;
     }
+    console.warn(`[WS] Not connected — buffering message "${type}" to flush on reconnect`);
+    outboundQueueRef.current.push(message);
+    return false;
   }, []);
 
   // Send chat message
@@ -784,6 +828,19 @@ export function AppProvider({ children }) {
 
     setPlayerChoiceData(null);
   }, [playerChoiceData, sendWsMessage]);
+
+  // Handle Choose Multi response — send all selected choice IDs; the backend
+  // fires every selected branch in parallel.
+  const handleChooseMulti = useCallback((selectedChoices) => {
+    if (!chooseMultiData) return;
+
+    sendWsMessage('choose_multi_response', {
+      nodeId: chooseMultiData.nodeId,
+      selectedIds: (selectedChoices || []).map(c => c.id)
+    });
+
+    setChooseMultiData(null);
+  }, [chooseMultiData, sendWsMessage]);
 
   // Handle simple A/B choice response
   const handleSimpleAB = useCallback((choiceId) => {
@@ -1518,6 +1575,11 @@ export function AppProvider({ children }) {
     fetchSimulationStatus();
 
     return () => {
+      // Cancel any pending reconnect timer to avoid orphaned sockets
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (ws.current) {
         ws.current.onclose = null; // prevent reconnect during cleanup
         ws.current.close();
@@ -1607,7 +1669,7 @@ export function AppProvider({ children }) {
       setControlModeInternal('interactive');
       sendWsMessage('set_control_mode', { mode: 'interactive' });
     }
-  }, [simulationRequired, sendWsMessage]);
+  }, [simulationRequired, controlMode, sendWsMessage]);
 
   // Refs to track challenge/choice state without causing re-renders
   const hasPendingChallengeRef = useRef(false);
@@ -1700,6 +1762,8 @@ export function AppProvider({ children }) {
     // Player Choice
     playerChoiceData,
     handlePlayerChoice,
+    chooseMultiData,
+    handleChooseMulti,
 
     // Simple A/B Choice
     simpleABData,

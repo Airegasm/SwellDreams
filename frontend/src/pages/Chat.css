@@ -2780,6 +2780,44 @@
   transform: translateX(-4px);
 }
 
+/* Choose Multi (multi-select) options */
+.choose-multi-panel .btn-choice.choose-multi-option {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.choose-multi-panel .choose-multi-check {
+  font-size: 1.1em;
+  line-height: 1.2;
+  flex: 0 0 auto;
+}
+
+.choose-multi-panel .choose-multi-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.choose-multi-panel .btn-choice.choose-multi-option.selected {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.choose-multi-panel .btn-choice.choose-multi-option:hover {
+  transform: none;
+}
+
+.choose-multi-confirm {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.choose-multi-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .player-choice-panel .choice-button-label {
   font-weight: 600;
   color: var(--text-primary);

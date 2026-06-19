@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useError } from '../../context/ErrorContext';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import './ModelTab.css';
@@ -29,6 +30,7 @@ function Slider({ label, value, onChange, min, max, step = 0.01, defaultValue, i
 
 function ModelTab() {
   const { settings, api } = useApp();
+  const { showError } = useError();
   const [llmSettings, setLlmSettings] = useState(() => ({
     ...settings.llm,
     streaming: settings.llm?.streaming ?? true
@@ -92,27 +94,80 @@ function ModelTab() {
     }
   };
 
-  const updateSetting = async (key, value) => {
-    const newSettings = { ...llmSettings, [key]: value };
-    setLlmSettings(newSettings);
+  // Keep a ref to the latest persistSettings so the debounced commit never uses
+  // a stale closure (selectedProfileId / profiles / endpoint can change).
+  const persistSettingsRef = useRef(persistSettings);
+  useEffect(() => {
+    persistSettingsRef.current = persistSettings;
+  });
+
+  // Debounced, serialized auto-save for rapid slider drags.
+  // - Local state updates immediately (responsive UI).
+  // - The network commit is debounced (300ms) so a drag fires one save, not many.
+  // - Writes are serialized through a chained promise so the two POSTs inside
+  //   persistSettings never interleave across overlapping commits.
+  const saveTimerRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
+  // Snapshot of the last-persisted settings, used for rollback on failure.
+  const lastPersistedRef = useRef(null);
+
+  const commitSettings = useCallback((settingsObj, rollbackPrev) => {
+    saveChainRef.current = saveChainRef.current
+      .catch(() => {}) // isolate prior failures so the queue keeps draining
+      .then(async () => {
+        try {
+          await persistSettingsRef.current(settingsObj);
+          lastPersistedRef.current = settingsObj;
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        } catch (error) {
+          console.error('Failed to auto-save settings:', error);
+          showError('Failed to save setting — reverting');
+          // Roll back local state to the last known-good values so the UI does
+          // not show an unpersisted value.
+          if (rollbackPrev) {
+            setLlmSettings(rollbackPrev);
+          }
+        }
+      });
+  }, [showError]);
+
+  const updateSetting = (key, value) => {
     setSaved(false);
-    try {
-      await persistSettings(newSettings);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (error) {
-      console.error('Failed to auto-save settings:', error);
+    // Update local state immediately for a responsive UI.
+    const newSettings = { ...llmSettings, [key]: value };
+    // Pre-change snapshot for rollback on save failure.
+    const rollbackPrev = lastPersistedRef.current || llmSettings;
+    setLlmSettings(newSettings);
+    // Debounce the network commit so a slider drag fires one save, not many.
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
     }
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      commitSettings(newSettings, rollbackPrev);
+    }, 300);
   };
+
+  // Flush any pending debounced save on unmount so a final drag isn't lost.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await persistSettings(llmSettings);
+      lastPersistedRef.current = llmSettings;
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
       console.error('Failed to save settings:', error);
+      showError('Failed to save settings');
     }
     setSaving(false);
   };

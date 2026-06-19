@@ -75,6 +75,20 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
+ * Clamp a maxTokens value to a sane positive integer. NaN / non-numeric /
+ * <= 0 values fall back to the setting default (150), guarding against an
+ * empty or corrupt setting producing a 0-length (or negative) generation.
+ * @param {*} value - Raw maxTokens setting
+ * @returns {number}
+ */
+function clampMaxTokens(value) {
+  const fallback = DEFAULT_SETTINGS.maxTokens || 150;
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+}
+
+/**
  * Detect API type from URL or use explicit setting
  * @param {string} url - LLM endpoint URL
  * @param {string} explicitType - Explicit API type ('auto', 'text_completion', 'chat_completion')
@@ -251,6 +265,37 @@ function toKoboldLogitBias(logitBias) {
 }
 
 /**
+ * Prepare a stop-sequence list for providers that cap the number of stops
+ * (OpenAI / OpenRouter allow at most 4). The first entries of `stopSequences`
+ * are the static role-confusion defaults; callers may append context-injected
+ * cross-role guards. A naive slice(0, max) would silently drop those injected
+ * guards. So we de-duplicate and prioritize the injected (later) stops, then
+ * fall back to the leading defaults, before truncating to `max`.
+ *
+ * @param {string[]} stopSequences - Full ordered list (defaults first, injected last)
+ * @param {number} max - Provider maximum (e.g. 4)
+ * @returns {string[]}
+ */
+function capStopSequences(stopSequences, max = 4) {
+  const stops = (stopSequences || []).filter(s => typeof s === 'string' && s.length > 0);
+  if (stops.length <= max) {
+    return [...new Set(stops)];
+  }
+  const defaults = DEFAULT_SETTINGS.stopSequences || [];
+  const defaultSet = new Set(defaults);
+  // Injected stops = anything not in the static defaults; keep their order.
+  const injected = [];
+  const baseDefaults = [];
+  for (const s of stops) {
+    if (defaultSet.has(s)) baseDefaults.push(s);
+    else injected.push(s);
+  }
+  // Injected guards first, then defaults; de-dupe; truncate to provider max.
+  const prioritized = [...new Set([...injected, ...baseDefaults])];
+  return prioritized.slice(0, max);
+}
+
+/**
  * Normalize a [[tokenId, bias], ...] list for llama.cpp (array of [id, number]).
  * Returns null if there is nothing to send.
  */
@@ -273,7 +318,7 @@ function toLlamaLogitBias(logitBias) {
 function buildTextCompletionRequest(prompt, settings) {
   const body = {
     prompt: prompt,
-    max_length: settings.maxTokens,
+    max_length: clampMaxTokens(settings.maxTokens),
     max_context_length: settings.contextTokens
   };
 
@@ -401,7 +446,7 @@ function buildChatCompletionRequest(messages, settings) {
   const body = {
     model: settings.model || 'default',
     messages: messages,
-    max_tokens: settings.maxTokens,
+    max_tokens: clampMaxTokens(settings.maxTokens),
     temperature: settings.temperature,
     top_p: settings.topP,
     frequency_penalty: settings.frequencyPenalty,
@@ -415,8 +460,9 @@ function buildChatCompletionRequest(messages, settings) {
 
   // Stop sequences (OpenAI uses 'stop' parameter)
   if (settings.stopSequences && settings.stopSequences.length > 0) {
-    // OpenAI allows up to 4 stop sequences
-    body.stop = settings.stopSequences.slice(0, 4);
+    // OpenAI allows up to 4 stop sequences — prioritize injected cross-role
+    // guards over the static defaults before truncating.
+    body.stop = capStopSequences(settings.stopSequences, 4);
   }
 
   // Neutralize samplers if requested
@@ -467,12 +513,27 @@ function makeRequest(url, bodyOrMethod = 'POST', method = null) {
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           activeRequests.delete(req);
+          let parsed = null;
           try {
-            const parsed = JSON.parse(data);
-            resolve(parsed);
+            parsed = JSON.parse(data);
           } catch (e) {
+            // Non-2xx with an unparseable body: surface the status + raw preview
+            if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+              reject(new Error(`HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
+              return;
+            }
             reject(new Error(`Failed to parse response: ${data.substring(0, 200)}`));
+            return;
           }
+          // Reject on non-2xx, preferring the provider's parsed error message
+          if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+            const providerMsg = parsed && parsed.error
+              ? (parsed.error.message || (typeof parsed.error === 'string' ? parsed.error : JSON.stringify(parsed.error)))
+              : null;
+            reject(new Error(providerMsg || `HTTP ${res.statusCode}: ${data.substring(0, 200)}`));
+            return;
+          }
+          resolve(parsed);
         });
       });
 
@@ -525,8 +586,10 @@ function makeStreamingRequest(url, body, onToken) {
         timeout: 300000 // 5 minute timeout for streaming
       };
 
+      let aborted = false;
+      let fullText = '';
+
       const req = client.request(options, (res) => {
-        let fullText = '';
         let buffer = '';
 
         res.on('data', chunk => {
@@ -576,6 +639,17 @@ function makeStreamingRequest(url, body, onToken) {
 
       req.on('error', (e) => {
         activeRequests.delete(req);
+        // Intentional aborts (e.g. emergency stop via req.destroy) surface as
+        // ECONNRESET / ERR_STREAM_PREMATURE_CLOSE. Resolve with whatever text we
+        // accumulated rather than discarding the partial generation.
+        const isAbort = aborted || req._swellAborted;
+        const isResetWithText = (e.code === 'ECONNRESET' || e.code === 'ERR_STREAM_PREMATURE_CLOSE') && fullText.length > 0;
+        if (isAbort || isResetWithText) {
+          // Flagged abort, or a reset after we already received tokens — keep
+          // the partial generation instead of throwing it away.
+          resolve(fullText);
+          return;
+        }
         reject(e);
       });
       req.on('timeout', () => {
@@ -583,6 +657,9 @@ function makeStreamingRequest(url, body, onToken) {
         req.destroy();
         reject(new Error('Streaming request timeout'));
       });
+
+      // Mark intentional aborts so the error handler resolves partial text
+      req.on('abort', () => { aborted = true; });
 
       req.write(JSON.stringify(body));
       req.end();
@@ -695,6 +772,14 @@ function extractGeneratedText(response, apiType) {
     }
   }
 
+  // Before the generic failure, surface a top-level provider error if present
+  // (mirrors makeOpenRouterRequest's error handling).
+  if (response && response.error) {
+    const msg = response.error.message
+      || (typeof response.error === 'string' ? response.error : JSON.stringify(response.error));
+    throw new Error(msg || 'LLM provider returned an error');
+  }
+
   throw new Error('Could not extract generated text from response');
 }
 
@@ -796,8 +881,15 @@ async function generate(options) {
  * @returns {Promise<{text: string, apiType: string}>}
  */
 async function generateStream(options) {
-  const { prompt, messages, systemPrompt, settings = {}, onToken } = options;
+  const { prompt, messages, systemPrompt, settings = {}, onToken, onChunk } = options;
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+
+  // Callers are inconsistent: some pass onToken(token, fullText), others pass
+  // onChunk(chunk). Invoke whichever is provided so live tokens are never dropped.
+  const emitToken = (token, fullText) => {
+    if (onToken) onToken(token, fullText);
+    if (onChunk) onChunk(token, fullText);
+  };
 
   if (!mergedSettings.llmUrl) {
     throw new Error('LLM URL not configured');
@@ -862,7 +954,7 @@ async function generateStream(options) {
     console.log(`[LLM] Making streaming llama.cpp request to ${endpoint} (template: ${mergedSettings.promptTemplate || 'none'})`);
     console.log(`[LLM] Stop tokens: ${JSON.stringify(requestBody.stop || [])}`);
 
-    let generatedText = await makeStreamingRequest(endpoint, requestBody, onToken);
+    let generatedText = await makeStreamingRequest(endpoint, requestBody, emitToken);
 
     if (mergedSettings.trimIncompleteSentences && generatedText) {
       generatedText = trimIncompleteSentences(generatedText);
@@ -900,7 +992,7 @@ async function generateStream(options) {
 
   console.log(`[LLM] Making streaming ${apiType} request to ${endpoint}`);
 
-  let generatedText = await makeStreamingRequest(endpoint, requestBody, onToken);
+  let generatedText = await makeStreamingRequest(endpoint, requestBody, emitToken);
 
   // Apply sentence trimming if enabled
   if (mergedSettings.trimIncompleteSentences && generatedText) {
@@ -951,14 +1043,16 @@ async function testConnection(settings) {
             || propsResult.model
             || null;
           contextSize = propsResult.default_generation_settings?.n_ctx
-            || null;
+            ?? propsResult.n_ctx
+            ?? null;
           if (contextSize) {
             console.log(`[LLM] llama.cpp reported context size: ${contextSize}`);
           }
 
           // Auto-detect chat template from model props
           const tmpl = propsResult.chat_template || propsResult.chatTemplate || '';
-          supportsSystemRole = propsResult.chat_template_caps?.supports_system_role ?? false;
+          supportsSystemRole = propsResult.chat_template_caps?.supports_system_role
+            ?? inferSystemRoleSupport(tmpl);
           if (tmpl) {
             console.log(`[LLM] llama.cpp chat_template: "${tmpl}" (${tmpl.length} chars), supports_system_role: ${supportsSystemRole}`);
             const tmplLower = tmpl.toLowerCase();
@@ -1074,6 +1168,9 @@ function abortAllRequests() {
   console.log(`[LLM] Aborting ${count} active request(s)`);
   for (const req of activeRequests) {
     try {
+      // Flag as an intentional abort so streaming handlers resolve their
+      // accumulated partial text instead of rejecting on ECONNRESET.
+      req._swellAborted = true;
       req.destroy();
     } catch (e) {
       console.error('[LLM] Error destroying request:', e.message);
@@ -1088,6 +1185,19 @@ function abortAllRequests() {
 // ============================================
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
+
+// Verbose request/response dumps (bodies, headers, raw payloads) are gated
+// behind LOG_LEVEL=DEBUG so secrets and prompts never hit production logs.
+const LLM_DEBUG = process.env.LOG_LEVEL === 'DEBUG';
+
+/**
+ * Mask an API key for logging — never log the key material itself, only a
+ * fixed-length redaction that confirms presence.
+ */
+function maskKey(key) {
+  if (!key || typeof key !== 'string') return '(none)';
+  return '***redacted***';
+}
 
 /**
  * Fetch available models from OpenRouter
@@ -1144,7 +1254,7 @@ function buildOpenRouterRequest(messages, settings) {
   const body = {
     model: settings.openRouterModel || 'openai/gpt-3.5-turbo',
     messages: messages,
-    max_tokens: settings.maxTokens || 150,
+    max_tokens: clampMaxTokens(settings.maxTokens),
     temperature: settings.temperature ?? 0.92,
     top_p: settings.topP ?? 0.92,
     frequency_penalty: settings.frequencyPenalty ?? 0,
@@ -1156,9 +1266,10 @@ function buildOpenRouterRequest(messages, settings) {
     body.top_k = settings.topK;
   }
 
-  // Stop sequences (OpenRouter uses OpenAI format)
+  // Stop sequences (OpenRouter uses OpenAI format) — prioritize injected
+  // cross-role guards over the static defaults before truncating to 4.
   if (settings.stopSequences && settings.stopSequences.length > 0) {
-    body.stop = settings.stopSequences.slice(0, 4);
+    body.stop = capStopSequences(settings.stopSequences, 4);
   }
 
   // OpenRouter streaming requires SSE parsing - disable for now
@@ -1191,16 +1302,18 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
       reject(new Error('OpenRouter API key is not configured'));
       return;
     }
-    console.log(`[OpenRouter DEBUG] API key present: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`);
+    console.log(`[OpenRouter] API key present: ${!!apiKey} (${maskKey(apiKey)})`);
 
     const url = new URL(`${OPENROUTER_API_URL}${endpoint}`);
     const bodyStr = JSON.stringify(body);
 
-    // Debug: Log request details
-    console.log(`[OpenRouter DEBUG] Request URL: ${url.href}`);
-    console.log(`[OpenRouter DEBUG] Model: ${body.model || 'NOT SET'}`);
-    console.log(`[OpenRouter DEBUG] Messages count: ${body.messages?.length || 0}`);
-    console.log(`[OpenRouter DEBUG] Max tokens: ${body.max_tokens || 'default'}`);
+    // Debug: Log request details (gated — may contain prompt content)
+    if (LLM_DEBUG) {
+      console.log(`[OpenRouter DEBUG] Request URL: ${url.href}`);
+      console.log(`[OpenRouter DEBUG] Model: ${body.model || 'NOT SET'}`);
+      console.log(`[OpenRouter DEBUG] Messages count: ${body.messages?.length || 0}`);
+      console.log(`[OpenRouter DEBUG] Max tokens: ${body.max_tokens || 'default'}`);
+    }
 
     const options = {
       hostname: url.hostname,
@@ -1220,15 +1333,19 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
     const req = https.request(options, (res) => {
       let data = '';
 
-      // Debug: Log response status
-      console.log(`[OpenRouter DEBUG] Response status: ${res.statusCode} ${res.statusMessage}`);
-      console.log(`[OpenRouter DEBUG] Response headers:`, JSON.stringify(res.headers).substring(0, 200));
+      // Debug: Log response status (header/body dumps gated behind DEBUG)
+      console.log(`[OpenRouter] Response status: ${res.statusCode} ${res.statusMessage}`);
+      if (LLM_DEBUG) {
+        console.log(`[OpenRouter DEBUG] Response headers:`, JSON.stringify(res.headers).substring(0, 200));
+      }
 
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        // Debug: Log raw response
-        console.log(`[OpenRouter DEBUG] Raw response length: ${data.length} chars`);
-        console.log(`[OpenRouter DEBUG] Raw response preview: ${data.substring(0, 500)}`);
+        // Debug: Log raw response (may contain generated content)
+        if (LLM_DEBUG) {
+          console.log(`[OpenRouter DEBUG] Raw response length: ${data.length} chars`);
+          console.log(`[OpenRouter DEBUG] Raw response preview: ${data.substring(0, 500)}`);
+        }
 
         try {
           // Use robust JSON extraction that handles SSE and malformed responses
@@ -1242,13 +1359,17 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
             return;
           }
 
-          console.log(`[OpenRouter DEBUG] Response parsed successfully, choices: ${parsed.choices?.length || 0}`);
+          if (LLM_DEBUG) {
+            console.log(`[OpenRouter DEBUG] Response parsed successfully, choices: ${parsed.choices?.length || 0}`);
+          }
           resolve(parsed);
         } catch (e) {
           log.error('Failed to parse OpenRouter response:', e.message);
           log.debug('Raw response preview:', sanitizeForLog(data, 200));
-          console.error(`[OpenRouter DEBUG] Parse error: ${e.message}`);
-          console.error(`[OpenRouter DEBUG] Full raw response: ${data}`);
+          console.error(`[OpenRouter] Parse error: ${e.message}`);
+          if (LLM_DEBUG) {
+            console.error(`[OpenRouter DEBUG] Full raw response: ${data}`);
+          }
           reject(new Error(`Failed to parse OpenRouter response: ${e.message}`));
         }
       });
@@ -1257,9 +1378,8 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
     activeRequests.add(req);
     req.on('close', () => activeRequests.delete(req));
     req.on('error', (err) => {
-      console.error(`[OpenRouter DEBUG] Request error: ${err.message}`);
-      console.error(`[OpenRouter DEBUG] Error code: ${err.code}`);
-      console.error(`[OpenRouter DEBUG] Error stack: ${err.stack}`);
+      console.error(`[OpenRouter] Request error: ${err.message} (code: ${err.code})`);
+      if (LLM_DEBUG) console.error(`[OpenRouter DEBUG] Error stack: ${err.stack}`);
       reject(err);
     });
     req.write(bodyStr);
@@ -1275,16 +1395,20 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
 async function generateOpenRouter(options) {
   const { prompt, messages, systemPrompt, settings } = options;
 
-  console.log('[OpenRouter DEBUG] generateOpenRouter called');
-  console.log(`[OpenRouter DEBUG] Has prompt: ${!!prompt}`);
-  console.log(`[OpenRouter DEBUG] Has messages: ${!!messages} (${messages?.length || 0})`);
-  console.log(`[OpenRouter DEBUG] Has systemPrompt: ${!!systemPrompt}`);
-  console.log(`[OpenRouter DEBUG] Settings model: ${settings?.openRouterModel || 'NOT SET'}`);
-  console.log(`[OpenRouter DEBUG] Settings API key present: ${!!settings?.openRouterApiKey}`);
+  if (LLM_DEBUG) {
+    console.log('[OpenRouter DEBUG] generateOpenRouter called');
+    console.log(`[OpenRouter DEBUG] Has prompt: ${!!prompt}`);
+    console.log(`[OpenRouter DEBUG] Has messages: ${!!messages} (${messages?.length || 0})`);
+    console.log(`[OpenRouter DEBUG] Has systemPrompt: ${!!systemPrompt}`);
+    console.log(`[OpenRouter DEBUG] Settings model: ${settings?.openRouterModel || 'NOT SET'}`);
+    console.log(`[OpenRouter DEBUG] Settings API key present: ${!!settings?.openRouterApiKey}`);
+  }
 
   if (!settings?.openRouterApiKey) {
-    console.error('[OpenRouter DEBUG] CRITICAL: No API key in settings!');
-    console.error('[OpenRouter DEBUG] Settings object keys:', Object.keys(settings || {}));
+    console.error('[OpenRouter] CRITICAL: No API key in settings!');
+    if (LLM_DEBUG) {
+      console.error('[OpenRouter DEBUG] Settings object keys:', Object.keys(settings || {}));
+    }
     throw new Error('OpenRouter API key not found in settings');
   }
 
@@ -1296,10 +1420,10 @@ async function generateOpenRouter(options) {
   // `messages` array is supplied (the builders keep the system prompt separate).
   const chatMessages = buildChatMessages(systemPrompt, prompt, messages, settings);
 
-  console.log(`[OpenRouter DEBUG] Final messages count: ${chatMessages.length}`);
+  if (LLM_DEBUG) console.log(`[OpenRouter DEBUG] Final messages count: ${chatMessages.length}`);
 
   const body = buildOpenRouterRequest(chatMessages, settings);
-  console.log(`[OpenRouter DEBUG] Request body model: ${body.model}`);
+  if (LLM_DEBUG) console.log(`[OpenRouter DEBUG] Request body model: ${body.model}`);
 
   const response = await makeOpenRouterRequest('/chat/completions', settings.openRouterApiKey, body);
 
@@ -1365,7 +1489,7 @@ async function testOpenRouterConnection(apiKey) {
 function buildLlamaCppRequest(prompt, settings) {
   const body = {
     prompt: prompt,
-    n_predict: settings.maxTokens || 150,
+    n_predict: clampMaxTokens(settings.maxTokens),
     cache_prompt: true,
     special: true  // Parse special tokens (e.g. <start_of_turn>) in template-wrapped prompts
   };
@@ -1521,6 +1645,25 @@ function getLlamaCppBaseUrl(url) {
 }
 
 /**
+ * Infer whether a model supports a dedicated system role from its chat
+ * template family, used as a fallback when the server's /props does not
+ * expose chat_template_caps.supports_system_role. Gemma is the notable
+ * family that has NO system role; ChatML / Llama3 / Mistral-v3+ do support it.
+ * Defaults to true (the common case) when the template is unknown.
+ * @param {string} chatTemplate - Raw chat_template string or family name
+ * @returns {boolean}
+ */
+function inferSystemRoleSupport(chatTemplate) {
+  const t = (chatTemplate || '').toLowerCase();
+  if (!t) return true; // unknown — assume system role works (most models do)
+  // Gemma templates have no system role
+  if (t === 'gemma' || t === 'gemma2' || t === 'gemma3' || t.includes('<start_of_turn>')) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * Fetch llama.cpp server capabilities from /props (cached per base URL)
  */
 async function getLlamaCppCaps(baseUrl) {
@@ -1530,9 +1673,13 @@ async function getLlamaCppCaps(baseUrl) {
   try {
     const propsResult = await makeRequest(`${baseUrl}/props`, 'GET');
     if (propsResult) {
+      const tmpl = propsResult.chat_template || propsResult.chatTemplate || '';
       llamaCppCapsCache = {
-        supportsSystemRole: propsResult.chat_template_caps?.supports_system_role ?? false,
-        chatTemplate: propsResult.chat_template || '',
+        // Prefer the server-reported cap; fall back to template-family inference
+        // (not a blanket false) when chat_template_caps is absent.
+        supportsSystemRole: propsResult.chat_template_caps?.supports_system_role
+          ?? inferSystemRoleSupport(tmpl),
+        chatTemplate: tmpl,
         modelAlias: propsResult.model_alias || '',
       };
       llamaCppCapsCacheUrl = baseUrl;
@@ -1542,7 +1689,9 @@ async function getLlamaCppCaps(baseUrl) {
   } catch (e) {
     console.log(`[LLM] Failed to fetch llama.cpp caps: ${e.message}`);
   }
-  return { supportsSystemRole: false, chatTemplate: '', modelAlias: '' };
+  // Unknown template — assume system role works (the common case) rather than
+  // forcing the system prompt into a user turn for every model.
+  return { supportsSystemRole: inferSystemRoleSupport(''), chatTemplate: '', modelAlias: '' };
 }
 
 /**

@@ -26,6 +26,7 @@ import ConditionNode from '../components/flow/nodes/ConditionNode';
 import BranchNode from '../components/flow/nodes/BranchNode';
 import DelayNode from '../components/flow/nodes/DelayNode';
 import PlayerChoiceNode from '../components/flow/nodes/PlayerChoiceNode';
+import ChooseMultiNode from '../components/flow/nodes/ChooseMultiNode';
 import SimpleABNode from '../components/flow/nodes/SimpleABNode';
 import PauseResumeNode from '../components/flow/nodes/PauseResumeNode';
 import CapacityMessageNode from '../components/flow/nodes/CapacityMessageNode';
@@ -63,6 +64,7 @@ const nodeTypes = {
   branch: BranchNode,
   delay: DelayNode,
   player_choice: PlayerChoiceNode,
+  choose_multi: ChooseMultiNode,
   simple_ab: SimpleABNode,
   pause_resume: PauseResumeNode,
   capacity_ai_message: CapacityMessageNode,
@@ -159,6 +161,17 @@ const NODE_TEMPLATES = {
   },
   delay: {
     default: { label: 'Delay', duration: 5, unit: 'seconds' }
+  },
+  choose_multi: {
+    default: {
+      label: 'Choose Multi',
+      prompt: '',
+      description: '',
+      choices: [
+        { id: 'choice-1', label: 'Option A', description: '', playerResponse: '' },
+        { id: 'choice-2', label: 'Option B', description: '', playerResponse: '' }
+      ]
+    }
   },
   player_choice: {
     default: {
@@ -733,23 +746,24 @@ function FlowEditor() {
     return parts.length > 0 ? parts.join('\n') : null;
   }, []);
 
-  // Undo handler
+  // Undo handler — read live nodes/edges from refs so this stays stable
+  // (avoids recreating the keydown effect on every node/edge change).
   const handleUndo = useCallback(() => {
-    const previousState = undoHistory(nodes, edges);
+    const previousState = undoHistory(nodesRef.current, edgesRef.current);
     if (previousState) {
       setNodes(previousState.nodes);
       setEdges(previousState.edges);
     }
-  }, [nodes, edges, undoHistory, setNodes, setEdges]);
+  }, [undoHistory, setNodes, setEdges]);
 
-  // Redo handler
+  // Redo handler — read live nodes/edges from refs so this stays stable.
   const handleRedo = useCallback(() => {
-    const nextState = redoHistory(nodes, edges);
+    const nextState = redoHistory(nodesRef.current, edgesRef.current);
     if (nextState) {
       setNodes(nextState.nodes);
       setEdges(nextState.edges);
     }
-  }, [nodes, edges, redoHistory, setNodes, setEdges]);
+  }, [redoHistory, setNodes, setEdges]);
 
   const onConnect = useCallback(
     (params) => {
@@ -1915,6 +1929,13 @@ function FlowEditor() {
               onDragStart={(e) => onDragStart(e, 'player_choice', 'default')}
             >
               Player Choice
+            </div>
+            <div
+              className="palette-node player-choice"
+              draggable
+              onDragStart={(e) => onDragStart(e, 'choose_multi', 'default')}
+            >
+              Choose Multi
             </div>
             <div
               className="palette-node simple-ab"

@@ -499,13 +499,13 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'tuya') {
         if (!device.deviceId) {
           console.error(`[DeviceService] Tuya turnOn called but device.deviceId is missing! Device:`, JSON.stringify(device));
-          return { error: 'Tuya device missing deviceId' };
+          return { ok: false, success: false, error: 'Tuya device missing deviceId' };
         }
         await tuyaService.turnOn(device.deviceId);
         this.deviceStates.set(device.deviceId, {
@@ -515,7 +515,7 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'wyze') {
@@ -527,7 +527,7 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'tapo') {
@@ -539,7 +539,7 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'homeassistant') {
@@ -551,7 +551,7 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.deviceId, device, durationInfo });
         this.startPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'kasa-klap') {
@@ -563,7 +563,7 @@ class DeviceService {
         });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'shelly') {
@@ -571,7 +571,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'esphome') {
@@ -579,7 +579,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       if (device?.brand === 'tasmota') {
@@ -587,7 +587,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'on', relayState: 1, lastUpdate: Date.now() });
         this.emitEvent('device_on', { ip: device.ip, device, durationInfo });
         this.startPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
 
       // Default: TPLink Kasa Legacy (native Node.js implementation)
@@ -605,9 +605,9 @@ class DeviceService {
         this.emitEvent('device_on', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId), durationInfo });
         this.startPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
-      return { success: !result.error, state: 'on', result };
+      return { ok: !result.error, success: !result.error, state: 'on', error: result.error, result };
     } catch (error) {
-      return { error: error.message };
+      return { ok: false, success: false, error: error.message };
     }
   }
 
@@ -647,13 +647,13 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
         this.stopPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'tuya') {
         if (!device.deviceId) {
           console.error(`[DeviceService] Tuya turnOff called but device.deviceId is missing! Device:`, JSON.stringify(device));
-          return { error: 'Tuya device missing deviceId' };
+          return { ok: false, success: false, error: 'Tuya device missing deviceId' };
         }
         await tuyaService.turnOff(device.deviceId);
         this.deviceStates.set(device.deviceId, {
@@ -663,7 +663,7 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
         this.stopPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'wyze') {
@@ -675,7 +675,7 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
         this.stopPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'tapo') {
@@ -687,7 +687,7 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'homeassistant') {
@@ -699,7 +699,7 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.deviceId, device });
         this.stopPumpRuntimeTracking(device.deviceId, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'kasa-klap') {
@@ -711,7 +711,7 @@ class DeviceService {
         });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'shelly') {
@@ -719,7 +719,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'esphome') {
@@ -727,7 +727,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       if (device?.brand === 'tasmota') {
@@ -735,7 +735,7 @@ class DeviceService {
         this.deviceStates.set(device.ip, { state: 'off', relayState: 0, lastUpdate: Date.now() });
         this.emitEvent('device_off', { ip: device.ip, device });
         this.stopPumpRuntimeTracking(device.ip, device);
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       }
 
       // Default: TPLink Kasa Legacy (native Node.js implementation)
@@ -753,10 +753,89 @@ class DeviceService {
         this.emitEvent('device_off', { ip: stateKey, device: device || this.devices.get(ipOrDeviceId) });
         this.stopPumpRuntimeTracking(stateKey, device || this.devices.get(ipOrDeviceId));
       }
-      return { success: !result.error, state: 'off', result };
+      return { ok: !result.error, success: !result.error, state: 'off', error: result.error, result };
     } catch (error) {
-      return { error: error.message };
+      return { ok: false, success: false, error: error.message };
     }
+  }
+
+  /**
+   * Confirm a device is OFF by issuing OFF, re-reading the relay/state, and
+   * retrying with exponential backoff. Each attempt is wrapped in a timeout so
+   * a single offline device cannot hang the caller (e.g. emergency stop).
+   *
+   * @param {string} ipOrDeviceId - IP for TPLink, deviceId for Govee/Tuya
+   * @param {Object} device - Optional device object with brand info
+   * @param {Object} opts - { retries:2, timeoutMs:4000 }
+   * @returns {Promise<{ok:boolean, error?:string, confirmed:boolean}>}
+   */
+  async turnOffWithConfirm(ipOrDeviceId, device = null, opts = {}) {
+    const retries = Number.isInteger(opts.retries) ? opts.retries : 2;
+    const timeoutMs = Number.isInteger(opts.timeoutMs) ? opts.timeoutMs : 4000;
+
+    if (!device) {
+      device = this.devices.get(ipOrDeviceId);
+    }
+
+    // Helper: wrap a promise so it rejects if it exceeds timeoutMs.
+    const withTimeout = (promise, label) => {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const t = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+        Promise.resolve(promise).then(
+          (val) => { if (!settled) { settled = true; clearTimeout(t); resolve(val); } },
+          (err) => { if (!settled) { settled = true; clearTimeout(t); reject(err); } }
+        );
+      });
+    };
+
+    let lastError;
+    // attempts = initial OFF + `retries` additional attempts
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      // Issue OFF (skip cycle stop so confirmation logic owns cycle teardown)
+      try {
+        const offResult = await withTimeout(
+          this.turnOff(ipOrDeviceId, device, { skipCycleStop: true }),
+          'turnOff'
+        );
+        if (offResult && offResult.error) {
+          lastError = offResult.error;
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+
+      // Re-read the relay/state via the brand read path to confirm it is OFF.
+      try {
+        const state = await withTimeout(
+          this.getDeviceState(ipOrDeviceId, device),
+          'getDeviceState'
+        );
+        if (state && !state.error) {
+          const isOff = state.state === 'off' || state.relay_state === 0;
+          if (isOff) {
+            return { ok: true, error: lastError, confirmed: true };
+          }
+          lastError = 'Relay still reports ON after OFF command';
+        } else if (state && state.error) {
+          lastError = state.error;
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
+
+      // Backoff before the next retry (exponential: 100ms, 200ms, ...).
+      if (attempt < retries) {
+        const backoff = 100 * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, backoff));
+      }
+    }
+
+    return { ok: false, error: lastError || 'Failed to confirm device OFF', confirmed: false };
   }
 
   /**
@@ -773,10 +852,10 @@ class DeviceService {
       }
       if (current.relay_state === 1) {
         await kasaDevice.turnOff();
-        return { success: true, state: 'off' };
+        return { ok: true, success: true, state: 'off' };
       } else {
         await kasaDevice.turnOn();
-        return { success: true, state: 'on' };
+        return { ok: true, success: true, state: 'on' };
       }
     } catch (error) {
       return { error: error.message };
@@ -826,8 +905,24 @@ class DeviceService {
         try {
           console.log(`[DeviceService] Cycle ${currentCycle}: turning OFF device ${ip} after ${duration}s (brand: ${device?.brand})`);
           const offResult = await this.turnOff(ip, device, { skipCycleStop: true });
-          if (offResult.error) {
+          if (offResult.error || offResult.ok === false) {
             console.error(`[DeviceService] Cycle ${currentCycle}: turnOff failed:`, offResult.error);
+            // SAFETY: do not schedule another ON until we can confirm the
+            // device is actually OFF. Attempt a confirmed turn-off.
+            const confirm = await this.turnOffWithConfirm(ip, device);
+            if (!confirm.confirmed) {
+              console.error(`[DeviceService] Cycle ${currentCycle}: device ${ip} could NOT be confirmed OFF (${confirm.error}). Aborting cycle.`);
+              this.emitEvent('cycle_error', {
+                ip,
+                cycle: currentCycle,
+                device,
+                error: confirm.error || 'Failed to confirm device OFF',
+                message: 'Cycle aborted: device could not be confirmed OFF'
+              });
+              // Tear down the cycle and DO NOT schedule the next ON.
+              await this.stopCycle(ip, device);
+              return;
+            }
           }
           this.emitEvent('cycle_off', { ip, cycle: currentCycle, device });
 

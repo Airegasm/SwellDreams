@@ -6,6 +6,7 @@ import { API_BASE, CONFIG } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
+import ChooseMultiModal from '../components/modals/ChooseMultiModal';
 import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
 import { formatMessageContent } from '../utils/messageFormatter';
@@ -22,32 +23,40 @@ import './Chat.css';
 function PumpStatusItem({ deviceIp, status }) {
   const [timeRemaining, setTimeRemaining] = useState(0);
 
+  // Keep the latest status in a ref so the interval reads fresh values each
+  // tick without being torn down/recreated whenever the status object changes.
+  const statusRef = useRef(status);
+  statusRef.current = status;
+
   useEffect(() => {
-    if (status.type === 'cycle') {
-      const interval = setInterval(() => {
-        if (status.endTime) {
-          const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
+    if (status.type !== 'cycle' && status.type !== 'duration') {
+      return;
+    }
+    const interval = setInterval(() => {
+      const s = statusRef.current;
+      if (s.type === 'cycle') {
+        if (s.endTime) {
+          const remaining = Math.max(0, (s.endTime - Date.now()) / 1000);
           setTimeRemaining(remaining);
         } else {
           setTimeRemaining(0); // Between cycles, show 0
         }
-      }, 100);
-      return () => clearInterval(interval);
-    } else if (status.type === 'duration') {
-      const interval = setInterval(() => {
-        if (status.endTime) {
+      } else if (s.type === 'duration') {
+        if (s.endTime) {
           // Timer-based: count down
-          const remaining = Math.max(0, (status.endTime - Date.now()) / 1000);
+          const remaining = Math.max(0, (s.endTime - Date.now()) / 1000);
           setTimeRemaining(remaining);
-        } else if (status.startTime) {
+        } else if (s.startTime) {
           // Forever: count up
-          const elapsed = (Date.now() - status.startTime) / 1000;
+          const elapsed = (Date.now() - s.startTime) / 1000;
           setTimeRemaining(elapsed);
         }
-      }, 100);
-      return () => clearInterval(interval);
-    }
-  }, [status]);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+    // Only re-create when the status TYPE changes (cycle <-> duration <-> other),
+    // not on every status object identity change.
+  }, [status.type]);
 
   return (
     <div className="pump-status-item">
@@ -73,7 +82,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -82,6 +91,9 @@ function Chat() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [messageHistory, setMessageHistory] = useState([]);
+  // Tracks the last server-provided history we loaded, so the save effect
+  // doesn't echo unchanged server history back to the backend.
+  const lastLoadedHistoryRef = useRef(null);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [currentDraft, setCurrentDraft] = useState('');
   const [rightColumnTab, setRightColumnTab] = useState('events');
@@ -372,6 +384,9 @@ function Chat() {
   // Load message input history from session state
   useEffect(() => {
     if (sessionState.messageInputHistory) {
+      // Record what the server gave us so the save effect can detect
+      // that this value originated from the server (and skip re-saving it).
+      lastLoadedHistoryRef.current = sessionState.messageInputHistory;
       setMessageHistory(sessionState.messageInputHistory);
     }
   }, [sessionState.messageInputHistory]);
@@ -558,6 +573,10 @@ function Chat() {
   // Send message history updates to backend
   useEffect(() => {
     if (messageHistory.length > 0) {
+      // Don't echo back history we just loaded from the server unchanged.
+      if (messageHistory === lastLoadedHistoryRef.current) {
+        return;
+      }
       sendWsMessage('update_message_history', { history: messageHistory });
     }
   }, [messageHistory, sendWsMessage]);
@@ -629,12 +648,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || simpleABData || challengeData) {
+    if (inputData || playerChoiceData || chooseMultiData || simpleABData || challengeData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, simpleABData, challengeData]);
+  }, [inputData, playerChoiceData, chooseMultiData, simpleABData, challengeData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -702,6 +721,9 @@ function Chat() {
             return null;
           }
 
+          // Per-fetch timeout so a single hung request can't stall the whole poll
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
           try {
             // Use deviceId for Govee/Tuya, ip for TPLink
             const deviceIdentifier = device.deviceId || device.ip;
@@ -718,7 +740,7 @@ function Chat() {
             if (params.toString()) {
               url += `?${params.toString()}`;
             }
-            const response = await fetch(url);
+            const response = await fetch(url, { signal: controller.signal });
             const result = await response.json();
             return {
               key: deviceKey,
@@ -733,10 +755,14 @@ function Chat() {
               state: 'unknown',
               lastUpdate: Date.now()
             };
+          } finally {
+            clearTimeout(timeoutId);
           }
         });
 
-        const states = await Promise.all(statePromises);
+        // Use allSettled so one rejected fetch can never stall the rest
+        const settled = await Promise.allSettled(statePromises);
+        const states = settled.map(r => (r.status === 'fulfilled' ? r.value : null));
         const resultsTime = Date.now();
         setPolledDeviceStates(prev => {
           const newStates = { ...prev };
@@ -1571,8 +1597,8 @@ function Chat() {
             </div>
           ) : (
             messages.filter(msg => msg.content !== '...').map((msg, index, filteredMsgs) => {
-            // Highlight the last character message when player choice is active
-            const isLastCharacterMsg = playerChoiceData &&
+            // Highlight the last character message when a choice modal is active
+            const isLastCharacterMsg = (playerChoiceData || chooseMultiData) &&
               msg.sender !== 'player' &&
               index === filteredMsgs.length - 1;
 
@@ -1755,6 +1781,23 @@ function Chat() {
                 <PlayerChoiceModal
                   choiceData={playerChoiceData}
                   onChoice={handlePlayerChoice}
+                  subContext={subContext}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Inline Choose Multi (multi-select) display */}
+          {chooseMultiData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Choose</span>
+              </div>
+              <div className="choice-inline-container">
+                <ChooseMultiModal
+                  choiceData={chooseMultiData}
+                  onConfirm={handleChooseMulti}
                   subContext={subContext}
                   compact={true}
                 />

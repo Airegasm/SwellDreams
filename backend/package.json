@@ -3,6 +3,9 @@
   "version": "5.0.0",
   "description": "SwellDreams - Single-player inflation roleplay backend",
   "main": "server.js",
+  "engines": {
+    "node": ">=18 <23"
+  },
   "scripts": {
     "start": "npm run build:frontend && node server.js",
     "build:frontend": "cd ../frontend && npm run build",

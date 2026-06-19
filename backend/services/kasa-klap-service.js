@@ -12,7 +12,7 @@
  * Supports: HS103, HS105, KP125, EP25, etc. on KLAP firmware.
  */
 
-const { execSync, execFileSync } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const path = require('path');
 const { createLogger } = require('../utils/logger');
 
@@ -26,50 +26,82 @@ class KasaKlapService {
     this.email = null;
     this.password = null;
     this.pythonReady = null; // null = unchecked, true = ready, string = error message
+    this._readyPromise = null; // in-flight readiness/install promise
   }
 
   /**
-   * Check if Python and python-kasa library are available, auto-install if needed
-   * @returns {boolean|string} true if ready, error message string if not
+   * Run a helper command asynchronously and resolve { code, stdout, stderr }.
+   * Never rejects for non-zero exit; only rejects if the process can't spawn.
    */
-  _ensurePythonReady() {
+  _run(cmd, args, timeout = 120000) {
+    return new Promise((resolve, reject) => {
+      execFile(cmd, args, { encoding: 'utf8', timeout }, (error, stdout, stderr) => {
+        if (error && (error.code === 'ENOENT' || error.killed)) {
+          return reject(error);
+        }
+        resolve({ code: error ? (error.code || 1) : 0, stdout: stdout || '', stderr: stderr || '' });
+      });
+    });
+  }
+
+  /**
+   * Check if Python and python-kasa library are available, auto-install if needed.
+   * ASYNC boot step - never blocks the command hot path.
+   * @returns {Promise<boolean|string>} true if ready, error message string if not
+   */
+  async ensurePythonReady() {
     if (this.pythonReady !== null) {
       return this.pythonReady;
     }
+    if (this._readyPromise) {
+      return this._readyPromise;
+    }
+    this._readyPromise = this._doEnsurePythonReady().then((result) => {
+      this.pythonReady = result;
+      this._readyPromise = null;
+      return result;
+    });
+    return this._readyPromise;
+  }
 
+  async _doEnsurePythonReady() {
     // Check if Python is available
     try {
-      execSync(`${PYTHON_CMD} --version`, { encoding: 'utf8', stdio: 'pipe' });
+      const v = await this._run(PYTHON_CMD, ['--version'], 15000);
+      if (v.code !== 0) throw new Error('python check failed');
     } catch (error) {
-      this.pythonReady = 'Python is not installed. Please install Python 3.8+ from python.org';
-      log.error(this.pythonReady);
-      return this.pythonReady;
+      const msg = 'Python is not installed. Please install Python 3.8+ from python.org';
+      log.error(msg);
+      return msg;
     }
 
     // Check if python-kasa library is installed
     try {
-      execSync(`${PYTHON_CMD} -c "from kasa import Discover"`, { encoding: 'utf8', stdio: 'pipe' });
-      log.info('Python python-kasa library is ready');
-      this.pythonReady = true;
-      return true;
-    } catch (error) {
-      // Not installed, try to auto-install
-      log.info('python-kasa library not found, attempting auto-install...');
-      try {
-        const pipFlags = process.platform === 'linux' ? '--break-system-packages' : '';
-        execSync(`${PIP_CMD} install ${pipFlags} python-kasa`, {
-          encoding: 'utf8',
-          stdio: 'pipe',
-          timeout: 120000
-        });
-        log.info('Successfully installed python-kasa library');
-        this.pythonReady = true;
+      const chk = await this._run(PYTHON_CMD, ['-c', 'from kasa import Discover'], 15000);
+      if (chk.code === 0) {
+        log.info('Python python-kasa library is ready');
         return true;
-      } catch (installError) {
-        this.pythonReady = `Failed to install python-kasa: ${installError.message}. Try manually: ${PIP_CMD} install python-kasa`;
-        log.error(this.pythonReady);
-        return this.pythonReady;
       }
+    } catch (error) {
+      // fall through to install attempt
+    }
+
+    // Not installed, try to auto-install (async, off the command hot path)
+    log.info('python-kasa library not found, attempting auto-install...');
+    try {
+      const pipArgs = process.platform === 'linux'
+        ? ['install', '--break-system-packages', 'python-kasa']
+        : ['install', 'python-kasa'];
+      const inst = await this._run(PIP_CMD, pipArgs, 120000);
+      if (inst.code !== 0) {
+        throw new Error(inst.stderr || `pip exited ${inst.code}`);
+      }
+      log.info('Successfully installed python-kasa library');
+      return true;
+    } catch (installError) {
+      const msg = `Failed to install python-kasa: ${installError.message}. Try manually: ${PIP_CMD} install python-kasa`;
+      log.error(msg);
+      return msg;
     }
   }
 
@@ -105,7 +137,7 @@ class KasaKlapService {
    * @param {string} arg - device IP (or discovery timeout for the discover command)
    * @returns {object} Result from the Python script
    */
-  _execPython(command, arg) {
+  async _execPython(command, arg) {
     // Validate IP for device-targeted commands (discover takes a timeout instead)
     if (command !== 'discover') {
       let cleanIp = arg;
@@ -118,8 +150,8 @@ class KasaKlapService {
       arg = cleanIp;
     }
 
-    // Check Python/python-kasa ready (auto-installs if needed)
-    const ready = this._ensurePythonReady();
+    // Check Python/python-kasa ready (async readiness/auto-install boot step)
+    const ready = await this.ensurePythonReady();
     if (ready !== true) {
       throw new Error(ready);
     }
@@ -128,25 +160,48 @@ class KasaKlapService {
       throw new Error('Kasa 1.1.x+ credentials not configured');
     }
 
-    try {
-      // Use execFileSync to avoid shell interpretation of special characters in password
+    return new Promise((resolve, reject) => {
       // -B flag disables bytecode caching to ensure fresh script execution after updates
-      const result = execFileSync(PYTHON_CMD, [
+      // Args passed directly (no shell) so special chars in password are safe.
+      const child = spawn(PYTHON_CMD, [
         '-B', SCRIPT_PATH, command, String(arg), this.email, this.password
-      ], { encoding: 'utf8', timeout: 30000 });
-      return JSON.parse(result.trim());
-    } catch (error) {
-      log.error(`Python script error for ${command} on ${arg}:`, error.message);
-      // Try to parse any JSON in stdout
-      if (error.stdout) {
+      ], { windowsHide: true });
+
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try { child.kill('SIGKILL'); } catch (e) { /* ignore */ }
+        log.error(`Python script timeout for ${command} on ${arg}`);
+        reject(new Error('Kasa 1.1.x+ command failed: timeout'));
+      }, 30000);
+
+      child.stdout.on('data', (d) => { stdout += d.toString(); });
+      child.stderr.on('data', (d) => { stderr += d.toString(); });
+
+      child.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        log.error(`Python script error for ${command} on ${arg}:`, error.message);
+        reject(new Error(`Kasa 1.1.x+ command failed: ${error.message}`));
+      });
+
+      child.on('close', () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         try {
-          return JSON.parse(error.stdout.trim());
+          resolve(JSON.parse(stdout.trim()));
         } catch (e) {
-          // Ignore parse error
+          log.error(`Python script error for ${command} on ${arg}: ${stderr || e.message}`);
+          reject(new Error(`Kasa 1.1.x+ command failed: ${stderr || e.message}`));
         }
-      }
-      throw new Error(`Kasa 1.1.x+ command failed: ${error.message}`);
-    }
+      });
+    });
   }
 
   /**
@@ -169,7 +224,7 @@ class KasaKlapService {
    * @returns {Promise<Array>} Array of discovered devices
    */
   async listDevices(timeout = 5) {
-    const result = this._execPython('discover', timeout);
+    const result = await this._execPython('discover', timeout);
     if (!result.success) {
       throw new Error(result.error || 'Discovery failed');
     }
@@ -182,24 +237,27 @@ class KasaKlapService {
    */
   async turnOn(ip) {
     log.info(`Turning ON device at ${ip}`);
-    const result = this._execPython('on', ip);
+    // Throws on failure so device-service catches it into { ok:false, error }.
+    const result = await this._execPython('on', ip);
     if (!result.success) {
       throw new Error(result.error || 'Failed to turn on device');
     }
-    return result;
+    return { ok: true, ...result };
   }
 
   /**
    * Turn device off
    * @param {string} ip - Device IP address
+   * @returns {Promise<{ok:boolean,error?:string}>} resolves on success; throws on failure
    */
   async turnOff(ip) {
     log.info(`Turning OFF device at ${ip}`);
-    const result = this._execPython('off', ip);
+    // Throws on failure so device-service catches it into { ok:false, error }.
+    const result = await this._execPython('off', ip);
     if (!result.success) {
       throw new Error(result.error || 'Failed to turn off device');
     }
-    return result;
+    return { ok: true, ...result };
   }
 
   /**
@@ -208,7 +266,7 @@ class KasaKlapService {
    * @returns {Promise<object>} Device info object
    */
   async getDeviceInfo(ip) {
-    const result = this._execPython('info', ip);
+    const result = await this._execPython('info', ip);
     if (!result.success) {
       throw new Error(result.error || 'Failed to get device info');
     }
@@ -221,7 +279,7 @@ class KasaKlapService {
    * @returns {Promise<string>} 'on' or 'off'
    */
   async getPowerState(ip) {
-    const result = this._execPython('state', ip);
+    const result = await this._execPython('state', ip);
     if (!result.success) {
       throw new Error(result.error || 'Failed to get power state');
     }

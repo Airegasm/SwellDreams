@@ -499,6 +499,9 @@ class EventEngine {
       case 'player_choice':
         return this.executeTestPlayerChoice(node, flow, nodeStep);
 
+      case 'choose_multi':
+        return this.executeTestChooseMulti(node, flow, nodeStep);
+
       case 'simple_ab':
         return this.executeTestSimpleAB(node, flow, nodeStep);
 
@@ -773,27 +776,20 @@ class EventEngine {
       }
 
       case 'set_variable': {
-        const varType = data.varType || 'flow';
+        // Use the SAME production path as live execution so test and live agree.
+        // Legacy default 'flow' maps to the production 'custom' flow-variable type.
+        const rawVarType = data.varType || 'custom';
+        const varType = rawVarType === 'flow' ? 'custom' : rawVarType;
         const varName = data.variable || data.variableName;
         const operation = data.operation || 'set';
-        const varValue = this.substituteVariables(String(data.value || data.variableValue || ''));
+        const varValue = this.substituteVariables(String(data.value ?? data.variableValue ?? ''));
 
         const opSymbols = { set: '=', inc: '+=', dec: '-=', mult: '*=', div: '/=' };
         const opSymbol = opSymbols[operation] || '=';
 
-        if (varType === 'flow' && varName) {
-          const current = this.flowVariables.get(`${flow.id}:${varName}`);
-          let newValue = varValue;
-          if (operation !== 'set') {
-            const a = parseFloat(current); const b = parseFloat(varValue);
-            const x = isNaN(a) ? 0 : a; const y = isNaN(b) ? 0 : b;
-            if (operation === 'inc') newValue = x + y;
-            else if (operation === 'dec') newValue = x - y;
-            else if (operation === 'mult') newValue = x * y;
-            else if (operation === 'div') newValue = y !== 0 ? x / y : x;
-          }
-          this.flowVariables.set(`${flow.id}:${varName}`, newValue);
-        }
+        // Run the real applySetVariable so the flow-scoped map (read by
+        // evaluateTestCondition / switch / loop) is updated identically to live.
+        this.applySetVariable(varType, varName, operation, varValue, flow?.id);
 
         nodeStep.details = `Set Variable: ${varName} ${opSymbol} ${varValue}`;
         this.emitTestStep(nodeStep);
@@ -911,7 +907,7 @@ class EventEngine {
       if (firstChoice.setVariablesEnabled && Array.isArray(firstChoice.variableOps)) {
         for (const op of firstChoice.variableOps) {
           if (!op || !op.variable) continue;
-          this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+          this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value, flow?.id);
         }
       }
 
@@ -926,6 +922,41 @@ class EventEngine {
     }
 
     return { skipEdges: true, outputId: null };
+  }
+
+  /**
+   * Choose Multi in test mode - auto-select ALL options and let every
+   * outgoing edge fire (returning no skipEdges follows all branches).
+   */
+  executeTestChooseMulti(node, flow, nodeStep) {
+    const choices = node.data.choices || [];
+    nodeStep.details = `Choose Multi: ${choices.length} options (auto-selecting all in test)`;
+    this.emitTestStep(nodeStep);
+
+    this.emitTestStep({
+      type: 'choice',
+      label: 'Choose Multi presented',
+      details: choices.map(c => c.label || c.id).join(', '),
+      choices: choices
+    });
+
+    // Persist [Choice] as the joined labels and apply every choice's var ops
+    this.variables['Choice'] = choices.map(c => c.label || c.id).join(', ');
+    for (const choice of choices) {
+      if (choice.setVariablesEnabled && Array.isArray(choice.variableOps)) {
+        for (const op of choice.variableOps) {
+          if (!op || !op.variable) continue;
+          this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+        }
+      }
+    }
+
+    this.emitTestStep({
+      type: 'choice_selected',
+      label: `Auto-selected all ${choices.length}: ${choices.map(c => c.label || c.id).join(', ')}`
+    });
+
+    // No skipEdges -> the test runner follows ALL outgoing edges (parallel branches)
   }
 
   /**
@@ -1145,7 +1176,7 @@ class EventEngine {
   async broadcast(type, data) {
     // Block flow-related broadcasts when aborted (except status updates)
     if (this.aborted) {
-      const blockedTypes = ['ai_message', 'player_message', 'challenge', 'player_choice', 'simple_ab', 'flow_message'];
+      const blockedTypes = ['ai_message', 'player_message', 'challenge', 'player_choice', 'choose_multi', 'simple_ab', 'flow_message'];
       if (blockedTypes.includes(type)) {
         console.log(`[EventEngine] Broadcast blocked (aborted): ${type}`);
         return;
@@ -1429,6 +1460,11 @@ class EventEngine {
               });
             }
             this.abortCurrentFlow();
+            // abortCurrentFlow() only clears this.aborted on the next tick
+            // (setImmediate). The higher-priority flow's prologue runs
+            // synchronously below, so clear the flag now or executeFromNode's
+            // abort gate would early-return and drop the takeover.
+            this.aborted = false;
           } else {
             console.log(`[EventEngine] Priority skip: trigger (priority ${triggerPriority}) ignored - running flow has priority ${this.runningFlowPriority}`);
             if (selected.shouldNotify) {
@@ -1669,7 +1705,7 @@ class EventEngine {
    * Count significant nodes in a flow path starting from a node
    */
   countFlowSteps(flow, startNodeId) {
-    const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+    const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'choose_multi', 'simple_ab',
       'capacity_ai_message', 'capacity_player_message',
       'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
     const visited = new Set();
@@ -2032,7 +2068,7 @@ class EventEngine {
     if (execution) {
       execution.currentNodeLabel = node.data.label;
       // Only broadcast updates for significant nodes (not every tiny step)
-      const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'simple_ab',
+      const significantTypes = ['action', 'condition', 'branch', 'delay', 'player_choice', 'choose_multi', 'simple_ab',
         'capacity_ai_message', 'capacity_player_message',
         'prize_wheel', 'dice_roll', 'coin_flip', 'rps', 'timer_challenge', 'number_guess', 'slot_machine', 'card_draw', 'simon_challenge', 'reflex_challenge'];
       if (significantTypes.includes(node.type)) {
@@ -2086,6 +2122,9 @@ class EventEngine {
 
         case 'player_choice':
           return await this.executePlayerChoice(node, flow);
+
+        case 'choose_multi':
+          return await this.executeChooseMulti(node, flow);
 
         case 'simple_ab':
           return await this.executeSimpleAB(node, flow);
@@ -2212,6 +2251,60 @@ class EventEngine {
   }
 
   /**
+   * Execute a choose_multi node - show a multi-select (checkbox) modal and wait.
+   * On confirm, EVERY selected option's branch fires in parallel.
+   */
+  async executeChooseMulti(node, flow) {
+    if (this.aborted) {
+      console.log('[EventEngine] Choose Multi aborted before display');
+      return false;
+    }
+
+    const data = node.data;
+    const choices = data.choices || [];
+
+    // Build [Choices] substitution - numbered list of choice labels
+    const choicesList = choices.map((c, i) => `${i + 1}. ${c.label}`).join('\n');
+
+    // Optional AI message intro (same behavior as player_choice)
+    if (data.aiMessageIntroEnabled && data.aiMessageIntro) {
+      let introMessage = this.substituteVariables(data.aiMessageIntro);
+      introMessage = introMessage.replace(/\[Choices\]/gi, choicesList);
+      console.log(`[EventEngine] Choose Multi sending AI Message Intro (suppressLlm: ${data.aiMessageIntroSuppressLlm || false})`);
+      await this.broadcast('ai_message', {
+        content: introMessage,
+        sender: 'flow',
+        suppressLlm: data.aiMessageIntroSuppressLlm || false,
+        choiceContext: { type: 'choose_multi', event: 'intro' }
+      });
+    }
+
+    // Optional LLM-generated character message
+    const sendMessageFirst = data.sendMessageFirst !== false;
+    if (data.prompt && sendMessageFirst) {
+      await this.broadcast('ai_message', { content: data.prompt, sender: 'flow' });
+    }
+
+    // Reuse the pending-choice slot (only one choice modal can be open at a time)
+    this.pendingPlayerChoice = {
+      nodeId: node.id,
+      flowId: flow.id,
+      choices: choices,
+      isMulti: true
+    };
+
+    console.log(`[EventEngine] Broadcasting choose_multi modal with ${choices.length} choices`);
+    await this.broadcast('choose_multi', {
+      nodeId: node.id,
+      description: this.substituteVariables(data.description || ''),
+      choices: choices
+    });
+
+    console.log('[EventEngine] Choose Multi presented, chain paused waiting for user response');
+    return 'wait';
+  }
+
+  /**
    * Execute a simple_ab node - show A/B popup and wait for user response
    */
   async executeSimpleAB(node, flow) {
@@ -2306,8 +2399,30 @@ class EventEngine {
     }
 
     // Store the input value as a flow variable
-    const finalValue = inputType === 'number' ? parseFloat(value) : String(value);
+    let finalValue;
+    if (inputType === 'number') {
+      const parsed = parseFloat(value);
+      if (!Number.isFinite(parsed)) {
+        // NaN guard: a non-numeric/empty number input must not poison the
+        // variable store (NaN breaks every downstream comparison). Coerce to
+        // the documented default of 0 and note it for tests/logs.
+        console.warn(`[EventEngine] Number input for [Flow:${variableName}] was not a finite number ("${value}"), defaulting to 0`);
+        if (this.testMode) {
+          this.emitTestStep({ type: 'note', label: 'Number input coerced', details: `[Flow:${variableName}] "${value}" -> 0 (not a number)` });
+        }
+        finalValue = 0;
+      } else {
+        finalValue = parsed;
+      }
+    } else {
+      finalValue = String(value);
+    }
     this.variables[variableName] = finalValue;
+    // Mirror into the flow-scoped map so switch/loop(until)/sessionTimer (which
+    // read this.flowVariables) see the same value as substituteVariables.
+    if (flowId) {
+      this.flowVariables.set(`${flowId}:${variableName}`, finalValue);
+    }
 
     // Sync to sessionState for frontend access
     if (this.sessionState) {
@@ -2366,6 +2481,11 @@ class EventEngine {
 
     // Store as flow variable
     this.variables[variableName] = randomValue;
+    // Mirror into the flow-scoped map so switch/loop(until)/sessionTimer
+    // (which read this.flowVariables) see the same value.
+    if (flow?.id) {
+      this.flowVariables.set(`${flow.id}:${variableName}`, randomValue);
+    }
 
     // Sync to sessionState for frontend access
     if (this.sessionState) {
@@ -3310,7 +3430,16 @@ class EventEngine {
 
       // Schedule auto-off after duration
       if (duration > 0) {
-        setTimeout(async () => {
+        const epochAtSchedule = this.abortEpoch;
+        const timerKey = `devctrl:${actionType}:${resolvedDevice}:${Date.now()}`;
+        const handle = setTimeout(async () => {
+          this.timers.delete(timerKey);
+          // Abort guard: a stop (emergencyStop/abort) bumps abortEpoch and turns
+          // devices off; do not re-issue turnOff after that.
+          if (this.abortEpoch !== epochAtSchedule || this.aborted) {
+            console.log(`[EventEngine] ${actionType} auto-off skipped for ${resolvedDevice} (aborted since schedule)`);
+            return;
+          }
           try {
             await this.deviceService.turnOff(resolvedDevice, deviceObj);
             console.log(`[EventEngine] ${actionType} device ${deviceObj.name || deviceId} turned off after ${duration}s`);
@@ -3318,6 +3447,7 @@ class EventEngine {
             console.error(`[EventEngine] Failed to turn off ${actionType} device:`, e.message);
           }
         }, duration * 1000);
+        this.timers.set(timerKey, { timeout: handle });
       }
 
       return true;
@@ -3593,7 +3723,16 @@ class EventEngine {
           if (data.untilType === 'timer' && data.untilValue > 0) {
             const timerMs = data.untilValue * 1000;
             console.log(`[EventEngine] Scheduling device auto-off in ${timerMs}ms (timer until)`);
-            setTimeout(async () => {
+            const epochAtSchedule = this.abortEpoch;
+            const timerKey = `device_on:timer:${resolvedDevice}:${Date.now()}`;
+            const handle = setTimeout(async () => {
+              this.timers.delete(timerKey);
+              // Abort guard: a stop bumps abortEpoch and turns devices off;
+              // skip the auto-off so we don't re-issue OFF after a stop.
+              if (this.abortEpoch !== epochAtSchedule || this.aborted) {
+                console.log(`[EventEngine] Timer auto-off skipped for ${resolvedDevice} (aborted since schedule)`);
+                return;
+              }
               // Check if monitor still exists (might have been manually stopped)
               if (this.deviceMonitors.has(resolvedDevice)) {
                 console.log(`[EventEngine] Timer complete for device ${resolvedDevice}, turning off`);
@@ -3613,6 +3752,7 @@ class EventEngine {
                 this.handleDeviceOnComplete(resolvedDevice);
               }
             }, timerMs);
+            this.timers.set(timerKey, { timeout: handle });
           }
         }
 
@@ -4025,6 +4165,11 @@ class EventEngine {
         // Declare/initialize a flow variable
         if (data.name) {
           this.variables[data.name] = this.evaluateExpression(data.value);
+          // Mirror into the flow-scoped map so switch/loop(until)/sessionTimer
+          // (which read this.flowVariables) see the same value.
+          if (flow?.id) {
+            this.flowVariables.set(`${flow.id}:${data.name}`, this.variables[data.name]);
+          }
           // Sync to sessionState for frontend access
           if (this.sessionState) {
             this.sessionState.flowVariables = this.sessionState.flowVariables || {};
@@ -4041,7 +4186,8 @@ class EventEngine {
           data.varType || 'system',
           data.variable,
           data.operation,
-          data.value
+          data.value,
+          flow?.id
         );
         break;
       }
@@ -4423,9 +4569,10 @@ class EventEngine {
     // Apply this choice's variable operations (set/inc/dec/mult/div) before the
     // flow continues, so [Choice] and any vars are up to date downstream.
     if (choiceInfo?.setVariablesEnabled && Array.isArray(choiceInfo.variableOps)) {
+      const choiceFlowId = this.pendingPlayerChoice?.flowId;
       for (const op of choiceInfo.variableOps) {
         if (!op || !op.variable) continue;
-        this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+        this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value, choiceFlowId);
       }
     }
 
@@ -4620,6 +4767,73 @@ class EventEngine {
 
     // Continue flow execution from the chosen branch
     await this.executeFromNode(flow, matchingEdge.target, null, true, inheritedPriority, inheritedNotify);
+  }
+
+  /**
+   * Handle a Choose Multi response - apply each selected choice's variable ops
+   * and fire ALL selected branches in parallel.
+   */
+  async handleChooseMulti(nodeId, selectedIds) {
+    const ids = Array.isArray(selectedIds) ? selectedIds : [];
+    console.log(`[EventEngine] Choose Multi selected: ${JSON.stringify(ids)} for node ${nodeId}`);
+
+    if (!this.pendingPlayerChoice || this.pendingPlayerChoice.nodeId !== nodeId) {
+      console.log('[EventEngine] No matching pending Choose Multi to continue');
+      return;
+    }
+
+    const { flowId } = this.pendingPlayerChoice;
+    const allChoices = this.pendingPlayerChoice.choices || [];
+    const selectedChoices = allChoices.filter(c => ids.includes(c.id));
+
+    // Persist [Choice] as the joined list of selected labels
+    const labels = selectedChoices.map(c => c.label);
+    this.variables['Choice'] = labels.join(', ');
+    if (this.sessionState) {
+      this.sessionState.flowVariables = this.sessionState.flowVariables || {};
+      this.sessionState.flowVariables['Choice'] = this.variables['Choice'];
+    }
+
+    // Apply each selected choice's variable operations before branching
+    for (const choice of selectedChoices) {
+      if (choice.setVariablesEnabled && Array.isArray(choice.variableOps)) {
+        for (const op of choice.variableOps) {
+          if (!op || !op.variable) continue;
+          this.applySetVariable(op.varType || 'custom', op.variable, op.operation, op.value);
+        }
+      }
+    }
+
+    const flowData = this.activeFlows.get(flowId);
+    if (!flowData) {
+      console.log(`[EventEngine] Flow ${flowId} not found for Choose Multi continuation`);
+      this.pendingPlayerChoice = null;
+      return;
+    }
+    const flow = flowData.flow;
+
+    // Find a target node for each selected choice (sourceHandle === choiceId)
+    const edges = flow.edges.filter(e => e.source === nodeId);
+    const execution = this.activeExecutions.get(flowId);
+    const inheritedPriority = execution?.triggerPriority || null;
+    const inheritedNotify = execution?.shouldNotify || false;
+
+    // Clear pending before firing so re-entrancy is safe
+    this.pendingPlayerChoice = null;
+
+    const branches = [];
+    for (const choice of selectedChoices) {
+      const edge = edges.find(e => e.sourceHandle === choice.id);
+      if (edge) {
+        console.log(`[EventEngine] Choose Multi firing branch "${choice.label}" -> ${edge.target}`);
+        branches.push(this.executeFromNode(flow, edge.target, null, true, inheritedPriority, inheritedNotify));
+      } else {
+        console.log(`[EventEngine] Choose Multi: no edge for choice ${choice.id} (skipped)`);
+      }
+    }
+
+    // Fire all selected branches in parallel
+    await Promise.all(branches);
   }
 
   /**
@@ -4916,7 +5130,7 @@ class EventEngine {
    * references. Shared by the set_variable action and Player Choice var ops.
    * Returns true on success, false if the variable was missing/unknown.
    */
-  applySetVariable(varType, rawVariable, operation, rawValue) {
+  applySetVariable(varType, rawVariable, operation, rawValue, flowId = null) {
     operation = operation || 'set';
     varType = varType || 'custom';
 
@@ -4949,6 +5163,11 @@ class EventEngine {
 
     if (varType === 'custom') {
       this.variables[variable] = applyOperation(this.variables[variable], value);
+      // Mirror into the flow-scoped map so switch/loop(until)/sessionTimer
+      // (which read this.flowVariables) see the same value.
+      if (flowId) {
+        this.flowVariables.set(`${flowId}:${variable}`, this.variables[variable]);
+      }
       if (this.sessionState) {
         this.sessionState.flowVariables = this.sessionState.flowVariables || {};
         this.sessionState.flowVariables[variable] = this.variables[variable];
@@ -4960,7 +5179,11 @@ class EventEngine {
     // System variable - update sessionState and broadcast
     if (variable === 'capacity') {
       const current = this.sessionState?.capacity ?? 0;
-      const numValue = parseInt(applyOperation(current, value)) || 0;
+      // capacity is an integer 0-100 field. Compute in float (so mult/div keep
+      // precision like the custom-var path), guard non-finite results, then
+      // round for storage. Math.round preserves a real computed 0 (unlike `|| 0`).
+      const computed = applyOperation(current, value);
+      const numValue = Number.isFinite(computed) ? Math.round(computed) : current;
       const clampedValue = Math.max(0, Math.min(100, numValue));
       if (this.sessionState) {
         this.sessionState.capacity = clampedValue;
@@ -4970,7 +5193,10 @@ class EventEngine {
       return true;
     } else if (variable === 'pain' || variable === 'feeling') {
       const current = this.sessionState?.pain ?? 0;
-      const numValue = parseInt(applyOperation(current, value)) || 0;
+      // pain is an integer 0-10 field. Same handling as capacity: float math,
+      // finite guard, round for storage (Math.round keeps a real 0).
+      const computed = applyOperation(current, value);
+      const numValue = Number.isFinite(computed) ? Math.round(computed) : current;
       const clampedValue = Math.max(0, Math.min(10, numValue));
       if (this.sessionState) {
         this.sessionState.pain = clampedValue;

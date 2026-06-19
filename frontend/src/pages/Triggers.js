@@ -13,7 +13,11 @@ function Triggers() {
   const [sets, setSets] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const saveTimer = useRef(null);
+  // Per-id debounce timers so switching sets within the debounce window
+  // never silently drops a pending save for the previously edited set.
+  const saveTimers = useRef(new Map());
+  // Latest pending payload per id, used to flush on demand (unmount/save now).
+  const pendingPayloads = useRef(new Map());
 
   const selectedSet = sets.find(s => s.id === selectedId) || null;
 
@@ -36,9 +40,27 @@ function Triggers() {
     return () => window.removeEventListener('exit-modal', handleExitModal);
   }, [navigate]);
 
+  // Immediately flush a pending debounced save for a given id (or all ids).
+  const flushPending = useCallback((id) => {
+    const ids = id != null ? [id] : Array.from(saveTimers.current.keys());
+    ids.forEach((key) => {
+      const timer = saveTimers.current.get(key);
+      if (timer) {
+        clearTimeout(timer);
+        saveTimers.current.delete(key);
+      }
+      const payload = pendingPayloads.current.get(key);
+      if (payload) {
+        pendingPayloads.current.delete(key);
+        api.updateTriggerSet(key, payload).catch(err => console.error('Failed to save trigger set', err));
+      }
+    });
+  }, [api]);
+
   const handleClose = () => {
     if (isExiting.current) return;
     isExiting.current = true;
+    flushPending();
     setAnimationState('exiting');
     setTimeout(() => navigate('/'), 500);
   };
@@ -66,25 +88,40 @@ function Triggers() {
     loadSets();
   }, [loadSets]);
 
-  // Debounced persist of the currently selected set
+  // Flush any pending debounced autosave when the component unmounts so edits
+  // are never lost if the page is closed during the debounce window.
+  const flushRef = useRef(null);
+  flushRef.current = flushPending;
+  useEffect(() => {
+    return () => { if (flushRef.current) flushRef.current(); };
+  }, []);
+
+  // Debounced persist of a specific set, keyed per-id so concurrent edits to
+  // different sets each get their own timer (no cross-set save loss).
   const persist = useCallback((id, payload) => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
+    pendingPayloads.current.set(id, payload);
+    const existing = saveTimers.current.get(id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      saveTimers.current.delete(id);
+      pendingPayloads.current.delete(id);
       api.updateTriggerSet(id, payload).catch(err => console.error('Failed to save trigger set', err));
     }, 600);
+    saveTimers.current.set(id, timer);
   }, [api]);
 
-  // Apply a local update to a set and persist it
+  // Apply a local update to a set, then persist OUTSIDE the setSets updater so
+  // the updater stays pure (safe under StrictMode double-invocation).
   const mutateSet = (id, updater) => {
-    setSets(prev => {
-      const next = prev.map(s => {
-        if (s.id !== id) return s;
-        const updated = updater(s);
-        persist(id, { name: updated.name, triggers: updated.triggers });
-        return updated;
-      });
-      return next;
-    });
+    let updatedSet = null;
+    setSets(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      updatedSet = updater(s);
+      return updatedSet;
+    }));
+    if (updatedSet) {
+      persist(id, { name: updatedSet.name, triggers: updatedSet.triggers });
+    }
   };
 
   const handleNewSet = async () => {
@@ -137,6 +174,10 @@ function Triggers() {
 
   const handleTriggerDrop = (toIdx, fromIdx) => {
     if (fromIdx === toIdx) return;
+    // Guard against a NaN / out-of-range drag payload that would splice an
+    // undefined trigger into the list.
+    const count = (selectedSet?.triggers || []).length;
+    if (!Number.isInteger(fromIdx) || fromIdx < 0 || fromIdx >= count) return;
     mutateSet(selectedId, s => {
       const triggers = [...(s.triggers || [])];
       const [moved] = triggers.splice(fromIdx, 1);
@@ -147,7 +188,11 @@ function Triggers() {
 
   const handleSaveNow = () => {
     if (!selectedSet) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    // Cancel any pending debounce for this set and write the current state now.
+    const timer = saveTimers.current.get(selectedSet.id);
+    if (timer) clearTimeout(timer);
+    saveTimers.current.delete(selectedSet.id);
+    pendingPayloads.current.delete(selectedSet.id);
     api.updateTriggerSet(selectedSet.id, { name: selectedSet.name, triggers: selectedSet.triggers })
       .catch(err => console.error('Failed to save trigger set', err));
   };
@@ -246,6 +291,10 @@ function Triggers() {
                       </div>
                     )}
                     {(selectedSet.triggers || []).map((trigger, tIdx) => (
+                      // Trigger sets are reusable and character-agnostic — they
+                      // aren't bound to a specific character at edit time, so all
+                      // trigger options are intentionally available (isPumpable
+                      // forced true) and per-character reminder lists are empty.
                       <TriggerRow
                         key={trigger.id || tIdx}
                         trigger={trigger}

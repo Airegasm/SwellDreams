@@ -27,12 +27,23 @@
 const { createLogger } = require('../utils/logger');
 const log = createLogger('AIDeviceControl');
 
+// Absolute hard ceiling for any single device-on duration (seconds).
+// Applied at EVERY device-on timer site as a final safety clamp,
+// independent of per-character / global settings. Matches server.js.
+const MAX_ON_SECONDS = 1800; // 30 minutes
+
 // Command patterns
 // Case-insensitive (i flag), allows flexible whitespace inside brackets
 const DEVICE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens)\s+(on|off)\s*\]/gi;
 const PULSE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):pulse:(\d+)\s*\]/gi;
 const TIMED_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):timed:(\d+)\s*\]/gi;
 const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\]/gi;
+
+// Loose pattern to catch ANY pump/vibe/tens-shaped bracket fragment, including
+// malformed ones (e.g. [pump:timed:], [pump : on], [pump:cycle:5]) that the strict
+// command patterns above would not match. Used ONLY for stripping from user-visible
+// text — never for issuing commands.
+const MALFORMED_DEVICE_TAG_PATTERN = /\[\s*(pump|vibe|tens)\b[^\]]*\]/gi;
 
 // Phrases that indicate the LLM is describing pump activity (used for reinforcement)
 // These patterns use word boundaries and flexible matching with wildcards
@@ -195,6 +206,10 @@ const PUMP_OFF_PHRASES = [
 // Track active LLM device timers for auto-off
 const llmDeviceTimers = new Map();
 
+// Track active LLM-initiated cycles so they can be force-stopped on emergency
+// stop / clearAllLlmTimers. Keyed by timerKey -> { deviceId, device }.
+const llmActiveCycles = new Map();
+
 /**
  * Parse device commands from text
  * @param {string} text - LLM output text
@@ -236,10 +251,17 @@ function parseDeviceCommands(text) {
 
   // Parse timed commands [pump:timed:#]
   while ((match = TIMED_COMMAND_PATTERN.exec(text)) !== null) {
+    const duration = parseInt(match[2], 10);
+    // Reject non-positive / NaN durations explicitly. [pump:timed:0] must NOT
+    // fall through to a full-duration default elsewhere via `0 || maxSeconds`.
+    if (!Number.isFinite(duration) || duration <= 0) {
+      log.warn(`Ignoring timed command with invalid duration: "${match[0]}"`);
+      continue;
+    }
     commands.push({
       device: match[1].toLowerCase(),  // pump, vibe, or tens
       action: 'timed',                 // timed action
-      duration: parseInt(match[2]),    // duration in seconds
+      duration,                        // duration in seconds (validated > 0)
       match: match[0]                  // full match for stripping
     });
   }
@@ -249,12 +271,21 @@ function parseDeviceCommands(text) {
 
   // Parse cycle commands [pump:cycle:duration:interval:cycles]
   while ((match = CYCLE_COMMAND_PATTERN.exec(text)) !== null) {
+    const cycleDuration = parseInt(match[2], 10);
+    const cycleInterval = parseInt(match[3], 10);
+    const cycles = parseInt(match[4], 10);
+    // Reject cycles whose ON duration is non-positive / NaN — a zero on-duration
+    // is a meaningless (and potentially endlessly-looping) command.
+    if (!Number.isFinite(cycleDuration) || cycleDuration <= 0) {
+      log.warn(`Ignoring cycle command with invalid on-duration: "${match[0]}"`);
+      continue;
+    }
     commands.push({
       device: match[1].toLowerCase(),       // pump, vibe, or tens
       action: 'cycle',                      // cycle action
-      cycleDuration: parseInt(match[2]),    // on duration in seconds
-      cycleInterval: parseInt(match[3]),    // off interval in seconds
-      cycles: parseInt(match[4]),           // number of cycles (0 = infinite)
+      cycleDuration,                        // on duration in seconds (validated > 0)
+      cycleInterval,                        // off interval in seconds
+      cycles,                               // number of cycles (0 = infinite)
       match: match[0]                       // full match for stripping
     });
   }
@@ -293,12 +324,16 @@ function stripDeviceCommands(text) {
   PULSE_COMMAND_PATTERN.lastIndex = 0;
   TIMED_COMMAND_PATTERN.lastIndex = 0;
   CYCLE_COMMAND_PATTERN.lastIndex = 0;
+  MALFORMED_DEVICE_TAG_PATTERN.lastIndex = 0;
 
   return text
     .replace(DEVICE_COMMAND_PATTERN, '')
     .replace(PULSE_COMMAND_PATTERN, '')
     .replace(TIMED_COMMAND_PATTERN, '')
     .replace(CYCLE_COMMAND_PATTERN, '')
+    // Strip any remaining pump/vibe/tens-shaped bracket fragment (malformed tags)
+    // so partial/garbled command syntax never leaks into user-visible text.
+    .replace(MALFORMED_DEVICE_TAG_PATTERN, '')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
 }
@@ -403,8 +438,10 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
     try {
       let result;
       if (cmd.action === 'on') {
+        // Final absolute safety clamp — never schedule auto-off beyond MAX_ON_SECONDS
+        const onSeconds = Math.min(maxSeconds, MAX_ON_SECONDS);
         result = await deviceService.turnOn(deviceId, device);
-        log.info(`AI turned ON ${device.label || device.name || cmd.device} (auto-off in ${maxSeconds}s)`);
+        log.info(`AI turned ON ${device.label || device.name || cmd.device} (auto-off in ${onSeconds}s)`);
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {
@@ -416,7 +453,7 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
         const timer = setTimeout(async () => {
           try {
             await deviceService.turnOff(deviceId, device);
-            log.info(`AI auto-off: turned OFF ${device.label || device.name || cmd.device} after ${maxSeconds}s`);
+            log.info(`AI auto-off: turned OFF ${device.label || device.name || cmd.device} after ${onSeconds}s`);
             llmDeviceTimers.delete(timerKey);
 
             // Inject context into chat history so LLM believes they turned it off
@@ -430,13 +467,13 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
                 action: 'off',
                 deviceName: device.label || device.name || cmd.device,
                 autoOff: true,
-                reason: `Auto-off after ${maxSeconds}s`
+                reason: `Auto-off after ${onSeconds}s`
               });
             }
           } catch (err) {
             log.error(`AI auto-off failed for ${cmd.device}:`, err.message);
           }
-        }, maxSeconds * 1000);
+        }, onSeconds * 1000);
 
         llmDeviceTimers.set(timerKey, timer);
 
@@ -465,8 +502,16 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
 
       } else if (cmd.action === 'timed') {
         // Timed mode: run for X seconds then auto-off
+        // cmd.duration is validated > 0 at parse time; fall back to maxSeconds only
+        // when no duration was supplied. Clamp against the character limit, the
+        // global max, AND the absolute MAX_ON_SECONDS ceiling.
         const rawDuration = cmd.duration || maxSeconds;
-        const duration = Math.min(rawDuration, Math.round((characterLimits?.llmMaxTimedDuration ?? 10) * capacityModifier));
+        const duration = Math.min(
+          rawDuration,
+          Math.round((characterLimits?.llmMaxTimedDuration ?? 10) * capacityModifier),
+          globalMaxSeconds,
+          MAX_ON_SECONDS
+        );
 
         result = await deviceService.turnOn(deviceId, device);
         log.info(`AI TIMED ${device.label || device.name || cmd.device} for ${duration}s`);
@@ -483,6 +528,11 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
             await deviceService.turnOff(deviceId, device);
             log.info(`AI timed complete: turned OFF ${device.label || device.name || cmd.device} after ${duration}s`);
             llmDeviceTimers.delete(timerKey);
+
+            // Inject context into chat history so the model knows the pump is off
+            if (options.injectContext) {
+              options.injectContext(`[pump off]`);
+            }
 
             if (broadcast) {
               broadcast('ai_device_control', {
@@ -512,8 +562,12 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
       } else if (cmd.action === 'cycle') {
         // Cycle mode: repeated on/off cycles
         const charMaxCycleOn = characterLimits?.llmMaxCycleOnDuration ?? 2;
-        const cycleDuration = Math.min(cmd.cycleDuration || 5, charMaxCycleOn);
-        const cycleInterval = cmd.cycleInterval || 10;
+        const cycleDuration = Math.min(cmd.cycleDuration || 5, charMaxCycleOn, MAX_ON_SECONDS);
+        // Clamp the off-interval to a sane range [1, reasonableMax]. A zero/NaN/negative
+        // interval would mean no off-time between cycles; an absurd value would stall.
+        const CYCLE_INTERVAL_MAX = 600; // 10 minutes off between cycles is plenty
+        const rawInterval = cmd.cycleInterval || 10;
+        const cycleInterval = Math.max(1, Math.min(rawInterval, CYCLE_INTERVAL_MAX));
         const charMaxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
         const rawCycles = cmd.cycles || 0; // 0 = infinite
         const cycles = (rawCycles === 0 || rawCycles > charMaxCycleReps) ? charMaxCycleReps : rawCycles;
@@ -534,7 +588,46 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
           repeat: cycles === 0
         }, device);
 
-        log.info(`AI CYCLE ${device.label || device.name || cmd.device}: ${cycleDuration}s on, ${cycleInterval}s off, ${cycles || '∞'} cycles`);
+        // Track this active cycle so emergency stop / clearAllLlmTimers can halt it.
+        llmActiveCycles.set(timerKey, { deviceId, device });
+
+        // Worst-case total-runtime backstop: even if the underlying cycle engine
+        // never reports completion, force OFF and stop the cycle after the maximum
+        // possible runtime. Capped at MAX_ON_SECONDS.
+        const cycleCount = cycles > 0 ? cycles : charMaxCycleReps;
+        const worstCaseSeconds = Math.min(
+          (cycleDuration + cycleInterval) * cycleCount + cycleDuration,
+          MAX_ON_SECONDS
+        );
+        const backstop = setTimeout(async () => {
+          try {
+            await deviceService.stopCycle(deviceId, device);
+            await deviceService.turnOff(deviceId, device);
+            log.warn(`AI cycle backstop: force-stopped ${device.label || device.name || cmd.device} after ${worstCaseSeconds}s`);
+          } catch (err) {
+            log.error(`AI cycle backstop failed for ${cmd.device}:`, err.message);
+          }
+          llmDeviceTimers.delete(timerKey);
+          llmActiveCycles.delete(timerKey);
+
+          // Inject context so the model knows the pump is off
+          if (options.injectContext) {
+            options.injectContext(`[pump off]`);
+          }
+          if (broadcast) {
+            broadcast('ai_device_control', {
+              device: cmd.device,
+              action: 'off',
+              deviceName: device.label || device.name || cmd.device,
+              autoOff: true,
+              reason: `Cycle backstop after ${worstCaseSeconds}s`
+            });
+          }
+        }, worstCaseSeconds * 1000);
+
+        llmDeviceTimers.set(timerKey, backstop);
+
+        log.info(`AI CYCLE ${device.label || device.name || cmd.device}: ${cycleDuration}s on, ${cycleInterval}s off, ${cycles || '∞'} cycles (backstop ${worstCaseSeconds}s)`);
 
         if (broadcast) {
           broadcast('ai_device_control', {
@@ -555,6 +648,13 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
           log.info(`Cleared auto-off timer for ${cmd.device} due to manual off`);
         }
 
+        // Stop any active cycle for this device on manual off
+        if (llmActiveCycles.has(timerKey)) {
+          await deviceService.stopCycle(deviceId, device);
+          llmActiveCycles.delete(timerKey);
+          log.info(`Stopped active cycle for ${cmd.device} due to manual off`);
+        }
+
         result = await deviceService.turnOff(deviceId, device);
         log.info(`AI turned OFF ${device.label || device.name || cmd.device}`);
       }
@@ -570,14 +670,28 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
 }
 
 /**
- * Clear all LLM device timers (e.g., on emergency stop)
+ * Clear all LLM device timers (e.g., on emergency stop) and stop any active
+ * LLM-initiated cycles.
+ * @param {Object} [deviceService] - DeviceService used to stop active cycles.
+ *   When omitted, cycle tracking is still cleared but the underlying cycle is
+ *   not actively stopped (callers that can shut devices off should pass it).
  */
-function clearAllLlmTimers() {
+function clearAllLlmTimers(deviceService) {
   for (const [key, timer] of llmDeviceTimers.entries()) {
     clearTimeout(timer);
     log.info(`Cleared LLM device timer: ${key}`);
   }
   llmDeviceTimers.clear();
+
+  // Stop any active cycles. stopCycle is best-effort and non-blocking.
+  for (const [key, info] of llmActiveCycles.entries()) {
+    if (deviceService && typeof deviceService.stopCycle === 'function') {
+      Promise.resolve(deviceService.stopCycle(info.deviceId, info.device))
+        .catch((err) => log.error(`Failed to stop LLM cycle ${key}:`, err.message));
+    }
+    log.info(`Cleared LLM active cycle: ${key}`);
+  }
+  llmActiveCycles.clear();
 }
 
 /**
@@ -713,14 +827,25 @@ function containsPulsePhrase(text) {
 }
 
 /**
- * Reinforce LLM device control by detecting pump-related phrases and auto-appending [pump on]
- * or [pump:pulse:#] if the LLM mentioned pump activity but didn't include the tag
+ * Reinforce LLM device control by detecting pump-related phrases.
+ *
+ * SAFETY: This function must NEVER synthesize a real pump-ACTIVATION command
+ * (e.g. [pump on], [pump:pulse:#], [pump:timed:#], [pump:cycle:...]) purely from
+ * narrative prose. Real device-ON commands are only issued when the model itself
+ * emits an explicit [pump ...] tag (handled by parseDeviceCommands). Prose-based
+ * ON synthesis is dangerous (it can spuriously start a physical pump from loose
+ * narration) and is therefore gated behind an explicit opt-in flag,
+ * settings.globalCharacterControls.allowProseReinforcement, which defaults to OFF.
+ *
+ * OFF reinforcement (auto-appending [pump off] when the model narrates stopping
+ * the pump) is fail-safe and remains always-available.
+ *
  * @param {string} text - LLM output text
  * @param {Array} devices - List of registered devices
  * @param {Object} sessionState - Session state
  * @param {Object} settings - App settings (to check if LLM device control is enabled)
  * @param {Object} characterLimits - Per-character device control limits (optional)
- * @returns {{text: string, reinforced: boolean, matchedPhrase: string|null, isPulse: boolean}}
+ * @returns {{text: string, reinforced: boolean, matchedPhrase: string|null, isPulse?: boolean, isOff?: boolean, mode?: string}}
  */
 function reinforcePumpControl(text, devices, sessionState, settings, characterLimits) {
   // Only reinforce if LLM device control is enabled
@@ -734,13 +859,14 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
-  // Check if text already has [pump on] or [pump:pulse:#] tag
+  // Check if text already has a real [pump ...] tag the model emitted itself.
   if (hasPumpOnTag(text)) {
     log.info('[Reinforce] Text already contains pump tag - no reinforcement needed');
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
-  // Check for OFF phrases first (only trigger if "off" is in the sentence)
+  // Check for OFF phrases first (only trigger if "off" is in the sentence).
+  // OFF reinforcement is fail-safe and always allowed.
   for (const pattern of PUMP_OFF_PHRASES) {
     pattern.lastIndex = 0;
     if (pattern.test(text)) {
@@ -751,7 +877,15 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     }
   }
 
-  // Detect pump activity phrases
+  // SAFETY GATE: prose-based pump-ACTIVATION synthesis is OFF by default.
+  // We never fabricate a real device-ON command from narrative prose unless the
+  // operator has explicitly opted in. This preserves the legacy behavior for
+  // users who want it, without making it the dangerous default.
+  if (!settings?.globalCharacterControls?.allowProseReinforcement) {
+    return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+  }
+
+  // Detect pump activity phrases (opt-in prose reinforcement path only)
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
@@ -772,12 +906,12 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
       }
     }
 
-    // If the matched phrase explicitly names the pump/machine/device or its controls,
-    // it's a direct device action — bypass the descriptive body-state filter
-    const isExplicitDeviceAction = /\b(pump|compressor|machine|motor|device|dial|knob|switch|lever|valve|button|remote|control\s*panel)\b/i.test(matchedPhrase);
-
     // Skip for descriptive/passive inflation state phrases — these describe the EFFECT
-    // of inflation (what's happening to the body), not a pump activation command
+    // of inflation (what's happening to the body), not a pump activation command.
+    // SAFETY: the descriptive filter is ALWAYS applied. The previous
+    // `isExplicitDeviceAction` bypass let loosely-narrated device mentions override
+    // this filter and synthesize a real ON command from prose — exactly what we must
+    // never do. We no longer bypass it under any circumstances.
     const descriptiveMarkers = [
       /\b(belly|stomach|abdomen|intestines?|gut|tummy|insides?|bowels?)\s+(fills?|filling|filled|inflate[sd]?|inflating|expand[sd]?|expanding|swell[sd]?|swelling|grow[sd]?|growing|distend[sd]?|distending|stretch|stretching|stretched|bloat[sd]?|bloating)\s+(with|from|full\s+of)/i,
       /\bfill(s|ed|ing)?\s+with\s+(air|fluid|liquid|gas|water|pressure)/i,
@@ -787,15 +921,11 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
       /\b(belly|stomach|abdomen|gut|tummy)\s+(is|was|gets?|getting|became|becomes?|growing|looking)\s+(bigger|larger|rounder|tighter|fuller|more\s+distended|more\s+swollen)/i,
     ];
 
-    if (!isExplicitDeviceAction) {
-      for (const marker of descriptiveMarkers) {
-        if (marker.test(text)) {
-          log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
-          return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-        }
+    for (const marker of descriptiveMarkers) {
+      if (marker.test(text)) {
+        log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
+        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
       }
-    } else {
-      log.info(`[Reinforce] Explicit device action "${matchedPhrase}" - bypassing descriptive filter`);
     }
 
     // Check for specific mode indicators in the text
@@ -836,7 +966,7 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
       // TIMED mode (21% random, or if duration mentioned)
       const baseDuration = globalMaxSeconds;
       const rawDuration = Math.floor(Math.random() * baseDuration) + baseDuration; // baseDuration to 2x
-      const duration = Math.min(rawDuration, maxTimed, globalMaxSeconds);
+      const duration = Math.min(rawDuration, maxTimed, globalMaxSeconds, MAX_ON_SECONDS);
       tag = `[pump:timed:${duration}]`;
       mode = 'timed';
     } else {

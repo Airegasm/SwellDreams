@@ -229,6 +229,11 @@ function encryptSettings(settings) {
     encrypted.kasaKlapPassword = encrypt(encrypted.kasaKlapPassword);
   }
 
+  // Encrypt Home Assistant token
+  if (encrypted.haToken) {
+    encrypted.haToken = encrypt(encrypted.haToken);
+  }
+
   return encrypted;
 }
 

@@ -14,6 +14,7 @@ Commands:
 """
 
 import sys
+import os
 import json
 import asyncio
 
@@ -27,23 +28,90 @@ except ImportError as e:
     }))
     sys.exit(1)
 
-async def get_device(ip: str, email: str, password: str):
-    """Create authenticated Tapo device connection"""
-    client = ApiClient(email, password)
-    # Try P100/P105 first (most common), then P110, then P115
+# Models to probe, in priority order. Once we learn which model an IP speaks,
+# we persist it so subsequent calls skip the probe (avoids tripling latency).
+PROBE_MODELS = ["p100", "p110", "p115"]
+
+# Persisted IP -> model map so we can skip probing on subsequent invocations.
+_MODEL_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), ".tapo-model-cache.json"
+)
+
+
+def _load_model_cache():
     try:
-        device = await client.p100(ip)
-        return device
-    except:
+        with open(_MODEL_CACHE_PATH, "r") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except (FileNotFoundError, ValueError, OSError):
+        pass
+    return {}
+
+
+def _save_model_cache(cache: dict):
+    try:
+        tmp = _MODEL_CACHE_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(cache, f)
+        os.replace(tmp, _MODEL_CACHE_PATH)
+    except OSError:
+        # Cache is a best-effort optimisation; ignore persistence failures.
+        pass
+
+
+def _is_connection_error(exc: Exception) -> bool:
+    """True only for connection/network failures (so we should try the next
+    model), False for auth/protocol errors (which we must surface, not mask)."""
+    name = type(exc).__name__.lower()
+    msg = str(exc).lower()
+    connection_markers = (
+        "connect", "connection", "timed out", "timeout", "unreachable",
+        "refused", "network", "no route", "reset", "host", "dns", "resolve",
+    )
+    return any(m in name or m in msg for m in connection_markers)
+
+
+async def get_device(ip: str, email: str, password: str):
+    """Create authenticated Tapo device connection.
+
+    Uses a persisted IP->model cache to skip probing. When probing, only
+    connection errors fall through to the next model; auth/protocol errors are
+    raised immediately so they aren't masked.
+    """
+    client = ApiClient(email, password)
+    cache = _load_model_cache()
+
+    # If we already know this device's model, use it directly (no probe).
+    known = cache.get(ip)
+    order = list(PROBE_MODELS)
+    if known in PROBE_MODELS:
+        order = [known] + [m for m in PROBE_MODELS if m != known]
+
+    last_error = None
+    for idx, model in enumerate(order):
+        factory = getattr(client, model)
         try:
-            device = await client.p110(ip)
+            device = await factory(ip)
+            # Persist the resolved model for next time.
+            if cache.get(ip) != model:
+                cache[ip] = model
+                _save_model_cache(cache)
             return device
-        except:
-            try:
-                device = await client.p115(ip)
-                return device
-            except Exception as e:
-                raise Exception(f"Could not connect to Tapo device at {ip}: {e}")
+        except Exception as e:  # noqa: BLE001 - we re-raise non-connection errors below
+            last_error = e
+            # Only keep probing on connection errors; surface anything else.
+            if not _is_connection_error(e):
+                raise Exception(
+                    f"Could not connect to Tapo device at {ip}: {e}"
+                )
+            # If this was a cached/known model that's now unreachable, drop it
+            # so we re-probe from scratch on the remaining models.
+            if idx == 0 and known is not None and cache.get(ip) == known:
+                cache.pop(ip, None)
+                _save_model_cache(cache)
+
+    raise Exception(f"Could not connect to Tapo device at {ip}: {last_error}")
 
 async def turn_on(ip: str, email: str, password: str):
     """Turn device on"""

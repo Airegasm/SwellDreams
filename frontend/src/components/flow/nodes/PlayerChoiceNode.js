@@ -194,17 +194,19 @@ function PlayerChoiceNode({ data, selected }) {
     </div>
   );
 
+  const isMulti = data.nodeVariant === 'multi';
+
   return (
-    <div className={`custom-node player-choice-node ${selected ? 'selected' : ''}`}>
+    <div className={`custom-node player-choice-node ${isMulti ? 'choose-multi-node' : ''} ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Top} />
       <div className="node-header">
-        <span className="node-icon">⚐</span>
+        <span className="node-icon">{isMulti ? '☑' : '⚐'}</span>
         <input
           type="text"
           className="node-title-input"
           value={data.label || ''}
           onChange={(e) => data.onChange?.('label', e.target.value)}
-          placeholder="Player Choice"
+          placeholder={isMulti ? 'Choose Multi' : 'Player Choice'}
         />
         <button
           className="node-test-btn"
@@ -215,6 +217,11 @@ function PlayerChoiceNode({ data, selected }) {
         </button>
       </div>
       <div className="node-body">
+        {isMulti && (
+          <div className="config-hint" style={{ marginBottom: 6 }}>
+            Player checks one or more options; every selected branch fires in parallel.
+          </div>
+        )}
         <div className="player-choice-columns">
           {/* Column 1: basic settings */}
           <div className="pc-column pc-settings">

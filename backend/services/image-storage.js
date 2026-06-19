@@ -14,6 +14,7 @@
 
 const fs = require('fs').promises;
 const path = require('path');
+const { atomicWriteFileSync } = require('../utils/atomic-write');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -104,7 +105,7 @@ async function savePersonaImage(personaId, base64Data, imageType = 'avatar', isD
   const filePath = path.join(imgDir, filename);
 
   const buffer = Buffer.from(parsed.data, 'base64');
-  await fs.writeFile(filePath, buffer);
+  atomicWriteFileSync(filePath, buffer);
 
   const folder = isDefault ? 'default' : 'custom';
   return `/api/images/personas/${folder}/${personaId}/${filename}`;
@@ -137,7 +138,7 @@ async function saveCharacterImage(charId, base64Data, imageType = 'avatar', isDe
   const filePath = path.join(imgDir, filename);
 
   const buffer = Buffer.from(parsed.data, 'base64');
-  await fs.writeFile(filePath, buffer);
+  atomicWriteFileSync(filePath, buffer);
 
   const folder = isDefault ? 'default' : 'custom';
   return `/api/images/chars/${folder}/${charId}/${filename}`;
@@ -177,6 +178,8 @@ async function processPersonaImages(persona, isDefault = false) {
   if (!persona || !persona.id) return persona;
 
   const processed = { ...persona };
+  // Never persist runtime-only flags (injected by loadAll*/listAll*).
+  delete processed._isDefault;
 
   // Process avatar
   if (processed.avatar && isBase64DataUri(processed.avatar)) {
@@ -209,6 +212,8 @@ async function processCharacterImages(character, isDefault = false) {
   if (!character || !character.id) return character;
 
   const processed = { ...character };
+  // Never persist runtime-only flags (injected by loadAll*/listAll*).
+  delete processed._isDefault;
 
   // Process avatar
   if (processed.avatar && isBase64DataUri(processed.avatar)) {
@@ -238,7 +243,7 @@ async function savePersonaJson(persona, isDefault = false) {
   const personaDir = getPersonaDir(persona.id, isDefault);
   await ensureDir(personaDir);
   const filePath = path.join(personaDir, 'persona.json');
-  await fs.writeFile(filePath, JSON.stringify(persona, null, 2));
+  atomicWriteFileSync(filePath, JSON.stringify(persona, null, 2));
 }
 
 /**
@@ -248,7 +253,7 @@ async function saveCharacterJson(character, isDefault = false) {
   const charDir = getCharacterDir(character.id, isDefault);
   await ensureDir(charDir);
   const filePath = path.join(charDir, 'char.json');
-  await fs.writeFile(filePath, JSON.stringify(character, null, 2));
+  atomicWriteFileSync(filePath, JSON.stringify(character, null, 2));
 }
 
 /**
@@ -434,7 +439,7 @@ async function savePortraitMedia(entityType, entityId, isDefault, slot, buffer, 
 
   const filename = `${slot}.${ext}`;
   const filePath = path.join(imgDir, filename);
-  await fs.writeFile(filePath, buffer);
+  atomicWriteFileSync(filePath, buffer);
 
   return `/api/images/${entityType}/${folder}/${entityId}/${filename}`;
 }

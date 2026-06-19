@@ -19,6 +19,10 @@ const log = createLogger('Kasa Legacy');
 const KASA_PORT = 9999;
 const DEFAULT_TIMEOUT = 5000;
 const STATE_CACHE_TTL = 2000; // Cache state responses for 2 seconds
+// Hard cap on the device-declared response length. Legit Kasa sysinfo/emeter
+// responses are a few KB; cap at 64KB so a hostile LAN device can't declare a
+// huge length and grow our buffers unbounded.
+const MAX_RESPONSE_BYTES = 64 * 1024;
 
 // Cache for getInfo responses - prevents flooding when multiple outlets poll the same device
 // Key: IP address, Value: { data: response, timestamp: ms, promise: pending promise }
@@ -98,6 +102,23 @@ function sendCommand(ip, command, timeout = DEFAULT_TIMEOUT) {
       if (!headerReceived && responseData.length >= 4) {
         expectedLength = responseData.readUInt32BE(0);
         headerReceived = true;
+
+        // Reject an implausibly large declared length up front so a hostile
+        // LAN device can't make us buffer unbounded data.
+        if (expectedLength > MAX_RESPONSE_BYTES) {
+          clearTimeout(timeoutHandle);
+          socket.destroy();
+          reject(new Error(`Response too large: ${expectedLength} bytes (max ${MAX_RESPONSE_BYTES})`));
+          return;
+        }
+      }
+
+      // Guard against the buffer growing past the cap even if the header lies.
+      if (responseData.length > MAX_RESPONSE_BYTES + 4) {
+        clearTimeout(timeoutHandle);
+        socket.destroy();
+        reject(new Error(`Response exceeded ${MAX_RESPONSE_BYTES} bytes`));
+        return;
       }
 
       // Check if we have the complete response
@@ -232,25 +253,78 @@ class KasaDevice {
   }
 
   /**
+   * Extract the relay set_relay_state err_code from a device response.
+   * For multi-outlet (child) commands the response may carry per-child
+   * err_code entries; any non-zero entry is treated as a failure.
+   * @param {object} response - Raw device response
+   * @returns {number|null} err_code (0 = success) or null if not present
+   */
+  _relayErrCode(response) {
+    if (!response || typeof response !== 'object') return null;
+    const setRelay = response.system && response.system.set_relay_state;
+    if (!setRelay || typeof setRelay !== 'object') return null;
+
+    // Top-level err_code (single-outlet devices)
+    if (typeof setRelay.err_code === 'number') {
+      return setRelay.err_code;
+    }
+
+    // Per-child err_code entries (power strips). Surface the first non-zero,
+    // or 0 if every child reported success.
+    if (Array.isArray(setRelay.children)) {
+      let worst = 0;
+      for (const child of setRelay.children) {
+        if (child && typeof child.err_code === 'number' && child.err_code !== 0) {
+          worst = child.err_code;
+          break;
+        }
+      }
+      return worst;
+    }
+
+    return null;
+  }
+
+  /**
    * Turn the device on
+   * @returns {Promise<object>} device response on success;
+   *                            { ok:false, error } if the relay did not confirm
    */
   async turnOn() {
     log.info(`[NATIVE NODE.JS] turnOn() called for ${this.ip}${this.childId ? ':' + this.childId : ''}`);
     const command = this._wrapCommand({
       system: { set_relay_state: { state: 1 } }
     });
-    return this._send(command);
+    const response = await this._send(command);
+    if (response && response.error) {
+      return { ok: false, error: response.error };
+    }
+    const errCode = this._relayErrCode(response);
+    if (errCode !== null && errCode !== 0) {
+      return { ok: false, error: `set_relay_state failed (err_code ${errCode})` };
+    }
+    return response;
   }
 
   /**
    * Turn the device off
+   * @returns {Promise<object>} device response on success;
+   *                            { ok:false, error } if the relay did not confirm
    */
   async turnOff() {
     log.info(`[NATIVE NODE.JS] turnOff() called for ${this.ip}${this.childId ? ':' + this.childId : ''}`);
     const command = this._wrapCommand({
       system: { set_relay_state: { state: 0 } }
     });
-    return this._send(command);
+    const response = await this._send(command);
+    if (response && response.error) {
+      return { ok: false, error: response.error };
+    }
+    const errCode = this._relayErrCode(response);
+    if (errCode !== null && errCode !== 0) {
+      return { ok: false, error: `set_relay_state failed (err_code ${errCode})` };
+    }
+    return response;
   }
 
   /**

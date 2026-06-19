@@ -356,6 +356,11 @@ function FlowTab() {
                   <td>One output per choice</td>
                 </tr>
                 <tr>
+                  <td><span className="node-type choice">Choose Multi</span></td>
+                  <td>Like Player Choice, but the player checks one or more options and confirms. Every selected option's branch fires in parallel, and each selected choice's Set Variables run. Same per-choice options as Player Choice.</td>
+                  <td>One output per choice (all selected fire)</td>
+                </tr>
+                <tr>
                   <td><span className="node-type choice">Simple A/B</span></td>
                   <td>Quick two-button popup for binary decisions. Silent (no chat message) - great for branching without output.</td>
                   <td>Option A / Option B</td>

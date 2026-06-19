@@ -128,6 +128,27 @@ function GlobalTab() {
     apiRef.current = api;
   }, [api]);
 
+  // Fire-and-forget safety off for the currently selected calibration pump.
+  // Uses refs so it is safe to call from unmount cleanup without stale closures.
+  const safetyOffSelectedPump = useCallback(() => {
+    const currentPumpId = selectedPumpIdRef.current;
+    if (!currentPumpId) return; // guard for a missing id
+    const pump = pumpDevicesRef.current.find(p => p.id === currentPumpId);
+    if (!pump) return;
+    try {
+      Promise.resolve(
+        apiRef.current.deviceOff(getDeviceIdentifier(pump), {
+          childId: pump.childId,
+          brand: pump.brand
+        })
+      ).catch(error => {
+        console.error('[Calibration] Safety pump-off failed:', error);
+      });
+    } catch (error) {
+      console.error('[Calibration] Safety pump-off threw:', error);
+    }
+  }, []);
+
   // Handle pump selection
   const handlePumpSelect = (pumpId) => {
     const pump = pumpDevices.find(p => p.id === pumpId);
@@ -143,6 +164,8 @@ function GlobalTab() {
 
   // Handle Configure Devices button
   const handleConfigureDevices = () => {
+    // Safety: ensure the calibration pump is commanded OFF before navigating away.
+    safetyOffSelectedPump();
     setShowCalibrationModal(false);
     navigate('/settings', { state: { activeTab: 'device' } });
   };
@@ -602,8 +625,10 @@ function GlobalTab() {
       }
       // Invalidate any running cycles
       cycleIdRef.current += 1;
+      // Safety: ensure the calibration pump is commanded OFF on unmount.
+      safetyOffSelectedPump();
     };
-  }, []);
+  }, [safetyOffSelectedPump]);
 
   // Handle calibrate request from DeviceTab navigation (via sessionStorage)
   useEffect(() => {
@@ -774,9 +799,13 @@ function GlobalTab() {
     const ip = newIp.trim();
     if (!ip) return;
 
-    // Basic IPv4 validation
+    // IPv4 validation: 4 dot-separated octets, each 0-255
     const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipv4Regex.test(ip)) {
+    const octets = ip.split('.');
+    const validOctets = ipv4Regex.test(ip) &&
+      octets.length === 4 &&
+      octets.every(o => /^\d{1,3}$/.test(o) && Number(o) >= 0 && Number(o) <= 255);
+    if (!validOctets) {
       showError('Invalid IPv4 address format');
       return;
     }

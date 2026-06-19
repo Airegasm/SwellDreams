@@ -34,6 +34,15 @@ const mediaStorage = require('./services/media-storage');
 const { createLogger } = require('./utils/logger');
 const { AppError, ValidationError } = require('./utils/errors');
 const validators = require('./utils/validators');
+const { atomicWriteJson } = require('./utils/atomic-write');
+const { isSafeId, assertSafeId } = require('./utils/id-validator');
+const {
+  validateCharacter: mwValidateCharacter,
+  validatePersona: mwValidatePersona,
+  validateFlow: mwValidateFlow,
+  validateDevice: mwValidateDevice,
+  validateIdParam: mwValidateIdParam
+} = require('./middleware/validate');
 const {
   encrypt,
   decrypt,
@@ -81,7 +90,65 @@ const SERVER_SESSION_ID = uuidv4();
 // Initialize Express
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+
+// Returns true for loopback / local remote addresses.
+function isLocalAddress(addr) {
+  if (!addr) return false;
+  const a = String(addr).replace(/^::ffff:/, '');
+  return a === '127.0.0.1' || a === '::1' || a === 'localhost' || a.startsWith('127.');
+}
+
+// Load remote-access settings directly from disk (used before getRemoteSettings exists).
+function readRemoteSettingsRaw() {
+  try {
+    const p = path.join(__dirname, 'data', 'remote-settings.json');
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf8'));
+    }
+  } catch (e) { /* fall through to default */ }
+  return { allowRemote: false, whitelistedIps: [] };
+}
+
+// Validate an Origin/Host header host against localhost + the remote allow-list.
+function isAllowedHost(host, remoteSettings) {
+  if (!host) return true; // same-origin / non-browser clients send no Origin
+  if (isLocalAddress(host)) return true;
+  if (remoteSettings && remoteSettings.allowRemote && Array.isArray(remoteSettings.whitelistedIps)) {
+    return remoteSettings.whitelistedIps.includes(host);
+  }
+  return false;
+}
+
+// Extract just the host portion from an Origin or Host header value.
+function extractHost(value) {
+  if (!value) return null;
+  const m = String(value).match(/^(?:https?:\/\/)?([^:\/]+)/);
+  return m ? m[1] : null;
+}
+
+const wss = new WebSocket.Server({
+  server,
+  // Gate WS upgrades by the CLIENT's remote IP — identical model to the HTTP
+  // remote-access middleware. (Do NOT gate on the Origin/Host the client connected
+  // TO: that's the server's own address/hostname, e.g. a Tailscale MagicDNS name,
+  // which is not — and should not be — in the client-IP whitelist.)
+  verifyClient: (info, done) => {
+    const remoteSettings = readRemoteSettingsRaw();
+    const remoteAddr = info.req.socket && info.req.socket.remoteAddress;
+    // Always allow strictly-local connections.
+    if (isLocalAddress(remoteAddr)) {
+      return done(true);
+    }
+    if (!remoteSettings.allowRemote) {
+      return done(false, 403, 'Remote access disabled');
+    }
+    const cleanIp = String(remoteAddr || '').replace(/^::ffff:/, '');
+    if (Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp)) {
+      return done(true);
+    }
+    return done(false, 403, 'IP not in whitelist');
+  }
+});
 
 // CORS Configuration - dynamically uses remote settings whitelist
 const CORS_OPTIONS = {
@@ -142,7 +209,45 @@ const CORS_OPTIONS = {
 
 // Middleware
 app.use(cors(CORS_OPTIONS));
-app.use(express.json({ limit: '50mb' }));
+
+// Body-size limits: the global default is modest (2mb) to limit memory abuse,
+// while routes that legitimately carry large base64 images / backups (imports,
+// media, character & persona payloads with embedded avatars) get a 50mb limit.
+const largeJsonParser = express.json({ limit: '50mb' });
+const smallJsonParser = express.json({ limit: '2mb' });
+const LARGE_JSON_PREFIXES = [
+  '/api/import',
+  '/api/media',
+  '/api/migrate-images',
+  '/api/characters',
+  '/api/personas',
+  '/api/actors',
+  '/api/plays',
+  '/api/display-settings'
+];
+app.use((req, res, next) => {
+  const usesLarge = LARGE_JSON_PREFIXES.some(p => req.path === p || req.path.startsWith(p + '/'));
+  return (usesLarge ? largeJsonParser : smallJsonParser)(req, res, next);
+});
+
+// Remote-access enforcement: when allowRemote is off, only loopback clients may
+// reach the API/app. When on, the remote IP must be on the whitelist. This does
+// NOT rely on CORS (which only protects browsers) — it gates by remote IP.
+app.use((req, res, next) => {
+  const remoteAddr = req.ip || (req.socket && req.socket.remoteAddress) || '';
+  if (isLocalAddress(remoteAddr)) {
+    return next();
+  }
+  const remoteSettings = readRemoteSettingsRaw();
+  if (!remoteSettings.allowRemote) {
+    return res.status(403).json({ success: false, error: 'Remote access disabled' });
+  }
+  const cleanIp = String(remoteAddr).replace(/^::ffff:/, '');
+  if (Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp)) {
+    return next();
+  }
+  return res.status(403).json({ success: false, error: 'IP not in whitelist' });
+});
 
 // Rate limiting configurations
 const generalLimiter = rateLimit({
@@ -199,6 +304,14 @@ app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
   // Validate type
   if (type !== 'personas' && type !== 'chars' && type !== 'actors') {
     return res.status(400).send('Invalid type');
+  }
+
+  // Prevent path traversal via id/filename before they reach path.join.
+  if (!isSafeId(id)) {
+    return res.status(400).send('Invalid id');
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(filename) || filename.includes('..')) {
+    return res.status(400).send('Invalid filename');
   }
 
   // For actors, serve from screenplay/actors directory
@@ -1003,6 +1116,145 @@ const deviceService = new DeviceService();
 const eventEngine = new EventEngine(deviceService, llmService);
 
 // ============================================
+// Pump safety constants & helpers
+// ============================================
+
+// Hard ceiling on continuous pump on-time, applied at EVERY device-on timer site.
+// A single source of truth — do not duplicate this value.
+const MAX_ON_SECONDS = 1800; // 30 minutes
+
+// Clamp a (possibly client-supplied) maxTokens value to a sane positive integer
+// before it is sent to the provider, so bogus/huge/negative values can't be passed through.
+const MAX_TOKENS_CEILING = 8192;
+function clampMaxTokens(value, fallback = 320) {
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(n, MAX_TOKENS_CEILING);
+}
+
+// Tracked server-side "timed pump on" off-timers, keyed by control id. Cleared by
+// emergency stop / watchdog so a scheduled turn-off can never outlive a stop.
+const serverTimedPumpTimers = new Map();
+
+function clearServerTimedPumpTimer(id) {
+  const t = serverTimedPumpTimers.get(id);
+  if (t) {
+    clearTimeout(t);
+    serverTimedPumpTimers.delete(id);
+  }
+}
+
+function clearAllServerTimedPumpTimers() {
+  for (const t of serverTimedPumpTimers.values()) {
+    try { clearTimeout(t); } catch (e) { /* ignore */ }
+  }
+  serverTimedPumpTimers.clear();
+}
+
+/**
+ * Turn a pump on for a bounded duration, scheduling a tracked turn-off that
+ * emergency stop / the watchdog will cancel. Duration is clamped to MAX_ON_SECONDS.
+ */
+async function timedPumpOn(id, device, durationSeconds) {
+  const dur = Math.max(1, Math.min(Number(durationSeconds) || 1, MAX_ON_SECONDS));
+  clearServerTimedPumpTimer(id);
+  await deviceService.turnOn(id, device);
+  const timer = setTimeout(() => {
+    serverTimedPumpTimers.delete(id);
+    deviceService.turnOff(id, device).catch((err) => {
+      console.error(`[timedPumpOn] turnOff failed for ${id}:`, err && err.message ? err.message : err);
+    });
+  }, dur * 1000);
+  serverTimedPumpTimers.set(id, timer);
+}
+
+/**
+ * Resolve the identifier used to start/stop a cycle or control a device.
+ * Cloud brands key on deviceId; local/IP brands key on ip. Home Assistant keys
+ * on deviceId (its entity/device id), NOT ip. This MUST match the id the cycle
+ * was started with so stopCycle/turnOff target the right tracker entry.
+ *
+ * @param {object} device
+ * @returns {string|undefined}
+ */
+function resolveControlId(device) {
+  if (!device) return undefined;
+  const brand = device.brand;
+  if (brand === 'tuya' || brand === 'govee' || brand === 'wyze' || brand === 'homeassistant') {
+    return device.deviceId || device.ip;
+  }
+  return device.ip || device.deviceId;
+}
+
+/**
+ * Race a promise against a per-device timeout so an offline device cannot block.
+ */
+function withTimeout(promise, timeoutMs, onTimeoutValue) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(onTimeoutValue), timeoutMs))
+  ]);
+}
+
+/**
+ * Turn off a single device, stopping its cycle first using the SAME id the cycle
+ * was started with. Resolves a normalized { ok, error, confirmed } shape and
+ * never throws (errors are captured into the result).
+ */
+async function safeStopDevice(device, opts = {}) {
+  const name = device.name || device.label || device.ip || device.deviceId || 'unknown';
+  const controlId = resolveControlId(device);
+  if (!controlId) {
+    return { name, device, ok: false, error: 'No control id for device' };
+  }
+  try {
+    // Stop the tracked cycle using the resolved control id (covers homeassistant too).
+    try { await deviceService.stopCycle(controlId, device); } catch (e) { /* best-effort */ }
+
+    let result;
+    if (typeof deviceService.turnOffWithConfirm === 'function') {
+      result = await deviceService.turnOffWithConfirm(controlId, device, opts);
+    } else {
+      // Fallback if confirm variant is unavailable.
+      result = await deviceService.turnOff(controlId, device);
+    }
+    const ok = result && (result.ok === true || result.success === true);
+    return {
+      name, device,
+      ok: !!ok,
+      error: ok ? undefined : (result && result.error) || 'turn-off not confirmed',
+      confirmed: result && result.confirmed
+    };
+  } catch (err) {
+    return { name, device, ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+/**
+ * Stop/turn-off every supplied device concurrently with a per-device timeout.
+ * Returns an array of normalized { name, ok, error } results (never blanket success).
+ */
+async function stopAllDevicesConcurrently(devices, logPrefix = '[Stop]', opts = {}) {
+  const perDeviceTimeout = opts.timeoutMs || 5000;
+  const settled = await Promise.allSettled(
+    (devices || []).map((device) => {
+      const name = device.name || device.label || device.ip || device.deviceId || 'unknown';
+      return withTimeout(
+        safeStopDevice(device, opts),
+        perDeviceTimeout,
+        { name, device, ok: false, error: 'timeout', confirmed: false }
+      );
+    })
+  );
+  return settled.map((s, i) => {
+    if (s.status === 'fulfilled') return s.value;
+    const device = (devices || [])[i] || {};
+    const name = device.name || device.label || device.ip || device.deviceId || 'unknown';
+    return { name, device, ok: false, error: s.reason && s.reason.message ? s.reason.message : 'rejected' };
+  });
+}
+
+// ============================================
 // Data Persistence
 // ============================================
 
@@ -1013,13 +1265,24 @@ function loadData(file) {
     }
   } catch (e) {
     console.error(`Error loading ${file}:`, e);
+    // Primary file is corrupt/unparseable — attempt the rolling backup loudly.
+    const bakFile = file + '.bak';
+    try {
+      if (fs.existsSync(bakFile)) {
+        const recovered = JSON.parse(fs.readFileSync(bakFile, 'utf8'));
+        console.error(`[loadData] RECOVERED ${file} from backup ${bakFile} after parse failure`);
+        return recovered;
+      }
+    } catch (bakErr) {
+      console.error(`[loadData] Backup ${bakFile} also failed to parse:`, bakErr);
+    }
   }
   return null;
 }
 
 function saveData(file, data) {
   try {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    atomicWriteJson(file, data);
     return true;
   } catch (e) {
     console.error(`Error saving ${file}:`, e);
@@ -1052,11 +1315,12 @@ function saveFlowsIndex(index) {
     fs.mkdirSync(FLOWS_DIR, { recursive: true });
   }
   const indexPath = path.join(FLOWS_DIR, 'flows-index.json');
-  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+  atomicWriteJson(indexPath, index);
 }
 
 // Load single flow by ID
 function loadFlow(flowId) {
+  assertSafeId(flowId);
   const flowPath = path.join(FLOWS_DIR, `${flowId}.json`);
   if (fs.existsSync(flowPath)) {
     try {
@@ -1070,16 +1334,18 @@ function loadFlow(flowId) {
 
 // Save single flow to its own file + update index
 function saveFlow(flow) {
+  assertSafeId(flow && flow.id);
   if (!fs.existsSync(FLOWS_DIR)) {
     fs.mkdirSync(FLOWS_DIR, { recursive: true });
   }
   const flowPath = path.join(FLOWS_DIR, `${flow.id}.json`);
-  fs.writeFileSync(flowPath, JSON.stringify(flow, null, 2));
+  atomicWriteJson(flowPath, flow);
   updateFlowIndex(flow);
 }
 
 // Delete flow file + remove from index
 function deleteFlowFile(flowId) {
+  assertSafeId(flowId);
   const flowPath = path.join(FLOWS_DIR, `${flowId}.json`);
   if (fs.existsSync(flowPath)) {
     fs.unlinkSync(flowPath);
@@ -1216,7 +1482,7 @@ function saveCharsIndex(index) {
     fs.mkdirSync(CHARS_DIR, { recursive: true });
   }
   const indexPath = path.join(CHARS_DIR, 'chars-index.json');
-  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+  atomicWriteJson(indexPath, index);
 }
 
 /**
@@ -1265,6 +1531,8 @@ function migratePersonaPortraitMedia(persona) {
 // Load single character by ID (checks both default and custom dirs)
 // Supports both old format ({id}.json) and new folder format ({id}/char.json)
 function loadCharacter(charId) {
+  // Reject path-unsafe ids before touching the filesystem.
+  if (!isSafeId(charId)) return null;
   // Check new folder format first (custom, then default)
   const customFolderPath = path.join(CHARS_CUSTOM_DIR, charId, 'char.json');
   const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, charId, 'char.json');
@@ -1296,7 +1564,8 @@ function loadCharacter(charId) {
 // Save single character to its own folder + update index
 // New characters go to custom/, existing stay in their location
 // Uses new folder structure: chars/{custom|default}/{id}/char.json + img/
-async function saveCharacterAsync(char, forceCustom = false) {
+async function saveCharacterAsync(char, forceCustom = false, syncFactory = false) {
+  if (!isSafeId(char.id)) throw new Error('Invalid character id');
   // Determine if this is a default or custom character
   let isDefault = false;
   const customFolderPath = path.join(CHARS_CUSTOM_DIR, char.id, 'char.json');
@@ -1317,19 +1586,14 @@ async function saveCharacterAsync(char, forceCustom = false) {
   await imageStorage.saveCharacterJson(processedChar, isDefault);
   updateCharIndex(processedChar, isDefault ? 'default' : 'custom');
 
-  // If this is a default character, also sync to factory backup so changes persist across restarts
-  if (isDefault) {
+  // If this is a default character, optionally sync to the git-tracked factory backup.
+  // Normal gameplay saves (syncFactory=false) must NOT write into data/factory/ —
+  // only explicit "save as factory default" operations should mutate that tree.
+  if (isDefault && syncFactory) {
     const FACTORY_DIR = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
     const sourceDir = path.join(CHARS_DEFAULT_DIR, char.id);
-    if (fs.existsSync(sourceDir)) {
-      fs.mkdirSync(FACTORY_DIR, { recursive: true });
-      // Copy char.json to factory
-      const srcJson = path.join(sourceDir, 'char.json');
-      if (fs.existsSync(srcJson)) {
-        fs.copyFileSync(srcJson, path.join(FACTORY_DIR, 'char.json'));
-      }
-      console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
-    }
+    syncDirToFactory(sourceDir, FACTORY_DIR);
+    console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
   }
 
   // Clean up old flat file if it exists
@@ -1340,8 +1604,12 @@ async function saveCharacterAsync(char, forceCustom = false) {
   return processedChar;
 }
 
-// Sync wrapper for backwards compatibility
-function saveCharacter(char, forceCustom = false) {
+// Sync wrapper for backwards compatibility.
+// syncFactory defaults to FALSE: gameplay/startup/button-sync callers must never
+// mutate the git-tracked data/factory/ tree. Only an explicit "save as factory
+// default" should pass syncFactory=true.
+function saveCharacter(char, forceCustom = false, syncFactory = false) {
+  if (!isSafeId(char.id)) throw new Error('Invalid character id');
   // For sync calls, just save without async image processing
   // This is used during migration - images will be processed on next save
   const isDefault = !forceCustom && (
@@ -1354,21 +1622,32 @@ function saveCharacter(char, forceCustom = false) {
     fs.mkdirSync(charDir, { recursive: true });
   }
 
+  // Strip runtime-only fields so they never get persisted (or pushed to factory).
+  const { _isDefault, ...toPersist } = char;
   const targetPath = path.join(charDir, 'char.json');
-  fs.writeFileSync(targetPath, JSON.stringify(char, null, 2));
+  atomicWriteJson(targetPath, toPersist);
   updateCharIndex(char, isDefault ? 'default' : 'custom');
 
-  // Sync default characters to factory backup
-  if (isDefault) {
+  // Sync default characters to factory backup (whole dir, including img/) ONLY on
+  // explicit request — never during normal gameplay/startup.
+  if (isDefault && syncFactory) {
     const factoryDir = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
-    fs.mkdirSync(factoryDir, { recursive: true });
-    fs.copyFileSync(targetPath, path.join(factoryDir, 'char.json'));
+    syncDirToFactory(charDir, factoryDir);
     console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
   }
 }
 
+// Recursively copy a character directory (char.json + img/ + any media) into the
+// factory tree. Used to seed/refresh the git-tracked factory defaults.
+function syncDirToFactory(sourceDir, factoryDir) {
+  if (!fs.existsSync(sourceDir)) return;
+  fs.mkdirSync(factoryDir, { recursive: true });
+  fs.cpSync(sourceDir, factoryDir, { recursive: true, force: true });
+}
+
 // Delete character file + remove from index
 function deleteCharacterFile(charId) {
+  assertSafeId(charId);
   // Delete new folder structure
   const customFolderPath = path.join(CHARS_CUSTOM_DIR, charId);
   const defaultFolderPath = path.join(CHARS_DEFAULT_DIR, charId);
@@ -1431,7 +1710,19 @@ function loadAllCharacters() {
 
 // Check if per-character storage is active (migration completed)
 function isPerCharStorageActive() {
-  return fs.existsSync(path.join(CHARS_DIR, 'chars-index.json'));
+  // Active if the index exists OR per-char folders are present on disk. The folder
+  // check lets early startup migrations (which run before the index is rebuilt)
+  // correctly detect per-char storage instead of falling back to the legacy file.
+  if (fs.existsSync(path.join(CHARS_DIR, 'chars-index.json'))) return true;
+  for (const dir of [CHARS_DEFAULT_DIR, CHARS_CUSTOM_DIR]) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      for (const name of fs.readdirSync(dir)) {
+        if (fs.existsSync(path.join(dir, name, 'char.json'))) return true;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return false;
 }
 
 // Rebuild chars index from actual files on disk
@@ -1474,7 +1765,7 @@ function rebuildCharsIndex() {
           if (char.id && char.id !== dirName) {
             console.log(`[Server]   Fixing ID mismatch for '${char.name}': ${char.id} -> ${dirName}`);
             char.id = dirName;
-            fs.writeFileSync(charPath, JSON.stringify(char, null, 2));
+            atomicWriteJson(charPath, char);
           }
           index.push({
             id: dirName,
@@ -1560,11 +1851,13 @@ function savePersonasIndex(index) {
     fs.mkdirSync(PERSONAS_DIR, { recursive: true });
   }
   const indexPath = path.join(PERSONAS_DIR, 'personas-index.json');
-  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
+  atomicWriteJson(indexPath, index);
 }
 
 // Load single persona by ID (checks folder structure, then old format)
 function loadPersona(personaId) {
+  // Reject path-unsafe ids before touching the filesystem.
+  if (!isSafeId(personaId)) return null;
   // Check new folder format (custom, then default)
   const customFolderPath = path.join(PERSONAS_CUSTOM_DIR, personaId, 'persona.json');
   const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, personaId, 'persona.json');
@@ -1587,7 +1880,8 @@ function loadPersona(personaId) {
 }
 
 // Save single persona to its own folder + update index
-async function savePersonaAsync(persona, forceCustom = false) {
+async function savePersonaAsync(persona, forceCustom = false, syncFactory = false) {
+  if (!isSafeId(persona.id)) throw new Error('Invalid persona id');
   // Determine if this is a default or custom persona
   let isDefault = false;
   const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, persona.id, 'persona.json');
@@ -1603,11 +1897,21 @@ async function savePersonaAsync(persona, forceCustom = false) {
   await imageStorage.savePersonaJson(processedPersona, isDefault);
   updatePersonaIndex(processedPersona, isDefault ? 'default' : 'custom');
 
+  // Mirror the character factory-sync behaviour: only explicit user saves
+  // (syncFactory=true) push default personas into the git-tracked factory tree.
+  if (isDefault && syncFactory) {
+    const sourceDir = path.join(PERSONAS_DEFAULT_DIR, persona.id);
+    const factoryDir = path.join(DATA_DIR, 'factory', 'personas-default', persona.id);
+    syncDirToFactory(sourceDir, factoryDir);
+    console.log(`[SavePersona] Synced default persona "${persona.id}" to factory backup`);
+  }
+
   return processedPersona;
 }
 
 // Delete persona folder + remove from index
 function deletePersonaFolder(personaId) {
+  assertSafeId(personaId);
   const customFolderPath = path.join(PERSONAS_CUSTOM_DIR, personaId);
   const defaultFolderPath = path.join(PERSONAS_DEFAULT_DIR, personaId);
 
@@ -1821,6 +2125,7 @@ function saveActorsIndex(index) {
 
 // Load single actor by ID
 function loadActor(actorId) {
+  if (!isSafeId(actorId)) { console.warn(`[Security] Rejected unsafe actor id: ${actorId}`); return null; }
   const customFolderPath = path.join(ACTORS_CUSTOM_DIR, actorId, 'actor.json');
   const defaultFolderPath = path.join(ACTORS_DEFAULT_DIR, actorId, 'actor.json');
 
@@ -1838,6 +2143,7 @@ function loadActor(actorId) {
 
 // Save single actor to its own folder + update index
 async function saveActorAsync(actor, forceCustom = false) {
+  if (!isSafeId(actor.id)) throw new Error('Invalid actor id');
   ensureActorsDirs();
 
   // Determine if this is a default or custom actor
@@ -1883,6 +2189,7 @@ async function saveActorAsync(actor, forceCustom = false) {
 
 // Delete actor file + remove from index
 function deleteActorFile(actorId) {
+  if (!isSafeId(actorId)) { console.warn(`[Security] Rejected unsafe actor id for delete: ${actorId}`); return; }
   const customFolderPath = path.join(ACTORS_CUSTOM_DIR, actorId);
   const defaultFolderPath = path.join(ACTORS_DEFAULT_DIR, actorId);
 
@@ -2032,6 +2339,7 @@ function savePlaysIndex(index) {
 
 // Load single play by ID (uses folder structure: {play-id}/play.json)
 function loadPlay(playId) {
+  if (!isSafeId(playId)) { console.warn(`[Security] Rejected unsafe play id: ${playId}`); return null; }
   const customPath = path.join(PLAYS_CUSTOM_DIR, playId, 'play.json');
   const defaultPath = path.join(PLAYS_DEFAULT_DIR, playId, 'play.json');
 
@@ -2049,6 +2357,7 @@ function loadPlay(playId) {
 
 // Save single play to folder + update index
 async function savePlayAsync(play, forceCustom = false) {
+  if (!isSafeId(play.id)) throw new Error('Invalid play id');
   ensurePlaysDirs();
 
   // Determine if this is a default or custom play
@@ -2075,6 +2384,7 @@ async function savePlayAsync(play, forceCustom = false) {
 
 // Delete play folder + remove from index
 function deletePlayFile(playId) {
+  if (!isSafeId(playId)) { console.warn(`[Security] Rejected unsafe play id for delete: ${playId}`); return; }
   const customPath = path.join(PLAYS_CUSTOM_DIR, playId);
   const defaultPath = path.join(PLAYS_DEFAULT_DIR, playId);
 
@@ -2349,6 +2659,32 @@ function getRemoteSettings() {
 function isLocalRequest(req) {
   const ip = req.ip || req.connection?.remoteAddress || '';
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
+}
+
+// Validate that a request is same-origin (its Origin/Referer host matches the
+// Host header) AND originates from localhost. Used to gate destructive
+// self-update endpoints so they can't be driven cross-site or remotely.
+function isSameOriginLocal(req) {
+  if (!isLocalRequest(req)) return false;
+  const hostHeader = extractHost(req.headers.host);
+  const origin = req.headers.origin || req.headers.referer;
+  // No Origin/Referer (e.g. curl on the box itself) is acceptable for a local request.
+  if (!origin) return true;
+  const originHost = extractHost(origin);
+  return originHost === hostHeader || isLocalAddress(originHost);
+}
+
+// Number of local commits not present on the remote tracking branch.
+// Used to refuse `git reset --hard` when it would discard local work.
+function localCommitsAhead(projectRoot, trackingBranch) {
+  const { execSync } = require('child_process');
+  try {
+    const out = execSync(`git rev-list --count origin/${trackingBranch}..HEAD`, { cwd: projectRoot, encoding: 'utf8' }).trim();
+    return parseInt(out, 10) || 0;
+  } catch (e) {
+    // If we cannot determine ahead-count, be conservative and treat as ahead.
+    return -1;
+  }
 }
 
 initializeDataFiles();
@@ -3091,7 +3427,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
-          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const id = resolveControlId(pump);
           await deviceService.turnOn(id, pump);
           broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
         }
@@ -3102,7 +3438,8 @@ async function executeTrigger(trigger, source, character, settings) {
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
-          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const id = resolveControlId(pump);
+          clearServerTimedPumpTimer(id);
           await deviceService.turnOff(id, pump);
           broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pump.label || pump.name || 'Pump' });
         }
@@ -3209,14 +3546,15 @@ async function executeTrigger(trigger, source, character, settings) {
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
-          const id = pump.brand === 'govee' || pump.brand === 'tuya' ? pump.deviceId : pump.ip;
+          const id = resolveControlId(pump);
           const dur = trigger.duration || 5;
           if (trigger.mode === 'on') await deviceService.turnOn(id, pump);
           else if (trigger.mode === 'pulse') await deviceService.pulsePump(id, dur, pump);
           else if (trigger.mode === 'cycle') await deviceService.startCycle(id, { duration: dur, interval: dur, cycles: 3 }, pump);
           else if (trigger.mode === 'timed') {
-            await deviceService.turnOn(id, pump);
-            setTimeout(() => deviceService.turnOff(id, pump), dur * 1000);
+            // Route through the tracked timed mechanism so emergency stop clears it,
+            // and clamp the on-time to the MAX_ON_SECONDS safety ceiling.
+            await timedPumpOn(id, pump, dur);
           }
           broadcast('ai_device_control', { device: 'pump', action: trigger.mode, deviceName: pump.label || pump.name || 'Pump' });
         }
@@ -3387,7 +3725,7 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
   // Broadcast initial state (pump just turned on)
   broadcast('character_inflate_state', { active: true, elapsed: 0, characterCapacity: startCap });
 
-  charInflationTimer = setInterval(() => {
+  charInflationTimer = setInterval(async () => {
     const elapsed = (Date.now() - charInflationStartTime) / 1000;
     const gain = (elapsed / calibrationTime) * 100;
     const newCapacity = Math.min(burstPercent, Math.round(startCap + gain));
@@ -3397,8 +3735,12 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
       const prevCharCap = sessionState.characterCapacity;
       sessionState.characterCapacity = newCapacity;
       eventEngine.checkCharacterStateChanges({ characterCapacity: newCapacity });
-      executeCheckpointTriggers('char', prevCharCap, newCapacity);
-      executePersonaCheckpointTriggers('char', prevCharCap, newCapacity);
+      try {
+        await executeCheckpointTriggers('char', prevCharCap, newCapacity);
+        await executePersonaCheckpointTriggers('char', prevCharCap, newCapacity);
+      } catch (err) {
+        console.error('[CharInflation] Checkpoint trigger error:', err && err.message ? err.message : err);
+      }
     }
 
     // Always broadcast elapsed + capacity so frontend timer overlay stays in sync
@@ -3858,7 +4200,7 @@ function applyTokenRemovals(text, settings) {
 }
 
 // Auto-save session state
-function autosaveSession() {
+function _autosaveSessionNow() {
   try {
     const settings = loadData(DATA_FILES.settings);
     const autosaveData = {
@@ -3875,10 +4217,23 @@ function autosaveSession() {
       pumpRuntimeTracker: sessionState.pumpRuntimeTracker,
       updatedAt: Date.now()
     };
+    // saveData uses atomicWriteJson (writes .tmp, fsync, rolls one .bak, renames).
     saveData(DATA_FILES.autosave, autosaveData);
   } catch (error) {
     console.error('[Autosave] Failed to save session:', error);
   }
+}
+
+// Debounce autosaves: many state changes fire in quick succession (per-second
+// runtime ticks etc.) — coalesce them into a single atomic write.
+let _autosaveTimer = null;
+const AUTOSAVE_DEBOUNCE_MS = 1000;
+function autosaveSession() {
+  if (_autosaveTimer) clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(() => {
+    _autosaveTimer = null;
+    _autosaveSessionNow();
+  }, AUTOSAVE_DEBOUNCE_MS);
 }
 
 // Load autosaved session
@@ -4083,7 +4438,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     const pumpDevices = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
 
     for (const pump of pumpDevices) {
-      const pumpDeviceId = pump.brand === 'govee' || pump.brand === 'tuya' || pump.brand === 'homeassistant' ? pump.deviceId : pump.ip;
+      const pumpDeviceId = resolveControlId(pump);
       const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : pumpDeviceId;
       const deviceState = sessionState.executionHistory?.deviceActions?.[stateKey];
 
@@ -4123,9 +4478,12 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     emotion: sessionState.emotion
   });
 
-  // Fire checkpoint triggers on range boundary crossing
-  executeCheckpointTriggers('player', prevPlayerCapacity, totalCapacity);
-  executePersonaCheckpointTriggers('player', prevPlayerCapacity, totalCapacity);
+  // Fire checkpoint triggers on range boundary crossing. handlePumpRuntime is
+  // invoked from a (non-awaiting) event emitter, so guard these async calls.
+  Promise.resolve()
+    .then(() => executeCheckpointTriggers('player', prevPlayerCapacity, totalCapacity))
+    .then(() => executePersonaCheckpointTriggers('player', prevPlayerCapacity, totalCapacity))
+    .catch(err => console.error('[AutoCapacity] Checkpoint trigger error:', err && err.message ? err.message : err));
 }
 
 // Device service event handler
@@ -4142,7 +4500,162 @@ deviceService.setEventEmitter((eventType, data) => {
   if (eventType === 'pump_runtime') {
     handlePumpRuntime(data);
   }
+
+  // Whenever any PUMP turns on, record a wall-clock on-timestamp and ensure the
+  // always-on pump safety watchdog runs. This is independent of useAutoCapacity and
+  // covers EVERY activation path (LLM, manual, timed, flow) because all of them flow
+  // through deviceService.turnOn -> 'device_on'.
+  if (eventType === 'device_on') {
+    if (isPumpDeviceData(data)) {
+      if (!pumpActiveSince[data.ip]) pumpActiveSince[data.ip] = Date.now();
+      startPumpSafetyWatchdog();
+    }
+  }
+  if (eventType === 'device_off') {
+    if (data && data.ip) delete pumpActiveSince[data.ip];
+  }
 });
+
+// ============================================
+// Always-on pump safety watchdog
+// ============================================
+//
+// Independent of useAutoCapacity. Whenever ANY pump is reported ON, this forces
+// every pump OFF when either:
+//   - cumulative on-time exceeds MAX_ON_SECONDS, OR
+//   - tracked capacity reaches the effective pop threshold.
+// This is the failsafe that the auto-capacity early-return (`if (!useAutoCapacity)`)
+// would otherwise skip.
+
+let pumpSafetyWatchdog = null;
+
+// Wall-clock on-timestamps for pumps, keyed by the same `data.ip` deviceService emits
+// on 'device_on'/'device_off'. This is the SOURCE OF TRUTH for the safety watchdog and
+// is populated for ALL activation paths — independent of useAutoCapacity, the
+// pumpRuntimeTracker, and flow-node execution state.
+const pumpActiveSince = {};
+
+// Does this device_on/off payload refer to a PUMP? Falls back to the device store when
+// the emitted payload lacks deviceType.
+function isPumpDeviceData(data) {
+  const d = data && data.device;
+  if (d && (d.deviceType === 'PUMP' || d.isPrimaryPump)) return true;
+  if (d && d.deviceType && d.deviceType !== 'PUMP' && !d.isPrimaryPump) return false;
+  const key = data && data.ip;
+  if (!key) return false;
+  const devices = loadData(DATA_FILES.devices) || [];
+  return devices.some(dev => (dev.deviceType === 'PUMP' || dev.isPrimaryPump) &&
+    (dev.ip === key || dev.deviceId === key || (dev.childId ? `${dev.ip}:${dev.childId}` : dev.ip) === key));
+}
+
+function getEffectivePopThresholdSafe(settings) {
+  try {
+    return getEffectivePopThreshold(settings);
+  } catch (e) {
+    return 100;
+  }
+}
+
+// Is any pump currently ON? Uses the wall-clock tracker (all paths) plus execution
+// history as a backstop.
+function anyPumpOn() {
+  if (Object.keys(pumpActiveSince).length > 0) return true;
+  const actions = sessionState.executionHistory?.deviceActions || {};
+  return Object.values(actions).some(a => a && a.state === 'on');
+}
+
+// Max cumulative on-time (seconds) across active pumps. Takes the larger of the
+// wall-clock since-on (universal) and the auto-capacity pumpRuntimeTracker total.
+function maxCumulativePumpSeconds() {
+  let max = 0;
+  const now = Date.now();
+  for (const since of Object.values(pumpActiveSince)) {
+    if (typeof since === 'number') {
+      const s = (now - since) / 1000;
+      if (s > max) max = s;
+    }
+  }
+  const tracker = sessionState.pumpRuntimeTracker || {};
+  for (const t of Object.values(tracker)) {
+    if (t && typeof t.totalSeconds === 'number' && t.totalSeconds > max) max = t.totalSeconds;
+  }
+  return max;
+}
+
+// Force every configured pump OFF, regardless of believed state. Non-throwing.
+function forceAllPumpsOff(reason) {
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pumps = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  for (const pump of pumps) {
+    const id = resolveControlId(pump);
+    if (!id) continue;
+    clearServerTimedPumpTimer(id);
+    const offFn = typeof deviceService.turnOffWithConfirm === 'function'
+      ? deviceService.turnOffWithConfirm(id, pump)
+      : deviceService.turnOff(id, pump);
+    Promise.resolve(offFn).then((result) => {
+      // Only mark OFF / clear tracking when the OFF is actually confirmed; otherwise
+      // leave pumpActiveSince intact so the watchdog keeps retrying a stuck pump.
+      const ok = result && (result.confirmed || result.ok);
+      const stateKey = pump.childId ? `${pump.ip}:${pump.childId}` : id;
+      if (ok) {
+        delete pumpActiveSince[stateKey];
+        delete pumpActiveSince[id];
+        if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
+          sessionState.executionHistory.deviceActions[stateKey].state = 'off';
+        }
+      } else {
+        console.error(`[PumpWatchdog] Force-off of pump ${id} NOT confirmed — will keep retrying`);
+      }
+      broadcast('pump_safety_shutoff', {
+        device: pump.label || pump.name || id,
+        capacity: sessionState.capacity,
+        reason,
+        confirmed: !!ok
+      });
+    }).catch(err => {
+      console.error(`[PumpWatchdog] Failed to force-off pump ${id}:`, err && err.message ? err.message : err);
+    });
+  }
+}
+
+function pumpSafetyWatchdogTick() {
+  try {
+    if (!anyPumpOn()) {
+      // Nothing on — stop the watchdog until a pump turns on again.
+      stopPumpSafetyWatchdog();
+      return;
+    }
+    const settings = loadData(DATA_FILES.settings) || {};
+    const popThreshold = getEffectivePopThresholdSafe(settings);
+    const onSeconds = maxCumulativePumpSeconds();
+    const capacity = sessionState.capacity || 0;
+
+    if (onSeconds >= MAX_ON_SECONDS) {
+      console.error(`[PumpWatchdog] MAX_ON_SECONDS (${MAX_ON_SECONDS}s) exceeded (on=${onSeconds.toFixed(1)}s) — forcing all pumps OFF`);
+      forceAllPumpsOff('max_on_time');
+      return;
+    }
+    if (capacity >= popThreshold) {
+      console.error(`[PumpWatchdog] Capacity ${capacity}% >= pop threshold ${popThreshold}% — forcing all pumps OFF`);
+      forceAllPumpsOff('capacity_ceiling');
+    }
+  } catch (err) {
+    console.error('[PumpWatchdog] tick error:', err && err.message ? err.message : err);
+  }
+}
+
+function startPumpSafetyWatchdog() {
+  if (pumpSafetyWatchdog) return;
+  pumpSafetyWatchdog = setInterval(pumpSafetyWatchdogTick, 1000);
+}
+
+function stopPumpSafetyWatchdog() {
+  if (pumpSafetyWatchdog) {
+    clearInterval(pumpSafetyWatchdog);
+    pumpSafetyWatchdog = null;
+  }
+}
 
 // ============================================
 // Character Helper Functions
@@ -4711,8 +5224,8 @@ If announcing the result, say "${result}" - not something else.
         // Build LLM settings, applying maxTokensOverride if provided (for short pre-messages)
         const llmSettings = { ...settings.llm };
         if (data.maxTokensOverride) {
-          llmSettings.maxTokens = data.maxTokensOverride;
-          console.log(`[EventEngine] Using maxTokens override: ${data.maxTokensOverride}`);
+          llmSettings.maxTokens = clampMaxTokens(data.maxTokensOverride);
+          console.log(`[EventEngine] Using maxTokens override: ${llmSettings.maxTokens}`);
         }
 
         // Generate enhanced response
@@ -5791,19 +6304,26 @@ async function handleWsMessage(ws, type, data) {
       console.log('[EMERGENCY STOP via WS] Immediate LLM abort + device shutoff');
       // Abort LLM immediately — this is the most time-critical action
       llmService.abortAllRequests();
-      aiDeviceControl.clearAllLlmTimers();
+      aiDeviceControl.clearAllLlmTimers(deviceService);
       // Halt flows
       if (eventEngine) eventEngine.emergencyStop();
       // Stop timers
       deviceService.stopAllPumpRuntimeTracking();
       stopCharacterInflation();
-      // Stop all devices (async but fire-and-forget for speed)
+      stopPumpSafetyWatchdog();
+      clearAllServerTimedPumpTimers();
+      // Stop all devices CONCURRENTLY with per-device timeout, confirming each
+      // turn-off and reporting REAL status (covers homeassistant via resolveControlId).
       const estopDevices = loadData(DATA_FILES.devices) || [];
-      for (const d of estopDevices) {
-        const id = (d.brand === 'tuya' || d.brand === 'govee' || d.brand === 'wyze' || d.brand === 'homeassistant') ? d.deviceId : d.ip;
-        if (id) { deviceService.stopCycle(id); deviceService.turnOff(id, d).catch(() => {}); }
-      }
-      broadcast('emergency_stop', { timestamp: Date.now() });
+      const wsStopResults = await stopAllDevicesConcurrently(estopDevices, '[EMERGENCY STOP via WS]');
+      const wsDevices = wsStopResults.map(r => ({
+        id: resolveControlId(r.device),
+        name: r.name,
+        success: r.ok,
+        confirmed: r.confirmed,
+        error: r.ok ? undefined : r.error
+      }));
+      broadcast('emergency_stop', { timestamp: Date.now(), results: { devices: wsDevices } });
       break;
     }
 
@@ -6363,6 +6883,13 @@ async function handleWsMessage(ws, type, data) {
       );
       break;
 
+    case 'choose_multi_response':
+      await eventEngine.handleChooseMulti(
+        data.nodeId,
+        data.selectedIds
+      );
+      break;
+
     case 'challenge_result':
       // Pass full result data object (outputId, rollTotal, slots, segmentLabel, etc.)
       await eventEngine.handleChallengeResult(
@@ -6751,6 +7278,9 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     // Clear both screen and context
     sessionState.chatHistory = [];
     sessionState.chatMemorySummaryUpTo = 0;
+    // Allow checkpoint triggers to re-fire after a context wipe. We do NOT touch the
+    // physical capacity (it must stay in sync with the real pump state).
+    firedCheckpointTriggers.clear();
 
     // Set the summary as the rolling memory
     if (summaryText) {
@@ -6792,6 +7322,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatHistory = preserved;
     sessionState.chatMemorySummary = null;
     sessionState.chatMemorySummaryUpTo = 0;
+    firedCheckpointTriggers.clear();
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
     console.log('[ClearChat] Context cleared (screen preserved)');
@@ -6801,6 +7332,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatHistory = [];
     sessionState.chatMemorySummary = null;
     sessionState.chatMemorySummaryUpTo = 0;
+    firedCheckpointTriggers.clear();
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
     console.log('[ClearChat] Both screen and context cleared');
@@ -6918,6 +7450,14 @@ async function handleSwipeMessage(data) {
         settings: settings.llm
       });
       resultText = result.text;
+    }
+
+    // Abort guard: if an emergency stop fired while the LLM was generating, do NOT
+    // activate any device from this (now-stale) response.
+    if (eventEngine.aborted) {
+      console.log('[Swipe] Aborted after generation — skipping device activation');
+      broadcast('generating_stop', {});
+      return;
     }
 
     // Process AI device commands (e.g., [pump on], [vibe off])
@@ -7557,6 +8097,14 @@ async function handleChatMessage(data) {
           }
         });
 
+        // Abort guard: if emergency stop fired during generation, do not activate
+        // devices from this stale streamed response.
+        if (eventEngine.aborted) {
+          console.log('[Chat/Stream] Aborted after generation — skipping device activation');
+          broadcast('generating_stop', {});
+          return;
+        }
+
         // Strip any cross-role content that slipped through
         finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
         aiMessage.content = substituteAllVariables(finalText);
@@ -7739,6 +8287,14 @@ async function handleChatMessage(data) {
           });
           return;
         }
+      }
+
+      // Abort guard: if emergency stop fired during generation/retries, do not
+      // activate devices from this stale response.
+      if (eventEngine.aborted) {
+        console.log('[Chat] Aborted after generation — skipping device activation');
+        broadcast('generating_stop', {});
+        return;
       }
 
       // For non-streaming, add message now
@@ -9324,17 +9880,21 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   // Inject hardcoded physical state preface before every generation
   prompt += buildStatePreface(playerName, character.name, character);
 
-  // SINGLE guidance injection at depth 0: one system note placed right before the
-  // generation primer. No second copy in the user prompt.
   const isPlayerVoicePrimer = mode === 'impersonate' || mode === 'guided_impersonate';
   const primerName = isPlayerVoicePrimer ? playerName : character.name;
 
+  // Guidance at DEPTH 0: place the directive in the user block immediately before
+  // the primer (and as the final chat message below). Mistral/Tekken-family models
+  // heavily weight the most recent instruction and largely ignore the system block,
+  // so a system-only note gets dropped — keeping it adjacent to generation, in the
+  // same "=== MANDATORY ===" shape the model already obeys for checkpoints, makes it stick.
+  let guidanceDirective = '';
   if (guidedText) {
-    if (isPlayerVoicePrimer) {
-      systemPrompt += `\n\n[Guidance — write ${playerName}'s next message so it embodies this, without quoting it verbatim: "${guidedText}"]`;
-    } else {
-      systemPrompt += `\n\n[Guidance — ${character.name}'s next message must be about this, without quoting it verbatim: "${guidedText}"]`;
-    }
+    const subject = isPlayerVoicePrimer ? `${playerName}'s` : `${character.name}'s`;
+    guidanceDirective = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST center on: "${guidedText}"\nMake this the focus of the reply right now. Stay in character. Do NOT quote this note.\n=== END NOTE ===\n`;
+    prompt += guidanceDirective;
+    // Light reinforcement in the system block too (helps ChatML-style models).
+    systemPrompt += `\n[Director's note for the next reply: ${guidedText}]`;
   }
 
   // Generation primer uses the REAL speaker name.
@@ -9353,6 +9913,8 @@ Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player
   }
   messages.push(...specialHistory.messages);
   messages.push({ role: 'user', content: buildStatePreface(playerName, character.name, character).trim() });
+  // Guidance as the FINAL message so chat-completion endpoints see it at depth 0.
+  if (guidanceDirective) messages.push({ role: 'user', content: guidanceDirective.trim() });
 
   return { systemPrompt, prompt, stopSequences, messages, playerName, characterName: character.name };
 }
@@ -9657,10 +10219,34 @@ Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from pla
  */
 function applyCharacterGuidance(context, character, guidanceText) {
   if (!guidanceText) return context;
-  const note = `\n\n[Guidance — ${character.name}'s next message must be about this, without quoting it verbatim: "${guidanceText}"]`;
-  context.systemPrompt += note;
-  // Flat prompt: insert nothing extra — the system note carries it. (Keeps the
-  // transcript clean and matches the chat-completion representation.)
+
+  const isMulti = character.multiChar?.enabled;
+  const primer = isMulti ? '[Characters]:' : `${character.name}:`;
+  const subject = isMulti ? "The characters'" : `${character.name}'s`;
+
+  // Guidance at DEPTH 0, in the same "=== MANDATORY ===" shape the model already
+  // obeys for checkpoints. Mistral/Tekken-family models weight the most recent
+  // instruction far above the system block, so this must sit right before the
+  // primer (and as the final chat message) — not buried in the system prompt.
+  const directive = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST center on: "${guidanceText}"\nMake this the focus of the reply right now. Stay in character. Do NOT quote this note.\n=== END NOTE ===\n`;
+
+  // Flat prompt (text-completion): insert just before the trailing primer.
+  if (typeof context.prompt === 'string') {
+    const idx = context.prompt.lastIndexOf(primer);
+    if (idx >= 0) {
+      context.prompt = context.prompt.slice(0, idx) + directive + context.prompt.slice(idx);
+    } else {
+      context.prompt += directive;
+    }
+  }
+
+  // Structured messages (chat-completion): append as the final turn before generation.
+  if (Array.isArray(context.messages)) {
+    context.messages.push({ role: 'user', content: directive.trim() });
+  }
+
+  // Light reinforcement in the system block too (helps ChatML-style models).
+  context.systemPrompt += `\n[Director's note for the next reply: ${guidanceText}]`;
   return context;
 }
 
@@ -9686,6 +10272,27 @@ app.get('/api/updates/check', async (req, res) => {
     const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
     const trackingBranch = (currentBranch === 'master' || currentBranch === 'main') ? 'release' : currentBranch;
     console.log(`[Updates] Current branch: ${currentBranch}, tracking: origin/${trackingBranch}`);
+
+    // The current branch may not exist on origin (e.g. a local-only feature branch).
+    // Treat that as "no updates available" instead of failing the whole check.
+    let remoteExists = true;
+    try {
+      execSync(`git rev-parse --verify --quiet origin/${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe' });
+    } catch (e) {
+      remoteExists = false;
+    }
+    if (!remoteExists) {
+      console.log(`[Updates] origin/${trackingBranch} not found — no remote tracking branch; reporting no updates`);
+      let cv = 'unknown';
+      try { cv = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')).version; } catch (e) {}
+      return res.json({
+        hasUpdates: false,
+        currentVersion: cv,
+        behindCount: 0,
+        pendingChanges: [],
+        note: `Branch '${trackingBranch}' has no remote on origin; update checks are disabled for this branch.`
+      });
+    }
 
     // Get current and remote commit hashes
     const localCommit = execSync('git rev-parse HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
@@ -9735,13 +10342,28 @@ app.post('/api/updates/pull', async (req, res) => {
   const { execSync } = require('child_process');
   const projectRoot = path.join(__dirname, '..');
 
+  // Self-update is destructive (git reset --hard) — require a same-origin LOCAL request.
+  if (!isSameOriginLocal(req)) {
+    return res.status(403).json({ success: false, error: 'Self-update is only allowed from a same-origin localhost request' });
+  }
+
   try {
     console.log('[Updates] Manual pull requested...');
     // Detect current branch, migrate master/main to release
     const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
     const trackingBranch = (currentBranch === 'master' || currentBranch === 'main') ? 'release' : currentBranch;
-    // Fetch and reset to remote - no merge needed, ensures exact match with remote
+    // Fetch first so the ahead-count is computed against up-to-date remote refs.
     execSync(`git fetch origin ${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    // Refuse to clobber local commits not yet on the remote.
+    const ahead = localCommitsAhead(projectRoot, trackingBranch);
+    if (ahead !== 0) {
+      return res.status(409).json({
+        success: false,
+        error: ahead < 0
+          ? 'Unable to determine local/remote divergence; refusing hard reset'
+          : `Local HEAD is ${ahead} commit(s) ahead of origin/${trackingBranch}; refusing hard reset`
+      });
+    }
     execSync(`git reset --hard origin/${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe' });
     console.log('[Updates] Manual pull successful');
     res.json({ success: true, message: 'Pull successful. Please restart the application.' });
@@ -9756,6 +10378,11 @@ app.post('/api/updates/install', async (req, res) => {
   const projectRoot = path.join(__dirname, '..');
   const isWindows = process.platform === 'win32';
 
+  // Self-update is destructive (git reset --hard + restart) — require same-origin LOCAL.
+  if (!isSameOriginLocal(req)) {
+    return res.status(403).json({ success: false, error: 'Self-update is only allowed from a same-origin localhost request' });
+  }
+
   try {
     // Detect current branch, migrate master/main to release
     const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot, encoding: 'utf8' }).trim();
@@ -9764,6 +10391,16 @@ app.post('/api/updates/install', async (req, res) => {
     // This ensures local repo always matches remote exactly - users shouldn't modify tracked files
     console.log(`[Updates] Fetching latest changes from origin/${trackingBranch}...`);
     execSync(`git fetch origin ${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe', timeout: 30000 });
+    // Refuse to clobber local commits not yet on the remote.
+    const ahead = localCommitsAhead(projectRoot, trackingBranch);
+    if (ahead !== 0) {
+      return res.status(409).json({
+        success: false,
+        error: ahead < 0
+          ? 'Unable to determine local/remote divergence; refusing hard reset'
+          : `Local HEAD is ${ahead} commit(s) ahead of origin/${trackingBranch}; refusing hard reset`
+      });
+    }
     console.log('[Updates] Resetting to remote...');
     execSync(`git reset --hard origin/${trackingBranch}`, { cwd: projectRoot, stdio: 'pipe' });
 
@@ -10248,11 +10885,11 @@ RELATIONSHIP: [description]`;
   }
 });
 
-app.post('/api/personas', async (req, res) => {
+app.post('/api/personas', mwValidatePersona, async (req, res) => {
   try {
     const newPersona = {
-      id: uuidv4(),
       ...req.body,
+      id: uuidv4(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -10270,14 +10907,17 @@ app.post('/api/personas', async (req, res) => {
 
 app.put('/api/personas/:id', async (req, res) => {
   try {
+    if (!isSafeId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid persona id' });
+    }
     const existingPersona = loadPersona(req.params.id);
     if (!existingPersona) {
       return res.status(404).json({ error: 'Persona not found' });
     }
 
-    const personaToSave = { ...existingPersona, ...req.body, updatedAt: Date.now() };
-    // Use async version to process images
-    const savedPersona = await savePersonaAsync(personaToSave);
+    const personaToSave = { ...existingPersona, ...req.body, id: req.params.id, updatedAt: Date.now() };
+    // Use async version to process images. Explicit user save → sync default personas to factory.
+    const savedPersona = await savePersonaAsync(personaToSave, false, true);
     const personas = loadAllPersonas();
     broadcast('personas_update', personas);
     res.json(savedPersona);
@@ -10288,6 +10928,9 @@ app.put('/api/personas/:id', async (req, res) => {
 });
 
 app.delete('/api/personas/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid persona id' });
+  }
   // Delete from folder structure
   deletePersonaFolder(req.params.id);
 
@@ -10308,15 +10951,34 @@ app.delete('/api/personas/:id', (req, res) => {
 app.get('/api/trigger-sets', (req, res) => {
   res.json(loadData(DATA_FILES.triggerSets) || []);
 });
+// Validate a trigger-set body: triggers must be an array of plausible trigger objects.
+function validateTriggerSetBody(body) {
+  if (body.triggers !== undefined) {
+    if (!Array.isArray(body.triggers)) {
+      return 'triggers must be an array';
+    }
+    for (const t of body.triggers) {
+      if (!t || typeof t !== 'object' || Array.isArray(t)) {
+        return 'each trigger must be an object';
+      }
+    }
+  }
+  return null;
+}
 app.post('/api/trigger-sets', (req, res) => {
+  const err = validateTriggerSetBody(req.body || {});
+  if (err) return res.status(400).json({ error: err });
   const sets = loadData(DATA_FILES.triggerSets) || [];
-  const newSet = { id: uuidv4(), name: req.body.name || 'New Trigger Set', triggers: req.body.triggers || [], createdAt: Date.now(), updatedAt: Date.now() };
+  const newSet = { name: req.body.name || 'New Trigger Set', ...req.body, triggers: req.body.triggers || [], id: uuidv4(), createdAt: Date.now(), updatedAt: Date.now() };
   sets.push(newSet);
   saveData(DATA_FILES.triggerSets, sets);
   broadcast('trigger_sets_update', sets);
   res.json(newSet);
 });
 app.put('/api/trigger-sets/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid trigger set id' });
+  const err = validateTriggerSetBody(req.body || {});
+  if (err) return res.status(400).json({ error: err });
   const sets = loadData(DATA_FILES.triggerSets) || [];
   const idx = sets.findIndex(s => s.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Trigger set not found' });
@@ -10326,6 +10988,7 @@ app.put('/api/trigger-sets/:id', (req, res) => {
   res.json(sets[idx]);
 });
 app.delete('/api/trigger-sets/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid trigger set id' });
   let sets = loadData(DATA_FILES.triggerSets) || [];
   sets = sets.filter(s => s.id !== req.params.id);
   saveData(DATA_FILES.triggerSets, sets);
@@ -10334,16 +10997,27 @@ app.delete('/api/trigger-sets/:id', (req, res) => {
 });
 app.post('/api/trigger-sets/:id/fire', async (req, res) => {
   try {
+    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid trigger set id' });
     const sets = loadData(DATA_FILES.triggerSets) || [];
     const set = sets.find(s => s.id === req.params.id);
     if (!set) return res.status(404).json({ error: 'Trigger set not found' });
     const settings = loadData(DATA_FILES.settings) || {};
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const character = characters.find(c => c.id === settings?.activeCharacterId);
-    for (const trigger of (set.triggers || [])) {
-      await executeTrigger(trigger, 'trigger-set', character, settings);
+    const triggers = set.triggers || [];
+    let fired = 0;
+    let failed = 0;
+    // Wrap each trigger so one bad trigger doesn't abort the whole sequence.
+    for (const trigger of triggers) {
+      try {
+        await executeTrigger(trigger, 'trigger-set', character, settings);
+        fired++;
+      } catch (tErr) {
+        failed++;
+        console.error('Error executing trigger in set:', tErr);
+      }
     }
-    res.json({ success: true, fired: (set.triggers || []).length });
+    res.json({ success: true, fired, failed });
   } catch (err) {
     console.error('Error firing trigger set:', err);
     res.status(500).json({ error: err.message || 'Failed to fire trigger set' });
@@ -10847,6 +11521,9 @@ app.get('/api/characters', (req, res) => {
 
 // Get single character by ID
 app.get('/api/characters/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid character id' });
+  }
   if (isPerCharStorageActive()) {
     const character = loadCharacter(req.params.id);
     if (character) {
@@ -10865,11 +11542,11 @@ app.get('/api/characters/:id', (req, res) => {
   }
 });
 
-app.post('/api/characters', async (req, res) => {
+app.post('/api/characters', mwValidateCharacter, async (req, res) => {
   try {
     const newCharacter = {
-      id: uuidv4(),
       ...req.body,
+      id: uuidv4(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -10895,6 +11572,9 @@ app.post('/api/characters', async (req, res) => {
 
 app.put('/api/characters/:id', async (req, res) => {
   try {
+    if (!isSafeId(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid character id' });
+    }
     let updatedCharacter;
 
     if (isPerCharStorageActive()) {
@@ -10902,9 +11582,10 @@ app.put('/api/characters/:id', async (req, res) => {
       if (!existingCharacter) {
         return res.status(404).json({ error: 'Character not found' });
       }
-      const charToSave = { ...existingCharacter, ...req.body, updatedAt: Date.now() };
-      // Use async version to process images
-      updatedCharacter = await saveCharacterAsync(charToSave);
+      const charToSave = { ...existingCharacter, ...req.body, id: req.params.id, updatedAt: Date.now() };
+      // Use async version to process images. This is an explicit user save via the
+      // editor, so sync default characters back into the git-tracked factory tree.
+      updatedCharacter = await saveCharacterAsync(charToSave, false, true);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
       const index = characters.findIndex(c => c.id === req.params.id);
@@ -10979,6 +11660,9 @@ app.put('/api/characters/:id', async (req, res) => {
 });
 
 app.delete('/api/characters/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid character id' });
+  }
   if (isPerCharStorageActive()) {
     deleteCharacterFile(req.params.id);
     const characters = loadAllCharacters();
@@ -11011,8 +11695,8 @@ app.get('/api/actors/:id', (req, res) => {
 app.post('/api/actors', async (req, res) => {
   try {
     const newActor = {
-      id: uuidv4(),
       ...req.body,
+      id: uuidv4(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -11071,8 +11755,8 @@ app.get('/api/plays/:id', (req, res) => {
 app.post('/api/plays', async (req, res) => {
   try {
     const newPlay = {
-      id: uuidv4(),
       ...req.body,
+      id: uuidv4(),
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -11268,8 +11952,8 @@ app.post('/api/devices/scan/local', deviceScanLimiter, async (req, res) => {
 app.post('/api/devices', (req, res) => {
   const devices = loadData(DATA_FILES.devices) || [];
   const newDevice = {
-    id: uuidv4(),
     ...req.body,
+    id: uuidv4(),
     currentState: 'off'
   };
 
@@ -12317,7 +13001,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 1. IMMEDIATELY abort all LLM requests (highest priority — stops token generation)
   results.llm = { aborted: llmService.abortAllRequests() };
-  aiDeviceControl.clearAllLlmTimers();
+  aiDeviceControl.clearAllLlmTimers(deviceService);
 
   // 2. Halt all flow execution
   if (eventEngine) {
@@ -12327,27 +13011,25 @@ app.post('/api/emergency-stop', async (req, res) => {
   // 3. Stop ALL pump runtime tracking intervals
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
+  clearAllServerTimedPumpTimers();
+  stopPumpSafetyWatchdog();
 
-  // 4. Stop ALL devices (including cycles)
+  // 4. Stop ALL devices (including cycles) CONCURRENTLY with per-device timeout,
+  //    confirming each turn-off and reporting each device's REAL status.
   const devices = loadData(DATA_FILES.devices) || [];
-  for (const device of devices) {
-    try {
-      // Get correct identifier - Tuya/Govee/Wyze use deviceId, TPLink uses ip
-      const deviceIdentifier = (device.brand === 'tuya' || device.brand === 'govee' || device.brand === 'wyze')
-        ? device.deviceId
-        : device.ip;
-
-      if (deviceIdentifier) {
-        // Stop any active cycle first
-        deviceService.stopCycle(deviceIdentifier);
-        // Turn off the device
-        await deviceService.turnOff(deviceIdentifier, device);
-        results.devices.push({ id: deviceIdentifier, name: device.name || device.label || deviceIdentifier, success: true });
-        console.log(`[EMERGENCY STOP] Stopped device: ${device.name || device.label || deviceIdentifier}`);
-      }
-    } catch (error) {
-      results.devices.push({ id: device.ip || device.deviceId, name: device.name || device.label, success: false, error: error.message });
-      console.error(`[EMERGENCY STOP] Failed to stop device ${device.name || device.ip}:`, error.message);
+  const stopResults = await stopAllDevicesConcurrently(devices, '[EMERGENCY STOP]');
+  for (const r of stopResults) {
+    results.devices.push({
+      id: resolveControlId(r.device),
+      name: r.name,
+      success: r.ok,
+      confirmed: r.confirmed,
+      error: r.ok ? undefined : r.error
+    });
+    if (r.ok) {
+      console.log(`[EMERGENCY STOP] Stopped device: ${r.name}`);
+    } else {
+      console.error(`[EMERGENCY STOP] Failed to stop device ${r.name}: ${r.error}`);
     }
   }
 
@@ -12355,8 +13037,9 @@ app.post('/api/emergency-stop', async (req, res) => {
     console.log('[EMERGENCY STOP] No devices configured to stop');
   }
 
+  const allOk = results.devices.every(d => d.success);
   broadcast('emergency_stop', { timestamp: Date.now(), results });
-  res.json({ success: true, message: 'Emergency stop executed', results });
+  res.json({ success: allOk, message: 'Emergency stop executed', results });
 });
 
 // --- Checkpoint Profiles ---
@@ -13057,6 +13740,9 @@ app.get('/api/flows', (req, res) => {
 
 // Get single flow by ID
 app.get('/api/flows/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid flow id' });
+  }
   if (isPerFlowStorageActive()) {
     const flow = loadFlow(req.params.id);
     if (flow) {
@@ -13077,9 +13763,15 @@ app.get('/api/flows/:id', (req, res) => {
 });
 
 app.post('/api/flows', (req, res) => {
+  if (req.body && req.body.nodes !== undefined && !Array.isArray(req.body.nodes)) {
+    return res.status(400).json({ error: 'Flow nodes must be an array' });
+  }
+  if (req.body && req.body.edges !== undefined && !Array.isArray(req.body.edges)) {
+    return res.status(400).json({ error: 'Flow edges must be an array' });
+  }
   const newFlow = {
-    id: uuidv4(),
     ...req.body,
+    id: uuidv4(),
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -13100,6 +13792,9 @@ app.post('/api/flows', (req, res) => {
 
 app.put('/api/flows/:id', (req, res) => {
   const flowId = req.params.id;
+  if (!isSafeId(flowId)) {
+    return res.status(400).json({ error: 'Invalid flow id' });
+  }
   let updatedFlow;
 
   if (isPerFlowStorageActive()) {
@@ -13107,7 +13802,7 @@ app.put('/api/flows/:id', (req, res) => {
     if (!existingFlow) {
       return res.status(404).json({ error: 'Flow not found' });
     }
-    updatedFlow = { ...existingFlow, ...req.body, updatedAt: Date.now() };
+    updatedFlow = { ...existingFlow, ...req.body, id: flowId, updatedAt: Date.now() };
     saveFlow(updatedFlow);
   } else {
     const flows = loadData(DATA_FILES.flows) || [];
@@ -13124,7 +13819,8 @@ app.put('/api/flows/:id', (req, res) => {
   const charButtonsUpdated = syncButtonsForFlowChange(flowId);
   const personaButtonsUpdated = syncPersonaButtonsForFlowChange(flowId);
   if (charButtonsUpdated) {
-    broadcast('characters_update', loadData(DATA_FILES.characters));
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    broadcast('characters_update', chars);
   }
   if (personaButtonsUpdated) {
     broadcast('personas_update', loadAllPersonas());
@@ -13140,6 +13836,9 @@ app.put('/api/flows/:id', (req, res) => {
 });
 
 app.delete('/api/flows/:id', (req, res) => {
+  if (!isSafeId(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid flow id' });
+  }
   if (isPerFlowStorageActive()) {
     deleteFlowFile(req.params.id);
     broadcast('flows_update', loadFlowsIndex());
@@ -13792,6 +14491,7 @@ app.post('/api/sessions/save', (req, res) => {
     emotion: sessionState.emotion,
     chatHistory: sessionState.chatHistory,
     flowVariables: sessionState.flowVariables,
+    flowAssignments: sessionState.flowAssignments,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -14029,13 +14729,14 @@ app.post('/api/migrate-images', async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 8889;
 
-// Restore default characters and personas to factory state on every startup
-// Factory backups are committed in data/factory/ — overwrites any user edits to defaults
+// Restore default characters and personas from the committed factory backups ONLY
+// when an on-disk default is MISSING or fails to parse. Valid existing defaults
+// (including legitimate user edits to defaults) are never force-overwritten on boot.
 (function restoreFactoryDefaults() {
   const FACTORY_DIR = path.join(DATA_DIR, 'factory');
   const pairs = [
-    { src: path.join(FACTORY_DIR, 'chars-default'), dest: CHARS_DEFAULT_DIR },
-    { src: path.join(FACTORY_DIR, 'personas-default'), dest: PERSONAS_DEFAULT_DIR }
+    { src: path.join(FACTORY_DIR, 'chars-default'), dest: CHARS_DEFAULT_DIR, jsonName: 'char.json' },
+    { src: path.join(FACTORY_DIR, 'personas-default'), dest: PERSONAS_DEFAULT_DIR, jsonName: 'persona.json' }
   ];
 
   // Portable recursive copy (works on Node 18+)
@@ -14052,12 +14753,34 @@ const PORT = process.env.PORT || 8889;
     }
   }
 
-  for (const { src, dest } of pairs) {
-    if (fs.existsSync(src)) {
-      copyDirSync(src, dest);
+  // Does the on-disk default have a present, parseable JSON file?
+  function defaultIsValid(destEntryDir, jsonName) {
+    const jsonPath = path.join(destEntryDir, jsonName);
+    if (!fs.existsSync(jsonPath)) return false;
+    try {
+      JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      return true;
+    } catch (e) {
+      return false;
     }
   }
-  console.log('[Startup] Default characters and personas restored to factory state');
+
+  for (const { src, dest, jsonName } of pairs) {
+    if (!fs.existsSync(src)) continue;
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const id = entry.name;
+      const srcEntryDir = path.join(src, id);
+      const destEntryDir = path.join(dest, id);
+      if (defaultIsValid(destEntryDir, jsonName)) {
+        // Existing default is valid — leave it untouched.
+        continue;
+      }
+      console.log(`[Startup] Restoring factory default '${id}' (missing or unparseable on disk)`);
+      copyDirSync(srcEntryDir, destEntryDir);
+    }
+  }
+  console.log('[Startup] Factory defaults checked; missing/corrupt defaults restored');
 
   // Clean up stale copies of default personas/chars in custom/ (from prior race condition bug)
   for (const [defaultDir, customDir] of [[CHARS_DEFAULT_DIR, CHARS_CUSTOM_DIR], [PERSONAS_DEFAULT_DIR, PERSONAS_CUSTOM_DIR]]) {
@@ -14087,8 +14810,12 @@ activateAssignedFlows();
 console.log('[Startup] Flows activated for current session');
 syncAllButtonsOnStartup();
 
-server.listen(PORT, () => {
-  log.always(`SwellDreams server running on http://localhost:${PORT}`);
+// Bind to localhost by default; only expose on all interfaces when the user has
+// explicitly enabled remote access. Preserves the allowRemote toggle.
+const BIND_REMOTE = !!(getRemoteSettings().allowRemote);
+const BIND_HOST = BIND_REMOTE ? '0.0.0.0' : '127.0.0.1';
+server.listen(PORT, BIND_HOST, () => {
+  log.always(`SwellDreams server running on http://localhost:${PORT} (bound to ${BIND_HOST})`);
   // Detect model name from active LLM endpoint on startup
   detectLlmModel();
 });
@@ -14119,23 +14846,19 @@ async function triggerEmergencyStop(reason) {
   try {
     // 1. Stop ALL pump runtime tracking intervals immediately
     deviceService.stopAllPumpRuntimeTracking();
+    clearAllServerTimedPumpTimers();
+    stopPumpSafetyWatchdog();
     console.log('[FAILSAFE] Pump runtime tracking stopped');
 
-    // 2. Stop all device cycles and turn off devices
+    // 2. Stop all device cycles and turn off devices — CONCURRENTLY, with a
+    //    per-device timeout so one offline device can't block the whole stop.
     const devices = loadData(DATA_FILES.devices) || [];
-    for (const device of devices) {
-      try {
-        // Get correct identifier - Tuya/Govee use deviceId, TPLink uses ip
-        const deviceIdentifier = (device.brand === 'tuya' || device.brand === 'govee' || device.brand === 'wyze')
-          ? device.deviceId
-          : device.ip;
-        if (deviceIdentifier) {
-          deviceService.stopCycle(deviceIdentifier);
-          await deviceService.turnOff(deviceIdentifier, device);
-          console.log(`[FAILSAFE] Stopped device: ${device.name || device.label || deviceIdentifier}`);
-        }
-      } catch (err) {
-        console.error(`[FAILSAFE] Failed to stop device ${device.name || device.ip}:`, err.message);
+    const failsafeResults = await stopAllDevicesConcurrently(devices, '[FAILSAFE]');
+    for (const r of failsafeResults) {
+      if (r.ok) {
+        console.log(`[FAILSAFE] Stopped device: ${r.name}`);
+      } else {
+        console.error(`[FAILSAFE] Failed to stop device ${r.name}: ${r.error}`);
       }
     }
 
@@ -14195,15 +14918,37 @@ process.on('uncaughtException', async (error) => {
   }, 2000);
 });
 
+// Classify whether a rejection/error originates from the device-control path,
+// in which case a physical emergency stop is warranted. Stray application
+// rejections (HTTP, JSON, LLM, etc.) should NOT pop pumps or kill the process.
+function isDevicePathError(reason) {
+  const err = reason instanceof Error ? reason : null;
+  const text = `${err ? (err.stack || err.message) : String(reason)}`.toLowerCase();
+  const deviceMarkers = [
+    'device-service', 'deviceservice', 'pump', 'turnoff', 'turnon', 'startcycle',
+    'pulsepump', 'kasa', 'tapo', 'tuya', 'govee', 'wyze', 'shelly', 'esphome',
+    'tasmota', 'homeassistant', 'relay'
+  ];
+  return deviceMarkers.some(m => text.includes(m));
+}
+
 // Handle unhandled promise rejections
 process.on('unhandledRejection', async (reason, promise) => {
   const reasonStr = reason instanceof Error ? reason.message : (typeof reason === 'string' ? reason : 'Unknown');
   console.error('[FAILSAFE] Unhandled Promise Rejection:', reasonStr);
+
+  // Only escalate to a physical emergency stop for device-path failures. Other
+  // stray rejections are logged and the process keeps running.
+  if (!isDevicePathError(reason)) {
+    console.error('[FAILSAFE] Non-device rejection — logging and continuing (no emergency stop).');
+    return;
+  }
+
   await triggerEmergencyStop(`Unhandled Rejection: ${reasonStr}`);
 
   // Give time for devices to stop, then exit
   setTimeout(() => {
-    console.log('[FAILSAFE] Exiting process after unhandled rejection');
+    console.log('[FAILSAFE] Exiting process after device-path unhandled rejection');
     process.exit(1);
   }, 2000);
 });

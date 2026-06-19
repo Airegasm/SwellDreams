@@ -123,13 +123,18 @@ const indexPath = path.join(CHARS_DIR, 'chars-index.json');
 fs.writeFileSync(indexPath, JSON.stringify(index, null, 2));
 console.log(`\nWrote chars-index.json with ${index.length} entries`);
 
-// Backup original file
-const backupPath = path.join(DATA_DIR, 'characters.json.backup');
-try {
-  fs.renameSync(charsPath, backupPath);
-  console.log(`Backed up original characters.json to characters.json.backup`);
-} catch (err) {
-  console.error(`Warning: Could not backup original file: ${err.message}`);
+// Backup original file ONLY on a fully successful migration. A partial
+// migration (errorCount > 0) must leave the source intact so no data is lost.
+if (errorCount === 0) {
+  const backupPath = path.join(DATA_DIR, 'characters.json.backup');
+  try {
+    fs.renameSync(charsPath, backupPath);
+    console.log(`Backed up original characters.json to characters.json.backup`);
+  } catch (err) {
+    console.error(`Warning: Could not backup original file: ${err.message}`);
+  }
+} else {
+  console.error(`\nMigration had ${errorCount} error(s); leaving original characters.json intact.`);
 }
 
 console.log('\n=== Migration Complete ===');
@@ -138,3 +143,7 @@ console.log(`  Errors: ${errorCount}`);
 console.log(`  Default characters: ${defaultCount}`);
 console.log(`  Custom characters: ${customCount}`);
 console.log(`  Index entries: ${index.length}`);
+
+if (errorCount > 0) {
+  process.exit(1);
+}
