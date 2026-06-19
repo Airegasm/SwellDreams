@@ -3311,7 +3311,8 @@ const sessionState = {
   activeAttributes: null, // Transient: rolled personality attributes for current LLM call
   characterCapacity: 0, // 0-100% simulated inflation for the AI character
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
-  preInflationGateMet: true // When false, blocks LLM-initiated pump commands until capacity > 0
+  preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
+  firedTreeNodes: new Set() // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -7480,6 +7481,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     // Allow checkpoint triggers to re-fire after a context wipe. We do NOT touch the
     // physical capacity (it must stay in sync with the real pump state).
     firedCheckpointTriggers.clear();
+    sessionState.firedTreeNodes.clear();
 
     // Set the summary as the rolling memory
     if (summaryText) {
@@ -7522,6 +7524,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummary = null;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
+    sessionState.firedTreeNodes.clear();
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
     console.log('[ClearChat] Context cleared (screen preserved)');
@@ -7532,6 +7535,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummary = null;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
+    sessionState.firedTreeNodes.clear();
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
     console.log('[ClearChat] Both screen and context cleared');
@@ -9811,6 +9815,80 @@ function rollCheckpointInjections(character) {
 
 // Roll the active range's RANDOM trigger blocks (the sequential/random model that
 // supersedes injections). Per-block % chance, capped by per-block repeats; the active
+// Deliver an ai_message into THIS reply: enhanced -> woven via activeCheckpointInjections;
+// verbatim (llmEnhance===false) -> appended to pendingVerbatimReply (replaces the reply).
+// Shared by the checkpoint random-block roller and the Trigger Tree walker. PRODUCER ONLY:
+// it appends/pushes and never resets activeCheckpointInjections (rollCheckpointRandomTriggers
+// is the sole resetter), so callers can compose multiple producers into one reply.
+function deliverTreeMsg(text, llmEnhance) {
+  const t = (text || '').trim();
+  if (!t) return;
+  if (llmEnhance !== false) sessionState.activeCheckpointInjections.push(t);
+  else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply ? `${sessionState.pendingVerbatimReply}\n${t}` : t;
+}
+
+// Evaluate ONE Trigger Tree condition against live state. Builds on the existing flow
+// condition logic (event-engine evaluateConditions): SYSTEM vars read from sessionState,
+// FLOW vars read from eventEngine.variables (the canonical map applySetVariable writes).
+// The compare value (and string left sides) pass through eventEngine.substituteVariables so
+// a branch can compare var-vs-var ([Flow:x]/[System:x] resolve). Pure read, never throws out.
+// Cond = { varType:'system'|'flow', variable, operator, value }
+function evalTreeCondition(cond) {
+  if (!cond || !cond.operator) return false;
+  const op = cond.operator;
+  // 1. Left side
+  let left;
+  if (cond.varType === 'system') {
+    switch (cond.variable) {
+      case 'capacity': left = sessionState.capacity ?? 0; break;
+      case 'pain': case 'feeling': left = sessionState.pain ?? 0; break;
+      case 'emotion': left = sessionState.emotion ?? 'neutral'; break;
+      case 'characterCapacity': left = sessionState.characterCapacity ?? 0; break;
+      case 'device_state': {
+        const id = cond.device || 'primary_pump';
+        left = sessionState.executionHistory?.deviceActions?.[id]?.state || 'off';
+        break;
+      }
+      default: left = sessionState[cond.variable];
+    }
+  } else {
+    left = eventEngine.variables[cond.variable]; // 'flow' (custom) map
+  }
+  // 2. empty / notEmpty act on the resolved left, ignore the right
+  const isEmpty = v => v === undefined || v === null || String(v).trim() === '';
+  if (op === 'empty') return isEmpty(left);
+  if (op === 'notEmpty') return !isEmpty(left);
+  // 3. Resolve nested refs: string left + the compare value pass through substituteVariables
+  const leftR = (typeof left === 'string') ? eventEngine.substituteVariables(left) : left;
+  const rightR = eventEngine.substituteVariables(String(cond.value ?? ''));
+  // 4. Numeric compare when BOTH sides parse numeric (mirrors evaluateCondition); else string
+  const ln = parseFloat(leftR), rn = parseFloat(rightR);
+  const bothNum = !isNaN(ln) && !isNaN(rn) && String(leftR).trim() !== '' && String(rightR).trim() !== '';
+  switch (op) {
+    case '==': return bothNum ? ln === rn : String(leftR) == String(rightR);
+    case '!=': return bothNum ? ln !== rn : String(leftR) != String(rightR);
+    case '>': return parseFloat(leftR) > parseFloat(rightR);
+    case '<': return parseFloat(leftR) < parseFloat(rightR);
+    case '>=': return parseFloat(leftR) >= parseFloat(rightR);
+    case '<=': return parseFloat(leftR) <= parseFloat(rightR);
+    case 'contains': return String(leftR ?? '').toLowerCase().includes(String(rightR ?? '').toLowerCase());
+    default: return false;
+  }
+}
+
+// Evaluate a Trigger Tree 'branch' (a child of an 'if'). else:true always passes (must be
+// last). Otherwise AND/OR over its conditions (match:'all' default, 'any' = OR). A non-else
+// branch with no conditions never passes. One bad condition fails its branch, not the walk.
+function evalBranch(branch) {
+  if (!branch) return false;
+  if (branch.params?.else === true || branch.else === true) return true;
+  const conds = branch.params?.conditions || [];
+  if (!conds.length) return false;
+  const match = branch.params?.match === 'any' ? 'any' : 'all';
+  const test = c => { try { return evalTreeCondition(c); } catch (e) { console.error('[runTree] cond failed:', e?.message || e); return false; } };
+  return match === 'any' ? conds.some(test) : conds.every(test);
+}
+
 // block-set carries over into higher ranges that define no blocks of their own.
 // ai_message triggers weave into (or verbatim-replace) this reply via the same plumbing
 // injections used; every other trigger fires through executeTrigger.
@@ -9827,12 +9905,7 @@ function rollCheckpointRandomTriggers(character) {
   const budget = sessionState.randomBlockBudget || (sessionState.randomBlockBudget = {});
   const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
 
-  const deliverMsg = (text, llmEnhance) => {
-    const t = (text || '').trim();
-    if (!t) return;
-    if (llmEnhance !== false) sessionState.activeCheckpointInjections.push(t);
-    else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply ? `${sessionState.pendingVerbatimReply}\n${t}` : t;
-  };
+  const deliverMsg = deliverTreeMsg;
   const fireTrigger = (trg) => {
     if (!trg || !trg.type) return;
     if (trg.type === 'ai_message') {
@@ -12212,6 +12285,190 @@ function resolveBlockTrigger(t, sets) {
   return t.type ? t : null;
 }
 
+// ===== Trigger Tree walker (step 2: see plan typed-dazzling-nygaard.md) =====
+// One recursive walker for the nested-block scripting model. Re-entrant-safe beside the
+// checkpoint loop: it READS live sessionState/eventEngine state and only PRODUCES into the
+// shared reply sinks (activeCheckpointInjections push / pendingVerbatimReply append) via
+// deliverTreeMsg — it NEVER resets those sinks and never touches firedCheckpointTriggers.
+// runNode/runTree return undefined in step 2; the `if (sig) return sig` plumbing reserves a
+// control sentinel ({__control:...}) so step-3 player_choice/label/goto slot in with no refactor.
+const MAX_TREE_DEPTH = 64;
+const TREE_STUB_TYPES = new Set(['player_choice', 'label', 'goto', 'fire_tree', 'fire_flow', 'repeat']);
+
+function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
+function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
+// Mark a once-node as fired, but only when it has an id (id-less once nodes stay recurring).
+function markTreeOnce(node, ctx) { if (node.once && node.id) ctx.firedSet.add(treeOnceKey(node, ctx)); }
+// Enter a container's body: returns the depth-bumped child ctx, or null if the body would
+// exceed MAX_TREE_DEPTH. When too deep we abort WITHOUT consuming the node's once (its effect —
+// running its children — did not happen, so it retries next turn). Marks once only on real entry.
+// Routing random's single-child descent through here also bounds runNode->runNode recursion.
+function enterChild(node, ctx) {
+  const child = treeChildCtx(ctx);
+  if (child.depth > MAX_TREE_DEPTH) {
+    console.warn(`[runTree] max depth exceeded at node ${node.id} (${node.type}) — aborting subtree, once not consumed`);
+    return null;
+  }
+  markTreeOnce(node, ctx);
+  return child;
+}
+
+// Latest player/user message text (for keyword gates). Empty string if none yet.
+function latestPlayerText() {
+  const hist = sessionState.chatHistory || [];
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const m = hist[i];
+    if (m && (m.sender === 'user' || m.sender === 'player')) return m.content || m.text || '';
+  }
+  return '';
+}
+
+// Match a keyword-gate/keyword-event node against the latest player message using the
+// reminder-engine matcher. Closed (no match) when no keys are defined.
+function treeKeywordMatches(node) {
+  const keys = node.params?.keys || [];
+  if (!keys.length) return false;
+  const entry = {
+    keys,
+    secondaryKeys: node.params?.secondaryKeys || [],
+    caseSensitive: !!node.params?.caseSensitive,
+    matchWholeWords: node.params?.matchWholeWords !== false,
+    logic: node.params?.logic || 'and_any'
+  };
+  return reminderEngine._matchKeys(entry, latestPlayerText());
+}
+
+// Run a single Trigger Tree node. Returns a control sentinel (reserved) or undefined.
+async function runNode(node, ctx) {
+  // once SKIP gate (the .add happens per-kind once the node is known to run its effect)
+  if (node.once) {
+    if (!node.id) console.warn(`[runTree] once node missing id (type '${node.type}') — treating as recurring`);
+    else if (ctx.firedSet.has(treeOnceKey(node, ctx))) return;
+  }
+
+  const type = node.type;
+  if (TREE_STUB_TYPES.has(type)) {
+    console.log(`[runTree] node type '${type}' not yet implemented (later step) — skipping`);
+    return;
+  }
+
+  // ----- Actions (leaves) -----
+  if (node.kind === 'action') {
+    markTreeOnce(node, ctx); // an action always runs its effect
+    const p = node.params || {};
+    try {
+      if (type === 'ai_message') {
+        deliverTreeMsg(p.context, p.llmEnhance); // weave/verbatim, NOT executeTrigger (avoids double-post)
+      } else if (type === 'set_variable') {
+        eventEngine.applySetVariable(p.varType || 'custom', p.variable, p.operation || 'set', p.value); // mirrors fireCheckpointInjectionAction
+      } else {
+        await executeTrigger({ type, ...p }, ctx.source, ctx.character, ctx.settings);
+      }
+    } catch (e) {
+      console.error(`[runTree] action '${type}' (node ${node.id}) failed:`, e?.message || e);
+    }
+    return;
+  }
+
+  // ----- Containers -----
+  if (node.kind === 'container') {
+    switch (type) {
+      case 'group': {
+        const child = enterChild(node, ctx);
+        if (!child) return;
+        return await runTree(node.children || [], child);
+      }
+
+      case 'chance': {
+        const pct = Number(node.params?.chance);
+        const pass = pct >= 100 ? true : pct <= 0 ? false : (Math.random() * 100 < pct);
+        if (!pass) return; // failed roll does NOT consume once — a once+chance keeps rolling until it hits
+        const child = enterChild(node, ctx);
+        if (!child) return;
+        return await runTree(node.children || [], child);
+      }
+
+      case 'random': {
+        const kids = node.children || [];
+        if (!kids.length) return; // nothing to pick — do not consume once
+        const child = enterChild(node, ctx);
+        if (!child) return;
+        const pick = kids[Math.floor(Math.random() * kids.length)];
+        return await runNode(pick, child); // single child: its own once/kind/children apply
+      }
+
+      case 'if': {
+        for (const br of node.children || []) {
+          if (!br || br.type !== 'branch') continue;
+          if (evalBranch(br)) {
+            const child = enterChild(node, ctx); // once on the 'if' consumed only when a branch matched
+            if (!child) return;
+            return await runTree(br.children || [], child); // first match wins, then fall through
+          }
+        }
+        return; // no branch matched — run nothing, fall through to next sibling
+      }
+
+      case 'keyword_gate': {
+        if (!treeKeywordMatches(node)) return; // closed gate does not consume once
+        const child = enterChild(node, ctx);
+        if (!child) return;
+        return await runTree(node.children || [], child);
+      }
+
+      default:
+        console.log(`[runTree] unknown container type '${type}' (node ${node.id}) — skipping`);
+        return;
+    }
+  }
+
+  // ----- Events (step-2 partial: only 'keyword' is wired) -----
+  if (node.kind === 'event') {
+    if (type === 'keyword') {
+      if (!treeKeywordMatches(node)) return;
+      const child = enterChild(node, ctx);
+      if (!child) return;
+      return await runTree(node.children || [], child);
+    }
+    console.log(`[runTree] unhandled event type '${type}' (node ${node.id}) — skipping children`);
+    return;
+  }
+
+  console.log(`[runTree] unknown node kind '${node.kind}' type '${type}' — skipping`);
+}
+
+// Walk a node LIST top-to-bottom (sequence = drag order). One bad node degrades to a skip;
+// siblings still run. A returned control sentinel short-circuits the rest (reserved for step 3).
+async function runTree(nodes, ctx) {
+  if (ctx.depth > MAX_TREE_DEPTH) { console.warn('[runTree] max depth exceeded — aborting subtree'); return; }
+  if (!Array.isArray(nodes)) return;
+  for (const node of nodes) {
+    if (!node || typeof node !== 'object') continue;
+    let sig;
+    try { sig = await runNode(node, ctx); }
+    catch (e) { console.error(`[runTree] node ${node?.id}(${node?.type}) failed:`, e?.message || e); continue; }
+    if (sig) return sig;
+  }
+}
+
+// Entry point: run a tree for a given scope. Builds the per-run ctx (firedSet references the
+// session once-set so 'once' persists across runs within a session).
+async function runTreeScope(tree, scopeKey, character, settings) {
+  if (!tree || !Array.isArray(tree.nodes)) return;
+  const ctx = {
+    character, settings,
+    treeId: tree.id,
+    scopeKey: scopeKey || 'default',
+    depth: 0,
+    source: `tree:${tree.id}`,
+    visited: new Set([tree.id]), // reserved for step-5 fire_tree cycle guard
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map() // reserved for step-3 label/goto
+  };
+  try { await runTree(tree.nodes, ctx); }
+  catch (e) { console.error('[runTree] scope failed:', e?.message || e); }
+}
+
 // Fire an ordered list of trigger blocks. Sequential blocks fire all their triggers in order;
 // random blocks fire exactly one trigger picked at random. Shared by buttons + the flow node.
 async function fireTriggerBlocks(blocks, source, character, settings) {
@@ -14509,6 +14766,50 @@ app.delete('/api/trigger-trees/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// TEMP step-2 smoke endpoint for the Trigger Tree walker — guard/remove before prod.
+// Seeds optional state, snapshots+restores the reply sinks (so it's non-destructive to a live
+// reply), runs the tree, and returns what it produced. firedTreeNodes is intentionally left
+// populated across calls (clear via resetOnce or session reset) so 'once' can be demonstrated.
+app.post('/api/trigger-trees/:id/run', async (req, res) => {
+  try {
+    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid tree id' });
+    const data = loadTriggerTrees();
+    const tree = (data.trees || []).find(t => t.id === req.params.id);
+    if (!tree) return res.status(404).json({ error: 'Tree not found' });
+    const settings = loadData(DATA_FILES.settings) || {};
+    const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+
+    const seed = req.body?.seed || {};
+    if (seed.capacity !== undefined) sessionState.capacity = seed.capacity;
+    if (seed.pain !== undefined) sessionState.pain = seed.pain;
+    if (seed.emotion !== undefined) sessionState.emotion = seed.emotion;
+    if (seed.characterCapacity !== undefined) sessionState.characterCapacity = seed.characterCapacity;
+    if (seed.flowVariables) for (const [k, v] of Object.entries(seed.flowVariables)) eventEngine.applySetVariable('custom', k, 'set', v);
+    if (seed.lastUserText) sessionState.chatHistory.push({ id: uuidv4(), content: seed.lastUserText, sender: 'user', timestamp: Date.now() });
+    if (req.body?.resetOnce) sessionState.firedTreeNodes.clear();
+
+    const savedInj = sessionState.activeCheckpointInjections;
+    const savedVerb = sessionState.pendingVerbatimReply;
+    sessionState.activeCheckpointInjections = [];
+    sessionState.pendingVerbatimReply = null;
+    await runTreeScope(tree, req.body?.scopeKey || 'debug', character, settings);
+    const result = {
+      woven: sessionState.activeCheckpointInjections.slice(),
+      pendingVerbatimReply: sessionState.pendingVerbatimReply || null,
+      firedOnceKeys: Array.from(sessionState.firedTreeNodes).filter(k => k.startsWith(`${tree.id}::`)),
+      capacity: sessionState.capacity, pain: sessionState.pain, emotion: sessionState.emotion,
+      flowVariables: { ...eventEngine.variables }
+    };
+    sessionState.activeCheckpointInjections = savedInj;
+    sessionState.pendingVerbatimReply = savedVerb;
+    res.json({ success: true, treeId: tree.id, ...result });
+  } catch (err) {
+    console.error('[debug runTree] failed:', err);
+    res.status(500).json({ error: err.message || 'runTree failed' });
+  }
+});
+
 // --- Persona Checkpoint Profiles (separate from character profiles) ---
 
 const PERSONA_CHECKPOINT_PROFILES_PATH = path.join(DATA_DIR, 'persona-checkpoint-profiles.json');
@@ -15791,6 +16092,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.chatMemorySummary = null;
   sessionState.chatMemorySummaryUpTo = 0;
   firedCheckpointTriggers.clear();
+  sessionState.firedTreeNodes.clear();
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
