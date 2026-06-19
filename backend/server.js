@@ -7844,6 +7844,10 @@ async function handleExecuteButton(data) {
           await handleButtonTriggerBlocks(action, characterId);
           break;
 
+        case 'run_tree':
+          await handleButtonRunTree(action, characterId);
+          break;
+
         // Legacy action types
         case 'stop_cycle':
           await handleButtonStopCycle(action);
@@ -7862,6 +7866,21 @@ async function handleExecuteButton(data) {
   }
 
   console.log('[Button] Button execution completed');
+}
+
+// Button "Run Trigger Tree" action: resolve the button's tree ref ({inline}|{treeId}) and run
+// it standalone (ai_message posts immediately, like other button actions). scopeKey btn:<id> so
+// `once` nodes fire once per button per session.
+async function handleButtonRunTree(action, characterId) {
+  const ref = action.config?.treeRef || (action.config?.treeId ? { treeId: action.config.treeId } : action.config?.inline ? { inline: action.config.inline } : null);
+  if (!ref) { console.log('[Button] run_tree: no tree ref configured'); return; }
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === (characterId || settings?.activeCharacterId)) || null;
+  const treeIndex = buildTreeIndex();
+  const tree = resolveRefTree(ref, treeIndex);
+  if (!tree) { console.log('[Button] run_tree: ref did not resolve to a tree'); return; }
+  await runTreeScope(tree, `btn:${action.config?.buttonId || action.id || 'x'}`, character, settings, { delivery: 'standalone', treeIndex });
 }
 
 async function handleButtonTriggerBlocks(action, characterId) {

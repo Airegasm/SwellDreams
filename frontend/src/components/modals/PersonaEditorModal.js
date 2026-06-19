@@ -4,6 +4,7 @@ import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import TriggerRow from '../common/TriggerRow';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
+import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import { EMOTIONS } from '../../constants/stateValues';
 import './PersonaEditorModal.css';
 
@@ -992,6 +993,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                                 <option value="link_to_flow">Link to Flow</option>
                                 <option value="run_trigger_set">Run Trigger Set</option>
                                 <option value="trigger_blocks">Trigger Blocks</option>
+                                <option value="run_tree">Run Trigger Tree</option>
                               </select>
                               {action.type === 'message' && (
                                 <textarea
@@ -1032,6 +1034,9 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                               )}
                               {action.type === 'trigger_blocks' && (
                                 <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets} />
+                              )}
+                              {action.type === 'run_tree' && (
+                                <LibraryTreeSelect value={action.config.treeId} onChange={(treeId) => handleUpdateAction(index, 'treeId', treeId)} />
                               )}
                             </div>
                             <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>

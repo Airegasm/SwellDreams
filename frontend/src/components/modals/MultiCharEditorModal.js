@@ -7,6 +7,7 @@ import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
+import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -2314,6 +2315,7 @@ Write only the scenario description itself, no explanations.`;
                                 <option value="link_to_flow">Link to Flow</option>
                                 <option value="run_trigger_set">Run Trigger Set</option>
                                 <option value="trigger_blocks">Trigger Blocks</option>
+                                <option value="run_tree">Run Trigger Tree</option>
                               </select>
                               {action.type === 'message' && (
                                 <textarea value={action.config.text || ''}
@@ -2352,6 +2354,9 @@ Write only the scenario description itself, no explanations.`;
                               )}
                               {action.type === 'trigger_blocks' && (
                                 <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets} />
+                              )}
+                              {action.type === 'run_tree' && (
+                                <LibraryTreeSelect value={action.config.treeId} onChange={(treeId) => handleUpdateAction(index, 'treeId', treeId)} />
                               )}
                             </div>
                             <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>
