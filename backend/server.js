@@ -9587,7 +9587,10 @@ function rollCheckpointInjections(character) {
   const charCp = getActiveCharacterCheckpointObj(character);
   if (charCp?.injections?.length) injections.push(...charCp.injections);
 
-  const nextResponses = [];
+  // Gather eligible injections (enabled, has text, under max-appearances, passed its
+  // own % roll), then deliver exactly ONE chosen uniformly at random. Injections within
+  // a range are mutually exclusive per turn — at most one fires, with no priority order.
+  const candidates = [];
   for (const inj of injections) {
     if (!inj || inj.enabled === false) continue;
     const message = injMsg(inj.message, inj.text);
@@ -9596,7 +9599,12 @@ function rollCheckpointInjections(character) {
     if (max >= 0 && (counts[inj.id] || 0) >= max) continue;
     const chance = Number(inj.chance);
     if (!(chance > 0) || Math.random() * 100 >= chance) continue;
+    candidates.push({ inj, message });
+  }
 
+  const nextResponses = [];
+  if (candidates.length) {
+    const { inj, message } = candidates[Math.floor(Math.random() * candidates.length)];
     counts[inj.id] = (counts[inj.id] || 0) + 1;
     deliver(message);
     fireCheckpointInjectionAction(inj.action);
@@ -9675,6 +9683,20 @@ async function handleCheckpointChoice(choiceId) {
 // ===== Instructor pre-req sequence =====
 // Ordered, mandatory player-choice steps shown before inflation. Each choice may set
 // a variable and/or load a checkpoint profile. The inflation gate stays closed until done.
+// Seed Flow/system variables for an instructor at session start. These run once,
+// before any pre-req questions, so prereq choices and checkpoint injections can read
+// them via the shared [Flow:Name]/[System:Name] format.
+function applyInstructorInitVars(character) {
+  if (!isInstructor(character)) return;
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const initVars = Array.isArray(activeStory?.prereqInitVars) ? activeStory.prereqInitVars : [];
+  for (const v of initVars) {
+    if (!v || !v.variable) continue;
+    eventEngine.applySetVariable(v.varType || 'custom', v.variable, v.operation || 'set', v.value);
+  }
+  if (initVars.length) console.log(`[Instructor] Seeded ${initVars.length} session-start variable(s)`);
+}
+
 function startInstructorPrereqs(character) {
   if (!isInstructor(character)) return false;
   if (sessionState.pendingPrereqs || sessionState.prereqsDone) return false;
@@ -9722,6 +9744,11 @@ async function handlePrereqChoice(choiceId) {
       const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
       const ch = chars.find(c => c.id === s.activeCharacterId);
       if (ch) applyActivePumpType(ch);
+    }
+    // Per-choice instructor response (verbatim or LLM-enhanced), fired immediately.
+    const resp = injMsg(choice.response);
+    if (resp.text) {
+      await eventEngine.broadcast('ai_message', { content: resp.text, suppressLlm: resp.llmEnhance === false });
     }
   }
   p.index++;
@@ -15292,6 +15319,9 @@ app.post('/api/session/reset', async (req, res) => {
       // first player message, handled in handleChatMessage).
       if (isInstructor(activeCharacter)) {
         const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+        // Seed session-start setup variables before any pre-req questions run,
+        // regardless of when the questions themselves are asked.
+        applyInstructorInitVars(activeCharacter);
         if ((aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
         }

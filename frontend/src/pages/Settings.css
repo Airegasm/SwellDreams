@@ -128,6 +128,26 @@
   min-width: 0;
 }
 
+/* Trigger list container + header (defined here too so the standalone Triggers
+   page — which doesn't load the modal CSS — renders them styled). */
+.triggers-editor-col .checkpoint-triggers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.triggers-editor-col .checkpoint-triggers-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.triggers-editor-col .checkpoint-triggers-label {
+  font-size: 0.8rem;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Stack the list above the editor on narrow screens */
 @media (max-width: 720px) {
   .triggers-layout {

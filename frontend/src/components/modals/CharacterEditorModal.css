@@ -136,6 +136,16 @@
   max-width: 250px;
 }
 
+.prereq-initvar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.prereq-initvar-row select { flex: 0 0 auto; width: auto; }
+.prereq-initvar-row input { flex: 1 1 90px; min-width: 0; }
+
 /* Modal Body - Card background matching Settings */
 .character-modal-body {
   padding: var(--spacing-lg);
@@ -1727,54 +1737,8 @@
   gap: 4px;
 }
 
-.post-welcome-trigger-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  padding: 6px;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-}
-
-/* On narrow screens, let the fixed-width fields shrink and wrap cleanly */
-@media (max-width: 640px) {
-  .post-welcome-trigger-row select,
-  .post-welcome-trigger-row input {
-    width: auto !important;
-    min-width: 84px;
-    flex: 1 1 84px;
-  }
-  .post-welcome-trigger-row .trigger-type-picker {
-    flex: 1 1 100%;
-    min-width: 0 !important;
-  }
-}
-
-.post-welcome-trigger-row select,
-.post-welcome-trigger-row input {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 6px;
-  font-size: var(--font-size-sm);
-  background-color: var(--bg-secondary, #1a1c1f);
-  color: var(--text-primary, #f3f4f6);
-  border: 1px solid var(--border-color, #3a3d45);
-  border-radius: 4px;
-}
-
-/* Native dropdown list — keep it dark + readable (some browsers ignore select bg) */
-.post-welcome-trigger-row select option {
-  background-color: #1a1c1f;
-  color: #f3f4f6;
-}
-
-.post-welcome-trigger-row select:focus,
-.post-welcome-trigger-row input:focus {
-  outline: none;
-  border-color: var(--accent-primary, #10b981);
-}
+/* Trigger-row styling now lives in components/common/TriggerRow.css so it loads
+   wherever TriggerRow renders (including the standalone Triggers page). */
 
 .drag-handle {
   cursor: grab;

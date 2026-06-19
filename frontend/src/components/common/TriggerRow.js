@@ -2,6 +2,7 @@ import React from 'react';
 import { EMOTIONS } from '../../constants/stateValues';
 import { API_BASE } from '../../config';
 import MemberTargetPicker from './MemberTargetPicker';
+import './TriggerRow.css';
 
 const DESIRE_OPTIONS = [
   { value: 'terrified', label: 'Terrified' },
@@ -414,33 +415,30 @@ function TriggerRow({ trigger, onChange, onRemove, dragProps, isPumpable, remind
   return (
     <div className="post-welcome-trigger-row" {...dragProps}>
       <span className="drag-handle">☰</span>
-      <div className="trigger-type-picker" ref={typeRef} style={{ position: 'relative', minWidth: '140px' }}>
+      <div className="trigger-type-picker" ref={typeRef}>
         <button
           type="button"
           className="trigger-type-btn"
           onClick={() => { setTypeOpen(!typeOpen); setTypeSearch(''); }}
-          style={{ width: '100%', textAlign: 'left', padding: '4px 8px', fontSize: '0.8rem', background: 'var(--bg-tertiary, #2a2d31)', border: '1px solid var(--border-color, #3a3d45)', borderRadius: '4px', color: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
         >
           {currentLabel}
         </button>
         {typeOpen && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: '#1e2028', border: '1px solid #3a3d45', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', maxHeight: '200px', display: 'flex', flexDirection: 'column' }}>
+          <div className="trigger-type-dropdown">
             <input
               type="text"
+              className="trigger-type-search"
               value={typeSearch}
               onChange={(e) => setTypeSearch(e.target.value)}
               placeholder="Search..."
               autoFocus
-              style={{ padding: '4px 8px', fontSize: '0.8rem', border: 'none', borderBottom: '1px solid #3a3d45', background: 'transparent', color: 'inherit', outline: 'none' }}
             />
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div className="trigger-type-list">
               {filteredTypes.map(t => (
                 <div
                   key={t.value}
+                  className={`trigger-type-option ${t.value === trigger.type ? 'selected' : ''}`}
                   onClick={() => { onChange({ ...trigger, type: t.value }); setTypeOpen(false); }}
-                  style={{ padding: '5px 8px', fontSize: '0.8rem', cursor: 'pointer', background: t.value === trigger.type ? 'rgba(100,149,237,0.2)' : 'transparent', whiteSpace: 'nowrap' }}
-                  onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.08)'}
-                  onMouseLeave={(e) => e.target.style.background = t.value === trigger.type ? 'rgba(100,149,237,0.2)' : 'transparent'}
                 >
                   {t.label}
                 </div>

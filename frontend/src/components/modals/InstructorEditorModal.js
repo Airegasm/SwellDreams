@@ -60,6 +60,7 @@ function buildInitialData(character) {
       allowLlmDeviceAccess: story?.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
       prereqs: Array.isArray(story?.prereqs) ? story.prereqs : [],
       prereqTiming: story?.prereqTiming || 'session_start',
+      prereqInitVars: Array.isArray(story?.prereqInitVars) ? story.prereqInitVars : [],
       checkpointProfiles,
       defaultCheckpointProfileId: story?.defaultCheckpointProfileId || checkpointProfiles[0].id,
     },
@@ -402,6 +403,35 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               <option value="after_first_message">After the first player message</option>
             </select>
           </div>
+          {/* Session-start Flow variable seeding */}
+          <div className="form-group">
+            <label>Initial Setup Variables (session start)</label>
+            <p className="section-hint">Flow/system variables seeded once when the session begins, before any questions. Read them anywhere with [Flow:Name] (or [Capacity]/[Pain]/[Emotion]).</p>
+            {(formData.story.prereqInitVars || []).map((v, i) => {
+              const upd = (patch) => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+              const rm = () => updateStory('prereqInitVars', (formData.story.prereqInitVars || []).filter((_, idx) => idx !== i));
+              return (
+                <div className="prereq-initvar-row" key={v.id || i}>
+                  <select value={v.varType || 'custom'} onChange={(e) => upd({ varType: e.target.value })} title="Variable type">
+                    <option value="custom">Flow</option>
+                    <option value="system">System</option>
+                  </select>
+                  <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity / pain / emotion' : 'variable'} />
+                  <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
+                    <option value="set">Set</option>
+                    <option value="inc">+</option>
+                    <option value="dec">−</option>
+                    <option value="mult">×</option>
+                    <option value="div">÷</option>
+                  </select>
+                  <input type="text" value={v.value || ''} onChange={(e) => upd({ value: e.target.value })} placeholder="value" />
+                  <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
+                </div>
+              );
+            })}
+            <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
+          </div>
+
           <PrereqEditor
             steps={formData.story.prereqs || []}
             onChange={(s) => updateStory('prereqs', s)}

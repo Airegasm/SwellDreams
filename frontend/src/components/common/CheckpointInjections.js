@@ -146,9 +146,13 @@ function CheckpointInjections({ value, onChange }) {
       {injections.map((inj, i) => (
         <div className={`ci-injection ${inj.enabled === false ? 'disabled' : ''}`} key={inj.id || i}>
           <div className="ci-injection-top">
-            <input type="checkbox" checked={inj.enabled !== false} onChange={(e) => upd(i, { enabled: e.target.checked })} title="Enabled" />
-            <label className="ci-num" title="% chance per message">%<input type="number" min={0} max={100} value={inj.chance ?? 50} onChange={(e) => upd(i, { chance: parseInt(e.target.value) || 0 })} /></label>
-            <label className="ci-num" title="Max appearances per session (-1 = unlimited)">max<input type="number" min={-1} value={inj.maxAppearances ?? -1} onChange={(e) => upd(i, { maxAppearances: parseInt(e.target.value) })} /></label>
+            <label className="ci-inline-check ci-enabled" title="Enable this injection">
+              <input type="checkbox" checked={inj.enabled !== false} onChange={(e) => upd(i, { enabled: e.target.checked })} />
+              On
+            </label>
+            <span className="ci-injection-num">Injection {i + 1}</span>
+            <label className="ci-num" title="% chance per message">Chance %<input type="number" min={0} max={100} value={inj.chance ?? 50} onChange={(e) => upd(i, { chance: parseInt(e.target.value) || 0 })} /></label>
+            <label className="ci-num" title="Max appearances per session (-1 = unlimited)">Max<input type="number" min={-1} value={inj.maxAppearances ?? -1} onChange={(e) => upd(i, { maxAppearances: parseInt(e.target.value) })} /></label>
             <button type="button" className="ci-del" onClick={() => rm(i)} title="Remove injection">×</button>
           </div>
           <MsgField label="Message" value={normMsg(inj.message, inj.text)} onChange={(m) => upd(i, { message: m, text: undefined })} placeholder="Delivered this message…" />

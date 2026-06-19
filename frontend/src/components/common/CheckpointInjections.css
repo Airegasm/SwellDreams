@@ -58,6 +58,45 @@
   flex-wrap: wrap;
 }
 
+/* Top row: On | "Injection N" | Chance | Max | (delete pushed right) */
+.ci-injection-top {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color, #3a3d45);
+}
+.ci-injection-num {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.ci-injection-top .ci-del { margin-left: auto; }
+.ci-enabled { font-weight: 600; }
+
+/* Consistent dark, readable form controls across all injection fields */
+.checkpoint-injections input[type="text"],
+.checkpoint-injections input[type="number"],
+.checkpoint-injections select,
+.checkpoint-injections textarea {
+  background-color: var(--bg-secondary, #1a1c1f);
+  color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+.checkpoint-injections input:focus,
+.checkpoint-injections select:focus,
+.checkpoint-injections textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
+}
+/* Native option list — force dark (some browsers ignore the select bg) */
+.checkpoint-injections select option {
+  background-color: #1a1c1f;
+  color: #f3f4f6;
+}
+
 .ci-injection-text { flex: 1; min-width: 120px; }
 .ci-var-name { width: 110px; }
 .ci-var-value { width: 70px; }
@@ -81,11 +120,12 @@
 .ci-num {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: 4px;
+  font-size: 11px;
   color: var(--text-muted, #9ca3af);
+  white-space: nowrap;
 }
-.ci-num input { width: 52px; }
+.ci-num input { width: 56px; flex: 0 0 auto; }
 
 .ci-action-row label,
 .ci-pump-fields label { font-size: 11px; color: var(--text-muted, #9ca3af); }

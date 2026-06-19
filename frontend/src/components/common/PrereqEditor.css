@@ -61,6 +61,22 @@
 .prereq-setvar input { flex: 1 1 80px; min-width: 0; }
 .prereq-setvar select { flex: 0 0 auto; width: auto; }
 
+.prereq-response {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.prereq-response-text { width: 100%; resize: vertical; }
+.prereq-resp-enh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+  align-self: flex-start;
+  white-space: nowrap;
+}
+
 .prereq-add,
 .prereq-add-sm {
   align-self: flex-start;
@@ -92,6 +108,7 @@
 
 /* Readable inputs inside the (light) character modal body */
 .prereq-step input[type="text"],
+.prereq-step textarea,
 .prereq-step select {
   background: var(--bg-secondary, #1a1c1f);
   color: var(--text-primary, #f3f4f6);

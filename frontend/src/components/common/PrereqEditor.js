@@ -90,6 +90,23 @@ function PrereqEditor({ steps = [], onChange, profiles = [] }) {
                   <input type="text" value={c.setVar.value || ''} onChange={(e) => updChoice(si, ci, { setVar: { ...c.setVar, value: e.target.value } })} placeholder="value" />
                 </div>
               )}
+              <div className="prereq-response">
+                <textarea
+                  className="prereq-response-text"
+                  rows={2}
+                  value={(c.response && typeof c.response === 'object' ? c.response.text : c.response) || ''}
+                  onChange={(e) => updChoice(si, ci, { response: { ...(typeof c.response === 'object' ? c.response : {}), text: e.target.value } })}
+                  placeholder="Instructor response when this choice is picked (supports [Flow:Name], [Choice], etc.) — optional"
+                />
+                <label className="prereq-resp-enh" title="Rewrite this response through the LLM instead of sending it verbatim">
+                  <input
+                    type="checkbox"
+                    checked={!(c.response && typeof c.response === 'object') || c.response.llmEnhance !== false}
+                    onChange={(e) => updChoice(si, ci, { response: { ...(typeof c.response === 'object' ? c.response : { text: c.response || '' }), llmEnhance: e.target.checked } })}
+                  />
+                  LLM enhance
+                </label>
+              </div>
             </div>
           ))}
           {step.choices.length < 4 && (

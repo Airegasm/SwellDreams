@@ -1,0 +1,148 @@
+/* TriggerRow — styling co-located with the component so it applies everywhere it
+   renders (character/multichar/persona/instructor modals AND the Triggers page,
+   which previously left these rows as unstyled native controls). */
+
+.post-welcome-trigger-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs, 6px);
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: var(--border-radius, 6px);
+}
+
+/* Dark, readable form controls (the native default was light + tiny) */
+.post-welcome-trigger-row select,
+.post-welcome-trigger-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background-color: var(--bg-secondary, #1a1c1f);
+  color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+}
+/* Native dropdown list — force dark (some browsers ignore the select bg) */
+.post-welcome-trigger-row select option {
+  background-color: #1a1c1f;
+  color: #f3f4f6;
+}
+.post-welcome-trigger-row select:focus,
+.post-welcome-trigger-row input:focus {
+  outline: none;
+  border-color: var(--accent-primary, #10b981);
+}
+
+.post-welcome-trigger-row .drag-handle {
+  cursor: grab;
+  color: var(--text-muted, #9ca3af);
+  font-size: 1rem;
+  user-select: none;
+  padding: 0 2px;
+  flex: 0 0 auto;
+}
+.post-welcome-trigger-row .drag-handle:active { cursor: grabbing; }
+
+.post-welcome-trigger-row .btn-remove {
+  background: none;
+  border: none;
+  color: var(--accent-danger, #ef4444);
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 0 6px;
+  opacity: 0.65;
+  flex: 0 0 auto;
+  transition: opacity 0.15s;
+}
+.post-welcome-trigger-row .btn-remove:hover { opacity: 1; }
+
+/* Type picker (custom searchable dropdown) */
+.trigger-type-picker {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+.trigger-type-btn {
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  background: var(--bg-tertiary, #2a2d31);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+  color: var(--text-primary, #f3f4f6);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trigger-type-btn:hover { border-color: var(--accent-primary, #10b981); }
+
+.trigger-type-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  margin-top: 2px;
+  background: var(--bg-secondary, #1e2028);
+  border: 1px solid var(--border-color, #3a3d45);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.trigger-type-search {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  border: none;
+  border-bottom: 1px solid var(--border-color, #3a3d45);
+  background: transparent;
+  color: var(--text-primary, #f3f4f6);
+  outline: none;
+}
+.trigger-type-list { overflow-y: auto; flex: 1; }
+.trigger-type-option {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-primary, #f3f4f6);
+}
+.trigger-type-option.selected { background: rgba(100, 149, 237, 0.22); }
+.trigger-type-option:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* Mobile — the old rows shrank to ant-sized 0.75rem native controls.
+   Bump to 16px (readable + avoids iOS focus-zoom) with real touch targets. */
+@media (max-width: 640px) {
+  .post-welcome-trigger-row {
+    gap: 8px;
+    padding: 10px;
+  }
+  .post-welcome-trigger-row select,
+  .post-welcome-trigger-row input {
+    width: auto !important;
+    min-width: 110px;
+    flex: 1 1 110px;
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+  .trigger-type-picker {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .trigger-type-btn,
+  .trigger-type-search,
+  .trigger-type-option {
+    font-size: 16px;
+  }
+  .trigger-type-btn { padding: 9px 12px; }
+  .trigger-type-option { padding: 11px 12px; }
+  .post-welcome-trigger-row .drag-handle { font-size: 1.25rem; }
+  .post-welcome-trigger-row .btn-remove { font-size: 1.5rem; padding: 0 8px; }
+}
