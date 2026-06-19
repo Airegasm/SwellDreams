@@ -23,7 +23,12 @@ class TuyaService {
     this.tokenExpiry = null;
     this.knownDeviceIds = [];  // Store known device IDs
     this.stateCache = new Map(); // { deviceId: { state, timestamp } }
-    this.CACHE_TTL_MS = 5000; // Cache device state for 5 seconds
+    // The UI polls device state every POLL_INTERVAL_MS (10s). A 5s cache meant every poll
+    // MISSED the cache and hit the Tuya cloud (rate-limit risk). This TTL must exceed the poll
+    // interval so passive reads coalesce to ~1 cloud call per window per device. Safe: turnOn/
+    // turnOff invalidate the cache (and turnOff re-reads fresh), and the pump safety watchdog
+    // uses local tracking — neither relies on this display cache.
+    this.CACHE_TTL_MS = 30000; // 30s — coalesces the 10s UI poll (~3x fewer Tuya status calls)
   }
 
   setCredentials(accessId, accessSecret, region = 'us') {

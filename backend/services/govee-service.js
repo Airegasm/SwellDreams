@@ -8,6 +8,10 @@ const GOVEE_API_BASE = 'https://openapi.api.govee.com';
 class GoveeService {
   constructor() {
     this.apiKey = null;
+    // Coalesce the UI's 10s device-state poll into far fewer Govee cloud calls (Govee's limits
+    // are tight). Commands invalidate the cache, so the app's own actions stay accurate.
+    this.stateCache = new Map(); // deviceId -> { state, timestamp }
+    this.CACHE_TTL_MS = 30000;
   }
 
   /**
@@ -124,6 +128,7 @@ class GoveeService {
    */
   async turnOn(deviceId, sku) {
     console.log(`[GoveeService] Turning ON device ${deviceId} (${sku})`);
+    this.stateCache.delete(deviceId); // next read reflects the real device state
     return await this.controlDevice(deviceId, sku, {
       type: 'devices.capabilities.on_off',
       instance: 'powerSwitch',
@@ -138,6 +143,7 @@ class GoveeService {
    */
   async turnOff(deviceId, sku) {
     console.log(`[GoveeService] Turning OFF device ${deviceId} (${sku})`);
+    this.stateCache.delete(deviceId); // safety: never serve a cached/optimistic "off"
     return await this.controlDevice(deviceId, sku, {
       type: 'devices.capabilities.on_off',
       instance: 'powerSwitch',
@@ -152,6 +158,10 @@ class GoveeService {
    * @returns {Promise<string>} 'on' or 'off'
    */
   async getPowerState(deviceId, sku) {
+    // Serve a recent cached state to avoid a cloud call on every UI poll.
+    const cached = this.stateCache.get(deviceId);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL_MS) return cached.state;
+
     const state = await this.getDeviceState(deviceId, sku);
 
     // Find the on_off capability in the response
@@ -159,11 +169,9 @@ class GoveeService {
       cap => cap.type === 'devices.capabilities.on_off' && cap.instance === 'powerSwitch'
     );
 
-    if (powerCap) {
-      return powerCap.state?.value === 1 ? 'on' : 'off';
-    }
-
-    return 'unknown';
+    const result = powerCap ? (powerCap.state?.value === 1 ? 'on' : 'off') : 'unknown';
+    if (result !== 'unknown') this.stateCache.set(deviceId, { state: result, timestamp: Date.now() });
+    return result;
   }
 
   /**
