@@ -7835,6 +7835,10 @@ async function handleExecuteButton(data) {
           await handleButtonRunTriggerSet(action, characterId);
           break;
 
+        case 'trigger_blocks':
+          await handleButtonTriggerBlocks(action, characterId);
+          break;
+
         // Legacy action types
         case 'stop_cycle':
           await handleButtonStopCycle(action);
@@ -7853,6 +7857,16 @@ async function handleExecuteButton(data) {
   }
 
   console.log('[Button] Button execution completed');
+}
+
+async function handleButtonTriggerBlocks(action, characterId) {
+  const blocks = action.config?.blocks || action.blocks;
+  if (!Array.isArray(blocks) || !blocks.length) { console.log('[Button] No trigger blocks configured'); return; }
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === (characterId || settings?.activeCharacterId));
+  console.log(`[Button] Firing ${blocks.length} trigger block(s)`);
+  await fireTriggerBlocks(blocks, 'button', character, settings);
 }
 
 async function handleButtonRunTriggerSet(action, characterId) {
@@ -10925,31 +10939,64 @@ function saveDictionary(data) {
 // multiple entries in a single generation.
 function buildDictionaryPrompt() {
   const groups = loadDictionary().groups || [];
-  const reminders = [];
+  const entries = [];
   for (const g of groups) {
     if (g.enabled === false) continue;
     for (const t of (g.terms || [])) {
-      if (!t || !t.term || !t.definition) continue;
-      if (t.enabled === false) continue; // per-term toggle
-      const keys = Array.isArray(t.keys) ? t.keys.filter(Boolean) : [];
-      reminders.push({
-        name: t.term,
-        text: `- ${t.term}: ${t.definition}`,
-        constant: keys.length === 0, // no trigger words => always-on
-        keys,
-        caseSensitive: !!t.caseSensitive,
-        enabled: true,
-        priority: 100,
-        scanDepth: 10
-      });
+      const term = t?.term ?? t?.title;
+      const def = t?.definition ?? t?.content;
+      if (!t || !term || !def || t.enabled === false) continue;
+      // Forward the whole entry to the engine so the advanced fields (secondaryKeys, logic,
+      // probability, group, recursion) are honored — not just term/definition/keys.
+      entries.push({ ...t, title: term, content: `${term}: ${def}` });
     }
   }
-  if (!reminders.length) return '';
+  if (!entries.length) return '';
   const recentMessages = reminderEngine.extractRecentMessages(sessionState?.chatHistory || [], 10);
-  // Full lorebook engine: secondary-key logic, probability, recursion, inclusion groups.
-  const active = reminderEngine.getActiveEntries(reminders, recentMessages, { maxRecursion: 3 });
+  const active = reminderEngine.getActiveEntries(entries, recentMessages, { maxRecursion: 3 });
   if (!active.length) return '';
-  return `Dictionary:\n${active.map(r => r.text).join('\n')}\n\n`;
+  return `Dictionary:\n${active.map(r => `- ${r.content}`).join('\n')}\n\n`;
+}
+
+// ===== SillyTavern lorebook import =====
+// Convert ST World Info (native `{entries:{uid:{...}}}`) or the v2 character_book
+// (`{entries:[{keys,secondary_keys,...}]}`) into our canonical entry shape. Drops the
+// JS/automation/vector fields (we don't run STscript).
+function convertImportedLorebookEntry(raw) {
+  const toArr = (v) => Array.isArray(v) ? v.map(s => String(s).trim()).filter(Boolean)
+    : (typeof v === 'string' ? v.split(',').map(s => s.trim()).filter(Boolean) : []);
+  const ext = raw.extensions || {};
+  const keys = toArr(raw.key ?? raw.keys);
+  const secondaryKeys = toArr(raw.keysecondary ?? raw.secondary_keys);
+  const logicNum = raw.selectiveLogic ?? ext.selectiveLogic;
+  const logic = ({ 0: 'and_any', 1: 'not_all', 2: 'not_any', 3: 'and_all' })[logicNum] || 'and_any';
+  const enabled = raw.disable != null ? !raw.disable : (raw.enabled != null ? !!raw.enabled : true);
+  return {
+    id: `imp-${raw.uid ?? Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`,
+    term: raw.comment || keys[0] || 'Imported entry',
+    definition: raw.content || '',
+    keys, secondaryKeys, logic,
+    constant: raw.constant === true,
+    enabled,
+    probability: (raw.useProbability === false) ? 100 : (raw.probability ?? ext.probability ?? 100),
+    order: raw.order ?? raw.insertion_order ?? 100,
+    scanDepth: raw.scanDepth ?? ext.scan_depth ?? null,
+    caseSensitive: !!(raw.caseSensitive ?? ext.case_sensitive),
+    matchWholeWords: raw.matchWholeWords ?? ext.match_whole_words,
+    group: raw.group ?? ext.group ?? '',
+    groupWeight: raw.groupWeight ?? ext.group_weight ?? 100,
+    recurse: !(raw.preventRecursion ?? ext.prevent_recursion),
+    excludeRecursion: !!(raw.excludeRecursion ?? ext.exclude_recursion),
+  };
+}
+
+function convertSillyTavernLorebook(json) {
+  if (!json) return [];
+  let raw = [];
+  if (Array.isArray(json.entries)) raw = json.entries;                              // character_book
+  else if (json.entries && typeof json.entries === 'object') raw = Object.values(json.entries); // ST native
+  else if (Array.isArray(json)) raw = json;
+  return raw.map(convertImportedLorebookEntry).filter(e => e.definition);
 }
 
 // ===== Built-in defaults (seeded once on startup) =====
@@ -14377,6 +14424,24 @@ app.post('/api/dictionary', (req, res) => {
   data.groups.push({ id, name, enabled: enabled !== false, terms: Array.isArray(terms) ? terms : [] });
   saveDictionary(data);
   res.json({ success: true, id });
+});
+
+// Import a SillyTavern World Info / character_book JSON as a new Dictionary book.
+app.post('/api/dictionary/import', (req, res) => {
+  try {
+    let { json, name } = req.body;
+    if (typeof json === 'string') json = JSON.parse(json);
+    const entries = convertSillyTavernLorebook(json);
+    if (!entries.length) return res.status(400).json({ error: 'No importable entries found' });
+    const data = loadDictionary();
+    if (!Array.isArray(data.groups)) data.groups = [];
+    const id = `dict-${Date.now()}`;
+    data.groups.push({ id, name: (name && String(name).trim()) || 'Imported Lorebook', enabled: true, terms: entries });
+    saveDictionary(data);
+    res.json({ success: true, id, count: entries.length });
+  } catch (e) {
+    res.status(400).json({ error: `Import failed: ${e.message}` });
+  }
 });
 
 app.put('/api/dictionary/:id', (req, res) => {

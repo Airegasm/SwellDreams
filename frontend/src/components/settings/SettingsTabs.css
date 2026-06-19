@@ -3645,6 +3645,53 @@
 .dict-term-keys,
 .dict-term-def { width: 100%; }
 
+/* Progressive-disclosure advanced fields */
+.dict-adv-toggle {
+  background: none;
+  border: none;
+  color: var(--accent-primary, #10b981);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 2px 0;
+  align-self: flex-start;
+}
+.dict-adv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-left: 2px solid var(--border-color, #3a3d45);
+  margin-top: 2px;
+}
+.dict-adv-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dict-adv-row > input[type="text"] { flex: 1 1 140px; min-width: 0; box-sizing: border-box; }
+.dict-adv-row > select { flex: 0 1 auto; }
+.dict-adv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+}
+.dict-adv-field input { width: 90px; box-sizing: border-box; }
+.dict-adv-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .dict-adv-row > input[type="text"],
+  .dict-adv-row > select { flex: 1 1 100%; }
+  .dict-adv input, .dict-adv select { font-size: 16px; }
+}
+
 /* Readable inputs regardless of theme */
 .dict-term input[type="text"],
 .dict-term textarea {

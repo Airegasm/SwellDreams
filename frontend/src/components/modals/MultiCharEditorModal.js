@@ -6,6 +6,7 @@ import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
+import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
@@ -2311,6 +2312,7 @@ Write only the scenario description itself, no explanations.`;
                                 <option value="cycle">Cycle Device</option>
                                 <option value="link_to_flow">Link to Flow</option>
                                 <option value="run_trigger_set">Run Trigger Set</option>
+                                <option value="trigger_blocks">Trigger Blocks</option>
                               </select>
                               {action.type === 'message' && (
                                 <textarea value={action.config.text || ''}
@@ -2346,6 +2348,9 @@ Write only the scenario description itself, no explanations.`;
                                   <option value="">Select Trigger Set...</option>
                                   {triggerSets.map(ts => <option key={ts.id} value={ts.id}>{ts.name}</option>)}
                                 </select>
+                              )}
+                              {action.type === 'trigger_blocks' && (
+                                <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets} />
                               )}
                             </div>
                             <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>
