@@ -78,7 +78,13 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     // eslint-disable-next-line
   }, [story?.id]);
 
-  const cpProfiles = Array.isArray(story?.checkpointProfiles) ? story.checkpointProfiles : [];
+  // Render-time fallback: if checkpointProfiles isn't populated yet (legacy card whose migrate-on-
+  // open write hasn't landed — the effect above persists it, but a formData/draft re-init can race
+  // it), derive the profiles inline from the legacy flat checkpoints so the tab ALWAYS shows data
+  // instead of collapsing to empty. Once the persist lands, the stored array is used.
+  const cpProfiles = (Array.isArray(story?.checkpointProfiles) && story.checkpointProfiles.length)
+    ? story.checkpointProfiles
+    : migrateFlatToProfiles(story);
   const selId = selProfId || story?.defaultCheckpointProfileId || cpProfiles[0]?.id;
   const selProfile = cpProfiles.find(p => p.id === selId) || cpProfiles[0];
   const setCpProfiles = (list) => updateStory('checkpointProfiles', list);
