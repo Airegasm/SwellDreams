@@ -3,11 +3,12 @@ import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
+import LoreEntryEditor from '../common/LoreEntryEditor';
 
 // Lightweight client-side id for new term rows.
 const termId = () => `dt-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 const splitCSV = (v) => (v || '').split(',').map(s => s.trim()).filter(Boolean);
-const joinCSV = (v) => Array.isArray(v) ? v.join(', ') : (v || '');
+const asArr = (v) => (Array.isArray(v) ? v : splitCSV(v)); // tolerate legacy CSV-string keys
 
 // Global lorebook ("Dictionary"). One entry format / one engine shared with the Library.
 // Default view shows Term · Keys · Definition; everything advanced is tucked behind a toggle.
@@ -18,7 +19,6 @@ function DictionaryManager() {
   const [groups, setGroups] = useState([]);
   const [editingId, setEditingId] = useState(null); // id | 'new' | null
   const [form, setForm] = useState({ name: '', terms: [] });
-  const [expanded, setExpanded] = useState({}); // termId -> bool (show advanced)
   const fileRef = useRef(null);
 
   const loadGroups = useCallback(async () => {
@@ -32,7 +32,9 @@ function DictionaryManager() {
 
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
-  const blankTerm = () => ({ id: termId(), term: '', definition: '', enabled: true, keys: '', secondaryKeys: '', logic: 'and_any', probability: 100, group: '', recurse: true });
+  // Form terms are held in the shared canonical lore shape (title/content/keys[]/…); mapped to the
+  // group's {term, definition, …} storage on save.
+  const blankTerm = () => ({ id: termId(), title: '', content: '', keys: [], secondaryKeys: [], logic: 'and_any', probability: 100, group: '', recurse: true, caseSensitive: false, scanDepth: 10, priority: 100, target: 'character', enabled: true });
 
   const startNew = () => { setForm({ name: '', terms: [] }); setEditingId('new'); };
 
@@ -41,15 +43,19 @@ function DictionaryManager() {
       name: g.name || '',
       terms: (g.terms || []).map(t => ({
         id: t.id || termId(),
-        term: t.term || t.title || '',
-        definition: t.definition || t.content || '',
+        title: t.term || t.title || '',
+        content: t.definition || t.content || '',
         enabled: t.enabled !== false,
-        keys: joinCSV(t.keys),
-        secondaryKeys: joinCSV(t.secondaryKeys),
+        keys: asArr(t.keys),
+        secondaryKeys: asArr(t.secondaryKeys),
         logic: t.logic || 'and_any',
         probability: t.probability == null ? 100 : t.probability,
         group: t.group || '',
         recurse: t.recurse !== false,
+        caseSensitive: !!t.caseSensitive,
+        scanDepth: t.scanDepth ?? 10,
+        priority: t.priority ?? 100,
+        target: t.target || 'character',
       })),
     });
     setEditingId(g.id);
@@ -58,25 +64,29 @@ function DictionaryManager() {
   const cancel = () => { setEditingId(null); setForm({ name: '', terms: [] }); };
 
   const addTermRow = () => setForm(prev => ({ ...prev, terms: [...prev.terms, blankTerm()] }));
-  const updateTermRow = (id, field, value) => setForm(prev => ({ ...prev, terms: prev.terms.map(t => (t.id === id ? { ...t, [field]: value } : t)) }));
+  const setTerm = (id, canonical) => setForm(prev => ({ ...prev, terms: prev.terms.map(t => (t.id === id ? { ...canonical, id } : t)) }));
   const removeTermRow = (id) => setForm(prev => ({ ...prev, terms: prev.terms.filter(t => t.id !== id) }));
 
   const save = async () => {
     const name = form.name.trim();
     if (!name) { showError('Group name is required'); return; }
     const terms = form.terms
-      .filter(t => t.term.trim() && t.definition.trim())
+      .filter(t => (t.title || '').trim() && (t.content || '').trim())
       .map(t => ({
         id: t.id,
-        term: t.term.trim(),
-        definition: t.definition.trim(),
+        term: t.title.trim(),
+        definition: t.content.trim(),
         enabled: t.enabled !== false,
-        keys: splitCSV(t.keys),
-        secondaryKeys: splitCSV(t.secondaryKeys),
+        keys: asArr(t.keys),
+        secondaryKeys: asArr(t.secondaryKeys),
         logic: t.logic || 'and_any',
         probability: t.probability === '' || t.probability == null ? 100 : Number(t.probability),
         group: (t.group || '').trim(),
         recurse: t.recurse !== false,
+        caseSensitive: !!t.caseSensitive,
+        scanDepth: t.scanDepth ?? 10,
+        priority: t.priority ?? 100,
+        target: t.target || 'character',
       }));
     try {
       if (editingId === 'new') await api.createDictionaryGroup(name, terms, true);
@@ -137,48 +147,9 @@ function DictionaryManager() {
           <label>Entries</label>
           {form.terms.length === 0 && <p className="section-hint">No entries yet. Add one below.</p>}
           {form.terms.map(t => (
-            <div key={t.id} className={`dict-term ${t.enabled === false ? 'disabled' : ''}`}>
-              <div className="dict-term-head">
-                <label className="dict-term-enable" title={t.enabled === false ? 'Disabled' : 'Enabled'}>
-                  <input type="checkbox" checked={t.enabled !== false} onChange={(e) => updateTermRow(t.id, 'enabled', e.target.checked)} />
-                </label>
-                <input type="text" className="dict-term-name" value={t.term} onChange={(e) => updateTermRow(t.id, 'term', e.target.value)} placeholder="Title (e.g. Bike Pump)" />
-                <button className="btn btn-sm btn-danger dict-term-del" onClick={() => removeTermRow(t.id)} title="Remove">×</button>
-              </div>
-              <input type="text" className="dict-term-keys" value={t.keys || ''} onChange={(e) => updateTermRow(t.id, 'keys', e.target.value)}
-                placeholder="Trigger words, comma-separated (blank = always-on)"
-                title="Keyword triggers. Blank = always-on. Any match activates this entry." />
-              <textarea className="dict-term-def" rows={2} value={t.definition} onChange={(e) => updateTermRow(t.id, 'definition', e.target.value)} placeholder="Content" />
-
-              <button type="button" className="dict-adv-toggle" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>
-                {expanded[t.id] ? '▾ Advanced' : '▸ Advanced'}
-              </button>
-              {expanded[t.id] && (
-                <div className="dict-adv">
-                  <div className="dict-adv-row">
-                    <input type="text" value={t.secondaryKeys || ''} onChange={(e) => updateTermRow(t.id, 'secondaryKeys', e.target.value)}
-                      placeholder="Secondary keys (comma)" title="Combined with the trigger words using the logic at right." />
-                    <select value={t.logic || 'and_any'} onChange={(e) => updateTermRow(t.id, 'logic', e.target.value)} title="How secondary keys combine with the triggers">
-                      <option value="and_any">trigger AND any secondary</option>
-                      <option value="and_all">trigger AND all secondary</option>
-                      <option value="not_any">trigger AND no secondary</option>
-                      <option value="not_all">trigger AND not all secondary</option>
-                    </select>
-                  </div>
-                  <div className="dict-adv-row">
-                    <label className="dict-adv-field" title="Chance to activate when matched">% chance
-                      <input type="number" min={0} max={100} value={t.probability ?? 100} onChange={(e) => updateTermRow(t.id, 'probability', e.target.value)} />
-                    </label>
-                    <label className="dict-adv-field" title="Inclusion group — only one entry from a group activates per turn">Group
-                      <input type="text" value={t.group || ''} onChange={(e) => updateTermRow(t.id, 'group', e.target.value)} placeholder="(none)" />
-                    </label>
-                    <label className="dict-adv-check" title="Recursion: let this entry's content trigger other entries' keywords (chained activation)">
-                      <input type="checkbox" checked={t.recurse !== false} onChange={(e) => updateTermRow(t.id, 'recurse', e.target.checked)} />
-                      <span>recursion</span>
-                    </label>
-                  </div>
-                </div>
-              )}
+            <div key={t.id} className="dict-entry-wrap" style={{ marginBottom: 8 }}>
+              <LoreEntryEditor entry={t} onChange={(c) => setTerm(t.id, c)} showEnabled />
+              <button className="btn btn-sm btn-danger" onClick={() => removeTermRow(t.id)} style={{ marginTop: 4 }}>Remove entry</button>
             </div>
           ))}
           <button className="btn btn-sm btn-secondary" onClick={addTermRow}>+ Add Entry</button>
