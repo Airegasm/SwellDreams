@@ -1,0 +1,213 @@
+{
+  "games": [
+    {
+      "id": "mg-1781965533824",
+      "name": "New Dice Roll",
+      "type": "dice_roll",
+      "config": {
+        "diceCount": 2,
+        "exits": [
+          {
+            "id": "ex-1781965534466-uccl",
+            "label": "Low",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "ex-1781965534466-bui6",
+            "label": "Medium",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "ex-1781965534466-5wra",
+            "label": "High",
+            "min": 10,
+            "max": 12
+          }
+        ],
+        "characterAdvantage": 0
+      },
+      "createdAt": 1781965533824,
+      "updatedAt": 1781965533824
+    },
+    {
+      "id": "mg-1781965573815",
+      "name": "New Prize Wheel",
+      "type": "prize_wheel",
+      "config": {
+        "segments": [
+          {
+            "id": "seg-1781965574356-4euw",
+            "label": "Prize 1",
+            "color": "#fb923c",
+            "weight": 1
+          },
+          {
+            "id": "seg-1781965574356-n1pt",
+            "label": "Prize 2",
+            "color": "#3b82f6",
+            "weight": 1
+          }
+        ]
+      },
+      "createdAt": 1781965573815,
+      "updatedAt": 1781965573815
+    },
+    {
+      "id": "mg-1781965595568",
+      "name": "New Dice Roll",
+      "type": "dice_roll",
+      "config": {
+        "diceCount": 2,
+        "exits": [
+          {
+            "id": "ex-1781965596206-qr4c",
+            "label": "Low",
+            "min": 2,
+            "max": 5
+          },
+          {
+            "id": "ex-1781965596206-wsvf",
+            "label": "Medium",
+            "min": 6,
+            "max": 9
+          },
+          {
+            "id": "ex-1781965596206-9gcu",
+            "label": "High",
+            "min": 10,
+            "max": 12
+          }
+        ],
+        "characterAdvantage": 0
+      },
+      "createdAt": 1781965595568,
+      "updatedAt": 1781965595568
+    },
+    {
+      "id": "mg-1781965623484",
+      "name": "New Rock Paper Scissors",
+      "type": "rps",
+      "config": {
+        "bestOf": 1,
+        "characterBias": 0
+      },
+      "createdAt": 1781965623484,
+      "updatedAt": 1781965623484
+    },
+    {
+      "id": "mg-1781965642954",
+      "name": "New Coin Flip",
+      "type": "coin_flip",
+      "config": {
+        "headsLabel": "Heads",
+        "tailsLabel": "Tails",
+        "headsWeight": 50,
+        "bestOf": 1
+      },
+      "createdAt": 1781965642954,
+      "updatedAt": 1781965642954
+    },
+    {
+      "id": "mg-1781965712676",
+      "name": "New Timer",
+      "type": "timer_challenge",
+      "config": {
+        "duration": 10,
+        "precisionMode": false,
+        "precisionWindow": 1
+      },
+      "createdAt": 1781965712676,
+      "updatedAt": 1781965712676
+    },
+    {
+      "id": "mg-1781965726367",
+      "name": "New Number Guess",
+      "type": "number_guess",
+      "config": {
+        "min": 1,
+        "max": 10,
+        "maxAttempts": 3,
+        "closeThreshold": 0
+      },
+      "createdAt": 1781965726367,
+      "updatedAt": 1781965726367
+    },
+    {
+      "id": "mg-1781965741842",
+      "name": "New Slots",
+      "type": "slot_machine",
+      "config": {
+        "symbols": [
+          "🍒",
+          "🍋",
+          "🔔",
+          "⭐",
+          "7️⃣"
+        ],
+        "exits": [
+          {
+            "id": "ex-1781965742533-bo6y",
+            "label": "Jackpot",
+            "pattern": "three-of-a-kind"
+          },
+          {
+            "id": "ex-1781965742533-u4ve",
+            "label": "Small Win",
+            "pattern": "two-of-a-kind"
+          }
+        ]
+      },
+      "createdAt": 1781965741842,
+      "updatedAt": 1781965741842
+    },
+    {
+      "id": "mg-1781965792599",
+      "name": "New Card Draw",
+      "type": "card_draw",
+      "config": {
+        "deckType": "standard",
+        "outputMode": "suit"
+      },
+      "createdAt": 1781965792599,
+      "updatedAt": 1781965792599
+    },
+    {
+      "id": "mg-1781965867059",
+      "name": "New Simon",
+      "type": "simon_challenge",
+      "config": {
+        "startingLength": 3,
+        "maxLength": 8,
+        "maxMisses": 3,
+        "penaltyDevice": "",
+        "penaltyDuration": 3,
+        "grandPenaltyDevice": "",
+        "grandPenaltyDuration": 10,
+        "rewardDevice": "",
+        "rewardDuration": 5
+      },
+      "createdAt": 1781965867059,
+      "updatedAt": 1781965867059
+    },
+    {
+      "id": "mg-1781965882900",
+      "name": "New Reflex",
+      "type": "reflex_challenge",
+      "config": {
+        "timePerTarget": 3,
+        "rounds": 5,
+        "targetSize": "small",
+        "penaltyDevice": "",
+        "penaltyDuration": 3,
+        "grandPenaltyDevice": "",
+        "grandPenaltyDuration": 10,
+        "rewardDevice": "",
+        "rewardDuration": 5
+      },
+      "createdAt": 1781965882900,
+      "updatedAt": 1781965882900
+    }
+  ]
+}

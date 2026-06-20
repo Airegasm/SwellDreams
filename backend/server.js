@@ -11769,11 +11769,14 @@ function buildInstructorSystemPrompt(character, playerName, substituteVars) {
   }
   // Instructor disposition toward inflating the player (card setting).
   const instrDispMap = {
+    'knowledgeable': `Your disposition toward ${playerName}: knowledgeable — a true expert who is technically precise and fully in control, guiding inflation with confident mastery.`,
+    'sadistic': `Your disposition toward ${playerName}: sadistic — you deliberately push ${playerName}'s limits and take pleasure in their discomfort, while staying in control.`,
+    // Legacy combined value (kept so existing cards still resolve).
     'knowledgeable-sadistic': `Your disposition toward ${playerName}: knowledgeable and sadistic — a true expert who deliberately pushes ${playerName}'s limits and takes pleasure in their discomfort, while staying technically precise and in control.`,
     'careful': `Your disposition toward ${playerName}: careful — prioritize ${playerName}'s safety and comfort, pace inflation cautiously, check in often, and never push past clear limits.`,
     'scientific': `Your disposition toward ${playerName}: scientific — clinical and detached; run the session like a controlled experiment, narrating measurements, observations, and procedure without emotional investment.`,
   };
-  const instrDisp = instrDispMap[character.instructorDisposition || 'knowledgeable-sadistic'];
+  const instrDisp = instrDispMap[character.instructorDisposition || 'knowledgeable'];
   if (instrDisp) p += `${instrDisp}\n`;
   if (character.instructorProfileId) {
     const profile = (loadInstructorProfiles().profiles || []).find(pr => pr.id === character.instructorProfileId);

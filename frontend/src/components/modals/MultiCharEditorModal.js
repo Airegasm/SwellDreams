@@ -1296,7 +1296,7 @@ Write only the scenario description itself, no explanations.`;
           {/* Characters Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'basic' ? 'block' : 'none' }}>
             <div className="editor-layout">
-              <div className="editor-left">
+              <div className="editor-left editor-left--fields">
                 {/* Group Name */}
                 <div className="form-group">
                   <label>Group Name *</label>
@@ -1696,35 +1696,6 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 )}
 
-                {/* Story Progression Mode */}
-                <div className="auto-reply-field" style={{ marginTop: '0.5rem' }}>
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={activeStory?.storyProgressionEnabled || false}
-                      onChange={(e) => updateStoryField('storyProgressionEnabled', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                  <div className="auto-reply-text">
-                    <span className="auto-reply-label">Story Progression</span>
-                    <span className="auto-reply-hint">Auto-generate player reply suggestions</span>
-                  </div>
-                </div>
-                {activeStory?.storyProgressionEnabled && (
-                  <div className="story-field" style={{ marginTop: '0.25rem' }}>
-                    <label>Max Suggestions</label>
-                    <input
-                      type="number"
-                      min={2}
-                      max={5}
-                      value={activeStory?.storyProgressionMaxOptions || 3}
-                      onChange={(e) => updateStoryField('storyProgressionMaxOptions', Math.min(5, Math.max(2, parseInt(e.target.value) || 3)))}
-                      style={{ width: '60px' }}
-                    />
-                  </div>
-                )}
-
                 {/* Starting Emotion */}
                 <div className="story-field" style={{ marginTop: '1rem' }}>
                   <label>Starting Emotion</label>
@@ -1840,39 +1811,6 @@ Write only the scenario description itself, no explanations.`;
                   />
                 </div>
 
-                {/* Associated Flows */}
-                <div className="story-field">
-                  <label>Associated Flows</label>
-                  <div className="dropdown-add-row">
-                    <select
-                      value={selectedFlowToAdd}
-                      onChange={(e) => setSelectedFlowToAdd(e.target.value)}
-                      className="association-dropdown"
-                    >
-                      <option value="">Select a flow...</option>
-                      {availableFlows.map(flow => (
-                        <option key={flow.id} value={flow.id}>{flow.name}</option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddStoryFlow} disabled={!selectedFlowToAdd}>+</button>
-                  </div>
-                  <div className="association-badges">
-                    {(activeStory?.assignedFlows || []).length === 0 ? (
-                      <span className="empty-hint">No flows assigned</span>
-                    ) : (
-                      (activeStory?.assignedFlows || []).map(flowId => {
-                        const flow = flows?.find(f => f.id === flowId);
-                        return flow ? (
-                          <span key={flowId} className="assoc-badge">
-                            {flow.name}
-                            <button type="button" className="badge-remove" onClick={() => handleRemoveStoryFlow(flowId)}>−</button>
-                          </span>
-                        ) : null;
-                      })
-                    )}
-                  </div>
-                </div>
-
                 {/* Associated Custom Buttons */}
                 <div className="story-field">
                   <label>Associated Custom Buttons</label>
@@ -1918,38 +1856,6 @@ Write only the scenario description itself, no explanations.`;
                 {/* Story Details - Reminders */}
                 <div className="story-subsection">
                   <label className="subsection-label">Story Details</label>
-
-                  <div className="story-field">
-                    <label>Constant Reminders (from Library)</label>
-                    <div className="dropdown-add-row">
-                      <select
-                        value={selectedConstantReminder}
-                        onChange={(e) => setSelectedConstantReminder(e.target.value)}
-                        className="association-dropdown"
-                      >
-                        <option value="">Select a reminder...</option>
-                        {availableConstantReminders.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                      <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddConstantReminder} disabled={!selectedConstantReminder}>+</button>
-                    </div>
-                    <div className="association-badges">
-                      {(activeStory?.constantReminderIds || []).length === 0 ? (
-                        <span className="empty-hint">No reminders assigned</span>
-                      ) : (
-                        (activeStory?.constantReminderIds || []).map(reminderId => {
-                          const reminder = globalReminders.find(r => r.id === reminderId);
-                          return reminder ? (
-                            <span key={reminderId} className="assoc-badge">
-                              {reminder.name}
-                              <button type="button" className="badge-remove" onClick={() => handleRemoveConstantReminder(reminderId)}>−</button>
-                            </span>
-                          ) : null;
-                        })
-                      )}
-                    </div>
-                  </div>
 
                   {/* Card lore: Dictionary group selection + shared Library groups (replaces the
                       retired global-reminders card UI). */}

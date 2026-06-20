@@ -59,7 +59,7 @@ function buildInitialData(character) {
     name: character?.name || '',
     gender: character?.gender || '',
     mission: character?.mission || '',
-    instructorDisposition: character?.instructorDisposition || 'knowledgeable-sadistic',
+    instructorDisposition: character?.instructorDisposition || 'knowledgeable',
     avatar: character?.avatar || '',
     instructorProfileId: character?.instructorProfileId || '',
     instructorLibraryGroupIds: character?.instructorLibraryGroupIds || [],
@@ -280,7 +280,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       name: formData.name.trim(),
       gender: formData.gender,
       mission: formData.mission,
-      instructorDisposition: formData.instructorDisposition || 'knowledgeable-sadistic',
+      instructorDisposition: formData.instructorDisposition || 'knowledgeable',
       avatar: formData.avatar,
       description: '',
       personality: '',
@@ -414,8 +414,9 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
           <div className="form-group">
             <label>Disposition toward the player</label>
-            <select value={formData.instructorDisposition || 'knowledgeable-sadistic'} onChange={(e) => setFormData(prev => ({ ...prev, instructorDisposition: e.target.value }))}>
-              <option value="knowledgeable-sadistic">Knowledgeable-Sadistic — expert; pushes limits and enjoys the player's discomfort</option>
+            <select value={formData.instructorDisposition || 'knowledgeable'} onChange={(e) => setFormData(prev => ({ ...prev, instructorDisposition: e.target.value }))}>
+              <option value="knowledgeable">Knowledgeable — a true expert; technically precise and fully in control</option>
+              <option value="sadistic">Sadistic — deliberately pushes limits and takes pleasure in the player's discomfort</option>
               <option value="careful">Careful — safety-first; paces cautiously and checks in often</option>
               <option value="scientific">Scientific — clinical and detached; runs the session like an experiment</option>
             </select>

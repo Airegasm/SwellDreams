@@ -414,6 +414,14 @@
   min-height: 0;
 }
 
+/* Inputs/selects must NOT stretch to fill the form-group's 1fr row (or a stretched parent
+   .editor-left fractional row) — that rendered number fields many rows tall on mobile in the
+   MultiChar/Instructor editors, which reuse .editor-left. Only textareas fill height. */
+.character-modal-body .form-group > input,
+.character-modal-body .form-group > select {
+  align-self: start;
+}
+
 /* ============================================
    BUTTONS - Styled for light background
    ============================================ */
@@ -555,6 +563,15 @@
   row-gap: 10px;
   height: 100%;
   align-content: start;
+}
+
+/* MultiChar/Instructor reuse .editor-left but their left column is form fields (not the Character
+   card's name+big-textarea layout the 2fr/1fr rows were tuned for), so those fractional rows
+   landed on number inputs and stretched them tall on mobile. Use natural rows for those editors. */
+.editor-left.editor-left--fields {
+  grid-template-rows: none;
+  grid-auto-rows: max-content;
+  height: auto;
 }
 
 .editor-right {
