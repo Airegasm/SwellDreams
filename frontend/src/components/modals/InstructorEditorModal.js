@@ -6,6 +6,7 @@ import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
 import EventTriggersSection from '../common/EventTriggersSection';
+import CheckpointProfiles from '../common/CheckpointProfiles';
 import CollapsibleSection from '../common/CollapsibleSection';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
@@ -587,23 +588,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         {/* ===== Checkpoints ===== */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
-          {/* ===== Session-open scope sections (collapsible) ===== */}
-          {(() => {
-            const ssRef = formData.story?.treeRefs?.sessionStart || {};
-            // Merge the new ref shape (inline|treeId) while PRESERVING the overrideWelcome sibling flag.
-            const setRef = (nextRef) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), sessionStart: { overrideWelcome: ssRef.overrideWelcome, ...nextRef } });
-            const nodeCount = (r) => r?.inline?.nodes?.length ? `${r.inline.nodes.length} block(s)` : r?.treeId ? 'linked' : '';
-            return (
-              <>
-                <CollapsibleSection title="Session Start" subtitle="runs once at session open" defaultOpen badge={nodeCount(ssRef)}>
-                  <label className="tree-check" style={{ marginBottom: 8, display: 'block' }}>
-                    <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setRef({ ...ssRef, overrideWelcome: e.target.checked })} />
-                    &nbsp;Override Character Welcome Message (suppress the built-in welcome and let this script open the scene)
-                  </label>
-                  <ScopeTreeSection label="" hint="" refValue={ssRef} onChange={setRef} defaultName="Session Start"
-                    source={`from card: ${formData.name || 'instructor'}`} rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-                </CollapsibleSection>
-
+          {/* Instructor-specific: vars seeded once at session start (kept — not part of the shared checkpoint component). */}
                 <CollapsibleSection title="Initial Setup Variables" subtitle="Flow/system vars seeded once at session start" badge={(formData.story.prereqInitVars || []).length || ''}>
                   <p className="section-hint">Reference them anywhere with [Flow:Name]. System: only <strong>capacity</strong> is settable. Read-only refs you can nest into a value: <code>[BulbCurrent]</code>, <code>[BikeCurrent]</code>, <code>[BulbMax]</code>, <code>[BikeMax]</code>, <code>[PumpType]</code>.</p>
                   {(formData.story.prereqInitVars || []).map((v, i) => {
@@ -627,168 +612,14 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(formData.story?.treeRefs?.intro?.inline?.nodes?.length || formData.story?.treeRefs?.intro?.treeId) ? 'on' : ''}>
-                  {(() => {
-                    const tr = formData.story?.treeRefs || {};
-                    const setTR = (patch) => updateStory('treeRefs', { ...tr, ...patch });
-                    return (<>
-                      <label className="form-hint" style={{ display: 'block', marginBottom: 4 }}>Intro instructions (injected every reply while active)</label>
-                      <textarea rows={3} style={{ width: '100%' }}
-                        value={tr.introInstructions ?? DEFAULT_INTRO_RULES}
-                        onChange={(e) => setTR({ introInstructions: e.target.value })} />
-                      <label className="tree-check" style={{ display: 'block', margin: '6px 0' }}>
-                        <input type="checkbox" checked={tr.introEnableProsePumpAfter !== false}
-                          onChange={(e) => setTR({ introEnableProsePumpAfter: e.target.checked })} />
-                        &nbsp;Enable prose pump guidance after Intro (off = keep pump-prose suppressed for the whole session)
-                      </label>
-                    </>);
-                  })()}
-                  <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
-                    refValue={formData.story?.treeRefs?.intro}
-                    onChange={(r) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), intro: r })}
-                    defaultName="Intro" source={`from card: ${formData.name || 'instructor'}`}
-                    rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-                </CollapsibleSection>
-              </>
-            );
-          })()}
-
-          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
-
-          {/* ===== Checkpoint Profiles (1-100%) ===== */}
-          <div className="checkpoint-tab-header">
-            <h4>Checkpoint Profiles (1–100%)</h4>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
-              const anyShown = Object.values(visibleCheckpoints).some(Boolean);
-              if (anyShown) { setVisibleCheckpoints({}); return; }
-              const v = {};
-              RANGES_1_100.forEach(({ key }) => { v[key] = true; });
-              setVisibleCheckpoints(v);
-            }}>Show/Hide All</button>
-          </div>
-          <p className="section-hint">Each profile is a full 1–100% checkpoint set. A pre-req choice loads the matching profile; the Default applies otherwise.</p>
-          <div className="checkpoint-profile-bar">
-            <select value={selProfId || ''} onChange={(e) => setSelectedProfileId(e.target.value)}>
-              {cpProfiles.map(p => (
-                <option key={p.id} value={p.id}>{p.name}{p.id === formData.story.defaultCheckpointProfileId ? ' (default)' : ''}</option>
-              ))}
-            </select>
-            <input type="text" value={selProfile?.name || ''} onChange={(e) => renameProfile(e.target.value)} placeholder="Profile name" style={{ flex: 1, minWidth: 100 }} />
-            <button type="button" className="btn btn-sm btn-secondary" onClick={addProfile}>+ Profile</button>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={setDefaultProfile} disabled={selProfId === formData.story.defaultCheckpointProfileId}>Set Default</button>
-            <button type="button" className="btn btn-sm btn-danger" onClick={deleteProfile} disabled={cpProfiles.length <= 1}>Delete</button>
-          </div>
-
-          <div className="form-group" style={{ marginTop: 8 }}>
-            <label>Pump Type for “{selProfile?.name || 'this profile'}”</label>
-            <select value={selProfile?.pumpType || ''} onChange={(e) => setProfilePumpType(e.target.value)}>
-              <option value="">— Inherit card default —</option>
-              <option value="electric">Auto / Electric (E-STOP)</option>
-              <option value="bulb">Manual / Bulb (PUMP)</option>
-              <option value="bike">Manual / Bike (PUMP)</option>
-            </select>
-            <p className="section-hint">When a pre-req choice loads this profile, it sets the session pump mode (overrides the card default).</p>
-          </div>
-
-          <div className="form-group" style={{ marginTop: 8 }}>
-            <label>Rules for “{selProfile?.name || 'this profile'}”</label>
-            <textarea
-              value={selProfile?.rules || ''}
-              onChange={(e) => setProfileRules(e.target.value)}
-              placeholder="Profile-specific behaviour rules — appended to the instructor's mission/profile section while this profile is active (e.g. bike-pump safety limits, tone, pacing). Supports [Flow:Name], [Capacity], etc."
-              rows={4}
-            />
-            <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges). Appended to the inflation profile/mission block in the prompt.</p>
-          </div>
-
-          {/* ===== Event Triggers (per profile) — includes "Every reply (always-on)" ===== */}
-          {(() => {
-            const evts = selProfile?.treeRefs?.events || [];
-            const setEvents = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-              ? { ...p, treeRefs: { ...(p.treeRefs || {}), events: next } }
-              : p));
-            return (
-              <CollapsibleSection title="Event Triggers" subtitle="fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
-                <EventTriggersSection events={evts} onChange={setEvents}
-                  source={`from card: ${formData.name || 'instructor'}`}
-                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-              </CollapsibleSection>
-            );
-          })()}
-
-          {RANGES_1_100.map(({ key, label, hint }) => (
-            <CollapsibleSection key={key} title={label} subtitle={hint}
-              open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
-              {/* Pump-pacing config lives OUTSIDE the spoiler blur — it's setup, not RP content.
-                  Uses the exact same field pattern as the (working) Bulb/Bike Max inputs. */}
-              {isManualPump && (
-                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
-                  <div>
-                    <label title="How many messages must pass after a batch before the instructor may request more pumping">MSG / Batch</label>
-                    <input type="text" inputMode="numeric"
-                      value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
-                      onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="0" style={{ maxWidth: 120 }} />
-                  </div>
-                  <div>
-                    <label title="Max pump operations the instructor may request in a single reply (one batch)">Max Pump / Batch</label>
-                    <input type="text" inputMode="numeric"
-                      value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
-                      onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="0" style={{ maxWidth: 120 }} />
-                  </div>
-                </div>
-              )}
-              {isAutoPump && (
-                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
-                  <div>
-                    <label title="How many replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
-                    <input type="text" inputMode="numeric"
-                      value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
-                      onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="0 = off" style={{ maxWidth: 120 }} />
-                  </div>
-                  <div>
-                    <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
-                    <input type="text" inputMode="numeric"
-                      value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
-                      onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="5" style={{ maxWidth: 120 }} />
-                  </div>
-                </div>
-              )}
-                <label className="ci-label">Main theme</label>
-                <textarea
-                  className="ci-main-theme"
-                  value={selProfile?.ranges?.[key]?.mainTheme || ''}
-                  onChange={(e) => setRangeText(key, 'mainTheme', e.target.value)}
-                  placeholder="Always-on guidance while capacity is in this range…"
-                  rows={2}
-                />
-                <RangeTriggerEditor
-                  value={triggersFor(key)}
-                  onChange={(v) => setTriggers(key, v)}
-                  triggerSets={triggerSets}
-                  profiles={cpProfiles}
-                  isPumpable={false}
-                />
-                {/* Capacity-Range Trigger Tree (per profile, player axis) — runs in-reply while in range */}
-                {(() => {
-                  const rRef = selProfile?.treeRefs?.ranges?.[`player-${key}`] || {};
-                  const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-                    ? { ...p, treeRefs: { ...(p.treeRefs || {}), ranges: { ...(p.treeRefs?.ranges || {}), [`player-${key}`]: nextRef } } }
-                    : p));
-                  return (
-                    <div style={{ marginTop: 8 }}>
-                      <ScopeTreeSection label="Range Script" hint="runs each reply while in this range (once nodes fire once per range)"
-                        refValue={rRef} onChange={setRef} defaultName={`Range ${key}`}
-                        source={`from card: ${formData.name || 'instructor'}`}
-                        rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-                    </div>
-                  );
-                })()}
-            </CollapsibleSection>
-          ))}
+          <CheckpointProfiles
+            story={formData.story}
+            updateStory={updateStory}
+            defaultPumpType={formData.defaultPumpType}
+            cardName={formData.name || 'instructor'}
+            triggerSets={triggerSets}
+            rowProps={{ isPumpable: false }}
+          />
         </div>
 
         <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
