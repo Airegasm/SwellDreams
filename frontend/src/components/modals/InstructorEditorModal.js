@@ -4,7 +4,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
-import ScopeTreeSection from '../common/ScopeTreeSection';
+import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
 import AlwaysOnSection from '../common/AlwaysOnSection';
 import EventTriggersSection from '../common/EventTriggersSection';
 import CollapsibleSection from '../common/CollapsibleSection';
@@ -632,6 +632,21 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                 </CollapsibleSection>
 
                 <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(formData.story?.treeRefs?.intro?.inline?.nodes?.length || formData.story?.treeRefs?.intro?.treeId) ? 'on' : ''}>
+                  {(() => {
+                    const tr = formData.story?.treeRefs || {};
+                    const setTR = (patch) => updateStory('treeRefs', { ...tr, ...patch });
+                    return (<>
+                      <label className="form-hint" style={{ display: 'block', marginBottom: 4 }}>Intro instructions (injected every reply while active)</label>
+                      <textarea rows={3} style={{ width: '100%' }}
+                        value={tr.introInstructions ?? DEFAULT_INTRO_RULES}
+                        onChange={(e) => setTR({ introInstructions: e.target.value })} />
+                      <label className="tree-check" style={{ display: 'block', margin: '6px 0' }}>
+                        <input type="checkbox" checked={tr.introEnableProsePumpAfter !== false}
+                          onChange={(e) => setTR({ introEnableProsePumpAfter: e.target.checked })} />
+                        &nbsp;Enable prose pump guidance after Intro (off = keep pump-prose suppressed for the whole session)
+                      </label>
+                    </>);
+                  })()}
                   <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
                     refValue={formData.story?.treeRefs?.intro}
                     onChange={(r) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), intro: r })}

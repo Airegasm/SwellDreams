@@ -5,7 +5,7 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
-import ScopeTreeSection from '../common/ScopeTreeSection';
+import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
 import CheckpointProfiles from '../common/CheckpointProfiles';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
@@ -2292,6 +2292,15 @@ Write only the scenario description itself, no explanations.`;
                     </CollapsibleSection>
 
                     <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(treeRefs.intro?.inline?.nodes?.length || treeRefs.intro?.treeId) ? 'on' : ''}>
+                      <label className="form-hint" style={{ display: 'block', marginBottom: 4 }}>Intro instructions (injected every reply while active)</label>
+                      <textarea rows={3} style={{ width: '100%' }}
+                        value={treeRefs.introInstructions ?? DEFAULT_INTRO_RULES}
+                        onChange={(e) => setScope('introInstructions', e.target.value)} />
+                      <label className="tree-check" style={{ display: 'block', margin: '6px 0' }}>
+                        <input type="checkbox" checked={treeRefs.introEnableProsePumpAfter !== false}
+                          onChange={(e) => setScope('introEnableProsePumpAfter', e.target.checked)} />
+                        &nbsp;Enable prose pump guidance after Intro (off = keep pump-prose suppressed for the whole session)
+                      </label>
                       <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
                         refValue={treeRefs.intro} onChange={(r) => setScope('intro', r)}
                         defaultName="Intro" source={`from card: ${formData.name || 'multichar'}`} rowProps={{ ...rp, profiles: activeStory?.checkpointProfiles || [] }} />

@@ -10847,6 +10847,7 @@ async function startIntroScope(character, settings, treeIndex) {
   if (!tree) { sessionState.introActive = false; return false; }
   sessionState.introActive = true;
   sessionState.preInflationGateMet = false; // no pumping during the gated intro
+  sessionState.prosePumpGuidanceOff = true; // no pump-prose guidance/reinforcement during the intro
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex }); }
   catch (e) { console.error('[Intro] start failed:', e?.message || e); }
   return true;
@@ -10866,7 +10867,11 @@ function introBlock(character) {
     return `\n=== AWAITING GO (MANDATORY — NO PUMPING) ===\nThe buildup is complete but inflation has NOT been authorized yet — the player must press GO! first. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. Keep the scene holding/ready until release.\n=== END AWAITING GO ===\n`;
   }
   if (!sessionState.introActive) return '';
-  return `\n=== GATED INTRO (MANDATORY — NO PUMPING) ===\nInflation has NOT started. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. Converse naturally toward the intro's goal; this phase ends only when its trigger condition is met.\n=== END GATED INTRO ===\n`;
+  // Card-authored intro rules (treeRefs.introInstructions); falls back to the default no-pump rule.
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const custom = (activeStory?.treeRefs?.introInstructions || '').trim();
+  const body = custom || "Inflation has NOT started. DO NOT turn on or operate any pumps yet — no [pump on], and do not instruct the player to pump. Set the scene and converse toward the intro's goal; this phase ends only when its End Gated Intro trigger fires.";
+  return `\n=== GATED INTRO (MANDATORY) ===\n${body}\n=== END GATED INTRO ===\n`;
 }
 
 // ===== Pre-Fill: card-level gated intro phase (no pumping until a trigger exits it) =====
@@ -11256,6 +11261,8 @@ function getActiveCheckpoint(character, capacity) {
 // wait between batches. Returns '' for electric/auto pumps or when no limits are set.
 function manualPumpBatchBlock(cp) {
   if (!cp) return '';
+  // Suppressed during the gated intro / awaiting-GO, and after it when the card opted out.
+  if (sessionState.introActive || sessionState.awaitingGoRelease || sessionState.prosePumpGuidanceOff) return '';
   if (sessionState.pumpType !== 'bulb' && sessionState.pumpType !== 'bike') return '';
   const maxPumps = parseInt(cp.maxPumpsPerBatch);
   const gap = parseInt(cp.messagesBetweenBatches);
@@ -13453,10 +13460,33 @@ async function runNode(node, ctx) {
     return { __control: 'suspend', reason: 'call_minigame' };
   }
 
+  // ----- wait: a sequence "spacer" — defer the rest of this branch N reply turns, then continue.
+  // Reuses the pause_resume channel with an EMPTY body (no children), so after the wait only the
+  // captured same-level continuation runs. Lets an author force a gap between triggers. -----
+  if (type === 'wait') {
+    if (sessionState.pendingTreeResume) return { __control: 'suspend', reason: 'wait' };
+    const n = Math.max(1, Number(node.params?.messages ?? 1) || 1);
+    markTreeOnce(node, ctx);
+    sessionState.pendingTreeResume = {
+      remaining: n,
+      body: [], // no body — only the same-level continuation resumes
+      ctxSnapshot: {
+        treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth,
+        delivery: ctx.delivery || 'inReply', source: ctx.source, visited: Array.from(ctx.visited || [])
+      },
+      after: null
+    };
+    return { __control: 'suspend', reason: 'wait' };
+  }
+
   // ----- end_intro: leave the gated intro phase, open the pump gate, optionally load a profile (Part 4) -----
   if (type === 'end_intro') {
     markTreeOnce(node, ctx);
     sessionState.introActive = false; // intro is logically done (stop re-running its tree)
+    // Prose pump guidance after the intro: on unless the card opted out ("Enable prose pump
+    // guidance after Intro" unchecked). Applies once the gate actually opens (incl. after GO!).
+    const introStory = ctx.character?.stories?.find(s => s.id === ctx.character.activeStoryId) || ctx.character?.stories?.[0];
+    sessionState.prosePumpGuidanceOff = introStory?.treeRefs?.introEnableProsePumpAfter === false;
     const profId = node.params?.loadProfileId || '';
     // Manual-release ("GO!") gate: keep the pump gate CLOSED and wait for a player button press
     // before opening it / loading the profile / entering checkpoints. Prevents premature pumping
@@ -17503,6 +17533,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
   sessionState.introActive = false;
+  sessionState.prosePumpGuidanceOff = false;
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.

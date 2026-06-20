@@ -7,6 +7,9 @@ import { useApp } from '../../context/AppContext';
 // refValue = the current ref object (may carry sibling flags like overrideWelcome — the caller's
 // onChange is responsible for preserving those). onChange(nextRef) receives {inline} | {treeId}.
 
+// Default hard rules pre-populated into a card's Intro instructions box (editable per card).
+export const DEFAULT_INTRO_RULES = "DO NOT turn on or operate any pumps yet — no [pump on], and don't instruct the player to pump. Set the scene and converse toward the intro's goal; this gated phase ends only when its End Gated Intro trigger fires.";
+
 const rid = (p = 'n') => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 // Deep-copy a node array with FRESH ids (goto/label pairing is by params.name, so it survives).

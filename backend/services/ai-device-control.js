@@ -891,6 +891,11 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
+  // Gated intro (and post-intro opt-out): don't reinforce pump prose into [pump on].
+  if (sessionState && (sessionState.introActive || sessionState.prosePumpGuidanceOff)) {
+    return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+  }
+
   // Check if text already has a real [pump ...] tag the model emitted itself.
   if (hasPumpOnTag(text)) {
     log.info('[Reinforce] Text already contains pump tag - no reinforcement needed');

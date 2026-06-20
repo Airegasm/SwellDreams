@@ -135,6 +135,7 @@ const ADD_GROUPS = [
     label: 'Control', items: [
       { kind: 'action', type: 'label', label: 'Label (jump target)' },
       { kind: 'action', type: 'goto', label: 'Go To (jump)' },
+      { kind: 'action', type: 'wait', label: 'Wait (spacer)' },
     ]
   },
   {
@@ -152,7 +153,7 @@ const ADD_GROUPS = [
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
 const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume']); // not if/player_choice/choose_multi (special children)
@@ -172,6 +173,7 @@ function makeNode(kind, type) {
   if (type === 'pause_resume') { node.params.resumeAfterType = 'turns'; node.params.resumeAfterValue = 4; }
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
+  if (type === 'wait') node.params.messages = 2;
   if (type === 'fire_tree') node.params.treeId = '';
   if (type === 'fire_flow') { node.params.flowId = ''; node.params.flowActionLabel = ''; }
   if (type === 'call_minigame') { node.params.miniGameId = ''; node.params.exitGotos = {}; }
@@ -187,6 +189,7 @@ function summarize(node) {
     if (!t) return '(choose action…)';
     if (t === 'label') return `Label: ${p.name || '(unnamed)'}`;
     if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
+    if (t === 'wait') return `Wait ${p.messages ?? 1} message(s)`;
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
     if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
@@ -374,6 +377,15 @@ function NodeBody({ node, onChange, rowProps }) {
       <label className="tree-field tree-field-inline">
         <span>{t === 'label' ? 'Label name' : 'Go to label'}</span>
         <input type="text" value={node.params?.name || ''} onChange={(e) => setParams({ name: e.target.value })} placeholder="name" />
+      </label>
+    );
+  }
+  if (t === 'wait') {
+    return (
+      <label className="tree-field tree-field-inline">
+        <span>Wait this many chat messages, then continue</span>
+        <input type="number" min={1} value={node.params?.messages ?? 1}
+          onChange={(e) => setParams({ messages: Math.max(1, parseInt(e.target.value) || 1) })} style={{ width: 70 }} />
       </label>
     );
   }
