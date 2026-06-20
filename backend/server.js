@@ -1247,6 +1247,15 @@ function resolveControlId(device) {
   return device.ip || device.deviceId;
 }
 
+// Resolve a Trigger Tree device reference (ip / deviceId / id / name) to { id, device } for
+// deviceService calls. Used by the device_on/off/start_cycle/stop_cycle/pulse_pump tree actions.
+function resolveTriggerDevice(ref) {
+  if (!ref) return null;
+  const devices = loadData(DATA_FILES.devices) || [];
+  const device = devices.find(d => d.ip === ref || d.deviceId === ref || d.id === ref || d.name === ref || resolveControlId(d) === ref);
+  return device ? { id: resolveControlId(device), device } : null;
+}
+
 /**
  * Race a promise against a per-device timeout so an offline device cannot block.
  */
@@ -3900,6 +3909,56 @@ async function executeTrigger(trigger, source, character, settings) {
           eventEngine.applySetVariable('custom', trigger.variable, 'set', n);
           console.log(`[Trigger/${source}] random_number ${trigger.variable} = ${n} (${lo}-${hi})`);
         }
+        break;
+      }
+
+      // ---- Arbitrary-device control (reuses deviceService, same as flows) ----
+      case 'device_on': {
+        const r = resolveTriggerDevice(trigger.device);
+        if (r) await deviceService.turnOn(r.id, r.device);
+        break;
+      }
+      case 'device_off': {
+        const r = resolveTriggerDevice(trigger.device);
+        if (r) { try { await deviceService.stopCycle(r.id, r.device); } catch (e) {} await deviceService.turnOff(r.id, r.device); }
+        break;
+      }
+      case 'start_cycle': {
+        const r = resolveTriggerDevice(trigger.device);
+        if (r) await deviceService.startCycle(r.id, { duration: Number(trigger.duration) || 5, interval: Number(trigger.interval) || 10, cycles: Number(trigger.cycles) || 0 }, r.device);
+        break;
+      }
+      case 'stop_cycle': {
+        const r = resolveTriggerDevice(trigger.device);
+        if (r) await deviceService.stopCycle(r.id, r.device);
+        break;
+      }
+      case 'pulse_pump': {
+        const r = resolveTriggerDevice(trigger.device);
+        if (r) await deviceService.pulsePump(r.id, Number(trigger.pulses) || 3, r.device);
+        break;
+      }
+
+      // ---- Enable/disable a card button (mirrors the flow toggle_button) ----
+      case 'toggle_button': {
+        if (trigger.buttonId != null && trigger.buttonId !== '') {
+          const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+          const ch = chars.find(c => c.id === settings?.activeCharacterId);
+          const btn = ch?.buttons?.find(b => String(b.buttonId) === String(trigger.buttonId));
+          if (btn) {
+            btn.enabled = trigger.action !== 'disable';
+            saveCharacter(ch);
+            broadcast('characters_update', isPerCharStorageActive() ? loadAllCharacters() : chars);
+            console.log(`[Trigger/${source}] toggle_button #${trigger.buttonId} -> ${btn.enabled ? 'enabled' : 'disabled'}`);
+          }
+        }
+        break;
+      }
+
+      // ---- Wait N seconds (capped so a tree can't hang the turn forever) ----
+      case 'delay': {
+        const secs = Math.max(0, Math.min(Number(trigger.duration) || 0, 120));
+        if (secs > 0) await new Promise(res => setTimeout(res, secs * 1000));
         break;
       }
 

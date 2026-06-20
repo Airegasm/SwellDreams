@@ -123,6 +123,13 @@ function getTriggerTypes(isPumpable) {
     { value: 'play_video', label: 'Play Video' },
     { value: 'play_audio', label: 'Play Audio' },
     { value: 'random_number', label: 'Random Number → Variable' },
+    { value: 'device_on', label: 'Turn Device On' },
+    { value: 'device_off', label: 'Turn Device Off' },
+    { value: 'start_cycle', label: 'Start Device Cycle' },
+    { value: 'stop_cycle', label: 'Stop Device Cycle' },
+    { value: 'pulse_pump', label: 'Pulse Pump' },
+    { value: 'toggle_button', label: 'Toggle Button (enable/disable)' },
+    { value: 'delay', label: 'Delay (seconds)' },
   );
 
   return types;
@@ -228,6 +235,43 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             <input type="number" value={trigger.min ?? 1} onChange={(e) => update('min', e.target.value)} placeholder="min" style={{ width: '64px' }} />
             <input type="number" value={trigger.max ?? 100} onChange={(e) => update('max', e.target.value)} placeholder="max" style={{ width: '64px' }} />
           </>
+        );
+
+      case 'device_on':
+      case 'device_off':
+      case 'stop_cycle':
+      case 'pulse_pump':
+        return (
+          <>
+            <input type="text" value={trigger.device || ''} onChange={(e) => update('device', e.target.value)} placeholder="device ip / id" style={{ flex: 1, minWidth: '90px' }} />
+            {trigger.type === 'pulse_pump' && <input type="number" value={trigger.pulses ?? 3} onChange={(e) => update('pulses', e.target.value)} placeholder="pulses" style={{ width: '64px' }} title="pulse count" />}
+          </>
+        );
+
+      case 'start_cycle':
+        return (
+          <>
+            <input type="text" value={trigger.device || ''} onChange={(e) => update('device', e.target.value)} placeholder="device ip / id" style={{ flex: 1, minWidth: '80px' }} />
+            <input type="number" value={trigger.duration ?? 5} onChange={(e) => update('duration', e.target.value)} placeholder="on" style={{ width: '52px' }} title="ON seconds" />
+            <input type="number" value={trigger.interval ?? 10} onChange={(e) => update('interval', e.target.value)} placeholder="off" style={{ width: '52px' }} title="OFF seconds" />
+            <input type="number" value={trigger.cycles ?? 0} onChange={(e) => update('cycles', e.target.value)} placeholder="×" style={{ width: '52px' }} title="cycles (0 = forever)" />
+          </>
+        );
+
+      case 'toggle_button':
+        return (
+          <>
+            <input type="text" value={trigger.buttonId || ''} onChange={(e) => update('buttonId', e.target.value)} placeholder="button #" style={{ width: '80px' }} />
+            <select value={trigger.action || 'enable'} onChange={(e) => update('action', e.target.value)} style={{ width: '90px' }}>
+              <option value="enable">Enable</option>
+              <option value="disable">Disable</option>
+            </select>
+          </>
+        );
+
+      case 'delay':
+        return (
+          <input type="number" value={trigger.duration ?? 3} onChange={(e) => update('duration', e.target.value)} placeholder="seconds" style={{ width: '80px' }} title="max 120s" />
         );
 
       case 'set_instructor_profile':
