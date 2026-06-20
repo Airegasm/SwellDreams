@@ -202,7 +202,9 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <input type="checkbox" checked={story?.checkpointsEnabled !== false} onChange={(e) => updateStory('checkpointsEnabled', e.target.checked)} />
         Enable Checkpoints
       </label>
+      <p className="section-hint" style={{ marginTop: '-6px', marginBottom: 10 }}>(Advanced.)</p>
 
+      {(story?.checkpointsEnabled !== false) && (<>
       <div className="checkpoint-tab-header">
         <h4>Checkpoint Profiles (1–100%)</h4>
         <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
@@ -358,6 +360,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
           })()}
         </CollapsibleSection>
       ))}
+      </>)}
     </>
   );
 }

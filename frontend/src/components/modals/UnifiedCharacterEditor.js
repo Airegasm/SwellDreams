@@ -9,6 +9,7 @@ import LoreEntryEditor from '../common/LoreEntryEditor';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import MediaCropModal from './MediaCropModal';
+import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import './CharacterEditorModal.css';
 
 /*
@@ -89,6 +90,22 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const cropTargetRef = useRef(null); // member index whose portrait is being cropped
   const [selectedMemberIndex, setSelectedMemberIndex] = useState(0);
 
+  // ---- Main-tab story content (ported from CharacterEditorModal basic tab) ----
+  const [personas, setPersonas] = useState([]);
+  const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
+  const [enhancingScenario, setEnhancingScenario] = useState(false);
+  const cancelledRef = useRef({ welcomeMessage: false, scenario: false });
+  // Manual pump maxes (global, shared with Smart Devices › Manual Devices) — settings, NOT formData.
+  const [bulbMaxField, setBulbMaxField] = useState('');
+  const [bikeMaxField, setBikeMaxField] = useState('');
+  // Story-level example dialogue add/edit scratch state.
+  const [newDialogue, setNewDialogue] = useState({ user: '', character: '' });
+  const [editDialogue, setEditDialogue] = useState({ user: '', character: '' });
+  const [editingDialogueIndex, setEditingDialogueIndex] = useState(null);
+  // Staged Portrait media file-input refs (per range, idle + transition).
+  const charMediaIdleRefs = useRef({});
+  const charMediaTransRefs = useRef({});
+
   useEffect(() => { if (isOpen) { setFormData(buildInitial(character, defaultAuthorsNote)); setActiveTab('main'); setSelectedMemberIndex(0); } }, [isOpen, character, defaultAuthorsNote]);
 
   useEffect(() => {
@@ -102,7 +119,15 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
       .catch(() => {});
     api.getDevices?.().then(d => setDevices(Array.isArray(d) ? d : [])).catch(() => {});
     api.getFlows?.().then(f => setFlows(Array.isArray(f) ? f : (f?.flows || []))).catch(() => {});
+    api.getPersonas?.().then(p => setPersonas(Array.isArray(p) ? p : (p?.personas || []))).catch(() => {});
   }, [isOpen, api]);
+
+  // Keep the local manual-pump-max fields in sync with global settings.
+  useEffect(() => {
+    const sv = settings?.systemVariables || {};
+    setBulbMaxField(sv.BulbMax ?? '');
+    setBikeMaxField(sv.BikeMax ?? '');
+  }, [settings?.systemVariables]);
 
   const isInstructorMode = !!formData?.instructor?.enabled;
   const members = formData?.multiChar?.characters || [];
@@ -115,6 +140,306 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     ...prev,
     stories: (prev.stories || []).map(s => (s.id === activeStory?.id ? { ...s, [field]: value } : s)),
   }));
+  // Patch the active story object in one pass (used by version add/delete that touch two keys).
+  const patchActiveStory = (patch) => setFormData(prev => ({
+    ...prev,
+    stories: (prev.stories || []).map(s => (s.id === activeStory?.id ? { ...s, ...patch } : s)),
+  }));
+
+  // ---- Manual pump maxes (global settings, NOT formData) ----
+  const saveMaxField = (which, raw) => {
+    const clean = String(raw).replace(/[^0-9]/g, '');
+    const sv = { ...(settings?.systemVariables || {}) };
+    if (which === 'bulb') sv.BulbMax = clean === '' ? '' : Number(clean);
+    else sv.BikeMax = clean === '' ? '' : Number(clean);
+    api.updateSettings?.({ systemVariables: sv }).catch(() => {});
+  };
+
+  // ---- Pumpable: player primary-pump calibration (for the sync-with-player option) ----
+  const playerPumpCalibration = useMemo(() => {
+    const pump = devices?.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    return pump?.calibrationTime || null;
+  }, [devices]);
+
+  // ---- Staged Portraits: media upload + crop handlers (ported from CharacterEditorModal) ----
+  const uploadPortraitMedia = async (file, slot) => {
+    if (!character?.id) return null;
+    const folder = character._isDefault ? 'default' : 'custom';
+    const form = new FormData();
+    form.append('file', file);
+    form.append('slot', slot);
+    try {
+      const res = await fetch(`${window.location.protocol}//${window.location.hostname}:${window.location.port || 3001}/api/portrait-media/chars/${folder}/${character.id}`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      return await res.json();
+    } catch (err) {
+      console.error('[PortraitMedia] Upload error:', err);
+      return null;
+    }
+  };
+
+  const handleIdleUpload = async (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isVideo && !isImage) return;
+    if (isImage) {
+      // Images go through base64; stored in legacy charStagedPortraits too.
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const url = event.target.result;
+        setFormData(prev => ({
+          ...prev,
+          charStagedPortraits: { ...prev.charStagedPortraits, [rangeId]: url },
+          charPortraitMedia: {
+            ...prev.charPortraitMedia,
+            [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), idle: url, idleType: 'image' },
+          },
+        }));
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const result = await uploadPortraitMedia(file, `idle-${rangeId}`);
+      if (result?.url) {
+        setFormData(prev => ({
+          ...prev,
+          charPortraitMedia: {
+            ...prev.charPortraitMedia,
+            [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), idle: result.url, idleType: 'video' },
+          },
+        }));
+      }
+    }
+  };
+
+  const handleTransUpload = async (e, rangeId) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('video/')) return;
+    e.target.value = '';
+    const result = await uploadPortraitMedia(file, `trans-${rangeId}`);
+    if (result?.url) {
+      setFormData(prev => ({
+        ...prev,
+        charPortraitMedia: {
+          ...prev.charPortraitMedia,
+          [rangeId]: { ...(prev.charPortraitMedia?.[rangeId] || {}), trans: result.url },
+        },
+      }));
+    }
+  };
+
+  const handleRemoveIdle = (rangeId) => {
+    const updated = { ...formData.charPortraitMedia };
+    if (updated[rangeId]) {
+      delete updated[rangeId].idle;
+      delete updated[rangeId].idleType;
+      if (!updated[rangeId].trans) delete updated[rangeId];
+    }
+    const legacyUpdated = { ...formData.charStagedPortraits };
+    delete legacyUpdated[rangeId];
+    setFormData(prev => ({ ...prev, charPortraitMedia: updated, charStagedPortraits: legacyUpdated }));
+  };
+
+  const handleRemoveTrans = (rangeId) => {
+    const updated = { ...formData.charPortraitMedia };
+    if (updated[rangeId]) {
+      delete updated[rangeId].trans;
+      if (!updated[rangeId].idle) delete updated[rangeId];
+    }
+    setFormData(prev => ({ ...prev, charPortraitMedia: updated }));
+  };
+
+  const handleCropChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      charPortraitCrop: { ...(prev.charPortraitCrop || { scale: 1, offsetX: 0, offsetY: 0 }), [field]: value },
+    }));
+  };
+
+  // ---- POV derived from the active persona (used to steer LLM enhancement) ----
+  const activePersona = personas?.find(p => p.id === settings?.activePersonaId);
+  const playerName = activePersona?.displayName || 'The player';
+  const personaPronouns = activePersona?.pronouns || 'they/them';
+  const activePOV = personaPronouns === 'she/her' ? 'FEMPOV' : personaPronouns === 'he/him' ? 'MALEPOV' : 'ANYPOV';
+  const getPovInstruction = () => {
+    const genderNote = activePOV === 'FEMPOV' ? `${playerName} is female (she/her).`
+      : activePOV === 'MALEPOV' ? `${playerName} is male (he/him).`
+      : `${playerName} is unspecified gender (they/them).`;
+    return `- ${genderNote} When referring to the player with pronouns, ALWAYS use the [Gender] variable instead of writing literal pronouns. Examples: "looks at [Gender]", "[Gender] eyes", "[Gender] smiles". The [Gender] tag auto-resolves to the correct pronoun form at runtime.`;
+  };
+
+  // ---- Welcome message versioning ----
+  const getActiveWelcomeMessage = () => {
+    const list = activeStory?.welcomeMessages || [];
+    if (!list.length) return null;
+    return list.find(wm => wm.id === activeStory?.activeWelcomeMessageId) || list[0];
+  };
+  const handleWelcomeMessageChange = (wmId) => updateStoryField('activeWelcomeMessageId', wmId);
+  const handleAddWelcomeMessage = () => {
+    const list = activeStory?.welcomeMessages || [];
+    const newId = `wm-${Date.now()}`;
+    patchActiveStory({ welcomeMessages: [...list, { id: newId, text: '', llmEnhanced: false }], activeWelcomeMessageId: newId });
+  };
+  const handleDeleteWelcomeMessage = (wmId) => {
+    const list = activeStory?.welcomeMessages || [];
+    if (list.length <= 1) { alert('Cannot delete the last welcome message'); return; }
+    if (!window.confirm('Delete this welcome message version?')) return;
+    const filtered = list.filter(wm => wm.id !== wmId);
+    const newActiveId = activeStory?.activeWelcomeMessageId === wmId ? filtered[0]?.id : activeStory?.activeWelcomeMessageId;
+    patchActiveStory({ welcomeMessages: filtered, activeWelcomeMessageId: newActiveId });
+  };
+  const handleUpdateWelcomeMessageText = (text) => {
+    const list = activeStory?.welcomeMessages || [];
+    const id = activeStory?.activeWelcomeMessageId;
+    updateStoryField('welcomeMessages', list.map(wm => (wm.id === id ? { ...wm, text } : wm)));
+  };
+  const handleToggleWelcomeMessageLlm = () => {
+    const list = activeStory?.welcomeMessages || [];
+    const id = activeStory?.activeWelcomeMessageId;
+    const cur = list.find(wm => wm.id === id);
+    updateStoryField('welcomeMessages', list.map(wm => (wm.id === id ? { ...wm, llmEnhanced: !cur?.llmEnhanced } : wm)));
+  };
+  const handleEnhanceWelcomeMessage = async () => {
+    if (enhancingWelcomeMessage) { cancelledRef.current.welcomeMessage = true; setEnhancingWelcomeMessage(false); return; }
+    const activeWm = getActiveWelcomeMessage();
+    const currentText = activeWm?.text || '';
+    const description = formData.description || '';
+    const personality = formData.personality || '';
+    const exampleDialogues = activeStory?.exampleDialogues || [];
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing how this character speaks):\n';
+      exampleDialogues.forEach((d, idx) => { dialogExamplesSection += `\nExample ${idx + 1}:\n[Player]: ${d.user}\n${formData.name || 'Character'}: ${d.character}\n`; });
+    }
+    const povInstructions = getPovInstruction();
+    const prompt = `You are a creative writing assistant helping to craft an immersive character greeting message.
+
+Character Name: ${formData.name || 'Character'}
+${description ? `Description: ${description}` : ''}
+${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
+
+IMPORTANT INSTRUCTIONS:
+- Write the greeting AS THE CHARACTER in first-person perspective
+- Use roleplay format: *actions in asterisks* mixed with "dialog in quotes"
+- Use [Player] for the player's name and [Gender] for their pronouns (both auto-resolve at runtime)
+${povInstructions}
+- The greeting should show what the character is doing and saying in the moment
+- Make it engaging, sensory, and in-character
+- Keep language natural and grounded - avoid purple prose or overly flowery descriptions
+${exampleDialogues.length > 0 ? '- Match the speaking style and tone shown in the dialog examples above' : ''}
+
+${currentText ? `Current greeting:\n${currentText}\n\nPlease rewrite and enhance this greeting following the format above. Keep the same general intent but improve the prose, add sensory details, and ensure proper roleplay formatting.` : 'Write a compelling first greeting message from this character\'s perspective. Use the roleplay format with *actions* and "dialog", include [Player] variable where appropriate.'}
+
+Write only the greeting message itself, no explanations or meta-commentary.`;
+    try {
+      cancelledRef.current.welcomeMessage = false;
+      setEnhancingWelcomeMessage(true);
+      const response = await api.generateText({ prompt, maxTokens: 500 });
+      if (cancelledRef.current.welcomeMessage) return;
+      if (response && response.text) handleUpdateWelcomeMessageText(response.text.trim());
+    } catch (error) {
+      if (cancelledRef.current.welcomeMessage) return;
+      alert(`Failed to enhance welcome message: ${error.message}`);
+    } finally { setEnhancingWelcomeMessage(false); }
+  };
+
+  // ---- Scenario versioning ----
+  const getActiveScenario = () => {
+    const list = activeStory?.scenarios || [];
+    if (!list.length) return null;
+    return list.find(sc => sc.id === activeStory?.activeScenarioId) || list[0];
+  };
+  const handleScenarioChange = (scId) => updateStoryField('activeScenarioId', scId);
+  const handleAddScenario = () => {
+    const list = activeStory?.scenarios || [];
+    const newId = `sc-${Date.now()}`;
+    patchActiveStory({ scenarios: [...list, { id: newId, text: '' }], activeScenarioId: newId });
+  };
+  const handleDeleteScenario = (scId) => {
+    const list = activeStory?.scenarios || [];
+    if (list.length <= 1) { alert('Cannot delete the last scenario'); return; }
+    if (!window.confirm('Delete this scenario version?')) return;
+    const filtered = list.filter(sc => sc.id !== scId);
+    const newActiveId = activeStory?.activeScenarioId === scId ? filtered[0]?.id : activeStory?.activeScenarioId;
+    patchActiveStory({ scenarios: filtered, activeScenarioId: newActiveId });
+  };
+  const handleUpdateScenarioText = (text) => {
+    const list = activeStory?.scenarios || [];
+    const id = activeStory?.activeScenarioId;
+    updateStoryField('scenarios', list.map(sc => (sc.id === id ? { ...sc, text } : sc)));
+  };
+  const handleEnhanceScenario = async () => {
+    if (enhancingScenario) { cancelledRef.current.scenario = true; setEnhancingScenario(false); return; }
+    const activeScenario = getActiveScenario();
+    const currentText = activeScenario?.text || '';
+    const description = formData.description || '';
+    const personality = formData.personality || '';
+    const exampleDialogues = activeStory?.exampleDialogues || [];
+    let dialogExamplesSection = '';
+    if (exampleDialogues.length > 0) {
+      dialogExamplesSection = '\n\nDialog Examples (showing character context):\n';
+      exampleDialogues.forEach((d, idx) => { dialogExamplesSection += `\nExample ${idx + 1}:\n[Player]: ${d.user}\n${formData.name || 'Character'}: ${d.character}\n`; });
+    }
+    const povInstructions = getPovInstruction();
+    const prompt = `You are a creative writing assistant helping to craft a concise scenario description.
+
+Character Name: ${formData.name || 'Character'}
+${description ? `Description: ${description}` : ''}
+${personality ? `Personality: ${personality}` : ''}${dialogExamplesSection}
+
+IMPORTANT INSTRUCTIONS:
+- Write a simple, descriptive scenario in 1-2 sentences
+- Use third-person perspective (describe the situation objectively)
+- Use [Player] for the player's name and [Gender] for their pronouns
+${povInstructions}
+- Focus on setting and situation, not actions or dialog
+- Keep it concise and atmospheric
+- Use natural, grounded language - avoid purple prose or excessive flowery descriptions
+${exampleDialogues.length > 0 ? '- Consider the context and relationship shown in the dialog examples' : ''}
+
+${currentText ? `Current scenario:\n${currentText}\n\nPlease rewrite this scenario following the guidelines above. Keep it brief (1-2 sentences) but vivid.` : 'Write a brief scenario description (1-2 sentences) that sets the scene for this character.'}
+
+Write only the scenario description itself, no explanations.`;
+    try {
+      cancelledRef.current.scenario = false;
+      setEnhancingScenario(true);
+      const response = await api.generateText({ prompt, maxTokens: 100 });
+      if (cancelledRef.current.scenario) return;
+      if (response && response.text) handleUpdateScenarioText(response.text.trim());
+    } catch (error) {
+      if (cancelledRef.current.scenario) return;
+      alert(`Failed to enhance scenario: ${error.message}`);
+    } finally { setEnhancingScenario(false); }
+  };
+
+  // ---- Story-level example dialogues ----
+  const handleAddDialogue = () => {
+    if (newDialogue.user.trim() && newDialogue.character.trim()) {
+      updateStoryField('exampleDialogues', [...(activeStory?.exampleDialogues || []), newDialogue]);
+      setNewDialogue({ user: '', character: '' });
+    }
+  };
+  const handleRemoveDialogue = (index) => {
+    updateStoryField('exampleDialogues', (activeStory?.exampleDialogues || []).filter((_, i) => i !== index));
+    if (editingDialogueIndex === index) setEditingDialogueIndex(null);
+  };
+  const handleStartEditDialogue = (index) => {
+    const d = activeStory?.exampleDialogues?.[index];
+    if (d) { setEditDialogue({ user: d.user, character: d.character }); setEditingDialogueIndex(index); }
+  };
+  const handleSaveEditDialogue = () => {
+    if (editDialogue.user.trim() && editDialogue.character.trim()) {
+      updateStoryField('exampleDialogues', (activeStory?.exampleDialogues || []).map((d, i) => (i === editingDialogueIndex ? editDialogue : d)));
+      setEditingDialogueIndex(null);
+      setEditDialogue({ user: '', character: '' });
+    }
+  };
+  const handleCancelEditDialogue = () => { setEditingDialogueIndex(null); setEditDialogue({ user: '', character: '' }); };
 
   // ---- Instructor Mode toggle: non-destructive stash/restore ----
   // Story-nested data lives on the active story; we snapshot the whole story object
@@ -355,11 +680,13 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const tabs = useMemo(() => ([
     { id: 'main', label: 'Main' },
     ...(isInstructorMode ? [] : [{ id: 'members', label: isGroup ? 'Members' : 'Member' }]),
+    { id: 'attributes', label: 'Attributes' },
+    ...((!isInstructorMode && formData.isPumpable) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
     { id: 'checkpoints', label: 'Checkpoints' },
     { id: 'library', label: 'Library' },
     ...(isInstructorMode ? [{ id: 'instructor', label: 'Instructor Settings' }] : []),
     { id: 'events', label: 'Custom Buttons' },
-  ]), [isInstructorMode, isGroup]);
+  ]), [isInstructorMode, isGroup, formData.isPumpable]);
 
   if (!isOpen) return null;
   const member = members[selectedMemberIndex] || members[0];
@@ -417,6 +744,287 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
               <textarea value={formData.authorsNote ?? ''} onChange={(e) => set({ authorsNote: e.target.value })} rows={3}
                 placeholder="Injected near the end of context. Lives on the card now, not in Settings." />
             </div>
+          )}
+
+          {/* ---- Base-character fields + story content (standard mode only) ---- */}
+          {!isInstructorMode && (
+            <>
+              <div className="form-group">
+                <label>Gender</label>
+                <select value={formData.gender || ''} onChange={(e) => set({ gender: e.target.value })}>
+                  {MEMBER_GENDERS.map(g => <option key={g.value || 'none'} value={g.value}>{g.label}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Individual Response Tokens (overrides global)</label>
+                <input type="text" inputMode="numeric" value={formData.responseTokens ?? ''}
+                  onChange={(e) => set({ responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="Leave blank to use the global setting" />
+              </div>
+
+              <div className="form-group">
+                <label>Chat History Depth (overrides global)</label>
+                <input type="text" inputMode="numeric" value={formData.historyDepth ?? ''}
+                  onChange={(e) => set({ historyDepth: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="Leave blank to use the global setting" />
+                <p className="section-hint">Prior messages this character sees. Leave blank for full scene memory; lower only if you want a tighter, less history-driven character.</p>
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea value={formData.description || ''} onChange={(e) => set({ description: e.target.value })}
+                  placeholder="Brief character description..." />
+              </div>
+
+              <div className="form-group">
+                <label>Personality</label>
+                <textarea value={formData.personality || ''} onChange={(e) => set({ personality: e.target.value })}
+                  placeholder="Detailed personality traits..." />
+              </div>
+
+              {/* ---- Story content: scenario + welcome message versions + example dialogues ---- */}
+              {activeStory && (
+                <>
+                  {/* Welcome Message */}
+                  <div className="story-field">
+                    <div className="story-field-header">
+                      <label>Welcome Message{enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}</label>
+                      <div className="version-controls">
+                        <button type="button" className={`btn-icon btn-llm ${getActiveWelcomeMessage()?.llmEnhanced ? 'active' : ''}`}
+                          onClick={handleToggleWelcomeMessageLlm} title="Toggle LLM Enhancement">🤖</button>
+                        <button type="button" className={`btn-icon btn-random-version ${activeStory?.randomWelcomeVersion ? 'active' : ''}`}
+                          onClick={() => updateStoryField('randomWelcomeVersion', !activeStory?.randomWelcomeVersion)}
+                          title={activeStory?.randomWelcomeVersion ? 'Random version on session start (ON)' : 'Random version on session start (OFF)'}>R</button>
+                        <select value={activeStory?.activeWelcomeMessageId || ''} onChange={(e) => handleWelcomeMessageChange(e.target.value)} className="version-select">
+                          {(activeStory?.welcomeMessages || []).map((wm, idx) => <option key={wm.id} value={wm.id}>Ver {idx + 1}</option>)}
+                        </select>
+                        <button type="button" className="btn-icon btn-add" onClick={handleAddWelcomeMessage} title="Add version">+</button>
+                        <button type="button" className="btn-icon btn-delete" onClick={() => handleDeleteWelcomeMessage(activeStory?.activeWelcomeMessageId)}
+                          disabled={(activeStory?.welcomeMessages || []).length <= 1} title="Delete version">🗑️</button>
+                        <button type="button" className={`btn-icon btn-magic ${enhancingWelcomeMessage ? 'active enhancing' : ''}`}
+                          onClick={handleEnhanceWelcomeMessage} title={enhancingWelcomeMessage ? 'Click to abort' : 'Enhance with LLM'}>🪄</button>
+                        <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
+                      </div>
+                    </div>
+                    <textarea value={getActiveWelcomeMessage()?.text || ''} onChange={(e) => handleUpdateWelcomeMessageText(e.target.value)}
+                      placeholder="The first message the character sends..." rows={9} />
+                  </div>
+
+                  {/* Scenario */}
+                  <div className="story-field">
+                    <div className="story-field-header">
+                      <label>Scenario{enhancingScenario && <span className="spinner-inline"> ⏳</span>}</label>
+                      <div className="version-controls">
+                        <div className="version-controls-spacer"></div>
+                        <select value={activeStory?.activeScenarioId || ''} onChange={(e) => handleScenarioChange(e.target.value)} className="version-select">
+                          {(activeStory?.scenarios || []).map((sc, idx) => <option key={sc.id} value={sc.id}>Ver {idx + 1}</option>)}
+                        </select>
+                        <button type="button" className="btn-icon btn-add" onClick={handleAddScenario} title="Add version">+</button>
+                        <button type="button" className="btn-icon btn-delete" onClick={() => handleDeleteScenario(activeStory?.activeScenarioId)}
+                          disabled={(activeStory?.scenarios || []).length <= 1} title="Delete version">🗑️</button>
+                        <button type="button" className={`btn-icon btn-magic ${enhancingScenario ? 'active enhancing' : ''}`}
+                          onClick={handleEnhanceScenario} title={enhancingScenario ? 'Click to abort' : 'Enhance with LLM'}>🪄</button>
+                        <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
+                      </div>
+                    </div>
+                    <textarea value={getActiveScenario()?.text || ''} onChange={(e) => handleUpdateScenarioText(e.target.value)}
+                      placeholder="Current situation/scenario..." rows={2} />
+                  </div>
+
+                  {/* Example Dialogues */}
+                  <div className="story-field">
+                    <label>Example Dialogues</label>
+                    <div className="dialogues-list">
+                      {(activeStory?.exampleDialogues || []).map((dialogue, i) => (
+                        <div key={i} className="dialogue-item">
+                          {editingDialogueIndex === i ? (
+                            <div className="dialogue-edit-form">
+                              <input type="text" placeholder="Player says..." value={editDialogue.user}
+                                onChange={(e) => setEditDialogue({ ...editDialogue, user: e.target.value })} />
+                              <input type="text" placeholder="Character responds..." value={editDialogue.character}
+                                onChange={(e) => setEditDialogue({ ...editDialogue, character: e.target.value })} />
+                              <div className="dialogue-edit-actions">
+                                <button type="button" className="btn btn-sm btn-primary" onClick={handleSaveEditDialogue}>Save</button>
+                                <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelEditDialogue}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="dialogue-content">
+                                <p><strong>Player:</strong> {dialogue.user}</p>
+                                <p><strong>{formData.name || 'Character'}:</strong> {dialogue.character}</p>
+                              </div>
+                              <div className="dialogue-actions">
+                                <button type="button" className="btn-icon btn-edit-small" onClick={() => handleStartEditDialogue(i)} title="Edit">✏️</button>
+                                <button type="button" className="btn-icon btn-delete-small" onClick={() => handleRemoveDialogue(i)} title="Delete">🗑️</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="add-dialogue">
+                      <input type="text" placeholder="Player says..." value={newDialogue.user}
+                        onChange={(e) => setNewDialogue({ ...newDialogue, user: e.target.value })} />
+                      <input type="text" placeholder="Character responds..." value={newDialogue.character}
+                        onChange={(e) => setNewDialogue({ ...newDialogue, character: e.target.value })} />
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue}>Add</button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ---- Pumpable toggle + Default Pump Type + Manual Pump Maxes ---- */}
+              <div className="story-field auto-reply-field">
+                <label className="toggle-switch">
+                  <input type="checkbox" checked={formData.isPumpable || false} onChange={(e) => set({ isPumpable: e.target.checked })} />
+                  <span className="toggle-slider"></span>
+                </label>
+                <div className="auto-reply-text">
+                  <span className="auto-reply-label">Is this character a valid inflation target?</span>
+                  <span className="auto-reply-hint">Enables a capacity gauge on this character's portrait and allows flow nodes to inflate them</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Default Pump Type</label>
+                <select value={formData.defaultPumpType || 'electric'} onChange={(e) => set({ defaultPumpType: e.target.value })}>
+                  <option value="electric">Auto / Electric (E-STOP)</option>
+                  <option value="bulb">Manual / Bulb (PUMP)</option>
+                  <option value="bike">Manual / Bike (PUMP)</option>
+                </select>
+                <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it.</p>
+              </div>
+
+              {/* ---- Character inflation settings (gated on isPumpable) ---- */}
+              {formData.isPumpable && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div className="form-group">
+                    <label>Calibration Time (seconds)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input
+                        type="number"
+                        min={5}
+                        max={600}
+                        value={formData.charSyncCalibrationWithPlayer ? (playerPumpCalibration || formData.characterCalibrationTime || 60) : (formData.characterCalibrationTime || 60)}
+                        onChange={(e) => set({ characterCalibrationTime: Math.min(600, Math.max(5, parseInt(e.target.value) || 60)) })}
+                        disabled={formData.charSyncCalibrationWithPlayer}
+                        style={{ width: '100px', opacity: formData.charSyncCalibrationWithPlayer ? 0.5 : 1 }}
+                      />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.charSyncCalibrationWithPlayer || false}
+                          onChange={(e) => set({ charSyncCalibrationWithPlayer: e.target.checked })}
+                        />
+                        Synchronize with Player Primary Pump
+                      </label>
+                    </div>
+                    <div className="form-hint">
+                      How many seconds of simulated inflation to reach 100% capacity. This is purely visual — no real devices are triggered.
+                      {formData.charSyncCalibrationWithPlayer
+                        ? (playerPumpCalibration ? ` Synced to player pump: ${playerPumpCalibration}s.` : ' No primary pump configured yet.')
+                        : ' Use "AI Pump" flow nodes to start and stop inflation.'}
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                    <label>Burst Threshold (%)</label>
+                    <input
+                      type="number"
+                      min={50}
+                      max={200}
+                      value={formData.charBurstPercent || 100}
+                      onChange={(e) => set({ charBurstPercent: Math.min(200, Math.max(50, parseInt(e.target.value) || 100)) })}
+                      style={{ width: '100px' }}
+                    />
+                    <div className="form-hint">
+                      The capacity % at which this character pops. Inflation stops automatically at this threshold.
+                      Values over 100% allow over-inflation before popping.
+                    </div>
+                    <div className="auto-reply-field" style={{ marginTop: '0.5rem' }}>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={formData.hideCharBurstFromDetails ?? true}
+                          onChange={(e) => set({ hideCharBurstFromDetails: e.target.checked })}
+                        />
+                        <span className="toggle-slider"></span>
+                      </label>
+                      <div className="auto-reply-text">
+                        <span className="auto-reply-label">Hide from Details Panel</span>
+                        <span className="auto-reply-hint">Hide character Auto-Pop threshold from the info panel in chat</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label>Character's Knowledge of Inflation</label>
+                    <select value={formData.charInflateKnowledge || 'unaware'} onChange={(e) => set({ charInflateKnowledge: e.target.value })}>
+                      <option value="unaware">Unaware — doesn't know what's happening</option>
+                      <option value="confused">Confused — notices something but doesn't understand</option>
+                      <option value="partial">Partial — understands the basics but not the full picture</option>
+                      <option value="informed">Informed — knows exactly what inflation is and what's happening</option>
+                      <option value="expert">Expert — deeply knowledgeable, may have experience</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                    <label>Character's Desire to be Inflated</label>
+                    <select value={formData.charInflateDesire || 'neutral'} onChange={(e) => set({ charInflateDesire: e.target.value })}>
+                      <option value="terrified">Terrified — desperately does not want this</option>
+                      <option value="reluctant">Reluctant — would prefer not to but may comply</option>
+                      <option value="nervous">Nervous — anxious but not fully opposed</option>
+                      <option value="neutral">Neutral — neither wants nor resists</option>
+                      <option value="curious">Curious — intrigued and willing to try</option>
+                      <option value="eager">Eager — actively wants to be inflated</option>
+                      <option value="obsessed">Obsessed — craves inflation intensely</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                    <label>Desire to be Popped</label>
+                    <select value={formData.charPopDesire || 'terrified'} onChange={(e) => set({ charPopDesire: e.target.value })}>
+                      <option value="terrified">Terrified — will do anything to avoid popping</option>
+                      <option value="dreading">Dreading — deeply fears it but feels it coming</option>
+                      <option value="anxious">Anxious — worried about the possibility</option>
+                      <option value="resigned">Resigned — accepts it may happen</option>
+                      <option value="indifferent">Indifferent — doesn't care either way</option>
+                      <option value="curious">Curious — wonders what it would feel like</option>
+                      <option value="willing">Willing — okay with popping if it happens</option>
+                      <option value="eager">Eager — wants to pop</option>
+                    </select>
+                    <div className="form-hint">Affects AI behavior when character capacity reaches 60% or higher.</div>
+                  </div>
+
+                  <div style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>System Variables</strong>
+                    <div style={{ marginTop: '6px', lineHeight: 1.6 }}>
+                      <code>[CharCapacity]</code> or <code>{'{{charCapacity}}'}</code> — Current character inflation % (0-100)<br/>
+                      <code>[Capacity]</code> — Player inflation % (for reference)
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <h4 style={{ margin: '4px 0' }}>Manual Pump Maxes</h4>
+              <p className="section-hint" style={{ marginTop: 0 }}>Max average pumps to full capacity. Shared with Smart Devices › Manual Devices.</p>
+              <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <label>Bulb Pump Max</label>
+                  <input type="text" inputMode="numeric" value={bulbMaxField}
+                    onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))}
+                    onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+                </div>
+                <div>
+                  <label>Bicycle Pump Max</label>
+                  <input type="text" inputMode="numeric" value={bikeMaxField}
+                    onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))}
+                    onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+                </div>
+              </div>
+            </>
           )}
 
           <div className="form-group">
@@ -785,6 +1393,250 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
           </div>
         </div>
 
+        {/* ---- Attributes tab (ported verbatim from old single-char editor) ---- */}
+        <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
+          <div className="session-defaults-editor">
+            <h4>Personality Attributes</h4>
+            <p className="section-hint">Each attribute has a chance to activate per message. When active, it injects personality-driving instructions for that response. Multiple attributes can fire simultaneously.</p>
+
+            {[
+              { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
+              { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
+              { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
+              { key: 'sensual', label: 'Sensual', hint: 'Be caring, tender, and amorous. Focus on intimacy and connection.' },
+              { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
+            ].map(({ key, label, hint }) => (
+              <div className="form-group" key={key}>
+                <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
+                <p className="section-hint">{hint}</p>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={activeStory?.attributes?.[key] || 0}
+                  onChange={(e) => updateStoryField('attributes', {
+                    ...(activeStory?.attributes || {}),
+                    [key]: parseInt(e.target.value)
+                  })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            ))}
+
+            <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition</h4>
+            <p className="section-hint">These are always active and affect every AI response. They define this character's baseline attitude toward inflating and popping others.</p>
+
+            <div className="form-group">
+              <label>Desire to Inflate Others</label>
+              <select
+                value={formData.desireToInflateOthers || 'none'}
+                onChange={(e) => setFormData(prev => ({ ...prev, desireToInflateOthers: e.target.value }))}
+              >
+                <option value="none">None — no interest in inflating others</option>
+                <option value="reluctant">Reluctant — would only inflate others if forced</option>
+                <option value="indifferent">Indifferent — doesn't care either way</option>
+                <option value="willing">Willing — happy to inflate others if asked</option>
+                <option value="eager">Eager — actively wants to inflate others</option>
+                <option value="obsessed">Obsessed — driven to inflate others at every opportunity</option>
+                <option value="sadistic">Sadistic — inflates others specifically to cause discomfort</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>Desire to Pop Others</label>
+              <select
+                value={formData.desireToPopOthers || 'none'}
+                onChange={(e) => setFormData(prev => ({ ...prev, desireToPopOthers: e.target.value }))}
+              >
+                <option value="none">None — would never intentionally pop someone</option>
+                <option value="avoidant">Avoidant — actively tries to prevent popping</option>
+                <option value="careless">Careless — doesn't worry about it happening</option>
+                <option value="curious">Curious — wonders what would happen</option>
+                <option value="willing">Willing — okay with it if it happens</option>
+                <option value="eager">Eager — actively tries to push others to pop</option>
+                <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Staged Portraits tab (ported from old charPortraits; gated on isPumpable) ---- */}
+        {!isInstructorMode && formData.isPumpable && (
+          <div className="modal-body character-modal-body" style={{ display: activeTab === 'charPortraits' ? 'block' : 'none' }}>
+            <div className="staged-portraits-section">
+              <p className="section-hint">
+                Upload portraits (images or videos) for capacity ranges. Videos loop as idle animations.
+                Transition videos play once when crossing into a range. Empty slots inherit from the nearest lower range.
+                {!character?.id && <strong> Save the character first to enable video uploads.</strong>}
+              </p>
+
+              {/* Export/Import Buttons */}
+              {character?.id && (
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      const folder = character._isDefault ? 'default' : 'custom';
+                      window.open(`/api/export/portrait-media/chars/${folder}/${character.id}`, '_blank');
+                    }}
+                  >
+                    Export Portraits (Zip)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => document.getElementById('portrait-zip-import')?.click()}
+                  >
+                    Import Portraits (Zip)
+                  </button>
+                  <input
+                    id="portrait-zip-import"
+                    type="file"
+                    accept=".zip"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      e.target.value = '';
+                      const folder = character._isDefault ? 'default' : 'custom';
+                      const form = new FormData();
+                      form.append('file', file);
+                      try {
+                        const res = await fetch(`/api/import/portrait-media/chars/${folder}/${character.id}`, {
+                          method: 'POST',
+                          body: form,
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                          alert(`Imported ${result.filesImported} portrait files. Reload the character to see changes.`);
+                        } else {
+                          alert('Import failed: ' + (result.error || 'Unknown error'));
+                        }
+                      } catch (err) {
+                        alert('Import failed: ' + err.message);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Batch Crop/Position */}
+              <div className="portrait-crop-editor">
+                <h4>Batch Crop / Position</h4>
+                <p className="section-hint">These values apply to ALL portrait media uniformly.</p>
+                <div className="crop-controls">
+                  <label>
+                    Scale: {(formData.charPortraitCrop?.scale || 1).toFixed(2)}x
+                    <input type="range" min="0.5" max="2" step="0.05"
+                      value={formData.charPortraitCrop?.scale || 1}
+                      onChange={(e) => handleCropChange('scale', parseFloat(e.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Offset X: {formData.charPortraitCrop?.offsetX || 0}px
+                    <input type="range" min="-100" max="100" step="1"
+                      value={formData.charPortraitCrop?.offsetX || 0}
+                      onChange={(e) => handleCropChange('offsetX', parseInt(e.target.value))}
+                    />
+                  </label>
+                  <label>
+                    Offset Y: {formData.charPortraitCrop?.offsetY || 0}px
+                    <input type="range" min="-100" max="100" step="1"
+                      value={formData.charPortraitCrop?.offsetY || 0}
+                      onChange={(e) => handleCropChange('offsetY', parseInt(e.target.value))}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Range Grid */}
+              <div className="staged-portraits-grid">
+                {[...STAGED_PORTRAIT_RANGES.filter(r => !r.isPop), { id: 'burst', label: 'BURST', isPop: true }].map((range) => {
+                  const media = formData.charPortraitMedia?.[range.id];
+                  const legacyImg = formData.charStagedPortraits?.[range.id];
+                  const idleUrl = media?.idle || legacyImg;
+                  const idleType = media?.idleType || (idleUrl ? 'image' : null);
+                  const transUrl = media?.trans;
+
+                  return (
+                    <div key={range.id} className={`staged-portrait-card ${range.isPop ? 'pop-range' : ''}`}>
+                      <div className="staged-portrait-label">{range.label}</div>
+
+                      {/* Idle slot */}
+                      <div className="media-slot">
+                        <div className="media-slot-label">Idle {idleType === 'video' ? '(video)' : idleType === 'image' ? '(image)' : ''}</div>
+                        <div
+                          className="staged-portrait-upload"
+                          onClick={() => charMediaIdleRefs.current[range.id]?.click()}
+                        >
+                          {idleUrl ? (
+                            idleType === 'video' ? (
+                              <video src={idleUrl} className="staged-portrait-preview" muted loop autoPlay playsInline />
+                            ) : (
+                              <img src={idleUrl} alt={`Idle for ${range.label}`} className="staged-portrait-preview" />
+                            )
+                          ) : (
+                            <div className="staged-portrait-placeholder">
+                              <span className="upload-icon">+</span>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          ref={(el) => { charMediaIdleRefs.current[range.id] = el; }}
+                          type="file"
+                          accept="image/*,video/mp4,video/webm"
+                          onChange={(e) => handleIdleUpload(e, range.id)}
+                          style={{ display: 'none' }}
+                        />
+                        {idleUrl && (
+                          <button type="button" className="btn btn-secondary btn-sm staged-portrait-remove"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveIdle(range.id); }}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Transition slot */}
+                      <div className="media-slot">
+                        <div className="media-slot-label">Transition {transUrl ? '(video)' : ''}</div>
+                        <div
+                          className="staged-portrait-upload transition-slot"
+                          onClick={() => character?.id && charMediaTransRefs.current[range.id]?.click()}
+                          style={{ opacity: character?.id ? 1 : 0.4 }}
+                        >
+                          {transUrl ? (
+                            <video src={transUrl} className="staged-portrait-preview" muted playsInline />
+                          ) : (
+                            <div className="staged-portrait-placeholder">
+                              <span className="upload-icon">+</span>
+                              <span className="upload-hint">video</span>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          ref={(el) => { charMediaTransRefs.current[range.id] = el; }}
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          onChange={(e) => handleTransUpload(e, range.id)}
+                          style={{ display: 'none' }}
+                        />
+                        {transUrl && (
+                          <button type="button" className="btn btn-secondary btn-sm staged-portrait-remove"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveTrans(range.id); }}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="character-modal-footer">
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={handleSave}>Save</button>
@@ -803,17 +1655,59 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   );
 }
 
+// Ensure a story carries v2 welcomeMessages[]/scenarios[] arrays, migrating legacy
+// single-string welcomeMessage/scenario fields. Non-destructive: the source story is
+// spread first, so only the version arrays + active ids are normalized/filled.
+function migrateStoryToV2(story, character) {
+  let welcomeMessages = story.welcomeMessages;
+  let activeWelcomeMessageId = story.activeWelcomeMessageId;
+  const wmEmpty = !Array.isArray(welcomeMessages) || welcomeMessages.length === 0 ||
+    (welcomeMessages.length === 1 && !welcomeMessages[0]?.text);
+  if (wmEmpty) {
+    if (story.welcomeMessage) welcomeMessages = [{ id: 'wm-1', text: story.welcomeMessage, llmEnhanced: story.llmEnhanced || false }];
+    else if (character?.welcomeMessages?.length > 0 && character.welcomeMessages[0]?.text) welcomeMessages = character.welcomeMessages;
+    else welcomeMessages = [{ id: 'wm-1', text: '', llmEnhanced: false }];
+    activeWelcomeMessageId = welcomeMessages[0]?.id || null;
+  }
+  let scenarios = story.scenarios;
+  let activeScenarioId = story.activeScenarioId;
+  const scEmpty = !Array.isArray(scenarios) || scenarios.length === 0 ||
+    (scenarios.length === 1 && !scenarios[0]?.text);
+  if (scEmpty) {
+    if (story.scenario) scenarios = [{ id: 'sc-1', text: story.scenario }];
+    else if (character?.scenarios?.length > 0 && character.scenarios[0]?.text) scenarios = character.scenarios;
+    else scenarios = [{ id: 'sc-1', text: '' }];
+    activeScenarioId = scenarios[0]?.id || null;
+  }
+  const finalWmId = welcomeMessages.find(wm => wm.id === activeWelcomeMessageId)?.id || welcomeMessages[0]?.id;
+  const finalScId = scenarios.find(sc => sc.id === activeScenarioId)?.id || scenarios[0]?.id;
+  return {
+    ...story,
+    welcomeMessages,
+    activeWelcomeMessageId: finalWmId,
+    scenarios,
+    activeScenarioId: finalScId,
+    exampleDialogues: story.exampleDialogues || [],
+  };
+}
+
 // Seed a unified card from an existing character (any legacy type) or a blank one.
 // CRITICAL: spread the source FIRST so no top-level field is dropped on load — the
 // explicit keys below only fill DEFAULTS for absent fields. formData is then a true
 // superset of the card and the load/save round-trip is loss-free.
 function buildInitial(character, defaultAuthorsNote) {
   const c = character || {};
+  const stories = (c.stories || [{ id: 'story-1', name: 'Story', checkpointProfiles: [] }]).map(s => migrateStoryToV2(s, c));
   return {
     ...c,
     id: c.id,
     name: c.name || '',
     avatar: c.avatar || '',
+    gender: c.gender || '',
+    description: c.description || '',
+    personality: c.personality || '',
+    responseTokens: c.responseTokens ?? '',
+    historyDepth: c.historyDepth ?? '',
     instructor: c.instructor || { enabled: false },
     multiChar: c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] },
     // Author's Note migrates onto the card; legacy cards seed from the global default.
@@ -824,9 +1718,21 @@ function buildInitial(character, defaultAuthorsNote) {
     instructorLibraryGroupIds: c.instructorLibraryGroupIds || [],
     isPumpable: c.isPumpable || false,
     defaultPumpType: c.defaultPumpType || 'electric',
+    // Character inflation settings (gated on isPumpable in the UI).
+    characterCalibrationTime: c.characterCalibrationTime || 60,
+    charBurstPercent: c.charBurstPercent || 100,
+    hideCharBurstFromDetails: c.hideCharBurstFromDetails ?? true,
+    charSyncCalibrationWithPlayer: c.charSyncCalibrationWithPlayer || false,
+    charInflateKnowledge: c.charInflateKnowledge || 'unaware',
+    charInflateDesire: c.charInflateDesire || 'neutral',
+    charPopDesire: c.charPopDesire || 'terrified',
+    // Staged portrait media.
+    charStagedPortraits: c.charStagedPortraits || {},
+    charPortraitMedia: c.charPortraitMedia || {},
+    charPortraitCrop: c.charPortraitCrop || { scale: 1, offsetX: 0, offsetY: 0 },
     buttons: c.buttons || c.events || [],
-    stories: c.stories || [{ id: 'story-1', name: 'Story', checkpointProfiles: [] }],
-    activeStoryId: c.activeStoryId || c.stories?.[0]?.id || 'story-1',
+    stories,
+    activeStoryId: c.activeStoryId || stories[0]?.id || 'story-1',
     versions: c.versions || [],
     activeVersionId: c.activeVersionId || null,
     standardStash: c.standardStash || null,
