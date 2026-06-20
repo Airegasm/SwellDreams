@@ -12,6 +12,7 @@ import { useApp } from '../../context/AppContext';
 //   ref    = {inline}|{treeId} (handled by ScopeTreeSection)
 
 const EVENT_TYPES = [
+  { value: 'every_reply', label: 'Every reply (always-on)' },
   { value: 'device_on', label: 'Device turns ON' },
   { value: 'device_off', label: 'Device turns OFF' },
   { value: 'ai_speaks', label: 'AI speaks (keyword)' },
@@ -54,6 +55,8 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
   const renderFilter = (b) => {
     const f = b.filter || {};
     switch (b.event) {
+      case 'every_reply':
+        return <span className="section-hint">runs this tree every reply (recurring nodes each turn, once nodes once) — the Always-On replacement</span>;
       case 'device_on':
       case 'device_off':
         return (

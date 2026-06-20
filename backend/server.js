@@ -10460,6 +10460,16 @@ async function runRandomEventTrees(character, settings, treeIndex) {
   }
 }
 
+// every_reply event bindings — the Always-On replacement. Fire each one's tree IN-REPLY every
+// reply, unconditionally (no filter). Called from runReplyScopes alongside always-on/random.
+async function runEveryReplyEventTrees(character, settings, treeIndex) {
+  const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === 'every_reply');
+  for (const b of bindings) {
+    try { await fireEventBinding(b, character, settings, treeIndex, 'inReply'); }
+    catch (e) { console.error(`[runEveryReplyEventTrees] binding ${b?.id} failed:`, e?.message || e); }
+  }
+}
+
 // Server-side idle timer for idle event bindings (mirrors the dormant eventEngine.idleTimer but
 // is independent of active flows). Fires each idle binding once per idle period: it latches on
 // the current lastActivity stamp and re-arms when lastActivity advances (i.e. on new activity).
@@ -10554,8 +10564,11 @@ async function runReplyScopes(character) {
   try { await runActiveRangeTrees(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
   if (sessionState.pendingTreeChoice) return; // a player_choice suspended the turn — stop further scopes
-  try { await runActiveAlwaysOn(character, settings, treeIndex); }
+  try { await runActiveAlwaysOn(character, settings, treeIndex); } // legacy alwaysOn refs (back-compat)
   catch (e) { console.error('[runReplyScopes] always-on failed:', e?.message || e); }
+  if (sessionState.pendingTreeChoice) return;
+  try { await runEveryReplyEventTrees(character, settings, treeIndex); } // every_reply event bindings (Always-On replacement)
+  catch (e) { console.error('[runReplyScopes] every-reply events failed:', e?.message || e); }
   if (sessionState.pendingTreeChoice) return; // always-on may have suspended — don't roll random events
   try { await runRandomEventTrees(character, settings, treeIndex); } // Phase 3: per-reply random event bindings
   catch (e) { console.error('[runReplyScopes] random events failed:', e?.message || e); }
