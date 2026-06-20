@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import FlowAssignmentModal from '../modals/FlowAssignmentModal';
+import DataTab from './DataTab';
 import './SettingsTabs.css';
 
 function GlobalTab() {
@@ -1597,156 +1598,18 @@ function GlobalTab() {
         </div>
       )}
 
-      {/* Dictionary Section */}
+      {/* Data — moved here from the former Data tab */}
       <div className="settings-section-collapsible">
-        <div className="settings-section-header" onClick={() => toggleSection('dictionary')}>
-          <span>Dictionary</span>
-          <span className="collapse-icon">{expandedSections.dictionary ? '▼' : '▶'}</span>
+        <div className="settings-section-header" onClick={() => toggleSection('data')}>
+          <span>Data</span>
+          <span className="collapse-icon">{expandedSections.data ? '▼' : '▶'}</span>
         </div>
-        {expandedSections.dictionary && (
+        {expandedSections.data && (
         <div className="settings-section-content">
-          <p className="section-description">
-            The Dictionary (global lorebook) now has its own page — open it from the menu →{' '}
-            <strong>Dictionary</strong>. Global Reminders have been folded into the Dictionary.
-          </p>
+          <DataTab />
         </div>
         )}
       </div>
-
-      {/* Global Flows Section */}
-      <div className="settings-section-collapsible">
-        <div className="settings-section-header" onClick={() => toggleSection('flows')}>
-          <span>Global Flows</span>
-          <span className="collapse-icon">{expandedSections.flows ? '▼' : '▶'}</span>
-        </div>
-        {expandedSections.flows && (
-        <div className="settings-section-content">
-          <p className="section-description">
-            These flows are active regardless of the current character or persona.
-            They are bound to this chat session and will be saved/loaded with it.
-          </p>
-
-          <div className="global-flows-assignment">
-            <div className="flow-assignment-header">
-              <span className="flow-line-label">Active Flows:</span>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowFlowModal(true)}
-              >
-                Add Flows
-              </button>
-            </div>
-            <div className="association-badges">
-              {getGlobalFlows().length === 0 ? (
-                <span className="empty-hint">No flows assigned</span>
-              ) : (
-                getGlobalFlows().map(flowId => {
-                  const flow = flows.find(f => f.id === flowId);
-                  return flow ? (
-                    <span key={flowId} className="assoc-badge">
-                      {flow.name}
-                      <button type="button" className="badge-remove" onClick={() => handleRemoveGlobalFlow(flowId)}>−</button>
-                    </span>
-                  ) : null;
-                })
-              )}
-            </div>
-          </div>
-        </div>
-        )}
-      </div>
-
-      {/* Remote Connections Section */}
-      <div className="settings-section-collapsible">
-        <div className="settings-section-header" onClick={() => toggleSection('remote')}>
-          <span>Remote Connections</span>
-          <span className="collapse-icon">{expandedSections.remote ? '▼' : '▶'}</span>
-        </div>
-        {expandedSections.remote && (
-        <div className="settings-section-content">
-          <p className="section-description">
-            Control access to this SwellDreams instance from other devices on your network or via Tailscale.
-            {!remoteSettings.isLocalRequest && (
-              <strong className="remote-warning"> You are viewing from a remote device - settings cannot be modified.</strong>
-            )}
-          </p>
-
-          {isLoadingRemote ? (
-            <p>Loading remote settings...</p>
-          ) : (
-            <>
-              <div className="remote-toggle-row">
-                <label className={`toggle-switch ${!remoteSettings.isLocalRequest ? 'disabled' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={remoteSettings.allowRemote}
-                    onChange={(e) => handleToggleAllowRemote(e.target.checked)}
-                    disabled={!remoteSettings.isLocalRequest}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-                <span className="toggle-label">Allow Remote Connections</span>
-              </div>
-
-              {remoteSettings.allowRemote && (
-                <div className="ip-whitelist-section">
-                  <h4>IP Whitelist</h4>
-                  <p className="section-hint">
-                    Only whitelisted IPs can access this instance remotely. Add your Tailscale or local network IPs.
-                  </p>
-
-                  {remoteSettings.isLocalRequest && (
-                    <div className="add-ip-form">
-                      <input
-                        type="text"
-                        value={newIp}
-                        onChange={(e) => setNewIp(e.target.value)}
-                        placeholder="e.g., 100.64.0.1"
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddIp()}
-                      />
-                      <button className="btn btn-primary" onClick={handleAddIp}>
-                        Add IP
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="ip-whitelist">
-                    {remoteSettings.whitelistedIps.length === 0 ? (
-                      <p className="empty-message">No IPs whitelisted. Remote access is effectively disabled.</p>
-                    ) : (
-                      remoteSettings.whitelistedIps.map((ip) => (
-                        <div key={ip} className="ip-item">
-                          <span className="ip-address">{ip}</span>
-                          {remoteSettings.isLocalRequest && (
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleRemoveIp(ip)}
-                              title="Remove IP"
-                            >
-                              Del
-                            </button>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        )}
-      </div>
-
-      <FlowAssignmentModal
-        isOpen={showFlowModal}
-        onClose={() => setShowFlowModal(false)}
-        onSave={handleSaveFlows}
-        flows={flows}
-        assignedFlowIds={getGlobalFlows()}
-        category="global"
-        title="Assign Global Flows"
-      />
 
       {/* Calibration Modal - slides from top */}
       {showCalibrationModal && (

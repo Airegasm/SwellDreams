@@ -198,13 +198,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
           Dictionary
         </NavLink>
 
-        <NavLink
-          to="/flows"
-          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
-          onClick={(e) => handleNavClick(e, '/flows')}
-        >
-          Flows
-        </NavLink>
+        {/* Flows hidden from the main menu (route still exists at /flows). */}
 
         <NavLink
           to="/settings"
