@@ -1073,21 +1073,8 @@ function GlobalTab() {
             </button>
           </div>
 
-          <div className={`character-control-row ${characterControls.useAutoCapacity ? 'disabled-by-auto' : ''}`}>
-            <label className={`toggle-switch ${characterControls.useAutoCapacity ? 'disabled' : ''}`}>
-              <input
-                type="checkbox"
-                checked={characterControls.autoLinkCapacityToPain}
-                onChange={(e) => handleCharacterControlChange('autoLinkCapacityToPain', e.target.checked)}
-                disabled={characterControls.useAutoCapacity}
-              />
-              <span className="toggle-slider"></span>
-            </label>
-            <div className="control-label-group">
-              <span className="toggle-label">Auto-Link Capacity to Pain Scale</span>
-              <span className="control-hint">Pain 0-10 scales evenly with capacity 0-100%</span>
-            </div>
-          </div>
+          {/* "Auto-Link Capacity to Pain Scale" removed — player pain/emotion UI retired (#32).
+              The autoLinkCapacityToPain setting + engine remain for possible future char use. */}
 
           <div className={`character-control-row ${characterControls.useAutoCapacity ? 'disabled-by-auto' : ''}`}>
             <label className={`toggle-switch ${characterControls.useAutoCapacity ? 'disabled' : ''}`}>
@@ -1759,25 +1746,7 @@ function GlobalTab() {
                       />
                     </div>
 
-                    <div className="calibration-slider-group">
-                      <div className="calibration-slider-label">
-                        <span>Pain Level: <span className="pain-scale-description">(No Pain ← → Agonizing)</span></span>
-                        <span className="calibration-slider-value">{calibrationState.painLevel}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        step="1"
-                        value={calibrationState.painLevel}
-                        onChange={(e) => setCalibrationState(prev => ({
-                          ...prev,
-                          painLevel: parseInt(e.target.value)
-                        }))}
-                        className="calibration-slider"
-                        disabled={!calibrationState.selectedPumpId || calibrationState.phase === 'running'}
-                      />
-                    </div>
+                    {/* Pain Level calibration slider removed — player pain UI retired (#32). */}
                   </div>
 
                   {/* Action Buttons */}
@@ -1873,21 +1842,7 @@ function GlobalTab() {
               />
             </div>
 
-            <div className="resume-field">
-              <div className="resume-slider-label">
-                <span>Pain Level at 100%:</span>
-                <span>{manualCalibrationData.painLevelAt100}</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="1"
-                value={manualCalibrationData.painLevelAt100}
-                onChange={(e) => setManualCalibrationData(prev => ({ ...prev, painLevelAt100: parseInt(e.target.value) }))}
-                className="calibration-slider"
-              />
-            </div>
+            {/* Manual "Pain Level at 100%" input removed — player pain UI retired (#32). */}
 
             <div className="resume-popup-actions">
               <button className="btn btn-secondary" onClick={() => {
@@ -1986,21 +1941,7 @@ function GlobalTab() {
               />
             </div>
 
-            <div className="resume-field">
-              <div className="resume-slider-label">
-                <span>Pain Level:</span>
-                <span>{resumeData.painLevel}</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="1"
-                value={resumeData.painLevel}
-                onChange={(e) => setResumeData(prev => ({ ...prev, painLevel: parseInt(e.target.value) }))}
-                className="calibration-slider"
-              />
-            </div>
+            {/* Resume Pain Level slider removed — player pain UI retired (#32). */}
 
             <div className="resume-popup-actions">
               <button className="btn btn-secondary" onClick={handleCloseResumePopup}>

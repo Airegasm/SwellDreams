@@ -1377,7 +1377,7 @@ function Chat() {
           }}
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
-          hidePainEmotion={isInstructor(activeCharacter)}
+          hidePainEmotion={true}
           multichar={!!activeCharacter?.multiChar?.enabled}
         />
       </div>
@@ -1418,7 +1418,7 @@ function Chat() {
             }}
             personaName={activePersona?.displayName}
             useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
-            hidePainEmotion={isInstructor(activeCharacter)}
+            hidePainEmotion={true}
           />
           {/* Pump Status Overlay - on divider bar, right of status badges */}
           {Object.keys(pumpStatus).length > 0 && (
