@@ -85,7 +85,7 @@ function App() {
   const location = useLocation();
   const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
   const isFlowsPage = location.pathname === '/flows';
-  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions } = useApp();
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions, sendWsMessage } = useApp();
   const { showError, showWarning, showSuccess } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
@@ -471,14 +471,28 @@ function App() {
             🤖
           </span>
         </div>
-        <button
-          className={`estop-btn ${estopState.className} ${stopping ? 'stopping' : ''}`}
-          onClick={handleEmergencyStop}
-          disabled={estopState.disabled || stopping}
-          title={estopState.disabled ? 'Simulation mode active' : 'Emergency stop - stops all devices, flows, and LLM'}
-        >
-          {stopping ? '...' : estopState.text}
-        </button>
+        {sessionState?.pumpInit === 'manual' ? (
+          /* Manual pump (bulb/bike) — the E-STOP button becomes PUMP, mirroring mobile.
+             Driven by sessionState.pumpInit, set by applyActivePumpType for any card type. */
+          <button
+            type="button"
+            className="estop-btn estop-active estop-pump"
+            onClick={() => sendWsMessage('manual_pump', {})}
+            disabled={stopping}
+            title={`Pump (${sessionState.pumpType || 'manual'}) — hardware disconnect is your emergency stop`}
+          >
+            PUMP
+          </button>
+        ) : (
+          <button
+            className={`estop-btn ${estopState.className} ${stopping ? 'stopping' : ''}`}
+            onClick={handleEmergencyStop}
+            disabled={estopState.disabled || stopping}
+            title={estopState.disabled ? 'Simulation mode active' : 'Emergency stop - stops all devices, flows, and LLM'}
+          >
+            {stopping ? '...' : estopState.text}
+          </button>
+        )}
       </div>
 
       {/* Hamburger menu floats independently on top of everything */}
