@@ -84,6 +84,10 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const emptyReminderForm = () => ({ name: '', text: '', target: 'character', keys: [], secondaryKeys: [], logic: 'and_any', probability: 100, group: '', recurse: true, caseSensitive: false, priority: 100, scanDepth: 10 });
   const [reminderForm, setReminderForm] = useState(emptyReminderForm());
 
+  // Lorebook import (standard/group Library tab) — ported from CharacterEditorModal.
+  const lorebookFileInputRef = useRef(null);
+  const [importingLorebook, setImportingLorebook] = useState(false);
+
   // Member portrait crop.
   const [showCropModal, setShowCropModal] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -98,6 +102,9 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   // Manual pump maxes (global, shared with Smart Devices › Manual Devices) — settings, NOT formData.
   const [bulbMaxField, setBulbMaxField] = useState('');
   const [bikeMaxField, setBikeMaxField] = useState('');
+  // Story selector inline-rename scratch state (ported from CharacterEditorModal).
+  const [editingStoryName, setEditingStoryName] = useState(false);
+  const [storyNameInput, setStoryNameInput] = useState('');
   // Story-level example dialogue add/edit scratch state.
   const [newDialogue, setNewDialogue] = useState({ user: '', character: '' });
   const [editDialogue, setEditDialogue] = useState({ user: '', character: '' });
@@ -145,6 +152,49 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     ...prev,
     stories: (prev.stories || []).map(s => (s.id === activeStory?.id ? { ...s, ...patch } : s)),
   }));
+
+  // ---- Story selector + add/rename/delete ("versions of versions" of a character) ----
+  // Ported from CharacterEditorModal. activeStoryId is the single source of truth here.
+  const stories = formData.stories || [];
+  const handleStoryChange = (storyId) => set({ activeStoryId: storyId });
+  const handleAddStory = () => {
+    const newId = `story-${Date.now()}`;
+    const newStory = {
+      id: newId,
+      name: `Story ${stories.length + 1}`,
+      welcomeMessages: [{ id: `wm-${Date.now()}`, text: '', llmEnhanced: false }],
+      activeWelcomeMessageId: `wm-${Date.now()}`,
+      scenarios: [{ id: `sc-${Date.now()}`, text: '' }],
+      activeScenarioId: `sc-${Date.now()}`,
+      exampleDialogues: [],
+      autoReplyEnabled: false,
+      allowLlmDeviceAccess: false,
+      assignedFlows: [],
+      assignedButtons: [],
+      constantReminderIds: [],
+      globalReminderIds: [],
+      startingEmotion: 'neutral',
+      storyProgressionEnabled: false,
+      storyProgressionMaxOptions: 3,
+      checkpoints: {},
+      attributes: {},
+    };
+    set({ stories: [...stories, newStory], activeStoryId: newId });
+  };
+  const handleDeleteStory = () => {
+    if (stories.length <= 1) { alert('Cannot delete the last story'); return; }
+    if (!window.confirm('Delete this story?')) return;
+    const storyId = activeStory?.id;
+    const filtered = stories.filter(s => s.id !== storyId);
+    set({ stories: filtered, activeStoryId: filtered[0]?.id || null });
+  };
+  const handleRenameStory = () => { setStoryNameInput(activeStory?.name || ''); setEditingStoryName(true); };
+  const handleSaveStoryName = () => {
+    if (!storyNameInput.trim()) { alert('Story name cannot be empty'); return; }
+    updateStoryField('name', storyNameInput.trim());
+    setEditingStoryName(false);
+  };
+  const handleCancelStoryName = () => { setEditingStoryName(false); setStoryNameInput(''); };
 
   // ---- Manual pump maxes (global settings, NOT formData) ----
   const saveMaxField = (which, raw) => {
@@ -560,8 +610,25 @@ Write only the scenario description itself, no explanations.`;
   };
   const handleCropSave = (cropped) => {
     const i = cropTargetRef.current;
-    if (i != null) updateMember(i, { portrait: cropped });
+    if (i === 'avatar') {
+      set({ avatar: cropped });
+    } else if (i != null) {
+      updateMember(i, { portrait: cropped });
+    }
     setShowCropModal(false); setUploadedImage(null); cropTargetRef.current = null;
+  };
+
+  // ---- Base-character avatar (top-level formData.avatar) ----
+  const avatarFileInputRef = useRef(null);
+  const handleAvatarClick = () => avatarFileInputRef.current?.click();
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('Please upload an image file'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => { cropTargetRef.current = 'avatar'; setUploadedImage(ev.target.result); setShowCropModal(true); };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // ---- Instructor Card Library entries (constantReminders/globalReminders) ----
@@ -598,6 +665,64 @@ Write only the scenario description itself, no explanations.`;
     setShowReminderForm(false); setEditingReminderId(null); setReminderForm(emptyReminderForm());
   };
   const handleCancelReminderEdit = () => { setShowReminderForm(false); setEditingReminderId(null); setReminderForm(emptyReminderForm()); };
+
+  // ---- Lorebook import (V2/V3 character_book + SillyTavern world info) ----
+  const handleLorebookImportClick = () => { lorebookFileInputRef.current?.click(); };
+  const handleLorebookImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setImportingLorebook(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      // Support multiple formats:
+      // 1. V2/V3 character_book with array entries
+      // 2. SillyTavern world info with object entries
+      // 3. Direct array of entries
+      let entries = [];
+      if (data.character_book?.entries && Array.isArray(data.character_book.entries)) {
+        entries = data.character_book.entries;
+      } else if (data.character_book?.entries && typeof data.character_book.entries === 'object') {
+        entries = Object.values(data.character_book.entries);
+      } else if (data.data?.character_book?.entries && Array.isArray(data.data.character_book.entries)) {
+        entries = data.data.character_book.entries;
+      } else if (data.data?.character_book?.entries && typeof data.data.character_book.entries === 'object') {
+        entries = Object.values(data.data.character_book.entries);
+      } else if (data.entries && Array.isArray(data.entries)) {
+        entries = data.entries;
+      } else if (data.entries && typeof data.entries === 'object') {
+        entries = Object.values(data.entries);
+      } else if (Array.isArray(data)) {
+        entries = data;
+      } else {
+        throw new Error('Invalid lorebook format. Expected character_book.entries or entries object/array.');
+      }
+      if (!Array.isArray(entries)) throw new Error('Lorebook entries must be an array.');
+      const newReminders = entries
+        .filter(entry => entry.enabled !== false && entry.disable !== true)
+        .map(entry => ({
+          id: `reminder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: entry.name || entry.comment || 'Lorebook Entry',
+          text: entry.content || entry.value || '',
+          target: 'character',
+          enabled: true,
+          constant: entry.constant === true || (entry.selective !== undefined && !entry.selective),
+          keys: entry.keys || entry.key || [],
+          caseSensitive: entry.caseSensitive || entry.case_sensitive || false,
+          priority: entry.priority !== undefined ? entry.priority : (entry.insertion_order || entry.order || 100),
+          scanDepth: entry.extensions?.scan_depth || entry.scanDepth || entry.depth || 10,
+        }));
+      if (newReminders.length === 0) throw new Error('No valid lorebook entries found in file.');
+      setOwnEntries([...ownEntries, ...newReminders]);
+      alert(`Successfully imported ${newReminders.length} lorebook entries as Library.`);
+    } catch (error) {
+      console.error('Failed to import lorebook:', error);
+      alert(error.message || 'Failed to import lorebook file');
+    } finally {
+      setImportingLorebook(false);
+      if (lorebookFileInputRef.current) lorebookFileInputRef.current.value = '';
+    }
+  };
 
   const toggleInstructorGroup = (id) => setFormData(prev => {
     const cur = prev.instructorLibraryGroupIds || [];
@@ -731,6 +856,37 @@ Write only the scenario description itself, no explanations.`;
             <input type="text" value={formData.name || ''} onChange={(e) => set({ name: e.target.value })} placeholder="Character name" />
           </div>
 
+          <div className="form-group">
+            <label>{isGroup ? 'Group Avatar' : 'Character Avatar'}</label>
+            <div className={`avatar-upload-area ${formData.avatar ? 'has-avatar' : ''}`} onClick={handleAvatarClick}>
+              {formData.avatar ? (
+                <img src={formData.avatar} alt="Avatar" className="avatar-preview" />
+              ) : (
+                <div className="avatar-placeholder">
+                  <span className="upload-icon">📷</span>
+                  <span className="upload-text">Click to upload</span>
+                </div>
+              )}
+            </div>
+            <input
+              ref={avatarFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              style={{ display: 'none' }}
+            />
+            {formData.avatar && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={(e) => { e.stopPropagation(); set({ avatar: '' }); }}
+                style={{ marginTop: '0.5rem' }}
+              >
+                Remove Avatar
+              </button>
+            )}
+          </div>
+
           {isInstructorMode ? (
             <div className="form-group">
               <label>Mission (instructor prompt)</label>
@@ -783,6 +939,45 @@ Write only the scenario description itself, no explanations.`;
                   placeholder="Detailed personality traits..." />
               </div>
 
+              {/* ---- Story selector (versions of versions): add / rename / delete ---- */}
+              <div className="story-field">
+                <label>Story</label>
+                <div className="story-controls">
+                  {editingStoryName ? (
+                    <div className="story-name-edit">
+                      <input
+                        type="text"
+                        value={storyNameInput}
+                        onChange={(e) => setStoryNameInput(e.target.value)}
+                        className="story-name-input"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveStoryName();
+                          if (e.key === 'Escape') handleCancelStoryName();
+                        }}
+                      />
+                      <button type="button" className="btn-icon btn-save" onClick={handleSaveStoryName} title="Save">💾</button>
+                      <button type="button" className="btn-icon btn-cancel" onClick={handleCancelStoryName} title="Cancel">✕</button>
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        value={activeStory?.id || ''}
+                        onChange={(e) => handleStoryChange(e.target.value)}
+                        className="story-select"
+                      >
+                        {stories.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <button type="button" className="btn-icon btn-add" onClick={handleAddStory} title="Add story">+</button>
+                      <button type="button" className="btn-icon btn-edit" onClick={handleRenameStory} title="Rename">✏️</button>
+                      <button type="button" className="btn-icon btn-delete" onClick={handleDeleteStory} title="Delete" disabled={stories.length <= 1}>🗑️</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
               {/* ---- Story content: scenario + welcome message versions + example dialogues ---- */}
               {activeStory && (
                 <>
@@ -804,7 +999,6 @@ Write only the scenario description itself, no explanations.`;
                           disabled={(activeStory?.welcomeMessages || []).length <= 1} title="Delete version">🗑️</button>
                         <button type="button" className={`btn-icon btn-magic ${enhancingWelcomeMessage ? 'active enhancing' : ''}`}
                           onClick={handleEnhanceWelcomeMessage} title={enhancingWelcomeMessage ? 'Click to abort' : 'Enhance with LLM'}>🪄</button>
-                        <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                       </div>
                     </div>
                     <textarea value={getActiveWelcomeMessage()?.text || ''} onChange={(e) => handleUpdateWelcomeMessageText(e.target.value)}
@@ -825,7 +1019,6 @@ Write only the scenario description itself, no explanations.`;
                           disabled={(activeStory?.scenarios || []).length <= 1} title="Delete version">🗑️</button>
                         <button type="button" className={`btn-icon btn-magic ${enhancingScenario ? 'active enhancing' : ''}`}
                           onClick={handleEnhanceScenario} title={enhancingScenario ? 'Click to abort' : 'Enhance with LLM'}>🪄</button>
-                        <span className="pov-badge" title={`From persona: ${playerName} (${personaPronouns})`}>{activePOV}</span>
                       </div>
                     </div>
                     <textarea value={getActiveScenario()?.text || ''} onChange={(e) => handleUpdateScenarioText(e.target.value)}
@@ -870,6 +1063,43 @@ Write only the scenario description itself, no explanations.`;
                       <input type="text" placeholder="Character responds..." value={newDialogue.character}
                         onChange={(e) => setNewDialogue({ ...newDialogue, character: e.target.value })} />
                       <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue}>Add</button>
+                    </div>
+                  </div>
+
+                  {/* Auto Reply */}
+                  <div className="story-field auto-reply-field">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={activeStory?.autoReplyEnabled || false}
+                        onChange={(e) => updateStoryField('autoReplyEnabled', e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div className="auto-reply-text">
+                      <span className="auto-reply-label">Auto Reply</span>
+                      <span className="auto-reply-hint">Automatically send character response after player message</span>
+                    </div>
+                  </div>
+
+                  {/* AI Pump Control (formerly "Allow LLM Device Access") */}
+                  <div className="story-field auto-reply-field">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={activeStory?.allowLlmDeviceAccess || false}
+                        onChange={(e) => updateStoryField('allowLlmDeviceAccess', e.target.checked)}
+                        disabled={!settings?.globalCharacterControls?.allowLlmDeviceControl}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div className="auto-reply-text">
+                      <span className="auto-reply-label">AI Pump Control</span>
+                      <span className="auto-reply-hint">
+                        {settings?.globalCharacterControls?.allowLlmDeviceControl
+                          ? 'Allow this character to trigger device commands via LLM responses'
+                          : 'Enable "Allow LLM Device Control" in Settings → Global first'}
+                      </span>
                     </div>
                   </div>
                 </>
@@ -1131,6 +1361,105 @@ Write only the scenario description itself, no explanations.`;
         {/* ---- Library (shared component; separate instructor/standard groups via the stash) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'library' ? 'block' : 'none' }}>
           {activeStory ? <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} /> : <p className="section-hint">No story yet.</p>}
+
+          {/* ---- Per-card lore entries (standard/group): author globalReminders via LoreEntryEditor ---- */}
+          {!isInstructorMode && (
+            <div className="reminders-editor" style={{ marginTop: '1.5rem' }}>
+              {!showReminderForm ? (
+                <>
+                  <div className="events-header">
+                    <h4>Library</h4>
+                    <div className="events-header-actions">
+                      <input
+                        type="file"
+                        ref={lorebookFileInputRef}
+                        onChange={handleLorebookImport}
+                        accept=".json"
+                        style={{ display: 'none' }}
+                      />
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={handleLorebookImportClick} disabled={importingLorebook}>
+                        {importingLorebook ? 'Importing...' : '📚 Import Lorebook'}
+                      </button>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Reminder</button>
+                    </div>
+                  </div>
+                  <p className="section-hint">Character-specific reminders. Create them here, then assign them to stories using "Constant Reminders" in the Story section.</p>
+
+                  {/* V2/V3 Import Notice */}
+                  {formData.extensions?.v2v3Import && ownEntries.length > 0 && (
+                    <div style={{
+                      padding: '12px',
+                      marginBottom: '1rem',
+                      backgroundColor: 'var(--info-bg)',
+                      border: '1px solid var(--info-color)',
+                      borderRadius: '4px',
+                      fontSize: '0.9em'
+                    }}>
+                      <strong>📚 Imported Lorebook</strong>
+                      <p style={{ margin: '0.5rem 0 0 0', color: 'var(--text-muted)' }}>
+                        These reminders were imported from the character's lorebook (character_book).
+                        Keyword-triggered entries will only activate when their keywords appear in the conversation.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="events-list-editor">
+                    {ownEntries.length === 0 ? (
+                      <p className="empty-message">No custom reminders yet.</p>
+                    ) : (
+                      ownEntries.map((reminder) => (
+                        <div key={reminder.id} className={`event-item ${reminder.enabled === false ? 'disabled' : ''}`}>
+                          <label className="toggle-switch">
+                            <input
+                              type="checkbox"
+                              checked={reminder.enabled !== false}
+                              onChange={(e) => handleToggleReminder(reminder.id, e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                          <div className="event-info">
+                            <div className={`event-name ${reminder.enabled === false ? 'strikethrough' : ''}`}>
+                              {reminder.name}
+                              <span className={`target-badge ${reminder.target || 'character'}`}>
+                                {reminder.target === 'player' ? 'Player' : 'Character'}
+                              </span>
+                              {reminder.constant === false && (
+                                <span className="keyword-badge" title={`Triggers: ${(reminder.keys || []).join(', ')}`}>
+                                  🔑 {reminder.keys?.length || 0} keys
+                                </span>
+                              )}
+                              {(reminder.priority !== undefined && reminder.priority !== 100) && (
+                                <span className="priority-badge" title="Priority">
+                                  P{reminder.priority}
+                                </span>
+                              )}
+                            </div>
+                            <div className="event-meta">{(reminder.text || '').substring(0, 60)}{(reminder.text || '').length > 60 ? '...' : ''}</div>
+                          </div>
+                          <div className="event-actions">
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleEditReminder(reminder)}>Edit</button>
+                            <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteReminder(reminder.id)}>Delete</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="event-form">
+                  <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
+                  <LoreEntryEditor
+                    entry={{ ...reminderForm, title: reminderForm.name, content: reminderForm.text }}
+                    onChange={(c) => setReminderForm({ ...reminderForm, ...c, name: c.title, text: c.content })}
+                  />
+                  <div className="event-form-buttons">
+                    <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>
+                    <button type="button" className="btn btn-primary" onClick={handleSaveReminder}>{editingReminderId ? 'Update' : 'Create'}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ---- Instructor Settings (own tab; instructor mode only) ---- */}
