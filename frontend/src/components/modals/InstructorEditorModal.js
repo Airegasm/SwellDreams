@@ -5,6 +5,7 @@ import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
+import AlwaysOnSection from '../common/AlwaysOnSection';
 import EventTriggersSection from '../common/EventTriggersSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import MediaCropModal from './MediaCropModal';
@@ -689,16 +690,16 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges). Appended to the inflation profile/mission block in the prompt.</p>
           </div>
 
-          {/* ===== Always-On Trigger Tree (per profile) — runs every reply while active ===== */}
+          {/* ===== Always-On Scripts (per profile) — one or more trees, each every reply ===== */}
           {(() => {
-            const aRef = selProfile?.treeRefs?.alwaysOn || {};
-            const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: nextRef } }
+            const aVal = selProfile?.treeRefs?.alwaysOn;
+            const setVal = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: next } }
               : p));
             return (
               <div className="form-group" style={{ marginTop: 4 }}>
-                <ScopeTreeSection label="Always-On Script" hint="runs every reply while this profile is active (recurring nodes each turn, once nodes once)"
-                  refValue={aRef} onChange={setRef} defaultName="Always On"
+                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Always-On Scripts</label>
+                <AlwaysOnSection value={aVal} onChange={setVal}
                   source={`from card: ${formData.name || 'instructor'}`}
                   rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
               </div>

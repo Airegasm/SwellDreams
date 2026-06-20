@@ -10432,11 +10432,19 @@ function startTreeIdleCheck() {
   }, 5000);
 }
 
-// Run the Always-On tree scope IN-REPLY every reply (recurring ambient guidance/triggers),
-// composed after the range trees. Resolves inline OR {treeId} library refs.
+// Run the Always-On tree scope(s) IN-REPLY every reply (recurring ambient guidance/triggers),
+// composed after the range trees. alwaysOn may be a SINGLE ref (legacy) OR an ARRAY of refs
+// (multi-trigger). Each array entry runs under a distinct scopeKey (alwaysOn:i) so their "once"
+// nodes don't collide. Resolves inline OR {treeId} library refs.
 async function runActiveAlwaysOn(character, settings, treeIndex) {
-  const tree = resolveRefTree(resolveScopeRefs(character).alwaysOn, treeIndex);
-  if (tree) await runTreeScope(tree, 'alwaysOn', character, settings, { delivery: 'inReply', treeIndex });
+  const refs = resolveScopeRefs(character).alwaysOn;
+  const list = Array.isArray(refs) ? refs : (refs ? [refs] : []);
+  for (let i = 0; i < list.length; i++) {
+    const tree = resolveRefTree(list[i], treeIndex);
+    if (!tree) continue;
+    const scopeKey = (Array.isArray(refs) && list.length > 1) ? `alwaysOn:${i}` : 'alwaysOn';
+    await runTreeScope(tree, scopeKey, character, settings, { delivery: 'inReply', treeIndex });
+  }
 }
 
 // Run the active Capacity-Range tree scope(s) IN-REPLY (woven/verbatim into this turn).

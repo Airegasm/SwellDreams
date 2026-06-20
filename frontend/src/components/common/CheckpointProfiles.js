@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import ScopeTreeSection from './ScopeTreeSection';
+import AlwaysOnSection from './AlwaysOnSection';
 import EventTriggersSection from './EventTriggersSection';
 import RangeTriggerEditor from './RangeTriggerEditor';
 import CollapsibleSection from './CollapsibleSection';
@@ -197,14 +198,13 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
       {/* Always-On Trigger Tree (per profile) — a CollapsibleSection like Session Start / Intro /
           Event Triggers, so all scopes read as consistent sections (not a bare inline block). */}
       {(() => {
-        const aRef = selProfile?.treeRefs?.alwaysOn || {};
-        const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
-          ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: nextRef } } : p));
-        const onCount = aRef?.inline?.nodes?.length ? `${aRef.inline.nodes.length}` : aRef?.treeId ? 'linked' : '';
+        const aVal = selProfile?.treeRefs?.alwaysOn;
+        const aList = Array.isArray(aVal) ? aVal : (aVal && (aVal.inline || aVal.treeId) ? [aVal] : []);
+        const setVal = (next) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: next } } : p));
         return (
-          <CollapsibleSection title="Always-On Script" subtitle="runs every reply while this profile is active (recurring nodes each turn, once nodes once)" badge={onCount}>
-            <ScopeTreeSection label="" hint=""
-              refValue={aRef} onChange={setRef} defaultName="Always On" source={`from card: ${cardName}`} rowProps={profRowProps} />
+          <CollapsibleSection title="Always-On Scripts" subtitle="one or more trees, each running every reply while this profile is active" badge={aList.length ? `${aList.length}` : ''}>
+            <AlwaysOnSection value={aVal} onChange={setVal} source={`from card: ${cardName}`} rowProps={profRowProps} />
           </CollapsibleSection>
         );
       })()}

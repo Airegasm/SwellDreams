@@ -11,6 +11,7 @@ import EventTriggersSection from '../common/EventTriggersSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CardLoreSection from '../common/CardLoreSection';
 import CheckpointProfiles from '../common/CheckpointProfiles';
+import AlwaysOnSection from '../common/AlwaysOnSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -2868,9 +2869,9 @@ Write only the scenario description itself, no explanations.`;
                         defaultName="Intro" source={`from card: ${formData.name || 'character'}`} rowProps={{ ...rp, profiles: activeStory?.checkpointProfiles || [] }} />
                     </CollapsibleSection>
 
-                    <CollapsibleSection title="Always-On" subtitle="runs every reply (recurring each turn, once nodes once)" badge={nodeCount(treeRefs.alwaysOn)}>
-                      <ScopeTreeSection label="" hint="" refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
-                        defaultName="Always On" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                    <CollapsibleSection title="Always-On Scripts" subtitle="one or more trees, each running every reply" badge={(Array.isArray(treeRefs.alwaysOn) ? treeRefs.alwaysOn.length : (treeRefs.alwaysOn?.inline || treeRefs.alwaysOn?.treeId) ? 1 : 0) || ''}>
+                      <AlwaysOnSection value={treeRefs.alwaysOn} onChange={(v) => setScope('alwaysOn', v)}
+                        source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
                     </CollapsibleSection>
 
                     <CollapsibleSection title="Event Triggers" subtitle="fire a tree on a discrete event (device / state / idle / random)" badge={treeRefs.events?.length ? `${treeRefs.events.length}` : ''}>
