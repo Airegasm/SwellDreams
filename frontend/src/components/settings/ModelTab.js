@@ -226,14 +226,16 @@ function ModelTab() {
           setModelStatus('No Models Detected');
         }
 
-        // Auto-detect context size and chat template if reported by the backend
+        // Auto-detect context size and chat template if reported by the backend,
+        // unless this profile has opted out (autoDetectTemplate === false).
         let settingsToSave = llmSettings;
-        if (result.contextSize && result.contextSize > 0) {
+        const autoDetect = llmSettings.autoDetectTemplate !== false;
+        if (autoDetect && result.contextSize && result.contextSize > 0) {
           console.log(`[ModelTab] Auto-detected context size: ${result.contextSize}`);
           settingsToSave = { ...settingsToSave, contextTokens: result.contextSize };
           setLlmSettings(prev => ({ ...prev, contextTokens: result.contextSize }));
         }
-        if (result.chatTemplate) {
+        if (autoDetect && result.chatTemplate) {
           console.log(`[ModelTab] Auto-detected chat template: ${result.chatTemplate}`);
           settingsToSave = { ...settingsToSave, promptTemplate: result.chatTemplate };
           setLlmSettings(prev => ({ ...prev, promptTemplate: result.chatTemplate }));
@@ -559,11 +561,12 @@ function ModelTab() {
                   setConnectionStatus('online');
                   setModelStatus(testResult.modelName || 'Connected');
                   let updated = { ...settings.llm };
-                  if (testResult.contextSize && testResult.contextSize > 0) {
+                  const autoDetect = settings.llm.autoDetectTemplate !== false;
+                  if (autoDetect && testResult.contextSize && testResult.contextSize > 0) {
                     updated.contextTokens = testResult.contextSize;
                     setLlmSettings(prev => ({ ...prev, contextTokens: testResult.contextSize }));
                   }
-                  if (testResult.chatTemplate) {
+                  if (autoDetect && testResult.chatTemplate) {
                     updated.promptTemplate = testResult.chatTemplate;
                     setLlmSettings(prev => ({ ...prev, promptTemplate: testResult.chatTemplate }));
                   }
@@ -700,12 +703,14 @@ function ModelTab() {
               setConnectionStatus('online');
               setModelStatus(testResult.modelName || 'Connected');
 
-              // Auto-detect context size and chat template if reported by the backend
+              // Auto-detect context size and chat template if reported by the backend,
+              // unless this profile has opted out (autoDetectTemplate === false).
               let updatedSettings = profileSettings;
-              if (testResult.contextSize && testResult.contextSize > 0) {
+              const autoDetect = profileSettings.autoDetectTemplate !== false;
+              if (autoDetect && testResult.contextSize && testResult.contextSize > 0) {
                 updatedSettings = { ...updatedSettings, contextTokens: testResult.contextSize };
               }
-              if (testResult.chatTemplate) {
+              if (autoDetect && testResult.chatTemplate) {
                 updatedSettings = { ...updatedSettings, promptTemplate: testResult.chatTemplate };
               }
               if (testResult.supportsSystemRole !== undefined) {
@@ -971,6 +976,21 @@ function ModelTab() {
                 </select>
               )}
             </div>
+
+            {/* Per-profile lock: skip overwriting template/context from server detection on connect */}
+            {endpointStandard !== 'openrouter' && endpointStandard !== 'aihorde' && (
+              <div className="connection-row">
+                <label></label>
+                <label className="checkbox-inline" title="When connecting, overwrite this profile's prompt template and context size with values detected from the server. Turn OFF to keep your manual choices (e.g. pin Mistral v7 Tekken so it isn't reset to Mistral v0.2+).">
+                  <input
+                    type="checkbox"
+                    checked={llmSettings.autoDetectTemplate !== false}
+                    onChange={(e) => updateSetting('autoDetectTemplate', e.target.checked)}
+                  />
+                  <span>Auto-detect template &amp; context on connect</span>
+                </label>
+              </div>
+            )}
 
             {/* Row 3: URL/API Key + Connect */}
             {endpointStandard === 'openrouter' ? (

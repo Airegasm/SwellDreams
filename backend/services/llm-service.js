@@ -673,7 +673,23 @@ function makeStreamingRequest(url, body, onToken) {
  * Trim incomplete sentences from the end of text
  * Valid endings: . ? ! * "
  */
+// Strip a trailing incomplete sentence — but NEVER a trailing device-control tag like [pump on].
+// The tag is intentionally the final line with no sentence punctuation, so the raw sentence-trim
+// would delete it before the device parser ever sees it. Peel it off, trim the prose, re-attach it
+// on its own line. Central to every backend (Horde, llama.cpp, kobold, OpenRouter) — all call this.
 function trimIncompleteSentences(text) {
+  if (!text || typeof text !== 'string') return text;
+  const tagMatch = text.match(/\s*\[\s*pump\b[^\]]*\]\s*$/i);
+  if (tagMatch) {
+    const tag = tagMatch[0].trim();
+    const head = text.slice(0, tagMatch.index);
+    if (!head.trim()) return tag;                                  // tag-only output
+    return trimSentencesCore(head).replace(/\s+$/, '') + '\n' + tag;
+  }
+  return trimSentencesCore(text);
+}
+
+function trimSentencesCore(text) {
   if (!text || typeof text !== 'string') return text;
 
   let trimmed = text.trim();
@@ -827,6 +843,12 @@ async function generate(options) {
     const chatMessages = buildChatMessages(systemPrompt, prompt, messages, mergedSettings);
 
     requestBody = buildChatCompletionRequest(chatMessages, mergedSettings);
+
+    // Append the OpenAI-compatible chat path if the URL is bare (mirrors the streaming path).
+    // Without this, a non-streaming chat request POSTs to the raw llmUrl and misses the route.
+    if (!endpoint.includes('/chat/completions')) {
+      endpoint = endpoint.replace(/\/?$/, '/v1/chat/completions');
+    }
   } else {
     // Text completion - apply template wrapping
     let userPrompt = prompt || '';
@@ -950,6 +972,8 @@ async function generateStream(options) {
           template = 'llama3';
         } else if (tmplLower === 'llama2') {
           template = 'llama';
+        } else if (tmplLower === 'mistral-tekken' || caps.chatTemplate.includes('[SYSTEM_PROMPT]')) {
+          template = 'mistral-tekken';
         } else if (tmplLower === 'mistral' || caps.chatTemplate.includes('[INST]')) {
           template = 'mistral';
         } else if (tmplLower) {
@@ -1078,6 +1102,10 @@ async function testConnection(settings) {
               chatTemplate = 'llama';
             } else if (tmplLower === 'llama3' || tmpl.includes('<|start_header_id|>')) {
               chatTemplate = 'llama3';
+            } else if (tmplLower === 'mistral-tekken' || tmplLower === 'mistral-v7' || tmpl.includes('[SYSTEM_PROMPT]')) {
+              // Mistral v7 "Tekken" templates use a dedicated [SYSTEM_PROMPT] block
+              // *and* [INST] — check this before the generic [INST] → mistral case.
+              chatTemplate = 'mistral-tekken';
             } else if (tmplLower === 'mistral' || tmplLower === 'mistral-v1' || tmpl.includes('[INST]')) {
               chatTemplate = 'mistral';
             } else if (tmplLower === 'vicuna') {
@@ -1570,8 +1598,10 @@ function inferHordeTemplate(name) {
   if (/gemma[-_ ]?3/.test(s)) return 'gemma3';
   if (/gemma[-_ ]?2/.test(s)) return 'gemma2';
   if (/\bgemma\b/.test(s)) return 'gemma3';
-  // Mistral v7 / Tekken-tokenizer models
-  if (/tekken|mistral[-_ ]?(v?7|small[-_ ]?3|2503|2506)|magistral|devstral/.test(s)) return 'mistral-tekken';
+  // Mistral v7 / Tekken-tokenizer models. Cydonia 24B is a Mistral-Small-24B
+  // finetune and uses the [SYSTEM_PROMPT] block, unlike the older Cydonia 22B /
+  // Nemo finetunes which keep the classic [INST]-only 'mistral' format.
+  if (/tekken|mistral[-_ ]?(v?7|small[-_ ]?(3|24b)|2501|2503|2506)|magistral|devstral|cydonia[-_ ]?24b/.test(s)) return 'mistral-tekken';
   // Mistral family + the common Mistral-based RP finetunes
   if (/mistral|mixtral|nemo|cydonia|skyfall|magnum|miqu|codestral|pixtral|rocinante|unslop|patricide|mag[-_ ]?mell|lyra|dolphin[-_ ]?2\.[0-9]/.test(s)) return 'mistral';
   if (/qwen|qwq/.test(s)) return 'chatml';
@@ -1887,8 +1917,12 @@ function buildLlamaCppRequest(prompt, settings) {
  * Check if llama.cpp should use chat completion mode (Jinja server-side templating)
  */
 function useLlamaCppChat(settings) {
-  // Only use /v1/chat/completions if the user explicitly put it in their URL
-  return settings.llmUrl && settings.llmUrl.includes('/v1/chat/completions');
+  // Drive chat-vs-text from the chosen completion type, not just the URL string. detectApiType
+  // honors an explicit apiType ('chat_completion' -> /v1/chat/completions so llama.cpp applies the
+  // model's native template; 'text_completion' -> /completion with manual wrapping) and only
+  // falls back to URL sniffing when apiType is 'auto'. This makes the Model-tab selection actually
+  // take effect for llama.cpp instead of requiring the chat path to be hand-typed into the URL.
+  return detectApiType(settings.llmUrl, settings.apiType) === 'chat_completion';
 }
 
 /**
@@ -2042,6 +2076,8 @@ async function generateLlamaCpp(options) {
       template = 'llama3';
     } else if (tmplLower === 'llama2') {
       template = 'llama';
+    } else if (tmplLower === 'mistral-tekken' || caps.chatTemplate.includes('[SYSTEM_PROMPT]')) {
+      template = 'mistral-tekken';
     } else if (tmplLower === 'mistral' || caps.chatTemplate.includes('[INST]')) {
       template = 'mistral';
     } else if (tmplLower) {

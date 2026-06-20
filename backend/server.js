@@ -4838,7 +4838,20 @@ deviceService.setEventEmitter((eventType, data) => {
   if (eventType === 'device_off') {
     if (data && data.ip) delete pumpActiveSince[data.ip];
   }
+
+  // Phase 3 (Flow→Trigger): fire any per-card device_on/device_off event-bound trees. This is
+  // the tree-side equivalent of a flow's device trigger node — device events don't pass through
+  // eventEngine.handleEvent, so we dispatch directly off the same sink the broadcasts use.
+  if (eventType === 'device_on' || eventType === 'device_off') {
+    Promise.resolve(runEventTrees(eventType, data))
+      .catch(e => console.error('[EventTrees] device dispatch failed:', e?.message || e));
+  }
 });
+
+// Phase 3 (Flow→Trigger): route the flow engine's state-change detections to event-bound trees,
+// and start the server-side idle timer for idle event bindings (both are function-hoisted below).
+eventEngine.setTreeEventSink((eventType, eventData) => runEventTrees(eventType, eventData));
+startTreeIdleCheck();
 
 // ============================================
 // Always-on pump safety watchdog
@@ -5044,6 +5057,9 @@ ${who}'s belly keeps swelling, rounder by the second as the pump forces in more 
 [pump on]
 She cups ${who}'s inflating belly, feeling it push outward with every pulse.
 [pump on]
+She flips the switch and cranks the dial up a notch; the pump kicks on, steadily filling ${who}.
+[pump on]
+(ANY operating of the pump on ${who} = [pump on]: flips/throws the switch, hits the power button, adjusts/cranks the dial up, squeezes the bulb, works the handle/lever, starts the compressor, opens the valve, holds the trigger.)
 She slaps the kill switch; the hum dies and the pressure bleeds away.
 [pump off]
 NO tag — no change to ${who}'s air-flow (pump only mentioned, ${who} already inflated and merely described or held, OR someone other than ${who} is being pumped):
@@ -7732,6 +7748,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     // physical capacity (it must stay in sync with the real pump state).
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    resetEventTriggerState();
     sessionState.pendingTreeResume = null;
     sessionState.playerIsInflating = false;
 
@@ -7777,6 +7794,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    resetEventTriggerState();
     sessionState.pendingTreeResume = null;
     sessionState.playerIsInflating = false;
     autosaveSession();
@@ -7790,6 +7808,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    resetEventTriggerState();
     sessionState.pendingTreeResume = null;
     sessionState.playerIsInflating = false;
     autosaveSession();
@@ -10142,6 +10161,162 @@ function resolveRefTree(ref, treeIndex) {
   return null;
 }
 
+// ============================================
+// Event-Trigger layer (Phase 3 of Flow→Trigger migration)
+// ============================================
+//
+// The thing that replaces a flow's trigger node. Each card stores event bindings at
+// resolveScopeRefs(character).events = [{ id, event, filter, ref }]:
+//   event  ∈ {device_on, device_off, player_state_change, char_state_change, idle, random}
+//   filter = { deviceId } | { stateType, operator, value, fireOnce } | { idleSeconds } | { probability }
+//            (any binding may also carry { cooldown } = min messages between fires)
+//   ref    = the usual {inline}|{treeId} tree ref
+// A binding fires its tree via runTreeScope with scopeKey `event:<id>` (so `once` nodes are
+// stable per-binding). device/state/idle fire 'standalone'; random weaves 'inReply'.
+
+// Resolve the active character + settings for a push-style (async) event dispatch.
+function getActiveCharacterAndSettings() {
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  return { character, settings };
+}
+
+// Numeric comparison for state-change thresholds. Unknown operator => false (never fire).
+function compareEventOp(actual, operator, target) {
+  const a = Number(actual), t = Number(target);
+  if (Number.isNaN(a) || Number.isNaN(t)) return false;
+  switch (operator) {
+    case '>': return a > t;
+    case '>=': return a >= t;
+    case '<': return a < t;
+    case '<=': return a <= t;
+    case '==': return a === t;
+    case '!=': return a !== t;
+    default: return false;
+  }
+}
+
+// Per-session event-trigger runtime: fireOnce latches + message-cooldown stamps + idle latches.
+// Reset alongside firedTreeNodes (session/chat clear, new_session) via resetEventTriggerState.
+function resetEventTriggerState() {
+  sessionState.eventLatch = {};    // bindingId -> true while a fireOnce condition stays true
+  sessionState.eventCooldown = {}; // bindingId -> eventEngine.messageCount at last fire
+  sessionState.idleFired = {};     // bindingId -> the lastActivity stamp it last fired against
+}
+resetEventTriggerState();
+
+// Does a binding's filter match this event payload? Has the side effect of maintaining the
+// fireOnce latch for state-change bindings (arms on condition-false, blocks while true).
+function eventBindingMatches(b, eventType, data) {
+  const f = b.filter || {};
+  switch (eventType) {
+    case 'device_on':
+    case 'device_off': {
+      if (!f.deviceId) return true; // blank = any device
+      const ids = [data.ip, data.device?.ip, data.device?.deviceId, data.device?.id].filter(Boolean);
+      return ids.includes(f.deviceId);
+    }
+    case 'player_state_change':
+    case 'char_state_change': {
+      if (f.stateType && data.stateType !== f.stateType) return false;
+      const cond = compareEventOp(data.newValue, f.operator || '>=', f.value);
+      if (!cond) { if (f.fireOnce) delete sessionState.eventLatch[b.id]; return false; }
+      if (f.fireOnce) {
+        if (sessionState.eventLatch[b.id]) return false; // already fired during this true-period
+        sessionState.eventLatch[b.id] = true;            // latch until the condition flips false
+      }
+      return true;
+    }
+    case 'idle':   // gated by the idle timer (per-binding idleSeconds)
+    case 'random': // gated by the per-reply probability roll
+      return true;
+    default: return false;
+  }
+}
+
+// Optional per-binding message cooldown (mirrors the flow player_speaks cooldown): suppress if
+// the binding fired within `cooldown` messages. Message count is the flow engine's shared counter.
+function eventBindingCooldownOk(b) {
+  const cd = Number(b.filter?.cooldown) || 0;
+  if (cd <= 0) return true;
+  const last = sessionState.eventCooldown[b.id];
+  if (last === undefined) return true;
+  return (eventEngine.messageCount || 0) - last >= cd;
+}
+
+// Run one event binding's tree. Stamps the cooldown clock at fire time.
+async function fireEventBinding(b, character, settings, treeIndex, delivery) {
+  const tree = resolveRefTree(b.ref, treeIndex);
+  if (!tree) return;
+  sessionState.eventCooldown[b.id] = eventEngine.messageCount || 0;
+  await runTreeScope(tree, `event:${b.id}`, character, settings, { delivery: delivery || 'standalone', treeIndex });
+}
+
+// Push-style dispatch for discrete events (device_on/off, player/char_state_change). Resolves the
+// active card's bindings, filters by payload + cooldown, and runs each match. Never throws.
+async function runEventTrees(eventType, eventData = {}, opts = {}) {
+  try {
+    const ctx = opts.character ? opts : getActiveCharacterAndSettings();
+    const character = ctx.character, settings = ctx.settings;
+    if (!character) return;
+    const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === eventType);
+    if (!bindings.length) return;
+    const treeIndex = opts.treeIndex || buildTreeIndex();
+    for (const b of bindings) {
+      try {
+        // Cooldown first: it's read-only, so checking it before eventBindingMatches (which mutates
+        // the fireOnce latch) avoids latching a binding we then suppress.
+        if (!eventBindingCooldownOk(b)) continue;
+        if (!eventBindingMatches(b, eventType, eventData)) continue;
+        await fireEventBinding(b, character, settings, treeIndex, opts.delivery || 'standalone');
+      } catch (e) { console.error(`[runEventTrees] binding ${b?.id} (${eventType}) failed:`, e?.message || e); }
+    }
+  } catch (e) { console.error(`[runEventTrees] ${eventType} dispatch failed:`, e?.message || e); }
+}
+
+// Per-reply random event bindings: roll each one's probability and weave a hit IN-REPLY. Called
+// from runReplyScopes (after always-on) so a hit composes into the same turn like other scopes.
+async function runRandomEventTrees(character, settings, treeIndex) {
+  const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === 'random');
+  for (const b of bindings) {
+    try {
+      const p = Number(b.filter?.probability) || 0;
+      if (!(p > 0) || Math.random() * 100 >= p) continue;
+      if (!eventBindingCooldownOk(b)) continue;
+      await fireEventBinding(b, character, settings, treeIndex, 'inReply');
+    } catch (e) { console.error(`[runRandomEventTrees] binding ${b?.id} failed:`, e?.message || e); }
+  }
+}
+
+// Server-side idle timer for idle event bindings (mirrors the dormant eventEngine.idleTimer but
+// is independent of active flows). Fires each idle binding once per idle period: it latches on
+// the current lastActivity stamp and re-arms when lastActivity advances (i.e. on new activity).
+let treeIdleTimer = null;
+function startTreeIdleCheck() {
+  if (treeIdleTimer) clearInterval(treeIdleTimer);
+  treeIdleTimer = setInterval(() => {
+    try {
+      const { character, settings } = getActiveCharacterAndSettings();
+      if (!character) return;
+      const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === 'idle');
+      if (!bindings.length) return;
+      const lastActivity = eventEngine.lastActivity || 0;
+      const idleSec = (Date.now() - lastActivity) / 1000;
+      const treeIndex = buildTreeIndex();
+      for (const b of bindings) {
+        const threshold = Number(b.filter?.idleSeconds) || 300;
+        if (idleSec < threshold) continue;
+        if (sessionState.idleFired[b.id] === lastActivity) continue; // already fired this idle period
+        if (!eventBindingCooldownOk(b)) continue;
+        sessionState.idleFired[b.id] = lastActivity;
+        Promise.resolve(fireEventBinding(b, character, settings, treeIndex, 'standalone'))
+          .catch(e => console.error(`[treeIdle] binding ${b?.id} failed:`, e?.message || e));
+      }
+    } catch (e) { console.error('[treeIdle] tick failed:', e?.message || e); }
+  }, 5000);
+}
+
 // Run the Always-On tree scope IN-REPLY every reply (recurring ambient guidance/triggers),
 // composed after the range trees. Resolves inline OR {treeId} library refs.
 async function runActiveAlwaysOn(character, settings, treeIndex) {
@@ -10195,6 +10370,9 @@ async function runReplyScopes(character) {
   if (sessionState.pendingTreeChoice) return; // a player_choice suspended the turn — stop further scopes
   try { await runActiveAlwaysOn(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] always-on failed:', e?.message || e); }
+  if (sessionState.pendingTreeChoice) return; // always-on may have suspended — don't roll random events
+  try { await runRandomEventTrees(character, settings, treeIndex); } // Phase 3: per-reply random event bindings
+  catch (e) { console.error('[runReplyScopes] random events failed:', e?.message || e); }
 }
 
 // block-set carries over into higher ranges that define no blocks of their own.
@@ -16767,6 +16945,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.chatMemorySummaryUpTo = 0;
   firedCheckpointTriggers.clear();
   sessionState.firedTreeNodes.clear();
+  resetEventTriggerState();
   sessionState.pendingTreeResume = null;
   sessionState.playerIsInflating = false;
   sessionState.flowVariables = {};

@@ -1871,6 +1871,75 @@
           }
         ]
       }
+    },
+    {
+      "id": "player-1781933594516",
+      "name": "JessTest1",
+      "builtIn": false,
+      "checkpoints": {
+        "0": "Build excitement and anticipation. [Player] is eager to begin. Flirt with the idea of inflation. Let the tension build naturally before starting.",
+        "1-10": {
+          "mainTheme": ""
+        },
+        "11-20": {
+          "mainTheme": ""
+        },
+        "21-30": {
+          "mainTheme": ""
+        },
+        "31-40": {
+          "mainTheme": ""
+        },
+        "41-50": {
+          "mainTheme": ""
+        },
+        "51-60": {
+          "mainTheme": ""
+        },
+        "61-70": {
+          "mainTheme": ""
+        },
+        "71-80": {
+          "mainTheme": ""
+        },
+        "81-90": {
+          "mainTheme": ""
+        },
+        "91-100": {
+          "mainTheme": ""
+        },
+        "100+": {
+          "mainTheme": ""
+        }
+      },
+      "checkpointTriggers": {
+        "player-0": [
+          {
+            "type": "set_emotion",
+            "id": "t1",
+            "emotion": "excited"
+          },
+          {
+            "type": "set_char_inflate_desire",
+            "id": "t1b",
+            "value": "eager"
+          }
+        ],
+        "player-1-10": [
+          {
+            "type": "set_emotion",
+            "id": "t2",
+            "emotion": "aroused"
+          }
+        ],
+        "player-51-60": [
+          {
+            "type": "set_player_pain",
+            "id": "t7",
+            "value": 5
+          }
+        ]
+      }
     }
   ],
   "character": [

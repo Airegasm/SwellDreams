@@ -5,6 +5,7 @@ import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
+import EventTriggersSection from '../common/EventTriggersSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
@@ -604,6 +605,21 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   source={`from card: ${formData.name || 'instructor'}`}
                   rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
               </div>
+            );
+          })()}
+
+          {/* ===== Event Triggers (per profile) — fire a tree on a discrete event ===== */}
+          {(() => {
+            const evts = selProfile?.treeRefs?.events || [];
+            const setEvents = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
+              ? { ...p, treeRefs: { ...(p.treeRefs || {}), events: next } }
+              : p));
+            return (
+              <CollapsibleSection title="Event Triggers" subtitle="fire a tree on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
+                <EventTriggersSection events={evts} onChange={setEvents}
+                  source={`from card: ${formData.name || 'instructor'}`}
+                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
+              </CollapsibleSection>
             );
           })()}
 

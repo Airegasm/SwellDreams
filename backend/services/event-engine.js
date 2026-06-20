@@ -5930,19 +5930,26 @@ class EventEngine {
     for (const change of changes) {
       console.log(`[EventEngine] Player state changed: ${change.stateType} from ${change.oldValue} to ${change.newValue}`);
       await this.handleEvent('player_state_change', change);
+      if (this.treeEventSink) { try { await this.treeEventSink('player_state_change', change); } catch (e) { console.error('[EventEngine] treeEventSink (player) failed:', e?.message || e); } }
     }
   }
   async checkCharacterStateChanges(newState) {
     if (newState.characterCapacity !== this.previousCharacterCapacity) {
       console.log(`[EventEngine] Character capacity changed: ${this.previousCharacterCapacity} -> ${newState.characterCapacity}`);
-      this.previousCharacterCapacity = newState.characterCapacity;
-      await this.handleEvent('char_state_change', {
+      const change = {
         stateType: 'characterCapacity',
         oldValue: this.previousCharacterCapacity,
         newValue: newState.characterCapacity
-      });
+      };
+      this.previousCharacterCapacity = newState.characterCapacity;
+      await this.handleEvent('char_state_change', change);
+      if (this.treeEventSink) { try { await this.treeEventSink('char_state_change', change); } catch (e) { console.error('[EventEngine] treeEventSink (char) failed:', e?.message || e); } }
     }
   }
+
+  // Phase 3 (Flow→Trigger): a sink the server registers so per-card event-bound Trigger Trees
+  // fire on the same state-change detections that drive flows. sink(eventType, eventData).
+  setTreeEventSink(fn) { this.treeEventSink = fn; }
 }
 
 module.exports = EventEngine;

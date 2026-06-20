@@ -8,6 +8,7 @@ import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
+import EventTriggersSection from '../common/EventTriggersSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
@@ -3083,6 +3084,11 @@ Write only the scenario description itself, no explanations.`;
                     <CollapsibleSection title="Always-On" subtitle="runs every reply (recurring each turn, once nodes once)" badge={nodeCount(treeRefs.alwaysOn)}>
                       <ScopeTreeSection label="" hint="" refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
                         defaultName="Always On" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
+                    </CollapsibleSection>
+
+                    <CollapsibleSection title="Event Triggers" subtitle="fire a tree on a discrete event (device / state / idle / random)" badge={treeRefs.events?.length ? `${treeRefs.events.length}` : ''}>
+                      <EventTriggersSection events={treeRefs.events || []} onChange={(next) => setScope('events', next)}
+                        source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
                     </CollapsibleSection>
                   </>
                 );
