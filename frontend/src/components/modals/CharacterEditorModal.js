@@ -10,6 +10,7 @@ import ScopeTreeSection from '../common/ScopeTreeSection';
 import EventTriggersSection from '../common/EventTriggersSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CardLoreSection from '../common/CardLoreSection';
+import CheckpointProfiles from '../common/CheckpointProfiles';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import { EMOTIONS } from '../../constants/stateValues';
@@ -3113,75 +3114,14 @@ Write only the scenario description itself, no explanations.`;
                   )}
                 </>
               ) : (
-                <>
-                  <h4>Capacity Checkpoints</h4>
-                  <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
-
-                  <div className="checkpoint-profile-bar">
-                    <select
-                      value={selectedPlayerProfile}
-                      onChange={(e) => handleLoadProfile(e.target.value, 'player')}
-                      className="checkpoint-profile-select"
-                    >
-                      <option value="">-- Load Profile --</option>
-                      {(checkpointProfiles.player || []).map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('player')}>Save As New</button>
-                    {selectedPlayerProfile && !(checkpointProfiles.player || []).find(p => p.id === selectedPlayerProfile)?.builtIn && (
-                      <>
-                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('player')}>
-                          Update{profileDirty.player ? ' !' : ''}
-                        </button>
-                        <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('player')}>Delete</button>
-                      </>
-                    )}
-                  </div>
-                  {[
-                    { key: '1-10', label: '0–10%' },
-                    { key: '11-20', label: '11–20%' },
-                    { key: '21-30', label: '21–30%' },
-                    { key: '31-40', label: '31–40%' },
-                    { key: '41-50', label: '41–50%' },
-                    { key: '51-60', label: '51–60%' },
-                    { key: '61-70', label: '61–70%' },
-                    { key: '71-80', label: '71–80%' },
-                    { key: '81-90', label: '81–90%' },
-                    { key: '91-100', label: '91–100%' },
-                    { key: '100+', label: '100%+ — Over-Inflation' }
-                  ].map(({ key, label, hint }) => (
-                    <CollapsibleSection key={key} title={label} subtitle={hint}
-                      open={!!visibleCheckpoints[`player-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: v }))}>
-                        <label className="ci-label">Main theme</label>
-                        <textarea
-                          className="ci-main-theme"
-                          value={(typeof activeStory?.checkpoints?.[key] === 'string' ? activeStory.checkpoints[key] : activeStory?.checkpoints?.[key]?.mainTheme) || ''}
-                          onChange={(e) => {
-                            const cur = activeStory?.checkpoints?.[key];
-                            const obj = (cur && typeof cur === 'object') ? cur : {};
-                            updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
-                            setProfileDirty(prev => ({ ...prev, player: true }));
-                          }}
-                          placeholder="Always-on guidance while capacity is in this range…"
-                          rows={2}
-                        />
-                        <RangeTriggerEditor
-                          value={activeStory?.checkpointTriggers?.[`player-${key}`]}
-                          onChange={(v) => { updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [`player-${key}`]: v }); setProfileDirty(prev => ({ ...prev, player: true })); }}
-                          triggerSets={triggerSets}
-                          isPumpable={false}
-                          reminders={formData.globalReminders || []}
-                          globalReminders={systemGlobalReminders}
-                        />
-                        <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this range"
-                          refValue={activeStory?.treeRefs?.ranges?.[`player-${key}`]}
-                          onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
-                          defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
-                          rowProps={{ triggerSets, isPumpable: false, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                    </CollapsibleSection>
-                  ))}
-                </>
+                <CheckpointProfiles
+                  story={activeStory}
+                  updateStory={updateStoryField}
+                  defaultPumpType={formData.defaultPumpType}
+                  cardName={formData.name || 'character'}
+                  triggerSets={triggerSets}
+                  rowProps={{ reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }}
+                />
               )}
             </div>
           </div>
