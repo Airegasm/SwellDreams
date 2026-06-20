@@ -10,6 +10,7 @@ import CheckpointProfiles from '../common/CheckpointProfiles';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
+import CardLoreSection from '../common/CardLoreSection';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 import './MultiCharEditorModal.css';
@@ -319,7 +320,6 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
   const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
   const [selectedButtonToAdd, setSelectedButtonToAdd] = useState('');
   const [selectedConstantReminder, setSelectedConstantReminder] = useState('');
-  const [selectedGlobalReminder, setSelectedGlobalReminder] = useState('');
   const [draggedButtonId, setDraggedButtonId] = useState(null);
   const fileInputRef = React.useRef(null);
   const lorebookFileInputRef = React.useRef(null);
@@ -375,11 +375,6 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
     return globalReminders.filter(r => !assignedIds.includes(r.id));
   }, [globalReminders, activeStory?.constantReminderIds]);
 
-  const availableGlobalReminders = useMemo(() => {
-    if (!activeStory) return [];
-    const assignedIds = activeStory.globalReminderIds || [];
-    return systemGlobalReminders.filter(r => !assignedIds.includes(r.id));
-  }, [systemGlobalReminders, activeStory?.globalReminderIds]);
 
   if (!isOpen) return null;
 
@@ -999,20 +994,6 @@ Write only the scenario description itself, no explanations.`;
     updateStoryField('constantReminderIds', currentIds.filter(id => id !== reminderId));
   };
 
-  const handleAddGlobalReminder = () => {
-    if (!selectedGlobalReminder) return;
-    const currentIds = activeStory?.globalReminderIds || [];
-    if (!currentIds.includes(selectedGlobalReminder)) {
-      updateStoryField('globalReminderIds', [...currentIds, selectedGlobalReminder]);
-    }
-    setSelectedGlobalReminder('');
-  };
-
-  const handleRemoveGlobalReminder = (reminderId) => {
-    const currentIds = activeStory?.globalReminderIds || [];
-    updateStoryField('globalReminderIds', currentIds.filter(id => id !== reminderId));
-  };
-
   // Submit
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1268,7 +1249,7 @@ Write only the scenario description itself, no explanations.`;
 
       if (newReminders.length === 0) throw new Error('No valid lorebook entries found.');
       setFormData({ ...formData, globalReminders: [...globalReminders, ...newReminders] });
-      alert(`Successfully imported ${newReminders.length} lorebook entries as Custom Reminders.`);
+      alert(`Successfully imported ${newReminders.length} lorebook entries as Library.`);
     } catch (error) {
       console.error('Failed to import lorebook:', error);
       alert(error.message || 'Failed to import lorebook file');
@@ -1296,7 +1277,7 @@ Write only the scenario description itself, no explanations.`;
             Characters
           </button>
           <button type="button" className={`modal-tab ${activeTab === 'reminders' ? 'active' : ''}`} onClick={() => setActiveTab('reminders')}>
-            Custom Reminders
+            Library
           </button>
           <button type="button" className={`modal-tab ${activeTab === 'events' ? 'active' : ''}`} onClick={() => setActiveTab('events')}>
             Custom Buttons
@@ -1925,7 +1906,7 @@ Write only the scenario description itself, no explanations.`;
                   <label className="subsection-label">Story Details</label>
 
                   <div className="story-field">
-                    <label>Constant Reminders (from Custom Reminders)</label>
+                    <label>Constant Reminders (from Library)</label>
                     <div className="dropdown-add-row">
                       <select
                         value={selectedConstantReminder}
@@ -1956,37 +1937,9 @@ Write only the scenario description itself, no explanations.`;
                     </div>
                   </div>
 
-                  <div className="story-field">
-                    <label>Global Reminders (from Settings)</label>
-                    <div className="dropdown-add-row">
-                      <select
-                        value={selectedGlobalReminder}
-                        onChange={(e) => setSelectedGlobalReminder(e.target.value)}
-                        className="association-dropdown"
-                      >
-                        <option value="">Select a reminder...</option>
-                        {availableGlobalReminders.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                      <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddGlobalReminder} disabled={!selectedGlobalReminder}>+</button>
-                    </div>
-                    <div className="association-badges">
-                      {(activeStory?.globalReminderIds || []).length === 0 ? (
-                        <span className="empty-hint">No global reminders assigned</span>
-                      ) : (
-                        (activeStory?.globalReminderIds || []).map(reminderId => {
-                          const reminder = systemGlobalReminders.find(r => r.id === reminderId);
-                          return reminder ? (
-                            <span key={reminderId} className="assoc-badge">
-                              {reminder.name}
-                              <button type="button" className="badge-remove" onClick={() => handleRemoveGlobalReminder(reminderId)}>−</button>
-                            </span>
-                          ) : null;
-                        })
-                      )}
-                    </div>
-                  </div>
+                  {/* Card lore: Dictionary group selection + shared Library groups (replaces the
+                      retired global-reminders card UI). */}
+                  <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} />
                 </div>
 
                 {/* Session Defaults (per-story) */}
@@ -2072,13 +2025,13 @@ Write only the scenario description itself, no explanations.`;
             </div>
           </div>
 
-          {/* Custom Reminders Tab */}
+          {/* Library Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'reminders' ? 'block' : 'none' }}>
             <div className="reminders-editor">
               {!showReminderForm ? (
                 <>
                   <div className="events-header">
-                    <h4>Custom Reminders</h4>
+                    <h4>Library</h4>
                     <div className="events-header-actions">
                       <input
                         type="file"
@@ -2137,7 +2090,7 @@ Write only the scenario description itself, no explanations.`;
                 </>
               ) : (
                 <div className="event-form">
-                  <h4>{editingReminderId ? 'Edit' : 'Add'} Custom Reminder</h4>
+                  <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
                   <div className="form-group">
                     <label>Reminder Name *</label>
                     <input

@@ -5300,7 +5300,7 @@ async function sendWelcomeMessage(character, settings) {
 
       // Always-on global dictionary, unless this instructor opts out (Use Card Library Only)
       if (!(isInstructor(character) && character.ignoreDictionary)) {
-        systemPrompt += buildDictionaryPrompt();
+        systemPrompt += buildDictionaryPrompt(character);
       }
 
       // Add active reminders (using reminder engine for keyword-based activation)
@@ -5308,7 +5308,7 @@ async function sendWelcomeMessage(character, settings) {
       const recentMessages = reminderEngine.extractRecentMessages(sessionState.chatHistory, memSettingsAutoReply.reminderScanDepth);
       const activeReminders = reminderEngine.getMergedActiveReminders(
         character.constantReminders || [],
-        settings.globalReminders || [],
+        getSharedLibraryTermEntries(character),
         recentMessages
       );
       if (activeReminders.length > 0) {
@@ -11359,7 +11359,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     const recentMessagesImp = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
     const activeRemindersImp = reminderEngine.getMergedActiveReminders(
       character.constantReminders || [],
-      settings.globalReminders || [],
+      getSharedLibraryTermEntries(character),
       recentMessagesImp
     );
     if (activeRemindersImp.length > 0) {
@@ -11397,7 +11397,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     const recentMessagesGuided = reminderEngine.extractRecentMessages(sessionState.chatHistory, getChatMemorySettings(settings).reminderScanDepth);
     const activeRemindersGuided = reminderEngine.getMergedActiveReminders(
       character.constantReminders || [],
-      settings.globalReminders || [],
+      getSharedLibraryTermEntries(character),
       recentMessagesGuided
     );
     if (activeRemindersGuided.length > 0) {
@@ -11697,6 +11697,27 @@ function getInstructorActiveTerms(character, recentMessages) {
   return reminderEngine.getActiveEntries(terms, recentMessages, { maxRecursion: 3 });
 }
 
+// Shared card-Library pool: the instructor-library.json groups a card opts into via
+// `activeStory.libraryGroupIds`. Generalizes the instructor library to ALL card types — returns
+// raw reminder-shaped entries (term + extra keys trigger; constant => always-on) for the unified
+// engine. Fed into the global-pool slot of getMergedActiveReminders, which runs the activation.
+function getSharedLibraryTermEntries(character) {
+  const story = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const ids = Array.isArray(story?.libraryGroupIds) ? story.libraryGroupIds : [];
+  if (!ids.length) return [];
+  const groups = loadInstructorLibrary().groups || [];
+  const out = [];
+  for (const g of groups) {
+    if (!ids.includes(g.id)) continue;
+    for (const t of (g.terms || [])) {
+      if (!t || !t.definition || !t.term) continue;
+      const keys = [t.term, ...(Array.isArray(t.keys) ? t.keys : [])].filter(Boolean);
+      out.push({ name: t.term, text: `${t.term}: ${t.definition}`, constant: !!t.constant, keys, caseSensitive: !!t.caseSensitive, enabled: t.enabled !== false });
+    }
+  }
+  return out;
+}
+
 // ===== Global Dictionary =====
 // Always-on, global term definitions injected into every character's system prompt.
 // Same group/term structure as the Instructor Library, but never keyword-gated and not
@@ -11719,11 +11740,16 @@ function saveDictionary(data) {
 // with comma-separated trigger words are keyword-gated against recent messages.
 // Routed through the reminder engine so multiple matching phrases activate
 // multiple entries in a single generation.
-function buildDictionaryPrompt() {
+function buildDictionaryPrompt(character) {
   const groups = loadDictionary().groups || [];
+  // Card Dictionary selection: if the active story names specific dictionaryGroupIds, only those
+  // groups apply; otherwise ALL groups stay always-on (prior behavior — backward compatible).
+  const story = character && (character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0]);
+  const selected = (story && Array.isArray(story.dictionaryGroupIds) && story.dictionaryGroupIds.length) ? new Set(story.dictionaryGroupIds) : null;
   const entries = [];
   for (const g of groups) {
     if (g.enabled === false) continue;
+    if (selected && !selected.has(g.id)) continue;
     for (const t of (g.terms || [])) {
       const term = t?.term ?? t?.title;
       const def = t?.definition ?? t?.content;
@@ -11842,8 +11868,45 @@ function ensureDefaultDictionary() {
   console.log('[Startup] Seeded default dictionary group: Inflation Tools');
 }
 
+// One-time migration: fold the retired system-wide settings.globalReminders into a Dictionary
+// group ("Migrated Reminders") so the lore survives. The always-on Dictionary then injects them
+// for all cards, preserving prior behavior. Constant (keyless) reminders stay always-on; keyworded
+// ones keep their keys. Guarded by settings.migratedGlobalReminders so it runs exactly once.
+function migrateGlobalRemindersToDictionary() {
+  const settings = loadData(DATA_FILES.settings) || {};
+  if (settings.migratedGlobalReminders) return;
+  const reminders = Array.isArray(settings.globalReminders) ? settings.globalReminders : [];
+  if (reminders.length) {
+    const data = loadDictionary();
+    if (!Array.isArray(data.groups)) data.groups = [];
+    const GROUP_ID = 'dict-migrated-reminders';
+    if (!data.groups.some(g => g.id === GROUP_ID)) {
+      const terms = reminders.map((r, i) => {
+        const keys = Array.isArray(r.keys) ? r.keys
+          : (typeof r.keys === 'string' ? r.keys.split(',').map(s => s.trim()).filter(Boolean) : []);
+        return {
+          id: `migrem-${r.id || i}`,
+          term: r.name || r.title || `Reminder ${i + 1}`,
+          definition: r.text || r.content || r.definition || '',
+          keys,
+          constant: r.constant === true || keys.length === 0, // keyless reminder => always-on
+          enabled: r.enabled !== false,
+        };
+      }).filter(t => t.definition);
+      if (terms.length) {
+        data.groups.push({ id: GROUP_ID, name: 'Migrated Reminders', enabled: true, terms });
+        saveDictionary(data);
+        console.log(`[Startup] Migrated ${terms.length} global reminder(s) -> Dictionary group "Migrated Reminders"`);
+      }
+    }
+  }
+  settings.migratedGlobalReminders = true;
+  saveData(DATA_FILES.settings, settings);
+}
+
 ensureDefaultInstructorProfiles();
 ensureDefaultDictionary();
+migrateGlobalRemindersToDictionary();
 
 function buildChatContext(character, settings) {
   const personas = loadAllPersonas() || [];
@@ -11995,7 +12058,7 @@ function buildChatContext(character, settings) {
     ];
     const activeRemindersChat = reminderEngine.getMergedActiveReminders(
       localLibrary,
-      settings.globalReminders || [],
+      getSharedLibraryTermEntries(character),
       recentMessagesChat
     );
     if (activeRemindersChat.length > 0) {

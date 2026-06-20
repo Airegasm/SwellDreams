@@ -44,7 +44,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
   };
 
   // Modal pages that need exit animation before navigation
-  const MODAL_PAGES = ['/personas', '/characters', '/media-album', '/settings'];
+  const MODAL_PAGES = ['/personas', '/characters', '/media-album', '/settings', '/dictionary'];
 
   // Check if current page is a modal page
   const isOnModalPage = () => {
@@ -188,6 +188,14 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
           onClick={(e) => handleNavClick(e, '/triggers')}
         >
           Triggers
+        </NavLink>
+
+        <NavLink
+          to="/dictionary"
+          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
+          onClick={(e) => handleNavClick(e, '/dictionary')}
+        >
+          Dictionary
         </NavLink>
 
         <NavLink
