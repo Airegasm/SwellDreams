@@ -5,6 +5,7 @@ import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
+import LoreEntryEditor from '../common/LoreEntryEditor';
 import EventTriggersSection from '../common/EventTriggersSection';
 import CheckpointProfiles from '../common/CheckpointProfiles';
 import CollapsibleSection from '../common/CollapsibleSection';
@@ -70,6 +71,7 @@ function buildInitialData(character) {
     responseTokens: character?.responseTokens ?? '',
     historyDepth: character?.historyDepth ?? '',
     exampleDialogues: Array.isArray(character?.exampleDialogues) ? character.exampleDialogues : [],
+    globalReminders: character?.globalReminders || character?.constantReminders || [],
     story: {
       id: story?.id || 'story-1',
       name: story?.name || 'Mission',
@@ -114,6 +116,46 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
   const [availableSkins, setAvailableSkins] = useState([]);
   const [triggerSets, setTriggerSets] = useState([]);
   const fileInputRef = useRef(null);
+
+  // Card Library — the instructor's OWN lorebook entries (shared editor; full caps). Saved as
+  // constantReminders so the standard reminder engine injects them, same as other card types.
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [editingReminderId, setEditingReminderId] = useState(null);
+  const emptyReminderForm = () => ({ name: '', text: '', target: 'character', keys: [], secondaryKeys: [], logic: 'and_any', probability: 100, group: '', recurse: true, caseSensitive: false, priority: 100, scanDepth: 10 });
+  const [reminderForm, setReminderForm] = useState(emptyReminderForm());
+  const ownEntries = formData.globalReminders || [];
+  const setOwnEntries = (next) => setFormData(prev => ({ ...prev, globalReminders: next }));
+  const handleAddReminder = () => { setEditingReminderId(null); setReminderForm(emptyReminderForm()); setShowReminderForm(true); };
+  const handleEditReminder = (r) => {
+    setEditingReminderId(r.id);
+    setReminderForm({
+      name: r.name, text: r.text, target: r.target || 'character', keys: r.keys || [], secondaryKeys: r.secondaryKeys || [],
+      logic: r.logic || 'and_any', probability: r.probability == null ? 100 : r.probability, group: r.group || '',
+      recurse: r.recurse !== false, caseSensitive: r.caseSensitive || false,
+      priority: r.priority !== undefined ? r.priority : 100, scanDepth: r.scanDepth !== undefined ? r.scanDepth : 10,
+    });
+    setShowReminderForm(true);
+  };
+  const handleDeleteReminder = (id) => { if (window.confirm('Delete this entry?')) setOwnEntries(ownEntries.filter(r => r.id !== id)); };
+  const handleToggleReminder = (id, enabled) => setOwnEntries(ownEntries.map(r => (r.id === id ? { ...r, enabled } : r)));
+  const handleSaveReminder = () => {
+    if (!reminderForm.name.trim() || !reminderForm.text.trim()) { alert('Title and content are required'); return; }
+    const keys = reminderForm.keys || [];
+    const fields = {
+      name: reminderForm.name, text: reminderForm.text, target: reminderForm.target, keys,
+      secondaryKeys: reminderForm.secondaryKeys || [], logic: reminderForm.logic || 'and_any',
+      probability: reminderForm.probability === '' || reminderForm.probability == null ? 100 : Number(reminderForm.probability),
+      group: (reminderForm.group || '').trim(), recurse: reminderForm.recurse !== false,
+      caseSensitive: reminderForm.caseSensitive || false,
+      priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
+      scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10,
+      constant: keys.length === 0,
+    };
+    if (editingReminderId) setOwnEntries(ownEntries.map(r => (r.id === editingReminderId ? { ...r, ...fields } : r)));
+    else setOwnEntries([...ownEntries, { id: `reminder-${Date.now()}`, enabled: true, ...fields }]);
+    setShowReminderForm(false); setEditingReminderId(null); setReminderForm(emptyReminderForm());
+  };
+  const handleCancelReminderEdit = () => { setShowReminderForm(false); setEditingReminderId(null); setReminderForm(emptyReminderForm()); };
 
   // Re-seed form whenever the modal is (re)opened for a different card.
   useEffect(() => {
@@ -287,6 +329,8 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       personality: '',
       instructorProfileId: formData.instructorProfileId,
       instructorLibraryGroupIds: formData.instructorLibraryGroupIds,
+      globalReminders: formData.globalReminders || [],
+      constantReminders: formData.globalReminders || [], // engine reads constantReminders
       ignoreDictionary: !!formData.ignoreDictionary,
       ignoreTokenSwapping: !!formData.ignoreTokenSwapping,
       defaultPumpType: formData.defaultPumpType || 'electric',
@@ -463,6 +507,43 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               </div>
             )}
             <p className="section-hint">Assigned terms are injected only when the player uses them (keyword-triggered).</p>
+          </div>
+
+          <div className="form-group">
+            <label>Card Library <span className="text-muted">— this instructor's own entries</span></label>
+            {!showReminderForm ? (
+              <>
+                {ownEntries.length === 0 ? (
+                  <p className="section-hint">No entries yet. Same lorebook format as the Dictionary — blank keywords = always-on.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {ownEntries.map(r => (
+                      <div key={r.id} className="reminder-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input type="checkbox" checked={r.enabled !== false} onChange={(e) => handleToggleReminder(r.id, e.target.checked)} title="Enabled" />
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.name || '(untitled)'} <span className="text-muted">· {(r.keys?.length || 0) === 0 ? 'always-on' : `${r.keys.length} keys`}</span>
+                        </span>
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleEditReminder(r)}>Edit</button>
+                        <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteReminder(r.id)}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 6 }} onClick={handleAddReminder}>+ Add Entry</button>
+              </>
+            ) : (
+              <div className="event-form">
+                <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
+                <LoreEntryEditor
+                  entry={{ ...reminderForm, title: reminderForm.name, content: reminderForm.text }}
+                  onChange={(c) => setReminderForm({ ...reminderForm, ...c, name: c.title, text: c.content })}
+                />
+                <div className="event-form-buttons" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>
+                  <button type="button" className="btn btn-primary" onClick={handleSaveReminder}>{editingReminderId ? 'Update' : 'Create'}</button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="form-group instr-toggles">

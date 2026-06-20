@@ -4,9 +4,9 @@ import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
-import KeywordInput from '../common/KeywordInput';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
+import LoreEntryEditor from '../common/LoreEntryEditor';
 import EventTriggersSection from '../common/EventTriggersSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CardLoreSection from '../common/CardLoreSection';
@@ -346,8 +346,6 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
     group: '',
     recurse: true
   });
-  // Per-entry "show advanced" toggles in the lorebook-format Library editor.
-  const [reminderAdvOpen, setReminderAdvOpen] = useState(false);
   // Dropdown selections for story associations
   const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
   const [selectedButtonToAdd, setSelectedButtonToAdd] = useState('');
@@ -2621,90 +2619,10 @@ Write only the scenario description itself, no explanations.`;
               ) : (
                 <div className="event-form">
                   <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
-                  <div className="form-group">
-                    <label>Title *</label>
-                    <input
-                      type="text"
-                      value={reminderForm.name}
-                      onChange={(e) => setReminderForm({ ...reminderForm, name: e.target.value })}
-                      placeholder="Entry title (e.g. Bike Pump)"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Trigger Keywords</label>
-                    <KeywordInput
-                      values={reminderForm.keys || []}
-                      onChange={(keys) => setReminderForm({ ...reminderForm, keys })}
-                      placeholder="Type keyword and press Enter… (blank = always-on)"
-                    />
-                    <span className="field-hint">{(reminderForm.keys || []).length === 0 ? 'No keywords → always-on (constant).' : 'Activates when any keyword appears in recent messages.'}</span>
-                  </div>
-                  <div className="form-group">
-                    <label>Content *</label>
-                    <textarea
-                      value={reminderForm.text}
-                      onChange={(e) => setReminderForm({ ...reminderForm, text: e.target.value })}
-                      placeholder="What the AI should know / remember…"
-                      rows={4}
-                    />
-                  </div>
-
-                  {/* Advanced (lorebook semantics) */}
-                  <button type="button" className="dict-adv-toggle" onClick={() => setReminderAdvOpen(o => !o)}>
-                    {reminderAdvOpen ? '▾ Advanced' : '▸ Advanced'}
-                  </button>
-                  {reminderAdvOpen && (
-                    <div className="dict-adv">
-                      <div className="form-group">
-                        <label>Secondary Keys</label>
-                        <KeywordInput
-                          values={reminderForm.secondaryKeys || []}
-                          onChange={(secondaryKeys) => setReminderForm({ ...reminderForm, secondaryKeys })}
-                          placeholder="Optional — combined with the triggers via the logic below"
-                        />
-                      </div>
-                      <div className="dict-adv-row">
-                        <label className="dict-adv-field" title="How secondary keys combine with the triggers">Logic
-                          <select value={reminderForm.logic || 'and_any'} onChange={(e) => setReminderForm({ ...reminderForm, logic: e.target.value })}>
-                            <option value="and_any">trigger AND any secondary</option>
-                            <option value="and_all">trigger AND all secondary</option>
-                            <option value="not_any">trigger AND no secondary</option>
-                            <option value="not_all">trigger AND not all secondary</option>
-                          </select>
-                        </label>
-                        <label className="dict-adv-field" title="Chance to activate when matched">% chance
-                          <input type="number" min={0} max={100} value={reminderForm.probability ?? 100} onChange={(e) => setReminderForm({ ...reminderForm, probability: e.target.value })} />
-                        </label>
-                        <label className="dict-adv-field" title="Inclusion group — only one entry per group activates per turn">Group
-                          <input type="text" value={reminderForm.group || ''} onChange={(e) => setReminderForm({ ...reminderForm, group: e.target.value })} placeholder="(none)" />
-                        </label>
-                      </div>
-                      <div className="dict-adv-row">
-                        <label className="dict-adv-field" title="Where this entry is shown">Display position
-                          <select value={reminderForm.target || 'character'} onChange={(e) => setReminderForm({ ...reminderForm, target: e.target.value })}>
-                            <option value="character">Character</option>
-                            <option value="player">Player</option>
-                          </select>
-                        </label>
-                        <label className="dict-adv-field" title="How many recent messages to scan for keywords (0 = all)">Scan depth
-                          <input type="number" min={0} max={100} value={reminderForm.scanDepth ?? 10} onChange={(e) => setReminderForm({ ...reminderForm, scanDepth: parseInt(e.target.value) || 0 })} />
-                        </label>
-                        <label className="dict-adv-field" title="Insertion order — higher appears earlier in the prompt">Priority
-                          <input type="number" min={0} max={1000} value={reminderForm.priority ?? 100} onChange={(e) => setReminderForm({ ...reminderForm, priority: parseInt(e.target.value) || 100 })} />
-                        </label>
-                      </div>
-                      <div className="dict-adv-row">
-                        <label className="dict-adv-check" title="Recursion: let this entry's content trigger other entries' keywords">
-                          <input type="checkbox" checked={reminderForm.recurse !== false} onChange={(e) => setReminderForm({ ...reminderForm, recurse: e.target.checked })} />
-                          <span>recursion</span>
-                        </label>
-                        <label className="dict-adv-check" title="Match keywords case-sensitively">
-                          <input type="checkbox" checked={reminderForm.caseSensitive || false} onChange={(e) => setReminderForm({ ...reminderForm, caseSensitive: e.target.checked })} />
-                          <span>case sensitive</span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
+                  <LoreEntryEditor
+                    entry={{ ...reminderForm, title: reminderForm.name, content: reminderForm.text }}
+                    onChange={(c) => setReminderForm({ ...reminderForm, ...c, name: c.title, text: c.content })}
+                  />
 
                   <div className="event-form-buttons">
                     <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>

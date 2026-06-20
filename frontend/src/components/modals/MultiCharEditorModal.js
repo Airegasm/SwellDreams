@@ -3,9 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
-import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
 import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
+import LoreEntryEditor from '../common/LoreEntryEditor';
 import CheckpointProfiles from '../common/CheckpointProfiles';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
@@ -1160,10 +1160,12 @@ Write only the scenario description itself, no explanations.`;
     setButtonForm({ ...buttonForm, actions: updatedActions });
   };
 
-  // Reminder management
+  // Reminder management — lorebook-format Library entries (full cap set, shared editor).
+  const emptyReminderForm = () => ({ name: '', text: '', target: 'character', keys: [], secondaryKeys: [], logic: 'and_any', probability: 100, group: '', recurse: true, caseSensitive: false, priority: 100, scanDepth: 10 });
+
   const handleAddReminder = () => {
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character', constant: true, keys: [], caseSensitive: false, priority: 100, scanDepth: 10 });
+    setReminderForm(emptyReminderForm());
     setShowReminderForm(true);
   };
 
@@ -1171,7 +1173,11 @@ Write only the scenario description itself, no explanations.`;
     setEditingReminderId(reminder.id);
     setReminderForm({
       name: reminder.name, text: reminder.text, target: reminder.target || 'character',
-      constant: reminder.constant !== false, keys: reminder.keys || [], caseSensitive: reminder.caseSensitive || false,
+      keys: reminder.keys || [], secondaryKeys: reminder.secondaryKeys || [],
+      logic: reminder.logic || 'and_any',
+      probability: reminder.probability == null ? 100 : reminder.probability,
+      group: reminder.group || '', recurse: reminder.recurse !== false,
+      caseSensitive: reminder.caseSensitive || false,
       priority: reminder.priority !== undefined ? reminder.priority : 100,
       scanDepth: reminder.scanDepth !== undefined ? reminder.scanDepth : 10
     });
@@ -1190,44 +1196,36 @@ Write only the scenario description itself, no explanations.`;
 
   const handleSaveReminder = () => {
     if (!reminderForm.name.trim() || !reminderForm.text.trim()) {
-      alert('Reminder name and text are required');
+      alert('Title and content are required');
       return;
     }
-    if (reminderForm.constant === false && (!reminderForm.keys || reminderForm.keys.length === 0)) {
-      alert('Please add at least one trigger keyword, or enable "Always Active"');
-      return;
-    }
-
+    const keys = reminderForm.keys || [];
+    const fields = {
+      name: reminderForm.name, text: reminderForm.text, target: reminderForm.target,
+      keys, secondaryKeys: reminderForm.secondaryKeys || [],
+      logic: reminderForm.logic || 'and_any',
+      probability: reminderForm.probability === '' || reminderForm.probability == null ? 100 : Number(reminderForm.probability),
+      group: (reminderForm.group || '').trim(),
+      recurse: reminderForm.recurse !== false,
+      caseSensitive: reminderForm.caseSensitive || false,
+      priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
+      scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10,
+      constant: keys.length === 0, // blank keys = always-on
+    };
     if (editingReminderId) {
-      const updated = globalReminders.map(r =>
-        r.id === editingReminderId ? {
-          ...r, name: reminderForm.name, text: reminderForm.text, target: reminderForm.target,
-          constant: reminderForm.constant, keys: reminderForm.keys || [], caseSensitive: reminderForm.caseSensitive || false,
-          priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
-          scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10
-        } : r
-      );
-      setFormData({ ...formData, globalReminders: updated });
+      setFormData({ ...formData, globalReminders: globalReminders.map(r => (r.id === editingReminderId ? { ...r, ...fields } : r)) });
     } else {
-      const newReminder = {
-        id: `reminder-${Date.now()}`, name: reminderForm.name, text: reminderForm.text,
-        target: reminderForm.target, enabled: true, constant: reminderForm.constant,
-        keys: reminderForm.keys || [], caseSensitive: reminderForm.caseSensitive || false,
-        priority: reminderForm.priority !== undefined ? reminderForm.priority : 100,
-        scanDepth: reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10
-      };
-      setFormData({ ...formData, globalReminders: [...globalReminders, newReminder] });
+      setFormData({ ...formData, globalReminders: [...globalReminders, { id: `reminder-${Date.now()}`, enabled: true, ...fields }] });
     }
-
     setShowReminderForm(false);
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character', constant: true, keys: [], caseSensitive: false, priority: 100, scanDepth: 10 });
+    setReminderForm(emptyReminderForm());
   };
 
   const handleCancelReminderEdit = () => {
     setShowReminderForm(false);
     setEditingReminderId(null);
-    setReminderForm({ name: '', text: '', target: 'character', constant: true, keys: [], caseSensitive: false, priority: 100, scanDepth: 10 });
+    setReminderForm(emptyReminderForm());
   };
 
   // Lorebook import
@@ -2049,101 +2047,10 @@ Write only the scenario description itself, no explanations.`;
               ) : (
                 <div className="event-form">
                   <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
-                  <div className="form-group">
-                    <label>Reminder Name *</label>
-                    <input
-                      type="text"
-                      value={reminderForm.name}
-                      onChange={(e) => setReminderForm({ ...reminderForm, name: e.target.value })}
-                      placeholder="Brief identifier..."
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Reminder Text *</label>
-                    <textarea
-                      value={reminderForm.text}
-                      onChange={(e) => setReminderForm({ ...reminderForm, text: e.target.value })}
-                      placeholder="What the AI should remember..."
-                      rows={4}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Display Position</label>
-                    <div className="radio-group">
-                      <label className="radio-label">
-                        <div className="radio-row">
-                          <input type="radio" name="reminderTarget" value="player"
-                            checked={reminderForm.target === 'player'}
-                            onChange={(e) => setReminderForm({ ...reminderForm, target: e.target.value })}
-                          />
-                          <span className="radio-title">Player</span>
-                        </div>
-                        <span className="radio-hint">Appears below player portrait</span>
-                      </label>
-                      <label className="radio-label">
-                        <div className="radio-row">
-                          <input type="radio" name="reminderTarget" value="character"
-                            checked={reminderForm.target === 'character'}
-                            onChange={(e) => setReminderForm({ ...reminderForm, target: e.target.value })}
-                          />
-                          <span className="radio-title">Character</span>
-                        </div>
-                        <span className="radio-hint">Appears below character portrait</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="checkbox-label-block">
-                      <input
-                        type="checkbox"
-                        checked={reminderForm.constant !== false}
-                        onChange={(e) => setReminderForm({ ...reminderForm, constant: e.target.checked })}
-                      />
-                      <div className="checkbox-content">
-                        <span className="checkbox-title">Always Active (Constant)</span>
-                        <span className="checkbox-hint">If unchecked, only activates when keywords are detected</span>
-                      </div>
-                    </label>
-                  </div>
-
-                  {reminderForm.constant === false && (
-                    <div className="form-group">
-                      <label>Trigger Keywords</label>
-                      <KeywordInput
-                        values={reminderForm.keys || []}
-                        onChange={(keys) => setReminderForm({ ...reminderForm, keys })}
-                        placeholder="Type keyword and press Enter..."
-                      />
-                      <span className="field-hint">Reminder activates when any keyword appears in recent messages</span>
-
-                      <div className="inline-options" style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <label className="checkbox-label">
-                          <input type="checkbox" checked={reminderForm.caseSensitive || false}
-                            onChange={(e) => setReminderForm({ ...reminderForm, caseSensitive: e.target.checked })}
-                          />
-                          <span>Case Sensitive</span>
-                        </label>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <label>Scan Depth:</label>
-                          <input type="number" value={reminderForm.scanDepth !== undefined ? reminderForm.scanDepth : 10}
-                            onChange={(e) => setReminderForm({ ...reminderForm, scanDepth: parseInt(e.target.value) || 0 })}
-                            min="0" max="100" style={{ width: '80px' }}
-                          />
-                          <span className="field-hint">(0 = all messages)</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="form-group">
-                    <label>Priority (Insertion Order)</label>
-                    <input type="number" value={reminderForm.priority !== undefined ? reminderForm.priority : 100}
-                      onChange={(e) => setReminderForm({ ...reminderForm, priority: parseInt(e.target.value) || 100 })}
-                      min="0" max="1000" style={{ width: '120px' }}
-                    />
-                    <span className="field-hint">Higher priority reminders appear earlier in prompt (default: 100)</span>
-                  </div>
+                  <LoreEntryEditor
+                    entry={{ ...reminderForm, title: reminderForm.name, content: reminderForm.text }}
+                    onChange={(c) => setReminderForm({ ...reminderForm, ...c, name: c.title, text: c.content })}
+                  />
 
                   <div className="event-form-buttons">
                     <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>
