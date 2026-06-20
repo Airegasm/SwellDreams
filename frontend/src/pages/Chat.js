@@ -1724,6 +1724,19 @@ function Chat() {
                         {msg.streaming && <span className="streaming-cursor">▌</span>}
                       </div>
                     )}
+                    {/* Await Input options (#19): on-screen only, not in context. Clicking a word
+                        sends it as a player message → fires the word-activated trigger. */}
+                    {msg.sender === 'character' && sessionState.awaitState?.kind === 'input' && (sessionState.awaitState.words || []).length > 0 && (
+                      <div className="await-options">
+                        <span className="await-options-label">Options:</span>
+                        {sessionState.awaitState.words.map((w, wi) => (
+                          <button key={wi} type="button" className="await-option-chip"
+                            onClick={() => { if (isGenerating || !w.trim()) return; setIsGenerating(true); sendChatMessage(w, respondOrder); setMessageHistory(prev => [...prev, w]); setHistoryIndex(-1); }}>
+                            {w}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

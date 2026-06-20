@@ -312,6 +312,12 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, awaitingGoRelease: data.awaitingGoRelease }));
         break;
 
+      case 'await_state':
+        // Paused checkpoint-trigger sequence: {kind:'input',words} shows clickable options on AI
+        // bubbles; {kind:'pump',target,count} is state only; null clears it.
+        setSessionState(prev => ({ ...prev, awaitState: data }));
+        break;
+
       case 'pump_vars_update':
         setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
         break;

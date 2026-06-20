@@ -256,7 +256,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
           <textarea className="ci-main-theme" value={selProfile?.ranges?.[key]?.mainTheme || ''}
             onChange={(e) => setRangeText(key, 'mainTheme', e.target.value)}
             placeholder="Always-on guidance while capacity is in this range…" rows={2} />
-          <RangeTriggerEditor value={triggersFor(key)} onChange={(v) => setTriggers(key, v)} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} />
+          <RangeTriggerEditor value={triggersFor(key)} onChange={(v) => setTriggers(key, v)} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} isManualPump={isManualPump} />
           {(() => {
             const rRef = selProfile?.treeRefs?.ranges?.[`player-${key}`] || {};
             const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId

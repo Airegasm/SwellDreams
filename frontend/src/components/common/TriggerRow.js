@@ -54,7 +54,7 @@ const PUMP_MODES = [
 ];
 
 // All available trigger types
-function getTriggerTypes(isPumpable) {
+function getTriggerTypes(isPumpable, isManualPump) {
   const types = [
     { value: 'impersonate', label: 'Player Impersonate' },
     { value: 'ai_message', label: 'Char AI Message' },
@@ -114,7 +114,12 @@ function getTriggerTypes(isPumpable) {
     { value: 'set_instructor_profile', label: 'Set Instructor Profile' },
     { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
+    // Await gates — pause the sequence here; the triggers AFTER this one wait until satisfied.
+    { value: 'await_input', label: '⏸ Await Input (wait for keyword)' },
   );
+  if (isManualPump) {
+    types.push({ value: 'await_pump', label: '⏸ Await Pump Amount (wait for N pumps)' });
+  }
 
   // Flow-parity media + misc actions
   types.push(
@@ -147,7 +152,7 @@ function getTriggerTypes(isPumpable) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, reminders = [], globalReminders = [], members = [], profiles = [] }) {
+function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [] }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -166,7 +171,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       }).catch(() => setSkinsList([]));
     }
   }, [trigger.type, skinsList]);
-  const triggerTypes = getTriggerTypes(isPumpable);
+  const triggerTypes = getTriggerTypes(isPumpable, isManualPump);
 
   // Close dropdown on outside click
   React.useEffect(() => {
@@ -178,6 +183,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
 
   const renderParams = () => {
     switch (trigger.type) {
+      case 'await_pump':
+        return (
+          <input type="number" min={1} value={trigger.count ?? 3} onChange={(e) => update('count', e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="pumps" style={{ width: '90px' }} title="Wait until the player presses PUMP this many times, then fire the triggers below this one" />
+        );
+      case 'await_input':
+        return (
+          <input type="text" value={trigger.words || ''} onChange={(e) => update('words', e.target.value)}
+            placeholder="keyword1, keyword2, …" style={{ flex: 1, minWidth: '120px' }} title="Comma-separated words. Shown as clickable options on AI messages; saying/clicking one fires the triggers below this one." />
+        );
       case 'impersonate':
         return (
           <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}

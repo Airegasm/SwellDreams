@@ -3400,7 +3400,9 @@ const sessionState = {
                            // ON across every reply until [pump off]; overrides time-based auto-off + limits.
                            // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
   awaitingGoRelease: false, // Manual "GO!" gate hold: intro/profile-assign waits for a player button press
-  pendingGoProfileId: null  // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
+  pendingGoProfileId: null, // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
+  pendingRangeAwait: null   // A paused checkpoint-trigger sequence waiting on an await gate:
+                            // { kind:'pump'|'input', target?, count?, words?, rest:[triggers], source, characterId }
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3448,6 +3450,43 @@ function normalizeRangeTriggers(val) {
  * @param {number} oldCapacity - previous capacity
  * @param {number} newCapacity - current capacity
  */
+// Fire a sequential list of checkpoint triggers from startIdx. On hitting an await gate
+// (await_pump / await_input), stash the REMAINING triggers in pendingRangeAwait and PAUSE —
+// handleManualPump (pump) or a matching player message (input) resumes the rest. Mirrors the
+// tree pause_resume pattern. resumeTriggerSequence() continues a paused sequence.
+async function fireTriggerSequence(triggers, startIdx, source, character, settings) {
+  for (let i = startIdx; i < (triggers || []).length; i++) {
+    const trg = triggers[i];
+    if (trg.type === 'await_pump') {
+      const target = Math.max(1, parseInt(trg.count, 10) || 1);
+      sessionState.pendingRangeAwait = { kind: 'pump', target, count: 0, rest: triggers.slice(i + 1), source, characterId: character.id };
+      broadcast('await_state', { kind: 'pump', target, count: 0 });
+      console.log(`[Trigger/${source}] Await Pump Amount armed — needs ${target} pump(s)`);
+      return;
+    }
+    if (trg.type === 'await_input') {
+      const words = String(trg.words || '').split(',').map(w => w.trim()).filter(Boolean);
+      sessionState.pendingRangeAwait = { kind: 'input', words, rest: triggers.slice(i + 1), source, characterId: character.id };
+      broadcast('await_state', { kind: 'input', words });
+      console.log(`[Trigger/${source}] Await Input armed — words: ${words.join(', ')}`);
+      return;
+    }
+    await executeTrigger(trg, source, character, settings);
+  }
+}
+
+// Resume a paused await sequence (the stashed `rest` triggers). Reloads the character fresh.
+async function resumeTriggerSequence(pending) {
+  if (!pending) return;
+  sessionState.pendingRangeAwait = null;
+  broadcast('await_state', null);
+  const settings = loadData(DATA_FILES.settings);
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === pending.characterId);
+  if (!character) return;
+  await fireTriggerSequence(pending.rest, 0, pending.source, character, settings);
+}
+
 async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   const oldRange = capacityToRangeKey(oldCapacity);
   const newRange = capacityToRangeKey(newCapacity);
@@ -3469,15 +3508,21 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (!checkpointTriggers) return;
 
   const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
+  // #21: progressing into a range with NO triggers does nothing — a pending await from a
+  // previous range keeps running unhindered.
   if (!triggers || triggers.length === 0) return;
 
-  // Mark as fired
+  // #21: a new range that HAS triggers takes priority — ABORT any pending await (queued or
+  // in-process) from a previous range before firing this range's sequence.
+  if (sessionState.pendingRangeAwait) {
+    console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
+    sessionState.pendingRangeAwait = null;
+    broadcast('await_state', null);
+  }
+
   firedCheckpointTriggers.add(triggerKey);
   console.log(`[CheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
-
-  for (const trigger of triggers) {
-    await executeTrigger(trigger, triggerKey, activeCharacter, settings);
-  }
+  await fireTriggerSequence(triggers, 0, triggerKey, activeCharacter, settings);
 }
 
 /**
@@ -8679,6 +8724,17 @@ async function handleChatMessage(data) {
   // Trigger player speaks event for flow engine
   await eventEngine.handleEvent('player_speaks', { content });
 
+  // #19 Await Input: if a checkpoint sequence is paused waiting on a keyword and the player said
+  // one of the words, resume the gated triggers (the word already went into context above).
+  if (sessionState.pendingRangeAwait?.kind === 'input') {
+    const pa = sessionState.pendingRangeAwait;
+    const lc = String(content || '').toLowerCase();
+    if ((pa.words || []).some(w => w && lc.includes(w.toLowerCase()))) {
+      console.log('[Chat] Await Input matched — resuming sequence');
+      await resumeTriggerSequence(pa).catch(err => console.error('[Chat] await input resume failed:', err?.message || err));
+    }
+  }
+
   // Check if auto-reply is enabled
   if (!sessionState.autoReply) {
     console.log('[Chat] Auto Reply disabled, skipping AI response');
@@ -11123,6 +11179,19 @@ async function handleManualPump() {
     .catch(err => console.error('[ManualPump] checkpoint triggers failed:', err?.message || err));
   await executePersonaCheckpointTriggers('player', before, sessionState.capacity)
     .catch(err => console.error('[ManualPump] persona checkpoint triggers failed:', err?.message || err));
+
+  // Advance a pending Await Pump Amount gate (#20). Done AFTER checkpoint triggers so that if this
+  // press crossed into a new populated range, that range's #21 abort takes precedence.
+  if (sessionState.pendingRangeAwait?.kind === 'pump') {
+    const pa = sessionState.pendingRangeAwait;
+    pa.count = (pa.count || 0) + 1;
+    if (pa.count >= pa.target) {
+      console.log(`[ManualPump] Await Pump Amount satisfied (${pa.count}/${pa.target}) — resuming sequence`);
+      await resumeTriggerSequence(pa).catch(err => console.error('[ManualPump] await resume failed:', err?.message || err));
+    } else {
+      broadcast('await_state', { kind: 'pump', target: pa.target, count: pa.count });
+    }
+  }
   autosaveSession();
 }
 
@@ -15685,7 +15754,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 3. Stop ALL pump runtime tracking intervals
   sessionState.playerIsInflating = false; // emergency stop always ends latched-pump mode
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null;
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
   clearAllServerTimedPumpTimers();
@@ -17406,6 +17475,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.playerIsInflating = false;
   sessionState.awaitingGoRelease = false;
   sessionState.pendingGoProfileId = null;
+  sessionState.pendingRangeAwait = null;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
@@ -17640,7 +17710,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
   sessionState.playerIsInflating = false; // never resume into a latched-pump state
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null;
 
   // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
   // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).
