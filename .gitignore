@@ -80,3 +80,6 @@ CLAUDE.md
 connectedhomeip/
 c:SwellDreamsbackendbinchip-tool/
 backend/data/trigger-trees.json
+
+# Local Claude Code agent state (plans, memory)
+.claude/

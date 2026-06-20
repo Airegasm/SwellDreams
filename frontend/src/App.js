@@ -6,6 +6,7 @@ import Chat from './pages/Chat';
 import Settings from './pages/Settings';
 import FlowEditor from './pages/FlowEditor';
 import MiniGames from './pages/MiniGames';
+import Dictionary from './pages/Dictionary';
 import Help from './pages/Help';
 import Personas from './pages/Personas';
 import Characters from './pages/Characters';
@@ -456,7 +457,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v5.8.0</span>
+      <span className="version-badge">v5.9.0</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -543,6 +544,7 @@ function App() {
           <Route path="/triggers" element={<div className="center-modal-overlay"><Triggers /></div>} />
           <Route path="/flows" element={<FlowEditor />} />
           <Route path="/minigames" element={<MiniGames />} />
+          <Route path="/dictionary" element={<div className="center-modal-overlay"><Dictionary /></div>} />
           <Route path="/settings" element={
             <div className="center-modal-overlay">
               <Settings />
