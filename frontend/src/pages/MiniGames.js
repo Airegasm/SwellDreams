@@ -198,6 +198,7 @@ function MiniGames() {
   const [games, setGames] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [lastResult, setLastResult] = useState(null);
+  const [railOpen, setRailOpen] = useState(false); // mobile: library rail slides in off-canvas
 
   // Server-backed store (Phase 5) so the Call MiniGame tree action can resolve templates by id.
   const gamesRef = useRef(games);
@@ -213,7 +214,7 @@ function MiniGames() {
     const name = `New ${def.name}`, config = defaultConfig(type);
     try {
       const res = await api.createMiniGame(name, type, config);
-      if (res?.id) { setGames(prev => [...prev, { id: res.id, name, type, config }]); setSelectedId(res.id); }
+      if (res?.id) { setGames(prev => [...prev, { id: res.id, name, type, config }]); setSelectedId(res.id); setRailOpen(false); }
     } catch (e) { console.error('create minigame failed', e); }
   };
   const update = (patch) => {
@@ -238,20 +239,23 @@ function MiniGames() {
   return (
     <div className="mg-page">
       <div className="mg-header">
+        <button className="mg-rail-toggle" onClick={() => setRailOpen(o => !o)} aria-label="Toggle library" title="Library">☰</button>
         <h2>MiniGames</h2>
         <button className="mg-close" onClick={() => navigate('/')} title="Back to chat">×</button>
       </div>
 
       <div className="mg-body">
+        {/* Backdrop closes the off-canvas rail on mobile */}
+        {railOpen && <div className="mg-rail-backdrop" onClick={() => setRailOpen(false)} />}
         {/* Library rail */}
-        <aside className="mg-rail">
+        <aside className={`mg-rail ${railOpen ? 'mg-rail-open' : ''}`}>
           <div className="mg-rail-scroll">
             {byType.length === 0 && <p className="mg-empty">No minigames yet. Create one below.</p>}
             {byType.map(t => (
               <div key={t.type} className="mg-rail-group">
                 <div className="mg-rail-group-head">{t.icon} {t.name}</div>
                 {t.items.map(g => (
-                  <button key={g.id} className={`mg-rail-item ${g.id === selectedId ? 'active' : ''}`} onClick={() => setSelectedId(g.id)}>
+                  <button key={g.id} className={`mg-rail-item ${g.id === selectedId ? 'active' : ''}`} onClick={() => { setSelectedId(g.id); setRailOpen(false); }}>
                     {g.name}
                   </button>
                 ))}

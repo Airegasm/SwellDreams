@@ -948,6 +948,18 @@
     min-height: var(--mobile-touch-target);
   }
 
+  /* Keep dropdowns a single touch-row tall — long option text (e.g. Gender's "Unspecified
+     (they/them)") was wrapping the closed control to 2–3 rows on narrow phones. */
+  .character-modal-body select {
+    height: var(--mobile-touch-target);
+    min-height: var(--mobile-touch-target);
+    padding-top: 0;
+    padding-bottom: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   /* Device control buttons */
   .device-control-btn {
     min-width: var(--mobile-touch-target);
