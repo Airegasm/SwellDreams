@@ -666,6 +666,43 @@
     white-space: normal !important;
   }
 
+  /* Collapsible description: hard-cap to 3 rows by default with a chevron toggle.
+     (Defined after the .list-item-meta rule so the flex wrapper wins on the shared element.) */
+  .list-item.card-style .meta-clamp-wrap {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .list-item.card-style .meta-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    white-space: normal;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .list-item.card-style .meta-text.is-expanded {
+    -webkit-line-clamp: unset;
+    display: block;
+    overflow: visible;
+  }
+  .list-item.card-style .meta-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    color: inherit;
+    cursor: pointer;
+  }
+
   .list-item.card-style .list-item-actions {
     display: flex !important;
     width: 100%;

@@ -955,6 +955,10 @@ input[type="range"]::-webkit-slider-thumb {
   white-space: nowrap;
 }
 
+/* Collapsible description: desktop keeps the single-line ellipsis above and never shows the
+   toggle (the 3-row clamp + chevron only engage on mobile where the meta wraps — see mobile.css). */
+.meta-toggle { display: none; }
+
 .list-item-actions {
   display: flex;
   flex-direction: column;

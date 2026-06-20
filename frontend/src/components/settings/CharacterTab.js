@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
@@ -8,6 +8,42 @@ import CharacterEditorModal from '../modals/CharacterEditorModal';
 import MultiCharEditorModal from '../modals/MultiCharEditorModal';
 import InstructorEditorModal from '../modals/InstructorEditorModal';
 import './SettingsTabs.css';
+
+// Character description/meta: hard-capped to 3 rows by default with a chevron toggle to expand.
+// The clamp + toggle only take effect where the meta wraps (mobile); on desktop the meta stays a
+// single-line ellipsis and the toggle never appears (no vertical overflow + hidden via CSS).
+function ClampedMeta({ text }) {
+  const ref = useRef(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const measure = () => {
+      const el = ref.current;
+      if (!el) return;
+      // Measure in the clamped state: >3 wrapped rows => scrollHeight exceeds the clamped box.
+      if (!expanded) setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [text, expanded]);
+  return (
+    <div className="list-item-meta meta-clamp-wrap">
+      <span ref={ref} className={`meta-text ${expanded ? 'is-expanded' : ''}`}>{text}</span>
+      {(overflowing || expanded) && (
+        <button
+          type="button"
+          className="meta-toggle"
+          aria-expanded={expanded}
+          aria-label={expanded ? 'Collapse description' : 'Expand description'}
+          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+        >
+          {expanded ? '▾' : '▸'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function CharacterTab() {
   const { characters, setCharacters, settings, api, flows, startNewSession } = useApp();
@@ -497,13 +533,13 @@ function CharacterTab() {
                       <span className="active-badge">Active</span>
                     )}
                   </div>
-                  <div className="list-item-meta">
-                    {isInstructor(character)
+                  <ClampedMeta
+                    text={isInstructor(character)
                       ? (character.mission || 'Instructor')
                       : character.multiChar?.enabled
                         ? character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')
                         : character.description}
-                  </div>
+                  />
                 </div>
                 <div className="use-button-column">
                   {settings.activeCharacterId !== character.id && (
