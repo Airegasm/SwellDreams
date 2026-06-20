@@ -12597,7 +12597,8 @@ function resolveBlockTrigger(t, sets) {
 // control sentinel ({__control:...}) so step-3 player_choice/label/goto slot in with no refactor.
 const MAX_TREE_DEPTH = 64;
 const MAX_GOTO_ITERS = 10000; // per-frame cap so a pathological goto-loop can't spin forever
-const TREE_STUB_TYPES = new Set(['repeat']);
+const MAX_LOOP_ITERS = 1000; // hard cap on a `repeat` container's iterations
+const TREE_STUB_TYPES = new Set(); // (repeat now implemented; fire_tree/fire_flow shipped earlier)
 
 function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
 function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
@@ -12782,6 +12783,21 @@ async function runNode(node, ctx) {
         };
         broadcast('checkpoint_choice', { description: node.params?.prompt || '', choices: opts.map(c => ({ id: c.id, label: c.params.label })), tree: true });
         return { __control: 'suspend', reason: 'player_choice' };
+      }
+
+      case 'repeat': {
+        const child = enterChild(node, ctx);
+        if (!child) return;
+        const mode = node.params?.mode === 'until' ? 'until' : 'fixed';
+        const body = node.children || [];
+        const cap = Math.min(Number(node.params?.maxIterations ?? node.params?.iterations ?? 1) || 0, MAX_LOOP_ITERS);
+        for (let i = 0; i < (mode === 'until' ? MAX_LOOP_ITERS : cap); i++) {
+          if (mode === 'until' && node.params?.condition && evalTreeCondition(node.params.condition)) break; // stop once the condition holds
+          const sig = await runTree(body, child);
+          if (sig) return sig; // a suspend/goto inside the loop bubbles out and stops it
+          if (mode === 'until' && node.params?.maxIterations && i + 1 >= Number(node.params.maxIterations)) break;
+        }
+        return;
       }
 
       default:

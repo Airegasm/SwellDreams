@@ -59,6 +59,7 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'chance', label: 'Chance (%)' },
       { kind: 'container', type: 'random', label: 'Random (one of)' },
       { kind: 'container', type: 'keyword_gate', label: 'Keyword Gate' },
+      { kind: 'container', type: 'repeat', label: 'Repeat / Loop' },
     ]
   },
   {
@@ -88,7 +89,7 @@ const ADD_GROUPS = [
 const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
-const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword']); // not if/player_choice (special children)
+const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat']); // not if/player_choice (special children)
 
 function makeCond() { return { varType: 'flow', variable: '', operator: '==', value: '' }; }
 function makeBranch(isElse = false) {
@@ -101,6 +102,7 @@ function makeNode(kind, type) {
   if (type === 'if') node.children = [makeBranch(false)];
   if (type === 'player_choice') node.children = [makeChoice()];
   if (type === 'chance') node.params.chance = 50;
+  if (type === 'repeat') { node.params.mode = 'fixed'; node.params.iterations = 3; }
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'fire_tree') node.params.treeId = '';
@@ -127,6 +129,7 @@ function summarize(node) {
   if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
+  if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
   if (t === 'keyword_gate') return `Keyword Gate: ${(p.keys || []).join(', ') || '(none)'}`;
   if (t === 'keyword') return `On Keyword: ${(p.keys || []).join(', ') || '(none)'}`;
   return t;
@@ -350,9 +353,27 @@ function NodeBody({ node, onChange, rowProps }) {
     </div>
   );
 
+  const repeatParams = t === 'repeat' && (
+    <div className="tree-params">
+      <select value={node.params?.mode || 'fixed'} onChange={(e) => setParams({ mode: e.target.value })} title="Repeat mode">
+        <option value="fixed">Fixed times</option>
+        <option value="until">Until condition</option>
+      </select>
+      {(node.params?.mode || 'fixed') === 'fixed' ? (
+        <label className="tree-field tree-field-inline"><span>×</span><input type="number" min={1} value={node.params?.iterations ?? 3} onChange={(e) => setParams({ iterations: parseInt(e.target.value) || 1 })} /></label>
+      ) : (
+        <>
+          <ConditionRow cond={node.params?.condition || makeCond()} onChange={(c) => setParams({ condition: c })} onRemove={() => setParams({ condition: makeCond() })} />
+          <label className="tree-field tree-field-inline"><span>max</span><input type="number" min={1} value={node.params?.maxIterations ?? 100} onChange={(e) => setParams({ maxIterations: parseInt(e.target.value) || 1 })} /></label>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="tree-container-body">
       {chanceParams}
+      {repeatParams}
       {keywordParams}
       {HOLDS_CHILDREN.has(t) && (
         <NodeList nodes={node.children || []} onChange={(next) => onChange({ ...node, children: next })} rowProps={rowProps} />
