@@ -458,16 +458,24 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
     try {
       let result;
       if (cmd.action === 'on') {
-        // Final absolute safety clamp — never schedule auto-off beyond MAX_ON_SECONDS
-        const onSeconds = Math.min(maxSeconds, MAX_ON_SECONDS);
         result = await deviceService.turnOn(deviceId, device);
-        log.info(`AI turned ON ${device.label || device.name || cmd.device} (auto-off in ${onSeconds}s)`);
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {
           clearTimeout(llmDeviceTimers.get(timerKey));
           log.info(`Cleared existing auto-off timer for ${cmd.device}`);
         }
+
+        // Latched-pump mode (per-char latchPumpUntilOff): the pump STAYS ON until an explicit
+        // [pump off] — no auto-off timer, no time limit. Set the [PlayerIsInflating] flag so the
+        // reply loop re-asserts it every turn. Capacity/pop ceiling watchdog still applies.
+        if (characterLimits?.latchPumpUntilOff === true && cmd.device === 'pump') {
+          if (sessionState) sessionState.playerIsInflating = true;
+          log.info(`AI LATCHED pump ON ${device.label || device.name || cmd.device} — stays on until [pump off] (no auto-off)`);
+        } else {
+        // Final absolute safety clamp — never schedule auto-off beyond MAX_ON_SECONDS
+        const onSeconds = Math.min(maxSeconds, MAX_ON_SECONDS);
+        log.info(`AI turned ON ${device.label || device.name || cmd.device} (auto-off in ${onSeconds}s)`);
 
         // Set auto-off timer
         const timer = setTimeout(async () => {
@@ -496,6 +504,7 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
         }, onSeconds * 1000);
 
         llmDeviceTimers.set(timerKey, timer);
+        }
 
       } else if (cmd.action === 'pulse') {
         // Pulse mode: quick on/off bursts
@@ -667,6 +676,9 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
           llmDeviceTimers.delete(timerKey);
           log.info(`Cleared auto-off timer for ${cmd.device} due to manual off`);
         }
+
+        // Release latched-pump mode — [pump off] ends continuous inflation.
+        if (cmd.device === 'pump' && sessionState) sessionState.playerIsInflating = false;
 
         // Stop any active cycle for this device on manual off
         if (llmActiveCycles.has(timerKey)) {

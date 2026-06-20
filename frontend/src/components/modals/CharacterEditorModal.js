@@ -2019,6 +2019,16 @@ Write only the scenario description itself, no explanations.`;
                         onChange={(e) => updateStoryField('llmMaxTimedDuration', Math.min(300, Math.max(1, parseInt(e.target.value) || 10)))}
                         style={{ width: '60px' }} />
                     </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.6rem', fontWeight: 'bold' }}>
+                      <input type="checkbox" checked={activeStory?.latchPumpUntilOff === true}
+                        onChange={(e) => updateStoryField('latchPumpUntilOff', e.target.checked)} />
+                      Latch pump until [pump off]
+                    </label>
+                    {activeStory?.latchPumpUntilOff && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--danger, #d9534f)', marginTop: '0.25rem', lineHeight: 1.35 }}>
+                        ⚠ A model [pump on] keeps the pump running every reply until [pump off] — overrides the auto-off and the time limits above. Only [pump off] or emergency stop halts it. (Capacity/pop ceiling still applies.) Sets the [PlayerIsInflating] variable.
+                      </div>
+                    )}
                   </div>
                 )}
 

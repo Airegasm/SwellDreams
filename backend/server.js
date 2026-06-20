@@ -1175,6 +1175,23 @@ async function timedPumpOn(id, device, durationSeconds) {
   serverTimedPumpTimers.set(id, timer);
 }
 
+// Latched-pump re-assertion (per-char latchPumpUntilOff). When sessionState.playerIsInflating is
+// set, keep the primary pump ON every reply turn — tagged or not — until [pump off]. Deliberately
+// schedules NO auto-off timer and clears any stray one, so the latch overrides time-based limits.
+// The capacity/pop watchdog still applies. Called from runReplyScopes each turn.
+async function reassertLatchedPump() {
+  if (!sessionState.playerIsInflating) return;
+  try {
+    const devices = loadData(DATA_FILES.devices) || [];
+    const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+    if (!pump) return;
+    const id = resolveControlId(pump);
+    clearServerTimedPumpTimer(id); // a latch must never be ended by a leftover auto-off timer
+    await deviceService.turnOn(id, pump);
+    console.log('[LatchedPump] Re-asserted pump ON (playerIsInflating) — awaiting [pump off]');
+  } catch (e) { console.error('[LatchedPump] re-assert failed:', e?.message || e); }
+}
+
 // Fire the primary pump for a checkpoint-injection action ({mode:'timed'|'cycle', duration, cycles}).
 async function firePrimaryPump(action) {
   if (!action) return;
@@ -3377,7 +3394,10 @@ const sessionState = {
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
-  pendingTreeResume: null // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
+  pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
+  playerIsInflating: false // Latched-pump mode (per-char latchPumpUntilOff): [pump on] latches the pump
+                           // ON across every reply until [pump off]; overrides time-based auto-off + limits.
+                           // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3589,6 +3609,7 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'pump_off': {
+        sessionState.playerIsInflating = false; // an explicit off ends any latched-pump mode
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
@@ -4287,6 +4308,7 @@ function substituteAllVariables(text, context = {}) {
 
   // Session state variables
   result = result.replace(/\[Capacity\]/gi, sessionState.capacity ?? 0);
+  result = result.replace(/\[PlayerIsInflating\]/gi, sessionState.playerIsInflating ? 'true' : 'false');
   // Convert pain number to descriptive label
   const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
   const painValue = sessionState.pain ?? 0;
@@ -4886,6 +4908,7 @@ function maxCumulativePumpSeconds() {
 
 // Force every configured pump OFF, regardless of believed state. Non-throwing.
 function forceAllPumpsOff(reason) {
+  sessionState.playerIsInflating = false; // any forced-off (capacity ceiling, emergency, watchdog) ends the latch
   const devices = loadData(DATA_FILES.devices) || [];
   const pumps = devices.filter(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
   for (const pump of pumps) {
@@ -4933,7 +4956,10 @@ function pumpSafetyWatchdogTick() {
     const onSeconds = maxCumulativePumpSeconds();
     const capacity = sessionState.capacity || 0;
 
-    if (onSeconds >= MAX_ON_SECONDS) {
+    // Latched-pump mode overrides the time-based ceiling (per the per-char latchPumpUntilOff
+    // setting). The capacity/pop ceiling below STILL fires — that's overfill/burst protection,
+    // not a timer. Only [pump off] / emergency stop end the time-unbounded latch.
+    if (!sessionState.playerIsInflating && onSeconds >= MAX_ON_SECONDS) {
       console.error(`[PumpWatchdog] MAX_ON_SECONDS (${MAX_ON_SECONDS}s) exceeded (on=${onSeconds.toFixed(1)}s) — forcing all pumps OFF`);
       forceAllPumpsOff('max_on_time');
       return;
@@ -4967,7 +4993,7 @@ function stopPumpSafetyWatchdog() {
 // Always returns hard defaults — these are safety ceilings, not optional
 function getCharacterLimits(character) {
   if (!character?.stories?.length) {
-    return { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10 };
+    return { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10, latchPumpUntilOff: false };
   }
   const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
   return {
@@ -4975,7 +5001,10 @@ function getCharacterLimits(character) {
     llmMaxCycleOnDuration: activeStory.llmMaxCycleOnDuration ?? 2,
     llmMaxCycleRepetitions: activeStory.llmMaxCycleRepetitions ?? 2,
     llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
-    llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10
+    llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10,
+    // When true, a model [pump on] latches the pump on until [pump off] — overriding time-based
+    // auto-off and the per-reply/per-char time limits. Capacity/pop ceiling still enforced.
+    latchPumpUntilOff: activeStory.latchPumpUntilOff === true
   };
 }
 
@@ -4991,20 +5020,41 @@ function getCharacterLimits(character) {
  * `template` tunes only the lead emphasis per model family; the tag syntax is identical
  * across templates, so there is intentionally little other per-template variation.
  */
-function buildDeviceControlInstruction(template, maxSeconds, charLimits, capacityMod) {
+function buildDeviceControlInstruction(template, maxSeconds, charLimits, capacityMod, playerName) {
   const fam = String(template || '').toLowerCase();
+  const who = playerName || 'the player';
   // Gemma / ChatML-family models obey explicit rule-lists very literally; the rest do
   // best with a terse imperative. Core format is identical either way.
   const lead = (fam.startsWith('gemma') || fam === 'chatml')
     ? 'Follow this output format EXACTLY.'
     : 'Strict output format.';
 
-  let s = `\nDEVICE CONTROL — ${lead} You operate a REAL physical pump through hidden tags.
+  // Cydonia/Mistral-Small (and Llama) follow worked demonstrations far better than a bare
+  // rule; gemma/chatml already obey the terse rule-list, so they keep the one-line example.
+  // Examples are player-scoped (air-flow into ${who}) and contrast active (inflaTING) vs
+  // static (inflaTED) so the model only tags real state changes to the player's body.
+  const examples = (fam.startsWith('gemma') || fam === 'chatml')
+    ? 'Example final line: [pump on]'
+    : `Examples — tag ONLY when air-flow into ${who} changes: starting, CONTINUING, or increasing = [pump on] (re-emit each such reply); stopping = [pump off].
+She flips the toggle and the motor roars to life, air hissing into ${who}.
+[pump on]
+She twists the dial higher; the motor climbs to a harder, faster rhythm, driving more air into ${who}.
+[pump on]
+${who}'s belly keeps swelling, rounder by the second as the pump forces in more air.
+[pump on]
+She cups ${who}'s inflating belly, feeling it push outward with every pulse.
+[pump on]
+She slaps the kill switch; the hum dies and the pressure bleeds away.
+[pump off]
+NO tag — no change to ${who}'s air-flow (pump only mentioned, ${who} already inflated and merely described or held, OR someone other than ${who} is being pumped):
+She runs a hand over ${who}'s inflated belly, taut and full, the pump sitting quiet on the cart.`;
+
+  let s = `\nDEVICE CONTROL — ${lead} The pump is physically connected to ${who}. You drive it through hidden tags.
 1) Write your narrative reply.
-2) IF that reply starts, continues, or stops the pump, the VERY LAST LINE must be ONLY the matching tag — nothing after it. If the pump state does not change, write no tag.
-Without the tag the pump does NOT move, so emit it in the SAME reply you narrate pumping. The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running; [pump off] stops it.
-Tags: [pump on] / [pump off] (also [vibe on]/[vibe off], [tens on]/[tens off]). Tags are hidden from the player.
-Example final line: [pump on]`;
+2) The tag tracks ONLY air-flow into ${who}'s body. IF this reply starts, continues, or increases air filling ${who}, the VERY LAST LINE must be ONLY [pump on] — nothing after it. IF it stops, write [pump off]. Pumping anyone other than ${who}, or no change in ${who}'s air-flow, gets NO tag.
+Without the tag the pump does NOT move, so emit it in the SAME reply you narrate ${who} being filled. The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running; [pump off] stops it.
+Tags: [pump on] / [pump off]
+${examples}`;
 
   if (charLimits) {
     const scaledMaxOn = Math.round((charLimits.llmMaxOnDuration ?? 5) * capacityMod);
@@ -7683,6 +7733,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     sessionState.pendingTreeResume = null;
+    sessionState.playerIsInflating = false;
 
     // Set the summary as the rolling memory
     if (summaryText) {
@@ -7727,6 +7778,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     sessionState.pendingTreeResume = null;
+    sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
     console.log('[ClearChat] Context cleared (screen preserved)');
@@ -7739,6 +7791,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     sessionState.pendingTreeResume = null;
+    sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
     console.log('[ClearChat] Both screen and context cleared');
@@ -10134,6 +10187,7 @@ async function runReplyScopes(character) {
   const settings = loadData(DATA_FILES.settings) || {};
   try { await checkPendingTreeResume(); } // tick any deferred pause_resume before this turn's scopes
   catch (e) { console.error('[runReplyScopes] tree resume failed:', e?.message || e); }
+  await reassertLatchedPump(); // keep a latched pump ON every reply until [pump off]
   const treeIndex = buildTreeIndex(); // one library read per turn; threaded into every scope/fire_tree hop
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings, treeIndex); }
@@ -11064,7 +11118,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       const capacityMod = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
       const scaledMaxOn = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
       const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn) : globalMax;
-      systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod);
+      systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod, playerName);
     }
 
     // Inject personality attributes if rolled (character voice only, for guided response)
@@ -11641,7 +11695,7 @@ function buildChatContext(character, settings) {
     const capacityMod2 = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
     const scaledMaxOn2 = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod2);
     const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn2) : globalMax;
-    systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod2);
+    systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod2, playerName);
   }
 
   // Inject personality attributes if rolled
@@ -15046,6 +15100,7 @@ app.post('/api/emergency-stop', async (req, res) => {
   }
 
   // 3. Stop ALL pump runtime tracking intervals
+  sessionState.playerIsInflating = false; // emergency stop always ends latched-pump mode
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
   clearAllServerTimedPumpTimers();
@@ -16713,6 +16768,7 @@ app.post('/api/session/reset', async (req, res) => {
   firedCheckpointTriggers.clear();
   sessionState.firedTreeNodes.clear();
   sessionState.pendingTreeResume = null;
+  sessionState.playerIsInflating = false;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
@@ -16732,6 +16788,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingTreeChoice = null;
   sessionState.pendingTreeResume = null;
+  sessionState.playerIsInflating = false;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
@@ -16939,8 +16996,25 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowVariables = session.flowVariables || {};
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
-  // Pre-inflation gate: if capacity > 0, gate is already met
-  sessionState.preInflationGateMet = (sessionState.capacity > 0);
+  sessionState.playerIsInflating = false; // never resume into a latched-pump state
+
+  // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
+  // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).
+  // capacity>0 always opens it; only Pre-Fill / instructor prereqs keep it closed.
+  const _gateSettings = loadData(DATA_FILES.settings) || {};
+  const _chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const _activeChar = _chars.find(c => c.id === _gateSettings?.activeCharacterId) || null;
+  const _activeStory = _activeChar?.stories?.find(s => s.id === _activeChar.activeStoryId) || _activeChar?.stories?.[0];
+  if (sessionState.capacity > 0) {
+    sessionState.preInflationGateMet = true;
+  } else if (getPreFillConfig(_activeChar)) {
+    sessionState.preInflationGateMet = false;            // pre-fill intro still gates
+  } else if (isInstructor(_activeChar)) {
+    const _hasPrereqs = Array.isArray(_activeStory?.prereqs) && _activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
+    sessionState.preInflationGateMet = !_hasPrereqs;
+  } else {
+    sessionState.preInflationGateMet = true;             // standard card → ungated on resume
+  }
 
   broadcast('session_loaded', sessionState);
 
