@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import MiniWheel from '../components/minigames/MiniWheel';
 import MiniDice from '../components/minigames/MiniDice';
-import { MiniCoin, MiniRPS, MiniSlots, MiniTimer, MiniNumberGuess, MiniCardDraw, MiniSimon, MiniReflex } from '../components/minigames/MoreGames';
+import { MiniCoin, MiniRPS, MiniSlots, MiniCardDraw, MiniSimon } from '../components/minigames/MoreGames';
 import { GAME_TYPES, gameDef, defaultConfig, exitsFor, newId } from '../components/minigames/gameDefs';
 import './MiniGames.css';
 
@@ -12,15 +12,12 @@ function Preview({ type, config, onResult }) {
   const r = (result, winner, note) => onResult && onResult({ result, winner, note });
   switch (type) {
     case 'prize_wheel': return <MiniWheel segments={config.segments || []} size={240} interactive onResult={(seg) => r(seg.label)} />;
-    case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} exits={config.exits || []} size={84} interactive onResult={(label, total) => r(label, null, `rolled ${total}`)} />;
+    case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} characterAdvantage={config.characterAdvantage || 0} size={84} interactive onResult={(total) => r(String(total), null, `[GameResult] = ${total}`)} />;
     case 'coin_flip': return <MiniCoin config={config} interactive onResult={(res, w) => r(res, w)} />;
     case 'rps': return <MiniRPS config={config} interactive onResult={(res, w) => r(res, w)} />;
     case 'slot_machine': return <MiniSlots config={config} interactive onResult={(res) => r(res)} />;
-    case 'timer_challenge': return <MiniTimer config={config} interactive onResult={(res) => r(res)} />;
-    case 'number_guess': return <MiniNumberGuess config={config} interactive onResult={(res) => r(res)} />;
-    case 'card_draw': return <MiniCardDraw config={config} interactive onResult={(res) => r(res)} />;
+    case 'card_draw': return <MiniCardDraw config={config} interactive onResult={(res, w) => r(res, w)} />;
     case 'simon_challenge': return <MiniSimon config={config} interactive onResult={(res) => r(res)} />;
-    case 'reflex_challenge': return <MiniReflex config={config} interactive onResult={(res) => r(res)} />;
     default: {
       const def = gameDef(type);
       return <div className="mg-preview-stub"><div className="mg-preview-glyph">{def.icon}</div><div className="mg-preview-name">{def.name}</div></div>;
@@ -37,13 +34,6 @@ const Num = ({ label, value, onChange, ...p }) => (
 const Txt = ({ label, value, onChange, ...p }) => (
   <label className="mg-field"><span>{label}</span>
     <input type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)} {...p} />
-  </label>
-);
-const Sel = ({ label, value, onChange, options }) => (
-  <label className="mg-field"><span>{label}</span>
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
   </label>
 );
 
@@ -77,16 +67,7 @@ function GameEditor({ type, config, set }) {
             <Num label="Dice count" value={config.diceCount} onChange={(v) => upd({ diceCount: v })} />
             <Num label="Character advantage" value={config.characterAdvantage} onChange={(v) => upd({ characterAdvantage: v })} />
           </div>
-          <h4 className="mg-group">Exits <span className="mg-hint">(total → range → [GameResult])</span></h4>
-          {(config.exits || []).map((e, i) => (
-            <div className="mg-row" key={e.id}>
-              <input type="text" className="mg-grow" value={e.label} onChange={(ev) => updExit('exits', i, { label: ev.target.value })} placeholder="Label" />
-              <label className="mg-range">min<input type="text" inputMode="numeric" value={e.min} onChange={(ev) => updExit('exits', i, { min: ev.target.value.replace(/[^0-9]/g, '') })} /></label>
-              <label className="mg-range">max<input type="text" inputMode="numeric" value={e.max} onChange={(ev) => updExit('exits', i, { max: ev.target.value.replace(/[^0-9]/g, '') })} /></label>
-              {config.exits.length > 1 && <button className="mg-del" onClick={() => rmExit('exits', i)}>×</button>}
-            </div>
-          ))}
-          <button className="mg-add" onClick={() => upd({ exits: [...config.exits, { id: newId('ex'), label: 'New', min: 2, max: 12 }] })}>+ Exit</button>
+          <p className="mg-hint"><code>[GameResult]</code> is the numeric total (dice + advantage). Branch on it with conditions in the tree — no exits to bind.</p>
         </>
       );
     case 'coin_flip':
@@ -111,29 +92,6 @@ function GameEditor({ type, config, set }) {
           </div>
         </>
       );
-    case 'timer_challenge':
-      return (
-        <>
-          <h4 className="mg-group">Mechanics</h4>
-          <div className="mg-grid">
-            <Num label="Duration (s)" value={config.duration} onChange={(v) => upd({ duration: v })} />
-            <label className="mg-check"><input type="checkbox" checked={!!config.precisionMode} onChange={(e) => upd({ precisionMode: e.target.checked })} /> Precision mode</label>
-            {config.precisionMode && <Num label="Window (s)" value={config.precisionWindow} onChange={(v) => upd({ precisionWindow: v })} />}
-          </div>
-        </>
-      );
-    case 'number_guess':
-      return (
-        <>
-          <h4 className="mg-group">Mechanics</h4>
-          <div className="mg-grid">
-            <Num label="Min" value={config.min} onChange={(v) => upd({ min: v })} />
-            <Num label="Max" value={config.max} onChange={(v) => upd({ max: v })} />
-            <Num label="Max attempts" value={config.maxAttempts} onChange={(v) => upd({ maxAttempts: v })} />
-            <Num label="Close threshold" value={config.closeThreshold} onChange={(v) => upd({ closeThreshold: v })} />
-          </div>
-        </>
-      );
     case 'slot_machine':
       return (
         <>
@@ -146,7 +104,7 @@ function GameEditor({ type, config, set }) {
               <select value={e.pattern} onChange={(ev) => updExit('exits', i, { pattern: ev.target.value })}>
                 <option value="three-of-a-kind">3 of a kind</option>
                 <option value="two-of-a-kind">2 of a kind</option>
-                <option value="any-pair">Any pair</option>
+                <option value="no-match">No matches</option>
               </select>
               {config.exits.length > 1 && <button className="mg-del" onClick={() => rmExit('exits', i)}>×</button>}
             </div>
@@ -157,23 +115,22 @@ function GameEditor({ type, config, set }) {
     case 'card_draw':
       return (
         <>
-          <h4 className="mg-group">Mechanics</h4>
+          <h4 className="mg-group">Blackjack <span className="mg-hint">(Player vs Character; sets [GameResult] Win/Lose/Push + [GameWinner])</span></h4>
           <div className="mg-grid">
-            <Sel label="Deck" value={config.deckType} onChange={(v) => upd({ deckType: v })} options={[{ value: 'standard', label: 'Standard 52' }, { value: 'no-face', label: 'No face cards' }]} />
-            <Sel label="Output (exits)" value={config.outputMode} onChange={(v) => upd({ outputMode: v })} options={[{ value: 'suit', label: 'By suit' }, { value: 'color', label: 'Red / Black' }, { value: 'highlow', label: 'High / Low' }]} />
+            <Num label="Target (bust over)" value={config.target} onChange={(v) => upd({ target: v })} />
+            <Num label="Character stands at" value={config.charStandsAt} onChange={(v) => upd({ charStandsAt: v })} />
           </div>
+          <p className="mg-hint">You're dealt two cards, the character one. Hit or stay; the character draws until it reaches its stand value. Closest to the target without busting wins.</p>
         </>
       );
     case 'simon_challenge':
-    case 'reflex_challenge': {
-      const isSimon = type === 'simon_challenge';
       return (
         <>
           <h4 className="mg-group">Mechanics</h4>
           <div className="mg-grid">
-            {isSimon ? <Num label="Start length" value={config.startingLength} onChange={(v) => upd({ startingLength: v })} /> : <Num label="Time / target (s)" value={config.timePerTarget} onChange={(v) => upd({ timePerTarget: v })} />}
-            {isSimon ? <Num label="Max length" value={config.maxLength} onChange={(v) => upd({ maxLength: v })} /> : <Num label="Rounds" value={config.rounds} onChange={(v) => upd({ rounds: v })} />}
-            {isSimon ? <Num label="Max misses" value={config.maxMisses} onChange={(v) => upd({ maxMisses: v })} /> : <Sel label="Target size" value={config.targetSize} onChange={(v) => upd({ targetSize: v })} options={[{ value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' }]} />}
+            <Num label="Start length" value={config.startingLength} onChange={(v) => upd({ startingLength: v })} />
+            <Num label="Max length" value={config.maxLength} onChange={(v) => upd({ maxLength: v })} />
+            <Num label="Max misses" value={config.maxMisses} onChange={(v) => upd({ maxMisses: v })} />
           </div>
           <h4 className="mg-group">In-game device feedback <span className="mg-hint">(fires during play)</span></h4>
           <div className="mg-grid">
@@ -186,7 +143,6 @@ function GameEditor({ type, config, set }) {
           </div>
         </>
       );
-    }
     default:
       return null;
   }

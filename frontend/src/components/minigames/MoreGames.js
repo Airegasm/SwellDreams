@@ -10,19 +10,28 @@ export function MiniCoin({ config = {}, interactive, onResult }) {
   const [rot, setRot] = useState(0);
   const [flipping, setFlipping] = useState(false);
   const [landed, setLanded] = useState(null);
+  const [done, setDone] = useState(false);
   const accum = useRef(0);
 
-  const flip = () => {
-    if (flipping) return;
+  // Player calls the side first; they win if the coin lands on their call.
+  const flip = (choice) => {
+    if (flipping || done) return;
     setLanded(null);
     const isHeads = Math.random() * 100 < (Number(config.headsWeight) ?? 50);
+    const landedSide = isHeads ? 'heads' : 'tails';
     const landing = isHeads ? 0 : 180;
     const cur = accum.current % 360;
     const next = accum.current + (((landing - cur) + 360) % 360) + 360 * 5;
     accum.current = next;
     setRot(next);
     setFlipping(true);
-    window.setTimeout(() => { setFlipping(false); setLanded(isHeads ? 'Player' : 'Character'); onResult && onResult(isHeads ? heads : tails, isHeads ? 'Player' : 'Character'); }, 1500);
+    window.setTimeout(() => {
+      setFlipping(false);
+      setDone(true);
+      const playerWon = landedSide === choice;
+      setLanded(playerWon ? 'Player' : 'Character');
+      onResult && onResult(isHeads ? heads : tails, playerWon ? 'Player' : 'Character');
+    }, 1500);
   };
 
   return (
@@ -33,7 +42,14 @@ export function MiniCoin({ config = {}, interactive, onResult }) {
           <div className="pv-coin-face pv-coin-t">{tails}</div>
         </div>
       </div>
-      {interactive && <button className="pv-btn" onClick={flip} disabled={flipping}>{flipping ? 'Flipping…' : 'Flip'}</button>}
+      {interactive && !done && (
+        <div className="pv-pick">
+          <span className="pv-pick-label">Call it:</span>
+          <button className="pv-btn sm" onClick={() => flip('heads')} disabled={flipping}>{heads}</button>
+          <button className="pv-btn sm" onClick={() => flip('tails')} disabled={flipping}>{tails}</button>
+        </div>
+      )}
+      {landed && <div className={`pv-result ${landed === 'Player' ? 'r-win' : 'r-lose'}`}>{landed === 'Player' ? 'You win' : 'You lose'}</div>}
     </div>
   );
 }
@@ -43,23 +59,27 @@ const RPS = { rock: '✊', paper: '✋', scissors: '✌️' };
 const RPS_KEYS = Object.keys(RPS);
 const rpsJudge = (p, c) => (p === c ? 'Draw' : ((p === 'rock' && c === 'scissors') || (p === 'paper' && c === 'rock') || (p === 'scissors' && c === 'paper')) ? 'Win' : 'Lose');
 
-export function MiniRPS({ interactive, onResult }) {
+const RPS_BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+export function MiniRPS({ config = {}, interactive, onResult }) {
   const [p, setP] = useState('rock');
   const [c, setC] = useState('rock');
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState(null);
 
-  const play = () => {
-    if (busy) return;
-    setBusy(true); setRes(null);
+  // Player throws first; the character's hand cycles, then locks. characterBias% of the time the
+  // character plays the move that BEATS the player's throw, otherwise random.
+  const play = (choice) => {
+    if (busy || res) return;
+    setP(choice); setBusy(true); setRes(null);
     let n = 0;
     const iv = window.setInterval(() => {
-      setP(rid(RPS_KEYS)); setC(rid(RPS_KEYS));
+      setC(rid(RPS_KEYS));
       if (++n > 8) {
         window.clearInterval(iv);
-        const pp = rid(RPS_KEYS), cc = rid(RPS_KEYS);
-        setP(pp); setC(cc);
-        const r = rpsJudge(pp, cc);
+        const bias = Number(config.characterBias) || 0;
+        const cc = (Math.random() * 100 < bias) ? RPS_BEATS[choice] : rid(RPS_KEYS);
+        setC(cc);
+        const r = rpsJudge(choice, cc);
         setRes(r); setBusy(false);
         onResult && onResult(r, r === 'Win' ? 'Player' : r === 'Lose' ? 'Character' : 'Draw');
       }
@@ -74,7 +94,11 @@ export function MiniRPS({ interactive, onResult }) {
         <div className={`pv-hand flip ${busy ? 'shake' : ''} ${res === 'Lose' ? 'win' : res === 'Win' ? 'lose' : ''}`}>{RPS[c]}</div>
       </div>
       {res && <div className={`pv-result r-${res.toLowerCase()}`}>{res}</div>}
-      {interactive && <button className="pv-btn" onClick={play} disabled={busy}>{busy ? 'Throwing…' : 'Throw'}</button>}
+      {interactive && !busy && !res && (
+        <div className="pv-pick">
+          {RPS_KEYS.map(k => <button key={k} className="pv-btn sm" onClick={() => play(k)} title={k}>{RPS[k]}</button>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -105,8 +129,12 @@ export function MiniSlots({ config = {}, interactive, onResult }) {
             const vals = finals.map(i => symbols[i]);
             const counts = {}; vals.forEach(v => { counts[v] = (counts[v] || 0) + 1; });
             const max = Math.max(...Object.values(counts));
-            const tier = (config.exits || []).find(e => (e.pattern === 'three-of-a-kind' && max === 3) || ((e.pattern === 'two-of-a-kind' || e.pattern === 'any-pair') && max >= 2));
-            if (tier) setWon(true);
+            const tier = (config.exits || []).find(e =>
+              (e.pattern === 'three-of-a-kind' && max === 3) ||
+              (e.pattern === 'two-of-a-kind' && max === 2) ||
+              (e.pattern === 'any-pair' && max >= 2) || // legacy
+              (e.pattern === 'no-match' && max === 1));
+            if (tier && max >= 2) setWon(true);
             onResult && onResult(tier ? tier.label : 'No Win');
           }, 250);
         }
@@ -124,148 +152,73 @@ export function MiniSlots({ config = {}, interactive, onResult }) {
   );
 }
 
-// ───────────────────────── Timer ─────────────────────────
-export function MiniTimer({ config = {}, interactive, onResult }) {
-  const duration = Math.max(1, Number(config.duration) || 10);
-  const [pct, setPct] = useState(0);
-  const [running, setRunning] = useState(false);
-  const startRef = useRef(0);
-  const rafRef = useRef(0);
-
-  const stop = useCallback((auto) => {
-    cancelAnimationFrame(rafRef.current);
-    setRunning(false);
-    const elapsed = (performance && performance.now ? performance.now() : Date.now()) - startRef.current;
-    const t = elapsed / 1000;
-    let result;
-    if (config.precisionMode) {
-      const win = Number(config.precisionWindow) || 1;
-      const diff = Math.abs(t - duration);
-      result = diff <= win * 0.3 ? 'Perfect' : diff <= win ? 'Close' : 'Miss';
-    } else {
-      result = (!auto && t <= duration) ? 'Success' : 'Fail';
-    }
-    onResult && onResult(result);
-  }, [config.precisionMode, config.precisionWindow, duration, onResult]);
-
-  const start = () => {
-    if (running) return;
-    setRunning(true);
-    startRef.current = (performance && performance.now ? performance.now() : Date.now());
-    const tick = () => {
-      const elapsed = (performance && performance.now ? performance.now() : Date.now()) - startRef.current;
-      const p = Math.min(1, elapsed / 1000 / duration);
-      setPct(p);
-      if (p >= 1) { stop(true); return; }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  };
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
-
-  const R = 52, C = 2 * Math.PI * R;
-  // Colour shifts with progress. Precision: green only inside the target window near
-  // the end; otherwise straight time-pressure green → amber → red.
-  let ringColor = '#7b3fd6';
-  if (config.precisionMode) {
-    const win = (Number(config.precisionWindow) || 1) / duration;
-    const d = Math.abs(pct - 1);
-    ringColor = d <= win * 0.3 ? '#4ade80' : d <= win ? '#fbbf24' : '#f87171';
-  } else {
-    ringColor = pct < 0.5 ? '#4ade80' : pct < 0.8 ? '#fbbf24' : '#f87171';
-  }
-  return (
-    <div className="pv">
-      <svg className="pv-ring" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={R} className="pv-ring-bg" />
-        <circle cx="60" cy="60" r={R} className="pv-ring-fg" style={{ stroke: ringColor }} strokeDasharray={C} strokeDashoffset={C * (1 - pct)} />
-        <text x="60" y="66" textAnchor="middle" className="pv-ring-txt">{(duration * (1 - pct)).toFixed(1)}s</text>
-      </svg>
-      {interactive && (running
-        ? <button className="pv-btn" onClick={() => stop(false)}>Stop</button>
-        : <button className="pv-btn" onClick={start}>Start</button>)}
-    </div>
-  );
-}
-
-// ───────────────────────── Number Guess ─────────────────────────
-export function MiniNumberGuess({ config = {}, interactive, onResult }) {
-  const min = Number(config.min) || 1, max = Number(config.max) || 10;
-  const maxAttempts = Number(config.maxAttempts) || 3;
-  const close = Number(config.closeThreshold) || 0;
-  const [target, setTarget] = useState(() => min + Math.floor(Math.random() * (max - min + 1)));
-  const [guess, setGuess] = useState('');
-  const [left, setLeft] = useState(maxAttempts);
-  const [feedback, setFeedback] = useState('');
-  const [done, setDone] = useState(false);
-  const [anim, setAnim] = useState('');
-  const animRef = useRef(0);
-
-  const reset = () => { setTarget(min + Math.floor(Math.random() * (max - min + 1))); setLeft(maxAttempts); setFeedback(''); setGuess(''); setDone(false); setAnim(''); };
-  useEffect(reset, [config.min, config.max, config.maxAttempts]); // eslint-disable-line
-  const pulse = (cls) => { setAnim(''); clearTimeout(animRef.current); animRef.current = window.setTimeout(() => setAnim(cls), 10); };
-  useEffect(() => () => clearTimeout(animRef.current), []);
-
-  const submit = () => {
-    if (done) { reset(); return; }
-    const g = parseInt(guess, 10);
-    if (Number.isNaN(g)) return;
-    const remaining = left - 1;
-    if (g === target) { setFeedback('Correct!'); setDone(true); pulse('good'); onResult && onResult('Correct'); return; }
-    if (remaining <= 0) {
-      const res = close > 0 && Math.abs(g - target) <= close ? 'Close' : 'Failed';
-      setFeedback(`${res} — it was ${target}`); setDone(true); pulse('bad'); onResult && onResult(res); return;
-    }
-    setLeft(remaining); setFeedback(g < target ? 'Higher ↑' : 'Lower ↓'); setGuess(''); pulse('bad');
-  };
-
-  return (
-    <div className="pv pv-guess">
-      <div className="pv-guess-range">{min} – {max}</div>
-      <div className={`pv-guess-row ${anim}`}>
-        <input type="text" inputMode="numeric" value={guess} onChange={(e) => setGuess(e.target.value.replace(/[^0-9]/g, ''))} placeholder="?" disabled={!interactive || done} />
-        {interactive && <button className="pv-btn sm" onClick={submit}>{done ? 'Again' : 'Guess'}</button>}
-      </div>
-      <div className="pv-guess-meta">
-        <span className={`pv-fb ${feedback.includes('Correct') ? 'good' : feedback.includes('Failed') ? 'bad' : ''}`}>{feedback || ' '}</span>
-        <span className="pv-attempts">{left} left</span>
-      </div>
-    </div>
-  );
-}
-
-// ───────────────────────── Card Draw ─────────────────────────
+// ───────────────────────── Blackjack (easy: hit or stay) ─────────────────────────
 const SUITS = [{ s: '♥', c: 'red', n: 'Hearts' }, { s: '♦', c: 'red', n: 'Diamonds' }, { s: '♣', c: 'black', n: 'Clubs' }, { s: '♠', c: 'black', n: 'Spades' }];
 const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-export function MiniCardDraw({ config = {}, interactive, onResult }) {
-  const [card, setCard] = useState(null);
-  const [flipping, setFlipping] = useState(false);
+const cardValue = (rank) => (rank === 'A' ? 11 : ('JQK'.includes(rank) ? 10 : parseInt(rank, 10)));
+const drawCard = () => ({ suit: rid(SUITS), rank: rid(RANKS) });
+const handTotal = (cards) => {
+  let total = cards.reduce((s, c) => s + cardValue(c.rank), 0);
+  let aces = cards.filter(c => c.rank === 'A').length;
+  while (total > 21 && aces > 0) { total -= 10; aces--; } // soften aces 11→1
+  return total;
+};
 
-  const draw = () => {
-    if (flipping) return;
-    setFlipping(true);
-    const ranks = config.deckType === 'no-face' ? RANKS.filter(r => !'JQK'.includes(r)) : RANKS;
-    const suit = rid(SUITS); const rank = rid(ranks);
-    window.setTimeout(() => {
-      setCard({ suit, rank });
-      setFlipping(false);
-      const mode = config.outputMode || 'suit';
-      const ri = RANKS.indexOf(rank);
-      const result = mode === 'color' ? (suit.c === 'red' ? 'Red' : 'Black')
-        : mode === 'highlow' ? (ri >= 6 ? 'High' : 'Low')
-        : suit.n;
-      onResult && onResult(result);
-    }, 350);
+export function MiniCardDraw({ config = {}, interactive, onResult }) {
+  const target = Number(config.target) || 21;
+  const charStandsAt = Number(config.charStandsAt) || 17;
+  const [player, setPlayer] = useState([]);
+  const [char, setChar] = useState([]);
+  const [phase, setPhase] = useState('start'); // start | player | done
+  const [outcome, setOutcome] = useState(null);
+  const done = useRef(false);
+
+  const settle = (pHand, cHand) => {
+    let c = [...cHand];
+    if (handTotal(pHand) <= target) {
+      while (handTotal(c) < charStandsAt) c.push(drawCard()); // character plays out its turn
+    }
+    setChar(c);
+    const pt = handTotal(pHand), ct = handTotal(c);
+    let result, winner;
+    if (pt > target) { result = 'Lose'; winner = 'Character'; }
+    else if (ct > target) { result = 'Win'; winner = 'Player'; }
+    else if (pt > ct) { result = 'Win'; winner = 'Player'; }
+    else if (ct > pt) { result = 'Lose'; winner = 'Character'; }
+    else { result = 'Push'; winner = 'Draw'; }
+    setOutcome(result); setPhase('done');
+    if (!done.current) { done.current = true; onResult && onResult(result, winner); }
   };
 
+  const deal = () => { setPlayer([drawCard(), drawCard()]); setChar([drawCard()]); setPhase('player'); setOutcome(null); };
+  const hit = () => { const p = [...player, drawCard()]; setPlayer(p); if (handTotal(p) > target) settle(p, char); };
+  const stay = () => settle(player, char);
+
+  const Card = (c, i) => <span key={i} className={`pv-bj-card ${c.suit.c}`}>{c.rank}<span className="pv-bj-suit">{c.suit.s}</span></span>;
+
   return (
-    <div className="pv">
-      <div className="pv-card-wrap">
-        <div className={`pv-card ${flipping ? 'flipping' : ''} ${card?.suit.c || ''}`}>
-          {card ? <><span className="pv-card-rank">{card.rank}</span><span className="pv-card-suit">{card.suit.s}</span></> : <span className="pv-card-back">🂠</span>}
+    <div className="pv pv-blackjack">
+      <div className="pv-bj-hands">
+        <div className="pv-bj-side">
+          <div className="pv-bj-label">You · {player.length ? handTotal(player) : '—'}</div>
+          <div className="pv-bj-cards">{player.map(Card)}</div>
+        </div>
+        <div className="pv-bj-side">
+          <div className="pv-bj-label">Character · {phase === 'done' ? handTotal(char) : (char.length ? '?' : '—')}</div>
+          <div className="pv-bj-cards">
+            {char.map(Card)}
+            {phase === 'player' && char.length > 0 && <span className="pv-bj-card back">🂠</span>}
+          </div>
         </div>
       </div>
-      {interactive && <button className="pv-btn" onClick={draw} disabled={flipping}>Draw</button>}
+      {outcome && <div className={`pv-result ${outcome === 'Win' ? 'r-win' : outcome === 'Lose' ? 'r-lose' : 'r-draw'}`}>{outcome === 'Push' ? 'Push' : outcome === 'Win' ? 'You win' : 'You lose'}</div>}
+      {interactive && phase === 'start' && <button className="pv-btn" onClick={deal}>Deal</button>}
+      {interactive && phase === 'player' && (
+        <div className="pv-pick">
+          <button className="pv-btn sm" onClick={hit}>Hit</button>
+          <button className="pv-btn sm" onClick={stay}>Stay</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -302,53 +255,3 @@ export function MiniSimon({ config = {}, interactive, onResult }) {
   );
 }
 
-// ───────────────────────── Reflex ─────────────────────────
-export function MiniReflex({ config = {}, interactive, onResult }) {
-  const rounds = Math.max(1, Number(config.rounds) || 5);
-  const sizeMap = { small: 26, medium: 40, large: 56 };
-  const dia = sizeMap[config.targetSize] || 34;
-  const [pos, setPos] = useState(null);
-  const [round, setRound] = useState(0);
-  const [hits, setHits] = useState(0);
-  const [active, setActive] = useState(false);
-  const [flash, setFlash] = useState(false);
-  const tRef = useRef(0);
-  const fRef = useRef(0);
-
-  const place = useCallback((r, h) => {
-    if (r >= rounds) {
-      setActive(false); setPos(null);
-      onResult && onResult(h >= Math.ceil(rounds / 2) ? 'Completed' : 'Failed');
-      return;
-    }
-    setPos({ x: 8 + Math.random() * 84, y: 8 + Math.random() * 84 });
-    tRef.current = window.setTimeout(() => place(r + 1, h), Math.max(500, (Number(config.timePerTarget) || 3) * 1000));
-  }, [rounds, config.timePerTarget, onResult]);
-
-  const start = () => {
-    if (active) return;
-    setActive(true); setRound(0); setHits(0);
-    place(0, 0);
-  };
-  const hit = () => {
-    clearTimeout(tRef.current);
-    setFlash(true);
-    clearTimeout(fRef.current);
-    fRef.current = window.setTimeout(() => setFlash(false), 140);
-    const h = hits + 1, r = round + 1;
-    setHits(h); setRound(r);
-    place(r, h);
-  };
-  useEffect(() => () => { clearTimeout(tRef.current); clearTimeout(fRef.current); }, []);
-
-  return (
-    <div className="pv">
-      <div className={`pv-reflex ${flash ? 'flash' : ''}`}>
-        {pos && <button className="pv-target" style={{ left: `${pos.x}%`, top: `${pos.y}%`, width: dia, height: dia }} onClick={hit} />}
-        {!active && <span className="pv-reflex-hint">tap targets fast</span>}
-      </div>
-      <div className="pv-reflex-meta">{active ? `${round}/${rounds} · ${hits} hit` : `best of ${rounds}`}</div>
-      {interactive && !active && <button className="pv-btn" onClick={start}>Start</button>}
-    </div>
-  );
-}

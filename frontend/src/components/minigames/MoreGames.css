@@ -133,3 +133,24 @@
 @keyframes pv-target-pulse { 0%, 100% { box-shadow: 0 0 12px rgba(239,68,68,0.7); } 50% { box-shadow: 0 0 20px rgba(239,68,68,1); } }
 .pv-reflex-hint { color: #6b7280; font-size: 0.8rem; }
 .pv-reflex-meta { color: #9aa3af; font-size: 0.82rem; }
+
+/* Player pick row (coin call · RPS throw · blackjack hit/stay) */
+.pv-pick { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.pv-pick-label { font-size: 0.85rem; color: var(--text-secondary, #cbd5e1); }
+
+/* Blackjack */
+.pv-blackjack { width: 100%; }
+.pv-bj-hands { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 10px; }
+.pv-bj-side { display: flex; flex-direction: column; gap: 6px; align-items: center; min-width: 120px; }
+.pv-bj-label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary, #cbd5e1); }
+.pv-bj-cards { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 40px; }
+.pv-bj-card {
+  display: inline-flex; align-items: center; gap: 1px;
+  background: #fff; color: #111; border-radius: 5px;
+  padding: 4px 7px; font-weight: 800; font-size: 0.95rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); min-width: 24px; justify-content: center;
+}
+.pv-bj-card.red { color: #d32f2f; }
+.pv-bj-card.black { color: #111; }
+.pv-bj-card.back { background: #3b2c6b; color: #fff; }
+.pv-bj-suit { font-size: 0.9em; }

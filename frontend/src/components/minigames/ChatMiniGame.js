@@ -1,7 +1,7 @@
 import React from 'react';
 import MiniWheel from './MiniWheel';
 import MiniDice from './MiniDice';
-import { MiniCoin, MiniRPS, MiniSlots, MiniTimer, MiniNumberGuess, MiniCardDraw, MiniSimon, MiniReflex } from './MoreGames';
+import { MiniCoin, MiniRPS, MiniSlots, MiniCardDraw, MiniSimon } from './MoreGames';
 import { gameDef } from './gameDefs';
 import './ChatMiniGame.css';
 
@@ -20,15 +20,12 @@ function ChatMiniGame({ data, onResult }) {
   const game = (() => {
     switch (type) {
       case 'prize_wheel': return <MiniWheel segments={config.segments || []} size={240} interactive onResult={(seg) => r(seg?.label)} />;
-      case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} exits={config.exits || []} size={84} interactive onResult={(label) => r(label)} />;
+      case 'dice_roll': return <MiniDice diceCount={config.diceCount || 2} characterAdvantage={config.characterAdvantage || 0} size={84} interactive onResult={(total) => r(String(total))} />;
       case 'coin_flip': return <MiniCoin config={config} interactive onResult={(res, w) => r(res, w)} />;
       case 'rps': return <MiniRPS config={config} interactive onResult={(res, w) => r(res, w)} />;
       case 'slot_machine': return <MiniSlots config={config} interactive onResult={(res) => r(res)} />;
-      case 'timer_challenge': return <MiniTimer config={config} interactive onResult={(res) => r(res)} />;
-      case 'number_guess': return <MiniNumberGuess config={config} interactive onResult={(res) => r(res)} />;
-      case 'card_draw': return <MiniCardDraw config={config} interactive onResult={(res) => r(res)} />;
+      case 'card_draw': return <MiniCardDraw config={config} interactive onResult={(res, w) => r(res, w)} />;
       case 'simon_challenge': return <MiniSimon config={config} interactive onResult={(res) => r(res)} />;
-      case 'reflex_challenge': return <MiniReflex config={config} interactive onResult={(res) => r(res)} />;
       default: return <div className="mg-preview-stub"><div className="mg-preview-glyph">{gameDef(type).icon}</div><div className="mg-preview-name">{gameDef(type).name}</div></div>;
     }
   })();
