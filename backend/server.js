@@ -11097,7 +11097,9 @@ async function handleManualPump() {
   if (type === 'bulb') sessionState.bulbCurrent = (sessionState.bulbCurrent || 0) + 1;
   else sessionState.bikeCurrent = (sessionState.bikeCurrent || 0) + 1;
   const before = sessionState.capacity || 0;
-  sessionState.capacity = Math.max(0, Math.min(100, before + perPump));
+  // Round to 1 decimal so the bulb/bike pump shows clean values (e.g. 4.2%), not a 15-digit float
+  // from 100/max (e.g. 100/120 = 0.8333…).
+  sessionState.capacity = Math.round(Math.max(0, Math.min(100, before + perPump)) * 10) / 10;
   if (!sessionState.preInflationGateMet && sessionState.capacity > 0) sessionState.preInflationGateMet = true;
   const added = Math.round((sessionState.capacity - before) * 100) / 100;
   const cap = Math.round(sessionState.capacity);

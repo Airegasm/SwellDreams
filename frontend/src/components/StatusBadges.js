@@ -79,7 +79,7 @@ function StatusBadges({
             style={{ '--capacity': Math.min(capacity, 100) }}
           ></div>
           <div className="gauge-center-mini"></div>
-          <span className="gauge-value-mini">{capacity}%</span>
+          <span className="gauge-value-mini">{Math.round((Number(capacity) || 0) * 10) / 10}%</span>
         </div>
         {showCapacitySlider && onCapacityChange && (
           <div className="capacity-slider-popup" onClick={(e) => e.stopPropagation()}>
