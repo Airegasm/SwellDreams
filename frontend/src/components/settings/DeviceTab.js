@@ -1305,7 +1305,7 @@ function DeviceTab() {
       {/* Manual Devices - non-smart pumps; values persist to system variables BulbMax / BikeMax */}
       <div className="configured-devices-card">
         <div className="configured-devices-header">
-          <span>Manual Devices</span>
+          <span>Manual Pumps (NEW)</span>
         </div>
         <div className="configured-devices-list">
           <p className="text-muted" style={{ marginTop: 0 }}>

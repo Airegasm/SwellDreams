@@ -237,6 +237,12 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
           <option value="bike">Manual / Bike (PUMP)</option>
         </select>
         <p className="section-hint">When a pre-req choice / trigger loads this profile, it sets the session pump mode (overrides the card default).</p>
+        {isManualPump && (
+          <p className="section-hint" style={{ marginTop: 4 }}>
+            📋 Manual pump calibration (set in <strong>Settings → Pump Data</strong>): Bulb <strong>{bulbMaxField || '?'}</strong> · Bike <strong>{bikeMaxField || '?'}</strong> pumps to full
+            {bulbMaxField ? ` ≈ ${(100 / Number(bulbMaxField)).toFixed(1)}% per bulb pump` : ''}{bikeMaxField ? ` · ${(100 / Number(bikeMaxField)).toFixed(1)}% per bike pump` : ''}. Reference for laying out the ranges below.
+          </p>
+        )}
       </div>
 
       <div className="form-group" style={{ marginTop: 8 }}>

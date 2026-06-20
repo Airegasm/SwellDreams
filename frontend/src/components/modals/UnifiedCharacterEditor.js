@@ -1239,23 +1239,7 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
               )}
-
-              <h4 style={{ margin: '4px 0' }}>Manual Pump Maxes</h4>
-              <p className="section-hint" style={{ marginTop: 0 }}>Max average pumps to full capacity. Shared with Smart Devices › Manual Devices.</p>
-              <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                <div>
-                  <label>Bulb Pump Max</label>
-                  <input type="text" inputMode="numeric" value={bulbMaxField}
-                    onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))}
-                    onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
-                </div>
-                <div>
-                  <label>Bicycle Pump Max</label>
-                  <input type="text" inputMode="numeric" value={bikeMaxField}
-                    onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))}
-                    onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
-                </div>
-              </div>
+              {/* Bulb/Bike Pump Max moved to Settings → Pump Data → "Manual Pumps (NEW)" (#29). */}
             </>
           )}
 

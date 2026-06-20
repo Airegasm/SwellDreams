@@ -8,7 +8,7 @@ import './Settings.css';
 
 const TABS = [
   { id: 'model', label: 'LLM Backend' },
-  { id: 'devices', label: 'Smart Devices' },
+  { id: 'devices', label: 'Pump Data' },
   { id: 'global', label: 'Global' },
   { id: 'display', label: 'Display' }
 ];
