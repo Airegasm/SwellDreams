@@ -2,6 +2,15 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v5.7.4] - 2026-06-19
+
+### Added
+- **Prose pump-enforcement toggle** — A new **"Enforce pump from narration"** option under Global Controls → LLM Device Control (default OFF). When on, if the AI describes the pump starting/running but forgets the `[pump on]` tag, the system infers and fires it anyway — re-arming the narration-detection layer that was previously unreachable. Turning the pump *off* from narration stays always-on regardless.
+
+### Changed
+- **Stronger LLM device-control instructions** — The model is now told explicitly that omitting the tag means the device doesn't move, to emit `[pump on]` in the same reply it narrates pumping, and to re-emit it each reply (since the pump auto-times-out) — making `[pump on]` enforcement far more reliable.
+- **Checkpoints tab polish** — Trigger-tree blocks are type-color-coded (block/event/action) with clearer labels; the "add block" dropdown in Session Start is no longer clipped; and the Character/Instructor/MultiChar editors widen on the Checkpoints tab for room to edit trigger trees.
+
 ## [v5.7.3] - 2026-06-19
 
 ### Fixed

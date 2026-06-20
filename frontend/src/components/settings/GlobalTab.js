@@ -56,6 +56,7 @@ function GlobalTab() {
     emotionalDecline: true,
     autoCapacityMultiplier: 1.0,
     allowLlmDeviceControl: false,
+    allowProseReinforcement: false,
     llmDeviceControlMaxSeconds: 30,
     llmDeviceControlPulseDuration: 3,
     allowOverInflation: false,
@@ -1374,6 +1375,20 @@ function GlobalTab() {
                   className="control-number-input"
                 />
                 <span className="control-inline-hint">seconds (for rhythmic/pulsing pump phrases)</span>
+              </div>
+              <div className="character-control-row sub-control">
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={!!characterControls.allowProseReinforcement}
+                    onChange={(e) => handleCharacterControlChange('allowProseReinforcement', e.target.checked)}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <div className="control-label-group">
+                  <span className="toggle-label">Enforce pump from narration (prose reinforcement)</span>
+                  <span className="control-hint">When the AI describes starting/running the pump but forgets the [pump on] tag, infer it and fire the pump anyway. OFF by default for safety — only enable if you want aggressive enforcement. (Turning the pump OFF from narration is always on.)</span>
+                </div>
               </div>
             </>
           )}

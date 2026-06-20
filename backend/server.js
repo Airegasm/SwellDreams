@@ -10845,9 +10845,12 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       const capacityMod = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
       const scaledMaxOn = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
       const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn) : globalMax;
-      let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+      let devicePrompt = `\nDEVICE CONTROL — REQUIRED: You operate a REAL physical device through hidden tags. If your reply narrates the pump starting, running, or continuing but you do NOT include the tag, the pump does NOT move — so you MUST emit the tag in the SAME reply.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-Example: "*activates the pump* [pump on] Now let's begin..." (hidden from player, auto-timeout ${maxSeconds}s)`;
+- Emit [pump on] the instant you describe starting/running the pump; place the tag right after the action.
+- The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running.
+- Emit [pump off] when you narrate stopping. Tags are hidden from the player.
+Example: "*flips the switch* [pump on] Let's begin..."`;
       if (charLimits) {
         const scaledMaxTimed = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod);
         const scaledMaxCycleOn = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod);
@@ -11430,9 +11433,12 @@ function buildChatContext(character, settings) {
     const capacityMod2 = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
     const scaledMaxOn2 = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod2);
     const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn2) : globalMax;
-    let devicePrompt = `\nDEVICE CONTROL: Include hidden tags when activating/deactivating devices.
+    let devicePrompt = `\nDEVICE CONTROL — REQUIRED: You operate a REAL physical device through hidden tags. If your reply narrates the pump starting, running, or continuing but you do NOT include the tag, the pump does NOT move — so you MUST emit the tag in the SAME reply.
 Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-Example: "*flips the switch* [pump on] Let's begin..." (tags are hidden from player, auto-timeout ${maxSeconds}s)`;
+- Emit [pump on] the instant you describe starting/running the pump; place the tag right after the action.
+- The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running.
+- Emit [pump off] when you narrate stopping. Tags are hidden from the player.
+Example: "*flips the switch* [pump on] Let's begin..."`;
     if (charLimits) {
       const scaledMaxTimed2 = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod2);
       const scaledMaxCycleOn2 = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod2);
