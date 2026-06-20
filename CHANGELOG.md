@@ -2,6 +2,28 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.0.0] - 2026-06-20
+
+### Added
+- **Multi-character individual responses** — A responder dropdown in the chat input bar lets you tick girls (in order) to reply **one at a time as only themselves**, back-to-back, instead of the group reply. N ticks = N generations, each capped by a new per-card **Individual Response Tokens** setting (default 150). Muted girls are greyed/un-tickable.
+- **Manual "GO!" gate-release** — A new option on the *End Gated Intro* action holds the pump gate closed after the intro until the player presses **GO!** (mobile: the ESTOP button becomes GO!; PC: a floating button). Prevents premature pumping during long buildups. Combine with a profile load to "assign a profile AND wait for GO!".
+- **Always-On is now a multi-trigger section** — Each scope can hold multiple always-on trigger trees (add/remove), like Event Triggers, everywhere it appears (Character, MultiChar, Instructor, per checkpoint profile).
+- **Await-gate triggers** — Checkpoint trigger sequences can pause and resume:
+  - **Await Pump Amount** (manual-pump profiles): waits until the player presses PUMP a set number of times, then fires the following triggers.
+  - **Await Input**: waits for a keyword; the options render as **clickable chips under AI bubbles** (screen-only) — clicking sends the word and fires the gated triggers.
+- **Instructor dispositions split** — *Knowledgeable* and *Sadistic* are now separate dispositions (alongside Careful and Scientific).
+
+### Changed
+- **Unified checkpoint tab** — A non-pumpable single character now uses the same **Checkpoint Profiles** UI as multi-character cards (per-profile ranges), exposing the manual per-range pacing fields (MSG/Batch, Max Pump/Batch) for bulb/bike pumps.
+- **Checkpoint priority rule** — Reaching a new range that *has* triggers aborts any pending/in-process triggers from a previous range; reaching an empty range leaves them running. LLM-enhanced triggers block the next trigger until generation finishes.
+- **PC ESTOP/PUMP relocated** — Now centered in the strip above the chat textbox for all card types; white when PUMP (manual), matching mobile.
+- **MultiChar editor cleanup** — Removed the Story Progression, Associated Flows, and Constant Reminders sections; Library lore matches single-character cards.
+
+### Fixed
+- Bulb/bike manual pump capacity now rounds to 1 decimal (was a 15-digit float).
+- Number fields no longer render many rows tall on mobile in the MultiChar/Instructor editors.
+- Card-modal dropdowns no longer render black-on-black (forced light `color-scheme`).
+
 ## [v5.7.4] - 2026-06-19
 
 ### Added
