@@ -21,10 +21,20 @@ function FireTreeEditor({ node, setParams }) {
   );
 }
 
-// call_minigame editor (Phase 5): pick a library MiniGame, then bind an OPTIONAL goto label per
-// exit. The played exit sets [Flow:GameResult]/[Flow:GameWinner]; a bound exit jumps to its label
-// (placed AFTER this node), an unbound exit falls through. Mirrors FireTreeEditor's lazy fetch.
-function CallMiniGameBlock({ node, setParams }) {
+// Collect every Label node's name in a tree (recursively) — the valid goto targets.
+function collectLabelNames(nodes, out = []) {
+  for (const n of (nodes || [])) {
+    if (!n) continue;
+    if (n.kind === 'action' && n.type === 'label' && n.params?.name) out.push(n.params.name);
+    if (n.children) collectLabelNames(n.children, out);
+  }
+  return out;
+}
+
+// call_minigame editor (Phase 5): pick a library MiniGame, then bind an OPTIONAL goto per exit —
+// chosen from the tree's Labels (rowProps.treeLabels). The played exit sets [Flow:GameResult]/
+// [Flow:GameWinner]; a bound exit jumps to its Label (placed AFTER this node), unbound falls through.
+function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
   const [games, setGames] = React.useState(null);
   React.useEffect(() => {
     fetch(`${API_BASE}/api/minigames`).then(r => r.json()).then(d => setGames(d?.games || [])).catch(() => setGames([]));
@@ -34,6 +44,7 @@ function CallMiniGameBlock({ node, setParams }) {
   const exits = game ? exitsFor(game.type, game.config || {}) : [];
   const gotos = node.params?.exitGotos || {};
   const setGoto = (exit, name) => setParams({ exitGotos: { ...gotos, [exit]: name } });
+  const labels = rowProps.treeLabels || [];
   return (
     <div className="tree-params">
       <label className="tree-field">
@@ -46,17 +57,25 @@ function CallMiniGameBlock({ node, setParams }) {
       {gameId && !game && <div className="section-hint">⚠️ This minigame no longer exists in the library.</div>}
       {game && (
         <div className="tree-field">
-          <span>Bind exits → labels (optional; blank = fall through)</span>
-          {exits.length === 0 && <div className="section-hint">This game type exposes no named exits.</div>}
-          {exits.map(exit => (
-            <div key={exit} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '3px 0' }}>
-              <code style={{ minWidth: 90 }}>{exit}</code>
-              <span>→</span>
-              <input type="text" value={gotos[exit] || ''} placeholder="goto label (optional)"
-                onChange={(e) => setGoto(exit, e.target.value)} />
-            </div>
-          ))}
-          <div className="section-hint">Sets <code>[Flow:GameResult]</code>{game.competitive ? <> and <code>[Flow:GameWinner]</code></> : null}. Place the target Labels AFTER this node.</div>
+          <span>On each exit, go to (optional; blank = fall through)</span>
+          {exits.length === 0 && <div className="section-hint">No named exits — this game sets <code>[Flow:GameResult]</code> only (e.g. dice = numeric total). Branch on it with conditions.</div>}
+          {exits.map(exit => {
+            const cur = gotos[exit] || '';
+            // Include the stored value even if its Label was since removed, so it isn't lost.
+            const opts = cur && !labels.includes(cur) ? [cur, ...labels] : labels;
+            return (
+              <div key={exit} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '3px 0' }}>
+                <code style={{ minWidth: 90 }}>{exit}</code>
+                <span>→</span>
+                <select value={cur} onChange={(e) => setGoto(exit, e.target.value)}>
+                  <option value="">— fall through —</option>
+                  {opts.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
+            );
+          })}
+          {exits.length > 0 && labels.length === 0 && <div className="section-hint">Add <strong>Label</strong> nodes after this one to bind gotos.</div>}
+          <div className="section-hint">Sets <code>[Flow:GameResult]</code>{game.competitive ? <> and <code>[Flow:GameWinner]</code></> : null}. Goto targets must be Labels placed AFTER this node.</div>
         </div>
       )}
     </div>
@@ -359,7 +378,7 @@ function NodeBody({ node, onChange, rowProps }) {
     );
   }
   if (t === 'fire_tree') return <FireTreeEditor node={node} setParams={setParams} />;
-  if (t === 'call_minigame') return <CallMiniGameBlock node={node} setParams={setParams} />;
+  if (t === 'call_minigame') return <CallMiniGameBlock node={node} setParams={setParams} rowProps={rowProps} />;
   if (t === 'end_intro') {
     const profiles = rowProps?.profiles || [];
     return (
@@ -521,9 +540,11 @@ function NodeList({ nodes, onChange, rowProps }) {
 
 // Public entry: edits a flat node array (a tree's `nodes`). `value` = nodes[], `onChange(nodes)`.
 function TreeEditor({ value, onChange, ...rowProps }) {
+  // Expose this tree's Label names so Call MiniGame (and future goto pickers) can offer them as a dropdown.
+  const treeLabels = React.useMemo(() => Array.from(new Set(collectLabelNames(value || []))), [value]);
   return (
     <div className="tree-editor">
-      <NodeList nodes={value || []} onChange={onChange} rowProps={rowProps} />
+      <NodeList nodes={value || []} onChange={onChange} rowProps={{ ...rowProps, treeLabels }} />
     </div>
   );
 }
