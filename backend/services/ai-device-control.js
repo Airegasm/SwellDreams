@@ -203,6 +203,26 @@ const PUMP_OFF_PHRASES = [
   /\b(pump|compressor|machine|motor)\s+.*?\s*(dies?|dying|sputters?|sputtering)/i,
 ];
 
+// Negators that flip a "stop/shut off" phrase into a NON-event: "won't stop",
+// "don't shut it off", "keep pumping without stopping", "never stops". Checked
+// against the lead-in text before an OFF match so we don't kill a running pump.
+const PUMP_OFF_NEGATORS = /\b(do\s*n['’]?t|does\s*n['’]?t|did\s*n['’]?t|wo\s*n['’]?t|will\s+not|ca\s*n['’]?t|cannot|could\s*n['’]?t|should\s*n['’]?t|never|without|keep|keeps|keeping|refus\w+|no\s+(?:intention|plan|sign)\s+of)\b/i;
+
+// Hypothetical / imagined / recalled framing — pump narration here is NOT a real
+// device action. Shared by both the ON and OFF reinforcement paths.
+const HYPOTHETICAL_MARKERS = [
+  /\b(imagine|imagines|imagining|picture|pictures|picturing|think\s+about|remember\s+when|describe|talk\s+about|discuss)\b/i,
+  /\b(would|could|might|going\s+to|about\s+to)\s+(start|begin|stop|pump|inflate|shut|turn|cut|kill|end)/i,
+  /\b(if\s+(I|we|you|she|he|they)\s+(were|was|could|did|had)|what\s+if)\b/i,
+  /\b(mind\s+wanders?|images?\s+of|thoughts?\s+of|thinking\s+(about|of)|fantasiz(e|es|ing)|daydream(s|ing)?)\b/i,
+  /\b(dream(s|ing|ed|t)?\s+(about|of)|recalls?\s|memor(y|ies)\s+of|vision(s)?\s+of)\b/i,
+  /\b(wonders?\s+(what|how|if)|envision(s|ing)?)\b/i,
+];
+
+function isHypothetical(text) {
+  return HYPOTHETICAL_MARKERS.some(m => m.test(text));
+}
+
 // Track active LLM device timers for auto-off
 const llmDeviceTimers = new Map();
 
@@ -865,12 +885,29 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
-  // Check for OFF phrases first (only trigger if "off" is in the sentence).
-  // OFF reinforcement is fail-safe and always allowed.
-  for (const pattern of PUMP_OFF_PHRASES) {
-    pattern.lastIndex = 0;
-    if (pattern.test(text)) {
+  // Check for OFF phrases first. OFF reinforcement is fail-safe, but it must not
+  // fire on negated ("won't stop"), hypothetical ("imagine shutting it off"), or
+  // cross-clause false matches — those spuriously kill a running pump.
+  if (!isHypothetical(text)) {
+    for (const pattern of PUMP_OFF_PHRASES) {
+      pattern.lastIndex = 0;
       const match = text.match(pattern);
+      if (!match) continue;
+
+      // The OFF verb and the device can sit far apart with the loose `.*?`
+      // patterns; ignore matches that span a sentence boundary (likely unrelated).
+      if (/[.!?]/.test(match[0])) {
+        log.info(`[Reinforce] OFF match spans a sentence — ignoring: "${match[0]}"`);
+        continue;
+      }
+
+      // Negation right before the match ("she won't stop the pump") = keep running.
+      const leadIn = text.slice(Math.max(0, match.index - 28), match.index);
+      if (PUMP_OFF_NEGATORS.test(leadIn + ' ' + match[0])) {
+        log.info(`[Reinforce] OFF phrase is negated — ignoring: "${(leadIn + match[0]).trim()}"`);
+        continue;
+      }
+
       log.info(`[Reinforce] Detected OFF phrase: "${match[0]}" - auto-appending [pump off]`);
       const reinforcedText = text.trimEnd() + ' [pump off]';
       return { text: reinforcedText, reinforced: true, matchedPhrase: match[0], isOff: true };
@@ -889,44 +926,22 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
   const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Skip for clearly hypothetical/imaginary/fantasy text
-    const hypotheticalMarkers = [
-      /\b(imagine|picture|think\s+about|remember\s+when|describe|talk\s+about|discuss)\b/i,
-      /\b(would|could|might)\s+(start|begin|pump|inflate)/i,
-      /\b(if\s+(I|we)\s+(were|could)|what\s+if)\b.*\b(pump|inflate)/i,
-      /\b(mind\s+wanders?|images?\s+of|thoughts?\s+of|thinking\s+(about|of)|fantasiz(e|es|ing)|daydream(s|ing)?)\b/i,
-      /\b(dream(s|ing|ed|t)?\s+(about|of)|recalls?\s|memor(y|ies)\s+of|vision(s)?\s+of)\b/i,
-      /\b(wonders?\s+(what|how|if)|imagining|picturing|envision(s|ing)?)\b/i,
-    ];
-
-    for (const marker of hypotheticalMarkers) {
-      if (marker.test(text)) {
-        log.info(`[Reinforce] Hypothetical marker - skipping: "${matchedPhrase}"`);
-        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-      }
+    // Skip clearly hypothetical / imagined / recalled framing ("imagine starting
+    // the pump", "she dreamed of being inflated") — not a real activation.
+    if (isHypothetical(text)) {
+      log.info(`[Reinforce] Hypothetical framing - skipping ON: "${matchedPhrase}"`);
+      return { text, reinforced: false, matchedPhrase: null, isPulse: false };
     }
 
-    // Skip for descriptive/passive inflation state phrases — these describe the EFFECT
-    // of inflation (what's happening to the body), not a pump activation command.
-    // SAFETY: the descriptive filter is ALWAYS applied. The previous
-    // `isExplicitDeviceAction` bypass let loosely-narrated device mentions override
-    // this filter and synthesize a real ON command from prose — exactly what we must
-    // never do. We no longer bypass it under any circumstances.
-    const descriptiveMarkers = [
-      /\b(belly|stomach|abdomen|intestines?|gut|tummy|insides?|bowels?)\s+(fills?|filling|filled|inflate[sd]?|inflating|expand[sd]?|expanding|swell[sd]?|swelling|grow[sd]?|growing|distend[sd]?|distending|stretch|stretching|stretched|bloat[sd]?|bloating)\s+(with|from|full\s+of)/i,
-      /\bfill(s|ed|ing)?\s+with\s+(air|fluid|liquid|gas|water|pressure)/i,
-      /\b(air|fluid|liquid|gas)\s+fill(s|ed|ing)?\s+(her|his|their|the|your|\[)/i,
-      /\b(grow|grows|growing|swell|swells|swelling|expand|expands|expanding|distend|distends|distending|bloat|bloats|bloating)\s+(larger|bigger|rounder|tighter|further|more|outward|visibly)/i,
-      /\b(taut|tight|round|firm|swollen|distended|bloated|full)\s+(belly|stomach|abdomen|gut|tummy)/i,
-      /\b(belly|stomach|abdomen|gut|tummy)\s+(is|was|gets?|getting|became|becomes?|growing|looking)\s+(bigger|larger|rounder|tighter|fuller|more\s+distended|more\s+swollen)/i,
-    ];
-
-    for (const marker of descriptiveMarkers) {
-      if (marker.test(text)) {
-        log.info(`[Reinforce] Descriptive state phrase - skipping: "${matchedPhrase}"`);
-        return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-      }
-    }
+    // NOTE: we intentionally do NOT suppress on "descriptive" body-state phrases
+    // (belly fills with air, swells larger, etc.). Reaching this point already
+    // REQUIRES a pump-ACTIVATION phrase (start/turn on/activate/engage/pump
+    // begins|runs|continues) from PUMP_ACTIVITY_PHRASES — pure passive description
+    // never matches those. The old descriptive filter scanned the whole message and
+    // killed legitimate activations simply because the same reply also described the
+    // belly inflating (true of nearly every inflation message), which is the main
+    // reason prose ON-reinforcement "never fired." In an inflation pump context an
+    // active fill IS the pump working, so we let the activation stand.
 
     // Check for specific mode indicators in the text
     const isPulse = containsPulsePhrase(text);

@@ -5,8 +5,24 @@
   border-radius: 7px;
   background: var(--bg-elevated, #232323);
   margin-bottom: 8px;
+  /* This is a dark panel — force light text so it stays readable even when the
+     host (e.g. the character modal's light card body) sets a dark inherited color. */
+  color: var(--text-primary, #e8e8e8);
   /* NOT overflow:hidden — it clips the tree's absolutely-positioned "add block"
      dropdown. Corners are rounded on the header/body directly instead. */
+}
+/* Form controls inside a dark panel: dark field + light text. Without this, a bare
+   <select>/<input> picks up the panel's light text on a browser-default light field
+   (light-on-light). Tree-specific rules are more specific and still win where set. */
+.csec-body select,
+.csec-body input[type="text"],
+.csec-body input[type="number"],
+.csec-body textarea {
+  background: var(--bg-input, #1c1c1c);
+  color: var(--text-primary, #e8e8e8);
+  border: 1px solid var(--border-color, #3a3a3a);
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 .csec-open { border-left-color: #6c8cff; }
 
