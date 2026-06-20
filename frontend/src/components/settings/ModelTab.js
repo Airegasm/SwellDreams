@@ -410,13 +410,20 @@ function ModelTab() {
     setHordeConnecting(false);
   };
 
-  // Handle AI Horde model selection ('' = any available worker)
+  // Handle AI Horde model selection ('' = any available worker). Horde doesn't expose
+  // the worker's chat template, so we auto-apply the one inferred from the model name
+  // (backend `inferHordeTemplate`) — fixes template-roulette for a pinned model.
   const handleHordeModelSelect = async (model) => {
     const id = model ? model.id : '';
     setSelectedHordeModel(id);
     const newSettings = { ...llmSettings, hordeModel: id };
+    let appliedTemplate = null;
+    if (model && model.template && model.template !== llmSettings.promptTemplate) {
+      newSettings.promptTemplate = model.template;
+      appliedTemplate = model.template;
+    }
     setLlmSettings(newSettings);
-    setModelStatus(model ? model.name : 'Any model');
+    setModelStatus(model ? `${model.name}${appliedTemplate ? ` · template → ${appliedTemplate}` : ''}` : 'Any model');
     try {
       await persistSettings(newSettings);
     } catch (error) {
@@ -1235,6 +1242,7 @@ function ModelTab() {
                       </div>
                       <div className="model-meta">
                         <span className="model-context">{model.count > 0 ? `~${Math.max(1, Math.round(model.eta))}s eta` : 'offline'}</span>
+                        {model.template && <span className="model-cost">{model.template}</span>}
                       </div>
                     </div>
                   ))}

@@ -1555,6 +1555,34 @@ function hordeRequest(method, path, apiKey, body) {
  * Fetch available text models from AI Horde, sorted by worker availability.
  * @returns {Promise<Array>} [{ id, name, count, queued, eta, performance }]
  */
+/**
+ * Best-effort prompt template inference from an AI Horde model name. Horde does not
+ * expose the worker's chat template, but the model name reliably implies its family.
+ * Returns one of the app's promptTemplate ids, or null if we can't tell (caller keeps
+ * the current template). Order matters — check most-specific families first.
+ */
+function inferHordeTemplate(name) {
+  if (!name || typeof name !== 'string') return null;
+  const n = name.toLowerCase();
+  // Strip the worker-backend prefix Horde prepends (e.g. "aphrodite/", "koboldcpp/").
+  const s = n.includes('/') ? n.slice(n.indexOf('/') + 1) : n;
+
+  if (/gemma[-_ ]?3/.test(s)) return 'gemma3';
+  if (/gemma[-_ ]?2/.test(s)) return 'gemma2';
+  if (/\bgemma\b/.test(s)) return 'gemma3';
+  // Mistral v7 / Tekken-tokenizer models
+  if (/tekken|mistral[-_ ]?(v?7|small[-_ ]?3|2503|2506)|magistral|devstral/.test(s)) return 'mistral-tekken';
+  // Mistral family + the common Mistral-based RP finetunes
+  if (/mistral|mixtral|nemo|cydonia|skyfall|magnum|miqu|codestral|pixtral|rocinante|unslop|patricide|mag[-_ ]?mell|lyra|dolphin[-_ ]?2\.[0-9]/.test(s)) return 'mistral';
+  if (/qwen|qwq/.test(s)) return 'chatml';
+  if (/llama[-_ ]?3|l3[-_ ]|llama3|hermes[-_ ]?3|hanami|anubis|euryale|nemotron|sao10k|stheno|lumimaid/.test(s)) return 'llama3';
+  if (/llama[-_ ]?2|llama2|airoboros|mythomax|xwin/.test(s)) return 'llama';
+  if (/vicuna/.test(s)) return 'vicuna';
+  if (/alpaca/.test(s)) return 'alpaca';
+  if (/chatml|yi[-_ ]|deepseek/.test(s)) return 'chatml';
+  return null;
+}
+
 async function fetchHordeModels(apiKey) {
   console.log('[LLM] Fetching AI Horde text models...');
   const { status, body } = await hordeRequest('GET', '/status/models?type=text', apiKey);
@@ -1570,7 +1598,8 @@ async function fetchHordeModels(apiKey) {
       count: m.count || 0,
       queued: m.queued || 0,
       eta: m.eta || 0,
-      performance: m.performance || 0
+      performance: m.performance || 0,
+      template: inferHordeTemplate(m.name)  // suggested promptTemplate (may be null)
     }));
   console.log(`[LLM] Fetched ${models.length} AI Horde text models`);
   return models;
@@ -2063,6 +2092,7 @@ module.exports = {
   // AI Horde
   HORDE_API_URL,
   fetchHordeModels,
+  inferHordeTemplate,
   buildHordeParams,
   generateHorde,
   testHordeConnection,
