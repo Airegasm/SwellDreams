@@ -69,6 +69,7 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   // Assignables for the Instructor Settings tab.
   const [profiles, setProfiles] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [availableSkins, setAvailableSkins] = useState([]);
 
   // Custom Buttons editor state (ported from CharacterEditorModal).
   const [devices, setDevices] = useState([]);
@@ -126,6 +127,7 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
       .catch(() => {});
     api.getDevices?.().then(d => setDevices(Array.isArray(d) ? d : [])).catch(() => {});
     api.getFlows?.().then(f => setFlows(Array.isArray(f) ? f : (f?.flows || []))).catch(() => {});
+    apiFetch(`${API_BASE}/api/display-settings`).then(d => setAvailableSkins(d?.skins || [])).catch(() => {});
     api.getPersonas?.().then(p => setPersonas(Array.isArray(p) ? p : (p?.personas || []))).catch(() => {});
   }, [isOpen, api]);
 
@@ -1255,6 +1257,52 @@ Write only the scenario description itself, no explanations.`;
                 </div>
               </div>
             </>
+          )}
+
+          {/* ---- Session Defaults: skin / starting capacity / auto-capacity speed ---- */}
+          <h4 style={{ margin: '8px 0 4px' }}>Session Defaults</h4>
+          <p className="section-hint" style={{ marginTop: 0 }}>Starting values when beginning a new session with this story.</p>
+          <div className="form-group">
+            <label>Session Skin</label>
+            <select value={activeStory?.skinId || ''} onChange={(e) => updateStoryField('skinId', e.target.value || '')}>
+              <option value="">SwellDreams (Default)</option>
+              {availableSkins.filter(s => s.id !== 'swelldreams-default').map(s => (
+                <option key={s.id} value={s.id}>{s.name}{s.builtIn ? ' (Built-in)' : ''}</option>
+              ))}
+            </select>
+            <p className="section-hint">Auto-switch to this skin when a session starts with this story.</p>
+          </div>
+          <div className="form-group">
+            <label>Starting Capacity — {activeStory?.startingCapacity || 0}%</label>
+            <input type="range" min="0" max="100" step="5" value={activeStory?.startingCapacity || 0}
+              onChange={(e) => updateStoryField('startingCapacity', parseInt(e.target.value, 10))} />
+          </div>
+          <div className="form-group">
+            <label>Auto-Capacity Speed — {(activeStory?.startingCapacityModifier || 1.0).toFixed(2)}x</label>
+            <input type="range" min="0.25" max="2" step="0.25" value={activeStory?.startingCapacityModifier || 1.0}
+              onChange={(e) => updateStoryField('startingCapacityModifier', parseFloat(e.target.value))} />
+            <p className="section-hint">How fast capacity rises in auto-mode.</p>
+          </div>
+
+          {formData.extensions?.v2v3Import && (
+            <div className="form-group">
+              <h4 style={{ margin: '8px 0 4px' }}>Original Imported Content (Reference)</h4>
+              <p className="section-hint" style={{ color: 'var(--warning-color)' }}>Read-only originals from the imported card — write inflation-appropriate versions above.</p>
+              {formData.extensions.v2v3Import.originalGreeting && (
+                <><label>Original Welcome Message</label>
+                  <textarea value={formData.extensions.v2v3Import.originalGreeting} readOnly rows={3} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} /></>
+              )}
+              {formData.extensions.v2v3Import.originalAlternateGreetings?.length > 0 && (
+                <><label>Original Alternate Greetings ({formData.extensions.v2v3Import.originalAlternateGreetings.length})</label>
+                  {formData.extensions.v2v3Import.originalAlternateGreetings.map((g, idx) => (
+                    <textarea key={idx} value={g} readOnly rows={2} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed', marginBottom: 6 }} />
+                  ))}</>
+              )}
+              {formData.extensions.v2v3Import.originalScenario && (
+                <><label>Original Scenario</label>
+                  <textarea value={formData.extensions.v2v3Import.originalScenario} readOnly rows={2} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} /></>
+              )}
+            </div>
           )}
 
           <div className="form-group">
