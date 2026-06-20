@@ -172,9 +172,9 @@ function DictionaryManager() {
                     <label className="dict-adv-field" title="Inclusion group — only one entry from a group activates per turn">Group
                       <input type="text" value={t.group || ''} onChange={(e) => updateTermRow(t.id, 'group', e.target.value)} placeholder="(none)" />
                     </label>
-                    <label className="dict-adv-check" title="Allow this entry's content to trigger other linked entries (recursion)">
+                    <label className="dict-adv-check" title="Recursion: let this entry's content trigger other entries' keywords (chained activation)">
                       <input type="checkbox" checked={t.recurse !== false} onChange={(e) => updateTermRow(t.id, 'recurse', e.target.checked)} />
-                      links
+                      <span>recursion</span>
                     </label>
                   </div>
                 </div>

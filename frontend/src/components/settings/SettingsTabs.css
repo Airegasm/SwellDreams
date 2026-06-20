@@ -2253,7 +2253,9 @@
 
 /* Section description text - dark on light background */
 .section-description {
-  color: #1a1a1a !important;
+  /* Used only on dark page surfaces (Dictionary, Display/Global/Data tabs) — must be light,
+     not the old light-card #1a1a1a which was black-on-black. */
+  color: var(--text-secondary, #cbd5e1) !important;
   font-weight: 600;
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-md);
@@ -3695,13 +3697,26 @@
 .dict-adv-check {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.78rem;
   white-space: nowrap;
+  color: var(--text-secondary, #cbd5e1);
+}
+/* Keep the checkbox a normal, fixed size — on mobile a bare checkbox renders huge otherwise. */
+.dict-adv-check input[type="checkbox"],
+.dict-term-enable input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent-primary, #10b981);
 }
 @media (max-width: 640px) {
   .dict-adv-row > input[type="text"],
   .dict-adv-row > select { flex: 1 1 100%; }
+  /* The % chance / Group / recursion controls each take their own row instead of overflowing. */
+  .dict-adv-field { flex: 1 1 100%; }
+  .dict-adv-check { flex: 1 1 100%; }
   .dict-adv input, .dict-adv select { font-size: 16px; }
 }
 
