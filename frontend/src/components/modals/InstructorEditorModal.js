@@ -5,7 +5,6 @@ import { apiFetch } from '../../utils/api';
 import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection, { DEFAULT_INTRO_RULES } from '../common/ScopeTreeSection';
-import AlwaysOnSection from '../common/AlwaysOnSection';
 import EventTriggersSection from '../common/EventTriggersSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import MediaCropModal from './MediaCropModal';
@@ -705,30 +704,14 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges). Appended to the inflation profile/mission block in the prompt.</p>
           </div>
 
-          {/* ===== Always-On Scripts (per profile) — one or more trees, each every reply ===== */}
-          {(() => {
-            const aVal = selProfile?.treeRefs?.alwaysOn;
-            const setVal = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
-              ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: next } }
-              : p));
-            return (
-              <div className="form-group" style={{ marginTop: 4 }}>
-                <label style={{ fontWeight: 'bold', display: 'block', marginBottom: 4 }}>Always-On Scripts</label>
-                <AlwaysOnSection value={aVal} onChange={setVal}
-                  source={`from card: ${formData.name || 'instructor'}`}
-                  rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
-              </div>
-            );
-          })()}
-
-          {/* ===== Event Triggers (per profile) — fire a tree on a discrete event ===== */}
+          {/* ===== Event Triggers (per profile) — includes "Every reply (always-on)" ===== */}
           {(() => {
             const evts = selProfile?.treeRefs?.events || [];
             const setEvents = (next) => setCpProfiles(cpProfiles.map(p => p.id === selProfId
               ? { ...p, treeRefs: { ...(p.treeRefs || {}), events: next } }
               : p));
             return (
-              <CollapsibleSection title="Event Triggers" subtitle="fire a tree on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
+              <CollapsibleSection title="Event Triggers" subtitle="fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
                 <EventTriggersSection events={evts} onChange={setEvents}
                   source={`from card: ${formData.name || 'instructor'}`}
                   rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
