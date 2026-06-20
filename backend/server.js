@@ -3395,6 +3395,7 @@ const sessionState = {
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
+  pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
   playerIsInflating: false // Latched-pump mode (per-char latchPumpUntilOff): [pump on] latches the pump
                            // ON across every reply until [pump off]; overrides time-based auto-off + limits.
                            // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
@@ -3460,10 +3461,9 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (!activeCharacter) return;
 
   const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-  // Instructor checkpoint triggers are per-profile; everyone else uses the story-level set.
-  const checkpointTriggers = isInstructor(activeCharacter)
-    ? (getInstructorActiveProfile(activeCharacter)?.checkpointTriggers || {})
-    : activeStory?.checkpointTriggers;
+  // All card types: checkpoint triggers come from the active checkpoint profile (legacy cards
+  // fall back to the story-level set inside getActiveCheckpointProfile).
+  const checkpointTriggers = getActiveCheckpointProfile(activeCharacter)?.checkpointTriggers || {};
   if (!checkpointTriggers) return;
 
   const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
@@ -7336,6 +7336,10 @@ async function handleWsMessage(ws, type, data) {
       await resumeTreeChooseMulti(data.selectedIds);
       break;
 
+    case 'tree_minigame_result':
+      await resumeTreeGame(data.exit, data.winner);
+      break;
+
     case 'checkpoint_choice_response':
       await handleCheckpointChoice(data.choiceId);
       break;
@@ -7751,6 +7755,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeGame = null;
     sessionState.playerIsInflating = false;
 
     // Set the summary as the rolling memory
@@ -7797,6 +7803,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeGame = null;
     sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
@@ -7811,6 +7819,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeGame = null;
     sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
@@ -8148,6 +8158,7 @@ async function handleExecuteButton(data) {
 // it standalone (ai_message posts immediately, like other button actions). scopeKey btn:<id> so
 // `once` nodes fire once per button per session.
 async function handleButtonRunTree(action, characterId) {
+  if (sessionState.introActive || sessionState.preFillActive) { console.log('[Button] run_tree blocked — gated intro active'); return; }
   const ref = action.config?.treeRef || (action.config?.treeId ? { treeId: action.config.treeId } : action.config?.inline ? { inline: action.config.inline } : null);
   if (!ref) { console.log('[Button] run_tree: no tree ref configured'); return; }
   const settings = loadData(DATA_FILES.settings) || {};
@@ -8925,6 +8936,7 @@ async function handleChatMessage(data) {
       // Trigger AI speaks event for flow engine
       const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
       await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
+      runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
 
       // Story Progression: generate player reply suggestions if enabled
       try {
@@ -9277,6 +9289,7 @@ async function generateAIResponseAfterBlocking() {
     // Trigger AI speaks event for flow engine
     const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
     await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
+    runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
 
   } catch (error) {
     console.error('[Media] LLM error after blocking:', error.message);
@@ -10137,9 +10150,10 @@ function evalBranch(branch) {
 // truth mirroring how the legacy roller picks `ct` (getInstructorActiveProfile vs activeStory).
 function resolveScopeRefs(character) {
   if (!character) return {};
-  if (isInstructor(character)) return getInstructorActiveProfile(character)?.treeRefs || {};
-  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  return activeStory?.treeRefs || {};
+  // All card types: scope tree-refs (alwaysOn/ranges/events) come from the active checkpoint
+  // profile. Legacy cards fall back to the story's flat treeRefs via getActiveCheckpointProfile.
+  // (sessionStart/intro are resolved card-level elsewhere, not through this.)
+  return getActiveCheckpointProfile(character)?.treeRefs || {};
 }
 
 // Per-turn index of the global tree library (id -> Tree). Built ONCE per turn in runReplyScopes
@@ -10229,6 +10243,14 @@ function eventBindingMatches(b, eventType, data) {
       }
       return true;
     }
+    case 'ai_speaks': {
+      const kw = (f.keywords || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (!kw.length) return true; // any AI message
+      const text = data.content || latestAiText();
+      return reminderEngine._matchKeys(
+        { keys: kw, secondaryKeys: [], caseSensitive: !!f.caseSensitive, matchWholeWords: f.matchWholeWords !== false, logic: 'and_any' },
+        text);
+    }
     case 'idle':   // gated by the idle timer (per-binding idleSeconds)
     case 'random': // gated by the per-reply probability roll
       return true;
@@ -10258,6 +10280,7 @@ async function fireEventBinding(b, character, settings, treeIndex, delivery) {
 // active card's bindings, filters by payload + cooldown, and runs each match. Never throws.
 async function runEventTrees(eventType, eventData = {}, opts = {}) {
   try {
+    if (sessionState.introActive || sessionState.preFillActive) return; // gated intro blocks event triggers
     const ctx = opts.character ? opts : getActiveCharacterAndSettings();
     const character = ctx.character, settings = ctx.settings;
     if (!character) return;
@@ -10365,6 +10388,13 @@ async function runReplyScopes(character) {
   catch (e) { console.error('[runReplyScopes] tree resume failed:', e?.message || e); }
   await reassertLatchedPump(); // keep a latched pump ON every reply until [pump off]
   const treeIndex = buildTreeIndex(); // one library read per turn; threaded into every scope/fire_tree hop
+  // Gated intro (Part 4): while active it OWNS the turn — run only the intro tree and block every
+  // other scope/event/button until an end_intro action opens the gate.
+  if (sessionState.introActive) {
+    try { await runIntroScope(character, settings, treeIndex); }
+    catch (e) { console.error('[runReplyScopes] intro failed:', e?.message || e); }
+    return;
+  }
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
@@ -10384,10 +10414,8 @@ function rollCheckpointRandomTriggers(character) {
   // reset so this roller and the range-tree scope compose into one array. Pure co-producer.
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
-  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  const ct = isInstructor(character)
-    ? (getInstructorActiveProfile(character)?.checkpointTriggers || {})
-    : (activeStory?.checkpointTriggers || {});
+  // All card types: random checkpoint triggers come from the active profile (legacy fallback inside).
+  const ct = getActiveCheckpointProfile(character)?.checkpointTriggers || {};
 
   const triggerSets = loadData(DATA_FILES.triggerSets) || [];
   const budget = sessionState.randomBlockBudget || (sessionState.randomBlockBudget = {});
@@ -10530,6 +10558,49 @@ async function resumeTreeChooseMulti(selectedIds) {
   }
 }
 
+// Resume a suspended Trigger Tree call_minigame on the played exit (Phase 5). Sets the GameResult /
+// GameWinner Flow vars, then runs the same-level continuation captured at suspend time. If the fired
+// exit is bound to a goto label, the continuation is sliced to resume AFTER that label (reusing the
+// engine's "jump to label in this list" semantics); an unbound exit just falls through. Clears the
+// armed state FIRST so a nested suspend in the continuation can re-arm cleanly.
+async function resumeTreeGame(firedExit, winner) {
+  const pend = sessionState.pendingTreeGame;
+  if (!pend) return;
+  const after = pend.after, snap = pend.ctxSnapshot || {}, exitGotos = pend.exitGotos || {};
+  sessionState.pendingTreeGame = null;
+  broadcast('tree_minigame_clear', {});
+
+  // Expose the outcome to the continuation/branches via [Flow:GameResult] / [Flow:GameWinner].
+  try {
+    eventEngine.applySetVariable('custom', 'GameResult', 'set', firedExit || '');
+    if (winner) eventEngine.applySetVariable('custom', 'GameWinner', 'set', winner);
+  } catch (e) { console.error('[resumeTreeGame] set vars failed:', e?.message || e); }
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+
+  let list = Array.isArray(after) ? after : [];
+  const gotoName = exitGotos[firedExit];
+  if (gotoName) {
+    const idx = list.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === gotoName);
+    if (idx >= 0) list = list.slice(idx + 1); // resume AFTER the bound label (same-level only — like choice resume)
+    else console.warn(`[resumeTreeGame] goto label '${gotoName}' not in the continuation — falling through (bind exits to labels placed AFTER the Call MiniGame node)`);
+  }
+  try { await runTree(list, ctx); }
+  catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
+}
+
 // Tick a pending pause_resume down by one reply turn; when it reaches zero, run the deferred body
 // then the same-level continuation (standalone delivery), mirroring the choice resumes. Called once
 // at the top of each reply turn (runReplyScopes) so a pause armed this turn first ticks next turn.
@@ -10539,6 +10610,7 @@ async function checkPendingTreeResume() {
   if (--pend.remaining > 0) return; // still waiting
   const body = pend.body, after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
 
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
@@ -10603,6 +10675,39 @@ function applyInstructorInitVars(character) {
     eventEngine.applySetVariable(v.varType || 'custom', v.variable, v.operation || 'set', v.value);
   }
   if (initVars.length) console.log(`[Instructor] Seeded ${initVars.length} session-start variable(s)`);
+}
+
+// ===== Gated Intro (tree scope) — the trigger-based replacement for Pre-Fill (Part 4) =====
+// A card-level Trigger Tree at activeStory.treeRefs.intro. While active it closes the inflation
+// gate and (in runReplyScopes) blocks ALL other scopes/events/buttons until an `end_intro` action
+// fires — which opens the gate and optionally loads a checkpoint profile, dropping into normal play.
+function getIntroTree(character, treeIndex) {
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  return resolveRefTree(activeStory?.treeRefs?.intro, treeIndex);
+}
+function hasIntroTree(character) { return !!getIntroTree(character); }
+// Enter the gated intro at session start (opening line posted standalone). Returns true if started.
+async function startIntroScope(character, settings, treeIndex) {
+  const tree = getIntroTree(character, treeIndex);
+  if (!tree) { sessionState.introActive = false; return false; }
+  sessionState.introActive = true;
+  sessionState.preInflationGateMet = false; // no pumping during the gated intro
+  try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex }); }
+  catch (e) { console.error('[Intro] start failed:', e?.message || e); }
+  return true;
+}
+// Re-run the intro tree each reply while active (weaves guidance in-reply; its keyword/choice gates
+// fire end_intro when the player meets the condition).
+async function runIntroScope(character, settings, treeIndex) {
+  const tree = getIntroTree(character, treeIndex);
+  if (!tree) { sessionState.introActive = false; return; }
+  try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'inReply', treeIndex }); }
+  catch (e) { console.error('[Intro] run failed:', e?.message || e); }
+}
+// Hard "no pumping" directive injected every turn while the gated intro is active.
+function introBlock(character) {
+  if (!sessionState.introActive) return '';
+  return `\n=== GATED INTRO (MANDATORY — NO PUMPING) ===\nInflation has NOT started. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. Converse naturally toward the intro's goal; this phase ends only when its trigger condition is met.\n=== END GATED INTRO ===\n`;
 }
 
 // ===== Pre-Fill: card-level gated intro phase (no pumping until a trigger exits it) =====
@@ -10827,33 +10932,45 @@ function capacityRangeKey(capacity) {
 }
 
 // Resolve the active checkpoint-profile ranges for an instructor (1-100% sets live
-// in named profiles selected at runtime). Returns null for non-instructors.
-// Migration: if no profiles exist, synthesize a "Default" from legacy checkpoints.
-function getInstructorActiveProfileRanges(character) {
-  if (!isInstructor(character)) return null;
+// in named profiles selected at runtime).
+// GENERALIZED (all card types): the active checkpoint profile drives generation for Instructor,
+// Character, AND MultiChar cards. If a story has no checkpointProfiles (legacy/un-migrated), we
+// synthesize a "Default" profile from its flat checkpoints/checkpointTriggers/treeRefs so every
+// caller is uniform and legacy behavior is preserved (no isInstructor branch needed at call sites).
+function getActiveCheckpointProfile(character) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   if (!activeStory) return null;
-  let profiles = Array.isArray(activeStory.checkpointProfiles) ? activeStory.checkpointProfiles : [];
-  if (!profiles.length) {
-    const ranges = {};
-    const cps = activeStory.checkpoints || {};
-    for (const k of Object.keys(cps)) { if (k !== '0') ranges[k] = cps[k]; }
-    profiles = [{ id: 'default', name: 'Default', ranges }];
+  const profiles = Array.isArray(activeStory.checkpointProfiles) ? activeStory.checkpointProfiles : [];
+  if (profiles.length) {
+    const activeId = sessionState.activeCheckpointProfileId || activeStory.defaultCheckpointProfileId || profiles[0].id;
+    return profiles.find(p => p.id === activeId) || profiles[0];
   }
-  const activeId = sessionState.activeCheckpointProfileId || activeStory.defaultCheckpointProfileId || profiles[0].id;
-  const prof = profiles.find(p => p.id === activeId) || profiles[0];
-  return prof?.ranges || {};
+  // Legacy fallback: wrap the story's flat fields as a synthetic Default profile.
+  const ranges = {};
+  const cps = activeStory.checkpoints || {};
+  for (const k of Object.keys(cps)) { if (k !== '0') ranges[k] = cps[k]; }
+  return {
+    id: 'default', name: 'Default', ranges,
+    checkpointTriggers: activeStory.checkpointTriggers || {},
+    treeRefs: activeStory.treeRefs || {},
+  };
+}
+function getActiveCheckpointProfileRanges(character) {
+  return getActiveCheckpointProfile(character)?.ranges || {};
 }
 
-// Resolve the currently-active instructor checkpoint profile object (for its rules,
-// pumpType, name). Returns null for non-instructors / when no profiles exist.
+// Instructor-specific wrappers retained for existing call sites — now thin aliases over the
+// generalized resolver (instructors always have profiles, so behavior is identical).
+function getInstructorActiveProfileRanges(character) {
+  if (!isInstructor(character)) return null;
+  return getActiveCheckpointProfileRanges(character);
+}
 function getInstructorActiveProfile(character) {
   if (!isInstructor(character)) return null;
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const profiles = Array.isArray(activeStory?.checkpointProfiles) ? activeStory.checkpointProfiles : [];
-  if (!profiles.length) return null;
-  const activeId = sessionState.activeCheckpointProfileId || activeStory?.defaultCheckpointProfileId || profiles[0].id;
-  return profiles.find(p => p.id === activeId) || profiles[0];
+  if (!profiles.length) return null; // instructors without profiles keep the prior null contract
+  return getActiveCheckpointProfile(character);
 }
 
 // Set the session pump mode (type + derived init) from the active instructor checkpoint
@@ -10876,7 +10993,7 @@ function applyActivePumpType(character) {
 // A manual pump press (bulb/bike): bump the count, add the per-pump capacity %, and record
 // context for the next instructor reply. Electric/auto pumps are device-driven, not counted here.
 async function handleManualPump() {
-  if (sessionState.preFillActive) { console.log('[ManualPump] Blocked — pre-fill phase (no pumping)'); return; }
+  if (sessionState.introActive || sessionState.preFillActive) { console.log('[ManualPump] Blocked — gated intro (no pumping)'); return; }
   const type = sessionState.pumpType;
   if (type !== 'bulb' && type !== 'bike') return;
   const sv = (loadData(DATA_FILES.settings) || {}).systemVariables || {};
@@ -10905,11 +11022,10 @@ async function handleManualPump() {
 }
 
 function getActiveCheckpoint(character, capacity) {
-  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  // Instructors: 1-100% ranges come from the active checkpoint profile; the 0
-  // range (pre-inflation) is handled by the pre-req sequence, not text.
-  const isInstr = isInstructor(character);
-  const checkpoints = isInstr ? getInstructorActiveProfileRanges(character) : activeStory?.checkpoints;
+  // All card types resolve range content from the active checkpoint profile; the 0 range
+  // (pre-inflation) is handled by the pre-req/intro sequence, not text. Legacy cards fall back
+  // to flat checkpoints inside getActiveCheckpointProfileRanges.
+  const checkpoints = getActiveCheckpointProfileRanges(character);
   if (!checkpoints) return null;
 
   const rangeKey = capacityRangeKey(capacity);
@@ -11327,6 +11443,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     }
     systemPrompt += manualPumpBatchBlock(checkpointSpecial);
     systemPrompt += checkpointInjectionsBlock();
+    systemPrompt += introBlock(character);
     systemPrompt += preFillBlock(character);
     const charCheckpointSpecial = getActiveCharacterCheckpoint(character);
     if (charCheckpointSpecial) {
@@ -11413,8 +11530,28 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 }
 
 // Build system prompt for multi-character cards
+// Per-member inflation disposition phrasing (compact, for the multichar CHARACTERS list). null =
+// default/omit. Mirrors the single-char desire wording (see buildInflationDispositionContext).
+const MEMBER_DISPOSITION_PHRASES = {
+  charInflateDesire: { terrified: 'dreads being inflated', reluctant: 'is reluctant about being inflated', nervous: 'is nervous about being inflated', neutral: null, curious: 'is curious about being inflated', eager: 'eagerly wants to be inflated', obsessed: 'is obsessed with being inflated' },
+  charPopDesire: { terrified: 'is terrified of popping', dreading: 'dreads popping', anxious: 'is anxious about popping', resigned: 'is resigned to possibly popping', indifferent: null, curious: 'is curious about popping', willing: 'is willing to pop', eager: 'wants to pop' },
+  desireToInflateOthers: { none: null, reluctant: 'is reluctant to inflate others', indifferent: null, willing: 'is willing to inflate others', eager: 'eagerly inflates others', obsessed: 'is obsessed with inflating others', sadistic: 'sadistically inflates others to cause discomfort' },
+  desireToPopOthers: { none: null, avoidant: 'avoids popping others', careless: 'is careless about popping others', curious: 'is curious about popping others', willing: 'is willing to let others pop', eager: 'tries to push others to pop', sadistic: 'sadistically wants to pop others' },
+};
+function buildMemberDispositionLine(name, ma) {
+  if (!ma) return '';
+  const phrases = [];
+  for (const field of ['charInflateDesire', 'charPopDesire', 'desireToInflateOthers', 'desireToPopOthers']) {
+    const p = MEMBER_DISPOSITION_PHRASES[field]?.[ma[field]];
+    if (p) phrases.push(p);
+  }
+  return phrases.length ? `  Disposition: ${name} ${phrases.join('; ')}.\n` : '';
+}
+
 function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   const chars = character.multiChar.characters || [];
+  const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const memberAttrs = activeStory?.memberAttributes || {};
   const muted = new Set(sessionState?.mutedMembers || []);
   const activeChars = chars.filter(c => !muted.has(c.id));
   const silentChars = chars.filter(c => muted.has(c.id));
@@ -11438,6 +11575,8 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
       const labels = active.map(t => t.charAt(0).toUpperCase() + t.slice(1));
       prompt += `  RIGHT NOW ${c.name} is driven by ${labels.join(', ')}: ${active.map(t => ATTRIBUTE_PROMPTS[t]).filter(Boolean).join(' ')}\n`;
     }
+    // Per-member inflation disposition (always-on; from memberAttributes desires)
+    prompt += buildMemberDispositionLine(c.name, memberAttrs[c.id]);
     // Per-member voice examples
     if (Array.isArray(c.exampleDialogues) && c.exampleDialogues.length) {
       const ex = c.exampleDialogues.slice(0, 2)
@@ -11904,7 +12043,8 @@ function buildChatContext(character, settings) {
   // Checkpoint injections rolled for this generation (pop-up stage events)
   systemPrompt += checkpointInjectionsBlock();
 
-  // Pre-Fill gated-intro directive (no pumping; drives toward the current step)
+  // Gated-intro directive (no pumping) — tree-based intro, then legacy Pre-Fill
+  systemPrompt += introBlock(character);
   systemPrompt += preFillBlock(character);
 
   // Final style anchor — the LAST line carries the most weight for recency-biased
@@ -12943,6 +13083,16 @@ function latestPlayerText() {
   return '';
 }
 
+// Sibling of latestPlayerText for ai_speaks event bindings (Phase 4): the AI's last output.
+function latestAiText() {
+  const hist = sessionState.chatHistory || [];
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const m = hist[i];
+    if (m && (m.sender === 'ai' || m.sender === 'assistant' || m.sender === 'character')) return m.content || m.text || '';
+  }
+  return '';
+}
+
 // Match a keyword-gate/keyword-event node against the latest player message using the
 // reminder-engine matcher. Closed (no match) when no keys are defined.
 function treeKeywordMatches(node) {
@@ -13005,6 +13155,45 @@ async function runNode(node, ctx) {
     Promise.resolve(handleButtonLinkToFlow({ config: { flowId, flowActionLabel: label } }, ctx.character?.id, `tree:${ctx.treeId}`))
       .catch(e => console.error(`[runTree] fire_flow '${flowId}' failed:`, e?.message || e));
     return; // NOT awaited — flows pace over turns + own their suspend channel; awaiting risks deadlock
+  }
+
+  // ----- call_minigame: suspend the tree to play a MiniGame, resume on the fired exit (Phase 5) -----
+  // Leaf action (no option bodies): the player plays the game, then GameResult/GameWinner Flow vars
+  // are set and the bound goto (if any) repositions in the same-level continuation. Mirrors the
+  // player_choice suspend plumbing but on its own pendingTreeGame channel (resume: resumeTreeGame).
+  if (type === 'call_minigame') {
+    if (sessionState.pendingTreeGame || sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'call_minigame' };
+    const gameId = node.params?.miniGameId;
+    const game = gameId ? (loadMiniGames().games || []).find(g => g.id === gameId) : null;
+    if (!game) { console.warn(`[runTree] call_minigame node ${node.id}: miniGameId '${gameId}' not found — skipping`); return; } // no game -> clean fall-through, no once
+    markTreeOnce(node, ctx); // presenting the game IS the effect
+    sessionState.pendingTreeGame = {
+      miniGameId: gameId,
+      exitGotos: node.params?.exitGotos || {},
+      ctxSnapshot: {
+        // childDepth = ctx.depth (NOT +1): the continuation runs at the call node's OWN level.
+        treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth,
+        delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+      },
+      after: null // innermost sibling tail, filled by runTree as the suspend bubbles
+    };
+    broadcast('tree_minigame', { gameId, type: game.type, name: game.name, config: game.config || {} });
+    return { __control: 'suspend', reason: 'call_minigame' };
+  }
+
+  // ----- end_intro: leave the gated intro phase, open the pump gate, optionally load a profile (Part 4) -----
+  if (type === 'end_intro') {
+    markTreeOnce(node, ctx);
+    sessionState.introActive = false;
+    sessionState.preInflationGateMet = true;
+    const profId = node.params?.loadProfileId;
+    if (profId) {
+      sessionState.activeCheckpointProfileId = profId; // jump straight into this checkpoint profile
+      try { applyActivePumpType(ctx.character); } catch (e) { /* best-effort */ }
+    }
+    broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+    console.log(`[Intro] end_intro → gate open${profId ? `, loaded profile ${profId}` : ''}`);
+    return;
   }
 
   // ----- Actions (leaves) -----
@@ -13209,8 +13398,9 @@ async function runTree(nodes, ctx) {
       }
       if (sig.__control === 'suspend') {
         // Capture the innermost same-level continuation for post-resume fall-through. A choice/
-        // choose_multi fills pendingTreeChoice; a pause_resume fills pendingTreeResume.
-        const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume;
+        // choose_multi fills pendingTreeChoice; a pause_resume fills pendingTreeResume; a
+        // call_minigame fills pendingTreeGame.
+        const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame;
         if (pend && pend.after == null) pend.after = nodes.slice(i + 1);
         return sig;
       }
@@ -15559,6 +15749,54 @@ app.delete('/api/trigger-trees/:id', (req, res) => {
   res.json({ success: true });
 });
 
+// ============================================
+// MiniGames store + API (Phase 5 of Flow→Trigger migration)
+// ============================================
+// Server-side store of reusable MiniGame templates = { id, name, type, config }. Authoring lives
+// in the MiniGames page; the Call MiniGame tree action resolves a template by id at runtime
+// (loadMiniGames in runNode). Modeled on the trigger-trees store above.
+const MINIGAMES_PATH = path.join(DATA_DIR, 'minigames.json');
+function loadMiniGames() {
+  try { return JSON.parse(fs.readFileSync(MINIGAMES_PATH, 'utf8')); } catch (e) { return { games: [] }; }
+}
+function saveMiniGames(data) { fs.writeFileSync(MINIGAMES_PATH, JSON.stringify(data, null, 2)); }
+
+app.get('/api/minigames', (req, res) => res.json(loadMiniGames()));
+
+app.post('/api/minigames', (req, res) => {
+  const { name, type, config } = req.body;
+  if (!name || typeof name !== 'string') return res.status(400).json({ error: 'name required' });
+  if (!type || typeof type !== 'string') return res.status(400).json({ error: 'type required' });
+  const data = loadMiniGames();
+  if (!Array.isArray(data.games)) data.games = [];
+  const id = `mg-${Date.now()}`;
+  data.games.push({ id, name, type, config: config && typeof config === 'object' ? config : {}, createdAt: Date.now(), updatedAt: Date.now() });
+  saveMiniGames(data);
+  res.json({ success: true, id });
+});
+
+app.put('/api/minigames/:id', (req, res) => {
+  const { name, type, config } = req.body;
+  const data = loadMiniGames();
+  const idx = (data.games || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'MiniGame not found' });
+  if (name !== undefined) data.games[idx].name = name;
+  if (type !== undefined) data.games[idx].type = type;
+  if (config !== undefined) data.games[idx].config = config && typeof config === 'object' ? config : {};
+  data.games[idx].updatedAt = Date.now();
+  saveMiniGames(data);
+  res.json({ success: true });
+});
+
+app.delete('/api/minigames/:id', (req, res) => {
+  const data = loadMiniGames();
+  const idx = (data.games || []).findIndex(g => g.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'MiniGame not found' });
+  data.games.splice(idx, 1);
+  saveMiniGames(data);
+  res.json({ success: true });
+});
+
 // --- Trigger Tree export / import (portability with fire_tree transitive closure + dedup) ---
 
 // Collect fire_tree targetIds + fire_flow flowIds referenced anywhere in a node tree.
@@ -16948,6 +17186,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
   sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
@@ -16968,12 +17207,14 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingTreeChoice = null;
   sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
+  sessionState.introActive = false;
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
@@ -17012,9 +17253,10 @@ app.post('/api/session/reset', async (req, res) => {
 
     if (activeCharacter && sessionState.capacity === 0) {
       const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-      if (getPreFillConfig(activeCharacter)) {
-        // Pre-Fill takes precedence for ALL card types — gate stays closed through the
-        // entire gated intro; startPreFill() (below) manages the step state.
+      if (hasIntroTree(activeCharacter) || getPreFillConfig(activeCharacter)) {
+        // A gated intro (tree scope, or legacy Pre-Fill) closes the gate for ALL card types until
+        // it completes. The intro tree takes precedence; startIntroScope()/startPreFill() below
+        // manage the active state.
         sessionState.preInflationGateMet = false;
       } else if (isInstructor(activeCharacter)) {
         // Instructors gate on their pre-req sequence (the prereq choices ARE the gate)
@@ -17064,18 +17306,21 @@ app.post('/api/session/reset', async (req, res) => {
       if (isInstr) applyInstructorInitVars(activeCharacter); // seed session-start setup variables (instructor)
       // Standalone delivery: ai_message posts immediately, like the welcome.
       if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone', treeIndex: ssTreeIndex });
-      // Pre-Fill (gated intro) takes precedence for every card type. It closes the gate and
-      // seeds the first step.
-      const preFillStarted = startPreFill(activeCharacter);
+      // Gated intro: prefer the Intro TREE scope; fall back to legacy Pre-Fill if no intro tree.
+      // Either closes the gate and blocks other scopes until it completes.
+      const introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex);
+      const preFillStarted = introStarted ? false : startPreFill(activeCharacter);
       if (isInstr) {
         // Legacy modal pre-reqs only run when Pre-Fill is NOT in use — and NOT if the Session
         // Start tree already suspended on a player_choice (avoid two choice families armed at once).
         if (!preFillStarted && !sessionState.pendingTreeChoice && (aStory?.prereqTiming || 'session_start') === 'session_start') {
           startInstructorPrereqs(activeCharacter);
         }
-        // Set the session pump mode from the active checkpoint profile (or the card default).
-        applyActivePumpType(activeCharacter);
       }
+      // Set the session pump mode from the card's default pump type (instructors additionally
+      // overlay the active checkpoint profile's pumpType inside applyActivePumpType). Runs for
+      // ALL card types so the Character/MultiChar Pump Type dropdown takes effect.
+      applyActivePumpType(activeCharacter);
     }
 
     // Then send the gate notice AFTER the welcome message so it isn't buried
