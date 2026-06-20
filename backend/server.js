@@ -4848,10 +4848,11 @@ deviceService.setEventEmitter((eventType, data) => {
   }
 });
 
-// Phase 3 (Flow→Trigger): route the flow engine's state-change detections to event-bound trees,
-// and start the server-side idle timer for idle event bindings (both are function-hoisted below).
+// Phase 3 (Flow→Trigger): route the flow engine's state-change detections to event-bound trees.
+// The idle timer (startTreeIdleCheck) is started from the server.listen block instead — its
+// `let treeIdleTimer` is declared later in the file, so it's in the temporal dead zone here at
+// module-load time and calling it now throws "Cannot access 'treeIdleTimer' before initialization".
 eventEngine.setTreeEventSink((eventType, eventData) => runEventTrees(eventType, eventData));
-startTreeIdleCheck();
 
 // ============================================
 // Always-on pump safety watchdog
@@ -17455,6 +17456,7 @@ server.listen(PORT, BIND_HOST, () => {
   log.always(`SwellDreams server running on http://localhost:${PORT} (bound to ${BIND_HOST})`);
   // Detect model name from active LLM endpoint on startup
   detectLlmModel();
+  startTreeIdleCheck(); // Phase 3 idle event-binding timer — started here, after all module-level decls init
 });
 
 // ============================================
