@@ -53,6 +53,7 @@ export function migrateFlatToProfiles(story) {
 function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', cardName = 'card', triggerSets = [], rowProps = {} }) {
   const { api, settings } = useApp();
   const [selProfId, setSelectedProfileId] = useState(null);
+  const [selRsId, setSelectedRangeSetId] = useState(null);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
   const [bulbMaxField, setBulbMaxField] = useState('');
   const [bikeMaxField, setBikeMaxField] = useState('');
@@ -97,6 +98,23 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     // eslint-disable-next-line
   }, [story?.id]);
 
+  // One-time migration: the per-range data (ranges, checkpointTriggers, treeRefs.ranges) used to
+  // live directly on the profile — now it lives in a "Range Set". Wrap each profile's existing
+  // range data into a single default Range Set so cards gain switchable sets without losing data.
+  useEffect(() => {
+    const profs = Array.isArray(story?.checkpointProfiles) ? story.checkpointProfiles : null;
+    if (!profs || !profs.length) return;
+    if (profs.every(p => Array.isArray(p.rangeSets) && p.rangeSets.length)) return; // already migrated
+    const migrated = profs.map(p => {
+      if (Array.isArray(p.rangeSets) && p.rangeSets.length) return p;
+      const rsId = `rs-${p.id || Math.random().toString(36).slice(2, 7)}`;
+      const set = { id: rsId, name: 'Default', ranges: p.ranges || {}, checkpointTriggers: p.checkpointTriggers || {}, treeRefs: { ranges: p.treeRefs?.ranges || {} } };
+      return { ...p, rangeSets: [set], defaultRangeSetId: rsId };
+    });
+    updateStory('checkpointProfiles', migrated);
+    // eslint-disable-next-line
+  }, [story?.id]);
+
   // Render-time fallback: if checkpointProfiles isn't populated yet (legacy card whose migrate-on-
   // open write hasn't landed — the effect above persists it, but a formData/draft re-init can race
   // it), derive the profiles inline from the legacy flat checkpoints so the tab ALWAYS shows data
@@ -121,25 +139,55 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     setSelectedProfileId(rest[0].id);
   };
   const setDefaultProfile = () => updateStory('defaultCheckpointProfileId', selId);
-  const updateProfileRange = (key, obj) => setCpProfiles(cpProfiles.map(p => (p.id === selId ? { ...p, ranges: { ...(p.ranges || {}), [key]: obj } } : p)));
   const setProfilePumpType = (pumpType) => setCpProfiles(cpProfiles.map(p => (p.id === selId ? { ...p, pumpType } : p)));
   const setProfileRules = (rules) => setCpProfiles(cpProfiles.map(p => (p.id === selId ? { ...p, rules } : p)));
   const effPumpType = selProfile?.pumpType || defaultPumpType || 'electric';
   const isManualPump = effPumpType === 'bulb' || effPumpType === 'bike';
   const isAutoPump = effPumpType === 'electric';
+
+  // --- Range Sets: the per-range data (ranges/triggers/range scripts) lives in a switchable Range
+  // Set inside the active profile. Legacy profiles (no rangeSets) read through an implicit set. ---
+  const rangeSets = (selProfile?.rangeSets?.length ? selProfile.rangeSets
+    : [{ id: '__legacy', name: 'Default', ranges: selProfile?.ranges || {}, checkpointTriggers: selProfile?.checkpointTriggers || {}, treeRefs: { ranges: selProfile?.treeRefs?.ranges || {} } }]);
+  const rsId = selRsId || selProfile?.defaultRangeSetId || rangeSets[0]?.id;
+  const selRangeSet = rangeSets.find(rs => rs.id === rsId) || rangeSets[0];
+  const updateRangeSet = (patch) => setCpProfiles(cpProfiles.map(p => {
+    if (p.id !== selId) return p;
+    const sets = (p.rangeSets?.length ? p.rangeSets
+      : [{ id: selRangeSet.id, name: 'Default', ranges: p.ranges || {}, checkpointTriggers: p.checkpointTriggers || {}, treeRefs: { ranges: p.treeRefs?.ranges || {} } }]);
+    return { ...p, rangeSets: sets.map(rs => (rs.id === selRangeSet.id ? { ...rs, ...patch } : rs)) };
+  }));
+  const addRangeSet = () => {
+    const id = `rs-${Date.now()}`;
+    const base = selProfile?.rangeSets?.length ? selProfile.rangeSets : rangeSets;
+    setCpProfiles(cpProfiles.map(p => (p.id === selId
+      ? { ...p, rangeSets: [...base, { id, name: `Set ${base.length + 1}`, ranges: {}, checkpointTriggers: {}, treeRefs: { ranges: {} } }] }
+      : p)));
+    setSelectedRangeSetId(id);
+  };
+  const renameRangeSet = (name) => updateRangeSet({ name });
+  const deleteRangeSet = () => {
+    if (rangeSets.length <= 1) return;
+    const rest = rangeSets.filter(rs => rs.id !== selRangeSet.id);
+    setCpProfiles(cpProfiles.map(p => (p.id === selId
+      ? { ...p, rangeSets: rest, defaultRangeSetId: p.defaultRangeSetId === selRangeSet.id ? rest[0].id : p.defaultRangeSetId }
+      : p)));
+    setSelectedRangeSetId(rest[0].id);
+  };
+  const setDefaultRangeSet = () => setCpProfiles(cpProfiles.map(p => (p.id === selId ? { ...p, defaultRangeSetId: selRangeSet.id } : p)));
+
+  const updateProfileRange = (key, obj) => updateRangeSet({ ranges: { ...(selRangeSet?.ranges || {}), [key]: obj } });
   const setRangeField = (key, field, raw) => {
-    const cur = selProfile?.ranges?.[key] || { mainTheme: '', injections: [] };
+    const cur = selRangeSet?.ranges?.[key] || { mainTheme: '', injections: [] };
     const val = raw === '' ? undefined : (parseInt(raw, 10) || 0);
     updateProfileRange(key, { ...cur, [field]: val });
   };
   const setRangeText = (key, field, val) => {
-    const cur = selProfile?.ranges?.[key] || {};
+    const cur = selRangeSet?.ranges?.[key] || {};
     updateProfileRange(key, { ...cur, [field]: val });
   };
-  const triggersFor = (key) => selProfile?.checkpointTriggers?.[`player-${key}`] || [];
-  const setTriggers = (key, items) => setCpProfiles(cpProfiles.map(p => (p.id === selId
-    ? { ...p, checkpointTriggers: { ...(p.checkpointTriggers || {}), [`player-${key}`]: items } }
-    : p)));
+  const triggersFor = (key) => selRangeSet?.checkpointTriggers?.[`player-${key}`] || [];
+  const setTriggers = (key, items) => updateRangeSet({ checkpointTriggers: { ...(selRangeSet?.checkpointTriggers || {}), [`player-${key}`]: items } });
 
   const profRowProps = { ...rowProps, triggerSets, profiles: cpProfiles };
 
@@ -246,6 +294,22 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         );
       })()}
 
+      {/* Range Sets — swappable 1–100% sets within this profile. A 'Set Range Set' trigger switches
+          the active set mid-session; the Default applies otherwise. */}
+      <h4 style={{ margin: '12px 0 4px' }}>Range Sets</h4>
+      <p className="section-hint" style={{ marginTop: 0 }}>Each set is its own full 1–100% range list. Switch between them mid-session with a “Set Range Set” trigger (e.g. for story switch-ups); the Default applies otherwise.</p>
+      <div className="checkpoint-profile-bar">
+        <select value={rsId || ''} onChange={(e) => setSelectedRangeSetId(e.target.value)}>
+          {rangeSets.map(rs => (
+            <option key={rs.id} value={rs.id}>{rs.name}{rs.id === selProfile?.defaultRangeSetId ? ' (default)' : ''}</option>
+          ))}
+        </select>
+        <input type="text" value={selRangeSet?.name || ''} onChange={(e) => renameRangeSet(e.target.value)} placeholder="Range set name" style={{ flex: 1, minWidth: 100 }} />
+        <button type="button" className="btn btn-sm btn-secondary" onClick={addRangeSet}>+ Set</button>
+        <button type="button" className="btn btn-sm btn-secondary" onClick={setDefaultRangeSet} disabled={selRangeSet?.id === selProfile?.defaultRangeSetId}>Set Default</button>
+        <button type="button" className="btn btn-sm btn-danger" onClick={deleteRangeSet} disabled={rangeSets.length <= 1}>Delete</button>
+      </div>
+
       {CHECKPOINT_RANGES.map(({ key, label, hint }) => (
         <CollapsibleSection key={key} title={label} subtitle={hint}
           open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
@@ -253,12 +317,12 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
             <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
               <div>
                 <label title="How many messages must pass after a batch before more pumping is requested">MSG / Batch</label>
-                <input type="text" inputMode="numeric" value={selProfile?.ranges?.[key]?.messagesBetweenBatches ?? ''}
+                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.messagesBetweenBatches ?? ''}
                   onChange={(e) => setRangeField(key, 'messagesBetweenBatches', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
               </div>
               <div>
                 <label title="Max pump operations requested in a single reply (one batch)">Max Pump / Batch</label>
-                <input type="text" inputMode="numeric" value={selProfile?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
+                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.maxPumpsPerBatch ?? ''}
                   onChange={(e) => setRangeField(key, 'maxPumpsPerBatch', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
               </div>
             </div>
@@ -267,25 +331,24 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
             <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
               <div>
                 <label title="How many replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
-                <input type="text" inputMode="numeric" value={selProfile?.ranges?.[key]?.messagesBetweenOn ?? ''}
+                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.messagesBetweenOn ?? ''}
                   onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0 = off" style={{ maxWidth: 120 }} />
               </div>
               <div>
                 <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
-                <input type="text" inputMode="numeric" value={selProfile?.ranges?.[key]?.maxPumpOnSecs ?? ''}
+                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.maxPumpOnSecs ?? ''}
                   onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))} placeholder="5" style={{ maxWidth: 120 }} />
               </div>
             </div>
           )}
           <label className="ci-label">Main theme</label>
-          <textarea className="ci-main-theme" value={selProfile?.ranges?.[key]?.mainTheme || ''}
+          <textarea className="ci-main-theme" value={selRangeSet?.ranges?.[key]?.mainTheme || ''}
             onChange={(e) => setRangeText(key, 'mainTheme', e.target.value)}
             placeholder="Always-on guidance while capacity is in this range…" rows={2} />
           <RangeTriggerEditor value={triggersFor(key)} onChange={(v) => setTriggers(key, v)} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} isManualPump={isManualPump} />
           {(() => {
-            const rRef = selProfile?.treeRefs?.ranges?.[`player-${key}`] || {};
-            const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
-              ? { ...p, treeRefs: { ...(p.treeRefs || {}), ranges: { ...(p.treeRefs?.ranges || {}), [`player-${key}`]: nextRef } } } : p));
+            const rRef = selRangeSet?.treeRefs?.ranges?.[`player-${key}`] || {};
+            const setRef = (nextRef) => updateRangeSet({ treeRefs: { ranges: { ...(selRangeSet?.treeRefs?.ranges || {}), [`player-${key}`]: nextRef } } });
             return (
               <div style={{ marginTop: 8 }}>
                 <ScopeTreeSection label="Range Script" hint="runs each reply while in this range (once nodes fire once per range)"
