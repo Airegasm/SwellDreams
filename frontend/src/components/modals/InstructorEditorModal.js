@@ -355,6 +355,19 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
             <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it. Auto→E-STOP button, Manual→PUMP button.</p>
           </div>
 
+          <h4 style={{ margin: '4px 0' }}>Manual Pump Maxes</h4>
+          <p className="section-hint" style={{ marginTop: 0 }}>Max average pumps to full capacity. Shared with Smart Devices › Manual Devices — editing here updates both.</p>
+          <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div>
+              <label>Bulb Pump Max</label>
+              <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+            </div>
+            <div>
+              <label>Bicycle Pump Max</label>
+              <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+            </div>
+          </div>
+
           <div className="form-group">
             <label>Individual Response Tokens (overrides global)</label>
             <input
@@ -574,22 +587,6 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
         {/* ===== Checkpoints ===== */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
-          {/* ===== Manual pump maxes (mirror of Smart Devices › Manual Devices) ===== */}
-          <h4>Manual Pump Maxes</h4>
-          <p className="section-hint">Max average pumps to full capacity. Shared with Smart Devices › Manual Devices — editing here updates both.</p>
-          <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <label>Bulb Pump Max</label>
-              <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
-            </div>
-            <div>
-              <label>Bicycle Pump Max</label>
-              <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
-            </div>
-          </div>
-
-          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
-
           {/* ===== Session-open scope sections (collapsible) ===== */}
           {(() => {
             const ssRef = formData.story?.treeRefs?.sessionStart || {};

@@ -307,6 +307,21 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
   const [showCropModal, setShowCropModal] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [activeTab, setActiveTab] = useState('basic');
+  // Bulb/Bike pump maxes mirror Smart Devices › Manual Devices (settings.systemVariables).
+  const [bulbMaxField, setBulbMaxField] = useState('');
+  const [bikeMaxField, setBikeMaxField] = useState('');
+  useEffect(() => {
+    const sv = settings?.systemVariables || {};
+    setBulbMaxField(sv.BulbMax ?? '');
+    setBikeMaxField(sv.BikeMax ?? '');
+  }, [settings?.systemVariables]);
+  const saveMaxField = (which, raw) => {
+    const clean = String(raw).replace(/[^0-9]/g, '');
+    const sv = { ...(settings?.systemVariables || {}) };
+    if (which === 'bulb') sv.BulbMax = clean === '' ? '' : Number(clean);
+    else sv.BikeMax = clean === '' ? '' : Number(clean);
+    api.updateSettings({ systemVariables: sv }).catch(() => {});
+  };
   const [showButtonForm, setShowButtonForm] = useState(false);
   const [editingButtonId, setEditingButtonId] = useState(null);
   const [buttonForm, setButtonForm] = useState({ name: '', buttonId: null, actions: [] });
@@ -1343,6 +1358,29 @@ Write only the scenario description itself, no explanations.`;
                   />
                 </div>
 
+                <div className="form-group">
+                  <label>Default Pump Type</label>
+                  <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData({ ...formData, defaultPumpType: e.target.value })}>
+                    <option value="electric">Auto / Electric (E-STOP)</option>
+                    <option value="bulb">Manual / Bulb (PUMP)</option>
+                    <option value="bike">Manual / Bike (PUMP)</option>
+                  </select>
+                  <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it.</p>
+                </div>
+
+                <h4 style={{ margin: '4px 0' }}>Manual Pump Maxes</h4>
+                <p className="section-hint" style={{ marginTop: 0 }}>Max average pumps to full capacity. Shared with Smart Devices › Manual Devices.</p>
+                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <label>Bulb Pump Max</label>
+                    <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+                  </div>
+                  <div>
+                    <label>Bicycle Pump Max</label>
+                    <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+                  </div>
+                </div>
+
                 {/* Character Names */}
                 <div className="form-group">
                   <label>Characters</label>
@@ -2262,17 +2300,6 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              {/* Pump Type (session default; mirrors the Instructor card) */}
-              <div className="form-group">
-                <label>Default Pump Type</label>
-                <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData(prev => ({ ...prev, defaultPumpType: e.target.value }))}>
-                  <option value="electric">Auto / Electric (E-STOP)</option>
-                  <option value="bulb">Manual / Bulb (PUMP)</option>
-                  <option value="bike">Manual / Bike (PUMP)</option>
-                </select>
-                <p className="section-hint">Session pump pacing for this card. Auto→E-STOP button, Manual→PUMP button.</p>
-              </div>
-
               {/* ===== Session-open scope sections (collapsible) ===== */}
               {(() => {
                 const treeRefs = activeStory?.treeRefs || {};
