@@ -130,24 +130,11 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
 
   return (
     <>
-      {/* Manual pump maxes (mirror of Smart Devices › Manual Devices) — only relevant for manual pumps */}
-      {isManualPump && (
-        <>
-          <h4>Manual Pump Maxes</h4>
-          <p className="section-hint">Max average pumps to full capacity. Shared with Smart Devices › Manual Devices — editing here updates both.</p>
-          <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <label>Bulb Pump Max</label>
-              <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
-            </div>
-            <div>
-              <label>Bicycle Pump Max</label>
-              <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
-            </div>
-          </div>
-          <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
-        </>
-      )}
+      {/* Top: enable/disable the whole checkpoint system for this card. */}
+      <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontWeight: 600 }}>
+        <input type="checkbox" checked={story?.checkpointsEnabled !== false} onChange={(e) => updateStory('checkpointsEnabled', e.target.checked)} />
+        Enable Checkpoints
+      </label>
 
       <div className="checkpoint-tab-header">
         <h4>Checkpoint Profiles (1–100%)</h4>
@@ -203,6 +190,39 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         return (
           <CollapsibleSection title="Event Triggers" subtitle="fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
             <EventTriggersSection events={evts} onChange={setEvents} source={`from card: ${cardName}`} rowProps={profRowProps} />
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Session Start (per profile) — runs once at session open while this profile is active. */}
+      {(() => {
+        const ssRef = selProfile?.treeRefs?.sessionStart || {};
+        const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), sessionStart: { overrideWelcome: ssRef.overrideWelcome, ...nextRef } } } : p));
+        const setOverride = (v) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), sessionStart: { ...(p.treeRefs?.sessionStart || {}), overrideWelcome: v } } } : p));
+        const cnt = ssRef?.inline?.nodes?.length ? `${ssRef.inline.nodes.length}` : ssRef?.treeId ? 'linked' : '';
+        return (
+          <CollapsibleSection title="Session Start" subtitle="runs once at session open while this profile is active" badge={cnt}>
+            <label className="tree-check" style={{ marginBottom: 8, display: 'block' }}>
+              <input type="checkbox" checked={!!ssRef.overrideWelcome} onChange={(e) => setOverride(e.target.checked)} />
+              &nbsp;Override Welcome Message (let the Session Start script open the scene)
+            </label>
+            <ScopeTreeSection label="" hint="" refValue={ssRef} onChange={setRef} defaultName="Session Start" source={`from card: ${cardName}`} rowProps={profRowProps} />
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Intro (per profile) — gated; no pump, blocks other scopes until an End Gated Intro fires. */}
+      {(() => {
+        const iRef = selProfile?.treeRefs?.intro || {};
+        const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), intro: nextRef } } : p));
+        const on = (iRef?.inline?.nodes?.length || iRef?.treeId) ? 'on' : '';
+        return (
+          <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={on}>
+            <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
+              refValue={iRef} onChange={setRef} defaultName="Intro" source={`from card: ${cardName}`} rowProps={{ ...profRowProps, profiles: cpProfiles }} />
           </CollapsibleSection>
         );
       })()}
