@@ -78,6 +78,25 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     // eslint-disable-next-line
   }, [story?.id]);
 
+  // One-time migration: Session Start / Intro used to be CARD-level (story.treeRefs) — now they're
+  // per-profile. If a card still has card-level SS/Intro and the default profile has none, copy
+  // them onto the default profile so existing cards don't lose those scopes.
+  useEffect(() => {
+    const ct = story?.treeRefs || {};
+    if (!ct.sessionStart && !ct.intro) return;
+    const profs = Array.isArray(story?.checkpointProfiles) ? story.checkpointProfiles : null;
+    if (!profs || !profs.length) return;
+    const defId = story?.defaultCheckpointProfileId || profs[0].id;
+    const def = profs.find(p => p.id === defId) || profs[0];
+    const dtr = def.treeRefs || {};
+    if (dtr.sessionStart || dtr.intro) return; // already migrated
+    const migrated = profs.map(p => (p.id === def.id
+      ? { ...p, treeRefs: { ...(p.treeRefs || {}), sessionStart: ct.sessionStart, intro: ct.intro } }
+      : p));
+    updateStory('checkpointProfiles', migrated);
+    // eslint-disable-next-line
+  }, [story?.id]);
+
   // Render-time fallback: if checkpointProfiles isn't populated yet (legacy card whose migrate-on-
   // open write hasn't landed — the effect above persists it, but a formData/draft re-init can race
   // it), derive the profiles inline from the legacy flat checkpoints so the tab ALWAYS shows data

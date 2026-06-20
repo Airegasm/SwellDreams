@@ -1755,6 +1755,29 @@ Write only the scenario description itself, no explanations.`;
                 </div>
 
                 <div className="form-group">
+                  <label>Default Pump Type</label>
+                  <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData({ ...formData, defaultPumpType: e.target.value })}>
+                    <option value="electric">Auto / Electric (E-STOP)</option>
+                    <option value="bulb">Manual / Bulb (PUMP)</option>
+                    <option value="bike">Manual / Bike (PUMP)</option>
+                  </select>
+                  <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it.</p>
+                </div>
+
+                <h4 style={{ margin: '4px 0' }}>Manual Pump Maxes</h4>
+                <p className="section-hint" style={{ marginTop: 0 }}>Max average pumps to full capacity. Shared with Smart Devices › Manual Devices.</p>
+                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <label>Bulb Pump Max</label>
+                    <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+                  </div>
+                  <div>
+                    <label>Bicycle Pump Max</label>
+                    <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+                  </div>
+                </div>
+
+                <div className="form-group">
                   <label>Description</label>
                   <textarea
                     value={formData.description}
@@ -2844,289 +2867,14 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
-              {/* ===== Session-open scope sections (collapsible) ===== */}
-              {(() => {
-                const treeRefs = activeStory?.treeRefs || {};
-                const setScope = (scope, nextRef) => updateStoryField('treeRefs', { ...treeRefs, [scope]: nextRef });
-                const rp = { triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders };
-                const nodeCount = (ref) => ref?.inline?.nodes?.length ? `${ref.inline.nodes.length} block(s)` : ref?.treeId ? 'linked' : '';
-                return (
-                  <>
-                    <CollapsibleSection title="Session Start" subtitle="runs once at session open" defaultOpen badge={nodeCount(treeRefs.sessionStart)}>
-                      <label className="tree-check" style={{ marginBottom: 8, display: 'block' }}>
-                        <input type="checkbox" checked={!!treeRefs.sessionStart?.overrideWelcome} onChange={(e) => setScope('sessionStart', { ...(treeRefs.sessionStart || {}), overrideWelcome: e.target.checked })} />
-                        &nbsp;Override Character Welcome Message (let the Session Start script open the scene)
-                      </label>
-                      <ScopeTreeSection label="" hint="" refValue={treeRefs.sessionStart}
-                        onChange={(r) => setScope('sessionStart', { overrideWelcome: treeRefs.sessionStart?.overrideWelcome, ...r })}
-                        defaultName="Session Start" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
-                    </CollapsibleSection>
-
-                    <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(treeRefs.intro?.inline?.nodes?.length || treeRefs.intro?.treeId) ? 'on' : ''}>
-                      <label className="form-hint" style={{ display: 'block', marginBottom: 4 }}>Intro instructions (injected every reply while active)</label>
-                      <textarea rows={3} style={{ width: '100%' }}
-                        value={treeRefs.introInstructions ?? DEFAULT_INTRO_RULES}
-                        onChange={(e) => setScope('introInstructions', e.target.value)} />
-                      <label className="tree-check" style={{ display: 'block', margin: '6px 0' }}>
-                        <input type="checkbox" checked={treeRefs.introEnableProsePumpAfter !== false}
-                          onChange={(e) => setScope('introEnableProsePumpAfter', e.target.checked)} />
-                        &nbsp;Enable prose pump guidance after Intro (off = keep pump-prose suppressed for the whole session)
-                      </label>
-                      <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
-                        refValue={treeRefs.intro} onChange={(r) => setScope('intro', r)}
-                        defaultName="Intro" source={`from card: ${formData.name || 'character'}`} rowProps={{ ...rp, profiles: activeStory?.checkpointProfiles || [] }} />
-                    </CollapsibleSection>
-
-                    <CollapsibleSection title="Event Triggers" subtitle="fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)" badge={treeRefs.events?.length ? `${treeRefs.events.length}` : ''}>
-                      <EventTriggersSection events={treeRefs.events || []} onChange={(next) => setScope('events', next)}
-                        source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
-                    </CollapsibleSection>
-                  </>
-                );
-              })()}
-              {/* Pump Type (session default; mirrors the Instructor checkpoint tab) */}
-              <div className="form-group" style={{ marginTop: 12 }}>
-                <label>Default Pump Type</label>
-                <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData(prev => ({ ...prev, defaultPumpType: e.target.value }))}>
-                  <option value="electric">Auto / Electric (E-STOP)</option>
-                  <option value="bulb">Manual / Bulb (PUMP)</option>
-                  <option value="bike">Manual / Bike (PUMP)</option>
-                </select>
-                <p className="section-hint">Session pump pacing for this card. Auto→E-STOP button, Manual→PUMP button.</p>
-              </div>
-              <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
-              {formData.isPumpable ? (
-                <>
-                  {/* Sub-tab switcher for pumpable characters */}
-                  <div className="checkpoint-subtabs">
-                    <button
-                      type="button"
-                      className={`checkpoint-subtab ${checkpointSubTab === 'player' ? 'active' : ''}`}
-                      onClick={() => setCheckpointSubTab('player')}
-                    >
-                      Player Capacity
-                    </button>
-                    <button
-                      type="button"
-                      className={`checkpoint-subtab ${checkpointSubTab === 'character' ? 'active' : ''}`}
-                      onClick={() => setCheckpointSubTab('character')}
-                    >
-                      Character Capacity
-                    </button>
-                    <button type="button" className="btn btn-sm btn-secondary checkpoint-showall" onClick={() => {
-                      const anyShown = Object.values(visibleCheckpoints).some(Boolean);
-                      if (anyShown) { setVisibleCheckpoints({}); return; }
-                      const v = {};
-                      ['0','1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'].forEach(k => { v[`player-${k}`] = true; v[`char-${k}`] = true; });
-                      setVisibleCheckpoints(v);
-                    }}>Show/Hide All</button>
-                  </div>
-
-                  {/* Player Capacity Checkpoints */}
-                  {checkpointSubTab === 'player' && (
-                    <>
-                      <h4>Player Capacity Checkpoints</h4>
-                      <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
-
-                      {/* Manual Pump Maxes — only relevant for bulb/bike; shared with Smart Devices › Manual Devices */}
-                      {(formData.defaultPumpType === 'bulb' || formData.defaultPumpType === 'bike') && (
-                        <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
-                          <div>
-                            <label>Bulb Pump Max</label>
-                            <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
-                          </div>
-                          <div>
-                            <label>Bicycle Pump Max</label>
-                            <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="checkpoint-profile-bar">
-                        <select
-                          value={selectedPlayerProfile}
-                          onChange={(e) => handleLoadProfile(e.target.value, 'player')}
-                          className="checkpoint-profile-select"
-                        >
-                          <option value="">-- Load Profile --</option>
-                          {(checkpointProfiles.player || []).map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                        <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('player')}>Save As New</button>
-                        {selectedPlayerProfile && !(checkpointProfiles.player || []).find(p => p.id === selectedPlayerProfile)?.builtIn && (
-                          <>
-                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('player')}>
-                              Update{profileDirty.player ? ' !' : ''}
-                            </button>
-                            <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('player')}>Delete</button>
-                          </>
-                        )}
-                      </div>
-                      {[
-                        { key: '1-10', label: '0–10%' },
-                        { key: '11-20', label: '11–20%' },
-                        { key: '21-30', label: '21–30%' },
-                        { key: '31-40', label: '31–40%' },
-                        { key: '41-50', label: '41–50%' },
-                        { key: '51-60', label: '51–60%' },
-                        { key: '61-70', label: '61–70%' },
-                        { key: '71-80', label: '71–80%' },
-                        { key: '81-90', label: '81–90%' },
-                        { key: '91-100', label: '91–100%' },
-                        { key: '100+', label: '100%+ — Over-Inflation' }
-                      ].map(({ key, label, hint }) => (
-                        <CollapsibleSection key={key} title={label} subtitle={hint}
-                          open={!!visibleCheckpoints[`player-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: v }))}>
-                            {/* Pump pacing — manual (bulb/bike) batch limits or auto (electric) cadence, per range */}
-                            {(() => {
-                              const pt = formData.defaultPumpType || 'electric';
-                              const cur = activeStory?.checkpoints?.[key];
-                              const cpObj = (cur && typeof cur === 'object') ? cur : (typeof cur === 'string' ? { mainTheme: cur } : {});
-                              const setPace = (field, raw) => {
-                                const v = raw === '' ? undefined : (parseInt(raw, 10) || 0);
-                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...cpObj, [field]: v } });
-                                setProfileDirty(prev => ({ ...prev, player: true }));
-                              };
-                              if (pt === 'bulb' || pt === 'bike') return (
-                                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
-                                  <div>
-                                    <label title="Messages that must pass after a batch before more pumping is requested">MSG / Batch</label>
-                                    <input type="text" inputMode="numeric" value={cpObj.messagesBetweenBatches ?? ''} onChange={(e) => setPace('messagesBetweenBatches', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
-                                  </div>
-                                  <div>
-                                    <label title="Max pump operations requested in a single reply (one batch)">Max Pump / Batch</label>
-                                    <input type="text" inputMode="numeric" value={cpObj.maxPumpsPerBatch ?? ''} onChange={(e) => setPace('maxPumpsPerBatch', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
-                                  </div>
-                                </div>
-                              );
-                              return (
-                                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
-                                  <div>
-                                    <label title="Replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
-                                    <input type="text" inputMode="numeric" value={cpObj.messagesBetweenOn ?? ''} onChange={(e) => setPace('messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0 = off" style={{ maxWidth: 120 }} />
-                                  </div>
-                                  <div>
-                                    <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
-                                    <input type="text" inputMode="numeric" value={cpObj.maxPumpOnSecs ?? ''} onChange={(e) => setPace('maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))} placeholder="5" style={{ maxWidth: 120 }} />
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                            <label className="ci-label">Main theme</label>
-                            <textarea
-                              className="ci-main-theme"
-                              value={(typeof activeStory?.checkpoints?.[key] === 'string' ? activeStory.checkpoints[key] : activeStory?.checkpoints?.[key]?.mainTheme) || ''}
-                              onChange={(e) => {
-                                const cur = activeStory?.checkpoints?.[key];
-                                const obj = (cur && typeof cur === 'object') ? cur : {};
-                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
-                                setProfileDirty(prev => ({ ...prev, player: true }));
-                              }}
-                              placeholder="Always-on guidance while capacity is in this range…"
-                              rows={2}
-                            />
-                            <RangeTriggerEditor
-                              value={activeStory?.checkpointTriggers?.[`player-${key}`]}
-                              onChange={(v) => { updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [`player-${key}`]: v }); setProfileDirty(prev => ({ ...prev, player: true })); }}
-                              triggerSets={triggerSets}
-                              isPumpable={formData.isPumpable}
-                              reminders={formData.globalReminders || []}
-                              globalReminders={systemGlobalReminders}
-                            />
-                            <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this player range"
-                              refValue={activeStory?.treeRefs?.ranges?.[`player-${key}`]}
-                              onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
-                              defaultName={`Range ${key}`} source={`from card: ${formData.name || 'character'}`}
-                              rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                        </CollapsibleSection>
-                      ))}
-                    </>
-                  )}
-
-                  {/* Character Capacity Checkpoints */}
-                  {checkpointSubTab === 'character' && (
-                    <>
-                      <h4>Character Capacity Checkpoints</h4>
-                      <p className="section-hint">Stage directions telling the AI how to react to <strong>their own</strong> inflation at each capacity range. Uses <code>[Char]</code> for the character name.</p>
-
-                      <div className="checkpoint-profile-bar">
-                        <select
-                          value={selectedCharProfile}
-                          onChange={(e) => handleLoadProfile(e.target.value, 'character')}
-                          className="checkpoint-profile-select"
-                        >
-                          <option value="">-- Load Profile --</option>
-                          {(checkpointProfiles.character || []).map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </select>
-                        <button type="button" className="btn btn-sm btn-primary" onClick={() => handleSaveNewProfile('character')}>Save As New</button>
-                        {selectedCharProfile && !(checkpointProfiles.character || []).find(p => p.id === selectedCharProfile)?.builtIn && (
-                          <>
-                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleUpdateProfile('character')}>
-                              Update{profileDirty.character ? ' !' : ''}
-                            </button>
-                            <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteProfile('character')}>Delete</button>
-                          </>
-                        )}
-                      </div>
-                      {[
-                        { key: '1-10', label: '0–10%' },
-                        { key: '11-20', label: '11–20%' },
-                        { key: '21-30', label: '21–30%' },
-                        { key: '31-40', label: '31–40%' },
-                        { key: '41-50', label: '41–50%' },
-                        { key: '51-60', label: '51–60%' },
-                        { key: '61-70', label: '61–70%' },
-                        { key: '71-80', label: '71–80%' },
-                        { key: '81-90', label: '81–90%' },
-                        { key: '91-100', label: '91–100%' },
-                        { key: '100+', label: '100%+ — Over-Inflation' }
-                      ].map(({ key, label, hint }) => (
-                        <CollapsibleSection key={key} title={label} subtitle={hint}
-                          open={!!visibleCheckpoints[`char-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`char-${key}`]: v }))}>
-                            <label className="ci-label">Main theme</label>
-                            <textarea
-                              className="ci-main-theme"
-                              value={(typeof activeStory?.characterCheckpoints?.[key] === 'string' ? activeStory.characterCheckpoints[key] : activeStory?.characterCheckpoints?.[key]?.mainTheme) || ''}
-                              onChange={(e) => {
-                                const cur = activeStory?.characterCheckpoints?.[key];
-                                const obj = (cur && typeof cur === 'object') ? cur : {};
-                                updateStoryField('characterCheckpoints', { ...(activeStory?.characterCheckpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
-                                setProfileDirty(prev => ({ ...prev, character: true }));
-                              }}
-                              placeholder="Always-on guidance while the character is in this range…"
-                              rows={2}
-                            />
-                            <RangeTriggerEditor
-                              value={activeStory?.checkpointTriggers?.[`char-${key}`]}
-                              onChange={(v) => { updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [`char-${key}`]: v }); setProfileDirty(prev => ({ ...prev, character: true })); }}
-                              triggerSets={triggerSets}
-                              isPumpable={formData.isPumpable}
-                              reminders={formData.globalReminders || []}
-                              globalReminders={systemGlobalReminders}
-                            />
-                            <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this char range"
-                              refValue={activeStory?.treeRefs?.ranges?.[`char-${key}`]}
-                              onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`char-${key}`]: r } })}
-                              defaultName={`Char Range ${key}`} source={`from card: ${formData.name || 'character'}`}
-                              rowProps={{ triggerSets, isPumpable: formData.isPumpable, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                        </CollapsibleSection>
-                      ))}
-                    </>
-                  )}
-                </>
-              ) : (
-                <CheckpointProfiles
-                  story={activeStory}
-                  updateStory={updateStoryField}
-                  defaultPumpType={formData.defaultPumpType}
-                  cardName={formData.name || 'character'}
-                  triggerSets={triggerSets}
-                  rowProps={{ reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }}
-                />
-              )}
+              <CheckpointProfiles
+                story={activeStory}
+                updateStory={updateStoryField}
+                defaultPumpType={formData.defaultPumpType}
+                cardName={formData.name || 'character'}
+                triggerSets={triggerSets}
+                rowProps={{ reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders, isPumpable: formData.isPumpable }}
+              />
             </div>
           </div>
 
