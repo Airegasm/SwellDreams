@@ -61,6 +61,7 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'random', label: 'Random (one of)' },
       { kind: 'container', type: 'keyword_gate', label: 'Keyword Gate' },
       { kind: 'container', type: 'repeat', label: 'Repeat / Loop' },
+      { kind: 'container', type: 'pause_resume', label: 'Pause / Resume' },
     ]
   },
   {
@@ -90,7 +91,7 @@ const ADD_GROUPS = [
 const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
-const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat']); // not if/player_choice (special children)
+const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume']); // not if/player_choice/choose_multi (special children)
 
 function makeCond() { return { varType: 'flow', variable: '', operator: '==', value: '' }; }
 function makeBranch(isElse = false) {
@@ -104,6 +105,7 @@ function makeNode(kind, type) {
   if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
   if (type === 'chance') node.params.chance = 50;
   if (type === 'repeat') { node.params.mode = 'fixed'; node.params.iterations = 3; }
+  if (type === 'pause_resume') { node.params.resumeAfterType = 'turns'; node.params.resumeAfterValue = 4; }
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'fire_tree') node.params.treeId = '';
@@ -132,6 +134,7 @@ function summarize(node) {
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
   if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
+  if (t === 'pause_resume') return `Pause · resume after ${p.resumeAfterValue ?? 4} turn(s)`;
   if (t === 'keyword_gate') return `Keyword Gate: ${(p.keys || []).join(', ') || '(none)'}`;
   if (t === 'keyword') return `On Keyword: ${(p.keys || []).join(', ') || '(none)'}`;
   return t;
@@ -373,10 +376,21 @@ function NodeBody({ node, onChange, rowProps }) {
     </div>
   );
 
+  const pauseParams = t === 'pause_resume' && (
+    <div className="tree-params">
+      <label className="tree-field tree-field-inline">
+        <span>Resume after</span>
+        <input type="number" min={1} value={node.params?.resumeAfterValue ?? 4} onChange={(e) => setParams({ resumeAfterValue: parseInt(e.target.value) || 1 })} /> reply turn(s)
+      </label>
+      <div className="tree-hint">Defers the rest of this tree, then runs the body below after the wait.</div>
+    </div>
+  );
+
   return (
     <div className="tree-container-body">
       {chanceParams}
       {repeatParams}
+      {pauseParams}
       {keywordParams}
       {HOLDS_CHILDREN.has(t) && (
         <NodeList nodes={node.children || []} onChange={(next) => onChange({ ...node, children: next })} rowProps={rowProps} />

@@ -3376,7 +3376,8 @@ const sessionState = {
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
-  pendingTreeChoice: null // Armed when a tree player_choice suspends; { choices, ctxSnapshot, after }
+  pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
+  pendingTreeResume: null // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -7681,6 +7682,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     // physical capacity (it must stay in sync with the real pump state).
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    sessionState.pendingTreeResume = null;
 
     // Set the summary as the rolling memory
     if (summaryText) {
@@ -7724,6 +7726,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    sessionState.pendingTreeResume = null;
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
     console.log('[ClearChat] Context cleared (screen preserved)');
@@ -7735,6 +7738,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.chatMemorySummaryUpTo = 0;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
+    sessionState.pendingTreeResume = null;
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
     console.log('[ClearChat] Both screen and context cleared');
@@ -10128,6 +10132,8 @@ async function runReplyScopes(character) {
   sessionState.activeCheckpointInjections = [];
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
+  try { await checkPendingTreeResume(); } // tick any deferred pause_resume before this turn's scopes
+  catch (e) { console.error('[runReplyScopes] tree resume failed:', e?.message || e); }
   const treeIndex = buildTreeIndex(); // one library read per turn; threaded into every scope/fire_tree hop
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings, treeIndex); }
@@ -10288,6 +10294,39 @@ async function resumeTreeChooseMulti(selectedIds) {
   if (Array.isArray(after) && after.length) {
     try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
+  }
+}
+
+// Tick a pending pause_resume down by one reply turn; when it reaches zero, run the deferred body
+// then the same-level continuation (standalone delivery), mirroring the choice resumes. Called once
+// at the top of each reply turn (runReplyScopes) so a pause armed this turn first ticks next turn.
+async function checkPendingTreeResume() {
+  const pend = sessionState.pendingTreeResume;
+  if (!pend) return;
+  if (--pend.remaining > 0) return; // still waiting
+  const body = pend.body, after = pend.after, snap = pend.ctxSnapshot || {};
+  sessionState.pendingTreeResume = null;
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+  let sig;
+  try { sig = await runTree(body || [], ctx); }
+  catch (e) { console.error('[checkPendingTreeResume] body failed:', e?.message || e); }
+  if (sig) return; // body re-armed a pause/choice (or a goto bubbled out) — stop here
+  if (Array.isArray(after) && after.length) {
+    try { await runTree(after, ctx); } // post-pause fall-through at the node's own level
+    catch (e) { console.error('[checkPendingTreeResume] continuation failed:', e?.message || e); }
   }
 }
 
@@ -12852,6 +12891,25 @@ async function runNode(node, ctx) {
         return { __control: 'suspend', reason: 'choose_multi' };
       }
 
+      case 'pause_resume': {
+        // Defer the rest of THIS tree for N reply turns, then run this node's body + the same-level
+        // continuation. Non-blocking: uses pendingTreeResume (NOT pendingTreeChoice) so other scopes
+        // keep running this turn. checkPendingTreeResume ticks it down at the top of each reply.
+        if (sessionState.pendingTreeResume) return { __control: 'suspend', reason: 'pause_resume' };
+        const n = Math.max(1, Number(node.params?.resumeAfterValue ?? 4) || 4);
+        markTreeOnce(node, ctx);
+        sessionState.pendingTreeResume = {
+          remaining: n,
+          body: node.children || [],
+          ctxSnapshot: {
+            treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
+            delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+          },
+          after: null
+        };
+        return { __control: 'suspend', reason: 'pause_resume' };
+      }
+
       case 'repeat': {
         const child = enterChild(node, ctx);
         if (!child) return;
@@ -12917,10 +12975,10 @@ async function runTree(nodes, ctx) {
         return sig; // label not in THIS list — bubble up to an enclosing frame
       }
       if (sig.__control === 'suspend') {
-        // Capture the innermost same-level continuation for post-choice fall-through.
-        if (sessionState.pendingTreeChoice && sessionState.pendingTreeChoice.after == null) {
-          sessionState.pendingTreeChoice.after = nodes.slice(i + 1);
-        }
+        // Capture the innermost same-level continuation for post-resume fall-through. A choice/
+        // choose_multi fills pendingTreeChoice; a pause_resume fills pendingTreeResume.
+        const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume;
+        if (pend && pend.after == null) pend.after = nodes.slice(i + 1);
         return sig;
       }
       return sig; // any other sentinel bubbles unchanged
@@ -16654,6 +16712,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.chatMemorySummaryUpTo = 0;
   firedCheckpointTriggers.clear();
   sessionState.firedTreeNodes.clear();
+  sessionState.pendingTreeResume = null;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
@@ -16672,6 +16731,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.activeCheckpointInjections = [];
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingTreeChoice = null;
+  sessionState.pendingTreeResume = null;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
