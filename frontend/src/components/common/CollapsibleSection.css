@@ -5,7 +5,8 @@
   border-radius: 7px;
   background: var(--bg-elevated, #232323);
   margin-bottom: 8px;
-  overflow: hidden;
+  /* NOT overflow:hidden — it clips the tree's absolutely-positioned "add block"
+     dropdown. Corners are rounded on the header/body directly instead. */
 }
 .csec-open { border-left-color: #6c8cff; }
 
@@ -17,10 +18,13 @@
   padding: 10px 12px;
   background: var(--bg-tertiary, #262626);
   border: none;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   color: var(--text-primary, #eee);
 }
+/* When open, the header is the top of a two-piece box — round only its top. */
+.csec-open .csec-header { border-radius: 6px 6px 0 0; }
 .csec-header:hover { background: var(--bg-hover, #2e2e2e); }
 .csec-chevron { color: var(--text-secondary, #999); font-size: 12px; width: 14px; flex: none; }
 .csec-title { font-weight: 600; font-size: 0.92rem; }
@@ -43,4 +47,5 @@
 .csec-body {
   padding: 12px;
   border-top: 1px solid var(--border-color, #333);
+  border-radius: 0 0 6px 6px;
 }

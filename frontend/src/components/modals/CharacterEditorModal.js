@@ -1663,7 +1663,7 @@ Write only the scenario description itself, no explanations.`;
 
   return (
     <div className="modal-overlay">
-      <div className="modal character-editor-modal">
+      <div className={`modal character-editor-modal ${activeTab === 'checkpoints' ? 'character-editor-modal--wide' : ''}`}>
         <div className="modal-header character-modal-header">
           <h3>{character ? 'Edit Character' : 'New Character'}</h3>
           {hasDraft && (

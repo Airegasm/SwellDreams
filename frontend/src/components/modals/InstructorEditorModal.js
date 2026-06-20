@@ -291,7 +291,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal character-editor-modal" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal character-editor-modal ${activeTab === 'checkpoints' ? 'character-editor-modal--wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{character ? 'Edit Instructor' : 'New Instructor'}</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>

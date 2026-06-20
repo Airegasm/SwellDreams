@@ -9,15 +9,26 @@
   border-radius: 6px;
   background: var(--bg-elevated, #232323);
 }
-.tree-node-container { border-left: 3px solid #6c8cff; }
-.tree-node-event { border-left: 3px solid #d49a3a; }
-.tree-node-action { border-left: 3px solid #4caf7d; }
+/* Type colour-coding: a left rail + a faint matching wash on the header, so the
+   three block kinds read at a glance. */
+.tree-node-container { border-left: 3px solid #7b9cff; }
+.tree-node-event { border-left: 3px solid #e0a64b; }
+.tree-node-action { border-left: 3px solid #4ec98c; }
+
+.tree-node-container > .tree-node-head { background: rgba(123, 156, 255, 0.09); }
+.tree-node-event > .tree-node-head { background: rgba(224, 166, 75, 0.09); }
+.tree-node-action > .tree-node-head { background: rgba(78, 201, 140, 0.09); }
+
+.tree-node-container > .tree-node-head .tree-node-kind { color: #9db4ff; }
+.tree-node-event > .tree-node-head .tree-node-kind { color: #e7b566; }
+.tree-node-action > .tree-node-head .tree-node-kind { color: #6fd6a4; }
 
 .tree-node-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
+  padding: 5px 7px;
+  border-radius: 0 5px 0 0;
 }
 .tree-collapse {
   background: none; border: none; color: var(--text-secondary, #aaa);
@@ -28,9 +39,9 @@
   color: var(--text-secondary, #999); font-weight: 600;
 }
 .tree-node-summary {
-  color: var(--text-secondary, #bbb);
+  color: var(--text-secondary, #c7c7c7);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 320px; font-style: italic;
+  max-width: 420px; font-style: italic;
 }
 .tree-node-spacer { flex: 1; }
 

@@ -10,6 +10,13 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--border-radius);
+  transition: max-width 0.18s ease;
+}
+
+/* The checkpoints tab hosts the Session Start / range trigger-tree editors, which
+   need more horizontal room than the form tabs. */
+.character-editor-modal--wide {
+  max-width: 1200px;
 }
 
 /* Modal Header - Gradient style matching Settings */
