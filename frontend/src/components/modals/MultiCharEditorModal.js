@@ -5,13 +5,11 @@ import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
 import TriggerRow from '../common/TriggerRow';
-import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
-import EventTriggersSection from '../common/EventTriggersSection';
+import CheckpointProfiles from '../common/CheckpointProfiles';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
-import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 import './MultiCharEditorModal.css';
@@ -184,6 +182,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
         avatar: character.avatar || '',
         description: character.description || '',
         personality: character.personality || '',
+        defaultPumpType: character.defaultPumpType || 'electric',
         multiChar: {
           enabled: true,
           characters: multiChars
@@ -239,6 +238,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       avatar: '',
       description: '',
       personality: '',
+      defaultPumpType: 'electric',
       multiChar: {
         enabled: true,
         characters: [
@@ -2389,6 +2389,17 @@ Write only the scenario description itself, no explanations.`;
           {/* Checkpoints Tab */}
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
             <div className="session-defaults-editor">
+              {/* Pump Type (session default; mirrors the Instructor card) */}
+              <div className="form-group">
+                <label>Default Pump Type</label>
+                <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData(prev => ({ ...prev, defaultPumpType: e.target.value }))}>
+                  <option value="electric">Auto / Electric (E-STOP)</option>
+                  <option value="bulb">Manual / Bulb (PUMP)</option>
+                  <option value="bike">Manual / Bike (PUMP)</option>
+                </select>
+                <p className="section-hint">Session pump pacing for this card. Auto→E-STOP button, Manual→PUMP button.</p>
+              </div>
+
               {/* ===== Session-open scope sections (collapsible) ===== */}
               {(() => {
                 const treeRefs = activeStory?.treeRefs || {};
@@ -2407,78 +2418,25 @@ Write only the scenario description itself, no explanations.`;
                         defaultName="Session Start" source={`from card: ${formData.name || 'multichar'}`} rowProps={rp} />
                     </CollapsibleSection>
 
-                    <CollapsibleSection title="Intro" subtitle="gated intro — no pump until released" badge={activeStory?.preFill?.enabled ? 'on' : ''}>
-                      <PreFillEditor value={activeStory?.preFill} onChange={(pf) => updateStoryField('preFill', pf)} profiles={[]} isInstructor={false} />
+                    <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(treeRefs.intro?.inline?.nodes?.length || treeRefs.intro?.treeId) ? 'on' : ''}>
+                      <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
+                        refValue={treeRefs.intro} onChange={(r) => setScope('intro', r)}
+                        defaultName="Intro" source={`from card: ${formData.name || 'multichar'}`} rowProps={{ ...rp, profiles: activeStory?.checkpointProfiles || [] }} />
                     </CollapsibleSection>
-
-                    <CollapsibleSection title="Always-On" subtitle="runs every reply (recurring each turn, once nodes once)" badge={nodeCount(treeRefs.alwaysOn)}>
-                      <ScopeTreeSection label="" hint="" refValue={treeRefs.alwaysOn} onChange={(r) => setScope('alwaysOn', r)}
-                        defaultName="Always On" source={`from card: ${formData.name || 'multichar'}`} rowProps={rp} />
-                    </CollapsibleSection>
-
-                    <CollapsibleSection title="Event Triggers" subtitle="fire a tree on a discrete event (device / state / idle / random)" badge={treeRefs.events?.length ? `${treeRefs.events.length}` : ''}>
-                      <EventTriggersSection events={treeRefs.events || []} onChange={(next) => setScope('events', next)}
-                        source={`from card: ${formData.name || 'multichar'}`} rowProps={rp} />
-                    </CollapsibleSection>
+                    {/* Always-On + Event Triggers are now PER-PROFILE (see Checkpoint Profiles below). */}
                   </>
                 );
               })()}
               <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
-              <div className="checkpoint-tab-header">
-                <h4>Capacity Checkpoints</h4>
-                <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
-                  const anyShown = Object.values(visibleCheckpoints).some(Boolean);
-                  if (anyShown) { setVisibleCheckpoints({}); return; }
-                  const v = {};
-                  ['0','1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'].forEach(k => { v[k] = true; });
-                  setVisibleCheckpoints(v);
-                }}>Show/Hide All</button>
-              </div>
-              <p className="section-hint">Author instructions injected into the AI prompt at different capacity ranges. Blank ranges are ignored.</p>
-
-              {[
-                { key: '1-10', label: '0–10%' },
-                { key: '11-20', label: '11–20%' },
-                { key: '21-30', label: '21–30%' },
-                { key: '31-40', label: '31–40%' },
-                { key: '41-50', label: '41–50%' },
-                { key: '51-60', label: '51–60%' },
-                { key: '61-70', label: '61–70%' },
-                { key: '71-80', label: '71–80%' },
-                { key: '81-90', label: '81–90%' },
-                { key: '91-100', label: '91–100%' },
-                { key: '100+', label: '100%+ — Over-Inflation' }
-              ].map(({ key, label, hint }) => (
-                <CollapsibleSection key={key} title={label} subtitle={hint}
-                  open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
-                    <label className="ci-label">Main theme</label>
-                    <textarea
-                      className="ci-main-theme"
-                      value={(typeof activeStory?.checkpoints?.[key] === 'string' ? activeStory.checkpoints[key] : activeStory?.checkpoints?.[key]?.mainTheme) || ''}
-                      onChange={(e) => {
-                        const cur = activeStory?.checkpoints?.[key];
-                        const obj = (cur && typeof cur === 'object') ? cur : {};
-                        updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...obj, mainTheme: e.target.value } });
-                      }}
-                      placeholder="Always-on guidance while capacity is in this range…"
-                      rows={2}
-                    />
-                    <RangeTriggerEditor
-                      value={activeStory?.checkpointTriggers?.[key]}
-                      onChange={(v) => updateStoryField('checkpointTriggers', { ...(activeStory?.checkpointTriggers || {}), [key]: v })}
-                      triggerSets={triggerSets}
-                      isPumpable={false}
-                      members={multiChars}
-                      reminders={formData.globalReminders || []}
-                      globalReminders={systemGlobalReminders}
-                    />
-                    <ScopeTreeSection label="Range Script" hint="trigger tree; runs each reply while in this range"
-                      refValue={activeStory?.treeRefs?.ranges?.[`player-${key}`]}
-                      onChange={(r) => updateStoryField('treeRefs', { ...(activeStory?.treeRefs || {}), ranges: { ...(activeStory?.treeRefs?.ranges || {}), [`player-${key}`]: r } })}
-                      defaultName={`Range ${key}`} source={`from card: ${formData.name || 'multichar'}`}
-                      rowProps={{ triggerSets, isPumpable: false, members: multiChars, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }} />
-                </CollapsibleSection>
-              ))}
+              {/* Instructor-style per-card checkpoint profiles (shared component) */}
+              <CheckpointProfiles
+                story={activeStory}
+                updateStory={updateStoryField}
+                defaultPumpType={formData.defaultPumpType}
+                cardName={formData.name || 'multichar'}
+                triggerSets={triggerSets}
+                rowProps={{ members: multiChars, reminders: formData.globalReminders || [], globalReminders: systemGlobalReminders }}
+              />
             </div>
           </div>
 
@@ -2506,7 +2464,8 @@ Write only the scenario description itself, no explanations.`;
                 const memberAttrs = activeStory?.memberAttributes?.[attrMemberId] || {};
                 const groupAttrs = activeStory?.attributes || {};
                 const getVal = (key) => memberAttrs[key] ?? groupAttrs[key] ?? 0;
-                return [
+                const setDesire = (field, val) => updateMemberAttribute(attrMemberId, field, val);
+                const sliders = [
                   { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
                   { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
                   { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
@@ -2528,6 +2487,62 @@ Write only the scenario description itself, no explanations.`;
                     />
                   </div>
                 ));
+                return (
+                  <>
+                    {sliders}
+                    <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition (per character)</h4>
+                    <p className="section-hint">This member's baseline attitude toward being inflated/popped and toward inflating/popping others.</p>
+                    <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                      <label>Desire to be Inflated</label>
+                      <select value={memberAttrs.charInflateDesire || 'neutral'} onChange={(e) => setDesire('charInflateDesire', e.target.value)} disabled={!attrMemberId}>
+                        <option value="terrified">Terrified — desperately does not want this</option>
+                        <option value="reluctant">Reluctant — would prefer not to but may comply</option>
+                        <option value="nervous">Nervous — anxious but not fully opposed</option>
+                        <option value="neutral">Neutral — neither wants nor resists</option>
+                        <option value="curious">Curious — intrigued and willing to try</option>
+                        <option value="eager">Eager — actively wants to be inflated</option>
+                        <option value="obsessed">Obsessed — craves inflation intensely</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                      <label>Desire to be Popped</label>
+                      <select value={memberAttrs.charPopDesire || 'terrified'} onChange={(e) => setDesire('charPopDesire', e.target.value)} disabled={!attrMemberId}>
+                        <option value="terrified">Terrified — will do anything to avoid popping</option>
+                        <option value="dreading">Dreading — deeply fears it but feels it coming</option>
+                        <option value="anxious">Anxious — worried about the possibility</option>
+                        <option value="resigned">Resigned — accepts it may happen</option>
+                        <option value="indifferent">Indifferent — doesn't care either way</option>
+                        <option value="curious">Curious — wonders what it would feel like</option>
+                        <option value="willing">Willing — okay with popping if it happens</option>
+                        <option value="eager">Eager — wants to pop</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                      <label>Desire to Inflate Others</label>
+                      <select value={memberAttrs.desireToInflateOthers || 'none'} onChange={(e) => setDesire('desireToInflateOthers', e.target.value)} disabled={!attrMemberId}>
+                        <option value="none">None — no interest in inflating others</option>
+                        <option value="reluctant">Reluctant — would only inflate others if forced</option>
+                        <option value="indifferent">Indifferent — doesn't care either way</option>
+                        <option value="willing">Willing — happy to inflate others if asked</option>
+                        <option value="eager">Eager — actively wants to inflate others</option>
+                        <option value="obsessed">Obsessed — driven to inflate others at every opportunity</option>
+                        <option value="sadistic">Sadistic — inflates others specifically to cause discomfort</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginTop: '0.5rem' }}>
+                      <label>Desire to Pop Others</label>
+                      <select value={memberAttrs.desireToPopOthers || 'none'} onChange={(e) => setDesire('desireToPopOthers', e.target.value)} disabled={!attrMemberId}>
+                        <option value="none">None — would never intentionally pop someone</option>
+                        <option value="avoidant">Avoidant — actively tries to prevent popping</option>
+                        <option value="careless">Careless — doesn't worry about it happening</option>
+                        <option value="curious">Curious — wonders what would happen</option>
+                        <option value="willing">Willing — okay with it if it happens</option>
+                        <option value="eager">Eager — actively tries to push others to pop</option>
+                        <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
+                      </select>
+                    </div>
+                  </>
+                );
               })()}
             </div>
           </div>

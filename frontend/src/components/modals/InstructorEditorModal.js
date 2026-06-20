@@ -7,7 +7,6 @@ import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
 import EventTriggersSection from '../common/EventTriggersSection';
 import CollapsibleSection from '../common/CollapsibleSection';
-import PreFillEditor from '../common/PreFillEditor';
 import MediaCropModal from './MediaCropModal';
 import './CharacterEditorModal.css';
 
@@ -77,7 +76,16 @@ function buildInitialData(character) {
       checkpoints: story?.checkpoints || {},
       checkpointTriggers: story?.checkpointTriggers || {},
       skinId: story?.skinId || '',
-      allowLlmDeviceAccess: story?.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? false,
+      allowLlmDeviceAccess: story?.allowLlmDeviceAccess ?? character?.allowLlmDeviceAccess ?? true,
+      // Device-control timing fields (mirror the standard character card so they round-trip).
+      pumpOnEveryReply: story?.pumpOnEveryReply || false,
+      pumpOnEveryReplyChance: story?.pumpOnEveryReplyChance ?? 100,
+      llmMaxOnDuration: story?.llmMaxOnDuration ?? 5,
+      llmMaxCycleOnDuration: story?.llmMaxCycleOnDuration ?? 2,
+      llmMaxCycleRepetitions: story?.llmMaxCycleRepetitions ?? 2,
+      llmMaxPulseRepetitions: story?.llmMaxPulseRepetitions ?? 5,
+      llmMaxTimedDuration: story?.llmMaxTimedDuration ?? 10,
+      latchPumpUntilOff: story?.latchPumpUntilOff === true,
       prereqs: Array.isArray(story?.prereqs) ? story.prereqs : [],
       prereqTiming: story?.prereqTiming || 'session_start',
       prereqInitVars: Array.isArray(story?.prereqInitVars) ? story.prereqInitVars : [],
@@ -441,10 +449,82 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               <span>Ignore token swapping <span className="instr-toggle-hint">— skip global word-replacement rules</span></span>
             </label>
             <label className="instr-toggle">
-              <input type="checkbox" checked={!!formData.story.allowLlmDeviceAccess} onChange={(e) => updateStory('allowLlmDeviceAccess', e.target.checked)} />
-              <span>Allow device commands <span className="instr-toggle-hint">— let this instructor control devices</span></span>
+              <input type="checkbox" checked={!!formData.story.allowLlmDeviceAccess}
+                disabled={!settings?.globalCharacterControls?.allowLlmDeviceControl}
+                onChange={(e) => updateStory('allowLlmDeviceAccess', e.target.checked)} />
+              <span>Allow LLM Device Control <span className="instr-toggle-hint">— {settings?.globalCharacterControls?.allowLlmDeviceControl ? 'let this instructor control devices via LLM responses' : 'enable “Allow LLM Device Control” in Settings → Global first'}</span></span>
             </label>
           </div>
+
+          {/* Device-control timing fields — copied from the standard character card */}
+          {formData.story.allowLlmDeviceAccess && settings?.globalCharacterControls?.allowLlmDeviceControl && (
+            <>
+              <div className="story-field auto-reply-field" style={{ marginTop: '0.5rem' }}>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={formData.story?.pumpOnEveryReply || false}
+                    onChange={(e) => updateStory('pumpOnEveryReply', e.target.checked)}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <div className="auto-reply-text">
+                  <span className="auto-reply-label">Send [pump on] with EVERY reply</span>
+                  <span className="auto-reply-hint">
+                    Automatically triggers pump on every AI response (excluding flow chain messages)
+                  </span>
+                </div>
+                {formData.story?.pumpOnEveryReply && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '8px' }}>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={formData.story?.pumpOnEveryReplyChance ?? 100}
+                      onChange={(e) => updateStory('pumpOnEveryReplyChance', Math.min(100, Math.max(1, parseInt(e.target.value) || 100)))}
+                      style={{ width: '55px', textAlign: 'center' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
+                  </div>
+                )}
+              </div>
+              <div className="story-field" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                <label style={{ fontWeight: 'bold', marginBottom: '0.25rem', display: 'block' }}>Device Control Limits</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px', gap: '0.25rem 0.5rem', alignItems: 'center' }}>
+                  <label>Max ON Duration (secs)</label>
+                  <input type="number" min={1} max={300} value={formData.story?.llmMaxOnDuration ?? 5}
+                    onChange={(e) => updateStory('llmMaxOnDuration', Math.min(300, Math.max(1, parseInt(e.target.value) || 5)))}
+                    style={{ width: '60px' }} />
+                  <label>Max Cycle ON (secs)</label>
+                  <input type="number" min={1} max={60} value={formData.story?.llmMaxCycleOnDuration ?? 2}
+                    onChange={(e) => updateStory('llmMaxCycleOnDuration', Math.min(60, Math.max(1, parseInt(e.target.value) || 2)))}
+                    style={{ width: '60px' }} />
+                  <label>Max Cycle Repetitions</label>
+                  <input type="number" min={1} max={50} value={formData.story?.llmMaxCycleRepetitions ?? 2}
+                    onChange={(e) => updateStory('llmMaxCycleRepetitions', Math.min(50, Math.max(1, parseInt(e.target.value) || 2)))}
+                    style={{ width: '60px' }} />
+                  <label>Max Pulse Repetitions</label>
+                  <input type="number" min={1} max={50} value={formData.story?.llmMaxPulseRepetitions ?? 5}
+                    onChange={(e) => updateStory('llmMaxPulseRepetitions', Math.min(50, Math.max(1, parseInt(e.target.value) || 5)))}
+                    style={{ width: '60px' }} />
+                  <label>Max Timed Duration (secs)</label>
+                  <input type="number" min={1} max={300} value={formData.story?.llmMaxTimedDuration ?? 10}
+                    onChange={(e) => updateStory('llmMaxTimedDuration', Math.min(300, Math.max(1, parseInt(e.target.value) || 10)))}
+                    style={{ width: '60px' }} />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.6rem', fontWeight: 'bold' }}>
+                  <input type="checkbox" checked={formData.story?.latchPumpUntilOff === true}
+                    onChange={(e) => updateStory('latchPumpUntilOff', e.target.checked)} />
+                  Latch pump until [pump off]
+                </label>
+                {formData.story?.latchPumpUntilOff && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--danger, #d9534f)', marginTop: '0.25rem', lineHeight: 1.35 }}>
+                    ⚠ A model [pump on] keeps the pump running every reply until [pump off] — overrides the auto-off and the time limits above. Only [pump off] or emergency stop halts it. (Capacity/pop ceiling still applies.) Sets the [PlayerIsInflating] variable.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <hr style={{ margin: '16px 0', borderColor: 'var(--border-color, #444)' }} />
           <h4>Welcome Message</h4>
@@ -537,8 +617,12 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
                   <button type="button" className="prereq-add-sm" onClick={() => updateStory('prereqInitVars', [...(formData.story.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
                 </CollapsibleSection>
 
-                <CollapsibleSection title="Intro" subtitle="gated intro — no pump until released" badge={formData.story.preFill?.enabled ? 'on' : ''}>
-                  <PreFillEditor value={formData.story.preFill} onChange={(pf) => updateStory('preFill', pf)} profiles={cpProfiles} isInstructor={true} />
+                <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(formData.story?.treeRefs?.intro?.inline?.nodes?.length || formData.story?.treeRefs?.intro?.treeId) ? 'on' : ''}>
+                  <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
+                    refValue={formData.story?.treeRefs?.intro}
+                    onChange={(r) => updateStory('treeRefs', { ...(formData.story?.treeRefs || {}), intro: r })}
+                    defaultName="Intro" source={`from card: ${formData.name || 'instructor'}`}
+                    rowProps={{ triggerSets, profiles: cpProfiles, isPumpable: false }} />
                 </CollapsibleSection>
               </>
             );

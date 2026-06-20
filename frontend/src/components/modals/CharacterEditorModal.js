@@ -12,7 +12,6 @@ import EventTriggersSection from '../common/EventTriggersSection';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
 import CollapsibleSection from '../common/CollapsibleSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
-import PreFillEditor from '../common/PreFillEditor';
 import { EMOTIONS } from '../../constants/stateValues';
 import './CharacterEditorModal.css';
 
@@ -181,6 +180,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
         description: character.description || '',
         personality: character.personality || '',
         isPumpable: character.isPumpable || false,
+        defaultPumpType: character.defaultPumpType || 'electric',
         characterCalibrationTime: character.characterCalibrationTime || 60,
         charBurstPercent: character.charBurstPercent || 100,
         hideCharBurstFromDetails: character.hideCharBurstFromDetails ?? true,
@@ -238,6 +238,7 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
       description: '',
       personality: '',
       isPumpable: false,
+      defaultPumpType: 'electric',
       characterCalibrationTime: 60,
       charBurstPercent: 100,
       hideCharBurstFromDetails: true,
@@ -307,6 +308,21 @@ function CharacterEditorModal({ isOpen, onClose, onSave, character }) {
   const [spoilersDropdownOpen, setSpoilersDropdownOpen] = useState(false);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
   const [checkpointSubTab, setCheckpointSubTab] = useState('player');
+  // Manual pump maxes (global, shared with Smart Devices › Manual Devices) — shown when bulb/bike.
+  const [bulbMaxField, setBulbMaxField] = useState('');
+  const [bikeMaxField, setBikeMaxField] = useState('');
+  useEffect(() => {
+    const sv = settings?.systemVariables || {};
+    setBulbMaxField(sv.BulbMax ?? '');
+    setBikeMaxField(sv.BikeMax ?? '');
+  }, [settings?.systemVariables]);
+  const saveMaxField = (which, raw) => {
+    const clean = String(raw).replace(/[^0-9]/g, '');
+    const sv = { ...(settings?.systemVariables || {}) };
+    if (which === 'bulb') sv.BulbMax = clean === '' ? '' : Number(clean);
+    else sv.BikeMax = clean === '' ? '' : Number(clean);
+    api.updateSettings({ systemVariables: sv }).catch(() => {});
+  };
   const [checkpointProfiles, setCheckpointProfiles] = useState({ player: [], character: [] });
   const [selectedPlayerProfile, setSelectedPlayerProfile] = useState('');
   const [selectedCharProfile, setSelectedCharProfile] = useState('');
@@ -3077,8 +3093,10 @@ Write only the scenario description itself, no explanations.`;
                         defaultName="Session Start" source={`from card: ${formData.name || 'character'}`} rowProps={rp} />
                     </CollapsibleSection>
 
-                    <CollapsibleSection title="Intro" subtitle="gated intro — no pump until released" badge={activeStory?.preFill?.enabled ? 'on' : ''}>
-                      <PreFillEditor value={activeStory?.preFill} onChange={(pf) => updateStoryField('preFill', pf)} profiles={[]} isInstructor={false} />
+                    <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={(treeRefs.intro?.inline?.nodes?.length || treeRefs.intro?.treeId) ? 'on' : ''}>
+                      <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
+                        refValue={treeRefs.intro} onChange={(r) => setScope('intro', r)}
+                        defaultName="Intro" source={`from card: ${formData.name || 'character'}`} rowProps={{ ...rp, profiles: activeStory?.checkpointProfiles || [] }} />
                     </CollapsibleSection>
 
                     <CollapsibleSection title="Always-On" subtitle="runs every reply (recurring each turn, once nodes once)" badge={nodeCount(treeRefs.alwaysOn)}>
@@ -3093,6 +3111,16 @@ Write only the scenario description itself, no explanations.`;
                   </>
                 );
               })()}
+              {/* Pump Type (session default; mirrors the Instructor checkpoint tab) */}
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label>Default Pump Type</label>
+                <select value={formData.defaultPumpType || 'electric'} onChange={(e) => setFormData(prev => ({ ...prev, defaultPumpType: e.target.value }))}>
+                  <option value="electric">Auto / Electric (E-STOP)</option>
+                  <option value="bulb">Manual / Bulb (PUMP)</option>
+                  <option value="bike">Manual / Bike (PUMP)</option>
+                </select>
+                <p className="section-hint">Session pump pacing for this card. Auto→E-STOP button, Manual→PUMP button.</p>
+              </div>
               <hr style={{ margin: '14px 0', borderColor: 'var(--border-color, #444)' }} />
               {formData.isPumpable ? (
                 <>
@@ -3126,6 +3154,20 @@ Write only the scenario description itself, no explanations.`;
                     <>
                       <h4>Player Capacity Checkpoints</h4>
                       <p className="section-hint">Stage directions telling the AI how to react to the <strong>player's</strong> inflation at each capacity range. Uses <code>[Player]</code> for the persona name.</p>
+
+                      {/* Manual Pump Maxes — only relevant for bulb/bike; shared with Smart Devices › Manual Devices */}
+                      {(formData.defaultPumpType === 'bulb' || formData.defaultPumpType === 'bike') && (
+                        <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+                          <div>
+                            <label>Bulb Pump Max</label>
+                            <input type="text" inputMode="numeric" value={bulbMaxField} onChange={(e) => setBulbMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bulb', e.target.value)} placeholder="e.g. 120" style={{ maxWidth: 120 }} />
+                          </div>
+                          <div>
+                            <label>Bicycle Pump Max</label>
+                            <input type="text" inputMode="numeric" value={bikeMaxField} onChange={(e) => setBikeMaxField(e.target.value.replace(/[^0-9]/g, ''))} onBlur={(e) => saveMaxField('bike', e.target.value)} placeholder="e.g. 40" style={{ maxWidth: 120 }} />
+                          </div>
+                        </div>
+                      )}
 
                       <div className="checkpoint-profile-bar">
                         <select
@@ -3163,6 +3205,41 @@ Write only the scenario description itself, no explanations.`;
                       ].map(({ key, label, hint }) => (
                         <CollapsibleSection key={key} title={label} subtitle={hint}
                           open={!!visibleCheckpoints[`player-${key}`]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [`player-${key}`]: v }))}>
+                            {/* Pump pacing — manual (bulb/bike) batch limits or auto (electric) cadence, per range */}
+                            {(() => {
+                              const pt = formData.defaultPumpType || 'electric';
+                              const cur = activeStory?.checkpoints?.[key];
+                              const cpObj = (cur && typeof cur === 'object') ? cur : (typeof cur === 'string' ? { mainTheme: cur } : {});
+                              const setPace = (field, raw) => {
+                                const v = raw === '' ? undefined : (parseInt(raw, 10) || 0);
+                                updateStoryField('checkpoints', { ...(activeStory?.checkpoints || {}), [key]: { ...cpObj, [field]: v } });
+                                setProfileDirty(prev => ({ ...prev, player: true }));
+                              };
+                              if (pt === 'bulb' || pt === 'bike') return (
+                                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+                                  <div>
+                                    <label title="Messages that must pass after a batch before more pumping is requested">MSG / Batch</label>
+                                    <input type="text" inputMode="numeric" value={cpObj.messagesBetweenBatches ?? ''} onChange={(e) => setPace('messagesBetweenBatches', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
+                                  </div>
+                                  <div>
+                                    <label title="Max pump operations requested in a single reply (one batch)">Max Pump / Batch</label>
+                                    <input type="text" inputMode="numeric" value={cpObj.maxPumpsPerBatch ?? ''} onChange={(e) => setPace('maxPumpsPerBatch', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" style={{ maxWidth: 120 }} />
+                                  </div>
+                                </div>
+                              );
+                              return (
+                                <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
+                                  <div>
+                                    <label title="Replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
+                                    <input type="text" inputMode="numeric" value={cpObj.messagesBetweenOn ?? ''} onChange={(e) => setPace('messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0 = off" style={{ maxWidth: 120 }} />
+                                  </div>
+                                  <div>
+                                    <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
+                                    <input type="text" inputMode="numeric" value={cpObj.maxPumpOnSecs ?? ''} onChange={(e) => setPace('maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))} placeholder="5" style={{ maxWidth: 120 }} />
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             <label className="ci-label">Main theme</label>
                             <textarea
                               className="ci-main-theme"
