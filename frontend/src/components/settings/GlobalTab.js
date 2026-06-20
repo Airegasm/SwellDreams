@@ -1385,7 +1385,7 @@ function GlobalTab() {
       <div className="settings-section-collapsible">
         <div className="settings-section-header" onClick={() => toggleSection('authorNote')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-            <span>Author Note / System Instructions</span>
+            <span>Default Author's Note (seeds new cards)</span>
             {hasDraft && (
               <span className="draft-indicator" title="Unsaved changes restored from previous session">
                 Draft
@@ -1397,8 +1397,10 @@ function GlobalTab() {
         {expandedSections.authorNote && (
         <div className="settings-section-content">
           <p className="section-description">
-            This text is injected into every AI prompt at a high priority position. Use it for persistent instructions,
-            writing style guidance, or scenario rules that should always be followed.
+            This is the default Author's Note used to seed each new character card. Per-card Author's Notes now live on
+            the card itself and override this default. This text is still used as a fallback for cards without their own
+            note, and is injected into the AI prompt at a high priority position for persistent instructions, writing
+            style guidance, or scenario rules.
           </p>
 
           <div className="form-group">

@@ -11462,15 +11462,17 @@ Write ONLY the summary, no preamble or labels.`;
  * Build chat history in BOTH representations from one loop:
  *  - flat: "Name: text\n" lines for text-completion `prompt`
  *  - messages: [{role:'user'|'assistant', content:'Name: text'}] for chat-completion
- * The author note (globalPrompt) is injected at `authorNoteDepth` from the end
+ * The author note is injected at `authorNoteDepth` from the end
  * (SillyTavern-style) in both representations. depth>=length => top of transcript.
+ * Source is the per-card character.authorsNote, falling back to settings.globalPrompt
+ * (the global default acts as a seed/fallback for cards without their own note).
  *
  * @param {Array}  recentMessages - already sliced/ordered oldest->newest
  * @param {Object} opts
  * @param {string} opts.playerName     - real persona/player display name
  * @param {string} opts.characterName  - real character name
  * @param {boolean} opts.isPlayerVoice - true when generating AS the player (impersonate)
- * @param {string} [opts.authorNote]   - globalPrompt text (undefined/empty => no note)
+ * @param {string} [opts.authorNote]   - per-card authorsNote, else globalPrompt (undefined/empty => no note)
  * @param {number} [opts.authorNoteDepth=4]
  * @returns {{ flat: string, messages: Array<{role,content}> }}
  */
@@ -11743,7 +11745,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     playerName,
     characterName: character.name,
     isPlayerVoice: isPlayerVoiceHist,
-    authorNote: settings?.globalPrompt,
+    authorNote: (character?.authorsNote ?? settings?.globalPrompt),
     authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
   });
   prompt += specialHistory.flat;
@@ -12422,7 +12424,7 @@ function buildChatContext(character, settings) {
     playerName: playerLabel,
     characterName: character.name,
     isPlayerVoice: false,
-    authorNote: settings?.globalPrompt,
+    authorNote: (character?.authorsNote ?? settings?.globalPrompt),
     authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
   });
   prompt += history.flat;

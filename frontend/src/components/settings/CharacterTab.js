@@ -4,9 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE, isInstructor } from '../../config';
 import { apiFetch } from '../../utils/api';
-import CharacterEditorModal from '../modals/CharacterEditorModal';
-import MultiCharEditorModal from '../modals/MultiCharEditorModal';
-import InstructorEditorModal from '../modals/InstructorEditorModal';
+import UnifiedCharacterEditor from '../modals/UnifiedCharacterEditor';
 import './SettingsTabs.css';
 
 // Character description/meta: hard-capped to 3 rows by default with a chevron toggle to expand.
@@ -49,8 +47,11 @@ function CharacterTab() {
   const { characters, setCharacters, settings, api, flows, startNewSession } = useApp();
   const { showError, showSuccess } = useError();
   const navigate = useNavigate();
-  const [showEditorModal, setShowEditorModal] = useState(false);
-  const [editingCharacter, setEditingCharacter] = useState(null);
+  const [showEditor, setShowEditor] = useState(false);
+  // The character being edited, captured at open time. Used as the round-trip backstop
+  // on save (see handleSave) — spread first so any on-disk fields the editor didn't
+  // surface in formData survive.
+  const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
   const [importingV2V3, setImportingV2V3] = useState(false);
   const [showImportGuidance, setShowImportGuidance] = useState(false);
@@ -61,12 +62,6 @@ function CharacterTab() {
   const [selectedStoryIds, setSelectedStoryIds] = useState([]);
   const [exportEmbedFlows, setExportEmbedFlows] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [showTypeSelector, setShowTypeSelector] = useState(false);
-  const [newCharType, setNewCharType] = useState('single');
-  const [showMultiCharEditor, setShowMultiCharEditor] = useState(false);
-  const [editingMultiChar, setEditingMultiChar] = useState(null);
-  const [showInstructorEditor, setShowInstructorEditor] = useState(false);
-  const [editingInstructor, setEditingInstructor] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const listRef = useRef(null);
@@ -102,79 +97,34 @@ function CharacterTab() {
       }
     });
 
+  // New card: the unified editor itself chooses the shape (Instructor Mode tickbox,
+  // Add Character for groups), so there's no up-front type selector anymore.
   const handleNew = () => {
-    setNewCharType('single');
-    setShowTypeSelector(true);
-  };
-
-  const handleNewConfirm = () => {
-    setShowTypeSelector(false);
-    if (newCharType === 'multi') {
-      setEditingMultiChar(null);
-      setShowMultiCharEditor(true);
-    } else if (newCharType === 'instructor') {
-      setEditingInstructor(null);
-      setShowInstructorEditor(true);
-    } else {
-      setEditingCharacter(null);
-      setShowEditorModal(true);
-    }
+    setEditing(null);
+    setShowEditor(true);
   };
 
   const handleEdit = (character) => {
-    if (isInstructor(character)) {
-      setEditingInstructor(character);
-      setShowInstructorEditor(true);
-    } else if (character.multiChar?.enabled) {
-      setEditingMultiChar(character);
-      setShowMultiCharEditor(true);
-    } else {
-      setEditingCharacter(character);
-      setShowEditorModal(true);
-    }
+    setEditing(character);
+    setShowEditor(true);
   };
 
-  const handleSaveInstructor = async (characterData) => {
+  // Single save path for all three legacy shapes. formData (from the editor) is
+  // authoritative — buildInitial spreads the source so it's a true superset — but we
+  // still spread the originally-loaded character first as a backstop for any field
+  // added on disk after the card was opened (preserves unknown/legacy fields).
+  const handleSave = async (formData) => {
     try {
-      if (editingInstructor) {
-        await api.updateCharacter(editingInstructor.id, characterData);
+      const merged = { ...(editing || {}), ...formData };
+      if (editing?.id) {
+        await api.updateCharacter(editing.id, merged);
       } else {
-        await api.createCharacter(characterData);
+        await api.createCharacter(merged);
       }
-      setShowInstructorEditor(false);
-      setEditingInstructor(null);
-    } catch (error) {
-      console.error('Failed to save instructor:', error);
-      alert('Failed to save instructor. Please try again.');
-    }
-  };
-
-  const handleSaveCharacter = async (characterData) => {
-    try {
-      if (editingCharacter) {
-        await api.updateCharacter(editingCharacter.id, characterData);
-      } else {
-        await api.createCharacter(characterData);
-      }
-      setShowEditorModal(false);
-      setEditingCharacter(null);
+      setShowEditor(false);
+      setEditing(null);
     } catch (error) {
       console.error('Failed to save character:', error);
-      alert('Failed to save character. Please try again.');
-    }
-  };
-
-  const handleSaveMultiChar = async (characterData) => {
-    try {
-      if (editingMultiChar) {
-        await api.updateCharacter(editingMultiChar.id, characterData);
-      } else {
-        await api.createCharacter(characterData);
-      }
-      setShowMultiCharEditor(false);
-      setEditingMultiChar(null);
-    } catch (error) {
-      console.error('Failed to save multi-char:', error);
       alert('Failed to save character. Please try again.');
     }
   };
@@ -598,72 +548,14 @@ function CharacterTab() {
         )}
       </div>
 
-      <CharacterEditorModal
-        isOpen={showEditorModal}
-        onClose={() => setShowEditorModal(false)}
-        onSave={handleSaveCharacter}
-        character={editingCharacter}
-      />
-
-      <MultiCharEditorModal
-        isOpen={showMultiCharEditor}
-        onClose={() => setShowMultiCharEditor(false)}
-        onSave={handleSaveMultiChar}
-        character={editingMultiChar}
-      />
-
-      <InstructorEditorModal
-        isOpen={showInstructorEditor}
-        onClose={() => setShowInstructorEditor(false)}
-        onSave={handleSaveInstructor}
-        character={editingInstructor}
-      />
-
-      {/* New Character Type Selector */}
-      {showTypeSelector && (
-        <div className="modal-overlay" onClick={() => setShowTypeSelector(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <h3>New Character</h3>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="newCharType"
-                  value="single"
-                  checked={newCharType === 'single'}
-                  onChange={() => setNewCharType('single')}
-                />
-                <span><strong>Single Character</strong> — One character with their own personality</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="newCharType"
-                  value="multi"
-                  checked={newCharType === 'multi'}
-                  onChange={() => setNewCharType('multi')}
-                />
-                <span><strong>Multi-Char (beta)</strong> — A group of characters in one card</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="newCharType"
-                  value="instructor"
-                  checked={newCharType === 'instructor'}
-                  onChange={() => setNewCharType('instructor')}
-                />
-                <span><strong>Instructor</strong> — Direct, mission-focused instructions only (no roleplay)</span>
-              </label>
-            </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setShowTypeSelector(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleNewConfirm}>OK</button>
-            </div>
-          </div>
-        </div>
+      {showEditor && (
+        <UnifiedCharacterEditor
+          isOpen={showEditor}
+          onClose={() => { setShowEditor(false); setEditing(null); }}
+          onSave={handleSave}
+          character={editing}
+          defaultAuthorsNote={settings.globalPrompt}
+        />
       )}
 
       {/* Export Character Modal */}

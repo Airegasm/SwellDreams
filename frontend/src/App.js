@@ -8,8 +8,7 @@ import FlowEditor from './pages/FlowEditor';
 import MiniGames from './pages/MiniGames';
 import Dictionary from './pages/Dictionary';
 import Help from './pages/Help';
-import Personas from './pages/Personas';
-import Characters from './pages/Characters';
+import CharactersPersonas from './pages/CharactersPersonas';
 import MediaAlbum from './pages/MediaAlbum';
 import Triggers from './pages/Triggers';
 import HamburgerMenu from './components/HamburgerMenu';
@@ -537,14 +536,14 @@ function App() {
         {/* Center Modal Overlays - positioned over middle section only */}
         <Routes>
           <Route path="/" element={null} />
-          <Route path="/personas" element={
+          <Route path="/characters-personas" element={
             <div className="center-modal-overlay">
-              <Personas />
+              <CharactersPersonas />
             </div>
           } />
-          <Route path="/characters" element={
+          <Route path="/characters-personas/:tab" element={
             <div className="center-modal-overlay">
-              <Characters />
+              <CharactersPersonas />
             </div>
           } />
           <Route path="/media-album" element={

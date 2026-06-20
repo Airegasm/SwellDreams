@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import CharacterTab from '../components/settings/CharacterTab';
-import InstructorSettingsTab from '../components/settings/InstructorSettingsTab';
+import PersonaTab from '../components/settings/PersonaTab';
 import './Settings.css';
 
-const CHARACTER_TABS = [
-  { id: 'select', label: 'Character Select' },
-  { id: 'instructor', label: 'Instructor Settings' },
+const TABS = [
+  { id: 'characters', label: 'Characters' },
+  { id: 'personas', label: 'Personas' },
 ];
 
-function Characters() {
+function CharactersPersonas() {
+  const { tab } = useParams();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(tab || 'characters');
   const [animationState, setAnimationState] = useState('entering');
-  const [activeTab, setActiveTab] = useState('select');
   const isExiting = useRef(false);
 
   useEffect(() => {
@@ -21,6 +22,12 @@ function Characters() {
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [tab, activeTab]);
 
   // Listen for exit-modal event from HamburgerMenu
   useEffect(() => {
@@ -47,6 +54,16 @@ function Characters() {
     }, 500);
   };
 
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    navigate(`/characters-personas/${tabId}`);
+  };
+
+  const title =
+    activeTab === 'personas'
+      ? 'Personas - Experience Pressure From Any Perspective'
+      : 'Characters - Bringing Fantasy Inflators to Life';
+
   return (
     <>
       {/* Sidebar dimming that animates with page */}
@@ -56,28 +73,28 @@ function Characters() {
       </div>
       <div className={`settings-page page modal-slide-down ${animationState}`}>
         <div className="page-header">
-          <h1>Characters - Bringing Fantasy Inflators to Life</h1>
+          <h1>{title}</h1>
           <button className="header-close-btn" onClick={handleClose} title="Back to Chat">
             &times;
           </button>
         </div>
         <div className="tabs">
-          {CHARACTER_TABS.map((t) => (
+          {TABS.map((t) => (
             <button
               key={t.id}
               className={`tab ${activeTab === t.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => handleTabChange(t.id)}
             >
               {t.label}
             </button>
           ))}
         </div>
         <div className="tab-content">
-          {activeTab === 'select' ? <CharacterTab /> : <InstructorSettingsTab />}
+          {activeTab === 'personas' ? <PersonaTab /> : <CharacterTab />}
         </div>
       </div>
     </>
   );
 }
 
-export default Characters;
+export default CharactersPersonas;
