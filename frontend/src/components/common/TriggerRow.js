@@ -116,6 +116,15 @@ function getTriggerTypes(isPumpable) {
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
   );
 
+  // Flow-parity media + misc actions
+  types.push(
+    { value: 'send_player_message', label: 'Send Player Message' },
+    { value: 'show_image', label: 'Show Image' },
+    { value: 'play_video', label: 'Play Video' },
+    { value: 'play_audio', label: 'Play Audio' },
+    { value: 'random_number', label: 'Random Number → Variable' },
+  );
+
   return types;
 }
 
@@ -178,6 +187,46 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
               LLM
             </label>
+          </>
+        );
+
+      case 'send_player_message':
+        return (
+          <>
+            <input type="text" value={trigger.message || ''} onChange={(e) => update('message', e.target.value)}
+              placeholder="Player message…" style={{ flex: 1, minWidth: '80px' }} />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
+              <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} /> LLM
+            </label>
+          </>
+        );
+
+      case 'show_image':
+      case 'play_video':
+      case 'play_audio':
+        return (
+          <>
+            <input type="text" value={trigger.tag || ''} onChange={(e) => update('tag', e.target.value)}
+              placeholder="media tag" style={{ flex: 1, minWidth: '90px' }} />
+            {trigger.type === 'play_video' && (
+              <>
+                <label style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={!!trigger.loop} onChange={(e) => update('loop', e.target.checked)} /> loop</label>
+                <label style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={!!trigger.blocking} onChange={(e) => update('blocking', e.target.checked)} /> block</label>
+              </>
+            )}
+            {trigger.type === 'play_audio' && (
+              <label style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={!!trigger.noBubble} onChange={(e) => update('noBubble', e.target.checked)} /> no bubble</label>
+            )}
+          </>
+        );
+
+      case 'random_number':
+        return (
+          <>
+            <input type="text" value={trigger.variable || ''} onChange={(e) => update('variable', e.target.value)} placeholder="Variable" style={{ width: '100px' }} />
+            <input type="number" value={trigger.min ?? 1} onChange={(e) => update('min', e.target.value)} placeholder="min" style={{ width: '64px' }} />
+            <input type="number" value={trigger.max ?? 100} onChange={(e) => update('max', e.target.value)} placeholder="max" style={{ width: '64px' }} />
           </>
         );
 

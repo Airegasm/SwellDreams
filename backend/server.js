@@ -3861,6 +3861,48 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
       }
 
+      // ---- Flow-parity media (posted as the same [Image|Video|Audio:tag] tokens flows use) ----
+      case 'show_image': {
+        const tag = (trigger.tag || '').trim();
+        if (tag) await eventEngine.broadcast('ai_message', { content: `[Image:${tag}]`, suppressLlm: true });
+        break;
+      }
+      case 'play_video': {
+        const tag = (trigger.tag || '').trim();
+        if (tag) {
+          const mod = trigger.loop ? ':loop' : trigger.blocking ? ':blocking' : '';
+          await eventEngine.broadcast('ai_message', { content: `[Video:${tag}${mod}]`, suppressLlm: true });
+        }
+        break;
+      }
+      case 'play_audio': {
+        const tag = (trigger.tag || '').trim();
+        if (tag) {
+          const mod = trigger.noBubble ? ':nomsg' : '';
+          await eventEngine.broadcast('ai_message', { content: `[Audio:${tag}${mod}]`, suppressLlm: true });
+        }
+        break;
+      }
+
+      // ---- Post a player-voice message (verbatim when llmEnhance===false) ----
+      case 'send_player_message': {
+        const text = (trigger.message || trigger.context || '').trim();
+        if (text) await eventEngine.broadcast('player_message', { content: substituteAllVariables(text), suppressLlm: trigger.suppressLlm === true || trigger.llmEnhance === false });
+        break;
+      }
+
+      // ---- Roll a random number into a Flow variable ----
+      case 'random_number': {
+        if (trigger.variable) {
+          const lo = Math.min(Number(trigger.min ?? 1), Number(trigger.max ?? 100));
+          const hi = Math.max(Number(trigger.min ?? 1), Number(trigger.max ?? 100));
+          const n = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+          eventEngine.applySetVariable('custom', trigger.variable, 'set', n);
+          console.log(`[Trigger/${source}] random_number ${trigger.variable} = ${n} (${lo}-${hi})`);
+        }
+        break;
+      }
+
       default:
         console.log(`[Trigger/${source}] Unknown trigger type: ${trigger.type}`);
     }
@@ -4875,6 +4917,42 @@ function getCharacterLimits(character) {
     llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
     llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10
   };
+}
+
+/**
+ * Build the LLM device-control instruction block.
+ *
+ * Uses a "strict output anatomy" (narrative first, the device tag ALONE on the final
+ * line, nothing after) — the most reliable way to get instruction-following RP models
+ * (Cydonia/Mistral-Small, Gemma, Qwen, Llama-3) to actually append the tag instead of
+ * burying or dropping it. Tags stay CONDITIONAL (only when a device changes state) so
+ * the model never fabricates an activation just to fill the slot.
+ *
+ * `template` tunes only the lead emphasis per model family; the tag syntax is identical
+ * across templates, so there is intentionally little other per-template variation.
+ */
+function buildDeviceControlInstruction(template, maxSeconds, charLimits, capacityMod) {
+  const fam = String(template || '').toLowerCase();
+  // Gemma / ChatML-family models obey explicit rule-lists very literally; the rest do
+  // best with a terse imperative. Core format is identical either way.
+  const lead = (fam.startsWith('gemma') || fam === 'chatml')
+    ? 'Follow this output format EXACTLY.'
+    : 'Strict output format.';
+
+  let s = `\nDEVICE CONTROL — ${lead} You operate a REAL physical pump through hidden tags.
+1) Write your narrative reply.
+2) IF that reply starts, continues, or stops the pump, the VERY LAST LINE must be ONLY the matching tag — nothing after it. If the pump state does not change, write no tag.
+Without the tag the pump does NOT move, so emit it in the SAME reply you narrate pumping. The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running; [pump off] stops it.
+Tags: [pump on] / [pump off] (also [vibe on]/[vibe off], [tens on]/[tens off]). Tags are hidden from the player.
+Example final line: [pump on]`;
+
+  if (charLimits) {
+    const scaledMaxOn = Math.round((charLimits.llmMaxOnDuration ?? 5) * capacityMod);
+    const scaledMaxTimed = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod);
+    const scaledMaxCycleOn = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod);
+    s += `\nLimits: max ON ${scaledMaxOn}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed}s, max cycle ON ${scaledMaxCycleOn}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
+  }
+  return s + '\n';
 }
 
 /**
@@ -10845,18 +10923,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       const capacityMod = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
       const scaledMaxOn = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
       const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn) : globalMax;
-      let devicePrompt = `\nDEVICE CONTROL — REQUIRED: You operate a REAL physical device through hidden tags. If your reply narrates the pump starting, running, or continuing but you do NOT include the tag, the pump does NOT move — so you MUST emit the tag in the SAME reply.
-Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-- Emit [pump on] the instant you describe starting/running the pump; place the tag right after the action.
-- The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running.
-- Emit [pump off] when you narrate stopping. Tags are hidden from the player.
-Example: "*flips the switch* [pump on] Let's begin..."`;
-      if (charLimits) {
-        const scaledMaxTimed = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod);
-        const scaledMaxCycleOn = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod);
-        devicePrompt += `\nLimits: max ON ${scaledMaxOn}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed}s, max cycle ON ${scaledMaxCycleOn}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
-      }
-      systemPrompt += devicePrompt + '\n';
+      systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod);
     }
 
     // Inject personality attributes if rolled (character voice only, for guided response)
@@ -11433,18 +11500,7 @@ function buildChatContext(character, settings) {
     const capacityMod2 = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
     const scaledMaxOn2 = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod2);
     const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn2) : globalMax;
-    let devicePrompt = `\nDEVICE CONTROL — REQUIRED: You operate a REAL physical device through hidden tags. If your reply narrates the pump starting, running, or continuing but you do NOT include the tag, the pump does NOT move — so you MUST emit the tag in the SAME reply.
-Tags: [pump on]/[pump off], [vibe on]/[vibe off], [tens on]/[tens off]
-- Emit [pump on] the instant you describe starting/running the pump; place the tag right after the action.
-- The pump auto-stops after ${maxSeconds}s — re-emit [pump on] every reply you want it to keep running.
-- Emit [pump off] when you narrate stopping. Tags are hidden from the player.
-Example: "*flips the switch* [pump on] Let's begin..."`;
-    if (charLimits) {
-      const scaledMaxTimed2 = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod2);
-      const scaledMaxCycleOn2 = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod2);
-      devicePrompt += `\nLimits: max ON ${scaledMaxOn2}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed2}s, max cycle ON ${scaledMaxCycleOn2}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
-    }
-    systemPrompt += devicePrompt + '\n';
+    systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod2);
   }
 
   // Inject personality attributes if rolled
