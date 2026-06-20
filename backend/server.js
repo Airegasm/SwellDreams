@@ -3502,6 +3502,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (!activeCharacter) return;
 
   const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
+  if (activeStory?.checkpointsEnabled === false) return; // "Enable Checkpoints" tickbox off → no checkpoint triggers
   // All card types: checkpoint triggers come from the active checkpoint profile (legacy cards
   // fall back to the story-level set inside getActiveCheckpointProfile).
   const checkpointTriggers = getActiveCheckpointProfile(activeCharacter)?.checkpointTriggers || {};
@@ -10851,7 +10852,10 @@ function applyInstructorInitVars(character) {
 // fires — which opens the gate and optionally loads a checkpoint profile, dropping into normal play.
 function getIntroTree(character, treeIndex) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  return resolveRefTree(activeStory?.treeRefs?.intro, treeIndex);
+  // Intro is now PER-PROFILE (active checkpoint profile's treeRefs.intro); fall back to the legacy
+  // card-level treeRefs.intro for un-migrated cards.
+  const ref = resolveScopeRefs(character)?.intro || activeStory?.treeRefs?.intro;
+  return resolveRefTree(ref, treeIndex);
 }
 function hasIntroTree(character) { return !!getIntroTree(character); }
 // Enter the gated intro at session start (opening line posted standalone). Returns true if started.
@@ -17625,9 +17629,9 @@ app.post('/api/session/reset', async (req, res) => {
       const isInstr = isInstructor(activeCharacter);
       const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
       const ssTreeIndex = buildTreeIndex();
-      // Session Start is always STORY-level (it runs at open, before any checkpoint profile is
-      // necessarily active) — unlike Range/Always-On which are per-profile for instructors.
-      const ssRef = aStory?.treeRefs?.sessionStart;
+      // Session Start is now PER-PROFILE (active checkpoint profile's treeRefs.sessionStart — the
+      // default profile at session open). Falls back to the legacy card-level ref for un-migrated cards.
+      const ssRef = resolveScopeRefs(activeCharacter)?.sessionStart || aStory?.treeRefs?.sessionStart;
       const ssTree = resolveRefTree(ssRef, ssTreeIndex); // inline OR {treeId} library ref
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
