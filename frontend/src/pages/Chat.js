@@ -82,7 +82,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -651,12 +651,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || chooseMultiData || checkpointChoiceData || simpleABData || challengeData) {
+    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || checkpointChoiceData || simpleABData || challengeData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, chooseMultiData, checkpointChoiceData, simpleABData, challengeData]);
+  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, checkpointChoiceData, simpleABData, challengeData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -1820,6 +1820,23 @@ function Chat() {
                 <ChooseMultiModal
                   choiceData={chooseMultiData}
                   onConfirm={handleChooseMulti}
+                  subContext={subContext}
+                  compact={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Inline Trigger Tree choose_multi (multi-select) display */}
+          {treeChooseMultiData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Choose</span>
+              </div>
+              <div className="choice-inline-container">
+                <ChooseMultiModal
+                  choiceData={treeChooseMultiData}
+                  onConfirm={confirmTreeChooseMulti}
                   subContext={subContext}
                   compact={true}
                 />

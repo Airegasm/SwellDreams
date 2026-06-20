@@ -56,6 +56,7 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'group', label: 'Group' },
       { kind: 'container', type: 'if', label: 'If / Else' },
       { kind: 'container', type: 'player_choice', label: 'Player Choice' },
+      { kind: 'container', type: 'choose_multi', label: 'Choose Multiple' },
       { kind: 'container', type: 'chance', label: 'Chance (%)' },
       { kind: 'container', type: 'random', label: 'Random (one of)' },
       { kind: 'container', type: 'keyword_gate', label: 'Keyword Gate' },
@@ -100,7 +101,7 @@ function makeNode(kind, type) {
   const node = { id: rid(), kind, type, params: {} };
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
-  if (type === 'player_choice') node.children = [makeChoice()];
+  if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
   if (type === 'chance') node.params.chance = 50;
   if (type === 'repeat') { node.params.mode = 'fixed'; node.params.iterations = 3; }
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
@@ -127,6 +128,7 @@ function summarize(node) {
   if (t === 'group') return `Group · ${(node.children || []).length} item(s)`;
   if (t === 'if') return `If / Else · ${(node.children || []).filter(b => b && b.type === 'branch').length} branch(es)`;
   if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
+  if (t === 'choose_multi') return `Choose Multiple · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
   if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
@@ -270,7 +272,7 @@ function ChoiceBlock({ choice, onChange, onRemove, rowProps }) {
 
 // player_choice body: an optional prompt + up to 4 options (each a choice sub-list). Suspends
 // the turn at runtime; the chosen option's body + same-level fall-through run on the player's pick.
-function PlayerChoiceBlock({ node, onChange, rowProps }) {
+function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
   const choices = (node.children || []).filter(c => c && c.type === 'choice');
   const setChoices = (next) => onChange({ ...node, children: next });
   return (
@@ -285,7 +287,7 @@ function PlayerChoiceBlock({ node, onChange, rowProps }) {
           onRemove={() => setChoices(choices.filter((_, idx) => idx !== i))}
           rowProps={rowProps} />
       ))}
-      {choices.length < 4 && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
+      {choices.length < max && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
     </div>
   );
 }
@@ -329,6 +331,7 @@ function NodeBody({ node, onChange, rowProps }) {
 
   if (t === 'if') return <IfBlock node={node} onChange={onChange} rowProps={rowProps} />;
   if (t === 'player_choice') return <PlayerChoiceBlock node={node} onChange={onChange} rowProps={rowProps} />;
+  if (t === 'choose_multi') return <PlayerChoiceBlock node={node} onChange={onChange} rowProps={rowProps} max={8} />;
 
   // Keyword params shared by keyword_gate (container) and keyword (event).
   const keywordParams = (t === 'keyword_gate' || t === 'keyword') && (

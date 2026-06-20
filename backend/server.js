@@ -7264,6 +7264,10 @@ async function handleWsMessage(ws, type, data) {
       );
       break;
 
+    case 'tree_choose_multi_response':
+      await resumeTreeChooseMulti(data.selectedIds);
+      break;
+
     case 'checkpoint_choice_response':
       await handleCheckpointChoice(data.choiceId);
       break;
@@ -10248,6 +10252,45 @@ async function resumeTreeChoice(choiceId) {
   }
 }
 
+// Resume a suspended Trigger Tree choose_multi on the player's confirmed selection. Runs EACH
+// picked option's body in author order, then the same-level continuation — all in one shared ctx
+// ('standalone' delivery), mirroring resumeTreeChoice. Clears the armed state FIRST so a nested
+// choice inside a body re-arms cleanly. A suspend/goto bubbling out of any body stops the rest.
+async function resumeTreeChooseMulti(selectedIds) {
+  const pend = sessionState.pendingTreeChoice;
+  if (!pend || !pend.multi) return;
+  const ids = new Set(Array.isArray(selectedIds) ? selectedIds : []);
+  const picked = (pend.choices || []).filter(c => ids.has(c.id));
+  const after = pend.after, snap = pend.ctxSnapshot || {};
+  sessionState.pendingTreeChoice = null;
+  broadcast('checkpoint_choice_clear', {});
+  if (!picked.length) return; // nothing checked — dismissed without firing
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+  for (const opt of picked) {
+    let sig;
+    try { sig = await runTree(opt.body || [], ctx); }
+    catch (e) { console.error('[resumeTreeChooseMulti] body failed:', e?.message || e); continue; }
+    if (sig) return; // a body re-armed a nested choice (or a goto bubbled out) — stop here
+  }
+  if (Array.isArray(after) && after.length) {
+    try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
+    catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
+  }
+}
+
 // Resolve a checkpoint player-choice pick: fire the choice's pump action and queue its
 // response to be injected on the NEXT generation. Pre-req sequences are routed first.
 async function handleCheckpointChoice(choiceId) {
@@ -12783,6 +12826,30 @@ async function runNode(node, ctx) {
         };
         broadcast('checkpoint_choice', { description: node.params?.prompt || '', choices: opts.map(c => ({ id: c.id, label: c.params.label })), tree: true });
         return { __control: 'suspend', reason: 'player_choice' };
+      }
+
+      case 'choose_multi': {
+        // Multi-select sibling of player_choice: the player checks any subset; on confirm EVERY
+        // picked option's body runs (in author order), then the same-level fall-through. Reuses
+        // the pendingTreeChoice suspend plumbing (marked multi) so the scope-blocking + after-
+        // capture machinery is shared; resume routes to resumeTreeChooseMulti.
+        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'choose_multi' };
+        const opts = (node.children || [])
+          .filter(c => c && c.kind === 'container' && c.type === 'choice' && c.params?.label)
+          .slice(0, 8);
+        if (!opts.length) return; // nothing to present — clean fall-through, do not consume once/suspend
+        markTreeOnce(node, ctx); // presenting IS the effect
+        sessionState.pendingTreeChoice = {
+          multi: true,
+          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [] })),
+          ctxSnapshot: {
+            treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
+            delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+          },
+          after: null
+        };
+        broadcast('tree_choose_multi', { description: node.params?.prompt || '', choices: opts.map(c => ({ id: c.id, label: c.params.label })) });
+        return { __control: 'suspend', reason: 'choose_multi' };
       }
 
       case 'repeat': {

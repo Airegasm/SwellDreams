@@ -78,6 +78,9 @@ export function AppProvider({ children }) {
   // Choose Multi (multi-select) state
   const [chooseMultiData, setChooseMultiData] = useState(null);
 
+  // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
+  const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
+
   // Checkpoint injection player-choice state
   const [checkpointChoiceData, setCheckpointChoiceData] = useState(null);
 
@@ -366,6 +369,7 @@ export function AppProvider({ children }) {
         // Clear all flow modals/popups on session reset
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
         setSimpleABData(null);
         setChallengeData(null);
@@ -378,6 +382,7 @@ export function AppProvider({ children }) {
         // Clear all flow modals/popups on new session
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
         setSimpleABData(null);
         setChallengeData(null);
@@ -396,12 +401,17 @@ export function AppProvider({ children }) {
         setChooseMultiData(data);
         break;
 
+      case 'tree_choose_multi':
+        setTreeChooseMultiData(data);
+        break;
+
       case 'checkpoint_choice':
         setCheckpointChoiceData(data);
         break;
 
       case 'checkpoint_choice_clear':
         setCheckpointChoiceData(null);
+        setTreeChooseMultiData(null);
         break;
 
       case 'member_mute_update':
@@ -758,6 +768,7 @@ export function AppProvider({ children }) {
         setChallengeData(null);
         setPlayerChoiceData(null);
         setChooseMultiData(null);
+        setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
         setSimpleABData(null);
         // Notify user if this was an automatic failsafe trigger
@@ -867,6 +878,16 @@ export function AppProvider({ children }) {
 
     setChooseMultiData(null);
   }, [chooseMultiData, sendWsMessage]);
+
+  // Confirm a Trigger Tree choose_multi selection — sends the picked IDs to the tree resume path
+  // (distinct WS message from the flow choose_multi above so the two engines stay decoupled).
+  const confirmTreeChooseMulti = useCallback((selectedChoices) => {
+    if (!treeChooseMultiData) return;
+    sendWsMessage('tree_choose_multi_response', {
+      selectedIds: (selectedChoices || []).map(c => c.id)
+    });
+    setTreeChooseMultiData(null);
+  }, [treeChooseMultiData, sendWsMessage]);
 
   // Respond to a checkpoint injection player choice
   const respondCheckpointChoice = useCallback((choice) => {
@@ -1887,6 +1908,8 @@ export function AppProvider({ children }) {
     handlePlayerChoice,
     chooseMultiData,
     handleChooseMulti,
+    treeChooseMultiData,
+    confirmTreeChooseMulti,
     checkpointChoiceData,
     respondCheckpointChoice,
     toggleMemberMute,
