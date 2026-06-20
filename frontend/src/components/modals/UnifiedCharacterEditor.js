@@ -141,6 +141,9 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const isInstructorMode = !!formData?.instructor?.enabled;
   const members = formData?.multiChar?.characters || [];
   const isGroup = !!formData?.multiChar?.enabled && members.length > 1;
+  // Card-level pump UI gate: base-only uses the card flag; group mode uses any member's per-member flag.
+  const anyMemberPumpable = members.some(m => m?.isPumpable);
+  const pumpUiActive = isGroup ? anyMemberPumpable : !!formData.isPumpable;
 
   const set = useCallback((patch) => setFormData(prev => ({ ...prev, ...patch })), []);
 
@@ -808,12 +811,12 @@ Write only the scenario description itself, no explanations.`;
     { id: 'main', label: 'Main' },
     ...(isInstructorMode ? [] : [{ id: 'members', label: isGroup ? 'Members' : 'Member' }]),
     { id: 'attributes', label: 'Attributes' },
-    ...((!isInstructorMode && formData.isPumpable) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
+    ...((!isInstructorMode && pumpUiActive) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
     { id: 'checkpoints', label: 'Checkpoints' },
     { id: 'library', label: 'Library' },
     ...(isInstructorMode ? [{ id: 'instructor', label: 'Instructor Settings' }] : []),
     { id: 'events', label: 'Custom Buttons' },
-  ]), [isInstructorMode, isGroup, formData.isPumpable]);
+  ]), [isInstructorMode, isGroup, pumpUiActive]);
 
   if (!isOpen) return null;
   const member = members[selectedMemberIndex] || members[0];
@@ -907,17 +910,24 @@ Write only the scenario description itself, no explanations.`;
           {/* ---- Base-character fields + story content (standard mode only) ---- */}
           {!isInstructorMode && (
             <>
-              <div className="form-group">
-                <label>Gender</label>
-                <select value={formData.gender || ''} onChange={(e) => set({ gender: e.target.value })}>
-                  {MEMBER_GENDERS.map(g => <option key={g.value || 'none'} value={g.value}>{g.label}</option>)}
-                </select>
-              </div>
+              {/* Gender is a per-member field in group mode (lives on the Members tab). */}
+              {!isGroup && (
+                <div className="form-group">
+                  <label>Gender</label>
+                  <select value={formData.gender || ''} onChange={(e) => set({ gender: e.target.value })}>
+                    {MEMBER_GENDERS.map(g => <option key={g.value || 'none'} value={g.value}>{g.label}</option>)}
+                  </select>
+                </div>
+              )}
 
               <div className="form-group">
-                <label>Individual Response Tokens (overrides global)</label>
-                <input type="text" inputMode="numeric" value={formData.responseTokens ?? ''}
-                  onChange={(e) => set({ responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                <label>{isGroup ? 'Group Response Tokens' : 'Individual Response Tokens (overrides global)'}</label>
+                <input type="text" inputMode="numeric"
+                  value={isGroup ? (formData.groupResponseTokens ?? '') : (formData.responseTokens ?? '')}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, '');
+                    set(isGroup ? { groupResponseTokens: v } : { responseTokens: v });
+                  }}
                   placeholder="Leave blank to use the global setting" />
               </div>
 
@@ -929,19 +939,62 @@ Write only the scenario description itself, no explanations.`;
                 <p className="section-hint">Prior messages this character sees. Leave blank for full scene memory; lower only if you want a tighter, less history-driven character.</p>
               </div>
 
-              <div className="form-group">
-                <label>Description</label>
-                <textarea value={formData.description || ''} onChange={(e) => set({ description: e.target.value })}
-                  placeholder="Brief character description..." />
-              </div>
+              {/* Description & Personality are per-member in group mode (Members tab). */}
+              {!isGroup && (
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea value={formData.description || ''} onChange={(e) => set({ description: e.target.value })}
+                    placeholder="Brief character description..." />
+                </div>
+              )}
 
-              <div className="form-group">
-                <label>Personality</label>
-                <textarea value={formData.personality || ''} onChange={(e) => set({ personality: e.target.value })}
-                  placeholder="Detailed personality traits..." />
-              </div>
+              {!isGroup && (
+                <div className="form-group">
+                  <label>Personality</label>
+                  <textarea value={formData.personality || ''} onChange={(e) => set({ personality: e.target.value })}
+                    placeholder="Detailed personality traits..." />
+                </div>
+              )}
+
+              {/* ---- Group-mode story fields (separate keys; start BLANK; never touch the base story) ---- */}
+              {isGroup && (
+                <>
+                  <div className="form-group">
+                    <label>Group Story</label>
+                    <input type="text" value={formData.groupStory ?? ''} onChange={(e) => set({ groupStory: e.target.value })}
+                      placeholder="Name for this group's shared story…" />
+                  </div>
+                  <div className="form-group">
+                    <label>Group Greeting</label>
+                    <textarea value={formData.groupGreeting ?? ''} onChange={(e) => set({ groupGreeting: e.target.value })}
+                      placeholder="The first message the group sends…" rows={9} />
+                  </div>
+                  <div className="form-group">
+                    <label>Group Scenario</label>
+                    <textarea value={formData.groupScenario ?? ''} onChange={(e) => set({ groupScenario: e.target.value })}
+                      placeholder="Current situation/scenario for the group…" rows={2} />
+                  </div>
+                  <div className="form-group">
+                    <label>Group Dialog <span className="section-hint">(example exchanges for the group)</span></label>
+                    {(formData.groupDialog || []).map((d, i) => {
+                      const list = formData.groupDialog || [];
+                      const upd = (patch) => set({ groupDialog: list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)) });
+                      const rm = () => set({ groupDialog: list.filter((_, idx) => idx !== i) });
+                      return (
+                        <div key={i} className="instr-example-row">
+                          <input type="text" value={d.user || ''} onChange={(e) => upd({ user: e.target.value })} placeholder="Player says…" />
+                          <input type="text" value={d.character || ''} onChange={(e) => upd({ character: e.target.value })} placeholder="Group responds…" />
+                          <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
+                        </div>
+                      );
+                    })}
+                    <button type="button" className="prereq-add-sm" onClick={() => set({ groupDialog: [...(formData.groupDialog || []), { user: '', character: '' }] })}>+ Example</button>
+                  </div>
+                </>
+              )}
 
               {/* ---- Story selector (versions of versions): add / rename / delete ---- */}
+              {!isGroup && (
               <div className="story-field">
                 <label>Story</label>
                 <div className="story-controls">
@@ -979,10 +1032,16 @@ Write only the scenario description itself, no explanations.`;
                   )}
                 </div>
               </div>
+              )}
 
-              {/* ---- Story content: scenario + welcome message versions + example dialogues ---- */}
+              {/* ---- Story content: scenario + welcome message versions + example dialogues ----
+                  The versioned Welcome/Scenario/Dialogue editors are base-only; the group card uses
+                  the simple Group* fields above. CardLoreSection / Auto Reply / AI Pump Control stay
+                  card/group level and render in both modes. ---- */}
               {activeStory && (
                 <>
+                  {!isGroup && (
+                  <>
                   {/* Welcome Message */}
                   <div className="story-field">
                     <div className="story-field-header">
@@ -1067,6 +1126,15 @@ Write only the scenario description itself, no explanations.`;
                       <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue}>Add</button>
                     </div>
                   </div>
+                  </>
+                  )}
+
+                  {/* Story Details — Card lore: Dictionary group selection + shared Library groups.
+                      (Matches the release single-char Main tab; the Library tab holds only the entry editor.) */}
+                  <div className="story-subsection">
+                    <label className="subsection-label">Story Details</label>
+                    <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} />
+                  </div>
 
                   {/* Auto Reply */}
                   <div className="story-field auto-reply-field">
@@ -1107,17 +1175,21 @@ Write only the scenario description itself, no explanations.`;
                 </>
               )}
 
-              {/* ---- Pumpable toggle + Default Pump Type + Manual Pump Maxes ---- */}
-              <div className="story-field auto-reply-field">
-                <label className="toggle-switch">
-                  <input type="checkbox" checked={formData.isPumpable || false} onChange={(e) => set({ isPumpable: e.target.checked })} />
-                  <span className="toggle-slider"></span>
-                </label>
-                <div className="auto-reply-text">
-                  <span className="auto-reply-label">Is this character a valid inflation target?</span>
-                  <span className="auto-reply-hint">Enables a capacity gauge on this character's portrait and allows flow nodes to inflate them</span>
+              {/* ---- Pumpable toggle + Default Pump Type + Manual Pump Maxes ----
+                  In group mode the valid-inflation-target flag is per-member (Members tab); the
+                  card-level pump settings below stay shared. ---- */}
+              {!isGroup && (
+                <div className="story-field auto-reply-field">
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={formData.isPumpable || false} onChange={(e) => set({ isPumpable: e.target.checked })} />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Is this character a valid inflation target?</span>
+                    <span className="auto-reply-hint">Enables a capacity gauge on this character's portrait and allows flow nodes to inflate them</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="form-group">
                 <label>Default Pump Type</label>
@@ -1129,8 +1201,8 @@ Write only the scenario description itself, no explanations.`;
                 <p className="section-hint">Session default when no checkpoint profile is loaded; a profile's Pump Type overrides it.</p>
               </div>
 
-              {/* ---- Character inflation settings (gated on isPumpable) ---- */}
-              {formData.isPumpable && (
+              {/* ---- Character inflation settings (gated on the card/group pump state) ---- */}
+              {pumpUiActive && (
                 <div style={{ marginTop: '0.5rem' }}>
                   <div className="form-group">
                     <label>Calibration Time (seconds)</label>
@@ -1319,6 +1391,10 @@ Write only the scenario description itself, no explanations.`;
               </div>
             </div>
 
+            {/* Per-member parameter fields only exist once the card is a group (>1 member).
+                Base-only cards show just the member list + Add above; their identity fields
+                live on the Main tab. */}
+            {members.length > 1 && (<>
             {/* Per-member fields, selected via dropdown */}
             <div className="form-group">
               <label>Edit member</label>
@@ -1370,6 +1446,20 @@ Write only the scenario description itself, no explanations.`;
                   })}
                   <button type="button" className="prereq-add-sm" onClick={() => updateMember(selectedMemberIndex, { exampleDialogues: [...(member.exampleDialogues || []), { user: '', character: '' }] })}>+ Example</button>
                 </div>
+
+                {/* Per-member valid-inflation-target toggle (relocated from the Main tab).
+                    The card/group-level inflation settings stay on the Main tab. */}
+                <div className="story-field auto-reply-field">
+                  <label className="toggle-switch">
+                    <input type="checkbox" checked={member.isPumpable || false}
+                      onChange={(e) => updateMember(selectedMemberIndex, { isPumpable: e.target.checked })} />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <div className="auto-reply-text">
+                    <span className="auto-reply-label">Is this character a valid inflation target?</span>
+                    <span className="auto-reply-hint">Enables a capacity gauge on this member's portrait and allows flow nodes to inflate them</span>
+                  </div>
+                </div>
               </>
             )}
 
@@ -1379,6 +1469,7 @@ Write only the scenario description itself, no explanations.`;
                 onChange={(e) => set({ individualResponseTokens: e.target.value.replace(/[^0-9]/g, '') })} placeholder="150" style={{ maxWidth: 220 }} />
               <p className="section-hint">Max tokens per individual reply when members respond one at a time. One value for the whole card. Default 150.</p>
             </div>
+            </>)}
           </div>
         )}
 
@@ -1386,17 +1477,16 @@ Write only the scenario description itself, no explanations.`;
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
           {activeStory
             ? <CheckpointProfiles story={activeStory} updateStory={updateStoryField} defaultPumpType={formData.defaultPumpType}
-                cardName={formData.name || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: !!formData.isPumpable }} />
+                cardName={formData.name || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive }} />
             : <p className="section-hint">No story yet.</p>}
         </div>
 
-        {/* ---- Library (shared component; separate instructor/standard groups via the stash) ---- */}
+        {/* ---- Library (matches the release single-char Library tab: the lorebook-format
+                entry editor only; Dictionary/shared groups live on the Main tab via CardLoreSection) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'library' ? 'block' : 'none' }}>
-          {activeStory ? <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} /> : <p className="section-hint">No story yet.</p>}
-
           {/* ---- Per-card lore entries (standard/group): author globalReminders via LoreEntryEditor ---- */}
           {!isInstructorMode && (
-            <div className="reminders-editor" style={{ marginTop: '1.5rem' }}>
+            <div className="reminders-editor">
               {!showReminderForm ? (
                 <>
                   <div className="events-header">
@@ -1412,10 +1502,10 @@ Write only the scenario description itself, no explanations.`;
                       <button type="button" className="btn btn-secondary btn-sm" onClick={handleLorebookImportClick} disabled={importingLorebook}>
                         {importingLorebook ? 'Importing...' : '📚 Import Lorebook'}
                       </button>
-                      <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Reminder</button>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={handleAddReminder}>+ Add Entry</button>
                     </div>
                   </div>
-                  <p className="section-hint">Character-specific reminders. Create them here, then assign them to stories using "Constant Reminders" in the Story section.</p>
+                  <p className="section-hint">Character-specific Library entries. Blank keywords = always-on; add keywords to make an entry keyword-triggered.</p>
 
                   {/* V2/V3 Import Notice */}
                   {formData.extensions?.v2v3Import && ownEntries.length > 0 && (
@@ -1437,7 +1527,7 @@ Write only the scenario description itself, no explanations.`;
 
                   <div className="events-list-editor">
                     {ownEntries.length === 0 ? (
-                      <p className="empty-message">No custom reminders yet.</p>
+                      <p className="empty-message">No Library entries yet.</p>
                     ) : (
                       ownEntries.map((reminder) => (
                         <div key={reminder.id} className={`event-item ${reminder.enabled === false ? 'disabled' : ''}`}>
@@ -2069,6 +2159,15 @@ function buildInitial(character, defaultAuthorsNote) {
     personality: c.personality || '',
     responseTokens: c.responseTokens ?? '',
     historyDepth: c.historyDepth ?? '',
+    // ---- Group-mode fields (separate keys; NEVER share data with the base-only fields).
+    // Read+written only when the card is in group mode (>1 member). They start BLANK on the
+    // first member-add and the base fields above are left untouched, so removing all added
+    // members restores the base-only card verbatim. Round-tripped via the `...c` spread. ----
+    groupStory: c.groupStory ?? '',
+    groupGreeting: c.groupGreeting ?? '',
+    groupScenario: c.groupScenario ?? '',
+    groupResponseTokens: c.groupResponseTokens ?? '',
+    groupDialog: Array.isArray(c.groupDialog) ? c.groupDialog : [],
     instructor: c.instructor || { enabled: false },
     multiChar: c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] },
     // Author's Note migrates onto the card; legacy cards seed from the global default.
