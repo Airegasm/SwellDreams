@@ -3505,7 +3505,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (activeStory?.checkpointsEnabled === false) return; // "Enable Checkpoints" tickbox off → no checkpoint triggers
   // All card types: checkpoint triggers come from the active checkpoint profile (legacy cards
   // fall back to the story-level set inside getActiveCheckpointProfile).
-  const checkpointTriggers = getActiveCheckpointProfile(activeCharacter)?.checkpointTriggers || {};
+  const checkpointTriggers = getActiveProfileRangeTriggers(getActiveCheckpointProfile(activeCharacter)) || {};
   if (!checkpointTriggers) return;
 
   const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
@@ -3711,6 +3711,22 @@ async function executeTrigger(trigger, source, character, settings) {
           if (isInstructor(character)) applyActivePumpType(character);
           broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
           console.log(`[Trigger/${source}] Switched instructor profile to ${trigger.value}`);
+        }
+        break;
+      }
+
+      case 'set_range_set': {
+        // Switch the active Range Set within the current checkpoint profile (story switch-ups).
+        // Matches by range-set id or name (case-insensitive).
+        if (trigger.value) {
+          const profile = getActiveCheckpointProfile(character);
+          const target = (profile?.rangeSets || []).find(rs => rs.id === trigger.value || (rs.name || '').toLowerCase() === String(trigger.value).toLowerCase());
+          if (target) {
+            sessionState.activeRangeSetId = target.id;
+            console.log(`[Trigger/${source}] Switched range set to ${target.name} (${target.id})`);
+          } else {
+            console.log(`[Trigger/${source}] Range set "${trigger.value}" not found in active profile`);
+          }
         }
         break;
       }
@@ -10298,10 +10314,11 @@ function evalBranch(branch) {
 // truth mirroring how the legacy roller picks `ct` (getInstructorActiveProfile vs activeStory).
 function resolveScopeRefs(character) {
   if (!character) return {};
-  // All card types: scope tree-refs (alwaysOn/ranges/events) come from the active checkpoint
-  // profile. Legacy cards fall back to the story's flat treeRefs via getActiveCheckpointProfile.
-  // (sessionStart/intro are resolved card-level elsewhere, not through this.)
-  return getActiveCheckpointProfile(character)?.treeRefs || {};
+  // Scope tree-refs (sessionStart/intro/alwaysOn/events) come from the active checkpoint profile;
+  // the per-range trees (.ranges) come from that profile's active Range Set.
+  const profile = getActiveCheckpointProfile(character);
+  const tr = profile?.treeRefs || {};
+  return { ...tr, ranges: getActiveProfileRangeTreeRefs(profile) };
 }
 
 // Per-turn index of the global tree library (id -> Tree). Built ONCE per turn in runReplyScopes
@@ -10584,7 +10601,7 @@ function rollCheckpointRandomTriggers(character) {
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
   // All card types: random checkpoint triggers come from the active profile (legacy fallback inside).
-  const ct = getActiveCheckpointProfile(character)?.checkpointTriggers || {};
+  const ct = getActiveProfileRangeTriggers(getActiveCheckpointProfile(character)) || {};
 
   const triggerSets = loadData(DATA_FILES.triggerSets) || [];
   const budget = sessionState.randomBlockBudget || (sessionState.randomBlockBudget = {});
@@ -11136,8 +11153,30 @@ function getActiveCheckpointProfile(character) {
     treeRefs: activeStory.treeRefs || {},
   };
 }
+// Range Sets: a profile's 1–100% range data (ranges / checkpointTriggers / treeRefs.ranges) lives
+// in a switchable Range Set. Resolve the active set (sessionState.activeRangeSetId → profile
+// default → first). Legacy profiles with no rangeSets fall back to the profile's flat fields.
+function getActiveRangeSet(profile) {
+  const sets = profile?.rangeSets;
+  if (!Array.isArray(sets) || !sets.length) return null;
+  // active id (if it belongs to THIS profile) → profile default → first
+  const aid = sessionState.activeRangeSetId;
+  return (aid && sets.find(rs => rs.id === aid)) || sets.find(rs => rs.id === profile.defaultRangeSetId) || sets[0];
+}
+function getActiveProfileRanges(profile) {
+  const rs = getActiveRangeSet(profile);
+  return rs ? (rs.ranges || {}) : (profile?.ranges || {});
+}
+function getActiveProfileRangeTriggers(profile) {
+  const rs = getActiveRangeSet(profile);
+  return rs ? (rs.checkpointTriggers || {}) : (profile?.checkpointTriggers || {});
+}
+function getActiveProfileRangeTreeRefs(profile) {
+  const rs = getActiveRangeSet(profile);
+  return rs ? (rs.treeRefs?.ranges || {}) : (profile?.treeRefs?.ranges || {});
+}
 function getActiveCheckpointProfileRanges(character) {
-  return getActiveCheckpointProfile(character)?.ranges || {};
+  return getActiveProfileRanges(getActiveCheckpointProfile(character));
 }
 
 // Instructor-specific wrappers retained for existing call sites — now thin aliases over the
@@ -17553,6 +17592,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.prosePumpGuidanceOff = false;
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
+  sessionState.activeRangeSetId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
   sessionState.bulbCurrent = 0;
   sessionState.bikeCurrent = 0;

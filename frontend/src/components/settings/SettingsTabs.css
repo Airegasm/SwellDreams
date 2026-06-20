@@ -3736,3 +3736,25 @@
   outline: none;
   border-color: var(--accent-primary, #10b981);
 }
+
+/* Shared lorebook entry editor (LoreEntryEditor) — used by the Dictionary page and every card's
+   Library. Mirrors the dict-term look so all lore authoring is visually identical. */
+.lore-entry {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px; border: 1px solid var(--border-color, #3a3d45); border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.lore-entry.disabled { opacity: 0.55; }
+.lore-entry-head { display: flex; align-items: center; gap: 8px; }
+.lore-entry-enable { display: flex; align-items: center; flex: 0 0 auto; margin: 0; }
+.lore-entry-title { flex: 1; min-width: 0; }
+.lore-entry-label { font-size: 0.75rem; font-weight: 600; color: var(--text-secondary, #cbd5e1); margin-top: 4px; }
+.lore-entry-hint { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
+.lore-entry input[type="text"],
+.lore-entry textarea {
+  background: var(--bg-secondary, #1a1c1f); color: var(--text-primary, #f3f4f6);
+  border: 1px solid var(--border-color, #3a3d45); border-radius: 4px; padding: 6px 8px; font-size: 13px;
+  width: 100%; box-sizing: border-box;
+}
+.lore-entry textarea { resize: vertical; min-height: 44px; }
+.lore-entry input:focus, .lore-entry textarea:focus { outline: none; border-color: var(--accent-primary, #10b981); }

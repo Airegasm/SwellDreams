@@ -112,6 +112,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'nudge_persona_attribute', label: 'Nudge Player Attribute (+/-)' },
     { value: 'set_skin', label: 'Set Display Skin' },
     { value: 'set_instructor_profile', label: 'Set Instructor Profile' },
+    { value: 'set_range_set', label: 'Set Range Set' },
     { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
     // Await gates — pause the sequence here; the triggers AFTER this one wait until satisfied.
@@ -192,6 +193,11 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         return (
           <input type="text" value={trigger.words || ''} onChange={(e) => update('words', e.target.value)}
             placeholder="keyword1, keyword2, …" style={{ flex: 1, minWidth: '120px' }} title="Comma-separated words. Shown as clickable options on AI messages; saying/clicking one fires the triggers below this one." />
+        );
+      case 'set_range_set':
+        return (
+          <input type="text" value={trigger.value || ''} onChange={(e) => update('value', e.target.value)}
+            placeholder="range set name (or id)" style={{ flex: 1, minWidth: '120px' }} title="Switch the active Range Set in the current profile to the one with this name" />
         );
       case 'impersonate':
         return (
