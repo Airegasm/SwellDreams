@@ -92,6 +92,10 @@ function Chat() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [messageHistory, setMessageHistory] = useState([]);
+  // Multichar responder dropdown: ordered ids of the girls ticked to respond individually (in
+  // tick order). Empty = "Group" (normal group reply). Persists across messages until changed.
+  const [respondOrder, setRespondOrder] = useState([]);
+  const [showResponderPanel, setShowResponderPanel] = useState(false);
   // Tracks the last server-provided history we loaded, so the save effect
   // doesn't echo unchanged server history back to the backend.
   const lastLoadedHistoryRef = useRef(null);
@@ -925,7 +929,7 @@ function Chat() {
     setStoryProgressionSuggestions([]);
 
     setIsGenerating(true);
-    sendChatMessage(messageText);
+    sendChatMessage(messageText, respondOrder);
 
     // Add to history
     setMessageHistory(prev => [...prev, messageText]);
@@ -1374,6 +1378,7 @@ function Chat() {
           personaName={activePersona?.displayName}
           useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
           hidePainEmotion={isInstructor(activeCharacter)}
+          multichar={!!activeCharacter?.multiChar?.enabled}
         />
       </div>
 
@@ -1541,6 +1546,18 @@ function Chat() {
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
 
         <div className="chat-messages" ref={messagesContainerRef}>
+          {/* Manual GO! gate-release — floats upper-left (PC), same row height as the font/gear
+              controls. Mobile uses the ESTOP→GO! swap instead. Shown only while awaiting release. */}
+          {sessionState.awaitingGoRelease && (
+            <button
+              type="button"
+              className="chat-go-release desktop-only"
+              onClick={() => sendWsMessage('gate_release', {})}
+              title="Press GO! to begin — opens the pump gate"
+            >
+              GO!
+            </button>
+          )}
           {/* Font size controls in upper right */}
           <div className="chat-font-controls">
             <button
@@ -1938,10 +1955,62 @@ function Chat() {
                 >😈</button>
               </div>
 
+              {/* Responder dropdown (multichar) — Group, or tick girls to reply INDIVIDUALLY in
+                  tick order. Muted girls greyed/disabled. Selection persists until changed. */}
+              {activeCharacter?.multiChar?.enabled && (activeCharacter.multiChar.characters || []).length > 0 && (
+                <div className="responder-dropdown">
+                  <button
+                    type="button"
+                    className={`responder-toggle ${respondOrder.length ? 'individual' : ''}`}
+                    onClick={() => setShowResponderPanel(v => !v)}
+                    title="Who responds to your next message"
+                  >
+                    {respondOrder.length === 0
+                      ? '👥 Group'
+                      : `🎯 ${respondOrder.map(id => (activeCharacter.multiChar.characters.find(m => m.id === id)?.name || '?')).join(', ')}`}
+                  </button>
+                  {showResponderPanel && (
+                    <>
+                      <div className="responder-overlay" onClick={() => setShowResponderPanel(false)} />
+                      <div className="responder-panel">
+                        <button
+                          type="button"
+                          className={`responder-opt group-opt ${respondOrder.length === 0 ? 'active' : ''}`}
+                          onClick={() => setRespondOrder([])}
+                        >👥 Group (all together)</button>
+                        {(activeCharacter.multiChar.characters || []).map(m => {
+                          const muted = (sessionState.mutedMembers || []).includes(m.id);
+                          const idx = respondOrder.indexOf(m.id);
+                          return (
+                            <label key={m.id} className={`responder-opt ${muted ? 'muted' : ''} ${idx >= 0 ? 'ticked' : ''}`}
+                              title={muted ? `${m.name} is muted — unmute to include` : ''}>
+                              <input type="checkbox" checked={idx >= 0} disabled={muted}
+                                onChange={() => setRespondOrder(prev => prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id])} />
+                              <span>{m.name || '(unnamed)'}</span>
+                              {idx >= 0 && <span className="responder-order-badge">{idx + 1}</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* Mobile E-STOP button — becomes PUMP for ANY card whose active pump is manual
                   (bulb/bike): single-char, multichar, or instructor. Driven by sessionState.pumpInit,
                   which applyActivePumpType resolves from the card's defaultPumpType / active profile. */}
-              {sessionState.pumpInit === 'manual' ? (
+              {sessionState.awaitingGoRelease ? (
+                <button
+                  type="button"
+                  className="mobile-estop-btn mobile-only go-release"
+                  onClick={() => sendWsMessage('gate_release', {})}
+                  disabled={sessionLoading}
+                  title="Press GO! to begin — opens the pump gate"
+                >
+                  GO!
+                </button>
+              ) : sessionState.pumpInit === 'manual' ? (
                 <button
                   type="button"
                   className="mobile-estop-btn mobile-only pump"

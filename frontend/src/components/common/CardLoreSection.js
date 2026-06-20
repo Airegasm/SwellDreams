@@ -35,6 +35,8 @@ function CardLoreSection({ activeStory, updateStoryField }) {
   };
 
   const rowStyle = { display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0' };
+  // Scrollable tickbox list ~3 rows tall (each row ≈ 1.55rem incl. margin).
+  const scrollBox = { maxHeight: '4.8rem', overflowY: 'auto', border: '1px solid var(--border-color, #ccc)', borderRadius: 4, padding: '4px 6px', background: '#fff' };
 
   return (
     <div className="story-field" style={{ marginTop: '0.5rem' }}>
@@ -44,23 +46,27 @@ function CardLoreSection({ activeStory, updateStoryField }) {
       </p>
       {dictGroups.length === 0
         ? <span className="section-hint">No Dictionary groups yet — add them on the Dictionary page.</span>
-        : dictGroups.map(g => (
-          <label key={g.id} style={rowStyle}>
-            <input type="checkbox" checked={dictIds.includes(g.id)} onChange={() => toggle('dictionaryGroupIds', dictIds, g.id)} />
-            <span>{g.name}</span>
-          </label>
-        ))}
+        : <div style={scrollBox}>
+            {dictGroups.map(g => (
+              <label key={g.id} style={rowStyle}>
+                <input type="checkbox" checked={dictIds.includes(g.id)} onChange={() => toggle('dictionaryGroupIds', dictIds, g.id)} />
+                <span>{g.name}</span>
+              </label>
+            ))}
+          </div>}
 
       <label style={{ fontWeight: 'bold', display: 'block', margin: '0.6rem 0 0.2rem' }}>Library (shared term groups)</label>
       <p className="section-hint" style={{ marginTop: 0 }}>Local lore groups this card pulls in (keyword-activated).</p>
       {libGroups.length === 0
         ? <span className="section-hint">No shared Library groups yet.</span>
-        : libGroups.map(g => (
-          <label key={g.id} style={rowStyle}>
-            <input type="checkbox" checked={libIds.includes(g.id)} onChange={() => toggle('libraryGroupIds', libIds, g.id)} />
-            <span>{g.name}</span>
-          </label>
-        ))}
+        : <div style={scrollBox}>
+            {libGroups.map(g => (
+              <label key={g.id} style={rowStyle}>
+                <input type="checkbox" checked={libIds.includes(g.id)} onChange={() => toggle('libraryGroupIds', libIds, g.id)} />
+                <span>{g.name}</span>
+              </label>
+            ))}
+          </div>}
     </div>
   );
 }

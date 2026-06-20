@@ -361,6 +361,34 @@
   border-color: #0d47a1;
 }
 
+/* (#2) Dropdowns: the native <option> popup was rendering BLACK-ON-BLACK because the control
+   inherits the page/OS dark color-scheme. color-scheme:light forces the browser to paint the
+   popup (and control) in light mode — THAT is the real fix; bg/color back it up with !important
+   so no other rule wins. Scoped to .character-editor-modal so it covers Character, MultiChar,
+   AND Instructor checkpoint dropdowns. */
+.character-editor-modal select,
+.character-modal-body select,
+.session-defaults-editor select,
+.checkpoint-profile-bar select {
+  color-scheme: light;
+  background-color: #ffffff !important;
+  color: #1a1a1a !important;
+}
+.character-editor-modal select option,
+.character-modal-body select option,
+.session-defaults-editor select option,
+.checkpoint-profile-bar select option {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+/* (#1) Instructor "Options" tickboxes — plain, aligned checkbox rows (the class had no styling,
+   so they rendered cramped/odd). Normal checkbox + label, not a full-width field or slider. */
+.instr-toggles { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.instr-toggle { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: #1a1a1a; font-weight: 500; }
+.instr-toggle input[type="checkbox"] { width: 16px; height: 16px; margin: 2px 0 0; flex: 0 0 auto; accent-color: #0d47a1; }
+.instr-toggle-hint { color: #555; font-weight: 400; font-size: 0.85rem; }
+
 .character-modal-body .form-group {
   margin: 0;
   display: grid;
@@ -1847,4 +1875,26 @@
 }
 .checkpoint-showall {
   margin-left: auto;
+}
+
+/* === Contrast fix: dark scope/checkpoint (.csec) panels inside the light modal body ===
+   The modal body is a light card that forces dark text (#1a1a1a / #333) on labels & hints. The
+   .csec accordion panels (Session Start / Intro / Always-On / Event Triggers / capacity ranges)
+   are DARK, so that inherited dark text was black-on-black. Re-assert light text inside .csec for
+   every card type (all editors import this stylesheet). Inputs/selects keep their own dark-on-white. */
+.character-modal-body .csec label,
+.character-modal-body .csec .ci-label,
+.character-modal-body .csec .rte-head,
+.character-modal-body .csec .rte-head strong,
+.character-modal-body .csec .tree-check,
+.character-modal-body .csec .csec-title,
+.character-modal-body .csec .form-group label,
+.character-modal-body .csec .form-label-row label {
+  color: var(--text-primary, #e8e8e8) !important;
+}
+.character-modal-body .csec .section-hint,
+.character-modal-body .csec .form-hint,
+.character-modal-body .csec .csec-sub,
+.character-modal-body .csec p {
+  color: var(--text-secondary, #b9c0c9) !important;
 }

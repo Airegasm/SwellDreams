@@ -179,6 +179,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
       return {
         name: character.name || '',
         responseTokens: character.responseTokens ?? '',
+        individualResponseTokens: character.individualResponseTokens ?? 150,
         historyDepth: character.historyDepth ?? '',
         avatar: character.avatar || '',
         description: character.description || '',
@@ -235,6 +236,7 @@ function MultiCharEditorModal({ isOpen, onClose, onSave, character }) {
     return {
       name: '',
       responseTokens: '',
+      individualResponseTokens: 150,
       historyDepth: '',
       avatar: '',
       description: '',
@@ -1308,7 +1310,7 @@ Write only the scenario description itself, no explanations.`;
                 </div>
 
                 <div className="form-group">
-                  <label>Individual Response Tokens (overrides global)</label>
+                  <label>Response Tokens (overrides global)</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1316,6 +1318,18 @@ Write only the scenario description itself, no explanations.`;
                     onChange={(e) => setFormData({ ...formData, responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
                     placeholder="Leave blank to use the global setting"
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Individual Response Tokens</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.individualResponseTokens ?? ''}
+                    onChange={(e) => setFormData({ ...formData, individualResponseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                    placeholder="150"
+                  />
+                  <p className="section-hint">Max tokens per individual (per-girl) reply when girls are ticked to respond one at a time. One value for the whole card. Default 150.</p>
                 </div>
 
                 <div className="form-group">

@@ -194,16 +194,18 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges).</p>
       </div>
 
-      {/* Always-On Trigger Tree (per profile) */}
+      {/* Always-On Trigger Tree (per profile) — a CollapsibleSection like Session Start / Intro /
+          Event Triggers, so all scopes read as consistent sections (not a bare inline block). */}
       {(() => {
         const aRef = selProfile?.treeRefs?.alwaysOn || {};
         const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
           ? { ...p, treeRefs: { ...(p.treeRefs || {}), alwaysOn: nextRef } } : p));
+        const onCount = aRef?.inline?.nodes?.length ? `${aRef.inline.nodes.length}` : aRef?.treeId ? 'linked' : '';
         return (
-          <div className="form-group" style={{ marginTop: 4 }}>
-            <ScopeTreeSection label="Always-On Script" hint="runs every reply while this profile is active (recurring nodes each turn, once nodes once)"
+          <CollapsibleSection title="Always-On Script" subtitle="runs every reply while this profile is active (recurring nodes each turn, once nodes once)" badge={onCount}>
+            <ScopeTreeSection label="" hint=""
               refValue={aRef} onChange={setRef} defaultName="Always On" source={`from card: ${cardName}`} rowProps={profRowProps} />
-          </div>
+          </CollapsibleSection>
         );
       })()}
 

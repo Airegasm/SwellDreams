@@ -59,6 +59,7 @@ function buildInitialData(character) {
     name: character?.name || '',
     gender: character?.gender || '',
     mission: character?.mission || '',
+    instructorDisposition: character?.instructorDisposition || 'knowledgeable-sadistic',
     avatar: character?.avatar || '',
     instructorProfileId: character?.instructorProfileId || '',
     instructorLibraryGroupIds: character?.instructorLibraryGroupIds || [],
@@ -279,6 +280,7 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
       name: formData.name.trim(),
       gender: formData.gender,
       mission: formData.mission,
+      instructorDisposition: formData.instructorDisposition || 'knowledgeable-sadistic',
       avatar: formData.avatar,
       description: '',
       personality: '',
@@ -408,6 +410,16 @@ function InstructorEditorModal({ isOpen, onClose, onSave, character }) {
               {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <p className="section-hint">Defines how the instructor behaves and performs. Manage profiles in the Instructor Settings tab.</p>
+          </div>
+
+          <div className="form-group">
+            <label>Disposition toward the player</label>
+            <select value={formData.instructorDisposition || 'knowledgeable-sadistic'} onChange={(e) => setFormData(prev => ({ ...prev, instructorDisposition: e.target.value }))}>
+              <option value="knowledgeable-sadistic">Knowledgeable-Sadistic — expert; pushes limits and enjoys the player's discomfort</option>
+              <option value="careful">Careful — safety-first; paces cautiously and checks in often</option>
+              <option value="scientific">Scientific — clinical and detached; runs the session like an experiment</option>
+            </select>
+            <p className="section-hint">Shapes how this instructor approaches inflating the player.</p>
           </div>
 
           <div className="form-group">

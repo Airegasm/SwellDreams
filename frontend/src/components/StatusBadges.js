@@ -14,6 +14,7 @@ function StatusBadges({
   personaName,
   useAutoCapacity,
   hidePainEmotion,
+  multichar,
 }) {
   const emotionRef = useRef(null);
   const painRef = useRef(null);
@@ -45,7 +46,7 @@ function StatusBadges({
   const currentPain = PAIN_SCALE[selectedPainLevel] || PAIN_SCALE[0];
 
   return (
-    <div className="status-badges-overlay">
+    <div className={`status-badges-overlay${multichar ? ' multichar' : ''}`}>
       {/* Metallic frame around portrait */}
       <div className="metallic-frame">
         <div className="frame-left"></div>

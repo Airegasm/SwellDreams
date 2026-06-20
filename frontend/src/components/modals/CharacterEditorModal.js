@@ -5,7 +5,6 @@ import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import { API_BASE } from '../../config';
 import { apiFetch } from '../../utils/api';
 import KeywordInput from '../common/KeywordInput';
-import TriggerRow from '../common/TriggerRow';
 import RangeTriggerEditor from '../common/RangeTriggerEditor';
 import ScopeTreeSection from '../common/ScopeTreeSection';
 import EventTriggersSection from '../common/EventTriggersSection';
@@ -2026,34 +2025,7 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 )}
 
-                {/* Story Progression Mode */}
-                <div className="story-field auto-reply-field">
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={activeStory?.storyProgressionEnabled || false}
-                      onChange={(e) => updateStoryField('storyProgressionEnabled', e.target.checked)}
-                    />
-                    <span className="toggle-slider"></span>
-                  </label>
-                  <div className="auto-reply-text">
-                    <span className="auto-reply-label">Story Progression</span>
-                    <span className="auto-reply-hint">Auto-generate player reply suggestions after each AI response</span>
-                  </div>
-                </div>
-                {activeStory?.storyProgressionEnabled && (
-                  <div className="story-field" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
-                    <label>Max Suggestions</label>
-                    <input
-                      type="number"
-                      min={2}
-                      max={5}
-                      value={activeStory?.storyProgressionMaxOptions || 3}
-                      onChange={(e) => updateStoryField('storyProgressionMaxOptions', Math.min(5, Math.max(2, parseInt(e.target.value) || 3)))}
-                      style={{ width: '60px' }}
-                    />
-                  </div>
-                )}
+                {/* Story Progression removed — superseded by checkpoints/triggers. */}
 
                 {/* Welcome Message */}
                 <div className="story-field">
@@ -2107,46 +2079,6 @@ Write only the scenario description itself, no explanations.`;
                     placeholder="The first message the character sends..."
                     rows={9}
                   />
-                </div>
-
-                {/* Post Welcome Triggers */}
-                <div className="story-field">
-                  <div className="story-field-header">
-                    <label>Post Welcome Triggers</label>
-                    <button type="button" className="btn-icon btn-add" onClick={() => {
-                      const current = activeStory?.postWelcomeTriggers || [];
-                      updateStoryField('postWelcomeTriggers', [...current, { type: 'impersonate', id: Date.now().toString() }]);
-                    }} title="Add trigger">+</button>
-                  </div>
-                  {(activeStory?.postWelcomeTriggers || []).length === 0 ? (
-                    <p className="section-hint" style={{ margin: '0.25rem 0' }}>No triggers — click + to add actions that fire after the welcome message.</p>
-                  ) : (
-                    <div className="post-welcome-triggers-list">
-                      {(activeStory?.postWelcomeTriggers || []).map((trigger, idx) => (
-                        <TriggerRow
-                          key={trigger.id || idx}
-                          trigger={trigger}
-                          isPumpable={formData.isPumpable}
-                          reminders={formData.globalReminders || []}
-                          globalReminders={systemGlobalReminders}
-                          onChange={(updated) => {
-                            const items = [...(activeStory?.postWelcomeTriggers || [])];
-                            items[idx] = updated;
-                            updateStoryField('postWelcomeTriggers', items);
-                          }}
-                          onRemove={() => {
-                            updateStoryField('postWelcomeTriggers', (activeStory?.postWelcomeTriggers || []).filter((_, i) => i !== idx));
-                          }}
-                          dragProps={{
-                            draggable: true,
-                            onDragStart: (e) => e.dataTransfer.setData('text/plain', idx.toString()),
-                            onDragOver: (e) => e.preventDefault(),
-                            onDrop: (e) => { e.preventDefault(); const from = parseInt(e.dataTransfer.getData('text/plain')); if (from === idx) return; const items = [...(activeStory?.postWelcomeTriggers || [])]; const [m] = items.splice(from, 1); items.splice(idx, 0, m); updateStoryField('postWelcomeTriggers', items); }
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Scenario */}
@@ -2249,38 +2181,7 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
 
-                {/* Associated Flows */}
-                <div className="story-field">
-                  <label>Associated Flows</label>
-                  <div className="dropdown-add-row">
-                    <select
-                      value={selectedFlowToAdd}
-                      onChange={(e) => setSelectedFlowToAdd(e.target.value)}
-                      className="association-dropdown"
-                    >
-                      <option value="">Select a flow...</option>
-                      {availableFlows.map(flow => (
-                        <option key={flow.id} value={flow.id}>{flow.name}</option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddStoryFlow} disabled={!selectedFlowToAdd}>+</button>
-                  </div>
-                  <div className="association-badges">
-                    {(activeStory?.assignedFlows || []).length === 0 ? (
-                      <span className="empty-hint">No flows assigned</span>
-                    ) : (
-                      (activeStory?.assignedFlows || []).map(flowId => {
-                        const flow = flows?.find(f => f.id === flowId);
-                        return flow ? (
-                          <span key={flowId} className="assoc-badge">
-                            {flow.name}
-                            <button type="button" className="badge-remove" onClick={() => handleRemoveStoryFlow(flowId)}>−</button>
-                          </span>
-                        ) : null;
-                      })
-                    )}
-                  </div>
-                </div>
+                {/* Associated Flows removed — flows are deprecated; use Triggers/checkpoints. */}
 
                 {/* Associated Custom Buttons */}
                 <div className="story-field">
@@ -2324,46 +2225,13 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
 
-                {/* Story Details - Reminders */}
+                {/* Story Details - Lore */}
                 <div className="story-subsection">
                   <label className="subsection-label">Story Details</label>
 
-                  {/* Constant Reminders - from character's Library */}
-                  <div className="story-field">
-                    <label>Constant Reminders (from Library)</label>
-                    <div className="dropdown-add-row">
-                      <select
-                        value={selectedConstantReminder}
-                        onChange={(e) => setSelectedConstantReminder(e.target.value)}
-                        className="association-dropdown"
-                      >
-                        <option value="">Select a reminder...</option>
-                        {availableConstantReminders.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
-                      <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddConstantReminder} disabled={!selectedConstantReminder}>+</button>
-                    </div>
-                    <div className="association-badges">
-                      {(activeStory?.constantReminderIds || []).length === 0 ? (
-                        <span className="empty-hint">No reminders assigned - add them in the Library tab</span>
-                      ) : (
-                        (activeStory?.constantReminderIds || []).map(reminderId => {
-                          const reminder = globalReminders.find(r => r.id === reminderId);
-                          return reminder ? (
-                            <span key={reminderId} className="assoc-badge">
-                              {reminder.name}
-                              <button type="button" className="badge-remove" onClick={() => handleRemoveConstantReminder(reminderId)}>−</button>
-                            </span>
-                          ) : null;
-                        })
-                      )}
-                    </div>
-                  </div>
+                  {/* Legacy "Constant Reminders" removed — superseded by lorebook Library groups below. */}
 
-                  {/* Card lore: Dictionary group selection + shared Library groups.
-                      Replaces the retired global-reminders card UI (global reminders are now
-                      folded into the Dictionary). */}
+                  {/* Card lore: Dictionary group selection + shared Library groups. */}
                   <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} />
                 </div>
 

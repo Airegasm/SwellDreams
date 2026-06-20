@@ -308,6 +308,10 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, pumpType: data.pumpType, pumpInit: data.pumpInit }));
         break;
 
+      case 'gate_release_state':
+        setSessionState(prev => ({ ...prev, awaitingGoRelease: data.awaitingGoRelease }));
+        break;
+
       case 'pump_vars_update':
         setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
         break;
@@ -829,8 +833,9 @@ export function AppProvider({ children }) {
   }, []);
 
   // Send chat message
-  const sendChatMessage = useCallback((content) => {
-    sendWsMessage('chat_message', { content, sender: 'player' });
+  const sendChatMessage = useCallback((content, respondAs) => {
+    // respondAs: ordered array of multichar member ids → reply as each, individually, in order.
+    sendWsMessage('chat_message', { content, sender: 'player', ...(Array.isArray(respondAs) && respondAs.length ? { respondAs } : {}) });
   }, [sendWsMessage]);
 
   // Start new session - clears UI immediately, shows loading while backend resets

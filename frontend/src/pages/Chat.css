@@ -1484,6 +1484,69 @@
   opacity: 1;
 }
 
+/* Manual GO! gate-release — floats upper-left on PC, mirroring the font/gear controls' top, green
+   and pulsing so it's obviously the next action. Mobile uses the ESTOP→GO! swap (hidden here). */
+.chat-go-release {
+  position: fixed;
+  top: 20px;
+  left: 290px;
+  z-index: 50;
+  padding: 8px 18px;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  color: #062e0f;
+  background: linear-gradient(180deg, #4ade80, #16a34a);
+  border: 1px solid #15803d;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(22, 163, 74, 0.5);
+  animation: goReleasePulse 1.2s ease-in-out infinite;
+}
+.chat-go-release:hover { filter: brightness(1.08); }
+@keyframes goReleasePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+/* Mobile ESTOP→GO! variant — green like the PC button */
+.mobile-estop-btn.go-release {
+  background: linear-gradient(180deg, #4ade80, #16a34a) !important;
+  color: #062e0f !important;
+  border-color: #15803d !important;
+}
+
+@media (max-width: 768px) {
+  .chat-go-release { display: none; }
+}
+
+/* Multichar responder dropdown — Group vs individual ordered girl ticks. Opens upward from the
+   input row. */
+.responder-dropdown { position: relative; display: inline-flex; }
+.responder-toggle {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-color, #444);
+  background: rgba(40, 44, 52, 0.9); color: #e5e7eb; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; max-width: 170px; overflow: hidden; text-overflow: ellipsis;
+}
+.responder-toggle.individual { border-color: #f59e0b; color: #fbbf24; }
+.responder-overlay { position: fixed; inset: 0; z-index: 60; }
+.responder-panel {
+  position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 61;
+  min-width: 190px; max-height: 240px; overflow-y: auto;
+  background: #1f2430; border: 1px solid var(--border-color, #444); border-radius: 8px;
+  padding: 4px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+.responder-opt {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px;
+  border: none; background: none; color: #e5e7eb; font-size: 0.9rem; text-align: left;
+  cursor: pointer; border-radius: 5px;
+}
+.responder-opt:hover { background: rgba(255, 255, 255, 0.07); }
+.responder-opt.group-opt.active { background: rgba(59, 130, 246, 0.25); font-weight: 700; }
+.responder-opt.ticked { background: rgba(245, 158, 11, 0.15); }
+.responder-opt.muted { color: #6b7280; cursor: not-allowed; }
+.responder-order-badge {
+  margin-left: auto; background: #f59e0b; color: #1a1200; font-weight: 800; font-size: 0.72rem;
+  min-width: 18px; height: 18px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+}
+
 .font-size-btn {
   width: 36px;
   height: 36px;

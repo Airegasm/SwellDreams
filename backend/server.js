@@ -3396,9 +3396,11 @@ const sessionState = {
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
   pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
-  playerIsInflating: false // Latched-pump mode (per-char latchPumpUntilOff): [pump on] latches the pump
+  playerIsInflating: false, // Latched-pump mode (per-char latchPumpUntilOff): [pump on] latches the pump
                            // ON across every reply until [pump off]; overrides time-based auto-off + limits.
                            // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
+  awaitingGoRelease: false, // Manual "GO!" gate hold: intro/profile-assign waits for a player button press
+  pendingGoProfileId: null  // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -6770,6 +6772,19 @@ async function handleWsMessage(ws, type, data) {
     }
 
     case 'chat_message':
+      // Multichar with girls ticked in the responder dropdown → reply as each ticked girl
+      // individually (in order), not the group. Falls back to the normal path otherwise.
+      if (Array.isArray(data.respondAs) && data.respondAs.length) {
+        const cmSettings = loadData(DATA_FILES.settings);
+        const cmChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+        const cmChar = cmChars.find(c => c.id === cmSettings?.activeCharacterId);
+        const cmPersonas = loadData(DATA_FILES.personas) || [];
+        const cmPersona = cmPersonas.find(p => p.id === cmSettings?.activePersonaId);
+        if (cmChar?.multiChar?.enabled) {
+          await handleIndividualResponses(data, cmChar, cmSettings, cmPersona, data.respondAs);
+          break;
+        }
+      }
       await handleChatMessage(data);
       break;
 
@@ -7346,6 +7361,10 @@ async function handleWsMessage(ws, type, data) {
 
     case 'manual_pump':
       await handleManualPump();
+      break;
+
+    case 'gate_release':
+      await handleGateRelease();
       break;
 
     case 'toggle_member_mute': {
@@ -8511,6 +8530,76 @@ function stripCrossRoleContent(text, stopSequences = [], isCharacterResponse = t
   return result.trim();
 }
 
+// Multichar individual responses: when the responder dropdown has girls ticked, reply as EACH
+// ticked girl one at a time, IN ORDER (the tick order), each as ONLY herself — N ticks = N
+// back-to-back generations, each capped at the card's Individual Response Tokens (default 150).
+// Skips the normal group reply. Muted girls never speak. Reuses buildChatContext for the full
+// per-turn context (so each later girl sees the earlier girls' replies) + a hard solo directive.
+// Kept SEPARATE from handleChatMessage so the central reply path is untouched.
+async function handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds) {
+  const content = data.content;
+  // Player message — pushed once, before any individual reply.
+  const playerMessage = { id: uuidv4(), content, sender: 'player', timestamp: Date.now() };
+  sessionState.chatHistory.push(playerMessage);
+  broadcast('chat_message', playerMessage);
+  autosaveSession();
+  await eventEngine.handleEvent('player_speaks', { content })
+    .catch(e => console.error('[Individual] player_speaks failed:', e?.message || e));
+
+  const members = activeCharacter.multiChar?.characters || [];
+  const muted = new Set(sessionState.mutedMembers || []);
+  const indTokens = clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150);
+  const devices = loadData(DATA_FILES.devices) || [];
+  const charLimits = getCharacterLimits(activeCharacter);
+
+  for (const memberId of orderedIds) {
+    if (eventEngine.aborted) break;
+    const member = members.find(m => m.id === memberId);
+    if (!member || !member.name || muted.has(memberId)) continue; // muted girls don't speak
+
+    // Full per-turn context, then force a SINGLE-member reply. buildChatContext re-reads the live
+    // chatHistory, so each girl after the first sees the earlier individual replies.
+    const context = buildChatContext(activeCharacter, settings);
+    const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
+
+    broadcast('generating_start', { characterName: member.name });
+    let result;
+    try {
+      result = await llmService.generate({
+        prompt: context.prompt,
+        messages: context.messages,
+        systemPrompt: soloSystem,
+        settings: { ...settings.llm, maxTokens: indTokens },
+      });
+    } catch (e) {
+      console.error(`[Individual] generation failed for ${member.name}:`, e?.message || e);
+      broadcast('generating_stop', {});
+      continue;
+    }
+    broadcast('generating_stop', {});
+    if (eventEngine.aborted) break;
+
+    let finalText = substituteAllVariables((result?.text || '').trim());
+    if (!finalText) continue;
+
+    // Drive devices from this girl's reply (pump/vibe/tens tags), same as the normal path.
+    try {
+      const reinf = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, settings, charLimits);
+      if (reinf.reinforced) finalText = reinf.text;
+      const ctrl = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
+        settings, sessionState, broadcast, characterLimits: charLimits, injectContext: () => {},
+      });
+      if (ctrl.commands?.length) finalText = ctrl.text;
+    } catch (e) { console.error('[Individual] device processing failed:', e?.message || e); }
+
+    const aiMessage = { id: uuidv4(), content: finalText, sender: 'character', characterId: activeCharacter.id, characterName: member.name, memberId, timestamp: Date.now() };
+    sessionState.chatHistory.push(aiMessage);
+    broadcast('chat_message', aiMessage);
+    autosaveSession();
+    await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
+  }
+}
+
 async function handleChatMessage(data) {
   const { content, sender = 'player' } = data;
   console.log(`[Chat] Message received. autoReply=${sessionState.autoReply}`);
@@ -8962,7 +9051,9 @@ async function handleChatMessage(data) {
  * Generate story progression suggestions - player reply options with different emotional angles
  */
 async function generateStoryProgressionSuggestions(activeCharacter, settings) {
-  try {
+  return; // Story Progression permanently disabled (feature removed; superseded by checkpoints/triggers).
+  // eslint-disable-next-line
+  try { // eslint-disable-line
     if (eventEngine.activeExecutions.size > 0) {
       console.log('[StoryProgression] Skipping — flow in progress');
       return;
@@ -10704,8 +10795,12 @@ async function runIntroScope(character, settings, treeIndex) {
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'inReply', treeIndex }); }
   catch (e) { console.error('[Intro] run failed:', e?.message || e); }
 }
-// Hard "no pumping" directive injected every turn while the gated intro is active.
+// Hard "no pumping" directive injected every turn while the gated intro is active OR while the
+// session is holding on a manual "GO!" release (intro finished, but the player hasn't pressed GO!).
 function introBlock(character) {
+  if (sessionState.awaitingGoRelease) {
+    return `\n=== AWAITING GO (MANDATORY — NO PUMPING) ===\nThe buildup is complete but inflation has NOT been authorized yet — the player must press GO! first. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. Keep the scene holding/ready until release.\n=== END AWAITING GO ===\n`;
+  }
   if (!sessionState.introActive) return '';
   return `\n=== GATED INTRO (MANDATORY — NO PUMPING) ===\nInflation has NOT started. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. Converse naturally toward the intro's goal; this phase ends only when its trigger condition is met.\n=== END GATED INTRO ===\n`;
 }
@@ -10993,7 +11088,7 @@ function applyActivePumpType(character) {
 // A manual pump press (bulb/bike): bump the count, add the per-pump capacity %, and record
 // context for the next instructor reply. Electric/auto pumps are device-driven, not counted here.
 async function handleManualPump() {
-  if (sessionState.introActive || sessionState.preFillActive) { console.log('[ManualPump] Blocked — gated intro (no pumping)'); return; }
+  if (sessionState.introActive || sessionState.preFillActive || sessionState.awaitingGoRelease) { console.log('[ManualPump] Blocked — gated intro / awaiting GO! (no pumping)'); return; }
   const type = sessionState.pumpType;
   if (type !== 'bulb' && type !== 'bike') return;
   const sv = (loadData(DATA_FILES.settings) || {}).systemVariables || {};
@@ -11019,6 +11114,30 @@ async function handleManualPump() {
   await executePersonaCheckpointTriggers('player', before, sessionState.capacity)
     .catch(err => console.error('[ManualPump] persona checkpoint triggers failed:', err?.message || err));
   autosaveSession();
+}
+
+// GO! gate-release: the player presses GO! to leave a manual-release intro hold (set by an
+// end_intro with manualRelease, or a profile-assign action with the manual-gate tickbox). Opens
+// the pump gate and loads the stashed checkpoint profile so pumping + checkpoints begin now.
+async function handleGateRelease() {
+  if (!sessionState.awaitingGoRelease) return;
+  sessionState.awaitingGoRelease = false;
+  sessionState.preInflationGateMet = true;
+  const profId = sessionState.pendingGoProfileId;
+  sessionState.pendingGoProfileId = null;
+  if (profId) {
+    sessionState.activeCheckpointProfileId = profId;
+    try {
+      const s = loadData(DATA_FILES.settings) || {};
+      const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const ch = chars.find(c => c.id === s.activeCharacterId);
+      if (ch) applyActivePumpType(ch);
+    } catch (e) { /* best-effort */ }
+  }
+  broadcast('gate_release_state', { awaitingGoRelease: false });
+  broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+  autosaveSession();
+  console.log(`[GateRelease] GO! pressed → pump gate open${profId ? `, loaded profile ${profId}` : ''}`);
 }
 
 function getActiveCheckpoint(character, capacity) {
@@ -11648,6 +11767,14 @@ function buildInstructorSystemPrompt(character, playerName, substituteVars) {
   if (character.mission) {
     p += `Mission: ${substituteVars(character.mission)}\n`;
   }
+  // Instructor disposition toward inflating the player (card setting).
+  const instrDispMap = {
+    'knowledgeable-sadistic': `Your disposition toward ${playerName}: knowledgeable and sadistic — a true expert who deliberately pushes ${playerName}'s limits and takes pleasure in their discomfort, while staying technically precise and in control.`,
+    'careful': `Your disposition toward ${playerName}: careful — prioritize ${playerName}'s safety and comfort, pace inflation cautiously, check in often, and never push past clear limits.`,
+    'scientific': `Your disposition toward ${playerName}: scientific — clinical and detached; run the session like a controlled experiment, narrating measurements, observations, and procedure without emotional investment.`,
+  };
+  const instrDisp = instrDispMap[character.instructorDisposition || 'knowledgeable-sadistic'];
+  if (instrDisp) p += `${instrDisp}\n`;
   if (character.instructorProfileId) {
     const profile = (loadInstructorProfiles().profiles || []).find(pr => pr.id === character.instructorProfileId);
     if (profile && profile.prompt) {
@@ -13247,9 +13374,21 @@ async function runNode(node, ctx) {
   // ----- end_intro: leave the gated intro phase, open the pump gate, optionally load a profile (Part 4) -----
   if (type === 'end_intro') {
     markTreeOnce(node, ctx);
-    sessionState.introActive = false;
+    sessionState.introActive = false; // intro is logically done (stop re-running its tree)
+    const profId = node.params?.loadProfileId || '';
+    // Manual-release ("GO!") gate: keep the pump gate CLOSED and wait for a player button press
+    // before opening it / loading the profile / entering checkpoints. Prevents premature pumping
+    // during long buildups if the wrong keywords land. The stashed profile loads on the GO! press.
+    if (node.params?.manualRelease) {
+      sessionState.preInflationGateMet = false;
+      sessionState.awaitingGoRelease = true;
+      sessionState.pendingGoProfileId = profId || null;
+      broadcast('gate_release_state', { awaitingGoRelease: true });
+      broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: false });
+      console.log('[Intro] end_intro (manual) → awaiting GO! press before opening the pump gate');
+      return;
+    }
     sessionState.preInflationGateMet = true;
-    const profId = node.params?.loadProfileId;
     if (profId) {
       sessionState.activeCheckpointProfileId = profId; // jump straight into this checkpoint profile
       try { applyActivePumpType(ctx.character); } catch (e) { /* best-effort */ }
@@ -15533,6 +15672,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 3. Stop ALL pump runtime tracking intervals
   sessionState.playerIsInflating = false; // emergency stop always ends latched-pump mode
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null;
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
   clearAllServerTimedPumpTimers();
@@ -17251,6 +17391,8 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
+  sessionState.awaitingGoRelease = false;
+  sessionState.pendingGoProfileId = null;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
@@ -17485,6 +17627,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
   sessionState.playerIsInflating = false; // never resume into a latched-pump state
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null;
 
   // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
   // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).

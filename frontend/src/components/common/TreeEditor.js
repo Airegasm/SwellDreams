@@ -171,7 +171,7 @@ function summarize(node) {
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
     if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
-    if (t === 'end_intro') return `End Gated Intro${p.loadProfileId ? ' → load profile' : ' → default'}`;
+    if (t === 'end_intro') return `End Gated Intro${p.manualRelease ? ' (GO! gate)' : ''}${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'Flow'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
@@ -371,7 +371,13 @@ function NodeBody({ node, onChange, rowProps }) {
             {profiles.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}
           </select>
         </label>
-        <p className="section-hint">Ends the gated intro and opens the pump gate. Place this behind an On Player Keyword / Player Choice so it only fires when the player meets the condition.</p>
+        <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <input type="checkbox" checked={!!node.params?.manualRelease} onChange={(e) => setParams({ manualRelease: e.target.checked })} />
+          <span>Wait for manual <strong>GO!</strong> button before opening the pump gate</span>
+        </label>
+        <p className="section-hint">Ends the gated intro. {node.params?.manualRelease
+          ? 'The pump gate stays CLOSED until the player presses GO! — then the profile loads and pumping/checkpoints begin. Prevents premature pumping during long buildups.'
+          : 'Opens the pump gate immediately.'} Place this behind an On Player Keyword / Player Choice so it only fires when the player meets the condition.</p>
       </div>
     );
   }
