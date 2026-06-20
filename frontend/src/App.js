@@ -85,7 +85,7 @@ function App() {
   const location = useLocation();
   const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
   const isFlowsPage = location.pathname === '/flows';
-  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions, sendWsMessage } = useApp();
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions, sendWsMessage, onChatPage } = useApp();
   const { showError, showWarning, showSuccess } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
@@ -471,7 +471,9 @@ function App() {
             🤖
           </span>
         </div>
-        {sessionState?.pumpInit === 'manual' ? (
+        {/* On the chat page this relocates to the grey strip above the textbox (in Chat.js);
+            keep it top-right on every other page so emergency stop stays reachable there. */}
+        {!onChatPage && (sessionState?.pumpInit === 'manual' ? (
           /* Manual pump (bulb/bike) — the E-STOP button becomes PUMP, mirroring mobile.
              Driven by sessionState.pumpInit, set by applyActivePumpType for any card type. */
           <button
@@ -492,7 +494,7 @@ function App() {
           >
             {stopping ? '...' : estopState.text}
           </button>
-        )}
+        ))}
       </div>
 
       {/* Hamburger menu floats independently on top of everything */}

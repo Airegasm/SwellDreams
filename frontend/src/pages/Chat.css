@@ -1547,6 +1547,39 @@
   min-width: 18px; height: 18px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
 }
 
+/* PC ESTOP/PUMP — centered in the grey strip above the textbox (desktop). Replaces the old
+   top-right button on the chat page. White when PUMP (manual bulb/bike), like the mobile button. */
+@media (min-width: 769px) {
+  .input-buttons-row { position: relative; min-height: 52px; }
+}
+.pc-estop-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  padding: 7px 28px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(180deg, #ef4444, #b91c1c);
+  border: 1px solid #7f1d1d;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.pc-estop-btn:hover { filter: brightness(1.08); }
+.pc-estop-btn.abort { background: linear-gradient(180deg, #f97316, #c2410c); border-color: #9a3412; }
+.pc-estop-btn.simulated { background: linear-gradient(180deg, #6b7280, #4b5563); border-color: #374151; }
+/* White when PUMP (manual), matching the mobile PUMP button */
+.pc-estop-btn.pc-pump {
+  background: #ffffff;
+  color: #1a1a1a;
+  border-color: #cbd5e1;
+}
+@media (max-width: 768px) { .pc-estop-btn { display: none; } }
+
 .font-size-btn {
   width: 36px;
   height: 36px;

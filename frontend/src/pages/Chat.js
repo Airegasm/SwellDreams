@@ -2033,6 +2033,28 @@ function Chat() {
               )}
 
             </div>
+            {/* PC ESTOP/PUMP — centered in the grey padding above the textbox (desktop only;
+                mobile uses the button inside .chat-buttons). White when PUMP (manual bulb/bike),
+                like the mobile button. Same for single/instructor/multichar — it lives here now. */}
+            {sessionState?.pumpInit === 'manual' ? (
+              <button
+                type="button"
+                className="pc-estop-btn pc-pump desktop-only"
+                onClick={() => sendWsMessage('manual_pump', {})}
+                title="Pump — hardware disconnect is your emergency stop"
+              >
+                PUMP
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`pc-estop-btn desktop-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+                onClick={handleEmergencyStop}
+                title="Emergency stop — stops all devices, flows, and LLM"
+              >
+                {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
+              </button>
+            )}
           </div>
           <div className="chat-input-row">
             <div className="input-arrow-buttons">

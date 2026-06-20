@@ -174,16 +174,6 @@
   z-index: 15;
 }
 
-/* Multichar: pain/emotion sit HORIZONTAL + tight, directly ABOVE the gauge (not stacked to its
-   right). Scoped to .multichar so single/instructor card layouts are unchanged. (Positions are a
-   first pass — tune the bottom/left if it doesn't sit flush above the gauge in the live UI.) */
-.status-badges-overlay.multichar .badges-left-stack {
-  flex-direction: row;
-  gap: 2px;
-  left: -8px;
-  bottom: 40px;
-}
-
 /* Mini badge - no background, just emoji */
 .status-badge-mini {
   width: 34px;
