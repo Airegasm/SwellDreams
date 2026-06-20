@@ -1938,8 +1938,10 @@ function Chat() {
                 >😈</button>
               </div>
 
-              {/* Mobile E-STOP button — becomes PUMP for manual (bulb/bike) instructor mode */}
-              {isInstructor(activeCharacter) && sessionState.pumpInit === 'manual' ? (
+              {/* Mobile E-STOP button — becomes PUMP for ANY card whose active pump is manual
+                  (bulb/bike): single-char, multichar, or instructor. Driven by sessionState.pumpInit,
+                  which applyActivePumpType resolves from the card's defaultPumpType / active profile. */}
+              {sessionState.pumpInit === 'manual' ? (
                 <button
                   type="button"
                   className="mobile-estop-btn mobile-only pump"
