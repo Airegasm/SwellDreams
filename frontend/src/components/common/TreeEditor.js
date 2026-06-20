@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import TriggerRow from './TriggerRow';
 import { API_BASE } from '../../config';
+import { exitsFor } from '../minigames/gameDefs';
 import './TreeEditor.css';
 
 // fire_tree target picker: lazy-loads the global library so any tree (incl. built-ins) can be fired.
@@ -17,6 +18,48 @@ function FireTreeEditor({ node, setParams }) {
         {(trees || []).map(t => <option key={t.id} value={t.id}>{t.name}{t.builtIn ? ' (built-in)' : ''}</option>)}
       </select>
     </label>
+  );
+}
+
+// call_minigame editor (Phase 5): pick a library MiniGame, then bind an OPTIONAL goto label per
+// exit. The played exit sets [Flow:GameResult]/[Flow:GameWinner]; a bound exit jumps to its label
+// (placed AFTER this node), an unbound exit falls through. Mirrors FireTreeEditor's lazy fetch.
+function CallMiniGameBlock({ node, setParams }) {
+  const [games, setGames] = React.useState(null);
+  React.useEffect(() => {
+    fetch(`${API_BASE}/api/minigames`).then(r => r.json()).then(d => setGames(d?.games || [])).catch(() => setGames([]));
+  }, []);
+  const gameId = node.params?.miniGameId || '';
+  const game = (games || []).find(g => g.id === gameId);
+  const exits = game ? exitsFor(game.type, game.config || {}) : [];
+  const gotos = node.params?.exitGotos || {};
+  const setGoto = (exit, name) => setParams({ exitGotos: { ...gotos, [exit]: name } });
+  return (
+    <div className="tree-params">
+      <label className="tree-field">
+        <span>MiniGame to play</span>
+        <select value={gameId} onChange={(e) => setParams({ miniGameId: e.target.value, exitGotos: {} })}>
+          <option value="">select a minigame…</option>
+          {(games || []).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </select>
+      </label>
+      {gameId && !game && <div className="section-hint">⚠️ This minigame no longer exists in the library.</div>}
+      {game && (
+        <div className="tree-field">
+          <span>Bind exits → labels (optional; blank = fall through)</span>
+          {exits.length === 0 && <div className="section-hint">This game type exposes no named exits.</div>}
+          {exits.map(exit => (
+            <div key={exit} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '3px 0' }}>
+              <code style={{ minWidth: 90 }}>{exit}</code>
+              <span>→</span>
+              <input type="text" value={gotos[exit] || ''} placeholder="goto label (optional)"
+                onChange={(e) => setGoto(exit, e.target.value)} />
+            </div>
+          ))}
+          <div className="section-hint">Sets <code>[Flow:GameResult]</code>{game.competitive ? <> and <code>[Flow:GameWinner]</code></> : null}. Place the target Labels AFTER this node.</div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +122,8 @@ const ADD_GROUPS = [
     label: 'Flow', items: [
       { kind: 'action', type: 'fire_tree', label: 'Fire Tree (library)' },
       { kind: 'action', type: 'fire_flow', label: 'Fire Flow (escape hatch)' },
+      { kind: 'action', type: 'call_minigame', label: 'Call MiniGame' },
+      { kind: 'action', type: 'end_intro', label: 'End Gated Intro' },
     ]
   },
   {
@@ -88,7 +133,7 @@ const ADD_GROUPS = [
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
 const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume']); // not if/player_choice/choose_multi (special children)
@@ -110,6 +155,8 @@ function makeNode(kind, type) {
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'fire_tree') node.params.treeId = '';
   if (type === 'fire_flow') { node.params.flowId = ''; node.params.flowActionLabel = ''; }
+  if (type === 'call_minigame') { node.params.miniGameId = ''; node.params.exitGotos = {}; }
+  if (type === 'end_intro') node.params.loadProfileId = '';
   return node;
 }
 
@@ -123,6 +170,8 @@ function summarize(node) {
     if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
     if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
+    if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
+    if (t === 'end_intro') return `End Gated Intro${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'Flow'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
@@ -310,6 +359,22 @@ function NodeBody({ node, onChange, rowProps }) {
     );
   }
   if (t === 'fire_tree') return <FireTreeEditor node={node} setParams={setParams} />;
+  if (t === 'call_minigame') return <CallMiniGameBlock node={node} setParams={setParams} />;
+  if (t === 'end_intro') {
+    const profiles = rowProps?.profiles || [];
+    return (
+      <div className="tree-params">
+        <label className="tree-field">
+          <span>On end, load checkpoint profile</span>
+          <select value={node.params?.loadProfileId || ''} onChange={(e) => setParams({ loadProfileId: e.target.value })}>
+            <option value="">— Default (fall into 0–10%) —</option>
+            {profiles.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}
+          </select>
+        </label>
+        <p className="section-hint">Ends the gated intro and opens the pump gate. Place this behind an On Player Keyword / Player Choice so it only fires when the player meets the condition.</p>
+      </div>
+    );
+  }
   if (t === 'fire_flow') {
     return (
       <div className="tree-params">

@@ -1,0 +1,30 @@
+/* In-chat host for a Trigger Tree "Call MiniGame" (Phase 5). The outer .message-choice wrapper
+   supplies the bordered card; these rules center the game and label it. */
+.chat-minigame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 10px;
+}
+
+.chat-minigame-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: #c084fc;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-minigame-name::before {
+  content: '🎲';
+  font-size: 1.05rem;
+}
+
+/* Keep the embedded game widgets from overflowing the chat card on narrow screens. */
+.chat-minigame > *:not(.chat-minigame-name) {
+  max-width: 100%;
+}

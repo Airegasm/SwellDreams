@@ -4,6 +4,7 @@ import './HelpTabs.css';
 function FlowTab() {
   const [expanded, setExpanded] = useState({
     overview: false,
+    parity: false,
     triggers: false,
     actions: false,
     logic: false,
@@ -46,6 +47,54 @@ function FlowTab() {
               Flows can be assigned to specific characters (only active when chatting with them),
               or run globally across all conversations.
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Flows → Trigger Trees parity */}
+      <div className="help-section">
+        <h3 className="section-header" onClick={() => toggle('parity')}>
+          Flows → Trigger Trees: feature parity
+          <span className="expand-icon">{expanded.parity ? '−' : '+'}</span>
+        </h3>
+        {expanded.parity && (
+          <div className="section-content">
+            <p>
+              Trigger Trees are now a complete superset of Flows — every flow capability has a
+              tree equivalent. Flows still run in parallel and are unchanged; they will be retired
+              in a later step. Author trees per-card (Session Start / Always-On / Capacity ranges /
+              <strong> Event Triggers</strong>) or in the global Trigger Library.
+            </p>
+            <table className="help-table">
+              <thead><tr><th>Flow concept</th><th>Trigger Tree equivalent</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Trigger: device on/off</td><td>Event Trigger → Device turns ON/OFF (per-device filter)</td><td>✓</td></tr>
+                <tr><td>Trigger: AI speaks (keyword)</td><td>Event Trigger → AI speaks (keyword filter)</td><td>✓</td></tr>
+                <tr><td>Trigger: player/char state change</td><td>Event Trigger → Player/Character state change (threshold + fire-once)</td><td>✓</td></tr>
+                <tr><td>Trigger: idle</td><td>Event Trigger → Idle (seconds)</td><td>✓</td></tr>
+                <tr><td>Trigger: random / probability</td><td>Event Trigger → Random (% per reply), or Chance container</td><td>✓</td></tr>
+                <tr><td>Trigger: new session</td><td>Session Start scope</td><td>✓</td></tr>
+                <tr><td>Trigger: button press</td><td>Button scope</td><td>✓</td></tr>
+                <tr><td>Trigger: player keyword</td><td>On Player Keyword event node / Keyword Gate</td><td>✓</td></tr>
+                <tr><td>Message / device / inflation / variable actions</td><td>Action node (same handlers as flows)</td><td>✓</td></tr>
+                <tr><td>Media (image/video/audio)</td><td>Action node: show image / play video / play audio</td><td>✓</td></tr>
+                <tr><td>Delay / random number / toggle button / send player message</td><td>Action nodes (Phase 1)</td><td>✓</td></tr>
+                <tr><td>Condition / Branch</td><td>If / Else container</td><td>✓</td></tr>
+                <tr><td>Repeat / Loop</td><td>Repeat container (fixed or until-condition)</td><td>✓</td></tr>
+                <tr><td>Player choice</td><td>Player Choice container</td><td>✓</td></tr>
+                <tr><td>Choose multiple</td><td>Choose Multiple container</td><td>✓</td></tr>
+                <tr><td>Pause / resume</td><td>Pause / Resume container</td><td>✓</td></tr>
+                <tr><td>Fire another flow</td><td>Fire Tree (library), or Fire Flow escape hatch</td><td>✓</td></tr>
+                <tr><td>Challenges (wheel/dice/coin/…)</td><td>Call MiniGame action → MiniGames page templates; exits set <code>[Flow:GameResult]</code>/<code>[Flow:GameWinner]</code> and bind optional gotos</td><td>✓</td></tr>
+                <tr><td>Screenplay</td><td><em>Out of scope (v1) — flows only</em></td><td>—</td></tr>
+              </tbody>
+            </table>
+            <div className="info-box">
+              <strong>Challenges → Call MiniGame:</strong> build a reusable game on the MiniGames page,
+              then drop a <em>Call MiniGame</em> action in a tree. Win/lose/reward logic moves OUT of the
+              game and INTO the tree branches your exit gotos target (or the fall-through body), using
+              the device/message actions.
+            </div>
           </div>
         )}
       </div>

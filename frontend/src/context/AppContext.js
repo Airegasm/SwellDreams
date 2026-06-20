@@ -81,6 +81,9 @@ export function AppProvider({ children }) {
   // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
   const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
 
+  // Trigger Tree call_minigame state (Phase 5): the active game to play in-chat
+  const [treeMiniGameData, setTreeMiniGameData] = useState(null);
+
   // Checkpoint injection player-choice state
   const [checkpointChoiceData, setCheckpointChoiceData] = useState(null);
 
@@ -403,6 +406,14 @@ export function AppProvider({ children }) {
 
       case 'tree_choose_multi':
         setTreeChooseMultiData(data);
+        break;
+
+      case 'tree_minigame':
+        setTreeMiniGameData(data);
+        break;
+
+      case 'tree_minigame_clear':
+        setTreeMiniGameData(null);
         break;
 
       case 'checkpoint_choice':
@@ -888,6 +899,12 @@ export function AppProvider({ children }) {
     });
     setTreeChooseMultiData(null);
   }, [treeChooseMultiData, sendWsMessage]);
+
+  // Report the played exit of a Trigger Tree call_minigame back to the tree resume path (Phase 5).
+  const respondTreeMiniGame = useCallback((exit, winner) => {
+    sendWsMessage('tree_minigame_result', { exit, winner: winner || null });
+    setTreeMiniGameData(null);
+  }, [sendWsMessage]);
 
   // Respond to a checkpoint injection player choice
   const respondCheckpointChoice = useCallback((choice) => {
@@ -1475,6 +1492,17 @@ export function AppProvider({ children }) {
     importTriggerTree: (envelope) => apiFetch(`${API_BASE}/api/trigger-trees/import`, {
       method: 'POST', body: JSON.stringify(envelope)
     }),
+    // MiniGames store (Phase 5): server-side templates resolved by the Call MiniGame tree action.
+    getMiniGames: () => apiFetch(`${API_BASE}/api/minigames`),
+    createMiniGame: (name, type, config) => apiFetch(`${API_BASE}/api/minigames`, {
+      method: 'POST', body: JSON.stringify({ name, type, config })
+    }),
+    updateMiniGame: (id, patch) => apiFetch(`${API_BASE}/api/minigames/${id}`, {
+      method: 'PUT', body: JSON.stringify(patch)
+    }),
+    deleteMiniGame: (id) => apiFetch(`${API_BASE}/api/minigames/${id}`, {
+      method: 'DELETE'
+    }),
 
     // Instructor profiles (named system-prompt briefs assignable to Instructor cards)
     getInstructorProfiles: () => apiFetch(`${API_BASE}/api/instructor-profiles`),
@@ -1910,6 +1938,8 @@ export function AppProvider({ children }) {
     handleChooseMulti,
     treeChooseMultiData,
     confirmTreeChooseMulti,
+    treeMiniGameData,
+    respondTreeMiniGame,
     checkpointChoiceData,
     respondCheckpointChoice,
     toggleMemberMute,

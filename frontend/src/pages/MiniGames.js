@@ -1,14 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 import MiniWheel from '../components/minigames/MiniWheel';
 import MiniDice from '../components/minigames/MiniDice';
 import { MiniCoin, MiniRPS, MiniSlots, MiniTimer, MiniNumberGuess, MiniCardDraw, MiniSimon, MiniReflex } from '../components/minigames/MoreGames';
 import { GAME_TYPES, gameDef, defaultConfig, exitsFor, newId } from '../components/minigames/gameDefs';
 import './MiniGames.css';
-
-const STORE_KEY = 'swelldreams.minigames';
-const loadStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { return []; } };
-const saveStore = (list) => localStorage.setItem(STORE_KEY, JSON.stringify(list));
 
 // ---- per-type live preview ----
 function Preview({ type, config, onResult }) {
@@ -197,25 +194,42 @@ function GameEditor({ type, config, set }) {
 
 function MiniGames() {
   const navigate = useNavigate();
-  const [games, setGames] = useState(loadStore);
+  const { api } = useApp();
+  const [games, setGames] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [lastResult, setLastResult] = useState(null);
 
-  useEffect(() => { saveStore(games); }, [games]);
+  // Server-backed store (Phase 5) so the Call MiniGame tree action can resolve templates by id.
+  const gamesRef = useRef(games);
+  useEffect(() => { gamesRef.current = games; }, [games]);
+  const saveTimers = useRef({});
+  useEffect(() => { api.getMiniGames().then(d => setGames(d?.games || [])).catch(() => {}); }, [api]);
   useEffect(() => { setLastResult(null); }, [selectedId]);
 
   const selected = games.find(g => g.id === selectedId) || null;
 
-  const create = (type) => {
+  const create = async (type) => {
     const def = gameDef(type);
-    const g = { id: newId('mg'), name: `New ${def.name}`, type, config: defaultConfig(type) };
-    setGames(prev => [...prev, g]);
-    setSelectedId(g.id);
+    const name = `New ${def.name}`, config = defaultConfig(type);
+    try {
+      const res = await api.createMiniGame(name, type, config);
+      if (res?.id) { setGames(prev => [...prev, { id: res.id, name, type, config }]); setSelectedId(res.id); }
+    } catch (e) { console.error('create minigame failed', e); }
   };
-  const update = (patch) => setGames(prev => prev.map(g => (g.id === selectedId ? { ...g, ...patch } : g)));
-  const remove = (id) => {
+  const update = (patch) => {
+    if (!selectedId) return;
+    setGames(prev => prev.map(g => (g.id === selectedId ? { ...g, ...patch } : g)));
+    const id = selectedId;
+    clearTimeout(saveTimers.current[id]); // debounce config-drag edits into one PUT
+    saveTimers.current[id] = setTimeout(() => {
+      const g = (gamesRef.current || []).find(x => x.id === id);
+      if (g) api.updateMiniGame(id, { name: g.name, type: g.type, config: g.config }).catch(e => console.error('save minigame failed', e));
+    }, 400);
+  };
+  const remove = async (id) => {
     setGames(prev => prev.filter(g => g.id !== id));
     if (selectedId === id) setSelectedId(null);
+    try { await api.deleteMiniGame(id); } catch (e) { console.error('delete minigame failed', e); }
   };
 
   // group library by type

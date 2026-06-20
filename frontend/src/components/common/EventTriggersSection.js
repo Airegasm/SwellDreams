@@ -14,6 +14,7 @@ import { useApp } from '../../context/AppContext';
 const EVENT_TYPES = [
   { value: 'device_on', label: 'Device turns ON' },
   { value: 'device_off', label: 'Device turns OFF' },
+  { value: 'ai_speaks', label: 'AI speaks (keyword)' },
   { value: 'player_state_change', label: 'Player state change' },
   { value: 'char_state_change', label: 'Character state change' },
   { value: 'idle', label: 'Idle (no activity)' },
@@ -80,6 +81,16 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
           </>
         );
       }
+      case 'ai_speaks':
+        return (
+          <>
+            <input type="text" value={f.keywords || ''} placeholder="keywords (comma-sep, blank = any)" style={{ minWidth: 200 }}
+              onChange={(e) => updateFilter(b.id, { keywords: e.target.value })} title="Fire when the AI's reply contains any of these (comma-separated). Blank = every AI message." />
+            <label className="tree-check" title="Match whole words only">
+              <input type="checkbox" checked={f.matchWholeWords !== false} onChange={(e) => updateFilter(b.id, { matchWholeWords: e.target.checked })} /> whole words
+            </label>
+          </>
+        );
       case 'idle':
         return (
           <label className="section-hint" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
