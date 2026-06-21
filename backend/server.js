@@ -1074,6 +1074,17 @@ function getDeviceKey(device) {
 // ===== Automatic Pumps (#30) =====
 // Per-pump device-control limit fields (mirror the per-story llmMax* fields).
 const PUMP_LIMIT_FIELDS = ['llmMaxOnDuration', 'llmMaxCycleOnDuration', 'llmMaxCycleRepetitions', 'llmMaxPulseRepetitions', 'llmMaxTimedDuration'];
+// Factory defaults applied to every pump (existing on migration + newly created). A permissive but
+// real per-pump CEILING — generous enough not to clamp typical per-story limits, low enough to be a
+// meaningful safety bound users can tighten per pump. Keep in sync with FACTORY_PUMP_LIMITS in DeviceTab.js.
+const FACTORY_PUMP_LIMITS = {
+  llmMaxOnDuration: 30,
+  llmMaxCycleOnDuration: 15,
+  llmMaxCycleRepetitions: 10,
+  llmMaxPulseRepetitions: 20,
+  llmMaxTimedDuration: 60,
+  latchPumpUntilOff: false,
+};
 function loadPumps() { return loadData(DATA_FILES.pumps) || []; }
 function savePumps(pumps) { saveData(DATA_FILES.pumps, pumps); }
 
@@ -1128,11 +1139,15 @@ function migrateAndSyncPumps() {
         boundDeviceId: d.id,
         lastSeen: deviceRef(d),
         isPrimary: !!d.isPrimaryPump,
-        limits: null,
+        limits: { ...FACTORY_PUMP_LIMITS },
       });
       boundIds.add(d.id);
       pumpsChanged = true;
     }
+  }
+  // Backfill factory limits onto any existing pump that predates them (or had limits cleared).
+  for (const p of pumps) {
+    if (!p.limits || typeof p.limits !== 'object') { p.limits = { ...FACTORY_PUMP_LIMITS }; pumpsChanged = true; }
   }
   // Guarantee at most one primary; if none and pumps exist, promote the first.
   const primaries = pumps.filter(p => p.isPrimary);
@@ -15042,7 +15057,7 @@ app.put('/api/devices/:id', (req, res) => {
           boundDeviceId: devices[index].id,
           lastSeen: deviceRef(devices[index]),
           isPrimary: pumps.length === 0,
-          limits: null,
+          limits: { ...FACTORY_PUMP_LIMITS },
         };
         pumps.push(pump);
       }
@@ -15101,7 +15116,7 @@ app.post('/api/pumps', (req, res) => {
     boundDeviceId: req.body?.boundDeviceId ?? null,
     lastSeen: req.body?.lastSeen ?? null,
     isPrimary: pumps.length === 0 ? true : !!req.body?.isPrimary,
-    limits: req.body?.limits ?? null,
+    limits: req.body?.limits ?? { ...FACTORY_PUMP_LIMITS },
   };
   if (pump.isPrimary) pumps.forEach(p => { p.isPrimary = false; });
   pumps.push(pump);

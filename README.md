@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v6.0.0 — Open Beta</h3>
+<h3 align="center">SwellDreams v6.1.1 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v6.0.0 "Open Beta"**
+**v6.1.1 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 
@@ -26,7 +26,7 @@ Think of it as an AI game master that doesn't just talk — it *does things*.
 
 ### ChatSD
 
-ChatSD is the core conversational module. It pairs a full-featured AI chat system with a powerful automation layer, giving you control over every aspect of the experience. Characters are built using the **SwellD character card format** — supporting single-character and multi-character cards — with full import and conversion support for **Tavern-based V2/V3 spec** cards (PNG and JSON), including lorebooks and world info entries that convert into SwellDreams' native reminder system.
+ChatSD is the core conversational module. It pairs a full-featured AI chat system with a powerful automation layer, giving you control over every aspect of the experience. Characters are built using the **SwellD character card format** — a single **unified card** that scales from one character to a multi-character group to an instructor, with per-member descriptions, attributes, and checkpoints. Members can be imported from existing SwellD cards or from **Tavern-based V2/V3 spec** cards (PNG and JSON), with full conversion support including lorebooks and world info entries that convert into SwellDreams' native reminder system.
 
 Characters are highly configurable: each card supports multiple stories with independent scenarios, welcome messages, example dialogues, per-story personality attributes with probability-based activation, capacity checkpoints that shift the AI's behavior at different intensity levels, session defaults, story progression mode with auto-generated player responses, and a full lorebook system with constant and keyword-triggered reminders at both character and global scope. The AI itself connects to any local LLM backend (llama.cpp, KoboldCpp), OpenRouter, the free AI Horde grid, or any OpenAI-compatible API, with streaming responses, guided impersonation, and LLM-enhanced text expansion for character authoring. Media support allows embedding images, video, and audio directly into conversations and automation sequences.
 
@@ -40,7 +40,7 @@ ScreenPlay (Beta) is the storyboard module — a **Script Orchestrator** and LLM
 
 What elevates SwellDreams beyond a chatbot is its comprehensive, fully customizable, user-friendly scenario scripting. Both modules include their own **no-code, drag-and-drop orchestration systems** — the **Flow Node Scripting Engine** (ChatSD) and the **Storyboard Script Orchestrator** (ScreenPlay) — that put complete creative control in your hands without writing a single line of code.
 
-Combined with character card enhancements like Local and Global Reminders, Capacity Checkpoints, Personality Attributes, device calibration with auto-capacity tracking, and fine-tuned LLM device control that lets the AI itself operate your hardware contextually, the result is an extremely custom, deeply interactive experience that adapts to your scenario, your characters, and your devices.
+Combined with character card enhancements like Local and Global Reminders, Capacity Checkpoints, Personality Attributes, **named Automatic Pumps** (calibration and device-control limits travel with the pump, not the outlet) with auto-capacity tracking, and fine-tuned LLM device control that lets the AI itself operate your hardware contextually, the result is an extremely custom, deeply interactive experience that adapts to your scenario, your characters, and your devices.
 
 ### Flow Node Scripting Engine
 

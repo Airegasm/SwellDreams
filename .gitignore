@@ -24,6 +24,7 @@ backend/data/personas/personas-index.json
 backend/data/chars/chars-index.json
 backend/data/flows.json
 backend/data/calibrations.json
+backend/data/pumps.json
 backend/data/connection-profiles.json
 backend/data/display-settings.json
 backend/data/remote-settings.json

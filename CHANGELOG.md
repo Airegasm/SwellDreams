@@ -2,6 +2,23 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.1] - 2026-06-21
+
+### Added
+- **Unified character card** — Single-character, multi-character group, and instructor cards are now one card whose shape follows the existing `multiChar`/`instructor` flags. One editor (Main / Member(s) / Attributes / Checkpoints / Library / Custom Buttons), with non-destructive Instructor-mode switchover, per-card Author's Note, and card versioning.
+- **Group cards use the full story machinery** — A group's greeting, scenario, and example dialogues are now the same **versioned** Story fields used by single cards (story selector with add/rename/delete, welcome/scenario versions, LLM-enhance 🪄, random-version, etc.), relabeled "Group …". Previously group content was written to fields the engine never read, so it never reached the AI.
+- **Per-member Attributes** — In a group, each member edits their own personality attributes and inflation dispositions (with a shared fallback), driving that member's behavior independently.
+- **Per-member Checkpoints with a Primary picker** — The Base character's checkpoints govern by default; tick another member **Primary** to hand capacity-driven story events to their checkpoints instead.
+- **Member imports** — A two-pane **Import SwellD card** picker (list + portrait/description preview) and **Import V2/V3** (`.png`/`.json`) bring characters in as new group members.
+- **Automatic Pumps** — Calibrating a pump now creates a **named pump** that owns its calibration and device-control limits and **binds to an outlet** (it remembers the last device/IP it was plugged into). Per-pump **Limits** popup (Max ON / Cycle / Reps / Pulse / Timed + *Latch Until Off*) with **Reset to Factory**; the primary pump's limits act as the upper ceiling over per-story limits. Existing calibrations migrate automatically.
+
+### Changed
+- **Pump Data settings** — New **Automatic Pumps** section with per-pump device dropdown, last-seen reference, and Recalibrate / Primary / Test / Limits / Del controls.
+
+### Fixed
+- **`[pump on]` latch safety** — Setting numeric per-pump limits can no longer silently disable a card's per-story Latch-Until-Off; pump latch is now an explicit override, not a hidden veto.
+- **Automatic Pumps layout** — Rows are no longer crammed to the left; the Limits popup was rebuilt with a proper layout, and light-on-light text in the Manual Pumps section is now readable.
+
 ## [v6.0.0] - 2026-06-20
 
 ### Added

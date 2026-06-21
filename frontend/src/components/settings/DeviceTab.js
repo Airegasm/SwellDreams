@@ -13,6 +13,17 @@ const DEVICE_TYPES = [
 
 const MAX_DEVICES = 5;
 
+// Factory defaults for an automatic pump's device-control limits. Mirror of FACTORY_PUMP_LIMITS in
+// backend/server.js — keep in sync. Used by the "Reset to Factory" action in the Limits popup.
+const FACTORY_PUMP_LIMITS = {
+  llmMaxOnDuration: 30,
+  llmMaxCycleOnDuration: 15,
+  llmMaxCycleRepetitions: 10,
+  llmMaxPulseRepetitions: 20,
+  llmMaxTimedDuration: 60,
+  latchPumpUntilOff: false,
+};
+
 function DeviceTab() {
   const navigate = useNavigate();
   const { devices, api, settings } = useApp();
@@ -1382,34 +1393,40 @@ function DeviceTab() {
             pumps.map((pump) => {
               const bound = devices.find(d => d.id === pump.boundDeviceId);
               return (
-                <div key={pump.id} className="configured-device-item">
-                  <input
-                    type="text"
-                    className="device-label-input"
-                    value={pump.name || ''}
-                    onChange={(e) => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, name: e.target.value } : p)))}
-                    onBlur={(e) => handleUpdatePump(pump.id, { name: e.target.value })}
-                    placeholder="Pump name"
-                  />
-                  <select
-                    className="device-type-select"
-                    value={pump.boundDeviceId || ''}
-                    onChange={(e) => handleUpdatePump(pump.id, { boundDeviceId: e.target.value || null })}
-                    title="Device this pump is currently plugged into"
-                  >
-                    <option value="">— Not plugged in —</option>
-                    {devices.filter(d => d.deviceType === 'PUMP' || d.id === pump.boundDeviceId).map(d => (
-                      <option key={d.id} value={d.id}>{d.label || d.name || d.ip || d.deviceId}</option>
-                    ))}
-                  </select>
-                  <div className="configured-device-controls">
+                <div key={pump.id} className="pump-item">
+                  <div className="pump-field pump-name-field">
+                    <label className="pump-field-label">Name</label>
+                    <input
+                      type="text"
+                      className="device-label-input"
+                      value={pump.name || ''}
+                      onChange={(e) => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, name: e.target.value } : p)))}
+                      onBlur={(e) => handleUpdatePump(pump.id, { name: e.target.value })}
+                      placeholder="Pump name"
+                    />
+                  </div>
+                  <div className="pump-field pump-device-field">
+                    <label className="pump-field-label">Plugged into</label>
+                    <select
+                      className="pump-device-select"
+                      value={pump.boundDeviceId || ''}
+                      onChange={(e) => handleUpdatePump(pump.id, { boundDeviceId: e.target.value || null })}
+                      title="Device this pump is currently plugged into"
+                    >
+                      <option value="">— Not plugged in —</option>
+                      {devices.filter(d => d.deviceType === 'PUMP' || d.id === pump.boundDeviceId).map(d => (
+                        <option key={d.id} value={d.id}>{d.label || d.name || d.ip || d.deviceId}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="pump-controls">
                     <button className="btn btn-sm btn-secondary" onClick={() => handleRecalibratePump(pump)} title="Recalibrate this pump's bound device">Recalibrate</button>
                     <button
                       className={`btn btn-sm ${pump.isPrimary ? 'btn-primary' : 'btn-secondary'}`}
                       onClick={() => handleSetPrimaryPump(pump.id)}
                       title="Set as Primary pump (its limits are the upper ceiling)"
                     >
-                      {pump.isPrimary ? '★' : '☆'}
+                      {pump.isPrimary ? '★ Primary' : '☆ Primary'}
                     </button>
                     <button
                       className="btn btn-sm btn-secondary"
@@ -1422,7 +1439,7 @@ function DeviceTab() {
                     <button className="btn btn-sm btn-secondary" onClick={() => setLimitsPumpId(pump.id)} title="Device control limits">Limits</button>
                     <button className="btn btn-sm btn-danger" onClick={() => handleDeletePump(pump.id)}>Del</button>
                   </div>
-                  <div className="device-calibration-status">
+                  <div className="pump-status">
                     {pump.calibrationTime > 0
                       ? <><span className="calibration-badge calibrated">✓ Calibrated</span><span className="calibration-time">Time: {pump.calibrationTime} secs</span></>
                       : <span className="calibration-badge">Not calibrated</span>}
@@ -1446,40 +1463,50 @@ function DeviceTab() {
         const lim = pump.limits || {};
         const latched = lim.latchPumpUntilOff === true;
         const setLim = (patch) => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, limits: { ...(p.limits || {}), ...patch } } : p)));
-        const numRow = (key, label, hint) => (
-          <div className="form-group" key={key}>
-            <label>{label}</label>
-            <input type="number" min="0" value={lim[key] ?? ''} disabled={latched}
-              onChange={(e) => setLim({ [key]: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0) })}
-              style={{ maxWidth: 120, opacity: latched ? 0.5 : 1 }} placeholder="—" />
-            {hint && <p className="text-muted" style={{ margin: '2px 0 0' }}>{hint}</p>}
-          </div>
-        );
+        const resetFactory = () => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, limits: { ...FACTORY_PUMP_LIMITS } } : p)));
+        const ROWS = [
+          { key: 'llmMaxOnDuration', label: 'Max ON duration', unit: 'sec' },
+          { key: 'llmMaxCycleOnDuration', label: 'Max cycle ON', unit: 'sec' },
+          { key: 'llmMaxCycleRepetitions', label: 'Max cycle repetitions', unit: 'reps' },
+          { key: 'llmMaxPulseRepetitions', label: 'Max pulse repetitions', unit: 'reps' },
+          { key: 'llmMaxTimedDuration', label: 'Max timed duration', unit: 'sec' },
+        ];
         return (
           <div className="modal-overlay" onClick={() => setLimitsPumpId(null)}>
-            <div className="modal" style={{ maxWidth: 460, width: '90%' }} onClick={(e) => e.stopPropagation()}>
-              <div className="configured-devices-header">
+            <div className="pump-limits-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="pump-limits-header">
                 <span>Limits — {pump.name || 'Pump'}</span>
                 <button className="modal-close" onClick={() => setLimitsPumpId(null)}>×</button>
               </div>
-              <div className="modal-body">
-                <p className="text-muted" style={{ marginTop: 0 }}>These are the UPPER CEILING for the primary pump — per-story limits are clamped to these (effective = min of the two).</p>
-                {numRow('llmMaxOnDuration', 'Max ON duration (s)')}
-                {numRow('llmMaxCycleOnDuration', 'Max cycle ON (s)')}
-                {numRow('llmMaxCycleRepetitions', 'Max cycle reps')}
-                {numRow('llmMaxPulseRepetitions', 'Max pulse reps')}
-                {numRow('llmMaxTimedDuration', 'Max timed (s)')}
-                <div className="form-group">
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--warning-color)' }}>
-                    <input type="checkbox" checked={latched} onChange={(e) => setLim({ latchPumpUntilOff: e.target.checked })} />
-                    Latch Until Off ⚠️
-                  </label>
-                  <p className="text-muted" style={{ margin: '2px 0 0' }}>When on, a model [pump on] latches the pump until [pump off]; the numeric limits above are ignored.</p>
+              <div className="pump-limits-body">
+                <p className="pump-limits-intro">Upper ceiling for this pump. Per-story limits are clamped to these (effective = the lower of the two).</p>
+                <div className={`pump-limits-grid ${latched ? 'is-latched' : ''}`}>
+                  {ROWS.map(({ key, label, unit }) => (
+                    <div className="pump-limit-row" key={key}>
+                      <label className="pump-limit-label">{label}</label>
+                      <div className="pump-limit-input">
+                        <input type="number" min="0" value={lim[key] ?? ''} disabled={latched}
+                          onChange={(e) => setLim({ [key]: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                          placeholder="—" />
+                        <span className="pump-limit-unit">{unit}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                <label className={`pump-limit-latch ${latched ? 'on' : ''}`}>
+                  <input type="checkbox" checked={latched} onChange={(e) => setLim({ latchPumpUntilOff: e.target.checked })} />
+                  <span className="pump-limit-latch-text">
+                    <strong>Latch Until Off ⚠️</strong>
+                    <span>When on, a model [pump on] latches the pump until [pump off]; the numeric limits above are ignored.</span>
+                  </span>
+                </label>
               </div>
-              <div className="character-modal-footer">
-                <button className="btn btn-secondary" onClick={() => setLimitsPumpId(null)}>Cancel</button>
-                <button className="btn btn-primary" onClick={() => { handleUpdatePump(pump.id, { limits: pump.limits || {} }); setLimitsPumpId(null); }}>Save</button>
+              <div className="pump-limits-footer">
+                <button className="btn btn-sm btn-secondary" onClick={resetFactory} title="Restore factory defaults">Reset to Factory</button>
+                <div className="pump-limits-footer-right">
+                  <button className="btn btn-secondary" onClick={() => setLimitsPumpId(null)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={() => { handleUpdatePump(pump.id, { limits: pump.limits || { ...FACTORY_PUMP_LIMITS } }); setLimitsPumpId(null); }}>Save</button>
+                </div>
               </div>
             </div>
           </div>
