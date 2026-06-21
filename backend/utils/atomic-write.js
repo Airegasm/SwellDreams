@@ -17,12 +17,19 @@ function atomicWriteFileSync(filePath, contents) {
   try {
     fs.writeFileSync(tmpPath, contents);
 
-    // Flush tmp file contents to disk before rename.
-    const fd = fs.openSync(tmpPath, 'r');
+    // Flush tmp file contents to disk before rename. Best-effort: the data is already written
+    // by writeFileSync — fsync only adds hard crash/power-loss durability. Some filesystems
+    // (network/mapped drives, certain Windows setups) reject fsync with EPERM/ENOTSUP/EINVAL;
+    // skipping the flush there is far better than failing every save.
     try {
-      fs.fsyncSync(fd);
-    } finally {
-      fs.closeSync(fd);
+      const fd = fs.openSync(tmpPath, 'r');
+      try {
+        fs.fsyncSync(fd);
+      } finally {
+        fs.closeSync(fd);
+      }
+    } catch (e) {
+      // fsync unsupported/not permitted on this filesystem — the write itself still succeeded.
     }
 
     // Roll one backup of the current target before overwriting.

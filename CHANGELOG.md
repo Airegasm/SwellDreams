@@ -2,6 +2,12 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.5] - 2026-06-21
+
+### Fixed
+- **Data saves failing on network/mapped/exotic drives (`EPERM: fsync`).** Atomic writes called `fsync` unconditionally; on filesystems that reject it (e.g. a mapped `S:` drive on Windows, network shares), every save threw — which also caused the character/flow index to rebuild on a loop (the rebuilt index couldn't be saved). `fsync` is now best-effort: the write still happens, the durability flush is skipped when the filesystem won't allow it.
+- **Node engine warning** — widened the supported Node range to `>=18` (dropped the upper bound) so Node 23/24 no longer print `EBADENGINE` warnings.
+
 ## [v6.1.4] - 2026-06-21
 
 ### Fixed

@@ -1,10 +1,10 @@
 {
   "name": "swelldreams-backend",
-  "version": "6.1.4",
+  "version": "6.1.5",
   "description": "SwellDreams - Single-player inflation roleplay backend",
   "main": "server.js",
   "engines": {
-    "node": ">=18 <23"
+    "node": ">=18"
   },
   "scripts": {
     "start": "npm run build:frontend && node server.js",
