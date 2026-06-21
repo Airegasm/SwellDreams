@@ -77,6 +77,34 @@ function DeviceTab() {
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualIp, setManualIp] = useState('');
 
+  // Automatic Pumps (#30): named pump entities that own calibration + limits and bind to a device.
+  const [pumps, setPumps] = useState([]);
+  const [limitsPumpId, setLimitsPumpId] = useState(null); // pump whose Limits popup is open
+  const loadPumps = useCallback(() => {
+    api.getPumps?.().then(p => setPumps(Array.isArray(p) ? p : [])).catch(() => {});
+  }, [api]);
+  // Reload pumps on mount and whenever the device list changes (calibration spawns/syncs pumps).
+  useEffect(() => { loadPumps(); }, [loadPumps, devices]);
+
+  const handleUpdatePump = async (id, patch) => {
+    setPumps(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
+    try { await api.updatePump(id, patch); } catch (e) { console.error('Failed to update pump:', e); }
+    loadPumps();
+  };
+  const handleSetPrimaryPump = (id) => handleUpdatePump(id, { isPrimary: true });
+  const handleDeletePump = async (id) => {
+    if (!window.confirm('Remove this automatic pump? (The bound device and its calibration stay.)')) return;
+    try { await api.deletePump(id); } catch (e) { console.error('Failed to delete pump:', e); }
+    loadPumps();
+  };
+  // Recalibrate: re-run the existing device calibration flow for the pump's bound device; the
+  // result re-associates onto the pump server-side (PUT /api/devices hook).
+  const handleRecalibratePump = (pump) => {
+    if (!pump.boundDeviceId) { showError('Bind this pump to a device first.'); return; }
+    sessionStorage.setItem('calibrate-device-id', pump.boundDeviceId);
+    navigate('/settings/global');
+  };
+
   // Power strip state - tracks which strips are expanded and their children
   const [expandedStrips, setExpandedStrips] = useState({});
   const [stripChildren, setStripChildren] = useState({}); // ip -> children array
@@ -1339,6 +1367,124 @@ function DeviceTab() {
           </div>
         </div>
       </div>
+
+      {/* Automatic Pumps (#30) - named pumps that own calibration + limits and bind to a device */}
+      <div className="configured-devices-card">
+        <div className="configured-devices-header">
+          <span>Automatic Pumps</span>
+        </div>
+        <div className="configured-devices-list">
+          {pumps.length === 0 ? (
+            <p className="text-muted" style={{ marginTop: 0 }}>
+              No automatic pumps yet. Calibrate a PUMP device under Configured Devices below — the calibration becomes a named pump here, tied to the pump (not the outlet).
+            </p>
+          ) : (
+            pumps.map((pump) => {
+              const bound = devices.find(d => d.id === pump.boundDeviceId);
+              return (
+                <div key={pump.id} className="configured-device-item">
+                  <input
+                    type="text"
+                    className="device-label-input"
+                    value={pump.name || ''}
+                    onChange={(e) => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, name: e.target.value } : p)))}
+                    onBlur={(e) => handleUpdatePump(pump.id, { name: e.target.value })}
+                    placeholder="Pump name"
+                  />
+                  <select
+                    className="device-type-select"
+                    value={pump.boundDeviceId || ''}
+                    onChange={(e) => handleUpdatePump(pump.id, { boundDeviceId: e.target.value || null })}
+                    title="Device this pump is currently plugged into"
+                  >
+                    <option value="">— Not plugged in —</option>
+                    {devices.filter(d => d.deviceType === 'PUMP' || d.id === pump.boundDeviceId).map(d => (
+                      <option key={d.id} value={d.id}>{d.label || d.name || d.ip || d.deviceId}</option>
+                    ))}
+                  </select>
+                  <div className="configured-device-controls">
+                    <button className="btn btn-sm btn-secondary" onClick={() => handleRecalibratePump(pump)} title="Recalibrate this pump's bound device">Recalibrate</button>
+                    <button
+                      className={`btn btn-sm ${pump.isPrimary ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => handleSetPrimaryPump(pump.id)}
+                      title="Set as Primary pump (its limits are the upper ceiling)"
+                    >
+                      {pump.isPrimary ? '★' : '☆'}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      disabled={!bound}
+                      onClick={() => bound && (bound.brand === 'govee' ? handleTestGoveeDevice(bound) : bound.brand === 'tuya' ? handleTestTuyaDevice(bound) : bound.brand === 'wyze' ? handleTestWyzeDevice(bound) : bound.brand === 'tapo' ? handleTestTapoDevice(bound) : bound.brand === 'kasa-klap' ? handleTestKasaKlapDevice(bound) : bound.brand === 'homeassistant' ? handleTestHaDevice(bound) : handleTestDevice(bound.ip, bound.childId))}
+                      title="Test the bound device"
+                    >
+                      Test
+                    </button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => setLimitsPumpId(pump.id)} title="Device control limits">Limits</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDeletePump(pump.id)}>Del</button>
+                  </div>
+                  <div className="device-calibration-status">
+                    {pump.calibrationTime > 0
+                      ? <><span className="calibration-badge calibrated">✓ Calibrated</span><span className="calibration-time">Time: {pump.calibrationTime} secs</span></>
+                      : <span className="calibration-badge">Not calibrated</span>}
+                    {pump.lastSeen?.label && (
+                      <span className="calibration-time" style={{ marginLeft: 8, opacity: 0.8 }}>
+                        Last seen: {pump.lastSeen.label}{pump.lastSeen.ip ? ` (${pump.lastSeen.ip})` : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Per-pump device-control Limits popup */}
+      {limitsPumpId && (() => {
+        const pump = pumps.find(p => p.id === limitsPumpId);
+        if (!pump) return null;
+        const lim = pump.limits || {};
+        const latched = lim.latchPumpUntilOff === true;
+        const setLim = (patch) => setPumps(prev => prev.map(p => (p.id === pump.id ? { ...p, limits: { ...(p.limits || {}), ...patch } } : p)));
+        const numRow = (key, label, hint) => (
+          <div className="form-group" key={key}>
+            <label>{label}</label>
+            <input type="number" min="0" value={lim[key] ?? ''} disabled={latched}
+              onChange={(e) => setLim({ [key]: e.target.value === '' ? null : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+              style={{ maxWidth: 120, opacity: latched ? 0.5 : 1 }} placeholder="—" />
+            {hint && <p className="text-muted" style={{ margin: '2px 0 0' }}>{hint}</p>}
+          </div>
+        );
+        return (
+          <div className="modal-overlay" onClick={() => setLimitsPumpId(null)}>
+            <div className="modal" style={{ maxWidth: 460, width: '90%' }} onClick={(e) => e.stopPropagation()}>
+              <div className="configured-devices-header">
+                <span>Limits — {pump.name || 'Pump'}</span>
+                <button className="modal-close" onClick={() => setLimitsPumpId(null)}>×</button>
+              </div>
+              <div className="modal-body">
+                <p className="text-muted" style={{ marginTop: 0 }}>These are the UPPER CEILING for the primary pump — per-story limits are clamped to these (effective = min of the two).</p>
+                {numRow('llmMaxOnDuration', 'Max ON duration (s)')}
+                {numRow('llmMaxCycleOnDuration', 'Max cycle ON (s)')}
+                {numRow('llmMaxCycleRepetitions', 'Max cycle reps')}
+                {numRow('llmMaxPulseRepetitions', 'Max pulse reps')}
+                {numRow('llmMaxTimedDuration', 'Max timed (s)')}
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--warning-color)' }}>
+                    <input type="checkbox" checked={latched} onChange={(e) => setLim({ latchPumpUntilOff: e.target.checked })} />
+                    Latch Until Off ⚠️
+                  </label>
+                  <p className="text-muted" style={{ margin: '2px 0 0' }}>When on, a model [pump on] latches the pump until [pump off]; the numeric limits above are ignored.</p>
+                </div>
+              </div>
+              <div className="character-modal-footer">
+                <button className="btn btn-secondary" onClick={() => setLimitsPumpId(null)}>Cancel</button>
+                <button className="btn btn-primary" onClick={() => { handleUpdatePump(pump.id, { limits: pump.limits || {} }); setLimitsPumpId(null); }}>Save</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Configured Devices - Non-collapsible card with styled header */}
       <div className="configured-devices-card">

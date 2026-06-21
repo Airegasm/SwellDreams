@@ -1275,6 +1275,20 @@ export function AppProvider({ children }) {
       method: 'DELETE'
     }),
 
+    // Automatic Pumps (#30)
+    getPumps: () => apiFetch(`${API_BASE}/api/pumps`),
+    createPump: (data) => apiFetch(`${API_BASE}/api/pumps`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+    updatePump: (id, data) => apiFetch(`${API_BASE}/api/pumps/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+    deletePump: (id) => apiFetch(`${API_BASE}/api/pumps/${id}`, {
+      method: 'DELETE'
+    }),
+
     checkDeviceReachability: () => apiFetch(`${API_BASE}/api/devices/check-reachability`, {
       method: 'POST',
       timeout: 60000 // Allow up to 60s for checking all devices

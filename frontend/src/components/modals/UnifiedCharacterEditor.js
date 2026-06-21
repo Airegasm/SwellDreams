@@ -95,6 +95,13 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const cropTargetRef = useRef(null); // member index whose portrait is being cropped
   const [selectedMemberIndex, setSelectedMemberIndex] = useState(0);
 
+  // Member import flows: SwellD two-pane picker + V2/V3 file import.
+  const [showSwellDPicker, setShowSwellDPicker] = useState(false);
+  const [swellDList, setSwellDList] = useState([]);
+  const [selectedSwellDId, setSelectedSwellDId] = useState(null);
+  const [importingV2V3, setImportingV2V3] = useState(false);
+  const v2v3FileInputRef = useRef(null);
+
   // ---- Main-tab story content (ported from CharacterEditorModal basic tab) ----
   const [personas, setPersonas] = useState([]);
   const [enhancingWelcomeMessage, setEnhancingWelcomeMessage] = useState(false);
@@ -157,6 +164,26 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     ...prev,
     stories: (prev.stories || []).map(s => (s.id === activeStory?.id ? { ...s, ...patch } : s)),
   }));
+
+  // ---- Per-member attribute store (group mode) ----
+  // The backend reads activeStory.memberAttributes[memberId] for each member's attribute roll
+  // chances (dominant/sadistic/…) and inflation dispositions (desireToInflateOthers/PopOthers),
+  // falling back to the shared story.attributes when a member has none. Single-char cards keep
+  // using story.attributes + card-level disposition fields.
+  const memberAttrs = (mid) => (activeStory?.memberAttributes?.[mid]) || {};
+  const setMemberAttr = (mid, patch) => updateStoryField('memberAttributes', {
+    ...(activeStory?.memberAttributes || {}),
+    [mid]: { ...memberAttrs(mid), ...patch },
+  });
+
+  // ---- Per-member checkpoint store (group mode "Primary" picker) ----
+  // The Base character's checkpoints live on the active story (backward compatible). Non-base
+  // members keep their own story-shaped checkpointStore (checkpointProfiles / defaultCheckpointProfileId
+  // / checkpoints / checkpointTriggers / treeRefs / checkpointsEnabled). character.primaryCheckpointMemberId
+  // names which member's checkpoints the backend reads (default = Base).
+  const updateMemberCheckpoint = (i, field, value) => setMembers(members.map((m, idx) => (
+    idx === i ? { ...m, checkpointStore: { ...(m.checkpointStore || {}), [field]: value } } : m
+  )));
 
   // ---- Story selector + add/rename/delete ("versions of versions" of a character) ----
   // Ported from CharacterEditorModal. activeStoryId is the single source of truth here.
@@ -555,21 +582,10 @@ Write only the scenario description itself, no explanations.`;
     setSelectedMemberIndex(Math.max(0, Math.min(selectedMemberIndex, next.length - 1)));
   };
 
-  // Import an existing single-card as a new member (identity + persona prose + example dialogues).
-  const importCard = async () => {
-    let list = [];
-    try {
-      const res = await api.getCharacters?.();
-      list = Array.isArray(res) ? res : (res?.characters || []);
-    } catch (e) { /* non-fatal */ }
-    const singles = (list || []).filter(c => c.id !== formData.id && !c.multiChar?.enabled && !c.instructor?.enabled);
-    if (!singles.length) { alert('No single-character cards available to import.'); return; }
-    const name = window.prompt(`Import which card as a member?\n\n${singles.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\nEnter a number:`);
-    const idx = parseInt(name, 10) - 1;
-    const src = singles[idx];
-    if (!src) return;
+  // Map any SwellD-shaped character into a new member (identity + persona prose + example dialogues).
+  const memberFromCharacter = (src) => {
     const srcStory = src.stories?.find(s => s.id === src.activeStoryId) || src.stories?.[0];
-    const newMember = {
+    return {
       id: `m-${Date.now()}`,
       name: src.name || '',
       description: src.description || '',
@@ -578,9 +594,50 @@ Write only the scenario description itself, no explanations.`;
       portrait: src.avatar || '',
       exampleDialogues: (srcStory?.exampleDialogues || src.exampleDialogues || []).map(e => ({ user: e.user || '', character: e.character || '' })),
     };
-    const next = [...members, newMember];
+  };
+  const addMemberFrom = (src) => {
+    const next = [...members, memberFromCharacter(src)];
     setMembers(next);
     setSelectedMemberIndex(next.length - 1);
+  };
+
+  // ---- Import SwellD card → member: two-pane picker (list | portrait + description) ----
+  const openSwellDPicker = async () => {
+    let list = [];
+    try {
+      const res = await api.getCharacters?.();
+      list = Array.isArray(res) ? res : (res?.characters || []);
+    } catch (e) { /* non-fatal */ }
+    const singles = (list || []).filter(c => c.id !== formData.id && !c.multiChar?.enabled && !c.instructor?.enabled);
+    if (!singles.length) { alert('No single-character cards available to import.'); return; }
+    setSwellDList(singles);
+    setSelectedSwellDId(singles[0].id);
+    setShowSwellDPicker(true);
+  };
+  const confirmSwellDImport = () => {
+    const src = swellDList.find(c => c.id === selectedSwellDId);
+    if (src) addMemberFrom(src);
+    setShowSwellDPicker(false);
+  };
+
+  // ---- Import V2/V3 card file (.png/.json) → member (no-persist server conversion) ----
+  const handleV2V3Import = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportingV2V3(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${API_BASE}/api/convert/character-card`, { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok || !data?.character) throw new Error(data?.error || 'Conversion failed');
+      addMemberFrom(data.character);
+    } catch (err) {
+      alert(`Could not import card: ${err.message || 'unknown error'}`);
+    } finally {
+      setImportingV2V3(false);
+    }
   };
 
   // Extract a member into its own standalone single-character card.
@@ -921,13 +978,10 @@ Write only the scenario description itself, no explanations.`;
               )}
 
               <div className="form-group">
-                <label>{isGroup ? 'Group Response Tokens' : 'Individual Response Tokens (overrides global)'}</label>
+                <label>{isGroup ? 'Group Response Tokens (collective reply, overrides global)' : 'Individual Response Tokens (overrides global)'}</label>
                 <input type="text" inputMode="numeric"
-                  value={isGroup ? (formData.groupResponseTokens ?? '') : (formData.responseTokens ?? '')}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/[^0-9]/g, '');
-                    set(isGroup ? { groupResponseTokens: v } : { responseTokens: v });
-                  }}
+                  value={formData.responseTokens ?? ''}
+                  onChange={(e) => set({ responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
                   placeholder="Leave blank to use the global setting" />
               </div>
 
@@ -956,47 +1010,14 @@ Write only the scenario description itself, no explanations.`;
                 </div>
               )}
 
-              {/* ---- Group-mode story fields (separate keys; start BLANK; never touch the base story) ---- */}
-              {isGroup && (
-                <>
-                  <div className="form-group">
-                    <label>Group Story</label>
-                    <input type="text" value={formData.groupStory ?? ''} onChange={(e) => set({ groupStory: e.target.value })}
-                      placeholder="Name for this group's shared story…" />
-                  </div>
-                  <div className="form-group">
-                    <label>Group Greeting</label>
-                    <textarea value={formData.groupGreeting ?? ''} onChange={(e) => set({ groupGreeting: e.target.value })}
-                      placeholder="The first message the group sends…" rows={9} />
-                  </div>
-                  <div className="form-group">
-                    <label>Group Scenario</label>
-                    <textarea value={formData.groupScenario ?? ''} onChange={(e) => set({ groupScenario: e.target.value })}
-                      placeholder="Current situation/scenario for the group…" rows={2} />
-                  </div>
-                  <div className="form-group">
-                    <label>Group Dialog <span className="section-hint">(example exchanges for the group)</span></label>
-                    {(formData.groupDialog || []).map((d, i) => {
-                      const list = formData.groupDialog || [];
-                      const upd = (patch) => set({ groupDialog: list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)) });
-                      const rm = () => set({ groupDialog: list.filter((_, idx) => idx !== i) });
-                      return (
-                        <div key={i} className="instr-example-row">
-                          <input type="text" value={d.user || ''} onChange={(e) => upd({ user: e.target.value })} placeholder="Player says…" />
-                          <input type="text" value={d.character || ''} onChange={(e) => upd({ character: e.target.value })} placeholder="Group responds…" />
-                          <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
-                        </div>
-                      );
-                    })}
-                    <button type="button" className="prereq-add-sm" onClick={() => set({ groupDialog: [...(formData.groupDialog || []), { user: '', character: '' }] })}>+ Example</button>
-                  </div>
-                </>
-              )}
-
-              {/* ---- Story selector (versions of versions): add / rename / delete ---- */}
-              {!isGroup && (
+              {/* ---- Story selector (versions of versions): add / rename / delete ----
+                  Rendered in BOTH single and group mode. In group mode the story IS the group's
+                  shared narrative; the backend reads activeStory.welcomeMessages/scenarios/
+                  exampleDialogues regardless of mode, so the same versioned editors below drive
+                  the group greeting/scenario/dialogue. (The old flat group* keys were write-only
+                  dead ends and have been removed; their content is migrated into the story on load.) */}
               <div className="story-field">
-                <label>Story</label>
+                <label>{isGroup ? 'Group Story' : 'Story'}</label>
                 <div className="story-controls">
                   {editingStoryName ? (
                     <div className="story-name-edit">
@@ -1032,20 +1053,19 @@ Write only the scenario description itself, no explanations.`;
                   )}
                 </div>
               </div>
-              )}
 
               {/* ---- Story content: scenario + welcome message versions + example dialogues ----
-                  The versioned Welcome/Scenario/Dialogue editors are base-only; the group card uses
-                  the simple Group* fields above. CardLoreSection / Auto Reply / AI Pump Control stay
-                  card/group level and render in both modes. ---- */}
+                  Rendered in BOTH modes. The backend reads activeStory.welcomeMessages/scenarios/
+                  exampleDialogues for single AND group cards, so these versioned editors are what
+                  actually drive the group greeting/scenario/dialogue. CardLoreSection / Auto Reply /
+                  AI Pump Control stay card/group level and render in both modes. ---- */}
               {activeStory && (
                 <>
-                  {!isGroup && (
                   <>
                   {/* Welcome Message */}
                   <div className="story-field">
                     <div className="story-field-header">
-                      <label>Welcome Message{enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}</label>
+                      <label>{isGroup ? 'Group Greeting' : 'Welcome Message'}{enhancingWelcomeMessage && <span className="spinner-inline"> ⏳</span>}</label>
                       <div className="version-controls">
                         <button type="button" className={`btn-icon btn-llm ${getActiveWelcomeMessage()?.llmEnhanced ? 'active' : ''}`}
                           onClick={handleToggleWelcomeMessageLlm} title="Toggle LLM Enhancement">🤖</button>
@@ -1069,7 +1089,7 @@ Write only the scenario description itself, no explanations.`;
                   {/* Scenario */}
                   <div className="story-field">
                     <div className="story-field-header">
-                      <label>Scenario{enhancingScenario && <span className="spinner-inline"> ⏳</span>}</label>
+                      <label>{isGroup ? 'Group Scenario' : 'Scenario'}{enhancingScenario && <span className="spinner-inline"> ⏳</span>}</label>
                       <div className="version-controls">
                         <div className="version-controls-spacer"></div>
                         <select value={activeStory?.activeScenarioId || ''} onChange={(e) => handleScenarioChange(e.target.value)} className="version-select">
@@ -1088,7 +1108,7 @@ Write only the scenario description itself, no explanations.`;
 
                   {/* Example Dialogues */}
                   <div className="story-field">
-                    <label>Example Dialogues</label>
+                    <label>{isGroup ? 'Group Dialogues' : 'Example Dialogues'}</label>
                     <div className="dialogues-list">
                       {(activeStory?.exampleDialogues || []).map((dialogue, i) => (
                         <div key={i} className="dialogue-item">
@@ -1127,7 +1147,6 @@ Write only the scenario description itself, no explanations.`;
                     </div>
                   </div>
                   </>
-                  )}
 
                   {/* Story Details — Card lore: Dictionary group selection + shared Library groups.
                       (Matches the release single-char Main tab; the Library tab holds only the entry editor.) */}
@@ -1384,9 +1403,13 @@ Write only the scenario description itself, no explanations.`;
                     {i > 0 && <button type="button" className="btn btn-sm btn-secondary" onClick={() => saveMemberAsCard(i)}>Save as own card</button>}
                   </div>
                 ))}
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="btn btn-sm btn-primary" onClick={addMember}>+ Add Character</button>
-                  <button type="button" className="btn btn-sm btn-secondary" onClick={importCard}>Import SwellD card…</button>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={openSwellDPicker}>Import SwellD card…</button>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => v2v3FileInputRef.current?.click()} disabled={importingV2V3}>
+                    {importingV2V3 ? 'Importing…' : 'Import V2/V3…'}
+                  </button>
+                  <input ref={v2v3FileInputRef} type="file" accept=".png,.json,image/png,application/json" onChange={handleV2V3Import} style={{ display: 'none' }} />
                 </div>
               </div>
             </div>
@@ -1475,10 +1498,42 @@ Write only the scenario description itself, no explanations.`;
 
         {/* ---- Checkpoints (shared component; instructor vs standard data kept separate via the stash) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'checkpoints' ? 'block' : 'none' }}>
-          {activeStory
-            ? <CheckpointProfiles story={activeStory} updateStory={updateStoryField} defaultPumpType={formData.defaultPumpType}
-                cardName={formData.name || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive }} />
-            : <p className="section-hint">No story yet.</p>}
+          {(() => {
+            // Group mode: pick which member's Checkpoint tab you're editing. The Base character (index 0)
+            // edits the active story directly; non-base members edit their own checkpointStore. A single
+            // "Primary" member's checkpoints drive the chat context (default = Base).
+            const editingBase = !isGroup || selectedMemberIndex === 0;
+            const ckptStory = editingBase ? activeStory : (member?.checkpointStore || {});
+            const ckptUpdate = editingBase ? updateStoryField : ((field, value) => updateMemberCheckpoint(selectedMemberIndex, field, value));
+            const primaryId = formData.primaryCheckpointMemberId || members[0]?.id;
+            const primaryMember = members.find(m => m.id === primaryId) || members[0];
+            return (
+              <>
+                {isGroup && (
+                  <>
+                    <div className="form-group">
+                      <label>Edit checkpoints for</label>
+                      <select className="multi-char-selector" value={selectedMemberIndex} onChange={(e) => setSelectedMemberIndex(parseInt(e.target.value, 10))}>
+                        {members.map((m, i) => <option key={m.id || i} value={i}>{i === 0 ? `${m.name || 'Base character'} (Base)` : (m.name || `Character ${i + 1}`)}</option>)}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                        <input type="checkbox" checked={primaryId === member?.id} disabled={primaryId === member?.id}
+                          onChange={() => set({ primaryCheckpointMemberId: member?.id })} />
+                        Primary — this member's checkpoints drive the chat context
+                      </label>
+                      <p className="section-hint">By default the Base character governs and no other members are read. Tick another member to hand the wheel to their checkpoints (capacity-driven story events). Currently primary: <strong>{primaryMember?.name || 'Base character'}</strong>.</p>
+                    </div>
+                  </>
+                )}
+                {ckptStory
+                  ? <CheckpointProfiles story={ckptStory} updateStory={ckptUpdate} defaultPumpType={formData.defaultPumpType}
+                      cardName={(isGroup && !editingBase ? member?.name : formData.name) || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive }} />
+                  : <p className="section-hint">No story yet.</p>}
+              </>
+            );
+          })()}
         </div>
 
         {/* ---- Library (matches the release single-char Library tab: the lorebook-format
@@ -1844,10 +1899,35 @@ Write only the scenario description itself, no explanations.`;
           </div>
         </div>
 
-        {/* ---- Attributes tab (ported verbatim from old single-char editor) ---- */}
+        {/* ---- Attributes tab (per-character in group mode; card/story level otherwise) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
+          {(() => {
+            // In group mode each member edits its own attributes (story.memberAttributes[id]); the
+            // shared story.attributes act as the fallback. In single mode it's the story attributes
+            // + card-level dispositions, exactly as before.
+            const attrMember = isGroup ? member : null;
+            const store = attrMember ? memberAttrs(attrMember.id) : (activeStory?.attributes || {});
+            const dispStore = attrMember ? memberAttrs(attrMember.id) : formData;
+            const getAttr = (key) => store[key] || 0;
+            const setAttr = (key, v) => attrMember
+              ? setMemberAttr(attrMember.id, { [key]: v })
+              : updateStoryField('attributes', { ...(activeStory?.attributes || {}), [key]: v });
+            const getDisp = (field, dflt) => (dispStore[field] ?? dflt);
+            const setDisp = (field, v) => attrMember
+              ? setMemberAttr(attrMember.id, { [field]: v })
+              : setFormData(prev => ({ ...prev, [field]: v }));
+            return (
           <div className="session-defaults-editor">
-            <h4>Personality Attributes</h4>
+            {isGroup && (
+              <div className="form-group">
+                <label>Edit attributes for</label>
+                <select className="multi-char-selector" value={selectedMemberIndex} onChange={(e) => setSelectedMemberIndex(parseInt(e.target.value, 10))}>
+                  {members.map((m, i) => <option key={m.id || i} value={i}>{m.name || (i === 0 ? 'Base character' : `Character ${i + 1}`)}</option>)}
+                </select>
+                <p className="section-hint">Per-member attributes. A member with all-zero attributes falls back to the shared (base) values below the roster.</p>
+              </div>
+            )}
+            <h4>Personality Attributes{isGroup && attrMember ? ` — ${attrMember.name || 'this member'}` : ''}</h4>
             <p className="section-hint">Each attribute has a chance to activate per message. When active, it injects personality-driving instructions for that response. Multiple attributes can fire simultaneously.</p>
 
             {[
@@ -1858,31 +1938,28 @@ Write only the scenario description itself, no explanations.`;
               { key: 'sexual', label: 'Sexual', hint: 'Be overtly aroused and flirtatious. Express desire openly.' }
             ].map(({ key, label, hint }) => (
               <div className="form-group" key={key}>
-                <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
+                <label>{label}: {getAttr(key)}%</label>
                 <p className="section-hint">{hint}</p>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   step="5"
-                  value={activeStory?.attributes?.[key] || 0}
-                  onChange={(e) => updateStoryField('attributes', {
-                    ...(activeStory?.attributes || {}),
-                    [key]: parseInt(e.target.value)
-                  })}
+                  value={getAttr(key)}
+                  onChange={(e) => setAttr(key, parseInt(e.target.value))}
                   style={{ width: '100%' }}
                 />
               </div>
             ))}
 
             <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition</h4>
-            <p className="section-hint">These are always active and affect every AI response. They define this character's baseline attitude toward inflating and popping others.</p>
+            <p className="section-hint">These are always active and affect every AI response. They define {isGroup && attrMember ? `${attrMember.name || 'this member'}'s` : "this character's"} baseline attitude toward inflating and popping others.</p>
 
             <div className="form-group">
               <label>Desire to Inflate Others</label>
               <select
-                value={formData.desireToInflateOthers || 'none'}
-                onChange={(e) => setFormData(prev => ({ ...prev, desireToInflateOthers: e.target.value }))}
+                value={getDisp('desireToInflateOthers', 'none')}
+                onChange={(e) => setDisp('desireToInflateOthers', e.target.value)}
               >
                 <option value="none">None — no interest in inflating others</option>
                 <option value="reluctant">Reluctant — would only inflate others if forced</option>
@@ -1897,8 +1974,8 @@ Write only the scenario description itself, no explanations.`;
             <div className="form-group">
               <label>Desire to Pop Others</label>
               <select
-                value={formData.desireToPopOthers || 'none'}
-                onChange={(e) => setFormData(prev => ({ ...prev, desireToPopOthers: e.target.value }))}
+                value={getDisp('desireToPopOthers', 'none')}
+                onChange={(e) => setDisp('desireToPopOthers', e.target.value)}
               >
                 <option value="none">None — would never intentionally pop someone</option>
                 <option value="avoidant">Avoidant — actively tries to prevent popping</option>
@@ -1909,7 +1986,30 @@ Write only the scenario description itself, no explanations.`;
                 <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
               </select>
             </div>
+
+            {isGroup && (
+              <details style={{ marginTop: '1.25rem' }}>
+                <summary className="section-hint" style={{ cursor: 'pointer' }}>Shared fallback attributes (used by members with no own values)</summary>
+                <div style={{ marginTop: 8 }}>
+                  {[
+                    { key: 'dominant', label: 'Dominant' }, { key: 'sadistic', label: 'Sadistic' },
+                    { key: 'psychopathic', label: 'Psychopathic' }, { key: 'sensual', label: 'Sensual' },
+                    { key: 'sexual', label: 'Sexual' },
+                  ].map(({ key, label }) => (
+                    <div className="form-group" key={key}>
+                      <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
+                      <input type="range" min="0" max="100" step="5"
+                        value={activeStory?.attributes?.[key] || 0}
+                        onChange={(e) => updateStoryField('attributes', { ...(activeStory?.attributes || {}), [key]: parseInt(e.target.value) })}
+                        style={{ width: '100%' }} />
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
+            );
+          })()}
         </div>
 
         {/* ---- Staged Portraits tab (ported from old charPortraits; gated on isPumpable) ---- */}
@@ -2102,6 +2202,52 @@ Write only the scenario description itself, no explanations.`;
           onCancel={() => { setShowCropModal(false); setUploadedImage(null); cropTargetRef.current = null; }}
         />
       )}
+
+      {/* ---- Import SwellD card → member: two-pane picker (list | portrait + description) ---- */}
+      {showSwellDPicker && (() => {
+        const sel = swellDList.find(c => c.id === selectedSwellDId);
+        const selStory = sel?.stories?.find(s => s.id === sel.activeStoryId) || sel?.stories?.[0];
+        const selDesc = sel?.description || selStory?.description || '';
+        return (
+          <div className="modal-overlay" onClick={() => setShowSwellDPicker(false)}>
+            <div className="modal" style={{ maxWidth: 640, width: '90%' }} onClick={(e) => e.stopPropagation()}>
+              <div className="character-modal-header">
+                <h3>Import SwellD card as member</h3>
+                <button className="modal-close" onClick={() => setShowSwellDPicker(false)}>×</button>
+              </div>
+              <div className="modal-body" style={{ display: 'flex', gap: 16, minHeight: 280 }}>
+                <div style={{ flex: '0 0 200px', borderRight: '1px solid var(--border-color, rgba(255,255,255,0.1))', paddingRight: 12, overflowY: 'auto', maxHeight: 360 }}>
+                  {swellDList.map(c => (
+                    <div key={c.id}
+                      onClick={() => setSelectedSwellDId(c.id)}
+                      className={`tree-check ${selectedSwellDId === c.id ? 'active' : ''}`}
+                      style={{ padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: selectedSwellDId === c.id ? 700 : 400, background: selectedSwellDId === c.id ? 'var(--bg-input, rgba(255,255,255,0.08))' : 'transparent' }}>
+                      {c.name || '(unnamed)'}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {sel ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {sel.avatar
+                          ? <img src={sel.avatar} alt={sel.name} style={{ maxHeight: 160, maxWidth: '100%', borderRadius: 8, objectFit: 'cover' }} />
+                          : <div className="avatar-placeholder" style={{ height: 160, width: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>No portrait</div>}
+                      </div>
+                      <h4 style={{ margin: '4px 0' }}>{sel.name || '(unnamed)'}</h4>
+                      <p className="section-hint" style={{ whiteSpace: 'pre-wrap', overflowY: 'auto', maxHeight: 120 }}>{selDesc || 'No description.'}</p>
+                    </>
+                  ) : <p className="section-hint">Select a card on the left.</p>}
+                </div>
+              </div>
+              <div className="character-modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowSwellDPicker(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={confirmSwellDImport} disabled={!sel}>Import</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2149,8 +2295,36 @@ function migrateStoryToV2(story, character) {
 function buildInitial(character, defaultAuthorsNote) {
   const c = character || {};
   const stories = (c.stories || [{ id: 'story-1', name: 'Story', checkpointProfiles: [] }]).map(s => migrateStoryToV2(s, c));
+
+  // ---- One-time migration: fold the retired flat group* keys into the active story ----
+  // The old group-mode editor wrote greeting/scenario/dialogue to flat groupGreeting/
+  // groupScenario/groupDialog/groupStory keys the backend never read (write-only dead ends).
+  // Move any content the user already typed into the story arrays the backend DOES read, then
+  // drop the dead keys so cards stop carrying them. Only seeds where the story slot is empty,
+  // so it never clobbers real story content.
+  const activeId = c.activeStoryId || stories[0]?.id || 'story-1';
+  const aIdx = Math.max(0, stories.findIndex(s => s.id === activeId));
+  const aStory = stories[aIdx];
+  if (aStory) {
+    if (c.groupGreeting && (aStory.welcomeMessages || []).every(w => !w?.text)) {
+      aStory.welcomeMessages = [{ id: `wm-${Date.now()}`, text: c.groupGreeting, llmEnhanced: false }];
+      aStory.activeWelcomeMessageId = aStory.welcomeMessages[0].id;
+    }
+    if (c.groupScenario && (aStory.scenarios || []).every(s => !s?.text)) {
+      aStory.scenarios = [{ id: `sc-${Date.now()}`, text: c.groupScenario }];
+      aStory.activeScenarioId = aStory.scenarios[0].id;
+    }
+    if (Array.isArray(c.groupDialog) && c.groupDialog.length && !(aStory.exampleDialogues || []).length) {
+      aStory.exampleDialogues = c.groupDialog.map(d => ({ user: d.user || '', character: d.character || '' }));
+    }
+    if (c.groupStory && (aStory.name === 'Story' || !aStory.name)) aStory.name = c.groupStory;
+    stories[aIdx] = aStory;
+  }
+  // Drop the retired flat keys from the spread so the saved card no longer carries them.
+  const { groupStory: _gs, groupGreeting: _gg, groupScenario: _gsc, groupResponseTokens: _grt, groupDialog: _gd, ...rest } = c;
+
   return {
-    ...c,
+    ...rest,
     id: c.id,
     name: c.name || '',
     avatar: c.avatar || '',
@@ -2159,15 +2333,6 @@ function buildInitial(character, defaultAuthorsNote) {
     personality: c.personality || '',
     responseTokens: c.responseTokens ?? '',
     historyDepth: c.historyDepth ?? '',
-    // ---- Group-mode fields (separate keys; NEVER share data with the base-only fields).
-    // Read+written only when the card is in group mode (>1 member). They start BLANK on the
-    // first member-add and the base fields above are left untouched, so removing all added
-    // members restores the base-only card verbatim. Round-tripped via the `...c` spread. ----
-    groupStory: c.groupStory ?? '',
-    groupGreeting: c.groupGreeting ?? '',
-    groupScenario: c.groupScenario ?? '',
-    groupResponseTokens: c.groupResponseTokens ?? '',
-    groupDialog: Array.isArray(c.groupDialog) ? c.groupDialog : [],
     instructor: c.instructor || { enabled: false },
     multiChar: c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] },
     // Author's Note migrates onto the card; legacy cards seed from the global default.

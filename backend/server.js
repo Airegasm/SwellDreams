@@ -1056,7 +1056,11 @@ const DATA_FILES = {
   remoteSettings: path.join(DATA_DIR, 'remote-settings.json'),
   calibrations: path.join(DATA_DIR, 'calibrations.json'),
   deviceLabels: path.join(DATA_DIR, 'device-labels.json'),
-  triggerSets: path.join(DATA_DIR, 'trigger-sets.json')
+  triggerSets: path.join(DATA_DIR, 'trigger-sets.json'),
+  // Automatic Pumps (#30): named pump entities that OWN the calibration + device-control limits and
+  // BIND to a device/outlet. Additive layer — binding pushes calibrationTime/isPrimaryPump onto the
+  // bound device so the device-keyed capacity engine is untouched.
+  pumps: path.join(DATA_DIR, 'pumps.json')
 };
 
 // Helper to get calibration/label key for a device (ip or ip:childId)
@@ -1065,6 +1069,85 @@ function getDeviceKey(device) {
     return `${device.ip}:${device.childId}`;
   }
   return device.ip;
+}
+
+// ===== Automatic Pumps (#30) =====
+// Per-pump device-control limit fields (mirror the per-story llmMax* fields).
+const PUMP_LIMIT_FIELDS = ['llmMaxOnDuration', 'llmMaxCycleOnDuration', 'llmMaxCycleRepetitions', 'llmMaxPulseRepetitions', 'llmMaxTimedDuration'];
+function loadPumps() { return loadData(DATA_FILES.pumps) || []; }
+function savePumps(pumps) { saveData(DATA_FILES.pumps, pumps); }
+
+// A short "last-known device/ip" reference for a device, shown when a pump's bound outlet changes.
+function deviceRef(device) {
+  if (!device) return null;
+  return { deviceId: device.id, label: device.label || device.name || '', ip: device.ip || device.deviceId || '' };
+}
+
+// Push a pump's calibration + primary flag onto its bound device so the existing capacity engine
+// (which reads device.calibrationTime / device.isPrimaryPump) keeps working unchanged. The pump is
+// the source of truth; the device gets a synced copy. Returns true if any device was mutated.
+function syncPumpsToDevices(pumps, devices) {
+  let changed = false;
+  // Exactly one primary pump; its bound device becomes the primary pump device.
+  const primary = pumps.find(p => p.isPrimary);
+  for (const p of pumps) {
+    if (!p.boundDeviceId) continue;
+    const dev = devices.find(d => d.id === p.boundDeviceId);
+    if (!dev) continue;
+    if (p.calibrationTime != null && dev.calibrationTime !== p.calibrationTime) { dev.calibrationTime = p.calibrationTime; changed = true; }
+    if (p.calibrationCapacity != null && dev.calibrationCapacity !== p.calibrationCapacity) { dev.calibrationCapacity = p.calibrationCapacity; changed = true; }
+    if (p.calibrationPainAtMax != null && dev.calibrationPainAtMax !== p.calibrationPainAtMax) { dev.calibrationPainAtMax = p.calibrationPainAtMax; changed = true; }
+    if (dev.deviceType !== 'PUMP') { dev.deviceType = 'PUMP'; changed = true; }
+  }
+  if (primary?.boundDeviceId) {
+    for (const d of devices) {
+      const want = d.id === primary.boundDeviceId;
+      if (!!d.isPrimaryPump !== want) { d.isPrimaryPump = want; changed = true; }
+    }
+  }
+  return changed;
+}
+
+// Ensure every calibrated device is represented by a pump (back-compat migration), then sync all
+// pumps to their bound devices. Idempotent; persists only when something actually changes.
+function migrateAndSyncPumps() {
+  const devices = loadData(DATA_FILES.devices) || [];
+  let pumps = loadPumps();
+  let pumpsChanged = false;
+  const boundIds = new Set(pumps.map(p => p.boundDeviceId).filter(Boolean));
+  for (const d of devices) {
+    const isPump = d.deviceType === 'PUMP' || d.isPrimaryPump;
+    if (isPump && d.calibrationTime > 0 && !boundIds.has(d.id)) {
+      pumps.push({
+        id: uuidv4(),
+        name: d.label || d.name || 'Automatic Pump',
+        calibrationTime: d.calibrationTime,
+        calibrationCapacity: d.calibrationCapacity ?? null,
+        calibrationPainAtMax: d.calibrationPainAtMax ?? null,
+        calibratedAt: d.calibratedAt ?? Date.now(),
+        boundDeviceId: d.id,
+        lastSeen: deviceRef(d),
+        isPrimary: !!d.isPrimaryPump,
+        limits: null,
+      });
+      boundIds.add(d.id);
+      pumpsChanged = true;
+    }
+  }
+  // Guarantee at most one primary; if none and pumps exist, promote the first.
+  const primaries = pumps.filter(p => p.isPrimary);
+  if (primaries.length > 1) { pumps.forEach((p, i) => { p.isPrimary = p.id === primaries[0].id; }); pumpsChanged = true; }
+  if (primaries.length === 0 && pumps.length) { pumps[0].isPrimary = true; pumpsChanged = true; }
+  if (pumpsChanged) savePumps(pumps);
+  const devChanged = syncPumpsToDevices(pumps, devices);
+  if (devChanged) saveData(DATA_FILES.devices, devices);
+  return pumps;
+}
+
+// The active primary pump's effective limits — used as the UPPER CEILING over per-story limits.
+function getPrimaryPumpLimits() {
+  const primary = loadPumps().find(p => p.isPrimary);
+  return primary?.limits || null;
 }
 
 // Alias for backwards compatibility
@@ -5070,20 +5153,37 @@ function stopPumpSafetyWatchdog() {
 // Get per-character device control limits from active story
 // Always returns hard defaults — these are safety ceilings, not optional
 function getCharacterLimits(character) {
-  if (!character?.stories?.length) {
-    return { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10, latchPumpUntilOff: false };
+  const base = (!character?.stories?.length)
+    ? { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10, latchPumpUntilOff: false }
+    : (() => {
+        const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
+        return {
+          llmMaxOnDuration: activeStory.llmMaxOnDuration ?? 5,
+          llmMaxCycleOnDuration: activeStory.llmMaxCycleOnDuration ?? 2,
+          llmMaxCycleRepetitions: activeStory.llmMaxCycleRepetitions ?? 2,
+          llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
+          llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10,
+          // When true, a model [pump on] latches the pump on until [pump off] — overriding time-based
+          // auto-off and the per-reply/per-char time limits. Capacity/pop ceiling still enforced.
+          latchPumpUntilOff: activeStory.latchPumpUntilOff === true
+        };
+      })();
+
+  // #30: the PRIMARY automatic pump's limits are the upper CEILING — clamp each per-story numeric
+  // to min(story, pump). Only fields the pump actually sets (finite, >0) clamp anything, so an
+  // unset/partial pump limits object never zeroes a working limit.
+  const pumpLimits = getPrimaryPumpLimits();
+  if (pumpLimits) {
+    for (const field of PUMP_LIMIT_FIELDS) {
+      const cap = Number(pumpLimits[field]);
+      if (Number.isFinite(cap) && cap > 0) base[field] = Math.min(base[field], cap);
+    }
+    // Latch is an ACTIVE pump override, NOT a silent veto: if the primary pump latches, latch
+    // (its "Latch Until Off" greys the numerics). If it does NOT latch, defer to the per-story
+    // setting — setting numeric pump limits must never disable a card's existing latch.
+    if (pumpLimits.latchPumpUntilOff === true) base.latchPumpUntilOff = true;
   }
-  const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
-  return {
-    llmMaxOnDuration: activeStory.llmMaxOnDuration ?? 5,
-    llmMaxCycleOnDuration: activeStory.llmMaxCycleOnDuration ?? 2,
-    llmMaxCycleRepetitions: activeStory.llmMaxCycleRepetitions ?? 2,
-    llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
-    llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10,
-    // When true, a model [pump on] latches the pump on until [pump off] — overriding time-based
-    // auto-off and the per-reply/per-char time limits. Capacity/pop ceiling still enforced.
-    latchPumpUntilOff: activeStory.latchPumpUntilOff === true
-  };
+  return base;
 }
 
 /**
@@ -11135,8 +11235,41 @@ function capacityRangeKey(capacity) {
 // Character, AND MultiChar cards. If a story has no checkpointProfiles (legacy/un-migrated), we
 // synthesize a "Default" profile from its flat checkpoints/checkpointTriggers/treeRefs so every
 // caller is uniform and legacy behavior is preserved (no isInstructor branch needed at call sites).
-function getActiveCheckpointProfile(character) {
+// Resolve the story-shaped object that supplies CAPACITY-RANGE checkpoints (profiles / ranges /
+// range-triggers / range-treeRefs). For a single card this is just the active story. For a GROUP
+// card the Base character governs by default, UNLESS a non-base member is marked Primary
+// (character.primaryCheckpointMemberId) and carries its own authored checkpointStore — then that
+// member's checkpoints drive the chat context. Intro/session-start trees (activeStory.treeRefs.intro
+// / .sessionStart) are read directly from the base story elsewhere, so they are preserved here.
+function getCheckpointStory(character) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  if (!activeStory) return activeStory;
+  if (character?.multiChar?.enabled) {
+    const members = character.multiChar.characters || [];
+    const primaryId = character.primaryCheckpointMemberId;
+    if (primaryId && members[0]?.id !== primaryId) {
+      const m = members.find(x => x.id === primaryId);
+      const cs = m?.checkpointStore;
+      const hasProfiles = cs && Array.isArray(cs.checkpointProfiles) && cs.checkpointProfiles.length;
+      const hasLegacy = cs && cs.checkpoints && Object.keys(cs.checkpoints).length;
+      if (hasProfiles || hasLegacy) {
+        return {
+          ...activeStory,
+          checkpointProfiles: cs.checkpointProfiles,
+          defaultCheckpointProfileId: cs.defaultCheckpointProfileId,
+          checkpoints: cs.checkpoints || activeStory.checkpoints,
+          checkpointTriggers: cs.checkpointTriggers || activeStory.checkpointTriggers,
+          // Take the member's range trees but keep the base story's intro/session-start trees.
+          treeRefs: cs.treeRefs ? { ...activeStory.treeRefs, ...cs.treeRefs } : activeStory.treeRefs,
+        };
+      }
+    }
+  }
+  return activeStory;
+}
+
+function getActiveCheckpointProfile(character) {
+  const activeStory = getCheckpointStory(character);
   if (!activeStory) return null;
   const profiles = Array.isArray(activeStory.checkpointProfiles) ? activeStory.checkpointProfiles : [];
   if (profiles.length) {
@@ -14137,6 +14270,57 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
   }
 });
 
+// Convert a V2/V3/SwellD character-card file to a SwellD character WITHOUT persisting it.
+// Used by the unified editor's "Import V2/V3" member flow to seed a NEW MEMBER from a file
+// (the caller cherry-picks identity fields). Mirrors /api/import/character-card's extraction
+// + conversion but never saves, so importing a member can't spawn a stray standalone card.
+app.post('/api/convert/character-card', cardUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const fileBuffer = req.file.buffer;
+    const fileType = req.file.mimetype;
+    let characterData = null;
+    let avatarData = null;
+    let swelldExportData = null;
+    let isSwellDImport = false;
+
+    if (fileType === 'image/png' || fileType === 'image/jpeg') {
+      swelldExportData = characterConverter.extractPNGMetadata(fileBuffer, 'swelld');
+      if (swelldExportData && swelldExportData.type === 'swelldreams-character') {
+        isSwellDImport = true;
+        characterData = swelldExportData;
+      } else {
+        characterData = characterConverter.extractPNGMetadata(fileBuffer, 'v3')
+          || characterConverter.extractPNGMetadata(fileBuffer, 'v2');
+      }
+      if (!characterData) return res.status(400).json({ error: 'No character data found in PNG metadata' });
+      if (!isSwellDImport) avatarData = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+    } else if (fileType === 'application/json') {
+      try { characterData = JSON.parse(fileBuffer.toString('utf-8')); }
+      catch (e) { return res.status(400).json({ error: 'Invalid JSON file' }); }
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type. Use a .png or .json character card.' });
+    }
+
+    let convertedCharacter;
+    if (isSwellDImport) {
+      convertedCharacter = swelldExportData.data;
+      if (convertedCharacter.avatarData) { convertedCharacter.avatar = convertedCharacter.avatarData; delete convertedCharacter.avatarData; }
+      else if (!convertedCharacter.avatar) convertedCharacter.avatar = `data:${fileType};base64,${fileBuffer.toString('base64')}`;
+    } else {
+      const format = characterConverter.detectFormat(characterData);
+      convertedCharacter = format === 'v3'
+        ? characterConverter.convertV3ToSwellD(characterData)
+        : characterConverter.convertV2ToSwellD(characterData);
+      if (avatarData) convertedCharacter.avatar = avatarData;
+    }
+    res.json({ success: true, character: convertedCharacter, format: isSwellDImport ? 'swelld' : (characterConverter.detectFormat(characterData) || 'v2') });
+  } catch (error) {
+    console.error('[Convert] Character card convert failed:', error.message || error);
+    res.status(500).json({ error: error.message || 'Failed to convert character card' });
+  }
+});
+
 // --- Import Persona Card (V2/V3) ---
 // REMOVED: Personas are simple user identity fields, not complex V2/V3 character cards.
 // Users should create personas directly in SwellDreams using the persona editor.
@@ -14835,6 +15019,35 @@ app.put('/api/devices/:id', (req, res) => {
       calibratedAt: devices[index].calibratedAt
     };
     saveData(DATA_FILES.calibrations, calibrations);
+
+    // #30: calibrating an outlet OWNS the calibration on an automatic-pump entity. Spawn a pump for
+    // this device if none is bound yet (so the calibration "becomes" a pump), else update the bound
+    // pump's calibration (recalibration). The pump is the source of truth going forward.
+    if (devices[index].calibrationTime > 0) {
+      const pumps = loadPumps();
+      let pump = pumps.find(p => p.boundDeviceId === devices[index].id);
+      const cal = {
+        calibrationTime: devices[index].calibrationTime,
+        calibrationCapacity: devices[index].calibrationCapacity ?? null,
+        calibrationPainAtMax: devices[index].calibrationPainAtMax ?? null,
+        calibratedAt: devices[index].calibratedAt ?? Date.now(),
+      };
+      if (pump) {
+        Object.assign(pump, cal, { lastSeen: deviceRef(devices[index]) });
+      } else {
+        pump = {
+          id: uuidv4(),
+          name: devices[index].label || devices[index].name || 'Automatic Pump',
+          ...cal,
+          boundDeviceId: devices[index].id,
+          lastSeen: deviceRef(devices[index]),
+          isPrimary: pumps.length === 0,
+          limits: null,
+        };
+        pumps.push(pump);
+      }
+      savePumps(pumps);
+    }
   }
 
   // If custom label is being saved, also save to device labels store
@@ -14862,6 +15075,69 @@ app.delete('/api/devices/:id', (req, res) => {
   devices = devices.filter(d => d.id !== req.params.id);
   saveData(DATA_FILES.devices, devices);
   broadcast('devices_update', devices);
+  res.json({ success: true });
+});
+
+// ===== Automatic Pumps (#30) =====
+// GET runs the back-compat migration (seed pumps from calibrated devices) + syncs pumps→devices.
+app.get('/api/pumps', (req, res) => {
+  try {
+    res.json(migrateAndSyncPumps());
+  } catch (e) {
+    console.error('[Pumps] list failed:', e?.message || e);
+    res.status(500).json({ error: 'Failed to load pumps' });
+  }
+});
+
+app.post('/api/pumps', (req, res) => {
+  const pumps = loadPumps();
+  const pump = {
+    id: uuidv4(),
+    name: req.body?.name || 'Automatic Pump',
+    calibrationTime: req.body?.calibrationTime ?? null,
+    calibrationCapacity: req.body?.calibrationCapacity ?? null,
+    calibrationPainAtMax: req.body?.calibrationPainAtMax ?? null,
+    calibratedAt: req.body?.calibratedAt ?? null,
+    boundDeviceId: req.body?.boundDeviceId ?? null,
+    lastSeen: req.body?.lastSeen ?? null,
+    isPrimary: pumps.length === 0 ? true : !!req.body?.isPrimary,
+    limits: req.body?.limits ?? null,
+  };
+  if (pump.isPrimary) pumps.forEach(p => { p.isPrimary = false; });
+  pumps.push(pump);
+  savePumps(pumps);
+  const devices = loadData(DATA_FILES.devices) || [];
+  if (syncPumpsToDevices(pumps, devices)) { saveData(DATA_FILES.devices, devices); broadcast('devices_update', devices); }
+  res.json(pump);
+});
+
+app.put('/api/pumps/:id', (req, res) => {
+  const pumps = loadPumps();
+  const idx = pumps.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Pump not found' });
+  const devices = loadData(DATA_FILES.devices) || [];
+
+  // If the bound device changed, refresh the last-known device/ip reference.
+  if (req.body.boundDeviceId !== undefined && req.body.boundDeviceId !== pumps[idx].boundDeviceId) {
+    const dev = devices.find(d => d.id === req.body.boundDeviceId);
+    if (dev) req.body.lastSeen = deviceRef(dev);
+  }
+  pumps[idx] = { ...pumps[idx], ...req.body };
+  // Single primary: setting this pump primary clears the others.
+  if (req.body.isPrimary === true) pumps.forEach((p, i) => { if (i !== idx) p.isPrimary = false; });
+
+  savePumps(pumps);
+  if (syncPumpsToDevices(pumps, devices)) { saveData(DATA_FILES.devices, devices); broadcast('devices_update', devices); }
+  res.json(pumps[idx]);
+});
+
+app.delete('/api/pumps/:id', (req, res) => {
+  let pumps = loadPumps();
+  const removed = pumps.find(p => p.id === req.params.id);
+  pumps = pumps.filter(p => p.id !== req.params.id);
+  // If we deleted the primary, promote the first remaining pump.
+  if (removed?.isPrimary && pumps.length && !pumps.some(p => p.isPrimary)) pumps[0].isPrimary = true;
+  savePumps(pumps);
   res.json({ success: true });
 });
 
