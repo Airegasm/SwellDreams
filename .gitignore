@@ -92,3 +92,6 @@ backend/data/checkpoint-profiles.json
 backend/data/persona-checkpoint-profiles.json
 backend/data/trigger-sets.json
 *.tmp
+
+# Flows are deprecated (replaced by Triggers) — no longer shipped or tracked
+backend/data/flows/

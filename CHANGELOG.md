@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.6] - 2026-06-21
+
+### Removed
+- **Deprecated bundled Flows (83 files).** Flows are replaced by the Trigger system, and shipping them as committed defaults meant deleting a flow in-app never stuck (the next update restored the file) and left stale flow-index entries that rebuilt every launch. All bundled flow definitions are removed and `backend/data/flows/` is no longer tracked.
+
 ## [v6.1.5] - 2026-06-21
 
 ### Fixed
