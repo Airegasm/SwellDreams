@@ -2,6 +2,23 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.3] - 2026-06-21
+
+### Added
+- **Per-character chat continuity** — Each character keeps its own most-recent chat, saved after every message (crash/close safe). Switching characters restores that character's conversation; **New** wipes it. A new **"Use" Begins New Chat Session** toggle (top of the Characters page, default off) forces a fresh session on selection instead.
+- **Button Sets** — Swap whole sets of custom buttons on the fly from the top of the Custom Buttons tab. Sets are isolated per mode (single / group / instructor). The built-in Lana card ships with a Lana & Scarlett set.
+- **Per-member button targeting** — In group mode, an AI Chat Message button action can target a specific member (or the whole group); the reply is attributed to and spoken only by that member.
+- **Automatic Pumps → Settings sub-tab** — Pump/device controls moved here from Global Character Controls: AI Pump Control (master switch, on by default), Max On Duration + Max Pulses, Pump Trigger Phrase Assist (off by default), Use Auto-Capacity, Allow Over-Inflation, Capacity Multiplier, Auto-Pop Roleplay + Hide from Details.
+- **Inflation Tools dictionary** ticked by default on new cards.
+
+### Changed
+- **Settings cleanup** — Fixed light-on-light text across the Settings cards; "Start New Session on Character Selection" moved to the Characters page; the now-empty Global Character Controls section was removed.
+- **Default author's note** uses SwellDreams' own `[Player]` / `[Char]` variables instead of SillyTavern `{{user}}`/`{{char}}` macros (both still resolve).
+- **Multi-character portrait overlay** — member name/speech chips moved to the bottom-left of the portrait so they no longer cover the Hide-Portrait control.
+
+### Removed
+- **Emotional Decline** and **Reminder Scan Depth** (the latter is handled by the Dictionary now), plus the retired "Migrated Reminders" dictionary group.
+
 ## [v6.1.2] - 2026-06-21
 
 ### Added

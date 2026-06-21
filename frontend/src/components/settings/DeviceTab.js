@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
+import PumpSettings from './PumpSettings';
 import './SettingsTabs.css';
 
 const DEVICE_TYPES = [
@@ -91,6 +92,7 @@ function DeviceTab() {
   // Automatic Pumps (#30): named pump entities that own calibration + limits and bind to a device.
   const [pumps, setPumps] = useState([]);
   const [limitsPumpId, setLimitsPumpId] = useState(null); // pump whose Limits popup is open
+  const [pumpSubTab, setPumpSubTab] = useState('pumps'); // 'pumps' | 'settings'
   const loadPumps = useCallback(() => {
     api.getPumps?.().then(p => setPumps(Array.isArray(p) ? p : [])).catch(() => {});
   }, [api]);
@@ -1383,7 +1385,17 @@ function DeviceTab() {
       <div className="configured-devices-card">
         <div className="configured-devices-header">
           <span>Automatic Pumps</span>
+          <div className="pump-subtabs">
+            <button type="button" className={`pump-subtab ${pumpSubTab === 'pumps' ? 'active' : ''}`} onClick={() => setPumpSubTab('pumps')}>Pumps</button>
+            <button type="button" className={`pump-subtab ${pumpSubTab === 'settings' ? 'active' : ''}`} onClick={() => setPumpSubTab('settings')}>Settings</button>
+          </div>
         </div>
+
+        {pumpSubTab === 'settings' ? (
+          <div className="configured-devices-list">
+            <PumpSettings />
+          </div>
+        ) : (
         <div className="configured-devices-list">
           {pumps.length === 0 ? (
             <p className="text-muted" style={{ marginTop: 0 }}>
@@ -1454,6 +1466,7 @@ function DeviceTab() {
             })
           )}
         </div>
+        )}
       </div>
 
       {/* Per-pump device-control Limits popup */}

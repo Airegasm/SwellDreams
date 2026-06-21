@@ -148,6 +148,8 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const isInstructorMode = !!formData?.instructor?.enabled;
   const members = formData?.multiChar?.characters || [];
   const isGroup = !!formData?.multiChar?.enabled && members.length > 1;
+  // Button sets are isolated by card mode (single / multi / instructor), NOT by version or story.
+  const cardMode = isInstructorMode ? 'instructor' : (isGroup ? 'multi' : 'single');
   // Card-level pump UI gate: base-only uses the card flag; group mode uses any member's per-member flag.
   const anyMemberPumpable = members.some(m => m?.isPumpable);
   const pumpUiActive = isGroup ? anyMemberPumpable : !!formData.isPumpable;
@@ -861,7 +863,48 @@ Write only the scenario description itself, no explanations.`;
   };
   const deleteVersion = (id) => set({ versions: versions.filter(v => v.id !== id) });
 
-  const handleSave = () => onSave?.(formData);
+  // ---- Button Sets (swap whole sets of custom buttons; isolated by card mode) ----
+  // The working buttons live in formData.buttons (backend + existing CRUD use them). A set is a
+  // named snapshot tagged with a mode; loading copies its buttons into formData.buttons. Saving on
+  // the card syncs the active set's buttons so edits to a loaded set persist.
+  const buttonSets = formData.buttonSets || [];
+  const modeButtonSets = buttonSets.filter(s => (s.mode || 'single') === cardMode);
+  const activeButtonSet = buttonSets.find(s => s.id === formData.activeButtonSetId && (s.mode || 'single') === cardMode) || null;
+  const saveButtonSet = () => {
+    const name = window.prompt('Name this button set:', `Set ${modeButtonSets.length + 1}`);
+    if (name === null) return;
+    const id = `bs-${Date.now()}`;
+    const newSet = { id, name: name.trim() || `Set ${modeButtonSets.length + 1}`, mode: cardMode, buttons: JSON.parse(JSON.stringify(formData.buttons || [])) };
+    set({ buttonSets: [...buttonSets, newSet], activeButtonSetId: id });
+  };
+  const loadButtonSet = (id) => {
+    if (!id) { set({ activeButtonSetId: '' }); return; }
+    const bs = buttonSets.find(s => s.id === id);
+    if (bs) set({ buttons: JSON.parse(JSON.stringify(bs.buttons || [])), activeButtonSetId: id });
+  };
+  const updateButtonSet = () => {
+    if (!activeButtonSet) return;
+    set({ buttonSets: buttonSets.map(s => (s.id === activeButtonSet.id ? { ...s, buttons: JSON.parse(JSON.stringify(formData.buttons || [])) } : s)) });
+  };
+  const renameButtonSet = () => {
+    if (!activeButtonSet) return;
+    const name = window.prompt('Rename button set:', activeButtonSet.name);
+    if (!name) return;
+    set({ buttonSets: buttonSets.map(s => (s.id === activeButtonSet.id ? { ...s, name: name.trim() } : s)) });
+  };
+  const deleteButtonSet = () => {
+    if (!activeButtonSet) return;
+    if (!window.confirm('Delete this button set? The buttons currently loaded stay until you change them.')) return;
+    set({ buttonSets: buttonSets.filter(s => s.id !== activeButtonSet.id), activeButtonSetId: '' });
+  };
+
+  const handleSave = () => {
+    // Sync the active set's buttons with the working buttons so edits to a loaded set persist.
+    const data = activeButtonSet
+      ? { ...formData, buttonSets: buttonSets.map(s => (s.id === activeButtonSet.id ? { ...s, buttons: formData.buttons || [] } : s)) }
+      : formData;
+    onSave?.(data);
+  };
 
   // Tabs depend on mode (the "face" change). Standard and Instructor get SEPARATE Library/Checkpoint tabs.
   const tabs = useMemo(() => ([
@@ -1797,6 +1840,20 @@ Write only the scenario description itself, no explanations.`;
           <div className="events-editor">
             {!showButtonForm ? (
               <>
+                {/* Button Sets: swap whole sets of buttons on the fly. Isolated by card mode. */}
+                <div className="checkpoint-profile-bar" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                  <span className="section-hint">Button Set <em>({cardMode})</em>:</span>
+                  <select value={formData.activeButtonSetId || ''} onChange={(e) => loadButtonSet(e.target.value)}>
+                    <option value="">(current — unsaved)</option>
+                    {modeButtonSets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={saveButtonSet}>Save as Set</button>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={updateButtonSet} disabled={!activeButtonSet}>Update</button>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={renameButtonSet} disabled={!activeButtonSet}>Rename</button>
+                  <button type="button" className="btn btn-sm btn-danger" onClick={deleteButtonSet} disabled={!activeButtonSet}>Delete</button>
+                </div>
+                <p className="section-hint" style={{ marginTop: 0 }}>Load a set to swap this card's buttons on the fly. Sets are separate for single, group, and instructor modes; they are not tied to a version or story.</p>
+
                 <div className="events-header">
                   <h4>Custom Buttons</h4>
                   <div className="events-header-actions">
@@ -1870,7 +1927,15 @@ Write only the scenario description itself, no explanations.`;
                               <option value="run_tree">Run Trigger Tree</option>
                             </select>
                             {action.type === 'message' && (
-                              <textarea value={action.config.text || ''} onChange={(e) => handleUpdateAction(index, 'text', e.target.value)} placeholder="Instruction for AI..." rows={2} />
+                              <>
+                                {isGroup && (
+                                  <select value={action.config.memberId || ''} onChange={(e) => handleUpdateAction(index, 'memberId', e.target.value)} title="Which member sends this message">
+                                    <option value="">Whole group (any member)</option>
+                                    {members.map((m, mi) => <option key={m.id || mi} value={m.id}>{m.name || (mi === 0 ? 'Base character' : `Character ${mi + 1}`)}</option>)}
+                                  </select>
+                                )}
+                                <textarea value={action.config.text || ''} onChange={(e) => handleUpdateAction(index, 'text', e.target.value)} placeholder="Instruction for AI..." rows={2} />
+                              </>
                             )}
                             {(action.type === 'turn_on' || action.type === 'cycle') && (
                               <select value={action.config.device || ''} onChange={(e) => handleUpdateAction(index, 'device', e.target.value)}>
@@ -2342,6 +2407,10 @@ function buildInitial(character, defaultAuthorsNote) {
       aStory.exampleDialogues = c.groupDialog.map(d => ({ user: d.user || '', character: d.character || '' }));
     }
     if (c.groupStory && (aStory.name === 'Story' || !aStory.name)) aStory.name = c.groupStory;
+    // New cards: tick the built-in "Inflation Tools" dictionary group by default.
+    if (!character && !Array.isArray(aStory.dictionaryGroupIds)) {
+      aStory.dictionaryGroupIds = ['dict-builtin-inflation-tools'];
+    }
     stories[aIdx] = aStory;
   }
   // Drop the retired flat keys from the spread so the saved card no longer carries them.
@@ -2382,6 +2451,8 @@ function buildInitial(character, defaultAuthorsNote) {
     charPortraitMedia: c.charPortraitMedia || {},
     charPortraitCrop: c.charPortraitCrop || { scale: 1, offsetX: 0, offsetY: 0 },
     buttons: c.buttons || c.events || [],
+    buttonSets: Array.isArray(c.buttonSets) ? c.buttonSets : [],
+    activeButtonSetId: c.activeButtonSetId || '',
     stories,
     activeStoryId: c.activeStoryId || stories[0]?.id || 'story-1',
     versions: c.versions || [],

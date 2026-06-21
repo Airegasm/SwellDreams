@@ -695,10 +695,11 @@
 /* Multichar speak/mute overlay — stacked over the portrait */
 .multichar-mute-overlay {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  bottom: 6px;
+  left: 6px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
   z-index: 220;
   max-width: 75%;

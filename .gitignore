@@ -84,3 +84,4 @@ backend/data/trigger-trees.json
 
 # Local Claude Code agent state (plans, memory)
 .claude/
+backend/data/char-sessions/

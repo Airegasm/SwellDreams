@@ -146,10 +146,10 @@ function CharacterTab() {
       if (listRef.current) {
         listRef.current.scrollTop = 0;
       }
-      // Start new session if setting is enabled
-      if (settings?.globalCharacterControls?.startNewSessionOnSelect ?? true) {
-        // Navigate to chat immediately, then start session
-        navigate('/');
+      // Always jump to chat. The backend already restored this character's most-recent chat (or
+      // cleared it for a fresh start). Only force a brand-new session when the toggle is on.
+      navigate('/');
+      if (settings?.globalCharacterControls?.startNewSessionOnSelect ?? false) {
         setTimeout(() => startNewSession(), 100);
       }
     } catch (error) {
@@ -379,6 +379,22 @@ function CharacterTab() {
 
   return (
     <div className="settings-tab">
+      {/* Moved out of Global Character Controls: governs whether pressing "Use" starts a fresh chat. */}
+      <div className="character-control-row" style={{ marginBottom: 'var(--spacing-md)' }}>
+        <label className="toggle-switch">
+          <input
+            type="checkbox"
+            checked={settings?.globalCharacterControls?.startNewSessionOnSelect ?? false}
+            onChange={(e) => api.updateSettings?.({ globalCharacterControls: { ...(settings?.globalCharacterControls || {}), startNewSessionOnSelect: e.target.checked } }).catch(() => {})}
+          />
+          <span className="toggle-slider"></span>
+        </label>
+        <div className="control-label-group">
+          <span className="toggle-label">"Use" Begins New Chat Session</span>
+          <span className="control-hint">When ON, pressing "Use" on a character clears the chat and starts a fresh session.</span>
+        </div>
+      </div>
+
       <div className="tab-header-actions">
         <input
           type="file"

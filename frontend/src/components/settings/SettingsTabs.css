@@ -1552,6 +1552,19 @@
   font-weight: 600;
 }
 
+/* Light-on-light sweep: .section-description is light (#cbd5e1 !important) for dark layouts, but
+   the settings cards are light — force dark. Also give the light "configured-devices-card" (Manual
+   Pumps / Automatic Pumps incl. its Settings sub-tab) the same dark text the settings sections get,
+   since the character-control text classes default to light (var(--text-primary)). */
+.settings-section-content .section-description,
+.configured-devices-card .section-description { color: #333 !important; }
+.configured-devices-card .toggle-label,
+.configured-devices-card .control-inline-label,
+.configured-devices-card .control-label-group,
+.configured-devices-card .checkbox-inline { color: #1a1a1a; }
+.configured-devices-card .control-hint,
+.configured-devices-card .control-inline-hint { color: #444; }
+
 /* Form elements in collapsible sections */
 .settings-section-content input,
 .settings-section-content select,
@@ -1951,6 +1964,25 @@
   gap: var(--spacing-sm);
   margin-top: 2px;
 }
+
+/* Automatic Pumps: Pumps | Settings sub-tabs (in the card header). */
+.pump-subtabs { display: flex; gap: 4px; }
+.pump-subtab {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--skin-header-text, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  padding: 4px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pump-subtab.active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.92);
+}
+.pump-settings .control-divider { border: none; border-top: 1px solid rgba(0, 0, 0, 0.15); margin: var(--spacing-md) 0; }
 
 /* Readability fix: these cards sit on a light card-bg, so muted/label text must be dark.
    (.text-muted defaults to a light color meant for dark backgrounds → invisible here.) */
