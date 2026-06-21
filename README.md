@@ -6,6 +6,13 @@
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
 
+> ## ⚠️ Stuck on v6.0 / "can't update" / "tell me who you are"?
+> Older installs can't auto-update past v6.0 (a tracked-file + history issue). **One-time fix:**
+> 1. Download **[repair.bat](https://raw.githubusercontent.com/Airegasm/SwellDreams/release/repair.bat)** — right-click the page → **Save As** → save it **into your SwellDreams folder** (next to `start.bat`). *(Linux/Mac: use [repair.sh](https://raw.githubusercontent.com/Airegasm/SwellDreams/release/repair.sh).)*
+> 2. **Double-click `repair.bat`.** It updates you to the latest and launches.
+>
+> Your settings, characters, and personas are **safe** — they aren't touched. After this one time, updates work normally again. *(No git checkout? Re-download fresh and copy your old `backend/data` folder in.)*
+
 > **Disclaimer**: SwellDreams is provided as-is for entertainment and creative purposes only. The developers assume no responsibility or liability for any misuse, negligence, injury, damage, or loss arising from the use of this software or any connected hardware. Users assume all risk and responsibility for their own safety and conduct. By using this software, you agree to these terms.
 
 # SwellDreams
