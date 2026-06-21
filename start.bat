@@ -42,9 +42,14 @@ echo.
 REM Auto-update from git
 echo Checking for updates...
 cd /d "%SCRIPT_DIR%"
+REM Ensure git has an identity so no operation can fail with "tell me who you are".
+git config user.email >nul 2>nul || git config user.email "swelldreams@localhost"
+git config user.name >nul 2>nul || git config user.name "SwellDreams"
 if not exist ".git" (
     echo Git repository not found. Setting up...
     git init
+    git config user.email "swelldreams@localhost"
+    git config user.name "SwellDreams"
     git remote add origin https://github.com/Airegasm/SwellDreams.git
     git fetch origin release
     git checkout -b release origin/release

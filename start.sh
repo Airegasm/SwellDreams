@@ -19,9 +19,14 @@ echo ""
 # Auto-update from git
 echo "Checking for updates..."
 cd "$SCRIPT_DIR"
+# Ensure git has an identity so no operation can fail with "tell me who you are".
+git config user.email >/dev/null 2>&1 || git config user.email "swelldreams@localhost"
+git config user.name >/dev/null 2>&1 || git config user.name "SwellDreams"
 if [ ! -d ".git" ]; then
     echo "Git repository not found. Setting up..."
     git init
+    git config user.email "swelldreams@localhost"
+    git config user.name "SwellDreams"
     git remote add origin https://github.com/Airegasm/SwellDreams.git
     git fetch origin release
     git checkout -b release origin/release
