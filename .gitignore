@@ -85,3 +85,10 @@ backend/data/trigger-trees.json
 # Local Claude Code agent state (plans, memory)
 .claude/
 backend/data/char-sessions/
+
+# Personal/runtime libraries (must never be committed)
+backend/data/minigames.json
+backend/data/checkpoint-profiles.json
+backend/data/persona-checkpoint-profiles.json
+backend/data/trigger-sets.json
+*.tmp

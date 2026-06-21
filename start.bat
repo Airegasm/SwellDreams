@@ -62,7 +62,7 @@ if not exist ".git" (
         if "%CURRENT_BRANCH%"=="master" (
             echo Migrating from master to release branch...
             git fetch origin release >nul 2>nul
-            git checkout release >nul 2>nul
+            git checkout -f release >nul 2>nul
             if not errorlevel 1 (
                 git branch -D master >nul 2>nul
                 echo Switched to release branch.
@@ -73,7 +73,7 @@ if not exist ".git" (
         if "%CURRENT_BRANCH%"=="main" (
             echo Migrating from main to release branch...
             git fetch origin release >nul 2>nul
-            git checkout release >nul 2>nul
+            git checkout -f release >nul 2>nul
             if not errorlevel 1 (
                 git branch -D main >nul 2>nul
                 echo Switched to release branch.
@@ -81,10 +81,14 @@ if not exist ".git" (
                 echo Warning: Could not switch to release. Continuing on main...
             )
         )
-        git pull
+        REM Force-sync to release. The launcher rebuilds the frontend every run, which dirties
+        REM tracked build files and used to make "git pull" fail (stranding users on old versions).
+        REM reset --hard only touches TRACKED files (code/defaults); all user data is gitignored.
+        git fetch origin release
         if errorlevel 1 (
-            echo Warning: Could not update from git. Continuing with local version...
+            echo Warning: Could not reach git. Continuing with local version...
         ) else (
+            git reset --hard origin/release
             echo Update complete!
         )
     )

@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.4] - 2026-06-21
+
+### Fixed
+- **Auto-update could get stuck (couldn't update past a version).** The launcher rebuilds the frontend on every run, which modified tracked files under `frontend/build/`, leaving the working tree dirty so the next `git pull` failed ("local changes would be overwritten") and the app stayed on the old version. `frontend/build/` is no longer tracked (it's a build artifact, regenerated each launch), and `start.bat`/`start.sh` now force-sync to `release` (`git fetch` + `git reset --hard origin/release`) so locally-rebuilt files can never block an update again. Only tracked files are touched — all user data lives in gitignored files and is preserved.
+
 ## [v6.1.3] - 2026-06-21
 
 ### Added

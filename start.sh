@@ -37,14 +37,18 @@ else
     if [ "$CURRENT_BRANCH" = "master" ] || [ "$CURRENT_BRANCH" = "main" ]; then
         echo "Migrating from $CURRENT_BRANCH to release branch..."
         git fetch origin release 2>/dev/null
-        if git checkout release 2>/dev/null; then
+        if git checkout -f release 2>/dev/null; then
             git branch -D "$CURRENT_BRANCH" 2>/dev/null
             echo "Switched to release branch."
         else
             echo "Warning: Could not switch to release. Continuing on $CURRENT_BRANCH..."
         fi
     fi
-    if git pull; then
+    # Force-sync to release. The launcher rebuilds the frontend every run, which dirties tracked
+    # build files and used to make "git pull" fail (stranding users on old versions). reset --hard
+    # only touches TRACKED files (code/defaults); all user data is gitignored.
+    if git fetch origin release; then
+        git reset --hard origin/release
         echo "Update complete!"
     else
         echo "Warning: Could not update from git. Continuing with local version..."
