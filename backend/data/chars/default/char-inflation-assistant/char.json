@@ -29,7 +29,9 @@
       "activeWelcomeMessageId": "wm-1",
       "checkpoints": {},
       "checkpointTriggers": {},
-      "allowLlmDeviceAccess": false
+      "allowLlmDeviceAccess": false,
+      "assignedButtons": [],
+      "assignedFlows": []
     }
   ],
   "activeStoryId": "story-1",
@@ -51,5 +53,10 @@
     "pain": 0,
     "emotion": "neutral",
     "capacityModifier": 1
-  }
+  },
+  "buttons": [],
+  "events": [],
+  "buttonSets": [],
+  "activeButtonSetId": "",
+  "assignedFlows": []
 }

@@ -47,9 +47,7 @@
       "exampleDialogues": [],
       "autoReplyEnabled": true,
       "allowLlmDeviceAccess": true,
-      "assignedFlows": [
-        "flow-char-inflate-basic"
-      ],
+      "assignedFlows": [],
       "assignedButtons": [],
       "constantReminderIds": [
         "reminder-1774851779622"
@@ -110,9 +108,7 @@
   "autoReplyEnabled": true,
   "allowLlmDeviceAccess": true,
   "startingEmotion": "neutral",
-  "assignedFlows": [
-    "flow-char-inflate-basic"
-  ],
+  "assignedFlows": [],
   "exampleDialogues": [],
   "constantReminders": [
     {
@@ -181,5 +177,8 @@
   },
   "characterCheckpoints": {},
   "_isDefault": true,
-  "isFavorite": false
+  "isFavorite": false,
+  "events": [],
+  "buttonSets": [],
+  "activeButtonSetId": ""
 }
