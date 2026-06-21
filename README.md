@@ -1,7 +1,7 @@
 <p align="center">
   <img src="frontend/public/logo.png" alt="SwellDreams" width="200" />
 </p>
-<h3 align="center">SwellDreams v6.1.1 — Open Beta</h3>
+<h3 align="center">SwellDreams v6.1.2 — Open Beta</h3>
 <p align="center">
   <a href="https://discord.gg/WZTzMevrQ9">Join the community on Discord</a>
 </p>
@@ -10,7 +10,7 @@
 
 # SwellDreams
 
-**v6.1.1 "Open Beta"**
+**v6.1.2 "Open Beta"**
 
 > **Safety Notice**: The Emergency Stop button in this software should NOT be relied upon as your primary safety mechanism. Always have a hardware disconnect within arm's reach during use.
 

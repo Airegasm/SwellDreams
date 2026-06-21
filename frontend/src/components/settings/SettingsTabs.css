@@ -162,11 +162,21 @@
 /* Active card text - matches section font color */
 .list-item.card-style.active .list-item-meta,
 .list-item.card-style.active .flow-line-label,
-.list-item.card-style.active .flow-line-content {
+.list-item.card-style.active .flow-line-content,
+.list-item.card-style.active .list-item-members {
   color: var(--skin-section-font, #000);
   font-weight: 700;
   text-shadow: none;
 }
+
+/* Group members line in the character list */
+.list-item-members {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--skin-header-text, var(--text-secondary));
+  opacity: 0.9;
+}
+.list-item-members .members-label { font-weight: 700; opacity: 0.85; }
 
 /* Card Avatar Thumbnails - Portrait, stretch to fill card height */
 .card-avatar {
@@ -1549,6 +1559,23 @@
   background-color: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(0, 0, 0, 0.2);
   color: #1a1a1a;
+}
+
+/* Dropdowns on the light settings cards must render in LIGHT color-scheme, otherwise the
+   browser draws the select's value/option text in the dark theme's light color → light text
+   on the light card (and a dark native option popup). Force light scheme + dark text + opaque
+   white on every select (and its <option> list) inside the light settings containers. Scoped to
+   these containers so dark-themed popups (e.g. the resume-calibration modal) are unaffected. */
+.settings-section-content select,
+.settings-section-content select option,
+.settings-section-content input,
+.configured-devices-card select,
+.configured-devices-card select option,
+.configured-devices-card .pump-device-select,
+.configured-devices-card .pump-device-select option {
+  color-scheme: light;
+  color: #1a1a1a;
+  background-color: #ffffff;
 }
 
 .settings-section-content input::placeholder,

@@ -919,6 +919,12 @@ Write only the scenario description itself, no explanations.`;
           </div>
 
           <div className="form-group">
+            <label>Short Description <span className="section-hint">(shown only in the character list — never sent to the AI)</span></label>
+            <input type="text" value={formData.shortDescription || ''} onChange={(e) => set({ shortDescription: e.target.value })}
+              placeholder="e.g. Group Member Test" />
+          </div>
+
+          <div className="form-group">
             <label>{isGroup ? 'Group Avatar' : 'Character Avatar'}</label>
             <div className={`avatar-upload-area ${formData.avatar ? 'has-avatar' : ''}`} onClick={handleAvatarClick}>
               {formData.avatar ? (
@@ -1106,9 +1112,13 @@ Write only the scenario description itself, no explanations.`;
                       placeholder="Current situation/scenario..." rows={2} />
                   </div>
 
-                  {/* Example Dialogues */}
+                  {/* Example Dialogues — group cards author the reply as ONE blended block where
+                      every member speaks (dialog in "quotes", actions in *asterisks*), no name fields. */}
                   <div className="story-field">
                     <label>{isGroup ? 'Group Dialogues' : 'Example Dialogues'}</label>
+                    {isGroup && (
+                      <p className="section-hint">Each example shows one player line and one <strong>blended group reply</strong> where any/all members speak — write dialog in "quotes" and actions in *asterisks*, attributing lines by name.</p>
+                    )}
                     <div className="dialogues-list">
                       {(activeStory?.exampleDialogues || []).map((dialogue, i) => (
                         <div key={i} className="dialogue-item">
@@ -1116,8 +1126,14 @@ Write only the scenario description itself, no explanations.`;
                             <div className="dialogue-edit-form">
                               <input type="text" placeholder="Player says..." value={editDialogue.user}
                                 onChange={(e) => setEditDialogue({ ...editDialogue, user: e.target.value })} />
-                              <input type="text" placeholder="Character responds..." value={editDialogue.character}
-                                onChange={(e) => setEditDialogue({ ...editDialogue, character: e.target.value })} />
+                              {isGroup ? (
+                                <textarea placeholder={'The group responds — blend everyone:\nLana: *smiles* "Hey, baby."\nScarlett: *arches a brow* "Sit."'}
+                                  rows={5} value={editDialogue.character}
+                                  onChange={(e) => setEditDialogue({ ...editDialogue, character: e.target.value })} />
+                              ) : (
+                                <input type="text" placeholder="Character responds..." value={editDialogue.character}
+                                  onChange={(e) => setEditDialogue({ ...editDialogue, character: e.target.value })} />
+                              )}
                               <div className="dialogue-edit-actions">
                                 <button type="button" className="btn btn-sm btn-primary" onClick={handleSaveEditDialogue}>Save</button>
                                 <button type="button" className="btn btn-sm btn-secondary" onClick={handleCancelEditDialogue}>Cancel</button>
@@ -1127,7 +1143,9 @@ Write only the scenario description itself, no explanations.`;
                             <>
                               <div className="dialogue-content">
                                 <p><strong>Player:</strong> {dialogue.user}</p>
-                                <p><strong>{formData.name || 'Character'}:</strong> {dialogue.character}</p>
+                                {isGroup
+                                  ? <p style={{ whiteSpace: 'pre-wrap' }}><strong>Group:</strong> {dialogue.character}</p>
+                                  : <p><strong>{formData.name || 'Character'}:</strong> {dialogue.character}</p>}
                               </div>
                               <div className="dialogue-actions">
                                 <button type="button" className="btn-icon btn-edit-small" onClick={() => handleStartEditDialogue(i)} title="Edit">✏️</button>
@@ -1141,8 +1159,14 @@ Write only the scenario description itself, no explanations.`;
                     <div className="add-dialogue">
                       <input type="text" placeholder="Player says..." value={newDialogue.user}
                         onChange={(e) => setNewDialogue({ ...newDialogue, user: e.target.value })} />
-                      <input type="text" placeholder="Character responds..." value={newDialogue.character}
-                        onChange={(e) => setNewDialogue({ ...newDialogue, character: e.target.value })} />
+                      {isGroup ? (
+                        <textarea placeholder={'The group responds — blend everyone:\nLana: *smiles* "Hey, baby."\nScarlett: *arches a brow* "Sit."'}
+                          rows={5} value={newDialogue.character}
+                          onChange={(e) => setNewDialogue({ ...newDialogue, character: e.target.value })} />
+                      ) : (
+                        <input type="text" placeholder="Character responds..." value={newDialogue.character}
+                          onChange={(e) => setNewDialogue({ ...newDialogue, character: e.target.value })} />
+                      )}
                       <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddDialogue}>Add</button>
                     </div>
                   </div>
@@ -2327,6 +2351,8 @@ function buildInitial(character, defaultAuthorsNote) {
     ...rest,
     id: c.id,
     name: c.name || '',
+    // List-only label; never sent to the AI (no prompt builder reads it).
+    shortDescription: c.shortDescription || '',
     avatar: c.avatar || '',
     gender: c.gender || '',
     description: c.description || '',

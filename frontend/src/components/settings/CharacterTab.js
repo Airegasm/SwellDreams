@@ -484,12 +484,19 @@ function CharacterTab() {
                     )}
                   </div>
                   <ClampedMeta
-                    text={isInstructor(character)
-                      ? (character.mission || 'Instructor')
-                      : character.multiChar?.enabled
-                        ? character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')
-                        : character.description}
+                    text={character.shortDescription
+                      ? character.shortDescription
+                      : isInstructor(character)
+                        ? (character.mission || 'Instructor')
+                        : character.multiChar?.enabled
+                          ? character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')
+                          : character.description}
                   />
+                  {character.multiChar?.enabled && character.multiChar.characters?.length > 1 && (
+                    <div className="list-item-members">
+                      <span className="members-label">Members:</span> {character.multiChar.characters.map(c => c.name).filter(Boolean).join(', ')}
+                    </div>
+                  )}
                 </div>
                 <div className="use-button-column">
                   {settings.activeCharacterId !== character.id && (

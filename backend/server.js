@@ -12555,13 +12555,22 @@ function buildChatContext(character, settings) {
     prompt += `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]\n\n`;
   }
 
-  if (character.exampleDialogues && character.exampleDialogues.length > 0) {
+  // Example dialogues: legacy cards carry them top-level; cards authored in the unified editor
+  // store them on the active story. Prefer top-level, fall back to the story, so both reach the
+  // prompt. For group cards each entry's blended reply (ex.response/ex.character) is injected
+  // verbatim — multiple members' lines in one block ("dialog" + *actions*), no per-name prefix.
+  const ctxStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const exampleDialoguesSrc = (Array.isArray(character.exampleDialogues) && character.exampleDialogues.length)
+    ? character.exampleDialogues
+    : (ctxStory?.exampleDialogues || []);
+
+  if (exampleDialoguesSrc.length > 0) {
     if (character.multiChar?.enabled) {
-      character.exampleDialogues.forEach(ex => {
+      exampleDialoguesSrc.forEach(ex => {
         prompt += `<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}\n`;
       });
     } else {
-      character.exampleDialogues.forEach(ex => {
+      exampleDialoguesSrc.forEach(ex => {
         prompt += `<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}\n`;
       });
     }
@@ -12621,13 +12630,13 @@ function buildChatContext(character, settings) {
   if (sessionState.chatMemorySummary) {
     leadIn.push(`[Summary of earlier conversation: ${sessionState.chatMemorySummary}]`);
   }
-  if (character.exampleDialogues && character.exampleDialogues.length > 0) {
+  if (exampleDialoguesSrc.length > 0) {
     if (character.multiChar?.enabled) {
-      character.exampleDialogues.forEach(ex => {
+      exampleDialoguesSrc.forEach(ex => {
         leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}`);
       });
     } else {
-      character.exampleDialogues.forEach(ex => {
+      exampleDialoguesSrc.forEach(ex => {
         leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}`);
       });
     }

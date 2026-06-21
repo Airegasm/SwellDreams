@@ -2,6 +2,20 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.1.2] - 2026-06-21
+
+### Added
+- **Short Description** — A per-card field shown only in the character list (never sent to the AI), for labelling cards at a glance (e.g. "Group Member Test").
+- **Group dialogue blended format** — In group mode, example dialogues are authored as one **blended reply** where every member speaks (dialog in "quotes", actions in *asterisks*, attributed by name) in a multiline box, instead of single-line per-character rows.
+- **Lana** — A new built-in group card (Lana + Scarlett) that demonstrates the unified group format end to end: group greeting/scenario, blended group dialogues, and per-member attributes.
+
+### Changed
+- **Character list** — Group cards now show a **Members:** line listing the cast alongside the short description.
+
+### Fixed
+- **Example dialogues now reach the AI** — Dialogues authored in the unified editor are stored on the active story; the prompt builder previously only read a legacy top-level field, so they were never sent. It now falls back to the story's dialogues (single and group).
+- **Light-on-light dropdowns in Global settings** — Select menus on the light settings cards were rendering with dark-theme (light) text. Forced light `color-scheme` on those dropdowns so the control and its option list are readable; the dark Resume-Calibration popup is unaffected.
+
 ## [v6.1.1] - 2026-06-21
 
 ### Added
