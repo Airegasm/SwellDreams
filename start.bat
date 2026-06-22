@@ -10,7 +10,7 @@ echo Script directory: %SCRIPT_DIR%
 
 REM Read version from version.json
 set VERSION=3.8.0
-set CODENAME=Open Beta
+set CODENAME=Stable Overhaul
 for /f "tokens=2 delims=:," %%a in ('type "%SCRIPT_DIR%version.json" ^| findstr /c:"\"version\""') do (
     set VERSION=%%~a
 )
