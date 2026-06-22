@@ -25,56 +25,82 @@
 
 ## What is SwellDreams?
 
-SwellDreams is a self-hosted, AI-powered interactive experience platform that bridges the gap between conversational roleplay and real-world device automation. It connects to smart outlets on your local network or through cloud APIs and orchestrates them through two distinct modules — each with its own visual scripting system — creating deeply interactive, fully customizable sessions where what happens on screen drives what happens in the room.
+SwellDreams is a self-hosted, AI-powered roleplay platform that connects an LLM-driven chat to real-world smart devices. The AI doesn't just talk — based on what's happening in the scene, it can drive smart outlets on your local network, track capacity in real time, and steer the story through a deep, author-controlled scripting layer.
 
-Think of it as an AI game master that doesn't just talk — it *does things*.
+Think of it as an AI game master that *does things*.
 
-> **No LLM or smart devices required.** An LLM and hardware integration deliver the full experience, but neither is necessary to run SwellDreams. You can author every response, sequence, and story beat manually using the Flow Engine and ScreenPlay — no AI needed. And if you don't have or don't want to connect smart devices, everything still works as a pure story mode. Start with what you have and add integrations when you're ready.
-
-### ChatSD
-
-ChatSD is the core conversational module. It pairs a full-featured AI chat system with a powerful automation layer, giving you control over every aspect of the experience. Characters are built using the **SwellD character card format** — a single **unified card** that scales from one character to a multi-character group to an instructor, with per-member descriptions, attributes, and checkpoints. Members can be imported from existing SwellD cards or from **Tavern-based V2/V3 spec** cards (PNG and JSON), with full conversion support including lorebooks and world info entries that convert into SwellDreams' native reminder system.
-
-Characters are highly configurable: each card supports multiple stories with independent scenarios, welcome messages, example dialogues, per-story personality attributes with probability-based activation, capacity checkpoints that shift the AI's behavior at different intensity levels, session defaults, story progression mode with auto-generated player responses, and a full lorebook system with constant and keyword-triggered reminders at both character and global scope. The AI itself connects to any local LLM backend (llama.cpp, KoboldCpp), OpenRouter, the free AI Horde grid, or any OpenAI-compatible API, with streaming responses, guided impersonation, and LLM-enhanced text expansion for character authoring. Media support allows embedding images, video, and audio directly into conversations and automation sequences.
-
-### ScreenPlay
-
-ScreenPlay (Beta) is the storyboard module — a **Script Orchestrator** and LLM-enhanced choose-your-own-adventure system. It provides most of the same features as ChatSD — device control, capacity tracking, challenge games, LLM text enhancement, character portraits — but in a fundamentally different format. Instead of freeform conversation, ScreenPlay presents authored narratives organized into **Plays, Pages, and Paragraphs** with branching paths, player choices, inline questions, and variable-driven logic. There is no text input — the player navigates through pre-authored (and optionally AI-expanded) content, making decisions that shape the story and drive real-world device behavior. It's a visual novel engine with smart device integration.
+> **No LLM or smart devices required.** They unlock the full experience, but neither is mandatory. You can author every greeting, response, and story beat by hand, and everything runs as pure story-mode without hardware. Start with what you have and add integrations when you're ready.
 
 ---
 
-## What Makes it Unique?
+## Character Cards
 
-What elevates SwellDreams beyond a chatbot is its comprehensive, fully customizable, user-friendly scenario scripting. Both modules include their own **no-code, drag-and-drop orchestration systems** — the **Flow Node Scripting Engine** (ChatSD) and the **Storyboard Script Orchestrator** (ScreenPlay) — that put complete creative control in your hands without writing a single line of code.
+Everything revolves around the **unified SwellD character card** — one card type that scales from a single character to a multi-character group to an instructor, all in one editor.
 
-Combined with character card enhancements like Local and Global Reminders, Capacity Checkpoints, Personality Attributes, **named Automatic Pumps** (calibration and device-control limits travel with the pump, not the outlet) with auto-capacity tracking, and fine-tuned LLM device control that lets the AI itself operate your hardware contextually, the result is an extremely custom, deeply interactive experience that adapts to your scenario, your characters, and your devices.
+- **Single / Group / Instructor in one card.** Add or remove members on the base card to turn a solo character into a group on the fly. Each member carries its own description, personality, gender, voice examples, and attributes; the AI writes for the contextually relevant members each turn.
+- **Instructor mode.** A leaner persona that drops the roleplay flourish and acts as a direct, "straight to business" inflation partner/guide.
+- **Per-card Author's Note.** Each card carries its own steering note (no longer one global blob), seeded from a sensible default on new cards.
+- **Stories & versions.** Each card holds multiple stories, each with its own versioned greetings and scenarios (with LLM-enhance and random-version options), example dialogues, attributes, and checkpoints. Snapshot whole-card versions to experiment safely.
+- **Redesigned Checkpoint system.** Author instructions and story events fire across capacity ranges to steer the AI's behavior as intensity climbs — your main tool for custom scenario control and pacing. In a group, the Base character governs by default; hand the wheel to any member with the **Primary** picker.
+- **Pumpable characters.** Make a character an inflation target with its own capacity gauge, staged portraits, burst threshold, and full AI awareness (knowledge level, desire to be inflated/popped).
+- **Custom Buttons & Button Sets.** Quick-action buttons (send message, device control, run a trigger set/tree); swap whole **Button Sets** on the fly, with per-member message targeting in group mode.
+- **Import.** Bring in members from other SwellD cards, or import **Tavern V2/V3** cards (PNG/JSON) — lorebooks and world info convert into the Dictionary/Library.
 
-### Flow Node Scripting Engine
-
-The Flow Engine is ChatSD's visual automation system. You build flows by connecting nodes on a canvas — drag, drop, and wire them together.
-
-- **Trigger Nodes** define *when* a flow activates: on a player message, AI message, keyword match, device state change, timer, idle detection, capacity/pain/emotion threshold, or button press.
-- **Action Nodes** define *what happens*: send AI or player messages (with capacity-range variants), control devices (on/off/cycle with stop conditions), set variables, toggle reminders, toggle buttons, set emotions, or adjust character attributes mid-session.
-- **Logic Nodes** control *how it flows*: conditions, conditional and random branches, delays, pause/resume windows, player choices, input collection, counters, loops, switches, and session timers.
-- **Challenge Nodes** add *interactive games*: prize wheel, dice roll, coin flip, rock-paper-scissors, timer challenge, number guess, slot machine, card draw, Simon memory game, and reflex challenge — each with win/lose branching.
-
-Flows can be assigned to specific characters, personas, or run globally. They support priority levels, unblockable execution, silent mode, custom variables, and media playback.
-
-### Storyboard Script Orchestrator
-
-ScreenPlay's Storyboard is a hierarchical, logic-tree-based CYOA system. Stories are organized into **Plays** containing **Pages**, each with ordered **Paragraphs** that can be narration, actor dialogue, player dialogue, branching choices, or inline questions. Pages link to other pages through choices, creating branching narrative trees. Variables track player decisions and state across the story, and conditional logic controls which content appears based on those variables. The LLM enhancement system can expand brief prompts into full prose during authoring, and device events can be embedded at any point in the narrative to synchronize real-world hardware with story beats.
+Built-in cards include **Luna**, **Mistress Scarlett**, **Vex**, **Dr. Iris Chen**, the **Research Team Alpha** group, and **Lana** — a Lana + Scarlett hybrid that shows the unified group format end to end.
 
 ---
 
-## LLM Enhancement
+## The Trigger System (replaces Flows)
 
-SwellDreams connects to any local or cloud LLM backend through a flexible connection system. Point it at a **llama.cpp** or **KoboldCpp** server running on your local network, connect to **OpenRouter** for cloud model access, tap the free crowdsourced **AI Horde** grid, or use any **OpenAI-compatible API** endpoint. The system auto-detects your API type (text completion vs. chat completion) based on the endpoint URL, or you can set it manually.
+Scenario scripting is done with **Triggers** — the modern, no-code automation layer that replaces the old Flow engine.
 
-**AI Horde** is a free, community-run inference grid ([aihorde.net](https://aihorde.net)) — no local hardware or paid API required. Leave the key blank to use the anonymous tier, or register for a key for faster queue priority. Pick a specific model or let it route to any available worker; requests are submitted and polled to completion automatically. Because it's a raw text-completion backend, your selected chat template still applies.
+- **Trigger Sets** — named, reusable bundles of actions you can fire from a button, a checkpoint, or the API.
+- **Trigger Trees** — a visual nested-block builder for branching, conditional, capacity-driven sequences.
+- **Actions** — send AI/player/system messages, control devices (on / off / timed / cycle / pulse), set variables (`[Flow:name]`), adjust capacity and state, run minigames, and route on their results.
+- **Minigames editor** — build interactive games (wheel, dice, coin flip, RPS, number guess, slot machine, card draw, memory, reflex, timer) whose outcomes branch the story via trigger gotos.
+
+> The legacy Flow editor still exists for reference but is deprecated and hidden by default. New scenarios should use Triggers.
+
+---
+
+## Lorebook: Dictionary & Library
+
+Real lorebook support, split into two layers:
+
+- **Dictionary** — global, always-on (or keyword-triggered) world/term definitions, shared across cards. Ships with an **Inflation Tools** group (ticked on new cards by default).
+- **Library** — per-card lore entries, constant or keyword-triggered. Tavern character-book / world-info imports land here.
+
+---
+
+## Personas
+
+- Define your player identity: name, pronouns, appearance, personality, and inflation dispositions.
+- **Persona checkpoints** for how you react to your own and the character's inflation at each capacity range.
+- **Staged portraits** that transition with capacity, and built-in personas (Marcus, Zara).
+- The **`[Gender]` smart pronoun** resolves he/she/they correctly by grammatical position.
+
+---
+
+## Sessions & State
+
+- **Persistent per-character chats.** Every character remembers its most-recent conversation (saved after every message — crash/close safe). Switch characters freely without losing anything; **New** wipes the current one. An optional *"Use" Begins New Chat Session* toggle starts fresh on selection instead.
+- **Capacity gauge** (0–100%) with live auto-tracking from pump runtime, manual adjust, and auto-shutoff.
+- **Pain scale** and a selectable **emotion** display.
+- **Variables** — `[Player]`, `[Char]`, `[Gender]`, `[Capacity]`, `[CharCapacity]`, plus custom `[Flow:name]` state.
+
+---
+
+## LLM Backends
+
+Point SwellDreams at any local or cloud LLM:
+
+- **Local** — llama.cpp or KoboldCpp on your network (chat template auto-detected).
+- **OpenRouter** / any **OpenAI-compatible** endpoint.
+- **AI Horde** — the free, community-run inference grid ([aihorde.net](https://aihorde.net)). No hardware or paid key required; leave the key blank for the anonymous tier or add one for priority. Works out of the box via a built-in default profile.
+
+Streaming responses, guided impersonation, guided/again responses, and LLM-enhanced authoring are all supported. The main prompt construction was rebuilt for cleaner, more reliable behavior.
 
 ### Chat Templates
-
-When using local backends, SwellDreams formats prompts using the correct chat template for your model. Templates are auto-detected when connecting to a llama.cpp server, or can be selected manually.
 
 | Template | Format | Models |
 |----------|--------|--------|
@@ -83,210 +109,75 @@ When using local backends, SwellDreams formats prompts using the correct chat te
 | **Llama 3** | `<\|start_header_id\|>` | Llama 3 / 3.1 / 3.2 / 3.3 Instruct |
 | **Mistral** | `[INST]` (v0.2+) | Mistral, Mixtral |
 | **Mistral v7 (Tekken)** | `[SYSTEM_PROMPT]` / `[INST]` | Mistral Small 3.x, Skyfall & finetunes |
-| **Gemma 2** | `<start_of_turn>` / `<end_of_turn>` | Gemma 2 Instruct |
-| **Gemma 3** | `<start_of_turn>` with system role | Gemma 3 Instruct |
-| **Alpaca** | `### Instruction` / `### Response` | Alpaca-format fine-tunes |
-| **Vicuna** | `USER` / `ASSISTANT` | Vicuna-format fine-tunes |
+| **Gemma 2 / 3** | `<start_of_turn>` / `<end_of_turn>` | Gemma 2 / 3 Instruct |
+| **Alpaca / Vicuna** | `### Instruction` / `USER`–`ASSISTANT` | Alpaca / Vicuna fine-tunes |
 | **Jinja** | Server-side | llama.cpp applies its own template |
 | **None** | Raw concatenation | No wrapping applied |
 
 ### Sampler Settings
 
-Full control over generation quality with an extensive sampler configuration panel:
-
-- **Core Samplers** — Temperature, Top-K, Top-P, Typical-P, Min-P, Top-A, TFS, Top N-Sigma (fully wired to both KoboldCpp and llama.cpp)
-- **Repetition Control** — Repetition penalty, frequency penalty, presence penalty with configurable range and slope (now sent on both backends)
-- **Advanced Samplers** — DRY repetition penalty, XTC sampling, quadratic smoothing, dynamic temperature, Mirostat (modes 1 and 2)
-- **Token Control** — Custom stop sequences, banned tokens, banned strings (anti-slop), per-token-ID `logit_bias` bias/bans, GBNF grammar constraints, custom sampler execution order
-- **Generation & Tokenization** — Ban EOS token (run past the model's end-of-turn), skip special tokens, add BOS token, fixed seed, and llama.cpp `n_keep` for preserving the character card on context overflow
-- **Override Server Samplers** — Per-profile toggle: send SwellDreams' full sampler set, or only prompt/limits/stop/EOS and let the server's own launched sampler profile govern (for llama-server / managed setups)
-- **Convenience** — Lock samplers to prevent accidental changes, one-click neutralize to reset all values, per-connection profile presets
+A full sampler panel: Temperature, Top-K/P, Typical-P, Min-P, Top-A, TFS, Top N-Sigma; repetition/frequency/presence penalties; DRY, XTC, quadratic smoothing, dynamic temperature, Mirostat 1/2; stop sequences, banned tokens/strings, `logit_bias`, GBNF grammar, custom sampler order; ban-EOS, BOS, fixed seed, `n_keep`; per-profile "override server samplers"; lock/neutralize; and per-connection presets.
 
 ---
 
 ## Smart Device Control
 
-SwellDreams turns smart outlets into interactive session hardware. Devices can be controlled manually, through visual flow scripts, or autonomously by the AI itself — all with built-in safety limits and real-time capacity tracking.
+Smart outlets become interactive session hardware — controlled manually, by Triggers, or autonomously by the AI, all with safety limits and live capacity tracking.
 
-### How Devices Are Controlled
+- **Manual** — one-tap on/off in the session.
+- **Triggers** — device actions fired by messages, checkpoints, timers, capacity thresholds, or buttons.
+- **AI-driven** — the AI embeds `[pump on]` / `[pump off]` (and pulse/timed/cycle) tags in its replies, governed by per-pump limits. An optional **Pump Trigger Phrase Assist** scans narration for pump phrases to help weaker models that forget the tag.
 
-- **Manual Control** — Turn devices on and off directly from the session interface with one-tap buttons.
-- **Flow Node Scripting** — The Flow Engine's device action nodes can turn devices on/off, start timed runs, or begin on/off cycling patterns — all triggered by conversation events, timers, capacity thresholds, or button presses.
-- **AI-Driven Control** — The AI embeds device commands directly in its responses based on conversation context. It can turn devices on, pulse them, run timed activations, or start cycling patterns — all governed by per-character safety limits (max duration, max pulses, max cycle count). The system also detects 165+ natural-language patterns in AI output (like "turn up the pressure" or "the pump hums to life") and reinforces them with actual device commands.
-- **ScreenPlay Events** — Device actions can be embedded at any point in a ScreenPlay storyboard, synchronizing hardware with narrative beats.
+| Mode | Behavior |
+|------|----------|
+| **On/Off** | Direct toggle with optional auto-off timer |
+| **Timed** | Run for N seconds, then auto-stop |
+| **Cycling** | Configurable on-duration / off-interval / repeat count |
+| **Pulse** | Rapid 0.5-second bursts |
 
-### Control Modes
+### Automatic Pumps & Calibration
 
-| Mode | Format | Behavior |
-|------|--------|----------|
-| **On/Off** | Instant toggle | Direct power control with optional auto-off timer |
-| **Timed** | Run for N seconds | Device activates for a set duration, then auto-stops |
-| **Cycling** | On/off pattern | Configurable on-duration, off-interval, and repeat count |
-| **Pulse** | Quick bursts | Rapid 0.5-second on/off pulses |
+Calibrating an outlet creates a named **Automatic Pump** — calibration and device-control limits live **with the pump, not the outlet**, and the pump remembers the device/IP it was last plugged into. The primary pump's limits act as the upper ceiling. Once calibrated, **Auto-Capacity** tracks capacity live from pump runtime with auto-shutoff. There's also a **Manual pump** mode (bulb/bike) for non-smart setups.
 
-### Calibration & Auto-Capacity
+### Supported Outlets
 
-Each device can be calibrated to establish a baseline — the system learns how long it takes to reach full capacity. Once calibrated, SwellDreams automatically tracks capacity in real-time based on cumulative pump runtime, updating the capacity gauge live during sessions. An auto-shutoff engages when capacity reaches the configured threshold.
+> **⚠️ Cloud outlets are being phased out** in favor of local-network outlets — cloud APIs change often, rapid cycling risks rate-limiting/bans, and every command costs an internet round-trip.
 
-### Supported Brands
+**Local-network (recommended — no account, no cloud, no rate limits):**
 
-> **⚠️ Cloud outlets are being phased out.** SwellDreams is moving toward local-network-only smart outlets. The cloud-connected outlets (Govee, Tuya) will be **gradually deprecated** — their manufacturers keep changing their cloud APIs and pushing third-party tools out of support, rapid on/off cycling risks rate-limiting or an account ban, and every command pays an internet round-trip of delay. New installs should use one of the recommended local outlets below.
+| Outlet | Connection | Notes |
+|--------|-----------|-------|
+| **KAUF** | ESPHome (local HTTP) | ✅ Main recommendation — local, no account, no flashing. [kaufha.com/plf12](https://kaufha.com/plf12/) |
+| **Shelly** | Local HTTP API | No account/cloud. ⚠️ Often out of stock. [us.shelly.com](https://us.shelly.com/collections/smart-plugs) |
+| **Athom** | Tasmota / ESPHome | Pre-flashed local plugs. ⚠️ Ships from Shenzhen (slow). [tindie.com/stores/athom](https://www.tindie.com/stores/athom/) |
+| **TP-Link Kasa (Legacy)** | Native local TCP | Older Kasa (e.g. HS103). ⚠️ Disable firmware auto-update — 1.1.x+ removes the local protocol. |
 
-**Local-network outlets — recommended** (no account, no cloud, no rate limits):
-
-| Outlet | Connection | Notes & where to buy |
-|--------|-----------|----------------------|
-| **KAUF** | ESPHome (local HTTP) | ✅ The main recommended outlet — ships with ESPHome, fully local, no account, no flashing. Buy: [kaufha.com/plf12](https://kaufha.com/plf12/) |
-| **Shelly** | Local HTTP API | No account, no cloud. ⚠️ Currently and periodically out of stock — check availability before relying on it. Buy: [us.shelly.com](https://us.shelly.com/collections/smart-plugs) |
-| **Athom (Tindie)** | Tasmota / ESPHome (local) | Plugs pre-flashed with Tasmota or ESPHome. ⚠️ Ships from Shenzhen — expect long shipping times. Buy: [tindie.com/stores/athom](https://www.tindie.com/stores/athom/) |
-| **TP-Link Kasa (Legacy)** | Local network (native TCP, port 9999) | Older Kasa plugs (e.g. the HS103). ⚠️ Disable firmware auto-updates in the Kasa app — a 1.1.x+ firmware update removes the legacy local protocol. |
-
-**Other devices** (existing integrations — cloud outlets here are being phased out):
+**Other integrations:**
 
 | Brand | Connection | Status |
 |-------|-----------|--------|
-| **TP-Link Tapo** | Local network (Python bridge) | Out of service — manufacturer KLAP encryption changes currently block third-party control |
-| **Home Assistant** | REST API (local network) | Supported — bridge for Tapo and any other HA-managed switch entities |
-| **Govee** | Cloud API | Supported — being phased out |
-| **Tuya / Smart Life** | Cloud API | Supported — being phased out; includes Globe, Treatlife, Gosund, Teckin, and other Tuya-based brands |
+| **Home Assistant** | REST API (local) | Supported — bridges Tapo and any HA switch entity |
+| **TP-Link Tapo** | Python bridge | Out of service — KLAP encryption blocks third-party control (use Home Assistant) |
+| **Govee / Tuya (Smart Life)** | Cloud API | Supported but being phased out |
 | **Simulated** | None | Built-in testing mode, no hardware required |
 
 ---
 
-## Full Feature List
+## Media & Skins
 
-### AI Chat & Roleplay (ChatSD)
+- **Media album** — upload/tag images, video, audio; embed inline with `[Image:tag]`, `[Video:tag]`, `[Audio:tag]` (loop/blocking/silent modes).
+- **Skins** — full visual theming with saveable profiles and 8 built-in scene skins. Per-character (per-story) skins auto-load on session start, and checkpoints can swap skins by capacity range. Skinning applies across chat, settings, modals, and device cards.
 
-- **Three-column desktop layout** — persona portrait on the left, conversation center, character portrait and controls on the right
-- **Responsive mobile interface** — single-column layout with swipeable persona/character drawers, floating status badges, and touch-optimized controls
-- **Streaming responses** — real-time token-by-token AI output
-- **Guided Impersonation** — AI generates text as your persona; result appears in your input for editing before sending. Optionally type guidance text to steer the generation.
-- **Guided Response** — AI generates a character response on demand, with optional guidance text to influence direction
-- **Send as Character** — manually write dialogue as the AI character to steer the scene
-- **Story Progression Mode** — auto-generates emotionally varied player reply suggestions after each AI message, influenced by current emotion, capacity, pain, and recent context. Per-story toggle with configurable suggestion count.
-- **Emergency Stop** — one-tap button to immediately halt all devices and cycles. Prominently placed in the nav bar (desktop) and chat input area (mobile).
-- **Adjustable font size** — +/- buttons in the chat area (10px to 32px), persistent across sessions
-- **Keyboard shortcuts** — arrow keys to adjust capacity (1% or 5% with Shift)
+---
 
-### Character System
+## Interface, Access & Data
 
-- **SwellD character card format** — native format supporting single-character and multi-character cards
-- **Multi-character cards** — 2+ AI characters sharing a scene, each with independent name, description, and personality. The LLM writes for contextually relevant characters each turn.
-- **Multiple stories per character** — each story has its own scenario, welcome messages, example dialogues, attributes, checkpoints, and session defaults
-- **Welcome messages** — multiple versions per story with random or manual selection. Toggle the "R" button to randomly pick a version on each new session start. LLM enhancement (magic wand) to expand brief text into immersive greetings.
-- **Scenarios** — scene-setting context included in every prompt, with LLM enhancement support
-- **Example dialogues** — sample exchanges that establish the character's voice, formatting, and subject-object relationships
-- **Personality attributes** — five probability-based traits (dominant, sadistic, psychopathic, sensual, sexual) that roll on each AI message. Per-story configuration, dynamically adjustable mid-session via flow nodes.
-- **Capacity checkpoints** — per-story author instructions injected at 11 capacity ranges (0% pre-inflation through 91-100%), guiding AI behavior as intensity progresses
-- **Session defaults** — per-character starting values for capacity, pain, emotion, and auto-capacity speed
-- **Custom reminders (lorebook)** — constant or keyword-triggered instructions with priority, scan depth, case sensitivity, and enable/disable toggle. Flow-controllable mid-session.
-- **Global reminders** — reminders that apply to all characters, configured in global settings
-- **Author note** — high-priority persistent instruction field in global settings
-- **Token switching** — replace overused LLM words with random alternatives. Define trigger word → comma-separated replacements in Settings > Global. Applied to every AI response with case-preserving whole-word matching.
-- **Character inflation ("Pumpable")** — characters can be inflation targets with their own capacity gauge, pain emoji, staged portraits, burst threshold, and full AI context awareness. Controlled via flow nodes (start/stop/set capacity) with configurable calibration time, knowledge level (unaware→expert), desire to be inflated (terrified→obsessed), and desire to be popped (terrified→eager). Auto-load basic controls option assigns ready-made button flows.
-- **Custom buttons** — quick-action buttons with send message, device control, cycle device, flow linking, and run-trigger-set actions. Dynamically togglable via flows.
-- **Trigger Sets** — named, reusable bundles of triggers managed on a dedicated Triggers page (create, save, rename, delete). Fire an entire set at once from a button (Run Trigger Set action) or via the API. Trigger rows support actions including player impersonate, AI message, **system message**, **set flow variable** (Set/Inc/Dec/Mult/Div), device control, and capacity/state changes.
-- **[Gender] smart pronoun system** — context-aware pronoun variable that resolves to he/she/they based on persona gender and grammatical position
-- **Built-in characters** — Luna (romantic partner), Mistress Scarlett (dominatrix), Vex (gameshow host), Dr. Iris Chen (researcher), Research Team Alpha (multi-char medical team) — each with pre-built flows
-- **V2/V3 Tavern import** — full conversion of SillyTavern/TavernAI character cards (PNG and JSON) including lorebook entries, alternate greetings, and avatar extraction. Batch import of multiple files at once with per-file error handling. Post-import guidance modal.
-- **Character export** — SwellDreams PNG (full-fidelity with optional embedded flows), V3 PNG (cross-platform compatible with dual V2/V3 chunks), and JSON backup
-- **Full backup & restore** — export all characters, personas, flows, and settings (API keys excluded) in a single file
-
-### Persona System
-
-- **Persona creation** — define your player identity with name, pronouns (he/him, she/her, they/them, it/its), appearance, personality, and relationship with inflation
-- **Persona attributes** — inflation knowledge (unaware→expert), desire to be inflated (terrified→obsessed), pop desire, desire to inflate/pop others — guiding impersonate and AI behavior
-- **Persona checkpoints** — "My Inflation" reactions (how the persona feels about their own inflation) and "Character's Inflation" reactions (how the persona reacts to the AI character being inflated) at each capacity range
-- **Checkpoint profiles** — save, load, update, and delete reusable checkpoint sets. Shared profile library between Character and Persona editors with dirty-change tracking.
-- **Staged portraits** — upload multiple persona avatars that transition automatically based on capacity thresholds
-- **Built-in personas** — Marcus (eager, submissive) and Zara (bratty, resistant), each with pre-built reaction flows
-- **Persona flows** — flows assigned to personas that auto-generate player messages at different capacity levels
-
-### Session State & Variables
-
-- **Capacity gauge** — circular dial (0-100%) with animated needle, manual adjustment via keyboard or click, and auto-tracking from device runtime
-- **Pain scale** — Wong-Baker FACES scale (0-10) with emoji selector
-- **Emotion system** — 20 selectable emotions (neutral, excited, aroused, submissive, dominant, shy, frightened, blissful, and more) with emoji display
-- **Auto-link capacity to pain** — optional automatic pain level progression tied to capacity percentage
-- **Emotional decline** — optional automatic emotion shift to "frightened" at 75%+ capacity
-- **Built-in variables** — `[Player]`, `[Char]`, `[Gender]`, `[Capacity]`, `[CharCapacity]`, `[Feeling]`, `[Emotion]` — replaced dynamically in prompts, messages, and reminders
-- **Custom flow variables** — `[Flow:variableName]` for tracking state, counts, and decisions across a session
-- **Auto-capacity system** — real-time capacity tracking from pump runtime with per-device calibration, configurable speed multiplier (0.25x-2.0x), live modifier slider on the capacity gauge, and auto-shutoff at threshold. Capacity modifier also scales LLM device control time limits.
-
-### Flow Node Scripting Engine
-
-- **Visual drag-and-drop editor** — connect nodes on a canvas to build automation
-- **13 trigger types** — first message, new session, player speaks, AI speaks, device on/off, timer, random, idle, player state change, character state change, button press
-- **Pattern matching** — wildcard (`*`) and alternative (`[word/or/other]`) syntax for keyword triggers
-- **Message actions** — send AI message, send player message, system message, capacity-ranged AI/player messages
-- **Device actions** — turn on/off, start/stop cycle, with "until" conditions (timer, capacity, pain, emotion)
-- **State actions** — declare/set variables, toggle reminders, toggle buttons, set emotion, set attribute
-- **Character inflation actions** — start/stop character inflation, set character capacity — for pumpable characters with timer-based simulated inflation
-- **Logic nodes** — condition (AND logic), conditional branch, random branch (weighted), delay, pause/resume window, player choice, simple A/B, input collection, random number, counter, loop, switch, session timer, comment
-- **10 challenge mini-games** — prize wheel, dice roll, coin flip, rock-paper-scissors, timer challenge, number guess, slot machine, card draw, Simon memory, reflex challenge — each with win/lose branching
-- **Media nodes** — show image, play video, play audio — with blocking, looping, and silent modes
-- **Flow priority** — 5 priority levels controlling execution order when multiple flows trigger simultaneously
-- **Flow scope** — global (all characters), character-specific, or persona-specific
-- **Unblockable mode** — critical flows that cannot be interrupted (except by E-STOP)
-- **Silent mode** — flows that run without system notification messages
-- **Dual outputs** — device-on and cycle-start nodes have immediate and completion outputs for chained logic
-
-### ScreenPlay (Visual Novel System)
-
-- **Plays, Pages, and Paragraphs** — hierarchical story structure with branching narrative trees
-- **Story content** — narration (2nd or 3rd person), actor dialogue with portraits, player dialogue
-- **Player interaction** — branching choices (page jumps) and inline choices (in-page responses)
-- **Logic & flow control** — conditions, set variable, go to page, weighted random, delay, end (with outcome type)
-- **Device control** — real pump events and mock pump events (visual-only for NPCs) with on/off/cycle/pulse/timed/until modes
-- **Parallel container** — run multiple events simultaneously (pumps, variables, delays)
-- **Capacity gate** — block story progress until a capacity threshold is reached
-- **Dual inflatee system** — track two characters with independent capacity gauges and filmstrip portraits
-- **Actors system** — named characters with avatars and personalities, importable from the main character list
-- **10 challenge mini-games** — same games as the Flow Engine, with per-result page routing
-- **LLM enhancement** — toggle per paragraph to have AI expand brief prompts into rich prose during playback
-- **Continue mode** — manual (click to advance) or auto (configurable base delay, per-word delay, max delay)
-- **Filmstrips** — side panels showing character avatars with capacity-based expression states
-- **Dynamic NPC avatars** — change filmstrip portraits mid-story with Set NPC Avatar events
-- **Play variables** — `[Play:variableName]` for tracking state across the story
-- **Notifications** — popup modals and toast notifications within the story
-- **Media embedding** — show images, play video, play audio at any story point
-
-### Media System
-
-- **Media album** — upload and tag images, video, and audio files
-- **Media tags in chat** — `[Image:tag]`, `[Video:tag]`, `[Audio:tag]` embedded inline in messages
-- **Video modes** — one-shot, looping (`[Video:tag:loop]`), and blocking (`[Video:tag:blocking]`)
-- **Audio modes** — visible player or silent background (`[Audio:tag:nomsg]`)
-- **Media flow nodes** — dedicated show image, play video, and play audio action nodes with blocking support
-- **Media variables reference** — collapsible reference card in the Media Album showing all variable formats
-
-### Interface & Access
-
-- **Desktop layout** — three-column with persona, chat, and character panels
-- **Mobile layout** — single-column with swipeable drawers for persona and character panels, floating status badges
-- **Remote access** — access from other devices on your network or via Tailscale VPN
-- **IP whitelist** — only approved IP addresses can connect remotely
-- **Simulation mode** — full functionality without hardware for testing and safe roleplay
-
-### Security & Data
-
-- **API key encryption** — AES-256-GCM encryption with a unique machine-specific key, generated on first run
-- **Machine-bound keys** — encrypted credentials only work on the machine that created them
-- **Auto-updating** — start scripts pull latest changes from git before launching
-- **Per-file character storage** — characters stored as individual JSON files, auto-indexed on startup
-
-### Display & Skins
-
-- **Skin system** — full visual customization with saveable skin profiles (Settings > Display)
-- **8 built-in scene skins** — Deep Forest, Abandoned Warehouse, Moonlit Embrace, The Red Room, Neon Arcade, The Laboratory, Observation Ward, Slumber Party — each with background images, sidebar images, and coordinated color schemes
-- **Customizable elements** — player/character/system bubble colors, outlines, text, fonts, background image, sidebar images, modal background, header color, tab strip color, action menu backgrounds, section backgrounds
-- **Bubble transparency** — adjustable opacity slider (10-100%) for chat bubbles with hover-to-full-opacity
-- **Persistent skin images** — uploaded backgrounds and sidebar images saved to disk as files, surviving across sessions and restarts
-- **Per-character skins** — assign any skin (built-in or custom) to each character story, auto-loaded on session start. Automatically reverts to default when switching to a character without a skin.
-- **Checkpoint skin triggers** — dynamically change skins based on capacity ranges via checkpoint triggers
-- **Full application skinning** — skins apply to chat, settings pages, modals, dropdown overlays, device cards, and all UI elements
-- **Web-safe fonts** — 14 font options for chat bubbles and system UI
-- **Live preview** — skin changes apply instantly via CSS custom properties
+- **Desktop** three-column layout (persona · chat · character) and a **mobile** single-column layout with swipeable drawers.
+- **Remote access** over your LAN or Tailscale, with an **IP whitelist**.
+- **Simulation mode** — full functionality without hardware.
+- **API key encryption** — AES-256-GCM with a machine-bound key.
+- **Per-file character storage**, auto-indexed on startup.
+- **Auto-updating** — the start scripts pull the latest `release` and rebuild before launching.
 
 ---
 
@@ -295,50 +186,32 @@ Each device can be calibrated to establish a baseline — the system learns how 
 ### Requirements
 
 - **Node.js** 18+
-- **Python** 3.8+ (optional — only needed for TP-Link Tapo, currently out of service)
-- Modern web browser
+- **Python** 3.8+ (optional — only for the TP-Link Tapo bridge)
+- A modern web browser
 
-### Clone from Release (Stable)
+### Get it
 
 ```bash
 git clone -b release https://github.com/Airegasm/SwellDreams.git
 cd SwellDreams
 ```
 
-### Clone from Develop (Unstable)
-
-```bash
-git clone -b develop https://github.com/Airegasm/SwellDreams.git
-cd SwellDreams
-```
-
-### Windows
+### Run
 
 ```batch
-start.bat
+start.bat        :: Windows
 ```
-
-### Linux / macOS
-
 ```bash
-chmod +x start.sh
-./start.sh
+chmod +x start.sh && ./start.sh   # Linux / macOS
 ```
 
-The startup script will:
-1. Pull the latest updates from your branch automatically
-2. Install/update all dependencies
-3. Build the frontend
-4. Start the server on port 8889
-5. Open your browser to http://localhost:8889
-
-After the initial clone, SwellDreams is **auto-updating** — every time you run the start script, it pulls the latest changes before launching.
+The start script auto-updates, installs dependencies, builds the frontend, starts the server on **port 8889**, and opens `http://localhost:8889`. After the first clone it's **auto-updating** — just run it again to update.
 
 ### Stopping
 
 ```batch
-stop.bat       # Windows
-./stop.sh      # Linux/macOS
+stop.bat         :: Windows
+./stop.sh        # Linux / macOS
 ```
 
 ---
@@ -351,7 +224,7 @@ stop.bat       # Windows
 
 ## License
 
-Open Beta - All rights reserved.
+Open Beta — All rights reserved.
 
 ---
 
