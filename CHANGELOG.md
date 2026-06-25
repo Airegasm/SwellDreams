@@ -2,6 +2,10 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.0] - 2026-06-25 — "Stable Overhaul"
+
+Stable release of the 6.1.x overhaul: unified character cards (single/group/instructor in one), the Trigger system replacing Flows, the Minigames editor, Dictionary/Library lorebook, Automatic Pumps + manual pump mode, persistent per-character chats, a redesigned Checkpoint system, a restructured main prompt, a Settings overhaul, and free AI Horde LLM support — plus the updater/data-tracking and `fsync` fixes from 6.1.4–6.1.6. See the entries below for details.
+
 ## [v6.1.6] - 2026-06-21
 
 ### Removed
