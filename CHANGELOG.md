@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.3] - 2026-06-30
+
+### Changed
+- **Disabled the periodic pump safety watchdog** (the 1s interval that force-offed all pumps on a believed max-on-time / capacity ceiling). It was the source of the "pump only stays on ~1s" loop. Per-command auto-off timers, explicit `[pump off]`, the pre-inflation/capacity gate, and Emergency Stop still apply. Toggle `PUMP_SAFETY_WATCHDOG_ENABLED` in server.js to re-enable.
+
 ## [v6.2.2] - 2026-06-30
 
 ### Fixed

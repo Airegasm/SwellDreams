@@ -5269,7 +5269,14 @@ function pumpSafetyWatchdogTick() {
   }
 }
 
+// The periodic pump safety watchdog is DISABLED. It force-offed every pump on a 1s interval when
+// it believed a pump had been on too long or capacity hit the ceiling — which, with an unreachable/
+// stale pump, killed the working pump every second. Per-command auto-off timers, explicit
+// [pump off], the capacity gate, and Emergency Stop still apply.
+const PUMP_SAFETY_WATCHDOG_ENABLED = false;
+
 function startPumpSafetyWatchdog() {
+  if (!PUMP_SAFETY_WATCHDOG_ENABLED) return;
   if (pumpSafetyWatchdog) return;
   pumpSafetyWatchdog = setInterval(pumpSafetyWatchdogTick, 1000);
 }
