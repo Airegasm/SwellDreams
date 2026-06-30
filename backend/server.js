@@ -13103,7 +13103,6 @@ app.post('/api/settings', async (req, res) => {
         sessionState.chatMemorySummary = snap.chatMemorySummary || null;
         sessionState.chatMemorySummaryUpTo = snap.chatMemorySummaryUpTo || 0;
         sessionState.flowVariables = snap.flowVariables || {};
-        if (sessionState.capacity > 0) sessionState.preInflationGateMet = true;
         switchRestored = true;
       }
     }
@@ -13115,6 +13114,23 @@ app.post('/api/settings', async (req, res) => {
       sessionState.capacity = _st?.startingCapacity || 0;
       sessionState.pain = 0;
     }
+    // Set the pre-inflation gate for the NEW character (mirrors /api/session/reset). Without this,
+    // a switch inherits a stale gate from a previous instructor/intro/pre-fill session, which would
+    // silently strip every model [pump on] to off-only on a standard/group card.
+    const gChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const gChar = gChars.find(c => c.id === settings.activeCharacterId);
+    const gStory = gChar?.stories?.find(s => s.id === gChar.activeStoryId) || gChar?.stories?.[0];
+    if (sessionState.capacity > 0) {
+      sessionState.preInflationGateMet = true;
+    } else if (gChar && (hasIntroTree(gChar) || getPreFillConfig(gChar))) {
+      sessionState.preInflationGateMet = false;            // gated intro / pre-fill keeps it closed
+    } else if (isInstructor(gChar)) {
+      const _hasPrereqs = Array.isArray(gStory?.prereqs) && gStory.prereqs.some(s => s?.choices?.some(c => c?.label));
+      sessionState.preInflationGateMet = !_hasPrereqs;
+    } else {
+      sessionState.preInflationGateMet = true;             // standard / group card → ungated
+    }
+    broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
   }
 
   if (charChanged || personaChanged) {

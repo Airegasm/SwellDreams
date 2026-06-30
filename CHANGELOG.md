@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.1] - 2026-06-30
+
+### Fixed
+- **`[pump on]` silently stripped after switching characters (esp. group cards).** A character switch left the pre-inflation gate at whatever the previous session set it to (e.g. a prior instructor/intro/pre-fill card closed it), so the AI's `[pump on]` tags were blocked to off-only on the new card. The switch now sets the gate from the new character just like a fresh session does — standard/group cards start ungated.
+
 ## [v6.2.0] - 2026-06-25 — "Stable Overhaul"
 
 Stable release of the 6.1.x overhaul: unified character cards (single/group/instructor in one), the Trigger system replacing Flows, the Minigames editor, Dictionary/Library lorebook, Automatic Pumps + manual pump mode, persistent per-character chats, a redesigned Checkpoint system, a restructured main prompt, a Settings overhaul, and free AI Horde LLM support — plus the updater/data-tracking and `fsync` fixes from 6.1.4–6.1.6. See the entries below for details.
