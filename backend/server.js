@@ -5134,6 +5134,12 @@ let pumpSafetyWatchdog = null;
 // is populated for ALL activation paths — independent of useAutoCapacity, the
 // pumpRuntimeTracker, and flow-node execution state.
 const pumpActiveSince = {};
+// Per-device count of consecutive UNCONFIRMED force-offs. An unreachable/stale pump can never
+// confirm OFF; without a cap its pumpActiveSince entry would live forever, keeping the watchdog
+// "a pump is on" → it would force-off every healthy pump every second (the working pump then only
+// stays on ~1s). After a few attempts we give up on the phantom so the watchdog can settle.
+const forceOffAttempts = {};
+const MAX_FORCE_OFF_ATTEMPTS = 3;
 
 // Does this device_on/off payload refer to a PUMP? Falls back to the device store when
 // the emitted payload lacks deviceType.
@@ -5202,11 +5208,25 @@ function forceAllPumpsOff(reason) {
       if (ok) {
         delete pumpActiveSince[stateKey];
         delete pumpActiveSince[id];
+        delete forceOffAttempts[stateKey];
         if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
           sessionState.executionHistory.deviceActions[stateKey].state = 'off';
         }
       } else {
-        console.error(`[PumpWatchdog] Force-off of pump ${id} NOT confirmed — will keep retrying`);
+        forceOffAttempts[stateKey] = (forceOffAttempts[stateKey] || 0) + 1;
+        if (forceOffAttempts[stateKey] >= MAX_FORCE_OFF_ATTEMPTS) {
+          // Unreachable/phantom pump — we've sent OFF several times. Stop believing it's on so it
+          // can't keep the watchdog firing and force-offing the healthy pumps every second.
+          console.error(`[PumpWatchdog] Pump ${id} OFF unconfirmed ${forceOffAttempts[stateKey]}× — giving up; clearing its stale ON state so it stops force-offing other pumps`);
+          delete pumpActiveSince[stateKey];
+          delete pumpActiveSince[id];
+          delete forceOffAttempts[stateKey];
+          if (sessionState.executionHistory?.deviceActions?.[stateKey]) {
+            sessionState.executionHistory.deviceActions[stateKey].state = 'off';
+          }
+        } else {
+          console.error(`[PumpWatchdog] Force-off of pump ${id} NOT confirmed (attempt ${forceOffAttempts[stateKey]}/${MAX_FORCE_OFF_ATTEMPTS}) — will retry`);
+        }
       }
       broadcast('pump_safety_shutoff', {
         device: pump.label || pump.name || id,
@@ -18010,6 +18030,10 @@ app.post('/api/session/reset', async (req, res) => {
   };
   sessionState.pumpRuntimeTracker = {}; // Reset auto-capacity tracking
   sessionState.capacityOffset = 0; // Clear manual capacity offset
+  // Clear believed-on pump state (all devices were turned off above) so a stale/unconfirmed entry
+  // can't make the safety watchdog think a pump is still on into the new session.
+  for (const k of Object.keys(pumpActiveSince)) delete pumpActiveSince[k];
+  for (const k of Object.keys(forceOffAttempts)) delete forceOffAttempts[k];
   stopCharacterInflation(); // Stop any active character inflation
   sessionState.characterCapacity = 0;
   sessionState.characterInflationBaseCapacity = 0;

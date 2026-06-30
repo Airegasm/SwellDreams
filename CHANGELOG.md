@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.2] - 2026-06-30
+
+### Fixed
+- **Pump only staying on ~1s (safety watchdog looping on a phantom pump).** If a configured pump is unreachable/stale, its force-off never "confirms", so the watchdog kept believing a pump was on and force-offed *every* pump every second — killing the working pump right after it turned on. Force-off now gives up on an unconfirmable device after a few attempts (clearing its stale on-state), and New/reset clears believed-on pump state so it can't carry across sessions.
+
 ## [v6.2.1] - 2026-06-30
 
 ### Fixed
