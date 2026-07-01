@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.20] - 2026-07-01
+
+### Changed
+- **Pump Trigger Phrase Assist (prose reinforcement) is now hidden when AI Pump Control (master switch) is off.** The backend already ignored prose reinforcement whenever device control was off (and in manual pump mode), but the toggle stayed visible and looked active — it now hides under the master switch like the other pump sub-controls, so it's clear it does nothing while device control is off.
+
 ## [v6.2.19] - 2026-07-01
 
 ### Fixed

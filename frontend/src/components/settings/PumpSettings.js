@@ -62,18 +62,21 @@ function PumpSettings() {
         </div>
       )}
 
-      {/* 3. Pump Trigger Phrase Assist (off by default) */}
-      <div className="character-control-row">
-        <label className="toggle-switch">
-          <input type="checkbox" checked={!!cc.allowProseReinforcement}
-            onChange={(e) => update('allowProseReinforcement', e.target.checked)} />
-          <span className="toggle-slider"></span>
-        </label>
-        <div className="control-label-group">
-          <span className="toggle-label">Pump Trigger Phrase Assist</span>
-          <span className="control-hint">Helps weaker models: scans the AI's narration for pump trigger phrases and fires the pump even when it forgets the [pump on] tag. Off by default. (Turning the pump OFF from narration is always on.)</span>
+      {/* 3. Pump Trigger Phrase Assist (off by default) — only relevant when the master switch is on;
+             with AI Pump Control off, prose reinforcement is ignored, so hide it to avoid confusion. */}
+      {master && (
+        <div className="character-control-row">
+          <label className="toggle-switch">
+            <input type="checkbox" checked={!!cc.allowProseReinforcement}
+              onChange={(e) => update('allowProseReinforcement', e.target.checked)} />
+            <span className="toggle-slider"></span>
+          </label>
+          <div className="control-label-group">
+            <span className="toggle-label">Pump Trigger Phrase Assist</span>
+            <span className="control-hint">Helps weaker models: scans the AI's narration for pump trigger phrases and fires the pump even when it forgets the [pump on] tag. Off by default. (Turning the pump OFF from narration is always on.)</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <hr className="control-divider" />
 
