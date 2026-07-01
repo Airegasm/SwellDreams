@@ -3574,8 +3574,22 @@ function normalizeRangeTriggers(val) {
 // handleManualPump (pump) or a matching player message (input) resumes the rest. Mirrors the
 // tree pause_resume pattern. resumeTriggerSequence() continues a paused sequence.
 async function fireTriggerSequence(triggers, startIdx, source, character, settings) {
+  // Whose capacity a Fire% gate compares against (player vs character), derived from the range key.
+  const gateType = String(source || '').startsWith('char-') ? 'char' : 'player';
   for (let i = startIdx; i < (triggers || []).length; i++) {
     const trg = triggers[i];
+    // Fire% gate: pause the sequence until capacity reaches this trigger's exact %. No-Fire%
+    // triggers fire as soon as the sequence reaches them; a Fire% trigger holds the rest of the
+    // sequence until that % is hit, then fires and continues (resumed by executeCheckpointTriggers).
+    const fp = Number(trg.firePercent);
+    if (Number.isFinite(fp) && fp > 0) {
+      const cap = gateType === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
+      if (cap < fp) {
+        sessionState.pendingRangeAwait = { kind: 'capacity', type: gateType, target: fp, rest: triggers.slice(i), source, characterId: character.id };
+        console.log(`[Trigger/${source}] Fire% gate — holding sequence until capacity reaches ${fp}% (now ${cap}%)`);
+        return;
+      }
+    }
     if (trg.type === 'await_pump') {
       const target = Math.max(1, parseInt(trg.count, 10) || 1);
       sessionState.pendingRangeAwait = { kind: 'pump', target, count: 0, rest: triggers.slice(i + 1), source, characterId: character.id };
@@ -3622,21 +3636,6 @@ async function tryResolveAwaitInput(content, speaker) {
   }
 }
 
-// Capacity bands, in order, for scanning Fire% crossings.
-const CAPACITY_RANGE_KEYS = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100'];
-// A trigger's Fire% — an exact % within its range at which it fires (instead of on range entry).
-// Returns the clamped number if valid for this range key, else null (fires on range entry).
-function triggerFirePercent(trigger, rangeKey) {
-  const raw = trigger?.firePercent;
-  if (raw === '' || raw === null || raw === undefined) return null;
-  const fp = Number(raw);
-  if (!Number.isFinite(fp)) return null;
-  const parts = String(rangeKey).split('-').map(Number);
-  const lo = parts[0], hi = parts[1];
-  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
-  return (fp >= lo && fp <= hi) ? fp : null;
-}
-
 async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   // Get the active character and story
   const settings = loadData(DATA_FILES.settings);
@@ -3651,45 +3650,31 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   const checkpointTriggers = getActiveProfileRangeTriggers(getActiveCheckpointProfile(activeCharacter)) || {};
   if (!checkpointTriggers) return;
 
-  // ---- Part A: range-entry sequence (triggers WITHOUT a Fire%) — fires on range change ----
-  const oldRange = capacityToRangeKey(oldCapacity);
   const newRange = capacityToRangeKey(newCapacity);
-  if (oldRange !== newRange) {
-    const triggerKey = `${type}-${newRange}`;
-    if (!firedCheckpointTriggers.has(triggerKey)) {
-      const entryTriggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential
-        .filter(t => triggerFirePercent(t, newRange) === null);
-      if (entryTriggers.length > 0) {
-        // #21: a new range that HAS triggers takes priority — ABORT any pending await from a
-        // previous range before firing this range's sequence.
-        if (sessionState.pendingRangeAwait) {
-          console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
-          sessionState.pendingRangeAwait = null;
-          broadcast('await_state', null);
-        }
-        firedCheckpointTriggers.add(triggerKey);
-        console.log(`[CheckpointTriggers] Firing ${entryTriggers.length} range-entry trigger(s) for ${triggerKey}`);
-        await fireTriggerSequence(entryTriggers, 0, triggerKey, activeCharacter, settings);
-      }
+  const triggerKey = `${type}-${newRange}`;
+  const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
+
+  // (1) First time we're in this range (entered from another band OR rising from 0 within the first
+  //     band): run its sequence IN ORDER. No-Fire% triggers fire immediately; a Fire% trigger holds
+  //     the rest until its % is hit (fireTriggerSequence stashes a 'capacity' await). A new populated
+  //     range takes priority over any pending await from a previous range (#21).
+  if (triggers.length > 0 && !firedCheckpointTriggers.has(triggerKey)) {
+    if (sessionState.pendingRangeAwait) {
+      console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
+      sessionState.pendingRangeAwait = null;
+      broadcast('await_state', null);
     }
+    firedCheckpointTriggers.add(triggerKey);
+    console.log(`[CheckpointTriggers] Starting sequence for ${triggerKey} (${triggers.length} trigger(s))`);
+    await fireTriggerSequence(triggers, 0, triggerKey, activeCharacter, settings);
+    return;
   }
 
-  // ---- Part B: Fire% triggers — fire individually when capacity crosses their exact % (rising) ----
-  if (newCapacity > oldCapacity) {
-    for (const rangeKey of CAPACITY_RANGE_KEYS) {
-      const list = normalizeRangeTriggers(checkpointTriggers[`${type}-${rangeKey}`]).sequential;
-      for (let i = 0; i < list.length; i++) {
-        const fp = triggerFirePercent(list[i], rangeKey);
-        if (fp === null) continue;
-        if (oldCapacity < fp && newCapacity >= fp) {
-          const fireKey = `${type}-${rangeKey}-fp${i}@${fp}`;
-          if (firedCheckpointTriggers.has(fireKey)) continue;
-          firedCheckpointTriggers.add(fireKey);
-          console.log(`[CheckpointTriggers] Firing Fire%${fp} trigger (${list[i].type}) for ${type}-${rangeKey}`);
-          await executeTrigger(list[i], fireKey, activeCharacter, settings);
-        }
-      }
-    }
+  // (2) Resume a sequence paused at a Fire% gate once capacity reaches that gate's %.
+  const pa = sessionState.pendingRangeAwait;
+  if (pa && pa.kind === 'capacity' && pa.type === type && newCapacity >= pa.target) {
+    console.log(`[CheckpointTriggers] Capacity reached Fire% gate (${pa.target}%) — resuming sequence`);
+    await resumeTriggerSequence(pa).catch(err => console.error('[CheckpointTriggers] Fire% resume failed:', err?.message || err));
   }
 }
 

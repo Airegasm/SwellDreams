@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.11] - 2026-07-01
+
+### Changed
+- **Fire% is now a true sequence waypoint.** Sequential checkpoint triggers run top-to-bottom on range entry; a trigger with a Fire% now *holds the rest of the sequence* until capacity reaches that %, then fires and continues — preserving list order (e.g. A, B → wait 2% → C → D, E → wait 6% → F). Previously no-Fire% triggers were batched on entry and Fire% triggers fired independently, ignoring their position. Also fixes the first band (0-10%): the sequence now starts on the first tick in the band instead of relying on a band-change event.
+
 ## [v6.2.10] - 2026-07-01
 
 ### Added
