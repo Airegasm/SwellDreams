@@ -3967,16 +3967,6 @@ async function executeTrigger(trigger, source, character, settings) {
         broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
         break;
 
-      case 'set_player_pain':
-        sessionState.pain = Math.max(0, Math.min(10, parseInt(trigger.value) || 0));
-        broadcast('pain_update', { pain: sessionState.pain });
-        break;
-
-      case 'set_emotion':
-        sessionState.emotion = trigger.value || 'neutral';
-        broadcast('emotion_update', { emotion: sessionState.emotion });
-        break;
-
       case 'toggle_device_control': {
         const s = loadData(DATA_FILES.settings) || {};
         s.globalCharacterControls = s.globalCharacterControls || {};
@@ -4092,28 +4082,14 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
       }
 
-      case 'toggle_reminder': {
+      case 'toggle_library_entry':
+      case 'toggle_reminder': { // toggle_reminder kept as a back-compat alias for old cards
         if (trigger.reminderId && character.constantReminders) {
-          const reminder = character.constantReminders.find(r => r.id === trigger.reminderId);
-          if (reminder) {
-            reminder.enabled = !!trigger.enabled;
+          const entry = character.constantReminders.find(r => r.id === trigger.reminderId);
+          if (entry) {
+            entry.enabled = !!trigger.enabled;
             await saveCharacterAsync(character);
           }
-        }
-        break;
-      }
-
-      case 'equip_reminder': {
-        const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
-        if (activeStory && trigger.reminderId) {
-          const field = trigger.source === 'global' ? 'globalReminderIds' : 'constantReminderIds';
-          activeStory[field] = activeStory[field] || [];
-          if (trigger.action === 'equip') {
-            if (!activeStory[field].includes(trigger.reminderId)) activeStory[field].push(trigger.reminderId);
-          } else {
-            activeStory[field] = activeStory[field].filter(id => id !== trigger.reminderId);
-          }
-          await saveCharacterAsync(character);
         }
         break;
       }

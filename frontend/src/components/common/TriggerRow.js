@@ -1,5 +1,4 @@
 import React from 'react';
-import { EMOTIONS } from '../../constants/stateValues';
 import { API_BASE } from '../../config';
 import MemberTargetPicker from './MemberTargetPicker';
 import './TriggerRow.css';
@@ -82,8 +81,6 @@ function getTriggerTypes(isPumpable, isManualPump) {
   }
 
   types.push(
-    { value: 'set_player_pain', label: 'Set Player Pain' },
-    { value: 'set_emotion', label: 'Set Player Disposition' },
     { value: 'toggle_device_control', label: 'Toggle Char Device Control' },
     { value: 'set_pump_mode', label: 'Modify Pump Mode/Timer' },
     { value: 'toggle_auto_reply', label: 'Toggle Char Auto-Response' },
@@ -113,8 +110,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'set_skin', label: 'Set Display Skin' },
     { value: 'set_instructor_profile', label: 'Set Instructor Profile' },
     { value: 'set_range_set', label: 'Set Range Set' },
-    { value: 'toggle_reminder', label: 'Toggle Char Reminder' },
-    { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
+    { value: 'toggle_library_entry', label: 'Toggle Char Library Entry' },
     // Await gates — pause the sequence here; the triggers AFTER this one wait until satisfied.
     { value: 'await_input', label: '⏸ Await Input (wait for keyword)' },
     // Branch gate — runs the block after it (until the next Capacity In-Range gate) only if capacity is in range.
@@ -451,24 +447,11 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             style={{ width: '55px' }} title="%" />
         );
 
-      case 'set_player_pain':
-        return (
-          <input type="number" min={0} max={10} value={trigger.value ?? 0} onChange={(e) => update('value', parseInt(e.target.value) || 0)}
-            style={{ width: '50px' }} title="0-10" />
-        );
-
       case 'set_pre_req':
         return (
           <select value={trigger.value || 'met'} onChange={(e) => update('value', e.target.value)} style={{ width: '90px' }} title="Pre-inflation gate status">
             <option value="met">Met</option>
             <option value="unmet">Unmet</option>
-          </select>
-        );
-
-      case 'set_emotion':
-        return (
-          <select value={trigger.value || 'neutral'} onChange={(e) => update('value', e.target.value)} style={{ width: '100px' }}>
-            {EMOTIONS.map(e => <option key={e.key} value={e.key}>{e.label}</option>)}
           </select>
         );
 
@@ -546,38 +529,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           </select>
         );
 
-      case 'toggle_reminder': {
-        const allReminders = [...reminders, ...globalReminders.map(r => ({ ...r, _isGlobal: true }))];
+      case 'toggle_library_entry': {
         return (
           <>
             <select value={trigger.reminderId || ''} onChange={(e) => update('reminderId', e.target.value)} style={{ flex: 1, minWidth: '80px' }}>
-              <option value="">-- Select --</option>
-              {allReminders.map((r, i) => <option key={r.id || i} value={r.id || i}>{r.name || r.text?.substring(0, 30) || `Reminder ${i + 1}`}</option>)}
+              <option value="">-- Select Library Entry --</option>
+              {reminders.map((r, i) => <option key={r.id || i} value={r.id || i}>{r.name || r.text?.substring(0, 30) || `Entry ${i + 1}`}</option>)}
             </select>
             <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '55px' }}>
               <option value="on">ON</option>
               <option value="off">OFF</option>
-            </select>
-          </>
-        );
-      }
-
-      case 'equip_reminder': {
-        const isCustom = trigger.source !== 'global';
-        const sourceReminders = isCustom ? reminders : globalReminders;
-        return (
-          <>
-            <select value={trigger.action || 'equip'} onChange={(e) => update('action', e.target.value)} style={{ width: '70px' }}>
-              <option value="equip">Equip</option>
-              <option value="unequip">Unequip</option>
-            </select>
-            <select value={trigger.source || 'custom'} onChange={(e) => update('source', e.target.value)} style={{ width: '65px' }}>
-              <option value="custom">Custom</option>
-              <option value="global">Global</option>
-            </select>
-            <select value={trigger.reminderId || ''} onChange={(e) => update('reminderId', e.target.value)} style={{ flex: 1, minWidth: '60px' }}>
-              <option value="">-- Select --</option>
-              {sourceReminders.map((r, i) => <option key={r.id || i} value={r.id || i}>{r.name || r.text?.substring(0, 30) || `Reminder ${i + 1}`}</option>)}
             </select>
           </>
         );

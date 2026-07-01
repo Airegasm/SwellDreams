@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.17] - 2026-07-01
+
+### Changed
+- **Trigger action cleanup.** Removed the vestigial **Set Player Pain** and **Set Player Disposition** trigger actions (pain/emotion engine is retired). Replaced **Toggle Char Reminder** + **Equip/Unequip Char Reminder** with a single **Toggle Char Library Entry** action (enable/disable a character library entry). Old `toggle_reminder` triggers on existing cards still work as an alias.
+
 ## [v6.2.16] - 2026-07-01
 
 ### Added
