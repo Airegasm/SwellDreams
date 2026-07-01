@@ -117,6 +117,8 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'equip_reminder', label: 'Equip/Unequip Char Reminder' },
     // Await gates — pause the sequence here; the triggers AFTER this one wait until satisfied.
     { value: 'await_input', label: '⏸ Await Input (wait for keyword)' },
+    // Branch gate — runs the block after it (until the next Capacity In-Range gate) only if capacity is in range.
+    { value: 'capacity_inrange', label: '◧ Capacity In-Range (branch by %)' },
   );
   if (isManualPump) {
     types.push({ value: 'await_pump', label: '⏸ Await Pump Amount (wait for N pumps)' });
@@ -201,6 +203,17 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <option value="either">Either</option>
             </select>
           </>
+        );
+      case 'capacity_inrange':
+        return (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', whiteSpace: 'nowrap' }}
+            title="Runs the triggers after this one (up to the next Capacity In-Range gate) only when capacity is within this % range. Stack several with non-overlapping ranges to branch by capacity — exactly one block runs.">
+            capacity
+            <input type="number" min="0" max="200" value={trigger.min ?? ''} onChange={(e) => update('min', e.target.value === '' ? '' : Math.max(0, Math.min(200, parseInt(e.target.value, 10) || 0)))} placeholder="min" style={{ width: '56px' }} />
+            –
+            <input type="number" min="0" max="200" value={trigger.max ?? ''} onChange={(e) => update('max', e.target.value === '' ? '' : Math.max(0, Math.min(200, parseInt(e.target.value, 10) || 0)))} placeholder="max" style={{ width: '56px' }} />
+            %
+          </label>
         );
       case 'set_range_set':
         return (

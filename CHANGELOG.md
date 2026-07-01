@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.14] - 2026-07-01
+
+### Added
+- **Capacity In-Range branch gate for sequential triggers.** A new gate (◧ Capacity In-Range) that runs the block after it — up to the next Capacity In-Range gate — only when capacity is within a set % range. Stack several with non-overlapping ranges to branch a sequence by capacity: exactly one block fires (e.g. after a keyword gate, pick the response that matches the current capacity band). Supports 0-200% for over-inflation.
+
 ## [v6.2.13] - 2026-07-01
 
 ### Added
