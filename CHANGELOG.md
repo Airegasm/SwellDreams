@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.5.1] - 2026-07-01
+
+### Fixed
+- **Individual-mode replies now roll each member's attributes** (the per-turn rollAttributes call in handleIndividualResponses was lost in the earlier reset and missed during recovery). Without it, individual replies used a stale/empty attribute roll, so the per-member "RIGHT NOW … is driven by …" drive never updated. Always-on dispositions were already flowing; this restores the rolled attribute drive.
+
 ## [v6.5.0] - 2026-07-01
 
 ### Added

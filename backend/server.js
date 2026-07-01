@@ -9023,6 +9023,12 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   await executePumpOnEveryReply('', activeCharacter, false).catch(e => console.error('[Individual] pumpOnEveryReply failed:', e?.message || e));
   await executeAutoPumpPacing(activeCharacter, false).catch(e => console.error('[Individual] autoPumpPacing failed:', e?.message || e));
 
+  // Roll each member's attributes ONCE this turn — buildMultiCharSystemPrompt reads
+  // sessionState.multiCharAttributes[memberId] per member. Without this, individual replies use a
+  // stale/empty roll (the blended path's rollAttributes is skipped for individual turns).
+  try { const ir = rollAttributes(activeCharacter); if (ir?.rolls?.length) broadcast('attribute_rolls', { rolls: ir.rolls, source: 'individual' }); }
+  catch (e) { console.error('[Individual] rollAttributes failed:', e?.message || e); }
+
   const members = activeCharacter.multiChar?.characters || [];
   const muted = new Set(sessionState.mutedMembers || []);
   const indTokens = clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150);
