@@ -153,7 +153,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false }) {
+function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false, firePercentMax = 100 }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -609,8 +609,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       {showFirePercent && (
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
           title="Fire% — hold the sequence here until capacity reaches this exact % (inside the range), then fire and continue. Leave blank to fire in turn as soon as the sequence reaches this trigger.">
-          <input type="number" min="0" max="100" value={trigger.firePercent ?? ''}
-            onChange={(e) => update('firePercent', e.target.value === '' ? '' : Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)))}
+          <input type="number" min="0" max={firePercentMax} value={trigger.firePercent ?? ''}
+            onChange={(e) => update('firePercent', e.target.value === '' ? '' : Math.max(0, Math.min(firePercentMax, parseInt(e.target.value, 10) || 0)))}
             placeholder="Fire%" style={{ width: '58px' }} />
           %
         </label>

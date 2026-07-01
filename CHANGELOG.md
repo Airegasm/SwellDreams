@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.12] - 2026-07-01
+
+### Changed
+- **Fire% in the Over-Inflation (100%+) checkpoint can now exceed 100%** (up to 200%), so waypoints can be placed anywhere in the over-inflation band. Other ranges remain capped at their 0-100 bounds. (The backend gate already had no upper bound; this lifts the UI clamp for that range.)
+
 ## [v6.2.11] - 2026-07-01
 
 ### Changed
