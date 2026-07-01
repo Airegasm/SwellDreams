@@ -2,6 +2,17 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.5.0] - 2026-07-01
+
+### Added
+- **Char AI Message (Member) trigger action** — a checkpoint/tree action with a member dropdown that generates a solo reply as the chosen group member (own name + tokens).
+- **Pump-ready system.** A 🔃 toggle marks who is connected to a pump and eligible to be inflated: on the persona portrait (default ON), a single pumpable character (default ON when pumpable), and each pumpable group member (default OFF — enable manually). This injects a prompt directive telling the AI exactly who may be described being inflated, so it never inflates the wrong character. Live per-session; resets on new session/character switch.
+- **Player / Char / GroupMem PumpReady trigger actions** (on/off; GroupMem has a member dropdown) to set pump-ready from checkpoints/trees.
+- **Group portrait member-cycling** — ‹ › arrows on the character portrait cycle which member's picture + name is shown (name in the frame on PC, overlaid on mobile).
+
+### Notes
+- Develop-in-worktree workflow to prevent the app's force-sync from clobbering in-progress edits.
+
 ## [v6.4.1] - 2026-07-01
 
 ### Fixed

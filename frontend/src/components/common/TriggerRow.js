@@ -57,6 +57,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
   const types = [
     { value: 'impersonate', label: 'Player Impersonate' },
     { value: 'ai_message', label: 'Char AI Message' },
+    { value: 'ai_message_member', label: 'Char AI Message (Member)' },
     { value: 'system_message', label: 'System Message' },
     { value: 'flow_var', label: 'Set Flow Variable' },
   ];
@@ -84,6 +85,9 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'toggle_device_control', label: 'Toggle Char Device Control' },
     { value: 'set_pump_mode', label: 'Modify Pump Mode/Timer' },
     { value: 'toggle_auto_reply', label: 'Toggle Char Auto-Response' },
+    { value: 'player_pump_ready', label: 'Player PumpReady' },
+    { value: 'char_pump_ready', label: 'Char PumpReady' },
+    { value: 'groupmem_pump_ready', label: 'GroupMem PumpReady' },
   );
 
   if (isPumpable) {
@@ -257,6 +261,35 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
               title="Max Response Tokens — caps this generation's length. Blank = use the character/global limit." />
+          </>
+        );
+
+      case 'ai_message_member':
+        return (
+          <>
+            {renderMemberTarget(update)}
+            <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+              placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
+              <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
+              LLM
+            </label>
+            <input type="number" min="1" value={trigger.maxTokens ?? ''}
+              onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
+              placeholder="Max tok" style={{ width: '70px' }}
+              title="Max Response Tokens — blank uses this member's Response Tokens, then the global limit." />
+          </>
+        );
+
+      case 'groupmem_pump_ready':
+        return (
+          <>
+            {renderMemberTarget(update)}
+            <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '60px' }}>
+              <option value="on">ON</option>
+              <option value="off">OFF</option>
+            </select>
           </>
         );
 
@@ -455,6 +488,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           </select>
         );
 
+      case 'player_pump_ready':
+      case 'char_pump_ready':
       case 'toggle_device_control':
       case 'toggle_auto_reply':
         return (

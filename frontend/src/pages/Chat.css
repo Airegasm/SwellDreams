@@ -793,6 +793,106 @@
   opacity: 0.5;
 }
 
+/* Pump-ready toggle — bottom-right corner overlay on persona/character portraits. Grey = not
+   connected; glows pink when pump-connected (eligible to be inflated). */
+.portrait-pump-toggle {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.3;
+  filter: grayscale(1);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+  z-index: 210;
+}
+.portrait-pump-toggle:hover { opacity: 0.7; }
+.portrait-pump-toggle.pump-ready {
+  opacity: 0.9;
+  filter: grayscale(0) drop-shadow(0 0 3px #e05a7a);
+}
+
+/* Per-member pump-ready toggle inside the mute chip row */
+.multichar-pump-chip {
+  flex: 0 0 auto;
+  font-size: 12px;
+  margin-left: 2px;
+  cursor: pointer;
+  opacity: 0.4;
+  filter: grayscale(1);
+  transition: opacity 0.15s, filter 0.15s;
+}
+.multichar-pump-chip:hover { opacity: 0.75; }
+.multichar-pump-chip.pump-ready {
+  opacity: 1;
+  filter: grayscale(0) drop-shadow(0 0 2px #e05a7a);
+}
+
+/* Group portrait member-cycling arrows — upper-left of the character card */
+.multichar-cycle-overlay {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 230; /* above the mute overlay (220) */
+}
+/* When a capacity gauge also occupies the top-left (pumpable group card), drop the arrows below it. */
+.multichar-cycle-overlay.has-gauge { top: 58px; }
+.multichar-cycle-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: #f3f4f6;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  transition: background 0.15s;
+}
+.multichar-cycle-arrow:hover { background: rgba(0, 0, 0, 0.8); }
+/* Member name: hidden on PC (shown in the frame-top instead); overlaid upper-center on mobile. */
+.multichar-cycle-name { display: none; }
+@media (max-width: 768px) {
+  .multichar-cycle-overlay { left: 6px; right: 6px; justify-content: space-between; }
+  .multichar-cycle-name {
+    display: inline-block;
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    transform: translateX(-50%);
+    max-width: 60%;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    color: #f3f4f6;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    backdrop-filter: blur(2px);
+    pointer-events: none;
+  }
+}
+
 /* Hidden portrait state - blackout */
 .entity-portrait-large.portrait-hidden > img,
 .entity-portrait-large.portrait-hidden > .portrait-placeholder,

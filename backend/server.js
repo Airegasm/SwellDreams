@@ -3522,7 +3522,11 @@ const sessionState = {
   pendingGoProfileId: null, // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
   pendingRangeAwait: null,  // A paused checkpoint-trigger sequence waiting on an await gate:
                             // { kind:'pump'|'input', target?, count?, words?, rest:[triggers], source, characterId }
-  groupRotation: 0          // Round-robin lead counter for group "Individual Responses" mode
+  groupRotation: 0,         // Round-robin lead counter for group "Individual Responses" mode
+  // PUMP-READY: who is connected to a pump and may be described being inflated. Live per-session
+  // (reset on new session / character switch). Persona defaults ON; character/members default OFF
+  // (enabled manually). members keyed by member id.
+  pumpReady: { persona: true, character: false, members: {} }
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3817,6 +3821,44 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
       }
 
+      case 'ai_message_member': {
+        // Individual-mode Char AI Message: generate/post as ONE selected group member (trigger.targetMember).
+        const mm = character?.multiChar?.characters || [];
+        const tgt = trigger.targetMember ? mm.find(m => m.id === trigger.targetMember) : null;
+        const speakerName = tgt?.name || character.name;
+        if (trigger.llmEnhance === false) {
+          const vtext = (trigger.context || '').trim();
+          if (vtext) {
+            const { v4: uuidv4 } = require('uuid');
+            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
+            sessionState.chatHistory.push(vmsg);
+            broadcast('chat_message', vmsg);
+            autosaveSession();
+          }
+          break;
+        }
+        await waitForLlmIdle();
+        broadcast('generating_start', { characterName: speakerName });
+        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
+        const soloSys = tgt
+          ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
+          : baseCtx.systemPrompt;
+        const memGenSettings = { ...settings.llm };
+        // Token precedence mirrors the group individual-reply path: trigger override → member → card → global.
+        const memMaxTok = Number(trigger.maxTokens) || Number(tgt?.responseTokens) || Number(character?.individualResponseTokens) || 0;
+        if (memMaxTok > 0) memGenSettings.maxTokens = clampMaxTokens(memMaxTok);
+        const memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
+        if (memRes.text) {
+          const { v4: uuidv4 } = require('uuid');
+          const msg = { id: uuidv4(), content: substituteAllVariables(memRes.text), sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
+          sessionState.chatHistory.push(msg);
+          broadcast('chat_message', msg);
+          autosaveSession();
+        }
+        broadcast('generating_stop', {});
+        break;
+      }
+
       case 'char_inflate_start': {
         const ciCalTime = getCharacterCalibrationTime(character);
         if (character?.isPumpable && ciCalTime) startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
@@ -3999,6 +4041,20 @@ async function executeTrigger(trigger, source, character, settings) {
         sessionState.autoReply = !!trigger.enabled;
         broadcast('auto_reply_update', { enabled: sessionState.autoReply });
         break;
+
+      case 'player_pump_ready':
+      case 'char_pump_ready':
+      case 'groupmem_pump_ready': {
+        if (!sessionState.pumpReady) sessionState.pumpReady = { persona: true, character: false, members: {} };
+        const on = !!trigger.enabled;
+        if (trigger.type === 'player_pump_ready') sessionState.pumpReady.persona = on;
+        else if (trigger.type === 'char_pump_ready') sessionState.pumpReady.character = on;
+        else if (trigger.targetMember) sessionState.pumpReady.members[trigger.targetMember] = on;
+        else { console.warn(`[Trigger/${source}] groupmem_pump_ready with no member selected — skipped`); break; }
+        broadcast('pump_ready_update', { pumpReady: sessionState.pumpReady });
+        console.log(`[Trigger/${source}] ${trigger.type}${trigger.targetMember ? ':' + trigger.targetMember : ''} -> ${on ? 'READY' : 'not ready'}`);
+        break;
+      }
 
       case 'toggle_pumpable': {
         character.isPumpable = !!trigger.enabled;
@@ -4901,6 +4957,7 @@ function clearSessionContextForSwitch() {
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.groupRotation = 0;
+  sessionState.pumpReady = pumpReadyDefaults();
   sessionState.flowVariables = {};
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
@@ -7303,6 +7360,19 @@ async function handleWsMessage(ws, type, data) {
       saveData(DATA_FILES.settings, acSettings);
       console.log(`[AutoCapacity] Automatic tracking ${enabled ? 'ENABLED' : 'DISABLED'} on the fly`);
       broadcast('auto_capacity_update', { useAutoCapacity: enabled });
+      break;
+    }
+
+    case 'set_pump_ready': {
+      // Live per-session pump-connection state. data: { entity:'persona'|'character'|'member', id?, ready }
+      if (!sessionState.pumpReady) sessionState.pumpReady = { persona: true, character: false, members: {} };
+      const ready = !!data.ready;
+      if (data.entity === 'persona') sessionState.pumpReady.persona = ready;
+      else if (data.entity === 'character') sessionState.pumpReady.character = ready;
+      else if (data.entity === 'member' && data.id) sessionState.pumpReady.members[data.id] = ready;
+      else break;
+      broadcast('pump_ready_update', { pumpReady: sessionState.pumpReady });
+      console.log(`[PumpReady] ${data.entity}${data.id ? ':' + data.id : ''} -> ${ready ? 'READY' : 'not ready'}`);
       break;
     }
 
@@ -10592,6 +10662,40 @@ function buildPersonaInflationContext(persona, playerName) {
   return `Player inflation disposition: ${parts.join('. ')}.\n`;
 }
 
+// PUMP-READY prompt steering: tell the LLM exactly who is connected to a pump and may be described
+// being inflated. Persona/character/members are gated by the live per-session sessionState.pumpReady.
+// PUMP-READY session defaults: persona ON; a single pumpable character is pump-connected by default
+// (that's the card's purpose); group members default OFF (enabled manually to disambiguate targets).
+function pumpReadyDefaults() {
+  try {
+    const s = loadData(DATA_FILES.settings) || {};
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const ch = chars.find(c => c.id === s.activeCharacterId);
+    return { persona: true, character: !!(ch?.isPumpable && !ch?.multiChar?.enabled), members: {} };
+  } catch (e) { return { persona: true, character: false, members: {} }; }
+}
+
+function buildPumpReadyDirective(character, activePersona) {
+  const pr = sessionState.pumpReady || { persona: true, character: false, members: {} };
+  const names = [];
+  // Persona pump-eligibility is independent of persona SELECTION (default ON), so fall back to a
+  // generic label when no persona is chosen.
+  if (pr.persona) names.push(activePersona?.displayName || 'the player');
+  if (character?.multiChar?.enabled) {
+    for (const m of (character.multiChar.characters || [])) {
+      if (m?.name && pr.members?.[m.id]) names.push(m.name);
+    }
+  } else if (character?.name && (pr.character || (sessionState.characterCapacity || 0) > 0)) {
+    // Single character: pump-ready, OR actively inflating (capacity > 0) so we never contradict a
+    // character-capacity checkpoint stage direction telling the model to describe their inflation.
+    names.push(character.name);
+  }
+  if (!names.length) {
+    return `\n=== PUMP CONNECTIONS (WHO MAY BE INFLATED) ===\nNo one is currently connected to a pump. Do NOT describe anyone being inflated, pumped, growing, or filled with air.\n=== END PUMP CONNECTIONS ===\n`;
+  }
+  return `\n=== PUMP CONNECTIONS (WHO MAY BE INFLATED) ===\nOnly the following are connected to a pump and may be described being inflated, pumped, or growing: ${names.join(', ')}.\nDo NOT describe pumping, inflating, or filling anyone who is not on this list — they have no pump connected and their bodies do not change.\n=== END PUMP CONNECTIONS ===\n`;
+}
+
 function buildInflationDispositionContext(character) {
   const inflateDesire = character?.desireToInflateOthers;
   const popDesire = character?.desireToPopOthers;
@@ -12196,6 +12300,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
         systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
       }
       systemPrompt += buildInflationDispositionContext(character);
+      systemPrompt += buildPumpReadyDirective(character, persona); // same who-may-be-inflated rule as the main reply
     }
 
     // Inject persona attributes for impersonate mode
@@ -12871,6 +12976,7 @@ function buildChatContext(character, settings) {
     systemPrompt += buildAttributeBlock(sessionState.activeAttributes);
   }
   systemPrompt += buildInflationDispositionContext(character);
+  systemPrompt += buildPumpReadyDirective(character, activePersona); // who may be described being inflated
 
   // Inject checkpoints at end of system prompt (recency = higher priority for LLM)
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
@@ -18287,6 +18393,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.groupRotation = 0;
+  sessionState.pumpReady = pumpReadyDefaults();
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {

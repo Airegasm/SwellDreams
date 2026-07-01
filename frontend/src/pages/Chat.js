@@ -83,7 +83,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -306,6 +306,21 @@ function Chat() {
     prevCharCapRef.current = sessionState.characterCapacity || 0;
     return data;
   }, [activeCharacter, sessionState.characterCapacity]);
+
+  // Group portrait member-cycling: which member's picture/name is shown on the character card.
+  const groupMembers = useMemo(
+    () => (activeCharacter?.multiChar?.enabled ? (activeCharacter.multiChar.characters || []).filter(m => m && m.name) : []),
+    [activeCharacter]
+  );
+  const isGroupCard = groupMembers.length > 1;
+  const [displayMemberIndex, setDisplayMemberIndex] = useState(0);
+  useEffect(() => { setDisplayMemberIndex(0); }, [activeCharacter?.id]);
+  useEffect(() => { if (displayMemberIndex >= groupMembers.length) setDisplayMemberIndex(0); }, [groupMembers.length, displayMemberIndex]);
+  const cycleDisplayMember = useCallback((dir) => {
+    if (groupMembers.length < 2) return;
+    setDisplayMemberIndex(i => (i + dir + groupMembers.length) % groupMembers.length);
+  }, [groupMembers.length]);
+  const selectedMember = isGroupCard ? groupMembers[displayMemberIndex] : null;
 
   // Reset action page when character changes
   useEffect(() => {
@@ -1445,6 +1460,12 @@ function Chat() {
           >
             {personaHidden ? '👁' : '👁'}
           </button>
+          {/* Pump-ready toggle (bottom-right) — persona defaults ON */}
+          <button
+            className={`portrait-pump-toggle ${(sessionState.pumpReady?.persona ?? true) ? 'pump-ready' : ''}`}
+            onClick={() => setPumpReady('persona', activePersona?.id, !(sessionState.pumpReady?.persona ?? true))}
+            title={(sessionState.pumpReady?.persona ?? true) ? 'Pump connected — click to disconnect (AI may inflate you)' : 'Not pump-connected — click to connect'}
+          >🔃</button>
           {/* Status Badges overlaid on portrait */}
           <StatusBadges
             selectedEmotion={sessionState.emotion || 'neutral'}
@@ -2243,7 +2264,20 @@ function Chat() {
       <div className={`chat-sidebar chat-sidebar-right ${rightDrawerOpen ? 'drawer-open' : ''}`}>
         {/* Character Portrait */}
         <div className={`entity-portrait-large ${characterHidden ? 'portrait-hidden' : ''}`}>
-          <PortraitDisplay portrait={characterPortraitData} alt={activeCharacter?.name} />
+          <PortraitDisplay
+            portrait={(selectedMember && selectedMember.portrait) ? { idle: selectedMember.portrait, idleType: 'image' } : characterPortraitData}
+            alt={selectedMember ? selectedMember.name : activeCharacter?.name}
+          />
+          {/* Group member-cycling arrows (upper-left) — pick whose portrait/name shows */}
+          {isGroupCard && (
+            <div className={`multichar-cycle-overlay ${activeCharacter?.isPumpable ? 'has-gauge' : ''}`}>
+              <button type="button" className="multichar-cycle-arrow"
+                onClick={(e) => { e.stopPropagation(); cycleDisplayMember(-1); }} title="Previous member">‹</button>
+              <span className="multichar-cycle-name">{selectedMember?.name || 'Character'}</span>
+              <button type="button" className="multichar-cycle-arrow"
+                onClick={(e) => { e.stopPropagation(); cycleDisplayMember(1); }} title="Next member">›</button>
+            </div>
+          )}
           {/* Multichar speak/mute overlay — stacked member names; click the bubble to mute */}
           {activeCharacter?.multiChar?.enabled && (activeCharacter.multiChar.characters || []).length > 0 && (
             <div className="multichar-mute-overlay">
@@ -2268,6 +2302,15 @@ function Chat() {
                         <span style={{ fontSize: 10 }}>{sessionState.characterCapacity || 0}%</span>
                       </span>
                     )}
+                    {m.isPumpable && (
+                      <span role="button" tabIndex={0}
+                        className={`multichar-pump-chip ${(sessionState.pumpReady?.members || {})[m.id] ? 'pump-ready' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setPumpReady('member', m.id, !((sessionState.pumpReady?.members || {})[m.id])); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setPumpReady('member', m.id, !((sessionState.pumpReady?.members || {})[m.id])); } }}
+                        title={(sessionState.pumpReady?.members || {})[m.id] ? `${m.name} pump connected — click to disconnect` : `${m.name} not pump-connected — click to connect`}>
+                        🔃
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -2281,6 +2324,14 @@ function Chat() {
           >
             {characterHidden ? '👁' : '👁'}
           </button>
+          {/* Pump-ready toggle (bottom-right) — single pumpable character; defaults OFF (enable manually) */}
+          {activeCharacter?.isPumpable && !activeCharacter?.multiChar?.enabled && (
+            <button
+              className={`portrait-pump-toggle ${(sessionState.pumpReady?.character ?? false) ? 'pump-ready' : ''}`}
+              onClick={() => setPumpReady('character', activeCharacter?.id, !(sessionState.pumpReady?.character ?? false))}
+              title={(sessionState.pumpReady?.character ?? false) ? 'Pump connected — click to disconnect' : 'Not pump-connected — click to connect (AI may inflate them)'}
+            >🔃</button>
+          )}
           {/* Character Capacity Gauge + Pain Emoji - top left of portrait */}
           {activeCharacter?.isPumpable && (
             <div
@@ -2394,7 +2445,7 @@ function Chat() {
               <div className="frame-left"></div>
               <div className="frame-right"></div>
               <div className="frame-top">
-                {activeCharacter?.name && <span className="frame-name character-name">{activeCharacter.name}</span>}
+                {(selectedMember?.name || activeCharacter?.name) && <span className="frame-name character-name">{selectedMember?.name || activeCharacter?.name}</span>}
               </div>
             </div>
             {/* Session Info Panel */}

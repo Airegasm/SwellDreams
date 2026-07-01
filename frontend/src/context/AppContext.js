@@ -449,6 +449,10 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, mutedMembers: data.mutedMembers || [] }));
         break;
 
+      case 'pump_ready_update':
+        setSessionState(prev => ({ ...prev, pumpReady: data.pumpReady || { persona: true, character: false, members: {} } }));
+        break;
+
       case 'simple_ab':
         setSimpleABData(data);
         break;
@@ -939,6 +943,11 @@ export function AppProvider({ children }) {
   // Toggle whether a multichar member can speak this session
   const toggleMemberMute = useCallback((memberId, muted) => {
     sendWsMessage('toggle_member_mute', { memberId, muted });
+  }, [sendWsMessage]);
+
+  // Set live per-session pump-readiness (who is connected to a pump). entity: 'persona'|'character'|'member'.
+  const setPumpReady = useCallback((entity, id, ready) => {
+    sendWsMessage('set_pump_ready', { entity, id, ready });
   }, [sendWsMessage]);
 
   // Handle simple A/B choice response
@@ -1981,6 +1990,7 @@ export function AppProvider({ children }) {
     checkpointChoiceData,
     respondCheckpointChoice,
     toggleMemberMute,
+    setPumpReady,
 
     // Simple A/B Choice
     simpleABData,
