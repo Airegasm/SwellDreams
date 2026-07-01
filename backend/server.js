@@ -3590,23 +3590,21 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
         return;
       }
     }
-    // Capacity In-Range gate: a synchronous branch. Opens a "case" that runs the triggers after it
-    // UNTIL the next Capacity In-Range gate (or the end). If current capacity is in [min,max] the
-    // block runs; otherwise the sequence jumps to the next gate. With non-overlapping ranges exactly
-    // one block applies (stack several to switch behaviour by capacity).
+    // Capacity In-Range block: a synchronous branch. Runs its NESTED triggers only when current
+    // capacity is in [min,max]; otherwise the block is skipped. Stack several with non-overlapping
+    // ranges to switch behaviour by capacity (exactly one block applies).
     if (trg.type === 'capacity_inrange') {
       const lo = Number.isFinite(Number(trg.min)) ? Number(trg.min) : 0;
       const hi = Number.isFinite(Number(trg.max)) ? Number(trg.max) : 200;
       const cap = gateType === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
-      if (cap < lo || cap > hi) {
-        let j = i + 1;
-        while (j < triggers.length && triggers[j]?.type !== 'capacity_inrange') j++;
+      const block = Array.isArray(trg.triggers) ? trg.triggers : [];
+      if (cap >= lo && cap <= hi) {
+        console.log(`[Trigger/${source}] Capacity In-Range [${lo}-${hi}] — ${cap}% in range, running ${block.length} nested action(s)`);
+        await fireTriggerSequence(block, 0, source, character, settings);
+      } else {
         console.log(`[Trigger/${source}] Capacity In-Range [${lo}-${hi}] — ${cap}% out of range, skipping block`);
-        i = j - 1; // for-loop's i++ lands on the next gate (or past the end)
-        continue;
       }
-      console.log(`[Trigger/${source}] Capacity In-Range [${lo}-${hi}] — ${cap}% in range, running block`);
-      continue; // in range → fall through into the block
+      continue;
     }
     if (trg.type === 'await_pump') {
       const target = Math.max(1, parseInt(trg.count, 10) || 1);

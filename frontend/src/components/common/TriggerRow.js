@@ -166,6 +166,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   const [skinsList, setSkinsList] = React.useState(null);
   const update = (field, value) => onChange({ ...trigger, [field]: value });
 
+  // Nested actions for the Capacity In-Range block (trigger.triggers). Child rows reuse this same
+  // component so they get the full action palette; rowProps are forwarded so pickers keep working.
+  const kids = Array.isArray(trigger.triggers) ? trigger.triggers : [];
+  const newKidId = () => `trg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const setKids = (arr) => onChange({ ...trigger, triggers: arr });
+  const addKid = () => setKids([...kids, { id: newKidId(), type: '', value: '' }]);
+  const updKid = (i, u) => setKids(kids.map((k, idx) => (idx === i ? u : k)));
+  const rmKid = (i) => setKids(kids.filter((_, idx) => idx !== i));
+  const childProps = { isPumpable, isManualPump, reminders, globalReminders, members, profiles };
+
   // Lazy-load skins when set_skin trigger is selected
   React.useEffect(() => {
     if (trigger.type === 'set_skin' && !skinsList) {
@@ -584,6 +594,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
     : triggerTypes;
 
   return (
+    <>
     <div className="post-welcome-trigger-row" {...dragProps}>
       <span className="drag-handle">☰</span>
       <div className="trigger-type-picker" ref={typeRef}>
@@ -619,7 +630,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         )}
       </div>
       {renderParams()}
-      {showFirePercent && (
+      {showFirePercent && trigger.type !== 'capacity_inrange' && (
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
           title="Fire% — hold the sequence here until capacity reaches this exact % (inside the range), then fire and continue. Leave blank to fire in turn as soon as the sequence reaches this trigger.">
           <input type="number" min="0" max={firePercentMax} value={trigger.firePercent ?? ''}
@@ -630,6 +641,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       )}
       {!hideRemove && <button type="button" className="btn-remove" onClick={onRemove}>−</button>}
     </div>
+    {trigger.type === 'capacity_inrange' && (
+      <div className="capacity-inrange-block" style={{ marginLeft: 28, borderLeft: '2px solid var(--border-color, #444)', paddingLeft: 10, marginTop: 2, marginBottom: 6 }}>
+        {kids.length === 0 && <div className="section-hint" style={{ margin: '2px 0 6px' }}>Actions here run only when capacity is {trigger.min ?? 0}–{trigger.max ?? 200}%.</div>}
+        {kids.map((k, i) => (
+          <TriggerRow key={k.id || i} trigger={k} onChange={(u) => updKid(i, u)} onRemove={() => rmKid(i)} {...childProps} />
+        ))}
+        <button type="button" className="btn btn-sm btn-secondary" onClick={addKid}>+ Action (in {trigger.min ?? 0}–{trigger.max ?? 200}%)</button>
+      </div>
+    )}
+    </>
   );
 }
 

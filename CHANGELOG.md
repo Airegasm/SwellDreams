@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.15] - 2026-07-01
+
+### Changed
+- **Capacity In-Range is now a nested block.** Instead of gating loose rows until the next gate, a Capacity In-Range trigger now holds its OWN indented list of actions — set the % range, then add the actions that run inside it. Blocks can be stacked (and nested) to branch a sequence by capacity.
+
 ## [v6.2.14] - 2026-07-01
 
 ### Added
