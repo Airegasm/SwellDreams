@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.5] - 2026-07-01
+
+### Added
+- **"Enable Intro" toggle in the checkpoint Intro section.** When off, the gated intro never runs and nothing is gated — the pump can fire from the first reply and low-capacity (e.g. 1-10%) checkpoint triggers, AI messages, and range main themes all work immediately. Defaults on for existing cards. (An active intro was gating pumping AND blocking other scopes, which is why 1-10% triggers/themes appeared not to fire.)
+
 ## [v6.2.4] - 2026-06-30
 
 ### Fixed

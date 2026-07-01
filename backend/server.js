@@ -11092,9 +11092,14 @@ function applyInstructorInitVars(character) {
 // fires — which opens the gate and optionally loads a checkpoint profile, dropping into normal play.
 function getIntroTree(character, treeIndex) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const scopeRefs = resolveScopeRefs(character);
+  // "Enable Intro" toggle (per profile, legacy story fallback): when explicitly OFF, the intro —
+  // and therefore its pre-inflation gating — is disabled entirely. Default ON for back-compat.
+  const introEnabled = (scopeRefs?.introEnabled ?? activeStory?.treeRefs?.introEnabled) !== false;
+  if (!introEnabled) return null;
   // Intro is now PER-PROFILE (active checkpoint profile's treeRefs.intro); fall back to the legacy
   // card-level treeRefs.intro for un-migrated cards.
-  const ref = resolveScopeRefs(character)?.intro || activeStory?.treeRefs?.intro;
+  const ref = scopeRefs?.intro || activeStory?.treeRefs?.intro;
   return resolveRefTree(ref, treeIndex);
 }
 function hasIntroTree(character) { return !!getIntroTree(character); }

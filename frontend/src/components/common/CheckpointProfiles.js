@@ -291,13 +291,22 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
       {/* Intro (per profile) — gated; no pump, blocks other scopes until an End Gated Intro fires. */}
       {(() => {
         const iRef = selProfile?.treeRefs?.intro || {};
+        const introEnabled = selProfile?.treeRefs?.introEnabled !== false; // default ON (back-compat)
         const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
           ? { ...p, treeRefs: { ...(p.treeRefs || {}), intro: nextRef } } : p));
-        const on = (iRef?.inline?.nodes?.length || iRef?.treeId) ? 'on' : '';
+        const setEnabled = (val) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), introEnabled: val } } : p));
+        const on = (introEnabled && (iRef?.inline?.nodes?.length || iRef?.treeId)) ? 'on' : '';
         return (
           <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={on}>
-            <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
-              refValue={iRef} onChange={setRef} defaultName="Intro" source={`from card: ${cardName}`} rowProps={{ ...profRowProps, profiles: cpProfiles }} />
+            <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
+              <input type="checkbox" checked={introEnabled} onChange={(e) => setEnabled(e.target.checked)} />
+              &nbsp;Enable Intro <span className="section-hint" style={{ fontWeight: 400 }}>— when off, the intro never runs and nothing is gated (the pump can fire from the first reply).</span>
+            </label>
+            {introEnabled && (
+              <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
+                refValue={iRef} onChange={setRef} defaultName="Intro" source={`from card: ${cardName}`} rowProps={{ ...profRowProps, profiles: cpProfiles }} />
+            )}
           </CollapsibleSection>
         );
       })()}
