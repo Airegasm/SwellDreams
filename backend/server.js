@@ -10677,6 +10677,7 @@ function resetEventTriggerState() {
   sessionState.eventLatch = {};    // bindingId -> true while a fireOnce condition stays true
   sessionState.eventCooldown = {}; // bindingId -> eventEngine.messageCount at last fire
   sessionState.idleFired = {};     // bindingId -> the lastActivity stamp it last fired against
+  sessionState.priorityFired = {}; // bindingId -> true once a priority binding has fired (then steps aside)
 }
 resetEventTriggerState();
 
@@ -10746,13 +10747,35 @@ async function runEventTrees(eventType, eventData = {}, opts = {}) {
     const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === eventType);
     if (!bindings.length) return;
     const treeIndex = opts.treeIndex || buildTreeIndex();
+    const delivery = opts.delivery || 'standalone';
+
+    // Priority pass: a binding marked "priority" fires FIRST and, while still eligible, wins the
+    // turn — suppressing the other matching bindings so they don't also fire. A priority binding is
+    // one-shot: once it fires it latches (priorityFired) and permanently steps aside, letting the
+    // conflicting non-priority binding(s) take over on later matches. (Cooldown/match are checked in
+    // order, so a suppressed binding is never match-tested — its fireOnce latch stays untouched.)
+    let priorityFiredThisTurn = false;
     for (const b of bindings) {
+      if (!b.priority || sessionState.priorityFired?.[b.id]) continue; // not priority, or already spent
+      try {
+        if (!eventBindingCooldownOk(b)) continue;
+        if (!eventBindingMatches(b, eventType, eventData)) continue;
+        sessionState.priorityFired[b.id] = true; // spent — steps aside on future matches
+        await fireEventBinding(b, character, settings, treeIndex, delivery);
+        priorityFiredThisTurn = true;
+      } catch (e) { console.error(`[runEventTrees] priority binding ${b?.id} (${eventType}) failed:`, e?.message || e); }
+    }
+    // A priority binding fired → it owns this turn; skip the rest.
+    if (priorityFiredThisTurn) return;
+
+    for (const b of bindings) {
+      if (b.priority) continue; // handled (or suppressed) above
       try {
         // Cooldown first: it's read-only, so checking it before eventBindingMatches (which mutates
         // the fireOnce latch) avoids latching a binding we then suppress.
         if (!eventBindingCooldownOk(b)) continue;
         if (!eventBindingMatches(b, eventType, eventData)) continue;
-        await fireEventBinding(b, character, settings, treeIndex, opts.delivery || 'standalone');
+        await fireEventBinding(b, character, settings, treeIndex, delivery);
       } catch (e) { console.error(`[runEventTrees] binding ${b?.id} (${eventType}) failed:`, e?.message || e); }
     }
   } catch (e) { console.error(`[runEventTrees] ${eventType} dispatch failed:`, e?.message || e); }

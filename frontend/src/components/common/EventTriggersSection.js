@@ -133,6 +133,9 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
                   onChange={(e) => updateFilter(b.id, { cooldown: Number(e.target.value) })} /> msgs
               </label>
             )}
+            <label className="tree-check" title="Priority — when this and other event triggers conflict (match the same turn), this one fires FIRST and suppresses the others. One-shot: after it fires once it steps aside permanently, letting the conflicting trigger(s) take over.">
+              <input type="checkbox" checked={!!b.priority} onChange={(e) => update(b.id, { priority: e.target.checked })} /> priority
+            </label>
             <button type="button" className="btn btn-sm btn-danger" style={{ marginLeft: 'auto' }} onClick={() => remove(b.id)} title="Delete this event trigger">🗑️</button>
           </div>
           <ScopeTreeSection label="" hint="" refValue={b.ref} onChange={(r) => update(b.id, { ref: r })}

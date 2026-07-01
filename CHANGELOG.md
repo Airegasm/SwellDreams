@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.13] - 2026-07-01
+
+### Added
+- **Priority flag on event triggers.** When multiple event triggers conflict (match the same turn, e.g. same keyword), one marked **priority** fires FIRST and suppresses the others that turn. It is one-shot: after firing once it steps aside permanently, letting the conflicting trigger(s) take over on later matches. (Classic use: a "once" setup response that pre-empts a recurring capacity-based response the first time a keyword is said, then hands off.) Resets on New Session.
+
 ## [v6.2.12] - 2026-07-01
 
 ### Changed
