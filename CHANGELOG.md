@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.5.3] - 2026-07-01
+
+### Changed
+- **Group cards hide single-character-only editor UI.** In group mode the card-level inflation-disposition fields (Knowledge / Desire to be Inflated / Desire to be Popped) are hidden (members carry their own dispositions), and the Staged Portraits tab is disabled. The editor falls back to the Main tab if the active tab is hidden by a mode switch.
+
 ## [v6.5.2] - 2026-07-01
 
 ### Changed

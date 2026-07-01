@@ -916,12 +916,16 @@ Write only the scenario description itself, no explanations.`;
     { id: 'main', label: 'Main' },
     ...(isInstructorMode ? [] : [{ id: 'members', label: isGroup ? 'Members' : 'Member' }]),
     ...(individualGroupMode ? [] : [{ id: 'attributes', label: 'Attributes' }]),
-    ...((!isInstructorMode && pumpUiActive) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
+    ...((!isInstructorMode && pumpUiActive && !isGroup) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
     { id: 'checkpoints', label: 'Checkpoints' },
     { id: 'library', label: 'Library' },
     ...(isInstructorMode ? [{ id: 'instructor', label: 'Instructor Settings' }] : []),
     { id: 'events', label: 'Custom Buttons' },
   ]), [isInstructorMode, isGroup, pumpUiActive, individualGroupMode]);
+
+  // If the active tab disappears (e.g. Attributes/Staged Portraits hidden after switching to group /
+  // individual mode), fall back to Main so the body isn't left blank.
+  useEffect(() => { if (!tabs.some(t => t.id === activeTab)) setActiveTab('main'); }, [tabs, activeTab]);
 
   if (!isOpen) return null;
   const member = members[selectedMemberIndex] || members[0];
@@ -1407,6 +1411,9 @@ Write only the scenario description itself, no explanations.`;
                     </div>
                   </div>
 
+                  {/* Card-level single-character inflation dispositions — hidden for groups (members
+                      carry their own per-member dispositions in the Members tab). */}
+                  {!isGroup && (<>
                   <div className="form-group" style={{ marginTop: '1rem' }}>
                     <label>Character's Knowledge of Inflation</label>
                     <select value={formData.charInflateKnowledge || 'unaware'} onChange={(e) => set({ charInflateKnowledge: e.target.value })}>
@@ -1445,6 +1452,7 @@ Write only the scenario description itself, no explanations.`;
                     </select>
                     <div className="form-hint">Affects AI behavior when character capacity reaches 60% or higher.</div>
                   </div>
+                  </>)}
 
                   <details style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600 }}>System Variables</summary>
@@ -2171,8 +2179,8 @@ Write only the scenario description itself, no explanations.`;
           })()}
         </div>
 
-        {/* ---- Staged Portraits tab (ported from old charPortraits; gated on isPumpable) ---- */}
-        {!isInstructorMode && formData.isPumpable && (
+        {/* ---- Staged Portraits tab (ported from old charPortraits; gated on isPumpable; not for groups) ---- */}
+        {!isInstructorMode && formData.isPumpable && !isGroup && (
           <div className="modal-body character-modal-body" style={{ display: activeTab === 'charPortraits' ? 'block' : 'none' }}>
             <div className="staged-portraits-section">
               <p className="section-hint">
