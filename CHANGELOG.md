@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.5.2] - 2026-07-01
+
+### Changed
+- **Decluttered the card Main tab.** The "Original Imported Content (Reference)" section and the "System Variables" reference box are now collapsible (`<details>`), collapsed by default.
+
 ## [v6.5.1] - 2026-07-01
 
 ### Fixed

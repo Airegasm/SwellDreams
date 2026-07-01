@@ -1446,13 +1446,13 @@ Write only the scenario description itself, no explanations.`;
                     <div className="form-hint">Affects AI behavior when character capacity reaches 60% or higher.</div>
                   </div>
 
-                  <div style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>System Variables</strong>
+                  <details style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600 }}>System Variables</summary>
                     <div style={{ marginTop: '6px', lineHeight: 1.6 }}>
                       <code>[CharCapacity]</code> or <code>{'{{charCapacity}}'}</code> — Current character inflation % (0-100)<br/>
                       <code>[Capacity]</code> — Player inflation % (for reference)
                     </div>
-                  </div>
+                  </details>
                 </div>
               )}
               {/* Bulb/Bike Pump Max moved to Settings → Pump Data → "Manual Pumps (NEW)" (#29). */}
@@ -1485,8 +1485,8 @@ Write only the scenario description itself, no explanations.`;
           </div>
 
           {formData.extensions?.v2v3Import && (
-            <div className="form-group">
-              <h4 style={{ margin: '8px 0 4px' }}>Original Imported Content (Reference)</h4>
+            <details className="form-group">
+              <summary style={{ cursor: 'pointer', fontWeight: 600, margin: '8px 0 4px' }}>Original Imported Content (Reference)</summary>
               <p className="section-hint" style={{ color: 'var(--warning-color)' }}>Read-only originals from the imported card — write inflation-appropriate versions above.</p>
               {formData.extensions.v2v3Import.originalGreeting && (
                 <><label>Original Welcome Message</label>
@@ -1502,7 +1502,7 @@ Write only the scenario description itself, no explanations.`;
                 <><label>Original Scenario</label>
                   <textarea value={formData.extensions.v2v3Import.originalScenario} readOnly rows={2} style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }} /></>
               )}
-            </div>
+            </details>
           )}
 
           <div className="form-group">
