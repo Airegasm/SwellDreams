@@ -39,6 +39,14 @@ const PULSE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):pulse:(\d+)\s*\]/gi;
 const TIMED_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):timed:(\d+)\s*\]/gi;
 const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\]/gi;
 
+// Cloud-API device brands whose rate limits can't tolerate rapid pulse bursts (many on/off calls in a
+// few seconds). Pulse is auto-downgraded to a single ON on these. LOCAL brands (kasa/kasa-klap legacy,
+// tapo, homeassistant, shelly, esphome, tasmota, simulated) talk on the LAN and pulse fine.
+const CLOUD_GATED_BRANDS = new Set(['tuya', 'govee', 'wyze']);
+function isCloudGatedDevice(device) {
+  return !!device && CLOUD_GATED_BRANDS.has(String(device.brand || '').toLowerCase());
+}
+
 // Loose pattern to catch ANY pump/vibe/tens-shaped bracket fragment, including
 // malformed ones (e.g. [pump:timed:], [pump : on], [pump:cycle:5]) that the strict
 // command patterns above would not match. Used ONLY for stripping from user-visible
@@ -452,6 +460,21 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
         }
         results.push({ command: cmd, success: false, blocked: true, error: 'Capacity at maximum - pump blocked for safety' });
         continue;
+      }
+    }
+
+    // Auto-disable PULSE on cloud-gated devices (Tuya/Govee/Wyze): rapid on/off bursts blow through
+    // their API rate limits. Downgrade to a single ON (with normal auto-off). Local devices pulse fine.
+    if (cmd.action === 'pulse' && cmd.device === 'pump' && isCloudGatedDevice(device)) {
+      log.warn(`[Pulse] auto-disabled on cloud device ${device.label || device.name || device.brand}: pulse x${cmd.pulses || '?'} → single on (avoids rate limiting)`);
+      cmd.action = 'on';
+      if (broadcast) {
+        broadcast('ai_device_control', {
+          device: cmd.device,
+          action: 'pulse_downgraded',
+          deviceName: device.label || device.name || cmd.device,
+          reason: 'Pulse disabled on cloud device (rate limiting) — using single on'
+        });
       }
     }
 

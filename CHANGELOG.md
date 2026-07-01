@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.3] - 2026-07-01
+
+### Changed
+- **Pulse auto-disabled on cloud-gated pumps.** Rapid pulse bursts blow through the rate limits of cloud-API brands (Tuya, Govee, Wyze), so pulse is now auto-downgraded there: an LLM `[pump:pulse:N]` becomes a single ON (with normal auto-off), and any direct pulse (triggers, flows, events) is capped to a single burst. Local brands (Kasa/Kasa-KLAP legacy, Tapo, Home Assistant, Shelly, ESPHome, Tasmota) are LAN-controlled and keep full pulse behavior.
+
 ## [v6.6.2] - 2026-07-01
 
 ### Fixed

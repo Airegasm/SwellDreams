@@ -996,6 +996,15 @@ class DeviceService {
   async pulsePump(ip, pulses = 3, device = null) {
     console.log(`[DeviceService] pulsePump called: ip=${ip}, pulses=${pulses}, brand=${device?.brand}`);
 
+    // Cloud-gated brands (Tuya/Govee/Wyze) rate-limit rapid calls — a multi-pulse would fire N quick
+    // on/off cloud requests. Cap to a single burst so pulse is effectively disabled on cloud devices.
+    // Local brands (kasa/kasa-klap legacy, tapo, homeassistant, shelly, esphome, tasmota) pulse as asked.
+    const CLOUD_GATED = ['tuya', 'govee', 'wyze'];
+    if (device && CLOUD_GATED.includes(String(device.brand || '').toLowerCase()) && pulses > 1) {
+      console.log(`[DeviceService] pulsePump: capping ${pulses}->1 on cloud device (brand=${device.brand}) to avoid rate limiting`);
+      pulses = 1;
+    }
+
     // Cancel any existing pulse for this device
     this.stopPulse(ip);
 
