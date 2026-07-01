@@ -13,6 +13,7 @@ function StatusBadges({
   onCapacityModifierChange,
   personaName,
   useAutoCapacity,
+  onToggleAutoCapacity,
   hidePainEmotion,
   multichar,
 }) {
@@ -182,6 +183,23 @@ function StatusBadges({
                 </div>
               )}
             </div>
+            {onToggleAutoCapacity && (
+              <div className="capacity-autotrack-row" style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onToggleAutoCapacity(!useAutoCapacity); }}
+                  title={useAutoCapacity ? 'Automatic capacity tracking is ON — click to disable' : 'Automatic capacity tracking is OFF — click to enable'}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 12,
+                    border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, color: '#fff',
+                    background: useAutoCapacity ? '#2e7d32' : '#c62828'
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', opacity: 0.9 }} />
+                  Auto-Track {useAutoCapacity ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

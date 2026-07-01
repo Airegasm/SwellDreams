@@ -4997,7 +4997,7 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       console.warn(`[AutoCapacity] Ignoring final event for ${ip} with ${runtimeSeconds.toFixed(1)}s - capacity is 0 (likely post-emergency-stop)`);
       return;
     }
-    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0 };
+    sessionState.pumpRuntimeTracker[ip] = { totalSeconds: 0, baseSeconds: 0, effectiveSeconds: 0, lastAccountedSeconds: 0 };
   }
 
   if (isRealTime) {
@@ -5034,8 +5034,18 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       continue;
     }
 
-    // Apply capacityModifier to speed up or slow down capacity increase
-    const deviceCapacity = (tracker.totalSeconds / deviceData.calibrationTime) * 100 * capacityModifier;
+    // Accrue capacity INCREMENTALLY at the current modifier: only the new seconds since the last
+    // accounting are scaled by the modifier, then banked into effectiveSeconds. Changing the modifier
+    // therefore only changes the RATE of future capacity — it never retroactively recalculates what
+    // has already accrued. (Back-compat: a tracker without effectiveSeconds banks its existing
+    // totalSeconds at the current modifier on first pass, matching the old value.)
+    if (tracker.effectiveSeconds === undefined) { tracker.effectiveSeconds = 0; tracker.lastAccountedSeconds = 0; }
+    const newSeconds = Math.max(0, tracker.totalSeconds - (tracker.lastAccountedSeconds || 0));
+    if (newSeconds > 0) {
+      tracker.effectiveSeconds += newSeconds * capacityModifier;
+      tracker.lastAccountedSeconds = tracker.totalSeconds;
+    }
+    const deviceCapacity = (tracker.effectiveSeconds / deviceData.calibrationTime) * 100;
     totalCapacity += deviceCapacity;
     // Log every 10 seconds to avoid console flood
     if (Math.round(tracker.totalSeconds) % 10 === 0) {
@@ -7272,6 +7282,17 @@ async function handleWsMessage(ws, type, data) {
       saveData(DATA_FILES.settings, modSettings);
       console.log(`[CapacityModifier] Updated to ${newModifier}x`);
       broadcast('capacity_modifier_update', { capacityModifier: newModifier });
+      break;
+    }
+
+    case 'update_auto_capacity': {
+      const enabled = !!data.enabled;
+      const acSettings = loadData(DATA_FILES.settings) || {};
+      if (!acSettings.globalCharacterControls) acSettings.globalCharacterControls = {};
+      acSettings.globalCharacterControls.useAutoCapacity = enabled;
+      saveData(DATA_FILES.settings, acSettings);
+      console.log(`[AutoCapacity] Automatic tracking ${enabled ? 'ENABLED' : 'DISABLED'} on the fly`);
+      broadcast('auto_capacity_update', { useAutoCapacity: enabled });
       break;
     }
 

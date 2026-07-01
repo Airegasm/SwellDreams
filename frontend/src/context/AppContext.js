@@ -371,6 +371,16 @@ export function AppProvider({ children }) {
         }));
         break;
 
+      case 'auto_capacity_update':
+        setSettings(prev => ({
+          ...prev,
+          globalCharacterControls: {
+            ...prev?.globalCharacterControls,
+            useAutoCapacity: data.useAutoCapacity
+          }
+        }));
+        break;
+
       case 'pump_runtime':
         // Informational - actual capacity comes via auto_capacity_update
         break;

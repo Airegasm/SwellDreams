@@ -1376,7 +1376,8 @@ function Chat() {
             sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
           }}
           personaName={activePersona?.displayName}
-          useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+          useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity ?? true}
+          onToggleAutoCapacity={(enabled) => sendWsMessage('update_auto_capacity', { enabled })}
           hidePainEmotion={true}
           multichar={!!activeCharacter?.multiChar?.enabled}
         />
@@ -1417,7 +1418,8 @@ function Chat() {
               sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
             }}
             personaName={activePersona?.displayName}
-            useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity}
+            useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity ?? true}
+          onToggleAutoCapacity={(enabled) => sendWsMessage('update_auto_capacity', { enabled })}
             hidePainEmotion={true}
           />
           {/* Pump Status Overlay - on divider bar, right of status badges */}

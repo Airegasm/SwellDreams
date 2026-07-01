@@ -2,6 +2,14 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.21] - 2026-07-01
+
+### Added
+- **Auto-Track ON/OFF toggle in the capacity gauge popup.** Clicking the capacity gauge now shows a red/green toggle (next to the two sliders) to enable/disable automatic capacity tracking on the fly.
+
+### Changed
+- **Capacity multiplier no longer retroactively recalculates current capacity.** The auto-capacity modifier now accrues incrementally — only the seconds pumped AFTER a change are scaled by the new multiplier, so adjusting it changes the rate of future capacity without jumping the current value.
+
 ## [v6.2.20] - 2026-07-01
 
 ### Changed
