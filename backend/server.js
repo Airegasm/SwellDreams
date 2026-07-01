@@ -9051,9 +9051,6 @@ async function handleChatMessage(data) {
     // Per-range auto-pump pacing (electric instructor ranges)
     await executeAutoPumpPacing(activeCharacter, false);
 
-    // Mark the LLM busy so trigger-driven generations (checkpoint AI messages / impersonate) queue
-    // behind this reply instead of firing a second concurrent request.
-    llmState.isGenerating = true;
     try {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
@@ -9061,6 +9058,11 @@ async function handleChatMessage(data) {
       await runReplyScopes(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'chat' });
       if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
+
+      // Mark the LLM busy ONLY around the actual generation below (NOT runReplyScopes above, whose
+      // event/checkpoint trees may themselves generate and would otherwise deadlock on this flag) so
+      // capacity-triggered generations during this reply queue behind it instead of running concurrently.
+      llmState.isGenerating = true;
 
       // Build context
       const context = buildChatContext(activeCharacter, settings);

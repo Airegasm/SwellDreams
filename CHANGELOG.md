@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.18] - 2026-07-01
+
+### Fixed
+- **Auto reply stalled/broke when a card had event or checkpoint trees.** The LLM-busy flag added in 6.2.8 was set BEFORE runReplyScopes(), so any tree that generates an AI message/impersonate during the reply would wait on a flag that couldn't clear until the reply finished — stalling every reply on the 90s timeout. The flag now wraps ONLY the main generation, not the scope pass, so replies fire immediately again (trigger-driven generations still queue behind the main reply).
+
 ## [v6.2.17] - 2026-07-01
 
 ### Changed
