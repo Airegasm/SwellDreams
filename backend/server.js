@@ -11218,7 +11218,8 @@ function startInstructorPrereqs(character) {
   sessionState.activeCheckpointProfileId = activeStory?.defaultCheckpointProfileId || sessionState.activeCheckpointProfileId || null;
   if (!steps.length) return false;
   sessionState.pendingPrereqs = { steps, index: 0 };
-  sessionState.preInflationGateMet = false;
+  // NOTE: the prereq Q&A no longer closes the pump gate — instructor device control should work
+  // like regular mode. Use a gated-intro tree / Pre-Fill if you want to hold the pump during setup.
   presentPrereqStep();
   return true;
 }
@@ -13147,15 +13148,16 @@ app.post('/api/settings', async (req, res) => {
     const gChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const gChar = gChars.find(c => c.id === settings.activeCharacterId);
     const gStory = gChar?.stories?.find(s => s.id === gChar.activeStoryId) || gChar?.stories?.[0];
+    // Only a deliberate gated-intro tree / Pre-Fill keeps the pump gate closed. Standard, group,
+    // AND instructor cards all start UNGATED so the AI's first [pump on] activates devices (an
+    // instructor with prereqs no longer deadlocks: it was blocking [pump on], but capacity can't
+    // rise without pumping, so it never opened).
     if (sessionState.capacity > 0) {
       sessionState.preInflationGateMet = true;
     } else if (gChar && (hasIntroTree(gChar) || getPreFillConfig(gChar))) {
       sessionState.preInflationGateMet = false;            // gated intro / pre-fill keeps it closed
-    } else if (isInstructor(gChar)) {
-      const _hasPrereqs = Array.isArray(gStory?.prereqs) && gStory.prereqs.some(s => s?.choices?.some(c => c?.label));
-      sessionState.preInflationGateMet = !_hasPrereqs;
     } else {
-      sessionState.preInflationGateMet = true;             // standard / group card → ungated
+      sessionState.preInflationGateMet = true;             // standard / group / instructor → ungated
     }
     broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: sessionState.preInflationGateMet });
   }
@@ -18105,13 +18107,11 @@ app.post('/api/session/reset', async (req, res) => {
         // it completes. The intro tree takes precedence; startIntroScope()/startPreFill() below
         // manage the active state.
         sessionState.preInflationGateMet = false;
-      } else if (isInstructor(activeCharacter)) {
-        // Instructors gate on their pre-req sequence (the prereq choices ARE the gate)
-        const hasPrereqs = Array.isArray(activeStory?.prereqs) && activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
-        sessionState.preInflationGateMet = !hasPrereqs;
       } else {
-        // The separate 0% pre-inflation gate is gone — without Pre-Fill, standard cards
-        // start ungated (gating is now Pre-Fill's job).
+        // Standard, group, AND instructor cards start UNGATED so the AI's first [pump on]
+        // activates devices. (Instructors used to gate on their prereqs, which deadlocked device
+        // control: [pump on] was blocked, but capacity can't rise without pumping. Gating is now
+        // solely the job of a deliberate gated-intro tree / Pre-Fill.)
         sessionState.preInflationGateMet = true;
       }
     } else {
@@ -18282,11 +18282,8 @@ app.post('/api/sessions/:id/load', (req, res) => {
     sessionState.preInflationGateMet = true;
   } else if (getPreFillConfig(_activeChar)) {
     sessionState.preInflationGateMet = false;            // pre-fill intro still gates
-  } else if (isInstructor(_activeChar)) {
-    const _hasPrereqs = Array.isArray(_activeStory?.prereqs) && _activeStory.prereqs.some(s => s?.choices?.some(c => c?.label));
-    sessionState.preInflationGateMet = !_hasPrereqs;
   } else {
-    sessionState.preInflationGateMet = true;             // standard card → ungated on resume
+    sessionState.preInflationGateMet = true;             // standard / group / instructor → ungated on resume
   }
 
   broadcast('session_loaded', sessionState);

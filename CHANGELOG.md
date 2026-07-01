@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.4] - 2026-06-30
+
+### Fixed
+- **Instructor mode couldn't control smart devices (`[pump on]` emitted but never activated, tag left visible).** Instructor cards started with the pre-inflation gate CLOSED (gated on their prereq Q&A), which blocked pump commands — and capacity can't rise without pumping, so it deadlocked ("randomly" working only once capacity crossed 0% some other way). Instructor cards now start ungated like standard/group cards, and the prereq sequence no longer holds the pump gate. Gating the pump during setup is now solely the job of a deliberate gated-intro tree / Pre-Fill.
+
 ## [v6.2.3] - 2026-06-30
 
 ### Changed
