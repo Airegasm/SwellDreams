@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.19] - 2026-07-01
+
+### Fixed
+- **AI could still drive the pump with device control OFF or in manual pump mode.** processLlmOutput (which actually actuates devices from [pump on] tags) only honored the pre-inflation gate — it ignored the "AI Pump Control" master switch AND manual (bulb/bike) pump mode. Both now block pump-ON commands (OFF still allowed as a safety) and strip the tag from the message. Pump-prose reinforcement is also skipped in manual mode.
+
 ## [v6.2.18] - 2026-07-01
 
 ### Fixed

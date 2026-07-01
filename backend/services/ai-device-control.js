@@ -885,6 +885,11 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
+  // Manual pump mode (bulb/bike): don't auto-append [pump on] — there's no electric device to drive.
+  if (sessionState?.pumpType && sessionState.pumpType !== 'electric') {
+    return { text, reinforced: false, matchedPhrase: null, isPulse: false };
+  }
+
   // Pre-inflation gate: don't reinforce pump-ON commands if gate is not met
   if (sessionState && !sessionState.preInflationGateMet) {
     log.info('[Pre-Inflation Gate] Skipping pump reinforcement — gate not met');
@@ -1044,11 +1049,29 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
       // Only allow OFF commands through, strip everything else
       const offOnly = commands.filter(c => c.action === 'off');
       if (offOnly.length === 0) {
-        return { text, commands: [], results: [] };
+        return { text: stripDeviceCommands(text), commands: [], results: [] };
       }
       commands.length = 0;
       commands.push(...offOnly);
     }
+  }
+
+  // Master switch: if "AI Pump Control" is OFF, the model must not actuate anything. Manual pump mode:
+  // the session pump is a bulb/bike (not electrically driven), so an electric device must NOT be
+  // turned on either. Both strip pump-ON commands (OFF is always allowed through as a safety).
+  const deviceControlOff = !settings?.globalCharacterControls?.allowLlmDeviceControl;
+  const manualPumpMode = !!(sessionState?.pumpType && sessionState.pumpType !== 'electric');
+  if (deviceControlOff || manualPumpMode) {
+    const offOnly = commands.filter(c => c.action === 'off');
+    const blockedCount = commands.length - offOnly.length;
+    if (blockedCount > 0) {
+      log.info(`[Gate] BLOCKED ${blockedCount} pump command(s) — ${deviceControlOff ? 'AI device control OFF' : 'manual pump mode'}`);
+    }
+    if (offOnly.length === 0) {
+      return { text: stripDeviceCommands(text), commands: [], results: [] };
+    }
+    commands.length = 0;
+    commands.push(...offOnly);
   }
 
   // Hard-clamp all parsed command values against per-character limits (defense-in-depth)
