@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.5.4] - 2026-07-01
+
+### Fixed
+- **"Enable Checkpoints" now gates the WHOLE checkpoint system.** Previously the tickbox only stopped capacity-range triggers; the intro, session-start tree, welcome pre-inflation stage directions, range themes, always-on, and event triggers all still fired (including base-character checkpoints in group individual/blended replies). With it off, none of those fire now — the character's plain greeting still shows.
+
 ## [v6.5.3] - 2026-07-01
 
 ### Changed

@@ -10992,6 +10992,7 @@ async function runEventTrees(eventType, eventData = {}, opts = {}) {
     const ctx = opts.character ? opts : getActiveCharacterAndSettings();
     const character = ctx.character, settings = ctx.settings;
     if (!character) return;
+    if (!checkpointsEnabledFor(character)) return; // Enable Checkpoints off → no event triggers
     const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === eventType);
     if (!bindings.length) return;
     const treeIndex = opts.treeIndex || buildTreeIndex();
@@ -11143,6 +11144,9 @@ async function runReplyScopes(character) {
     catch (e) { console.error('[runReplyScopes] intro failed:', e?.message || e); }
     return;
   }
+  // Enable Checkpoints off → skip ALL checkpoint scopes (range trees, always-on, every-reply, random
+  // events). The latched-pump reassert above is device safety, not a checkpoint, so it stays.
+  if (!checkpointsEnabledFor(character)) return;
   rollCheckpointRandomTriggers(character); // legacy producer (sync; no longer self-resets)
   try { await runActiveRangeTrees(character, settings, treeIndex); }
   catch (e) { console.error('[runReplyScopes] range trees failed:', e?.message || e); }
@@ -11433,6 +11437,7 @@ function applyInstructorInitVars(character) {
 // gate and (in runReplyScopes) blocks ALL other scopes/events/buttons until an `end_intro` action
 // fires — which opens the gate and optionally loads a checkpoint profile, dropping into normal play.
 function getIntroTree(character, treeIndex) {
+  if (!checkpointsEnabledFor(character)) return null; // Enable Checkpoints off → no intro either
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const scopeRefs = resolveScopeRefs(character);
   // "Enable Intro" toggle (per profile, legacy story fallback): when explicitly OFF, the intro —
@@ -11901,7 +11906,16 @@ async function handleGateRelease() {
   console.log(`[GateRelease] ${wasReady ? 'READY! pressed → intro exited' : 'GO! pressed'} → pump gate open${profId ? `, loaded profile ${profId}` : ''}`);
 }
 
+// The "Enable Checkpoints" tickbox (base story) gates the WHOLE checkpoint system — intro, session
+// start, welcome pre-inflation, range themes/triggers, always-on, and event triggers — not just the
+// capacity-range triggers. Off = none of it fires.
+function checkpointsEnabledFor(character) {
+  const story = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  return story?.checkpointsEnabled !== false;
+}
+
 function getActiveCheckpoint(character, capacity) {
+  if (!checkpointsEnabledFor(character)) return null;
   // All card types resolve range content from the active checkpoint profile; the 0 range
   // (pre-inflation) is handled by the pre-req/intro sequence, not text. Legacy cards fall back
   // to flat checkpoints inside getActiveCheckpointProfileRanges.
@@ -18511,8 +18525,9 @@ app.post('/api/session/reset', async (req, res) => {
       const ssTreeIndex = buildTreeIndex();
       // Session Start is now PER-PROFILE (active checkpoint profile's treeRefs.sessionStart — the
       // default profile at session open). Falls back to the legacy card-level ref for un-migrated cards.
+      const cpEnabled = checkpointsEnabledFor(activeCharacter); // Enable Checkpoints off → no session-start/intro
       const ssRef = resolveScopeRefs(activeCharacter)?.sessionStart || aStory?.treeRefs?.sessionStart;
-      const ssTree = resolveRefTree(ssRef, ssTreeIndex); // inline OR {treeId} library ref
+      const ssTree = cpEnabled ? resolveRefTree(ssRef, ssTreeIndex) : null; // inline OR {treeId} library ref
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
       if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
