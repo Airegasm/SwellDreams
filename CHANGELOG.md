@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.16] - 2026-07-01
+
+### Added
+- **Up/down reorder arrows on sequential checkpoint triggers** (and on the nested actions inside a Capacity In-Range block), matching the reordering already available on tree/event nodes.
+
 ## [v6.2.15] - 2026-07-01
 
 ### Changed

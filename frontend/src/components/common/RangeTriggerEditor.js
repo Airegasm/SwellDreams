@@ -20,6 +20,13 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
   const addSeq = () => emit({ sequential: [...data.sequential, { id: newId('trg'), type: '', value: '' }] });
   const updSeq = (i, t) => emit({ sequential: data.sequential.map((x, idx) => (idx === i ? t : x)) });
   const rmSeq = (i) => emit({ sequential: data.sequential.filter((_, idx) => idx !== i) });
+  const moveSeq = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= data.sequential.length) return;
+    const a = [...data.sequential];
+    [a[i], a[j]] = [a[j], a[i]];
+    emit({ sequential: a });
+  };
 
   // --- Random blocks ---
   const updBlock = (i, patch) => emit({ random: data.random.map((b, idx) => (idx === i ? { ...b, ...patch } : b)) });
@@ -34,7 +41,10 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
       <div className="rte-section">
         <div className="rte-head"><strong>Sequential</strong> <span className="section-hint">run top-to-bottom on entry; a trigger with a Fire% holds the rest of the sequence until capacity reaches that %</span></div>
         {data.sequential.map((t, i) => (
-          <TriggerRow key={t.id || i} trigger={t} onChange={(u) => updSeq(i, u)} onRemove={() => rmSeq(i)} showFirePercent {...rowProps} />
+          <TriggerRow key={t.id || i} trigger={t} onChange={(u) => updSeq(i, u)} onRemove={() => rmSeq(i)} showFirePercent
+            onMoveUp={i > 0 ? () => moveSeq(i, -1) : undefined}
+            onMoveDown={i < data.sequential.length - 1 ? () => moveSeq(i, 1) : undefined}
+            {...rowProps} />
         ))}
         <button type="button" className="btn btn-sm btn-secondary" onClick={addSeq}>+ Sequential Trigger</button>
       </div>

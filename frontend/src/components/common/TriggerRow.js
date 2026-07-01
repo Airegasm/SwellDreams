@@ -155,7 +155,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false, firePercentMax = 100 }) {
+function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false, firePercentMax = 100, onMoveUp, onMoveDown }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -639,13 +639,18 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           %
         </label>
       )}
+      {onMoveUp && <button type="button" className="btn-remove" onClick={onMoveUp} title="Move up">↑</button>}
+      {onMoveDown && <button type="button" className="btn-remove" onClick={onMoveDown} title="Move down">↓</button>}
       {!hideRemove && <button type="button" className="btn-remove" onClick={onRemove}>−</button>}
     </div>
     {trigger.type === 'capacity_inrange' && (
       <div className="capacity-inrange-block" style={{ marginLeft: 28, borderLeft: '2px solid var(--border-color, #444)', paddingLeft: 10, marginTop: 2, marginBottom: 6 }}>
         {kids.length === 0 && <div className="section-hint" style={{ margin: '2px 0 6px' }}>Actions here run only when capacity is {trigger.min ?? 0}–{trigger.max ?? 200}%.</div>}
         {kids.map((k, i) => (
-          <TriggerRow key={k.id || i} trigger={k} onChange={(u) => updKid(i, u)} onRemove={() => rmKid(i)} {...childProps} />
+          <TriggerRow key={k.id || i} trigger={k} onChange={(u) => updKid(i, u)} onRemove={() => rmKid(i)}
+            onMoveUp={i > 0 ? () => { const a = [...kids]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; setKids(a); } : undefined}
+            onMoveDown={i < kids.length - 1 ? () => { const a = [...kids]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; setKids(a); } : undefined}
+            {...childProps} />
         ))}
         <button type="button" className="btn btn-sm btn-secondary" onClick={addKid}>+ Action (in {trigger.min ?? 0}–{trigger.max ?? 200}%)</button>
       </div>
