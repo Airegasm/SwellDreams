@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.10] - 2026-07-01
+
+### Added
+- **Speaker gate on Await Input triggers.** The keyword gate now has a dropdown — **Player Only** (default), **Char Only**, or **Either** — controlling whose message can satisfy it. Char/Either now also match the AI's own replies, not just the player's.
+
 ## [v6.2.9] - 2026-07-01
 
 ### Added

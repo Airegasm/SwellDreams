@@ -3585,9 +3585,11 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
     }
     if (trg.type === 'await_input') {
       const words = String(trg.words || '').split(',').map(w => w.trim()).filter(Boolean);
-      sessionState.pendingRangeAwait = { kind: 'input', words, rest: triggers.slice(i + 1), source, characterId: character.id };
-      broadcast('await_state', { kind: 'input', words });
-      console.log(`[Trigger/${source}] Await Input armed — words: ${words.join(', ')}`);
+      // Who may satisfy the keyword gate: 'player' (default), 'char', or 'either'.
+      const speaker = ['player', 'char', 'either'].includes(trg.speaker) ? trg.speaker : 'player';
+      sessionState.pendingRangeAwait = { kind: 'input', words, speaker, rest: triggers.slice(i + 1), source, characterId: character.id };
+      broadcast('await_state', { kind: 'input', words, speaker });
+      console.log(`[Trigger/${source}] Await Input armed — words: ${words.join(', ')} (speaker: ${speaker})`);
       return;
     }
     await executeTrigger(trg, source, character, settings);
@@ -3604,6 +3606,20 @@ async function resumeTriggerSequence(pending) {
   const character = characters.find(c => c.id === pending.characterId);
   if (!character) return;
   await fireTriggerSequence(pending.rest, 0, pending.source, character, settings);
+}
+
+// Try to satisfy a pending Await Input keyword gate from a message. `speaker` is who spoke
+// ('player' or 'char'); the gate only resolves if its configured speaker allows it.
+async function tryResolveAwaitInput(content, speaker) {
+  const pa = sessionState.pendingRangeAwait;
+  if (!pa || pa.kind !== 'input') return;
+  const allowed = pa.speaker || 'player';
+  if (allowed !== 'either' && allowed !== speaker) return;
+  const lc = String(content || '').toLowerCase();
+  if ((pa.words || []).some(w => w && lc.includes(w.toLowerCase()))) {
+    console.log(`[AwaitInput] matched by ${speaker} — resuming sequence`);
+    await resumeTriggerSequence(pa).catch(err => console.error('[AwaitInput] resume failed:', err?.message || err));
+  }
 }
 
 // Capacity bands, in order, for scanning Fire% crossings.
@@ -9024,16 +9040,9 @@ async function handleChatMessage(data) {
   // Trigger player speaks event for flow engine
   await eventEngine.handleEvent('player_speaks', { content });
 
-  // #19 Await Input: if a checkpoint sequence is paused waiting on a keyword and the player said
-  // one of the words, resume the gated triggers (the word already went into context above).
-  if (sessionState.pendingRangeAwait?.kind === 'input') {
-    const pa = sessionState.pendingRangeAwait;
-    const lc = String(content || '').toLowerCase();
-    if ((pa.words || []).some(w => w && lc.includes(w.toLowerCase()))) {
-      console.log('[Chat] Await Input matched — resuming sequence');
-      await resumeTriggerSequence(pa).catch(err => console.error('[Chat] await input resume failed:', err?.message || err));
-    }
-  }
+  // #19 Await Input: if a checkpoint sequence is paused waiting on a keyword and the PLAYER said one
+  // of the words (and the gate allows Player / Either), resume the gated triggers.
+  await tryResolveAwaitInput(content, 'player');
 
   // Player Impersonate "Suppress auto reply": the message is sent and player_speaks fires above,
   // but no AI reply is generated.
@@ -9393,6 +9402,8 @@ async function handleChatMessage(data) {
       const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
       await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
       runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
+      // Await Input keyword gate — resolve from the CHARACTER's message (Char / Either gates).
+      await tryResolveAwaitInput(lastMsg?.content, 'char');
 
       // Story Progression: generate player reply suggestions if enabled
       try {
@@ -9750,6 +9761,8 @@ async function generateAIResponseAfterBlocking() {
     const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
     await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
     runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
+    // Await Input keyword gate — resolve from the CHARACTER's message (Char / Either gates).
+    await tryResolveAwaitInput(lastMsg?.content, 'char');
 
   } catch (error) {
     console.error('[Media] LLM error after blocking:', error.message);

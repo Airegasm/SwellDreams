@@ -191,8 +191,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         );
       case 'await_input':
         return (
-          <input type="text" value={trigger.words || ''} onChange={(e) => update('words', e.target.value)}
-            placeholder="keyword1, keyword2, …" style={{ flex: 1, minWidth: '120px' }} title="Comma-separated words. Shown as clickable options on AI messages; saying/clicking one fires the triggers below this one." />
+          <>
+            <input type="text" value={trigger.words || ''} onChange={(e) => update('words', e.target.value)}
+              placeholder="keyword1, keyword2, …" style={{ flex: 1, minWidth: '120px' }} title="Comma-separated words. Shown as clickable options on AI messages; saying/clicking one fires the triggers below this one." />
+            <select value={trigger.speaker || 'player'} onChange={(e) => update('speaker', e.target.value)} style={{ width: '110px' }}
+              title="Who may satisfy this keyword gate.">
+              <option value="player">Player Only</option>
+              <option value="char">Char Only</option>
+              <option value="either">Either</option>
+            </select>
+          </>
         );
       case 'set_range_set':
         return (
