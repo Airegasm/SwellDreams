@@ -209,6 +209,10 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <input type="checkbox" checked={trigger.suppressAutoReply === true} onChange={(e) => update('suppressAutoReply', e.target.checked)} />
               Suppress reply
             </label>
+            <input type="number" min="1" value={trigger.maxTokens ?? ''}
+              onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
+              placeholder="Max tok" style={{ width: '70px' }}
+              title="Max Response Tokens — caps this generation's length. Blank = use the character/global limit." />
           </>
         );
 
@@ -222,6 +226,10 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
               LLM
             </label>
+            <input type="number" min="1" value={trigger.maxTokens ?? ''}
+              onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
+              placeholder="Max tok" style={{ width: '70px' }}
+              title="Max Response Tokens — caps this generation's length. Blank = use the character/global limit." />
           </>
         );
 

@@ -3746,6 +3746,9 @@ async function executeTrigger(trigger, source, character, settings) {
         const impContext = buildSpecialContext(mode, trigger.context || null, character, activePersona, settings);
         const impSettings = { ...settings.llm };
         if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
+        // Optional per-action "Max Response Tokens" override (takes precedence over the impersonate default).
+        const impMaxTok = Number(trigger.maxTokens);
+        if (impMaxTok > 0) impSettings.maxTokens = clampMaxTokens(impMaxTok);
         impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
         const impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
         broadcast('generating_stop', {});
@@ -3779,7 +3782,12 @@ async function executeTrigger(trigger, source, character, settings) {
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
         const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
-        const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: settings.llm });
+        // Optional per-action "Max Response Tokens" — restricts this generation; blank falls through
+        // to the character/global token limit.
+        const aiGenSettings = { ...settings.llm };
+        const aiMaxTok = Number(trigger.maxTokens);
+        if (aiMaxTok > 0) aiGenSettings.maxTokens = clampMaxTokens(aiMaxTok);
+        const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         if (aiResult.text) {
           const { v4: uuidv4 } = require('uuid');
           const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, timestamp: Date.now() };

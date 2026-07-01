@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.9] - 2026-07-01
+
+### Added
+- **Max Response Tokens on AI-message and Player-Impersonate trigger actions.** Optional per-action token cap on the generation — blank falls through to the character/global limit; set it to restrict that trigger's output length.
+
 ## [v6.2.8] - 2026-07-01
 
 ### Added
