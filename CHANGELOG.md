@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.7] - 2026-07-01
+
+### Changed
+- **Player Impersonate trigger action now SENDS the generated message** (as a player message) instead of only dropping it in the input box. New **"Suppress reply"** checkbox on the action: when off, the AI responds as if you sent it; when on, the message is sent with no AI response.
+
 ## [v6.2.6] - 2026-07-01
 
 ### Added

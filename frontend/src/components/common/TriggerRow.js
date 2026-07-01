@@ -201,8 +201,15 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         );
       case 'impersonate':
         return (
-          <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
-            placeholder="Optional context..." style={{ flex: 1, minWidth: '80px' }} />
+          <>
+            <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+              placeholder="Optional context..." style={{ flex: 1, minWidth: '80px' }} />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="Suppress auto reply — send the impersonated message without triggering an AI response. Unchecked: the AI responds as if you sent it.">
+              <input type="checkbox" checked={trigger.suppressAutoReply === true} onChange={(e) => update('suppressAutoReply', e.target.checked)} />
+              Suppress reply
+            </label>
+          </>
         );
 
       case 'ai_message':

@@ -3715,12 +3715,15 @@ async function executeTrigger(trigger, source, character, settings) {
         if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
         impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
         const impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
+        broadcast('generating_stop', {});
         if (impResult.text) {
-          let impText = stripCrossRoleContent(impResult.text, impContext.stopSequences, false);
-          broadcast('generating_stop', {});
-          broadcast('impersonate_result', { text: substituteAllVariables(impText) });
-        } else {
-          broadcast('generating_stop', {});
+          const impText = substituteAllVariables(stripCrossRoleContent(impResult.text, impContext.stopSequences, false)).trim();
+          if (impText) {
+            // Send it as a player message. "Suppress auto reply" (trigger.suppressAutoReply) sends
+            // without an AI response; otherwise the AI responds as if the player had sent it.
+            const suppress = trigger.suppressAutoReply === true;
+            await handleChatMessage({ content: impText, sender: 'player', suppressReply: suppress, forceReply: !suppress });
+          }
         }
         break;
       }
@@ -8977,8 +8980,16 @@ async function handleChatMessage(data) {
     }
   }
 
-  // Check if auto-reply is enabled
-  if (!sessionState.autoReply) {
+  // Player Impersonate "Suppress auto reply": the message is sent and player_speaks fires above,
+  // but no AI reply is generated.
+  if (data.suppressReply) {
+    console.log('[Chat] suppressReply set — player message sent, skipping AI response');
+    return;
+  }
+
+  // Check if auto-reply is enabled (forceReply bypasses it — e.g. a Player Impersonate action that
+  // sends AND wants the AI to respond, regardless of the global Auto Reply toggle).
+  if (!sessionState.autoReply && !data.forceReply) {
     console.log('[Chat] Auto Reply disabled, skipping AI response');
     return;
   }
