@@ -309,7 +309,7 @@ export function AppProvider({ children }) {
         break;
 
       case 'gate_release_state':
-        setSessionState(prev => ({ ...prev, awaitingGoRelease: data.awaitingGoRelease }));
+        setSessionState(prev => ({ ...prev, awaitingGoRelease: data.awaitingGoRelease, releaseButtonLabel: data.releaseButtonLabel ?? null }));
         break;
 
       case 'await_state':

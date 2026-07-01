@@ -1553,9 +1553,9 @@ function Chat() {
               type="button"
               className="chat-go-release desktop-only"
               onClick={() => sendWsMessage('gate_release', {})}
-              title="Press GO! to begin — opens the pump gate"
+              title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}
             >
-              GO!
+              {sessionState.releaseButtonLabel || 'GO!'}
             </button>
           )}
           {/* Font size controls in upper right */}
@@ -2019,9 +2019,9 @@ function Chat() {
                   className="mobile-estop-btn mobile-only go-release"
                   onClick={() => sendWsMessage('gate_release', {})}
                   disabled={sessionLoading}
-                  title="Press GO! to begin — opens the pump gate"
+                  title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}
                 >
-                  GO!
+                  {sessionState.releaseButtonLabel || 'GO!'}
                 </button>
               ) : sessionState.pumpInit === 'manual' ? (
                 <button

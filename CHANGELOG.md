@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.6] - 2026-07-01
+
+### Added
+- **"Press READY to exit intro" toggle in the checkpoint Intro section.** When ticked, the E-STOP/PUMP button becomes a **READY!** button during the intro. Pressing it ends the intro, opens the pump gate, and reverts the button to the correct control for the session's pump (E-STOP for electric, PUMP for manual). Reuses the existing GO! gate-release; no "End Gated Intro" action required.
+
 ## [v6.2.5] - 2026-07-01
 
 ### Added

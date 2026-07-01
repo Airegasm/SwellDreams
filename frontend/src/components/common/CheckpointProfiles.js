@@ -292,10 +292,13 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
       {(() => {
         const iRef = selProfile?.treeRefs?.intro || {};
         const introEnabled = selProfile?.treeRefs?.introEnabled !== false; // default ON (back-compat)
+        const readyExit = selProfile?.treeRefs?.introReadyExit === true;
         const setRef = (nextRef) => setCpProfiles(cpProfiles.map(p => p.id === selId
           ? { ...p, treeRefs: { ...(p.treeRefs || {}), intro: nextRef } } : p));
         const setEnabled = (val) => setCpProfiles(cpProfiles.map(p => p.id === selId
           ? { ...p, treeRefs: { ...(p.treeRefs || {}), introEnabled: val } } : p));
+        const setReadyExit = (val) => setCpProfiles(cpProfiles.map(p => p.id === selId
+          ? { ...p, treeRefs: { ...(p.treeRefs || {}), introReadyExit: val } } : p));
         const on = (introEnabled && (iRef?.inline?.nodes?.length || iRef?.treeId)) ? 'on' : '';
         return (
           <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={on}>
@@ -303,6 +306,12 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
               <input type="checkbox" checked={introEnabled} onChange={(e) => setEnabled(e.target.checked)} />
               &nbsp;Enable Intro <span className="section-hint" style={{ fontWeight: 400 }}>— when off, the intro never runs and nothing is gated (the pump can fire from the first reply).</span>
             </label>
+            {introEnabled && (
+              <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
+                <input type="checkbox" checked={readyExit} onChange={(e) => setReadyExit(e.target.checked)} />
+                &nbsp;Press READY to exit intro <span className="section-hint" style={{ fontWeight: 400 }}>— turns the E-STOP/PUMP button into a “READY!” button; pressing it ends the intro, opens the pump gate, and reverts the button to the session's pump.</span>
+              </label>
+            )}
             {introEnabled && (
               <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
                 refValue={iRef} onChange={setRef} defaultName="Intro" source={`from card: ${cardName}`} rowProps={{ ...profRowProps, profiles: cpProfiles }} />

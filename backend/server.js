@@ -3518,6 +3518,7 @@ const sessionState = {
                            // ON across every reply until [pump off]; overrides time-based auto-off + limits.
                            // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
   awaitingGoRelease: false, // Manual "GO!" gate hold: intro/profile-assign waits for a player button press
+  releaseButtonLabel: null, // Label for the release button ('GO!' default, 'READY!' for intro READY-exit)
   pendingGoProfileId: null, // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
   pendingRangeAwait: null   // A paused checkpoint-trigger sequence waiting on an await gate:
                             // { kind:'pump'|'input', target?, count?, words?, rest:[triggers], source, characterId }
@@ -4844,6 +4845,7 @@ function clearSessionContextForSwitch() {
   sessionState.checkpointInjectionCounts = {};
   sessionState.playerIsInflating = false;
   sessionState.awaitingGoRelease = false;
+  sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.flowVariables = {};
@@ -11110,6 +11112,15 @@ async function startIntroScope(character, settings, treeIndex) {
   sessionState.introActive = true;
   sessionState.preInflationGateMet = false; // no pumping during the gated intro
   sessionState.prosePumpGuidanceOff = true; // no pump-prose guidance/reinforcement during the intro
+  // "Press READY to exit intro" (intro-section checkbox): arm the release button so the player can
+  // leave the intro on demand (reuses the GO! gate-release infra; labeled READY! via releaseButtonLabel).
+  const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const readyExit = !!(resolveScopeRefs(character)?.introReadyExit ?? introStory?.treeRefs?.introReadyExit);
+  if (readyExit) {
+    sessionState.awaitingGoRelease = true;
+    sessionState.releaseButtonLabel = 'READY!';
+    broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'READY!' });
+  }
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex }); }
   catch (e) { console.error('[Intro] start failed:', e?.message || e); }
   return true;
@@ -11523,23 +11534,31 @@ async function handleManualPump() {
 // the pump gate and loads the stashed checkpoint profile so pumping + checkpoints begin now.
 async function handleGateRelease() {
   if (!sessionState.awaitingGoRelease) return;
+  const wasReady = sessionState.releaseButtonLabel === 'READY!';
   sessionState.awaitingGoRelease = false;
+  sessionState.releaseButtonLabel = null;
   sessionState.preInflationGateMet = true;
+  // READY! exits an active intro directly (no End Gated Intro action needed): end the intro and
+  // restore normal pump-prose guidance per the card's after-intro setting.
   const profId = sessionState.pendingGoProfileId;
   sessionState.pendingGoProfileId = null;
-  if (profId) {
-    sessionState.activeCheckpointProfileId = profId;
-    try {
-      const s = loadData(DATA_FILES.settings) || {};
-      const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-      const ch = chars.find(c => c.id === s.activeCharacterId);
-      if (ch) applyActivePumpType(ch);
-    } catch (e) { /* best-effort */ }
-  }
-  broadcast('gate_release_state', { awaitingGoRelease: false });
+  try {
+    const s = loadData(DATA_FILES.settings) || {};
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const ch = chars.find(c => c.id === s.activeCharacterId);
+    const story = ch?.stories?.find(x => x.id === ch.activeStoryId) || ch?.stories?.[0];
+    if (sessionState.introActive) {
+      sessionState.introActive = false;
+      sessionState.prosePumpGuidanceOff = story?.treeRefs?.introEnableProsePumpAfter === false;
+    }
+    if (profId) sessionState.activeCheckpointProfileId = profId;
+    // Always resolve the pump mode so the button reverts to the correct E-STOP / PUMP for this session.
+    if (ch) applyActivePumpType(ch);
+  } catch (e) { /* best-effort */ }
+  broadcast('gate_release_state', { awaitingGoRelease: false, releaseButtonLabel: null });
   broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
   autosaveSession();
-  console.log(`[GateRelease] GO! pressed → pump gate open${profId ? `, loaded profile ${profId}` : ''}`);
+  console.log(`[GateRelease] ${wasReady ? 'READY! pressed → intro exited' : 'GO! pressed'} → pump gate open${profId ? `, loaded profile ${profId}` : ''}`);
 }
 
 function getActiveCheckpoint(character, capacity) {
@@ -18034,6 +18053,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
   sessionState.awaitingGoRelease = false;
+  sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.flowVariables = {};
