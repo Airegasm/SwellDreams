@@ -2,6 +2,12 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.2] - 2026-07-01
+
+### Fixed
+- **Individual replies now use the MEMBER name, not the card/Main name.** In solo mode `[Char]` and the transcript speaker resolve to the responding member (was leaking the card name, e.g. "Jess (Copy)"), stop sequences prevent the model from starting another speaker's turn, and any echoed "Name:" label prefixes are stripped from the output. Applied to individual round-robin replies and the Char AI Message (Member) trigger.
+- **Group name shown in the chat UI.** The input placeholder ("Message <group>…") and the "generating…" indicator now show the group name for group cards instead of the base/Main character name.
+
 ## [v6.6.1] - 2026-07-01
 
 ### Changed

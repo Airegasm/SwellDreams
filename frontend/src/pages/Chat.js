@@ -2168,7 +2168,7 @@ function Chat() {
                   }
                 }, 0);
               }}
-              placeholder={activeCharacter ? `Message ${activeCharacter.name}...` : 'Select a character to chat...'}
+              placeholder={activeCharacter ? `Message ${(activeCharacter.multiChar?.enabled && activeCharacter.multiChar.groupName) || activeCharacter.name}...` : 'Select a character to chat...'}
               disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
               rows={3}
             />

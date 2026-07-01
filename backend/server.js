@@ -3802,7 +3802,7 @@ async function executeTrigger(trigger, source, character, settings) {
           break;
         }
         await waitForLlmIdle(); // queue behind any in-progress generation
-        broadcast('generating_start', { characterName: character.name });
+        broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
         const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
@@ -3854,7 +3854,12 @@ async function executeTrigger(trigger, source, character, settings) {
         const memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
         if (memRes.text) {
           const { v4: uuidv4 } = require('uuid');
-          const msg = { id: uuidv4(), content: substituteAllVariables(memRes.text), sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
+          let memText = substituteAllVariables(memRes.text);
+          if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
+            const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
+            memText = stripSpeakerPrefixes(memText, [tgt.name, ...otherN, character.name, character.multiChar?.groupName].filter(Boolean));
+          }
+          const msg = { id: uuidv4(), content: memText, sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
           autosaveSession();
@@ -5705,8 +5710,8 @@ async function sendWelcomeMessage(character, settings) {
   // If LLM enhancement is enabled, process through LLM
   if (welcomeMsg.llmEnhanced) {
     try {
-      // Notify UI that AI is generating
-      broadcast('generating_start', { characterName: character.name });
+      // Notify UI that AI is generating (group cards show the group name)
+      broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
 
       // Build system prompt with constant reminders
       const playerName = settings?.activePersonaId ?
@@ -9012,6 +9017,16 @@ function computeSpeakingOrder(members, mutedSet, playerText) {
   return [...mentioned, ...rotated].map(m => m.id);
 }
 
+// Strip leading "SpeakerName:" labels the model echoed from the transcript format (e.g. a solo reply
+// that came back as "Jess: Jess (Copy): *...*"). Only removes prefixes matching a KNOWN name.
+function stripSpeakerPrefixes(text, names) {
+  if (!text) return text;
+  const escaped = (names || []).filter(Boolean).map(n => String(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!escaped.length) return text.trimStart();
+  const re = new RegExp('^(?:\\s*(?:' + escaped.join('|') + ')\\s*:\\s*)+', 'i');
+  return text.replace(re, '').trimStart();
+}
+
 async function handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds) {
   const content = data.content;
   // Player message — pushed once, before any individual reply.
@@ -9059,6 +9074,12 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     const context = buildChatContext(activeCharacter, settings);
     const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
 
+    // Stop generation if the model tries to start ANOTHER speaker's turn ("\nOther:") — keeps the
+    // reply to this member only. Also collect known names to strip any leading label it emits anyway.
+    const otherNames = members.filter(m => m.id !== memberId && m.name).map(m => m.name);
+    const knownNames = [member.name, ...otherNames, activeCharacter.name, activeCharacter.multiChar?.groupName, activePersona?.displayName].filter(Boolean);
+    const stopLabels = [...otherNames, activeCharacter.name, activePersona?.displayName].filter(Boolean).map(n => `\n${n}:`);
+
     broadcast('generating_start', { characterName: member.name });
     let result;
     try {
@@ -9066,7 +9087,7 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
         prompt: context.prompt,
         messages: context.messages,
         systemPrompt: soloSystem,
-        settings: { ...settings.llm, maxTokens: memberTokens },
+        settings: { ...settings.llm, maxTokens: memberTokens, stopSequences: [...(settings.llm?.stopSequences || []), ...stopLabels] },
       });
     } catch (e) {
       console.error(`[Individual] generation failed for ${member.name}:`, e?.message || e);
@@ -9076,7 +9097,7 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     broadcast('generating_stop', {});
     if (eventEngine.aborted) break;
 
-    let finalText = substituteAllVariables((result?.text || '').trim());
+    let finalText = stripSpeakerPrefixes(substituteAllVariables((result?.text || '').trim()), knownNames);
     if (!finalText) continue;
 
     // Drive devices from this girl's reply (pump/vibe/tens tags), same as the normal path.
@@ -9241,8 +9262,8 @@ async function handleChatMessage(data) {
   console.log(`[Chat] activeCharacter=${activeCharacter?.name || 'none'}, hasLlmConfig=${hasLlmConfig ? 'yes' : 'no'}`);
 
   if (activeCharacter && hasLlmConfig) {
-    // Notify UI that AI is generating
-    broadcast('generating_start', { characterName: activeCharacter.name });
+    // Notify UI that AI is generating (group cards show the group name, not the base/Main name)
+    broadcast('generating_start', { characterName: groupBubbleName(activeCharacter) || activeCharacter.name });
 
     // Pump on every reply — fire before LLM generates so pump runs during generation
     await executePumpOnEveryReply('', activeCharacter, false);
@@ -9844,8 +9865,8 @@ async function generateAIResponseAfterBlocking() {
     return;
   }
 
-  // Notify UI that AI is generating
-  broadcast('generating_start', { characterName: activeCharacter.name });
+  // Notify UI that AI is generating (group cards show the group name)
+  broadcast('generating_start', { characterName: groupBubbleName(activeCharacter) || activeCharacter.name });
 
   try {
     // Roll personality attributes for post-blocking response
@@ -12872,8 +12893,15 @@ function buildChatContext(character, settings) {
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
   const playerName = activePersona?.displayName || 'the player';
 
+  // In SOLO mode (Individual Responses / member-targeted), [Char] and the transcript speaker resolve to
+  // the responding MEMBER, not the card/Main name.
+  const soloMember = sessionState?.soloSpeaker
+    ? (character.multiChar?.characters || []).find(m => m.id === sessionState.soloSpeaker)
+    : null;
+  const effectiveCharName = soloMember?.name || character.name;
+
   // Substitute variables in character fields (uses global substituteAllVariables)
-  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
+  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: effectiveCharName });
 
   // Map capacity percentage to belly description
   const getCapacityDescription = (capacity) => {
@@ -13117,7 +13145,7 @@ function buildChatContext(character, settings) {
 
   const history = buildHistoryRepresentations(recentMessages, {
     playerName: playerLabel,
-    characterName: character.name,
+    characterName: effectiveCharName,
     isPlayerVoice: false,
     authorNote: (character?.authorsNote ?? settings?.globalPrompt),
     authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
