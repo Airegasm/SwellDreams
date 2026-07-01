@@ -9062,6 +9062,24 @@ async function handleChatMessage(data) {
     }
   }
 
+  // One-off @-mention override: force the NEXT auto-reply to come from ONE named member, for BOTH
+  // blended and individual response modes. Does not touch groupRotation (bypasses computeSpeakingOrder);
+  // it's inherently one-shot because the client only sends forceMember for a single turn.
+  if (sender === 'player'
+      && activeCharacter?.multiChar?.enabled
+      && data.forceMember
+      && !data.suppressReply
+      && (sessionState.autoReply || data.forceReply)
+      && !sessionState.mediaBlocking
+      && !/\[Video:([^\]:]+):blocking\]/i.test(content)) {
+    const fm = (activeCharacter.multiChar.characters || []).find(m => m.id === data.forceMember);
+    const muted = new Set(sessionState.mutedMembers || []);
+    if (fm && fm.name && !muted.has(fm.id)) {
+      await handleIndividualResponses(data, activeCharacter, settings, activePersona, [data.forceMember]);
+      return;
+    }
+  }
+
   // Group card in "Individual Responses" mode: route the normal player turn to round-robin individual
   // replies (each member in their own named bubble) instead of the blended group reply. Respects Auto
   // Reply (or forceReply) and suppressReply, and defers to the blocking-video / mediaBlocking handling

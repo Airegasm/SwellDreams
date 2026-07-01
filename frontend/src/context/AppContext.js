@@ -849,9 +849,12 @@ export function AppProvider({ children }) {
   }, []);
 
   // Send chat message
-  const sendChatMessage = useCallback((content, respondAs) => {
+  const sendChatMessage = useCallback((content, respondAs, forceMember) => {
     // respondAs: ordered array of multichar member ids → reply as each, individually, in order.
-    sendWsMessage('chat_message', { content, sender: 'player', ...(Array.isArray(respondAs) && respondAs.length ? { respondAs } : {}) });
+    // forceMember: single member id → one-off, force the next auto-reply to be ONLY that member.
+    sendWsMessage('chat_message', { content, sender: 'player',
+      ...(Array.isArray(respondAs) && respondAs.length ? { respondAs } : {}),
+      ...(forceMember ? { forceMember } : {}) });
   }, [sendWsMessage]);
 
   // Start new session - clears UI immediately, shows loading while backend resets

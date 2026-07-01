@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.4.1] - 2026-07-01
+
+### Fixed
+- **Recovered the frontend half of v6.4.0** (per-member Attributes tab refactor + Members collapsible, member capacity gauge, @-mention forced reply, mobile pump-timer band, member portrait seeding) and the backend @-mention force-member route — these were wiped from the working tree by an external `git reset --hard` before 6.4.0 was committed, so 6.4.0 shipped with only the backend attribute-roll fix. Development now happens in an isolated git worktree so the app's force-sync updater can't clobber in-progress edits.
+
 ## [v6.4.0] - 2026-07-01
 
 ### Added

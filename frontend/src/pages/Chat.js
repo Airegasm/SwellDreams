@@ -95,6 +95,10 @@ function Chat() {
   // Member picker for Guided Response / Send as Character in group Individual-Responses mode.
   // null when closed; { action: 'guided' | 'sendAs' } when open (pick a member to act as).
   const [memberPicker, setMemberPicker] = useState(null);
+  // @-mention autocomplete: { query, matches:[members], tokenStart, hi } while typing '@name'.
+  const [mentionMenu, setMentionMenu] = useState(null);
+  // One-off: forces the NEXT auto-reply to come from this member id (set via @-mention), then reverts.
+  const [forcedMember, setForcedMember] = useState(null);
   // Tracks the last server-provided history we loaded, so the save effect
   // doesn't echo unchanged server history back to the backend.
   const lastLoadedHistoryRef = useRef(null);
@@ -928,7 +932,9 @@ function Chat() {
     setStoryProgressionSuggestions([]);
 
     setIsGenerating(true);
-    sendChatMessage(messageText);
+    sendChatMessage(messageText, undefined, forcedMember); // @-mention forces the next reply to one member
+    setForcedMember(null); // one-off — revert to normal group/round-robin after this turn
+    setMentionMenu(null);
 
     // Add to history
     setMessageHistory(prev => [...prev, messageText]);
@@ -968,7 +974,39 @@ function Chat() {
     else if (action === 'sendAs') handleSendAsCharacter(memberId);
   };
 
+  // @-mention: members available to mention (group cards only).
+  const mentionMembers = activeCharacter?.multiChar?.enabled ? (activeCharacter.multiChar.characters || []).filter(m => m && m.name) : [];
+  // Detect a trailing '@token' before the caret and open/refresh the autocomplete menu.
+  const detectMention = (value, caret) => {
+    if (!mentionMembers.length) { setMentionMenu(null); return; }
+    const before = value.slice(0, caret ?? value.length);
+    const m = /(?:^|\s)@([^\s@]*)$/.exec(before);
+    if (!m) { setMentionMenu(null); return; }
+    const query = (m[1] || '').toLowerCase();
+    const tokenStart = before.length - m[1].length - 1; // index of the '@'
+    const matches = mentionMembers.filter(mm => mm.name.toLowerCase().includes(query));
+    if (!matches.length) { setMentionMenu(null); return; }
+    setMentionMenu({ query, matches, tokenStart, hi: 0 });
+  };
+  // Insert the picked member: strip the '@token' from the textbox and arm the one-off forced member.
+  const pickMention = (member) => {
+    if (!mentionMenu || !member) { setMentionMenu(null); return; }
+    const caret = chatInputRef.current?.selectionStart ?? inputValue.length;
+    const next = (inputValue.slice(0, mentionMenu.tokenStart) + inputValue.slice(caret)).replace(/[ \t]{2,}/g, ' ');
+    setInputValue(next);
+    setForcedMember(member.id);
+    setMentionMenu(null);
+    setTimeout(() => { const el = chatInputRef.current; if (el) { el.focus(); const p = Math.min(mentionMenu.tokenStart, next.length); el.setSelectionRange(p, p); } }, 0);
+  };
+
   const handleInputKeyDown = (e) => {
+    // @-mention menu keyboard nav takes priority (before Enter/history).
+    if (mentionMenu) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionMenu(mm => mm && ({ ...mm, hi: (mm.hi + 1) % mm.matches.length })); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setMentionMenu(mm => mm && ({ ...mm, hi: (mm.hi - 1 + mm.matches.length) % mm.matches.length })); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionMenu.matches[mentionMenu.hi]); return; }
+      if (e.key === 'Escape') { e.preventDefault(); setMentionMenu(null); return; }
+    }
     // Enter key ALWAYS sends message - treat as single-line input with wrapping
     // Prevent newlines entirely (no Shift+Enter or Ctrl+Enter for multiline)
     if (e.key === 'Enter') {
@@ -2041,7 +2079,7 @@ function Chat() {
               </button>
             )}
           </div>
-          <div className="chat-input-row">
+          <div className="chat-input-row" style={{ position: 'relative' }}>
             <div className="input-arrow-buttons">
               <button
                 type="button"
@@ -2086,6 +2124,7 @@ function Chat() {
               value={inputValue}
               onChange={(e) => {
                 setInputValue(e.target.value);
+                detectMention(e.target.value, e.target.selectionStart);
                 if (e.target.value && storyProgressionVisible) {
                   setStoryProgressionVisible(false);
                   setStoryProgressionSuggestions([]);
@@ -2112,6 +2151,20 @@ function Chat() {
               disabled={!activeCharacter || isGenerating || isPanelBlocking || sessionLoading}
               rows={3}
             />
+            {/* @-mention autocomplete — type '@' to pick a member; forces the next auto-reply to be them. */}
+            {mentionMenu && mentionMenu.matches.length > 0 && (
+              <div className="mention-menu" style={{ position: 'absolute', bottom: '100%', left: 8, marginBottom: 4, zIndex: 999,
+                background: 'var(--surface-color, #2a2a33)', border: '1px solid var(--border-color, #444)', borderRadius: 8, padding: 4, minWidth: 180, maxHeight: 220, overflowY: 'auto', boxShadow: '0 6px 20px rgba(0,0,0,0.4)' }}>
+                <div className="section-hint" style={{ padding: '2px 8px 4px' }}>Reply as…</div>
+                {mentionMenu.matches.map((m, i) => (
+                  <button key={m.id} type="button" onMouseDown={(e) => { e.preventDefault(); pickMention(m); }}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none', borderRadius: 6,
+                      cursor: 'pointer', color: 'inherit', background: i === mentionMenu.hi ? 'var(--accent-color, #6a4caf)' : 'transparent' }}>
+                    @{m.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Action Buttons Stack */}
             <div className="input-action-stack" style={{ position: 'relative' }}>
               <div className="action-stack-top">
@@ -2176,6 +2229,13 @@ function Chat() {
               )}
             </div>
           </div>
+          {/* Bottom band mirroring the E-STOP band above the textbox — overlays the running pump
+              timer text (visible on desktop AND mobile). Empty (just padding) when no pump runs. */}
+          <div className="input-pump-timer-row">
+            {Object.entries(pumpStatus || {}).map(([ip, status]) => (
+              <PumpStatusItem key={ip} deviceIp={ip} status={status} />
+            ))}
+          </div>
         </form>
       </div>
 
@@ -2199,6 +2259,15 @@ function Chat() {
                   >
                     <span className="multichar-mute-name">{m.name || 'Character'}</span>
                     <span className="multichar-mute-bubble">{muted ? '🚫' : '💬'}</span>
+                    {m.isPumpable && (
+                      <span className="multichar-member-gauge" title={`Inflation capacity: ${sessionState.characterCapacity || 0}%`}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 2 }}>
+                        <span style={{ position: 'relative', display: 'inline-block', width: 28, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+                          <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(sessionState.characterCapacity || 0, 100)}%`, background: '#e05a7a' }} />
+                        </span>
+                        <span style={{ fontSize: 10 }}>{sessionState.characterCapacity || 0}%</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}

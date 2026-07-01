@@ -1553,6 +1553,28 @@
 @media (min-width: 769px) {
   .input-buttons-row { position: relative; min-height: 52px; }
 }
+
+/* Bottom band under the textbox — mirrors the E-STOP band above and overlays the running pump timer
+   (works on desktop AND mobile; the .pump-status-overlay on the portrait is desktop-oriented). */
+.input-pump-timer-row {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+  pointer-events: none;
+}
+.input-pump-timer-row .pump-status-item { pointer-events: auto; }
+@media (min-width: 769px) {
+  .input-pump-timer-row { min-height: 52px; }
+}
+/* On mobile the pump timer lives in the bottom band above; hide the portrait divider overlay so it
+   isn't shown twice. */
+@media (max-width: 768px) {
+  .pump-status-overlay { display: none; }
+}
+
 .pc-estop-btn {
   position: absolute;
   left: 50%;

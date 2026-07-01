@@ -574,8 +574,8 @@ Write only the scenario description itself, no explanations.`;
     multiChar: { ...(prev.multiChar || {}), enabled: next.length > 1 ? (prev.multiChar?.enabled ?? true) : false, characters: next },
   }));
   const addMember = () => {
-    // Seed new members from the base card's description/personality (editable per-member) instead of blank.
-    const next = [...members, { id: `m-${Date.now()}`, name: '', description: formData.description || '', personality: formData.personality || '' }];
+    // Seed new members from the base card's description/personality/portrait (editable per-member) instead of blank.
+    const next = [...members, { id: `m-${Date.now()}`, name: '', description: formData.description || '', personality: formData.personality || '', portrait: formData.avatar || '' }];
     setMembers(next);
     setSelectedMemberIndex(next.length - 1);
   };
@@ -909,16 +909,19 @@ Write only the scenario description itself, no explanations.`;
   };
 
   // Tabs depend on mode (the "face" change). Standard and Instructor get SEPARATE Library/Checkpoint tabs.
+  // In group Individual-Responses mode, attributes are set PER MEMBER (in the Members tab), so the
+  // shared Attributes tab is hidden.
+  const individualGroupMode = isGroup && (formData?.multiChar?.responseMode === 'individual');
   const tabs = useMemo(() => ([
     { id: 'main', label: 'Main' },
     ...(isInstructorMode ? [] : [{ id: 'members', label: isGroup ? 'Members' : 'Member' }]),
-    { id: 'attributes', label: 'Attributes' },
+    ...(individualGroupMode ? [] : [{ id: 'attributes', label: 'Attributes' }]),
     ...((!isInstructorMode && pumpUiActive) ? [{ id: 'charPortraits', label: 'Staged Portraits' }] : []),
     { id: 'checkpoints', label: 'Checkpoints' },
     { id: 'library', label: 'Library' },
     ...(isInstructorMode ? [{ id: 'instructor', label: 'Instructor Settings' }] : []),
     { id: 'events', label: 'Custom Buttons' },
-  ]), [isInstructorMode, isGroup, pumpUiActive]);
+  ]), [isInstructorMode, isGroup, pumpUiActive, individualGroupMode]);
 
   if (!isOpen) return null;
   const member = members[selectedMemberIndex] || members[0];
@@ -1614,6 +1617,41 @@ Write only the scenario description itself, no explanations.`;
                     <span className="auto-reply-hint">Enables a capacity gauge on this member's portrait and allows flow nodes to inflate them</span>
                   </div>
                 </div>
+
+                {/* Per-member Attributes (memberAttributes[id]) — drives this member's Individual
+                    Responses reply, and overrides the shared card attributes in group replies. */}
+                {isGroup && (
+                  <details className="form-group" style={{ marginTop: 8 }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Attributes <span className="section-hint">(this member — used in Individual Responses; overrides the shared card set)</span></summary>
+                    <div style={{ marginTop: 8 }}>
+                      <p className="section-hint">Each has a per-message activation chance for {member.name || 'this member'}. Leave all at 0 to fall back to the card's shared attributes.</p>
+                      {[
+                        { key: 'dominant', label: 'Dominant' }, { key: 'sadistic', label: 'Sadistic' },
+                        { key: 'psychopathic', label: 'Psychopathic' }, { key: 'sensual', label: 'Sensual' }, { key: 'sexual', label: 'Sexual' },
+                      ].map(({ key, label }) => (
+                        <div className="form-group" key={key}>
+                          <label>{label}: {(memberAttrs(member.id)[key]) || 0}%</label>
+                          <input type="range" min="0" max="100" step="5" value={(memberAttrs(member.id)[key]) || 0}
+                            onChange={(e) => setMemberAttr(member.id, { [key]: parseInt(e.target.value) })} style={{ width: '100%' }} />
+                        </div>
+                      ))}
+                      <div className="form-group">
+                        <label>Desire to Inflate Others</label>
+                        <select value={memberAttrs(member.id).desireToInflateOthers ?? 'none'}
+                          onChange={(e) => setMemberAttr(member.id, { desireToInflateOthers: e.target.value })}>
+                          <option value="none">None</option><option value="reluctant">Reluctant</option><option value="indifferent">Indifferent</option><option value="willing">Willing</option><option value="eager">Eager</option><option value="obsessed">Obsessed</option><option value="sadistic">Sadistic</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Desire to Pop Others</label>
+                        <select value={memberAttrs(member.id).desireToPopOthers ?? 'none'}
+                          onChange={(e) => setMemberAttr(member.id, { desireToPopOthers: e.target.value })}>
+                          <option value="none">None</option><option value="avoidant">Avoidant</option><option value="careless">Careless</option><option value="curious">Curious</option><option value="willing">Willing</option><option value="eager">Eager</option><option value="sadistic">Sadistic</option>
+                        </select>
+                      </div>
+                    </div>
+                  </details>
+                )}
               </>
             )}
 
@@ -2055,32 +2093,19 @@ Write only the scenario description itself, no explanations.`;
         {/* ---- Attributes tab (per-character in group mode; card/story level otherwise) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'attributes' ? 'block' : 'none' }}>
           {(() => {
-            // In group mode each member edits its own attributes (story.memberAttributes[id]); the
-            // shared story.attributes act as the fallback. In single mode it's the story attributes
-            // + card-level dispositions, exactly as before.
-            const attrMember = isGroup ? member : null;
-            const store = attrMember ? memberAttrs(attrMember.id) : (activeStory?.attributes || {});
-            const dispStore = attrMember ? memberAttrs(attrMember.id) : formData;
-            const getAttr = (key) => store[key] || 0;
-            const setAttr = (key, v) => attrMember
-              ? setMemberAttr(attrMember.id, { [key]: v })
-              : updateStoryField('attributes', { ...(activeStory?.attributes || {}), [key]: v });
-            const getDisp = (field, dflt) => (dispStore[field] ?? dflt);
-            const setDisp = (field, v) => attrMember
-              ? setMemberAttr(attrMember.id, { [field]: v })
-              : setFormData(prev => ({ ...prev, [field]: v }));
+            // Groups edit the SHARED card attributes here — they apply to the whole group / blended
+            // reply. Per-member attributes + dispositions live in the Members tab. Single cards keep
+            // attributes + dispositions at the card/story level, exactly as before.
+            const getAttr = (key) => (activeStory?.attributes?.[key]) || 0;
+            const setAttr = (key, v) => updateStoryField('attributes', { ...(activeStory?.attributes || {}), [key]: v });
+            const getDisp = (field, dflt) => (formData[field] ?? dflt);
+            const setDisp = (field, v) => setFormData(prev => ({ ...prev, [field]: v }));
             return (
           <div className="session-defaults-editor">
             {isGroup && (
-              <div className="form-group">
-                <label>Edit attributes for</label>
-                <select className="multi-char-selector" value={selectedMemberIndex} onChange={(e) => setSelectedMemberIndex(parseInt(e.target.value, 10))}>
-                  {members.map((m, i) => <option key={m.id || i} value={i}>{m.name || (i === 0 ? 'Base character' : `Character ${i + 1}`)}</option>)}
-                </select>
-                <p className="section-hint">Per-member attributes. A member with all-zero attributes falls back to the shared (base) values below the roster.</p>
-              </div>
+              <p className="section-hint" style={{ marginBottom: 12 }}>These attributes apply to the <strong>entire card</strong> — all members roll from this shared set into the group's blended reply. To give a member its own attributes, use the <strong>Attributes</strong> section in the Members tab (and switch to Individual Responses mode).</p>
             )}
-            <h4>Personality Attributes{isGroup && attrMember ? ` — ${attrMember.name || 'this member'}` : ''}</h4>
+            <h4>Personality Attributes</h4>
             <p className="section-hint">Each attribute has a chance to activate per message. When active, it injects personality-driving instructions for that response. Multiple attributes can fire simultaneously.</p>
 
             {[
@@ -2105,8 +2130,9 @@ Write only the scenario description itself, no explanations.`;
               </div>
             ))}
 
+            {!isGroup && (<>
             <h4 style={{ marginTop: '1.5rem' }}>Inflation Disposition</h4>
-            <p className="section-hint">These are always active and affect every AI response. They define {isGroup && attrMember ? `${attrMember.name || 'this member'}'s` : "this character's"} baseline attitude toward inflating and popping others.</p>
+            <p className="section-hint">These are always active and affect every AI response. They define this character's baseline attitude toward inflating and popping others.</p>
 
             <div className="form-group">
               <label>Desire to Inflate Others</label>
@@ -2139,27 +2165,7 @@ Write only the scenario description itself, no explanations.`;
                 <option value="sadistic">Sadistic — wants to make others pop and enjoys it</option>
               </select>
             </div>
-
-            {isGroup && (
-              <details style={{ marginTop: '1.25rem' }}>
-                <summary className="section-hint" style={{ cursor: 'pointer' }}>Shared fallback attributes (used by members with no own values)</summary>
-                <div style={{ marginTop: 8 }}>
-                  {[
-                    { key: 'dominant', label: 'Dominant' }, { key: 'sadistic', label: 'Sadistic' },
-                    { key: 'psychopathic', label: 'Psychopathic' }, { key: 'sensual', label: 'Sensual' },
-                    { key: 'sexual', label: 'Sexual' },
-                  ].map(({ key, label }) => (
-                    <div className="form-group" key={key}>
-                      <label>{label}: {activeStory?.attributes?.[key] || 0}%</label>
-                      <input type="range" min="0" max="100" step="5"
-                        value={activeStory?.attributes?.[key] || 0}
-                        onChange={(e) => updateStoryField('attributes', { ...(activeStory?.attributes || {}), [key]: parseInt(e.target.value) })}
-                        style={{ width: '100%' }} />
-                    </div>
-                  ))}
-                </div>
-              </details>
-            )}
+            </>)}
           </div>
             );
           })()}
@@ -2495,10 +2501,13 @@ function buildInitial(character, defaultAuthorsNote) {
     instructor: c.instructor || { enabled: false },
     multiChar: (() => {
       const mc = c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] };
-      // Backfill the BASE member's description/personality from the card ONLY when absent (undefined),
-      // so a deliberately-cleared ('') base persona is preserved across reopens.
+      // Backfill the BASE member's description/personality/portrait from the card ONLY when absent
+      // (undefined), so a deliberately-cleared ('') value is preserved across reopens.
       const chars = (mc.characters || []).map((m, i) => i === 0
-        ? { ...m, description: m.description === undefined ? (c.description || '') : m.description, personality: m.personality === undefined ? (c.personality || '') : m.personality }
+        ? { ...m,
+            description: m.description === undefined ? (c.description || '') : m.description,
+            personality: m.personality === undefined ? (c.personality || '') : m.personality,
+            portrait: m.portrait === undefined ? (c.avatar || '') : m.portrait }
         : m);
       return { ...mc, characters: chars };
     })(),
