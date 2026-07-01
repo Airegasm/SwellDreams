@@ -3606,14 +3606,22 @@ async function resumeTriggerSequence(pending) {
   await fireTriggerSequence(pending.rest, 0, pending.source, character, settings);
 }
 
+// Capacity bands, in order, for scanning Fire% crossings.
+const CAPACITY_RANGE_KEYS = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100'];
+// A trigger's Fire% — an exact % within its range at which it fires (instead of on range entry).
+// Returns the clamped number if valid for this range key, else null (fires on range entry).
+function triggerFirePercent(trigger, rangeKey) {
+  const raw = trigger?.firePercent;
+  if (raw === '' || raw === null || raw === undefined) return null;
+  const fp = Number(raw);
+  if (!Number.isFinite(fp)) return null;
+  const parts = String(rangeKey).split('-').map(Number);
+  const lo = parts[0], hi = parts[1];
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+  return (fp >= lo && fp <= hi) ? fp : null;
+}
+
 async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
-  const oldRange = capacityToRangeKey(oldCapacity);
-  const newRange = capacityToRangeKey(newCapacity);
-  if (oldRange === newRange) return;
-
-  const triggerKey = `${type}-${newRange}`;
-  if (firedCheckpointTriggers.has(triggerKey)) return;
-
   // Get the active character and story
   const settings = loadData(DATA_FILES.settings);
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
@@ -3627,22 +3635,46 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   const checkpointTriggers = getActiveProfileRangeTriggers(getActiveCheckpointProfile(activeCharacter)) || {};
   if (!checkpointTriggers) return;
 
-  const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
-  // #21: progressing into a range with NO triggers does nothing — a pending await from a
-  // previous range keeps running unhindered.
-  if (!triggers || triggers.length === 0) return;
-
-  // #21: a new range that HAS triggers takes priority — ABORT any pending await (queued or
-  // in-process) from a previous range before firing this range's sequence.
-  if (sessionState.pendingRangeAwait) {
-    console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
-    sessionState.pendingRangeAwait = null;
-    broadcast('await_state', null);
+  // ---- Part A: range-entry sequence (triggers WITHOUT a Fire%) — fires on range change ----
+  const oldRange = capacityToRangeKey(oldCapacity);
+  const newRange = capacityToRangeKey(newCapacity);
+  if (oldRange !== newRange) {
+    const triggerKey = `${type}-${newRange}`;
+    if (!firedCheckpointTriggers.has(triggerKey)) {
+      const entryTriggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential
+        .filter(t => triggerFirePercent(t, newRange) === null);
+      if (entryTriggers.length > 0) {
+        // #21: a new range that HAS triggers takes priority — ABORT any pending await from a
+        // previous range before firing this range's sequence.
+        if (sessionState.pendingRangeAwait) {
+          console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
+          sessionState.pendingRangeAwait = null;
+          broadcast('await_state', null);
+        }
+        firedCheckpointTriggers.add(triggerKey);
+        console.log(`[CheckpointTriggers] Firing ${entryTriggers.length} range-entry trigger(s) for ${triggerKey}`);
+        await fireTriggerSequence(entryTriggers, 0, triggerKey, activeCharacter, settings);
+      }
+    }
   }
 
-  firedCheckpointTriggers.add(triggerKey);
-  console.log(`[CheckpointTriggers] Firing ${triggers.length} trigger(s) for ${triggerKey}`);
-  await fireTriggerSequence(triggers, 0, triggerKey, activeCharacter, settings);
+  // ---- Part B: Fire% triggers — fire individually when capacity crosses their exact % (rising) ----
+  if (newCapacity > oldCapacity) {
+    for (const rangeKey of CAPACITY_RANGE_KEYS) {
+      const list = normalizeRangeTriggers(checkpointTriggers[`${type}-${rangeKey}`]).sequential;
+      for (let i = 0; i < list.length; i++) {
+        const fp = triggerFirePercent(list[i], rangeKey);
+        if (fp === null) continue;
+        if (oldCapacity < fp && newCapacity >= fp) {
+          const fireKey = `${type}-${rangeKey}-fp${i}@${fp}`;
+          if (firedCheckpointTriggers.has(fireKey)) continue;
+          firedCheckpointTriggers.add(fireKey);
+          console.log(`[CheckpointTriggers] Firing Fire%${fp} trigger (${list[i].type}) for ${type}-${rangeKey}`);
+          await executeTrigger(list[i], fireKey, activeCharacter, settings);
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -3708,6 +3740,7 @@ async function executeTrigger(trigger, source, character, settings) {
 
     switch (trigger.type) {
       case 'impersonate': {
+        await waitForLlmIdle(); // queue behind any in-progress generation
         broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
         const mode = trigger.context ? 'guided_impersonate' : 'impersonate';
         const impContext = buildSpecialContext(mode, trigger.context || null, character, activePersona, settings);
@@ -3741,6 +3774,7 @@ async function executeTrigger(trigger, source, character, settings) {
           }
           break;
         }
+        await waitForLlmIdle(); // queue behind any in-progress generation
         broadcast('generating_start', { characterName: character.name });
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
@@ -4374,6 +4408,19 @@ const llmState = {
   isGenerating: false,
   queuedFlowMessage: null // { type, data } - single queued flow message to process when LLM is free
 };
+
+// Queue behind the current generation: if the LLM is busy (e.g. mid-reply), wait for it to finish
+// before a trigger-driven generation starts, so it fires immediately after instead of concurrently.
+// Bounded by a timeout so a stuck flag can never hard-block.
+async function waitForLlmIdle(timeoutMs = 90000) {
+  if (!llmState.isGenerating) return;
+  console.log('[Trigger] LLM busy — queueing this generation until the current one completes...');
+  const start = Date.now();
+  while (llmState.isGenerating && (Date.now() - start) < timeoutMs) {
+    await new Promise(r => setTimeout(r, 100));
+  }
+  if (llmState.isGenerating) console.log('[Trigger] LLM wait timed out — proceeding anyway');
+}
 
 // Process queued flow message when LLM becomes free
 async function processQueuedFlowMessage() {
@@ -9010,6 +9057,9 @@ async function handleChatMessage(data) {
     // Per-range auto-pump pacing (electric instructor ranges)
     await executeAutoPumpPacing(activeCharacter, false);
 
+    // Mark the LLM busy so trigger-driven generations (checkpoint AI messages / impersonate) queue
+    // behind this reply instead of firing a second concurrent request.
+    llmState.isGenerating = true;
     try {
       // Roll personality attributes for this message
       const attrResult = rollAttributes(activeCharacter);
@@ -9352,6 +9402,8 @@ async function handleChatMessage(data) {
       sessionState.activeAttributes = null;
       broadcast('generating_stop', {});
       broadcast('error', { message: 'Failed to generate AI response', error: error.message });
+    } finally {
+      llmState.isGenerating = false;
     }
   }
 }

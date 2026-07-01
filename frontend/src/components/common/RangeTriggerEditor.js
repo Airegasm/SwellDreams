@@ -32,9 +32,9 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
   return (
     <div className="range-trigger-editor">
       <div className="rte-section">
-        <div className="rte-head"><strong>Sequential</strong> <span className="section-hint">fire in order, once when the range is entered</span></div>
+        <div className="rte-head"><strong>Sequential</strong> <span className="section-hint">fire in order when the range is entered — or set a Fire% to fire at an exact % inside the range</span></div>
         {data.sequential.map((t, i) => (
-          <TriggerRow key={t.id || i} trigger={t} onChange={(u) => updSeq(i, u)} onRemove={() => rmSeq(i)} {...rowProps} />
+          <TriggerRow key={t.id || i} trigger={t} onChange={(u) => updSeq(i, u)} onRemove={() => rmSeq(i)} showFirePercent {...rowProps} />
         ))}
         <button type="button" className="btn btn-sm btn-secondary" onClick={addSeq}>+ Sequential Trigger</button>
       </div>

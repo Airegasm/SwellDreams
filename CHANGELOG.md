@@ -2,6 +2,14 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.2.8] - 2026-07-01
+
+### Added
+- **Fire% on sequential checkpoint triggers.** Each sequential trigger can set an exact capacity % (inside its range) at which it fires, instead of firing when the range is first entered. Leave blank for the classic range-entry behavior.
+
+### Fixed
+- **Trigger-driven LLM generations now queue behind an in-progress reply.** Checkpoint AI-message and Player-Impersonate triggers that fire while the AI is mid-reply now wait for it to finish and generate immediately after, instead of launching a second concurrent request (which could interleave/garble output). Bounded by a timeout so it can never hard-block.
+
 ## [v6.2.7] - 2026-07-01
 
 ### Changed
