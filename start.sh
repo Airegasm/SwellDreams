@@ -22,6 +22,8 @@ cd "$SCRIPT_DIR"
 # Ensure git has an identity so no operation can fail with "tell me who you are".
 git config user.email >/dev/null 2>&1 || git config user.email "swelldreams@localhost"
 git config user.name >/dev/null 2>&1 || git config user.name "SwellDreams"
+# Snapshot the commit before syncing, so we can skip the (slow) reinstall+rebuild when nothing changed.
+BEFORE_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "none")
 if [ ! -d ".git" ]; then
     echo "Git repository not found. Setting up..."
     git init
@@ -60,6 +62,15 @@ else
     fi
 fi
 echo ""
+
+# Did the sync actually change the code? If HEAD is unchanged (and this isn't a fresh checkout), we can
+# skip the npm install + frontend rebuild below — a plain restart shouldn't recompile the whole app.
+AFTER_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "none")
+if [ "$BEFORE_HEAD" = "$AFTER_HEAD" ] && [ "$BEFORE_HEAD" != "none" ]; then
+    SOURCE_CHANGED=0
+else
+    SOURCE_CHANGED=1
+fi
 
 # Re-read version after git pull (may have changed)
 VERSION=$(cat "$SCRIPT_DIR/version.json" | grep '"version"' | sed 's/.*: *"\(.*\)".*/\1/')
@@ -134,43 +145,55 @@ if [ -f "$PID_DIR/server.pid" ]; then
     fi
 fi
 
-# Install/update backend dependencies
+# Install/update backend dependencies — only when the code changed or deps are missing.
 echo ""
-echo "Checking backend dependencies..."
 cd "$SCRIPT_DIR/backend"
 if [ ! -f "package.json" ]; then
     echo "ERROR: backend/package.json not found!"
     exit 1
 fi
-npm install
-if [ $? -ne 0 ]; then
-    echo "ERROR: Backend npm install failed!"
-    exit 1
+if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ]; then
+    echo "Installing backend dependencies..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Backend npm install failed!"
+        exit 1
+    fi
+else
+    echo "Backend dependencies up to date (no update) — skipping."
 fi
 
-# Install/update frontend dependencies
+# Install/update frontend dependencies — only when the code changed or deps are missing.
 echo ""
-echo "Checking frontend dependencies..."
 cd "$SCRIPT_DIR/frontend"
 if [ ! -f "package.json" ]; then
     echo "ERROR: frontend/package.json not found!"
     exit 1
 fi
-npm install
-if [ $? -ne 0 ]; then
-    echo "ERROR: Frontend npm install failed!"
-    exit 1
+if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ]; then
+    echo "Installing frontend dependencies..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Frontend npm install failed!"
+        exit 1
+    fi
+else
+    echo "Frontend dependencies up to date (no update) — skipping."
 fi
 
-# Remove old build and rebuild frontend
+# Rebuild the frontend — only when the code changed or a build is missing. A plain restart with no
+# update reuses the existing build/ instead of recompiling (the slow part of startup).
 echo ""
-echo "Removing old frontend build..."
-rm -rf "$SCRIPT_DIR/frontend/build"
-echo "Building frontend for production..."
-cd "$SCRIPT_DIR/frontend" && npm run build
-if [ $? -ne 0 ]; then
-    echo "ERROR: Frontend build failed!"
-    exit 1
+if [ "$SOURCE_CHANGED" = "1" ] || [ ! -f "$SCRIPT_DIR/frontend/build/index.html" ]; then
+    echo "Building frontend for production..."
+    rm -rf "$SCRIPT_DIR/frontend/build"
+    cd "$SCRIPT_DIR/frontend" && npm run build
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Frontend build failed!"
+        exit 1
+    fi
+else
+    echo "Frontend build up to date (no update) — skipping rebuild."
 fi
 
 # Start server

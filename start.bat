@@ -45,6 +45,9 @@ cd /d "%SCRIPT_DIR%"
 REM Ensure git has an identity so no operation can fail with "tell me who you are".
 git config user.email >nul 2>nul || git config user.email "swelldreams@localhost"
 git config user.name >nul 2>nul || git config user.name "SwellDreams"
+REM Snapshot the commit before syncing, so we can skip the slow reinstall+rebuild when nothing changed.
+set "BEFORE_HEAD=none"
+for /f "tokens=*" %%h in ('git rev-parse HEAD 2^>nul') do set "BEFORE_HEAD=%%h"
 if not exist ".git" (
     echo Git repository not found. Setting up...
     git init
@@ -98,6 +101,11 @@ if not exist ".git" (
         )
     )
 )
+REM Did the sync change the code? If HEAD is unchanged (and not a fresh checkout), skip reinstall+rebuild.
+set "AFTER_HEAD=none"
+for /f "tokens=*" %%h in ('git rev-parse HEAD 2^>nul') do set "AFTER_HEAD=%%h"
+set "SOURCE_CHANGED=1"
+if "%BEFORE_HEAD%"=="%AFTER_HEAD%" if not "%BEFORE_HEAD%"=="none" set "SOURCE_CHANGED=0"
 echo.
 
 REM Check if Node.js is installed
@@ -130,48 +138,69 @@ if errorlevel 1 (
     )
 )
 
-REM Install/update backend dependencies
+REM Install/update backend dependencies - only when the code changed or deps are missing.
 echo.
-echo Checking backend dependencies...
 cd /d "%SCRIPT_DIR%backend"
 if not exist "package.json" (
     echo ERROR: backend/package.json not found!
     pause
     exit /b 1
 )
-call npm install
-if errorlevel 1 (
-    echo ERROR: Backend npm install failed!
-    pause
-    exit /b 1
+set "NEED_BE=0"
+if "%SOURCE_CHANGED%"=="1" set "NEED_BE=1"
+if not exist "node_modules" set "NEED_BE=1"
+if "%NEED_BE%"=="1" (
+    echo Installing backend dependencies...
+    call npm install
+    if errorlevel 1 (
+        echo ERROR: Backend npm install failed!
+        pause
+        exit /b 1
+    )
+) else (
+    echo Backend dependencies up to date ^(no update^) - skipping.
 )
 
-REM Install/update frontend dependencies
+REM Install/update frontend dependencies - only when the code changed or deps are missing.
 echo.
-echo Checking frontend dependencies...
 cd /d "%SCRIPT_DIR%frontend"
 if not exist "package.json" (
     echo ERROR: frontend/package.json not found!
     pause
     exit /b 1
 )
-call npm install
-if errorlevel 1 (
-    echo ERROR: Frontend npm install failed!
-    pause
-    exit /b 1
+set "NEED_FE=0"
+if "%SOURCE_CHANGED%"=="1" set "NEED_FE=1"
+if not exist "node_modules" set "NEED_FE=1"
+if "%NEED_FE%"=="1" (
+    echo Installing frontend dependencies...
+    call npm install
+    if errorlevel 1 (
+        echo ERROR: Frontend npm install failed!
+        pause
+        exit /b 1
+    )
+) else (
+    echo Frontend dependencies up to date ^(no update^) - skipping.
 )
 
-REM Remove old build and rebuild frontend
+REM Rebuild the frontend - only when the code changed or a build is missing. A plain restart with no
+REM update reuses the existing build\ instead of recompiling (the slow part of startup).
 echo.
-echo Removing old frontend build...
-if exist "build" rmdir /s /q "build"
-echo Building frontend for production...
-call npm run build
-if errorlevel 1 (
-    echo ERROR: Frontend build failed!
-    pause
-    exit /b 1
+set "NEED_BUILD=0"
+if "%SOURCE_CHANGED%"=="1" set "NEED_BUILD=1"
+if not exist "build\index.html" set "NEED_BUILD=1"
+if "%NEED_BUILD%"=="1" (
+    echo Building frontend for production...
+    if exist "build" rmdir /s /q "build"
+    call npm run build
+    if errorlevel 1 (
+        echo ERROR: Frontend build failed!
+        pause
+        exit /b 1
+    )
+) else (
+    echo Frontend build up to date ^(no update^) - skipping rebuild.
 )
 
 REM Start server in new window

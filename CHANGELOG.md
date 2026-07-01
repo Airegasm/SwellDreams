@@ -2,6 +2,12 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.1] - 2026-07-01
+
+### Changed
+- **Faster restarts.** start.sh / start.bat now skip the npm install + frontend rebuild when the git sync pulled no new commits (a plain restart reuses the existing build instead of recompiling). They still install/rebuild after a real update or if deps/build are missing. (Note: we never wiped node_modules — `npm install` is idempotent; only the compiled build/ was being deleted+rebuilt every launch.)
+- **Quieter logs.** The LLM connection test no longer dumps the model's full chat_template (thousands of chars of Jinja) to the console on every connection check — just a one-line summary.
+
 ## [v6.6.0] - 2026-07-01
 
 ### Fixed

@@ -1092,7 +1092,8 @@ async function testConnection(settings) {
           supportsSystemRole = propsResult.chat_template_caps?.supports_system_role
             ?? inferSystemRoleSupport(tmpl);
           if (tmpl) {
-            console.log(`[LLM] llama.cpp chat_template: "${tmpl}" (${tmpl.length} chars), supports_system_role: ${supportsSystemRole}`);
+            // Log a short summary, not the whole template (can be thousands of chars of Jinja noise).
+            console.log(`[LLM] llama.cpp chat_template detected (${tmpl.length} chars), supports_system_role: ${supportsSystemRole}`);
             const tmplLower = tmpl.toLowerCase();
             if (tmplLower === 'gemma' || tmpl.includes('<start_of_turn>')) {
               chatTemplate = supportsSystemRole ? 'gemma3' : 'gemma2';
