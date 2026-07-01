@@ -10401,10 +10401,17 @@ function rollAttributes(character) {
     const fallback = activeStory?.attributes || {};
     const byMember = {};
     const rolls = [];
+    const TRAIT_KEYS = ['dominant', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
     for (const m of (character.multiChar.characters || [])) {
-      const attrs = (memberAttrs[m.id] && Object.keys(memberAttrs[m.id]).length) ? memberAttrs[m.id] : fallback;
+      // Fall back to the shared card attributes unless this member has a NON-ZERO trait chance of its
+      // own. (memberAttributes[id] also holds dispositions/zeroed sliders, so Object.keys length would
+      // wrongly defeat the fallback the moment any disposition is set.)
+      const ma = memberAttrs[m.id];
+      const hasOwnTrait = ma && TRAIT_KEYS.some(k => Number(ma[k]) > 0);
+      const attrs = hasOwnTrait ? ma : fallback;
       const active = [];
-      for (const [trait, chance] of Object.entries(attrs)) {
+      for (const trait of TRAIT_KEYS) {
+        const chance = Number(attrs[trait]) || 0;
         if (chance > 0 && Math.random() * 100 < chance) active.push(trait);
       }
       byMember[m.id] = active;

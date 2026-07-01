@@ -2,6 +2,18 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.4.0] - 2026-07-01
+
+### Added
+- **Per-member attributes for groups.** The Attributes tab now edits the shared card attributes (with a note) in group mode and is hidden in Individual Responses mode; each member has its own Attributes section (traits + dispositions) in the Members tab. Individual replies now roll attributes per member.
+- **Member capacity gauge** on each pumpable member's chip in group chat.
+- **@-mention autocomplete** in the chat input: type `@name` to force the next reply to come from that one member (the token is stripped from the message).
+- **Pump timer band** below the chat input (visible on mobile) overlaying the running pump time.
+- Base/new members now adopt the base card's portrait as their default.
+
+### Fixed
+- Per-member attribute "fall back to shared card attributes when all-zero" now works even after a disposition is set (the fallback keyed off the wrong condition).
+
 ## [v6.3.0] - 2026-07-01
 
 ### Added
