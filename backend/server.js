@@ -1316,7 +1316,7 @@ async function executeAutoPumpPacing(character, isFlowChain) {
   if (isFlowChain) return;
   if (sessionState.pumpType !== 'electric') return;            // manual pumps use batch pacing
   if (!sessionState.preInflationGateMet) return;               // respect the pre-inflation gate
-  const cp = getActiveCheckpoint(character, sessionState.capacity || 0);
+  const cp = getActiveCheckpointRaw(character, sessionState.capacity || 0); // pacing is device automation — not gated by Enable Checkpoints
   const gap = parseInt(cp?.messagesBetweenOn);
   if (!(gap > 0)) return;                                      // pacing disabled for this range
 
@@ -3526,7 +3526,9 @@ const sessionState = {
   // PUMP-READY: who is connected to a pump and may be described being inflated. Live per-session
   // (reset on new session / character switch). Persona defaults ON; character/members default OFF
   // (enabled manually). members keyed by member id.
-  pumpReady: { persona: true, character: false, members: {} }
+  pumpReady: { persona: true, character: false, members: {} },
+  soloSpeaker: null         // when set (member id), buildMultiCharSystemPrompt constrains the cast to
+                            // just this member (used by Individual Responses + member-targeted triggers/guided)
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3839,7 +3841,9 @@ async function executeTrigger(trigger, source, character, settings) {
         }
         await waitForLlmIdle();
         broadcast('generating_start', { characterName: speakerName });
+        sessionState.soloSpeaker = tgt?.id || null; // constrain the group prompt to this member alone
         const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
+        sessionState.soloSpeaker = null;
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
           : baseCtx.systemPrompt;
@@ -4958,6 +4962,7 @@ function clearSessionContextForSwitch() {
   sessionState.pendingRangeAwait = null;
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
+  sessionState.soloSpeaker = null;
   sessionState.flowVariables = {};
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
@@ -9048,7 +9053,9 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     );
 
     // Full per-turn context, then force a SINGLE-member reply. buildChatContext re-reads the live
-    // chatHistory, so each girl after the first sees the earlier individual replies.
+    // chatHistory, so each girl after the first sees the earlier individual replies. soloSpeaker makes
+    // buildMultiCharSystemPrompt itself constrain the cast to just this member (all others silent).
+    sessionState.soloSpeaker = memberId;
     const context = buildChatContext(activeCharacter, settings);
     const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
 
@@ -9088,6 +9095,7 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     autosaveSession();
     await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
   }
+  sessionState.soloSpeaker = null; // release the solo constraint so the next turn isn't stuck on one member
 }
 
 async function handleChatMessage(data) {
@@ -10007,11 +10015,13 @@ async function handleSpecialGenerate(data) {
     if (isPlayerVoice) {
       context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
     } else {
+      if (smTarget) sessionState.soloSpeaker = smTarget.id; // constrain the group prompt to this member
       context = applyCharacterGuidance(
         buildChatContext(activeCharacter, settings),
         activeCharacter,
         guidedText
       );
+      sessionState.soloSpeaker = null;
       if (smSolo) context.systemPrompt = (context.systemPrompt || '') + smSolo; // single-member guided reply
     }
     const useStreaming = settings.llm?.streaming === true;
@@ -10131,11 +10141,13 @@ async function handleSpecialGenerate(data) {
       if (isPlayerVoice) {
         retryContext = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
       } else {
+        if (smTarget) sessionState.soloSpeaker = smTarget.id;
         retryContext = applyCharacterGuidance(
           buildChatContext(activeCharacter, settings),
           activeCharacter,
           guidedText
         );
+        sessionState.soloSpeaker = null;
         if (smSolo) retryContext.systemPrompt = (retryContext.systemPrompt || '') + smSolo;
       }
       retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages.';
@@ -10749,6 +10761,7 @@ function buildInflationDispositionContext(character) {
 
 function getActiveCharacterCheckpoint(character) {
   if (!character?.isPumpable) return null;
+  if (!checkpointsEnabledFor(character)) return null; // Enable Checkpoints off → no character stage directions
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const checkpoints = activeStory?.characterCheckpoints;
   if (!checkpoints) return null;
@@ -10978,6 +10991,7 @@ function eventBindingCooldownOk(b) {
 
 // Run one event binding's tree. Stamps the cooldown clock at fire time.
 async function fireEventBinding(b, character, settings, treeIndex, delivery) {
+  if (!checkpointsEnabledFor(character)) return; // Enable Checkpoints off → no event bindings (incl. idle)
   const tree = resolveRefTree(b.ref, treeIndex);
   if (!tree) return;
   sessionState.eventCooldown[b.id] = eventEngine.messageCount || 0;
@@ -11474,7 +11488,17 @@ async function startIntroScope(character, settings, treeIndex) {
 // fire end_intro when the player meets the condition).
 async function runIntroScope(character, settings, treeIndex) {
   const tree = getIntroTree(character, treeIndex);
-  if (!tree) { sessionState.introActive = false; return; }
+  if (!tree) {
+    // Intro vanished mid-session (e.g. Enable Checkpoints/Enable Intro toggled OFF while a gated intro
+    // was live). Reopen the pre-inflation gate so pump control isn't stranded closed.
+    if (sessionState.introActive) {
+      sessionState.preInflationGateMet = true;
+      sessionState.prosePumpGuidanceOff = false;
+      broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+    }
+    sessionState.introActive = false;
+    return;
+  }
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'inReply', treeIndex }); }
   catch (e) { console.error('[Intro] run failed:', e?.message || e); }
 }
@@ -11914,8 +11938,15 @@ function checkpointsEnabledFor(character) {
   return story?.checkpointsEnabled !== false;
 }
 
+// Gated by "Enable Checkpoints" — use for NARRATIVE content (themes, pre-inflation, stage directions).
 function getActiveCheckpoint(character, capacity) {
   if (!checkpointsEnabledFor(character)) return null;
+  return getActiveCheckpointRaw(character, capacity);
+}
+
+// UN-gated resolver — returns the active range regardless of the tickbox. Used by device pump PACING
+// (automation, not narrative), which must keep working even when checkpoints are disabled.
+function getActiveCheckpointRaw(character, capacity) {
   // All card types resolve range content from the active checkpoint profile; the 0 range
   // (pre-inflation) is handled by the pre-req/intro sequence, not text. Legacy cards fall back
   // to flat checkpoints inside getActiveCheckpointProfileRanges.
@@ -12349,9 +12380,9 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this. Do NOT describe ${character.name}'s inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointSpecial}\n=== END STAGE DIRECTION ===\n`;
     }
 
-    // Inject persona checkpoints for impersonate mode
+    // Inject persona checkpoints for impersonate mode (gated by Enable Checkpoints)
     const isPlayerVoice = (mode === 'impersonate' || mode === 'guided_impersonate');
-    if (isPlayerVoice && persona) {
+    if (isPlayerVoice && persona && checkpointsEnabledFor(character)) {
       const personaCp = getPersonaCheckpoint(persona, sessionState.capacity);
       if (personaCp) {
         systemPrompt += `\n=== MANDATORY — YOUR REACTION TO YOUR OWN INFLATION (${sessionState.capacity}%) ===\n${personaCp}\n=== END ===\n`;
@@ -12452,10 +12483,17 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const memberAttrs = activeStory?.memberAttributes || {};
   const muted = new Set(sessionState?.mutedMembers || []);
+  // SOLO mode (Individual Responses / member-targeted trigger/guided): only the solo speaker may
+  // speak — everyone else is forced silent so the prompt itself constrains the model to one voice.
+  const soloId = sessionState?.soloSpeaker || null;
+  if (soloId && chars.some(c => c.id === soloId)) {
+    for (const c of chars) if (c.id !== soloId) muted.add(c.id);
+  }
   const activeChars = chars.filter(c => !muted.has(c.id));
   const silentChars = chars.filter(c => muted.has(c.id));
-  // If every member is muted, fall back to all (avoid an empty cast).
-  const speakable = activeChars.length ? activeChars : chars;
+  // If every member is muted, fall back to all (avoid an empty cast) — but NOT in solo mode, where a
+  // single speaker is the whole point.
+  const speakable = (activeChars.length || soloId) ? activeChars : chars;
   const names = speakable.map(c => c.name).join(', ');
 
   let prompt = `You are a collaborative fiction writer portraying: ${names}.\n`;
@@ -12492,14 +12530,23 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   }
   prompt += `- Attribute dialogue and actions to characters by name.\n`;
   prompt += `- Keep dialogue natural and concise — people speak in short sentences, not paragraphs.\n`;
-  prompt += `\nCONVERSATION DYNAMICS (important):\n`;
-  prompt += `- Vary which characters speak each turn. 1-2 characters per response is ideal; only use 3+ when genuinely needed.\n`;
-  prompt += `- Characters who just spoke recently can stay silent while others take the lead.\n`;
-  prompt += `- Let conversations shift naturally — a character can initiate a new topic, react to something unexpected, or redirect the scene.\n`;
-  prompt += `- Characters can disagree, interrupt, go off on tangents, or have side conversations.\n`;
-  prompt += `- Sometimes only ONE character responds — the others are busy, distracted, or simply have nothing to add.\n`;
-  prompt += `- Avoid the pattern of every character commenting on the same thing in sequence. Real groups don't take orderly turns.\n`;
-  prompt += `\n`;
+  if (soloId) {
+    const me = chars.find(c => c.id === soloId);
+    const others = chars.filter(c => c.id !== soloId).map(c => c.name).filter(Boolean);
+    prompt += `\n=== SOLO RESPONSE (MANDATORY) ===\n`;
+    prompt += `You are writing ONLY as ${me?.name || 'this character'} this turn. Output a single in-character reply from ${me?.name || 'them'} alone.\n`;
+    if (others.length) prompt += `Do NOT write dialogue, actions, thoughts, or narration for ${others.join(', ')} — they may be present, but this turn is ${me?.name}'s alone. You may reference them, but never voice or act for them.\n`;
+    prompt += `=== END SOLO RESPONSE ===\n\n`;
+  } else {
+    prompt += `\nCONVERSATION DYNAMICS (important):\n`;
+    prompt += `- Vary which characters speak each turn. 1-2 characters per response is ideal; only use 3+ when genuinely needed.\n`;
+    prompt += `- Characters who just spoke recently can stay silent while others take the lead.\n`;
+    prompt += `- Let conversations shift naturally — a character can initiate a new topic, react to something unexpected, or redirect the scene.\n`;
+    prompt += `- Characters can disagree, interrupt, go off on tangents, or have side conversations.\n`;
+    prompt += `- Sometimes only ONE character responds — the others are busy, distracted, or simply have nothing to add.\n`;
+    prompt += `- Avoid the pattern of every character commenting on the same thing in sequence. Real groups don't take orderly turns.\n`;
+    prompt += `\n`;
+  }
   return prompt;
 }
 
@@ -18414,6 +18461,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingRangeAwait = null;
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
+  sessionState.soloSpeaker = null;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {

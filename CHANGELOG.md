@@ -2,6 +2,15 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.0] - 2026-07-01
+
+### Fixed
+- **Individual Responses now truly speak as one member.** The per-member reply built the full group system prompt ("write for ALL members, attribute by name") and only appended a soft "reply as X" — so members wrote for each other. A new `soloSpeaker` makes the group prompt itself constrain the cast to just that member (everyone else marked silent) + a mandatory SOLO directive. Applied to individual replies, the member picker, member-targeted guided/send-as, and the Char AI Message (Member) trigger.
+- **Enable-Checkpoints gating hardened** (review follow-ups): character/persona inflation stage directions and idle event trees are now gated too; device auto-pump pacing keeps working when checkpoints are off (it's automation, not narrative); toggling checkpoints off mid-intro no longer strands the pre-inflation pump gate.
+
+### Added
+- **Force a combined group reply from Individual Responses mode.** The Guided Response / Send-as-Character member picker now has a **"Combined (whole group)"** option, and the plain **Char AI Message** trigger still produces a combined reply in individual mode — two ways to opt back into a group response while individual stays the default.
+
 ## [v6.5.4] - 2026-07-01
 
 ### Fixed

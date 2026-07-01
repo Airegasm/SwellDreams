@@ -2232,6 +2232,13 @@ function Chat() {
                     <div className="section-hint" style={{ padding: '2px 6px 6px' }}>
                       {memberPicker.action === 'guided' ? 'Generate a reply as…' : 'Send as…'}
                     </div>
+                    {/* Force a COMBINED (whole-group) response even in Individual Responses mode. */}
+                    <button type="button" onClick={() => runMemberPick(null)}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none',
+                        borderRadius: 6, cursor: 'pointer', background: 'transparent', color: 'inherit', fontWeight: 600, borderBottom: '1px solid var(--border-color, #444)' }}
+                      title="All members reply together in one combined group message">
+                      👥 Combined (whole group)
+                    </button>
                     {(activeCharacter.multiChar.characters || []).map(m => {
                       const muted = (sessionState.mutedMembers || []).includes(m.id);
                       return (
