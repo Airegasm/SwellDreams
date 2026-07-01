@@ -92,10 +92,9 @@ function Chat() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [messageHistory, setMessageHistory] = useState([]);
-  // Multichar responder dropdown: ordered ids of the girls ticked to respond individually (in
-  // tick order). Empty = "Group" (normal group reply). Persists across messages until changed.
-  const [respondOrder, setRespondOrder] = useState([]);
-  const [showResponderPanel, setShowResponderPanel] = useState(false);
+  // Member picker for Guided Response / Send as Character in group Individual-Responses mode.
+  // null when closed; { action: 'guided' | 'sendAs' } when open (pick a member to act as).
+  const [memberPicker, setMemberPicker] = useState(null);
   // Tracks the last server-provided history we loaded, so the save effect
   // doesn't echo unchanged server history back to the backend.
   const lastLoadedHistoryRef = useRef(null);
@@ -929,7 +928,7 @@ function Chat() {
     setStoryProgressionSuggestions([]);
 
     setIsGenerating(true);
-    sendChatMessage(messageText, respondOrder);
+    sendChatMessage(messageText);
 
     // Add to history
     setMessageHistory(prev => [...prev, messageText]);
@@ -940,14 +939,14 @@ function Chat() {
     setTimeout(() => setIsGenerating(false), 100);
   };
 
-  const handleSendAsCharacter = async (e) => {
-    e.preventDefault();
+  const handleSendAsCharacter = async (memberId = null) => {
     if (!inputValue.trim() || isGenerating) return;
 
     const messageText = inputValue.trim();
 
     setIsGenerating(true);
-    sendWsMessage('ai_message', { content: messageText, suppressLlm: true });
+    // memberId (string) targets a specific group member's named bubble; otherwise the card/group speaks.
+    sendWsMessage('ai_message', { content: messageText, suppressLlm: true, memberId: typeof memberId === 'string' ? memberId : null });
 
     // Add to history
     setMessageHistory(prev => [...prev, messageText]);
@@ -956,6 +955,17 @@ function Chat() {
     setInputValue('');
 
     setTimeout(() => setIsGenerating(false), 100);
+  };
+
+  // Group Individual-Responses mode: Guided Response / Send as Character open a member picker.
+  const isIndividualGroup = !!activeCharacter?.multiChar?.enabled
+    && activeCharacter.multiChar.responseMode === 'individual'
+    && (activeCharacter.multiChar.characters || []).length > 0;
+  const runMemberPick = (memberId) => {
+    const action = memberPicker?.action;
+    setMemberPicker(null);
+    if (action === 'guided') handleGuidedGenerate('guided', memberId);
+    else if (action === 'sendAs') handleSendAsCharacter(memberId);
   };
 
   const handleInputKeyDown = (e) => {
@@ -997,7 +1007,7 @@ function Chat() {
     }
   };
 
-  const handleGuidedGenerate = async (mode) => {
+  const handleGuidedGenerate = async (mode, memberId = null) => {
     if (isGenerating) return;
 
     // Check if LLM is configured
@@ -1024,7 +1034,8 @@ function Chat() {
     } else {
       sendWsMessage('special_generate', {
         mode,
-        guidedText: inputValue.trim() || null
+        guidedText: inputValue.trim() || null,
+        memberId: typeof memberId === 'string' ? memberId : null
       });
       // Keep the guidance text in the input for reuse
     }
@@ -1661,7 +1672,7 @@ function Chat() {
                   >
                     <div className="message-header">
                       <span className="message-sender">
-                        {msg.sender === 'player' ? `${activePersona?.displayName || 'Player'} (You)` : msg.characterName || 'Character'}
+                        {msg.sender === 'player' ? `${activePersona?.displayName || 'Player'} (You)` : (msg.displayName || msg.characterName || 'Character')}
                       </span>
                       <div className="message-controls">
                         <button
@@ -1733,7 +1744,7 @@ function Chat() {
                         <span className="await-options-label">Options:</span>
                         {sessionState.awaitState.words.map((w, wi) => (
                           <button key={wi} type="button" className="await-option-chip"
-                            onClick={() => { if (isGenerating || !w.trim()) return; setIsGenerating(true); sendChatMessage(w, respondOrder); setMessageHistory(prev => [...prev, w]); setHistoryIndex(-1); }}>
+                            onClick={() => { if (isGenerating || !w.trim()) return; setIsGenerating(true); sendChatMessage(w); setMessageHistory(prev => [...prev, w]); setHistoryIndex(-1); }}>
                             {w}
                           </button>
                         ))}
@@ -1970,47 +1981,6 @@ function Chat() {
                 >😈</button>
               </div>
 
-              {/* Responder dropdown (multichar) — Group, or tick girls to reply INDIVIDUALLY in
-                  tick order. Muted girls greyed/disabled. Selection persists until changed. */}
-              {activeCharacter?.multiChar?.enabled && (activeCharacter.multiChar.characters || []).length > 0 && (
-                <div className="responder-dropdown">
-                  <button
-                    type="button"
-                    className={`responder-toggle ${respondOrder.length ? 'individual' : ''}`}
-                    onClick={() => setShowResponderPanel(v => !v)}
-                    title="Who responds to your next message"
-                  >
-                    {respondOrder.length === 0
-                      ? '👥 Group'
-                      : `🎯 ${respondOrder.map(id => (activeCharacter.multiChar.characters.find(m => m.id === id)?.name || '?')).join(', ')}`}
-                  </button>
-                  {showResponderPanel && (
-                    <>
-                      <div className="responder-overlay" onClick={() => setShowResponderPanel(false)} />
-                      <div className="responder-panel">
-                        <button
-                          type="button"
-                          className={`responder-opt group-opt ${respondOrder.length === 0 ? 'active' : ''}`}
-                          onClick={() => setRespondOrder([])}
-                        >👥 Group (all together)</button>
-                        {(activeCharacter.multiChar.characters || []).map(m => {
-                          const muted = (sessionState.mutedMembers || []).includes(m.id);
-                          const idx = respondOrder.indexOf(m.id);
-                          return (
-                            <label key={m.id} className={`responder-opt ${muted ? 'muted' : ''} ${idx >= 0 ? 'ticked' : ''}`}
-                              title={muted ? `${m.name} is muted — unmute to include` : ''}>
-                              <input type="checkbox" checked={idx >= 0} disabled={muted}
-                                onChange={() => setRespondOrder(prev => prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id])} />
-                              <span>{m.name || '(unnamed)'}</span>
-                              {idx >= 0 && <span className="responder-order-badge">{idx + 1}</span>}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
 
               {/* Mobile E-STOP button — becomes PUMP for ANY card whose active pump is manual
                   (bulb/bike): single-char, multichar, or instructor. Driven by sessionState.pumpInit,
@@ -2143,7 +2113,7 @@ function Chat() {
               rows={3}
             />
             {/* Action Buttons Stack */}
-            <div className="input-action-stack">
+            <div className="input-action-stack" style={{ position: 'relative' }}>
               <div className="action-stack-top">
                 <button
                   type="button"
@@ -2156,8 +2126,8 @@ function Chat() {
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
                   disabled={!activeCharacter || isPanelBlocking || sessionLoading}
-                  onClick={isGenerating ? handleCancelGeneration : () => handleGuidedGenerate('guided')}
-                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : "Guided Response (AI continues)"}
+                  onClick={isGenerating ? handleCancelGeneration : (isIndividualGroup ? () => setMemberPicker({ action: 'guided' }) : () => handleGuidedGenerate('guided'))}
+                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : (isIndividualGroup ? "Guided Response — pick a member" : "Guided Response (AI continues)")}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">
@@ -2173,11 +2143,37 @@ function Chat() {
                   type="button"
                   className="action-btn send-character-btn"
                   disabled={!activeCharacter || !inputValue.trim() || isGenerating || isPanelBlocking || sessionLoading}
-                  onClick={handleSendAsCharacter}
-                  title="Send as Character"
+                  onClick={isIndividualGroup ? () => setMemberPicker({ action: 'sendAs' }) : () => handleSendAsCharacter()}
+                  title={isIndividualGroup ? "Send as Character — pick a member" : "Send as Character"}
                 >↖</button>
                 )}
               </div>
+              {/* Member picker (group Individual-Responses mode) — pick who generates / sends. */}
+              {memberPicker && isIndividualGroup && (
+                <>
+                  <div className="member-picker-overlay" onClick={() => setMemberPicker(null)}
+                    style={{ position: 'fixed', inset: 0, zIndex: 998 }} />
+                  <div className="member-picker-panel" style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 6, zIndex: 999,
+                    background: 'var(--surface-color, #2a2a33)', border: '1px solid var(--border-color, #444)', borderRadius: 8, padding: 6, minWidth: 160, boxShadow: '0 6px 20px rgba(0,0,0,0.4)' }}>
+                    <div className="section-hint" style={{ padding: '2px 6px 6px' }}>
+                      {memberPicker.action === 'guided' ? 'Generate a reply as…' : 'Send as…'}
+                    </div>
+                    {(activeCharacter.multiChar.characters || []).map(m => {
+                      const muted = (sessionState.mutedMembers || []).includes(m.id);
+                      return (
+                        <button key={m.id} type="button" disabled={!m.name}
+                          onClick={() => runMemberPick(m.id)}
+                          style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', border: 'none',
+                            borderRadius: 6, cursor: m.name ? 'pointer' : 'default', background: 'transparent', color: 'inherit',
+                            opacity: muted ? 0.6 : 1 }}
+                          title={muted ? `${m.name} is muted (won't auto-reply) — you can still act as them manually` : ''}>
+                          {m.name || '(unnamed)'}{muted ? ' 🔇' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </form>

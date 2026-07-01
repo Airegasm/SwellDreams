@@ -3520,8 +3520,9 @@ const sessionState = {
   awaitingGoRelease: false, // Manual "GO!" gate hold: intro/profile-assign waits for a player button press
   releaseButtonLabel: null, // Label for the release button ('GO!' default, 'READY!' for intro READY-exit)
   pendingGoProfileId: null, // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
-  pendingRangeAwait: null   // A paused checkpoint-trigger sequence waiting on an await gate:
+  pendingRangeAwait: null,  // A paused checkpoint-trigger sequence waiting on an await gate:
                             // { kind:'pump'|'input', target?, count?, words?, rest:[triggers], source, characterId }
+  groupRotation: 0          // Round-robin lead counter for group "Individual Responses" mode
 };
 
 // Non-serializable character inflation timer state (kept separate to avoid circular JSON)
@@ -3787,7 +3788,7 @@ async function executeTrigger(trigger, source, character, settings) {
           const vtext = (trigger.context || '').trim();
           if (vtext) {
             const { v4: uuidv4 } = require('uuid');
-            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterName: character.name, timestamp: Date.now() };
+            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
             sessionState.chatHistory.push(vmsg);
             broadcast('chat_message', vmsg);
             autosaveSession();
@@ -3807,7 +3808,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         if (aiResult.text) {
           const { v4: uuidv4 } = require('uuid');
-          const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, timestamp: Date.now() };
+          const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
           autosaveSession();
@@ -4899,6 +4900,7 @@ function clearSessionContextForSwitch() {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  sessionState.groupRotation = 0;
   sessionState.flowVariables = {};
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
@@ -5630,6 +5632,7 @@ async function sendWelcomeMessage(character, settings) {
     id: messageId,
     sender: 'character',
     characterName: character.name,
+    displayName: groupBubbleName(character),
     content: '...', // Placeholder
     timestamp: Date.now()
   };
@@ -7180,12 +7183,19 @@ async function handleWsMessage(ws, type, data) {
           break;
         }
 
+        // "Send as Character" can target a specific group member (data.memberId): post under that
+        // member's OWN name (no group-name override). Otherwise the card / group speaks.
+        const amTarget = (data.memberId && activeCharacter.multiChar?.enabled)
+          ? (activeCharacter.multiChar.characters || []).find(m => m.id === data.memberId)
+          : null;
         const message = {
           id: uuidv4(),
           content: data.content,
           sender: 'character',
           characterId: activeCharacter.id,
-          characterName: activeCharacter.name,
+          characterName: amTarget?.name || activeCharacter.name,
+          displayName: amTarget ? null : groupBubbleName(activeCharacter),
+          memberId: amTarget?.id,
           timestamp: Date.now()
         };
 
@@ -8895,6 +8905,38 @@ function stripCrossRoleContent(text, stopSequences = [], isCharacterResponse = t
 // Skips the normal group reply. Muted girls never speak. Reuses buildChatContext for the full
 // per-turn context (so each later girl sees the earlier girls' replies) + a hard solo directive.
 // Kept SEPARATE from handleChatMessage so the central reply path is untouched.
+// Chat-bubble name for a group card's blended reply: the Group Name if set. Bubble-only (display),
+// so it does NOT touch [Char] substitution. Returns null for single cards (bubble falls back to name).
+function groupBubbleName(character) {
+  return (character?.multiChar?.enabled && character.multiChar.groupName) ? character.multiChar.groupName : null;
+}
+
+// Compute the speaking order for a group in "Individual Responses" mode (SillyTavern-style natural
+// order, minus talkativeness randomness): members named in the player's latest message speak FIRST
+// (in list order), then everyone else in a ROUND-ROBIN whose lead rotates each turn. All non-muted
+// members speak exactly once. Returns an ordered array of member ids.
+function computeSpeakingOrder(members, mutedSet, playerText) {
+  const active = (members || []).filter(m => m && m.id && m.name && !mutedSet.has(m.id));
+  if (active.length === 0) return [];
+  const text = String(playerText || '');
+  const wordChar = /[\p{L}\p{N}_]/u;
+  const isMentioned = (m) => {
+    const raw = String(m.name);
+    const esc = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Only apply a \b boundary where the name's edge is itself a word char — otherwise punctuation,
+    // accented, or non-Latin names (e.g. "Zoë", "Луна", "K.O.") would never match.
+    const left = wordChar.test(raw[0]) ? '\\b' : '';
+    const right = wordChar.test(raw[raw.length - 1]) ? '\\b' : '';
+    try { return new RegExp(`${left}${esc}${right}`, 'iu').test(text); } catch { return false; }
+  };
+  const mentioned = active.filter(isMentioned);
+  const rest = active.filter(m => !isMentioned(m));
+  const rot = rest.length ? ((sessionState.groupRotation || 0) % rest.length + rest.length) % rest.length : 0;
+  const rotated = rest.slice(rot).concat(rest.slice(0, rot));
+  if (rest.length) sessionState.groupRotation = (sessionState.groupRotation || 0) + 1; // advance only when consumed
+  return [...mentioned, ...rotated].map(m => m.id);
+}
+
 async function handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds) {
   const content = data.content;
   // Player message — pushed once, before any individual reply.
@@ -8904,6 +8946,12 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   autosaveSession();
   await eventEngine.handleEvent('player_speaks', { content })
     .catch(e => console.error('[Individual] player_speaks failed:', e?.message || e));
+  // Resolve a player-keyword Await Input checkpoint gate, same as the blended path.
+  await tryResolveAwaitInput(content, 'player').catch(e => console.error('[Individual] awaitInput failed:', e?.message || e));
+  // Card-level pump behaviors fire once per player turn, matching the blended path (these are driven by
+  // card/checkpoint config, not LLM tags, so they'd otherwise be lost in individual mode).
+  await executePumpOnEveryReply('', activeCharacter, false).catch(e => console.error('[Individual] pumpOnEveryReply failed:', e?.message || e));
+  await executeAutoPumpPacing(activeCharacter, false).catch(e => console.error('[Individual] autoPumpPacing failed:', e?.message || e));
 
   const members = activeCharacter.multiChar?.characters || [];
   const muted = new Set(sessionState.mutedMembers || []);
@@ -8915,6 +8963,13 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     if (eventEngine.aborted) break;
     const member = members.find(m => m.id === memberId);
     if (!member || !member.name || muted.has(memberId)) continue; // muted girls don't speak
+
+    // Per-member response tokens: this member's own value, else the card's Individual Response
+    // Tokens, else the global LLM max. (User: "their member response tokens, or global if blank.")
+    const memberTokens = clampMaxTokens(
+      Number(member.responseTokens) || Number(activeCharacter.individualResponseTokens) || Number(settings.llm?.maxTokens),
+      indTokens
+    );
 
     // Full per-turn context, then force a SINGLE-member reply. buildChatContext re-reads the live
     // chatHistory, so each girl after the first sees the earlier individual replies.
@@ -8928,7 +8983,7 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
         prompt: context.prompt,
         messages: context.messages,
         systemPrompt: soloSystem,
-        settings: { ...settings.llm, maxTokens: indTokens },
+        settings: { ...settings.llm, maxTokens: memberTokens },
       });
     } catch (e) {
       console.error(`[Individual] generation failed for ${member.name}:`, e?.message || e);
@@ -9005,6 +9060,26 @@ async function handleChatMessage(data) {
       });
       return; // Don't add message to history
     }
+  }
+
+  // Group card in "Individual Responses" mode: route the normal player turn to round-robin individual
+  // replies (each member in their own named bubble) instead of the blended group reply. Respects Auto
+  // Reply (or forceReply) and suppressReply, and defers to the blocking-video / mediaBlocking handling
+  // below (so it mirrors the blended path's gates). handleIndividualResponses pushes the player message,
+  // fires player_speaks, resolves await-input, and drives pump-on-every-reply itself, so we route BEFORE
+  // the push below and ALWAYS return once the branch matches (an all-muted turn yields silence, not a
+  // fall-through to a blended reply).
+  if (sender === 'player'
+      && activeCharacter?.multiChar?.enabled
+      && activeCharacter.multiChar.responseMode === 'individual'
+      && !data.suppressReply
+      && (sessionState.autoReply || data.forceReply)
+      && !sessionState.mediaBlocking
+      && !/\[Video:([^\]:]+):blocking\]/i.test(content)) {
+    const muted = new Set(sessionState.mutedMembers || []);
+    const orderedIds = computeSpeakingOrder(activeCharacter.multiChar.characters || [], muted, content);
+    await handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds);
+    return;
   }
 
   // Add to chat history
@@ -9100,7 +9175,7 @@ async function handleChatMessage(data) {
           content: '',
           sender: 'character',
           characterId: activeCharacter.id,
-          characterName: activeCharacter.name,
+          characterName: activeCharacter.name, displayName: groupBubbleName(activeCharacter),
           timestamp: Date.now(),
           streaming: true
         };
@@ -9387,7 +9462,7 @@ async function handleChatMessage(data) {
           content: finalText,
           sender: 'character',
           characterId: activeCharacter.id,
-          characterName: activeCharacter.name,
+          characterName: activeCharacter.name, displayName: groupBubbleName(activeCharacter),
           timestamp: Date.now()
         };
         sessionState.chatHistory.push(aiMessage);
@@ -9691,7 +9766,7 @@ async function generateAIResponseAfterBlocking() {
         content: '',
         sender: 'character',
         characterId: activeCharacter.id,
-        characterName: activeCharacter.name,
+        characterName: activeCharacter.name, displayName: groupBubbleName(activeCharacter),
         timestamp: Date.now(),
         streaming: true
       };
@@ -9746,7 +9821,7 @@ async function generateAIResponseAfterBlocking() {
         content: finalText,
         sender: 'character',
         characterId: activeCharacter.id,
-        characterName: activeCharacter.name,
+        characterName: activeCharacter.name, displayName: groupBubbleName(activeCharacter),
         timestamp: Date.now()
       };
       sessionState.chatHistory.push(aiMessage);
@@ -9794,9 +9869,23 @@ async function handleSpecialGenerate(data) {
   // Summarize overflow messages before building context
   await summarizeOverflowMessages(settings);
 
+  // Guided Response can target ONE group member (data.memberId) in Individual-Responses mode: reply
+  // as that member alone (own name/tokens + a solo directive), not the blended group.
+  const smTarget = (data.memberId && activeCharacter?.multiChar?.enabled)
+    ? (activeCharacter.multiChar.characters || []).find(m => m.id === data.memberId)
+    : null;
+  const smBubbleName = smTarget?.name || activeCharacter.name;
+  const smDisplayName = smTarget ? null : groupBubbleName(activeCharacter);
+  const smSolo = smTarget
+    ? `\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${smTarget.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${smTarget.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
+    : '';
+  const smTokens = smTarget
+    ? clampMaxTokens(Number(smTarget.responseTokens) || Number(activeCharacter.individualResponseTokens) || Number(settings.llm?.maxTokens), clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150))
+    : null;
+
   // Determine who is generating based on mode
   const isPlayerVoice = mode === 'impersonate' || mode === 'guided_impersonate';
-  const generatingFor = isPlayerVoice ? (activePersona?.displayName || 'Player') : activeCharacter.name;
+  const generatingFor = isPlayerVoice ? (activePersona?.displayName || 'Player') : smBubbleName;
 
   // Notify UI that we're generating
   broadcast('generating_start', { characterName: generatingFor, isPlayerVoice });
@@ -9829,6 +9918,7 @@ async function handleSpecialGenerate(data) {
         activeCharacter,
         guidedText
       );
+      if (smSolo) context.systemPrompt = (context.systemPrompt || '') + smSolo; // single-member guided reply
     }
     const useStreaming = settings.llm?.streaming === true;
 
@@ -9841,7 +9931,9 @@ async function handleSpecialGenerate(data) {
         content: '',
         sender: isPlayerVoice ? 'player' : 'character',
         characterId: isPlayerVoice ? null : activeCharacter.id,
-        characterName: isPlayerVoice ? null : activeCharacter.name,
+        characterName: isPlayerVoice ? null : smBubbleName,
+        displayName: isPlayerVoice ? undefined : smDisplayName,
+        memberId: smTarget?.id,
         timestamp: Date.now(),
         generated: true,
         mode,
@@ -9856,6 +9948,7 @@ async function handleSpecialGenerate(data) {
         systemPrompt: context.systemPrompt,
         settings: {
           ...settings.llm,
+          ...(smTokens ? { maxTokens: smTokens } : {}),
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         },
         onToken: (token, fullText) => {
@@ -9922,6 +10015,7 @@ async function handleSpecialGenerate(data) {
         systemPrompt: context.systemPrompt,
         settings: {
           ...settings.llm,
+          ...(smTokens ? { maxTokens: smTokens } : {}),
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         }
       });
@@ -9948,6 +10042,7 @@ async function handleSpecialGenerate(data) {
           activeCharacter,
           guidedText
         );
+        if (smSolo) retryContext.systemPrompt = (retryContext.systemPrompt || '') + smSolo;
       }
       retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages.';
 
@@ -9957,6 +10052,7 @@ async function handleSpecialGenerate(data) {
         systemPrompt: retryContext.systemPrompt,
         settings: {
           ...settings.llm,
+          ...(smTokens ? { maxTokens: smTokens } : {}),
           stopSequences: [...(settings.llm?.stopSequences || []), ...(retryContext.stopSequences || [])]
         }
       });
@@ -10028,7 +10124,9 @@ async function handleSpecialGenerate(data) {
       content,
       sender: isPlayerVoice ? 'player' : 'character',
       characterId: isPlayerVoice ? null : activeCharacter.id,
-      characterName: isPlayerVoice ? null : activeCharacter.name,
+      characterName: isPlayerVoice ? null : smBubbleName,
+      displayName: isPlayerVoice ? undefined : smDisplayName,
+      memberId: smTarget?.id,
       timestamp: Date.now(),
       generated: true,
       mode
@@ -11902,7 +12000,7 @@ function buildHistoryRepresentations(recentMessages, opts) {
     if (noteText && i === insertIdx) flushNote();
 
     const isPlayerTurn = msg.sender === 'player';
-    const name = isPlayerTurn ? playerName : characterName;
+    const name = isPlayerTurn ? playerName : (msg.characterName || characterName);
     const line = `${name}: ${msg.content}`;
     flat += `${line}\n`;
 
@@ -18163,6 +18261,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  sessionState.groupRotation = 0;
   sessionState.flowVariables = {};
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {

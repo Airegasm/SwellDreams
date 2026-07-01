@@ -570,10 +570,12 @@ Write only the scenario description itself, no explanations.`;
   // ---- Members (standard → group) ----
   const setMembers = (next) => setFormData(prev => ({
     ...prev,
-    multiChar: { ...(prev.multiChar || {}), enabled: next.length > 1, characters: next },
+    // >1 member: preserve the explicit Single/Group choice (default group when unset). 1 member: never group.
+    multiChar: { ...(prev.multiChar || {}), enabled: next.length > 1 ? (prev.multiChar?.enabled ?? true) : false, characters: next },
   }));
   const addMember = () => {
-    const next = [...members, { id: `m-${Date.now()}`, name: '' }];
+    // Seed new members from the base card's description/personality (editable per-member) instead of blank.
+    const next = [...members, { id: `m-${Date.now()}`, name: '', description: formData.description || '', personality: formData.personality || '' }];
     setMembers(next);
     setSelectedMemberIndex(next.length - 1);
   };
@@ -956,6 +958,34 @@ Write only the scenario description itself, no explanations.`;
 
         {/* ---- Main tab (face changes by mode) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'main' ? 'block' : 'none' }}>
+          {/* Single Char / Group Mode toggle — only meaningful when the card has >1 member. Flips
+              multiChar.enabled: OFF = standard single layout (functions as a single char), ON = group. */}
+          {members.length > 1 && (
+            <div className="form-group">
+              <label>Card Mode</label>
+              <div className="ab-toggle" style={{ display: 'inline-flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color, #444)' }}>
+                <button type="button" onClick={() => setFormData(prev => ({ ...prev, multiChar: { ...(prev.multiChar || {}), enabled: false } }))}
+                  style={{ padding: '6px 14px', border: 'none', cursor: 'pointer', fontWeight: 600, background: !formData.multiChar?.enabled ? 'var(--accent-color, #6a4caf)' : 'transparent', color: !formData.multiChar?.enabled ? '#fff' : 'inherit' }}>
+                  Single Char
+                </button>
+                <button type="button" onClick={() => setFormData(prev => ({ ...prev, multiChar: { ...(prev.multiChar || {}), enabled: true } }))}
+                  style={{ padding: '6px 14px', border: 'none', cursor: 'pointer', fontWeight: 600, background: formData.multiChar?.enabled ? 'var(--accent-color, #6a4caf)' : 'transparent', color: formData.multiChar?.enabled ? '#fff' : 'inherit' }}>
+                  Group Mode
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Group Name — the name shown on the group's chat bubble ONLY. Does NOT change [Char]. */}
+          {isGroup && (
+            <div className="form-group">
+              <label>Group Name <span className="section-hint">(shown on the group's chat bubble — does not replace [Char])</span></label>
+              <input type="text" value={formData.multiChar?.groupName || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, multiChar: { ...(prev.multiChar || {}), groupName: e.target.value } }))}
+                placeholder="e.g. The Girls" />
+            </div>
+          )}
+
           <div className="form-group">
             <label>Name *</label>
             <input type="text" value={formData.name || ''} onChange={(e) => set({ name: e.target.value })} placeholder="Character name" />
@@ -1238,6 +1268,31 @@ Write only the scenario description itself, no explanations.`;
                     </div>
                   </div>
 
+                  {/* Group response mode — Respond as Group (blended reply) vs Individual Responses
+                      (each member replies in their own named bubble, round-robin). Group layout only. */}
+                  {isGroup && (
+                    <div className="story-field" style={{ margin: '8px 0' }}>
+                      <label className="subsection-label" style={{ display: 'block', marginBottom: 4 }}>Response Mode</label>
+                      <div className="ab-toggle" style={{ display: 'inline-flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color, #444)' }}>
+                        {[['group', 'Respond as Group'], ['individual', 'Individual Responses']].map(([val, lbl]) => {
+                          const active = (formData.multiChar?.responseMode || 'group') === val;
+                          return (
+                            <button key={val} type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, multiChar: { ...(prev.multiChar || {}), responseMode: val } }))}
+                              style={{ padding: '6px 14px', border: 'none', cursor: 'pointer', fontWeight: 600, background: active ? 'var(--accent-color, #6a4caf)' : 'transparent', color: active ? '#fff' : 'inherit' }}>
+                              {lbl}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span className="auto-reply-hint" style={{ display: 'block', marginTop: 4 }}>
+                        {(formData.multiChar?.responseMode || 'group') === 'individual'
+                          ? 'Each non-muted member replies in their own named bubble (mentioned members first, then round-robin), using their own Response Tokens.'
+                          : 'One blended reply where members speak together, shown under the Group Name.'}
+                      </span>
+                    </div>
+                  )}
+
                   {/* AI Pump Control (formerly "Allow LLM Device Access") */}
                   <div className="story-field auto-reply-field">
                     <label className="toggle-switch">
@@ -1519,6 +1574,15 @@ Write only the scenario description itself, no explanations.`;
                   <textarea value={member.personality || ''} onChange={(e) => updateMember(selectedMemberIndex, { personality: e.target.value })}
                     placeholder={`Personality traits for ${member.name || 'this character'}…`} />
                 </div>
+
+                {isGroup && (
+                  <div className="form-group">
+                    <label>Response Tokens <span className="section-hint">(this member's Individual-Responses reply; blank = card's Individual Response Tokens, then global)</span></label>
+                    <input type="text" inputMode="numeric" value={member.responseTokens ?? ''}
+                      onChange={(e) => updateMember(selectedMemberIndex, { responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
+                      placeholder="Leave blank to fall back to the card / global setting" style={{ maxWidth: 300 }} />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label>Example Dialogues <span className="section-hint">(this member's voice)</span></label>
@@ -2429,7 +2493,15 @@ function buildInitial(character, defaultAuthorsNote) {
     responseTokens: c.responseTokens ?? '',
     historyDepth: c.historyDepth ?? '',
     instructor: c.instructor || { enabled: false },
-    multiChar: c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] },
+    multiChar: (() => {
+      const mc = c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] };
+      // Backfill the BASE member's description/personality from the card ONLY when absent (undefined),
+      // so a deliberately-cleared ('') base persona is preserved across reopens.
+      const chars = (mc.characters || []).map((m, i) => i === 0
+        ? { ...m, description: m.description === undefined ? (c.description || '') : m.description, personality: m.personality === undefined ? (c.personality || '') : m.personality }
+        : m);
+      return { ...mc, characters: chars };
+    })(),
     // Author's Note migrates onto the card; legacy cards seed from the global default.
     authorsNote: c.authorsNote ?? defaultAuthorsNote ?? '',
     mission: c.mission || '',

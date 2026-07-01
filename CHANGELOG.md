@@ -2,6 +2,19 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.3.0] - 2026-07-01
+
+### Added
+- **Group card Single/Group mode + Group Name + Individual Responses.** Cards with >1 member now have a Single Char/Group Mode toggle at the top of the editor, a Group Name (shown on the group's chat bubble only — never replaces [Char]), and a Respond as Group vs Individual Responses toggle. In Individual Responses mode each non-muted member replies in their own named bubble (mentioned members first, then round-robin), using their own per-member Response Tokens (falls back to the card, then global).
+- **Member picker for Guided Response / Send as Character.** In Individual Responses mode these buttons open a member picker; picking a member generates/sends as that member alone (their name + tokens + a solo directive).
+- New members seed from the base card's description/personality; the base member backfills from the card so member profiles aren't blank.
+
+### Changed
+- **Removed the obsolete in-chat responder dropdown** (superseded by the card-level Response Mode toggle).
+
+### Fixed
+- Individual replies now keep each member's name in the reply context (no longer collapsed to the card name); the mode also drives pump-on-every-reply / auto-pump pacing, resolves player-keyword await-input gates, and honors media-blocking — matching the blended path. All-muted turns stay silent. Group Name now shows on welcome/trigger bubbles too. Assorted round-robin/regex/token-fallback hardening.
+
 ## [v6.2.21] - 2026-07-01
 
 ### Added

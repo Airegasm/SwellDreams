@@ -1,6 +1,6 @@
 {
   "name": "swelldreams-frontend",
-  "version": "6.2.21",
+  "version": "6.3.0",
   "private": true,
   "engines": {
     "node": ">=18"
