@@ -8335,13 +8335,17 @@ async function handleSwipeMessage(data) {
     }
 
     let resultText;
+    // A player-voice swipe is impersonation — honor impersonateMaxTokens, not the character's budget.
+    const swipeTokenSettings = isPlayerMsg
+      ? (settings.llm?.impersonateMaxTokens ? { maxTokens: settings.llm.impersonateMaxTokens } : {})
+      : charTokenOverride(activeCharacter);
 
     if (useStreaming) {
       const result = await llmService.generateStream({
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: { ...settings.llm, ...charTokenOverride(activeCharacter) },
+        settings: { ...settings.llm, ...swipeTokenSettings },
         onToken: (token, fullText) => {
           fullHistory[msgIndex].content = fullText;
           broadcast('stream_token', { messageId: id, token, fullText });
@@ -8353,7 +8357,7 @@ async function handleSwipeMessage(data) {
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: { ...settings.llm, ...charTokenOverride(activeCharacter) }
+        settings: { ...settings.llm, ...swipeTokenSettings }
       });
       resultText = result.text;
     }
@@ -8660,6 +8664,9 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       sender: 'character',
       characterId: character.id,
       characterName: speakerName,
+      // Exclude from the prompt while it's just the "..." placeholder — otherwise buildChatContext
+      // below sees "SpeakerName: ..." as the last turn and primes duplicate/confused output.
+      excludeFromContext: true,
       ...(targetMember ? { memberId: targetMember.id } : {}),
       timestamp: Date.now()
     };
@@ -8704,6 +8711,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
 
       // Update placeholder message with actual content (apply variable substitution)
       placeholderMessage.content = substituteAllVariables(result.text);
+      delete placeholderMessage.excludeFromContext; // now a real reply — include it in future context
 
       // Find and update message in chat history
       const msgIndex = sessionState.chatHistory.findIndex(m => m.id === placeholderMessage.id);
@@ -8725,6 +8733,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       sessionState.activeAttributes = null;
       // Fallback to raw text if LLM fails (apply variable substitution)
       placeholderMessage.content = substituteAllVariables(instructionText);
+      delete placeholderMessage.excludeFromContext;
 
       const msgIndex = sessionState.chatHistory.findIndex(m => m.id === placeholderMessage.id);
       if (msgIndex !== -1) {
@@ -12323,10 +12332,20 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     }
 
     // Keep the character card text exactly as written; frame it as context about the
-    // OTHER party so the model never adopts the character's voice.
-    systemPrompt += `You are ${playerName}. ${character.name} is the one you are interacting with; `;
-    systemPrompt += `their description follows for context (do NOT write as ${character.name}):\n`;
-    systemPrompt += `${substituteVars(character.description)}\n`;
+    // OTHER party so the model never adopts the character's voice. For group cards, list every
+    // member so the model writing AS the player knows who else is in the scene (the transcript is
+    // full of their named lines).
+    if (character.multiChar?.enabled) {
+      const others = (character.multiChar.characters || []).filter(m => m?.name);
+      systemPrompt += `You are ${playerName}. You are interacting with a group; the members follow for context (do NOT write as any of them):\n`;
+      for (const m of others) {
+        systemPrompt += `- ${m.name}${m.gender ? ` (${genderPronoun(m.gender)})` : ''}: ${substituteAllVariables(m.description || '', { playerName, characterName: m.name, isPromptText: true })}\n`;
+      }
+    } else {
+      systemPrompt += `You are ${playerName}. ${character.name} is the one you are interacting with; `;
+      systemPrompt += `their description follows for context (do NOT write as ${character.name}):\n`;
+      systemPrompt += `${substituteVars(character.description)}\n`;
+    }
     const scenario = getActiveScenario(character);
     if (scenario) systemPrompt += `Scenario: ${substituteVars(scenario)}\n`;
     systemPrompt += '\n';
