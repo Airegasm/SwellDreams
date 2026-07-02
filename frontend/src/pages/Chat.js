@@ -1530,21 +1530,6 @@ function Chat() {
         />
       </div>
 
-      {/* Mobile pump band — balloon toggle (grey outline; green when the primary pump is running,
-          click to toggle) just right of the gauge, with the running pump timer to its right. */}
-      <div className="mobile-pump-band mobile-only">
-        <button
-          type="button"
-          className={`mobile-pump-toggle ${Object.keys(pumpStatus || {}).length > 0 ? 'running' : ''}`}
-          onClick={() => sendWsMessage(Object.keys(pumpStatus || {}).length > 0 ? 'primary_pump_off' : 'primary_pump_on', {})}
-          title="Toggle primary pump"
-          aria-label="Toggle primary pump"
-        >🎈</button>
-        {Object.entries(pumpStatus || {}).map(([ip, status]) => (
-          <PumpStatusItem key={ip} deviceIp={ip} status={status} />
-        ))}
-      </div>
-
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
@@ -2120,6 +2105,21 @@ function Chat() {
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <div className="input-buttons-row">
             <div className="chat-buttons">
+              {/* Mobile pump band — balloon toggle (grey outline; green while the primary pump runs,
+                  click to toggle) sits in the upper padding just right of the gauge, pump timer to its
+                  right. In-flow (not a fixed overlay) so it's actually tappable. */}
+              <div className="mobile-pump-band mobile-only">
+                <button
+                  type="button"
+                  className={`mobile-pump-toggle ${Object.keys(pumpStatus || {}).length > 0 ? 'running' : ''}`}
+                  onClick={() => sendWsMessage(Object.keys(pumpStatus || {}).length > 0 ? 'primary_pump_off' : 'primary_pump_on', {})}
+                  title="Toggle primary pump"
+                  aria-label="Toggle primary pump"
+                >🎈</button>
+                {Object.entries(pumpStatus || {}).map(([ip, status]) => (
+                  <PumpStatusItem key={ip} deviceIp={ip} status={status} />
+                ))}
+              </div>
               {/* Mobile Navigation Cluster - only visible on mobile */}
               <div className="mobile-nav-cluster mobile-only">
                 <button
