@@ -1323,6 +1323,88 @@ function GlobalTab() {
         </div>
       )}
 
+      {/* Remote Connections Section — restore of the IP whitelist UI dropped in the Settings reorg */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('remote')}>
+          <span>Remote Connections</span>
+          <span className="collapse-icon">{expandedSections.remote ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.remote && (
+        <div className="settings-section-content">
+          <p className="section-description">
+            Control access to this SwellDreams instance from other devices on your network or via Tailscale.
+            {!remoteSettings.isLocalRequest && (
+              <strong className="remote-warning"> You are viewing from a remote device - settings cannot be modified.</strong>
+            )}
+          </p>
+
+          {isLoadingRemote ? (
+            <p>Loading remote settings...</p>
+          ) : (
+            <>
+              <div className="remote-toggle-row">
+                <label className={`toggle-switch ${!remoteSettings.isLocalRequest ? 'disabled' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={remoteSettings.allowRemote}
+                    onChange={(e) => handleToggleAllowRemote(e.target.checked)}
+                    disabled={!remoteSettings.isLocalRequest}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <span className="toggle-label">Allow Remote Connections</span>
+              </div>
+
+              {remoteSettings.allowRemote && (
+                <div className="ip-whitelist-section">
+                  <h4>IP Whitelist</h4>
+                  <p className="section-hint">
+                    Only whitelisted IPs can access this instance remotely. Add your Tailscale or local network IPs.
+                  </p>
+
+                  {remoteSettings.isLocalRequest && (
+                    <div className="add-ip-form">
+                      <input
+                        type="text"
+                        value={newIp}
+                        onChange={(e) => setNewIp(e.target.value)}
+                        placeholder="e.g., 100.64.0.1"
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddIp()}
+                      />
+                      <button className="btn btn-primary" onClick={handleAddIp}>
+                        Add IP
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="ip-whitelist">
+                    {remoteSettings.whitelistedIps.length === 0 ? (
+                      <p className="empty-message">No IPs whitelisted. Remote access is effectively disabled.</p>
+                    ) : (
+                      remoteSettings.whitelistedIps.map((ip) => (
+                        <div key={ip} className="ip-item">
+                          <span className="ip-address">{ip}</span>
+                          {remoteSettings.isLocalRequest && (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemoveIp(ip)}
+                              title="Remove IP"
+                            >
+                              Del
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        )}
+      </div>
+
       {/* Data — moved here from the former Data tab */}
       <div className="settings-section-collapsible">
         <div className="settings-section-header" onClick={() => toggleSection('data')}>
