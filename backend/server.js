@@ -12487,7 +12487,18 @@ function buildMemberDispositionLine(name, ma) {
 }
 
 function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
-  const chars = character.multiChar.characters || [];
+  const rawChars = character.multiChar.characters || [];
+  // The BASE member (index 0) IS the base character — always mirror the card's own identity onto it
+  // (covers cards saved before this was enforced in the editor). Added members are untouched.
+  const chars = rawChars.length
+    ? [{ ...rawChars[0],
+         name: character.name || rawChars[0].name,
+         description: character.description || rawChars[0].description,
+         personality: character.personality || rawChars[0].personality,
+         gender: character.gender || rawChars[0].gender,
+         portrait: character.avatar || rawChars[0].portrait },
+       ...rawChars.slice(1)]
+    : rawChars;
   const activeStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   const memberAttrs = activeStory?.memberAttributes || {};
   const muted = new Set(sessionState?.mutedMembers || []);

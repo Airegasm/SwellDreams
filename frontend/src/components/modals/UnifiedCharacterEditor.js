@@ -154,7 +154,21 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const anyMemberPumpable = members.some(m => m?.isPumpable);
   const pumpUiActive = isGroup ? anyMemberPumpable : !!formData.isPumpable;
 
-  const set = useCallback((patch) => setFormData(prev => ({ ...prev, ...patch })), []);
+  const set = useCallback((patch) => setFormData(prev => {
+    const next = { ...prev, ...patch };
+    // The BASE member (multiChar.characters[0]) IS the base character — mirror the card's own identity
+    // onto it automatically, so a group's first member is always the card itself (auto + immutable).
+    const mirror = {};
+    if ('name' in patch) mirror.name = patch.name;
+    if ('description' in patch) mirror.description = patch.description;
+    if ('personality' in patch) mirror.personality = patch.personality;
+    if ('gender' in patch) mirror.gender = patch.gender;
+    if ('avatar' in patch) mirror.portrait = patch.avatar;
+    if (Object.keys(mirror).length && next.multiChar?.characters?.length) {
+      next.multiChar = { ...next.multiChar, characters: next.multiChar.characters.map((m, i) => (i === 0 ? { ...m, ...mirror } : m)) };
+    }
+    return next;
+  }), []);
 
   const activeStory = formData.stories?.find(s => s.id === formData.activeStoryId) || formData.stories?.[0];
   const updateStoryField = (field, value) => setFormData(prev => ({
@@ -1531,7 +1545,10 @@ Write only the scenario description itself, no explanations.`;
                   <div key={m.id || i} className="multi-char-name-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <span className="multi-char-label">{i === 0 ? 'Base' : `Char ${i + 1}`}</span>
                     <input type="text" value={m.name || ''} placeholder={i === 0 ? 'Base character' : `Member ${i + 1}`}
-                      onChange={(e) => updateMember(i, { name: e.target.value })} style={{ flex: 1 }} />
+                      readOnly={i === 0} disabled={i === 0}
+                      title={i === 0 ? 'This is the base character — edit its name on the Main tab' : ''}
+                      onChange={(e) => updateMember(i, { name: e.target.value })}
+                      style={{ flex: 1, ...(i === 0 ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }} />
                     {i > 0 && <button type="button" className="btn-icon btn-delete-small" onClick={() => removeMember(i)} title="Remove member">X</button>}
                     {i > 0 && <button type="button" className="btn btn-sm btn-secondary" onClick={() => saveMemberAsCard(i)}>Save as own card</button>}
                   </div>
@@ -1561,28 +1578,35 @@ Write only the scenario description itself, no explanations.`;
 
             {member && (
               <>
+                {selectedMemberIndex === 0 && (
+                  <p className="section-hint" style={{ background: 'var(--bg-input, rgba(0,0,0,0.2))', padding: '8px 10px', borderRadius: 'var(--border-radius)' }}>
+                    <strong>Base character.</strong> Its name, description, personality, gender, and portrait ARE the card's own — edit them on the <strong>Main</strong> tab. Only per-member settings (tokens, example dialogue, attributes) are editable here.
+                  </p>
+                )}
                 <div className="form-group" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                   <div style={{ flex: '0 0 auto' }}>
                     <label>Gender</label>
-                    <select value={member.gender || ''} onChange={(e) => updateMember(selectedMemberIndex, { gender: e.target.value })}>
+                    <select value={member.gender || ''} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { gender: e.target.value })}>
                       {MEMBER_GENDERS.map(g => <option key={g.value || 'none'} value={g.value}>{g.label}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 1 }}>
                     <label>Portrait</label>
-                    <input type="file" accept="image/*" onChange={(e) => { handleMemberPortrait(selectedMemberIndex, e.target.files?.[0]); e.target.value = ''; }} />
+                    {selectedMemberIndex === 0
+                      ? <div className="section-hint" style={{ marginTop: 4 }}>Set on the Main tab.</div>
+                      : <input type="file" accept="image/*" onChange={(e) => { handleMemberPortrait(selectedMemberIndex, e.target.files?.[0]); e.target.value = ''; }} />}
                     {member.portrait && <img src={member.portrait} alt="portrait" style={{ height: 48, marginTop: 4, borderRadius: 4 }} />}
                   </div>
                 </div>
 
                 <div className="form-group">
                   <label>Description</label>
-                  <textarea value={member.description || ''} onChange={(e) => updateMember(selectedMemberIndex, { description: e.target.value })}
+                  <textarea value={member.description || ''} readOnly={selectedMemberIndex === 0} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { description: e.target.value })}
                     placeholder={`Description for ${member.name || 'this character'}…`} />
                 </div>
                 <div className="form-group">
                   <label>Personality</label>
-                  <textarea value={member.personality || ''} onChange={(e) => updateMember(selectedMemberIndex, { personality: e.target.value })}
+                  <textarea value={member.personality || ''} readOnly={selectedMemberIndex === 0} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { personality: e.target.value })}
                     placeholder={`Personality traits for ${member.name || 'this character'}…`} />
                 </div>
 
@@ -2509,13 +2533,11 @@ function buildInitial(character, defaultAuthorsNote) {
     instructor: c.instructor || { enabled: false },
     multiChar: (() => {
       const mc = c.multiChar || { enabled: false, characters: [{ id: `m-${Date.now()}`, name: c.name || '' }] };
-      // Backfill the BASE member's description/personality/portrait from the card ONLY when absent
-      // (undefined), so a deliberately-cleared ('') value is preserved across reopens.
+      // The BASE member (index 0) IS the base character — always mirror the card's own identity onto
+      // it (name/description/personality/gender/portrait). Auto + immutable: it's edited on the Main
+      // tab, never as a separate member.
       const chars = (mc.characters || []).map((m, i) => i === 0
-        ? { ...m,
-            description: m.description === undefined ? (c.description || '') : m.description,
-            personality: m.personality === undefined ? (c.personality || '') : m.personality,
-            portrait: m.portrait === undefined ? (c.avatar || '') : m.portrait }
+        ? { ...m, name: c.name || '', description: c.description || '', personality: c.personality || '', gender: c.gender || '', portrait: c.avatar || '' }
         : m);
       return { ...mc, characters: chars };
     })(),

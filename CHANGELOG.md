@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.6] - 2026-07-02
+
+### Fixed
+- **The base character IS the base group member (auto + immutable).** Member 0's name, description, personality, gender, and portrait now always mirror the card's own Main-tab identity: editing the base card updates member 0 live, it's read-only in the Members tab (with a note to edit on the Main tab), and it can't be removed. The group system prompt also mirrors member 0 → base card at build time, so cards saved before this are correct without a re-save.
+
 ## [v6.6.5] - 2026-07-02
 
 ### Changed
