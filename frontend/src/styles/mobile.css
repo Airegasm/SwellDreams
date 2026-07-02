@@ -103,11 +103,20 @@
     transform: scale(1.1);
   }
 
-  /* Mobile E-STOP button - centered in input buttons row */
+  /* Pump timer moves UP next to the capacity gauge (swapped with the E-STOP). */
+  .input-pump-timer-row .pump-timer-left {
+    position: fixed;
+    left: 56px;
+    bottom: 238px;
+    z-index: 500;
+    pointer-events: none;
+  }
+
+  /* Mobile E-STOP button - moved to the bottom-LEFT corner, under the up/down history arrows. */
   .mobile-estop-btn {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    position: fixed;
+    left: 4px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 6px 16px;
     font-size: 12px;
     font-weight: bold;
@@ -116,6 +125,7 @@
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    z-index: 600;
   }
 
   .mobile-estop-btn.active {
