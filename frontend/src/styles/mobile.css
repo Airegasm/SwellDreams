@@ -45,16 +45,17 @@
     display: none !important;
   }
 
-  /* Mobile StatusBadges - above input buttons, overlapping chat */
+  /* Mobile StatusBadges - capacity gauge on the FAR LEFT, above the up/down history arrows. */
   .mobile-header-badges {
     position: fixed;
-    bottom: 224px;
-    right: 0;
+    bottom: 232px;
+    left: 2px;
+    right: auto;
     z-index: 500;
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .mobile-header-badges .status-badges-overlay {
@@ -72,22 +73,22 @@
     display: none !important;
   }
 
-  /* Position capacity gauge - on right, 50% opacity */
+  /* Capacity gauge - anchored bottom-left, a tad smaller than before */
   .mobile-header-badges .badge-capacity-circle {
     position: relative !important;
     top: auto !important;
     left: auto !important;
-    transform: scale(1.3);
-    transform-origin: bottom right;
+    transform: scale(1.05);
+    transform-origin: bottom left;
     opacity: 0.65;
   }
 
-  /* Position emotion/pain badges - absolute, to the LEFT of gauge */
+  /* Emotion/pain badges - to the RIGHT of the (now left-anchored) gauge */
   .mobile-header-badges .badges-row-container {
     position: absolute !important;
     bottom: 10px !important;
-    right: 220px !important;
-    left: auto !important;
+    left: 96px !important;
+    right: auto !important;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -226,13 +227,17 @@
     opacity: 0 !important;
   }
 
-  /* Main chat area fills available space */
+  /* Main chat area fills available space. The top/bottom mobile nav bars are hidden (see above), so
+     do NOT subtract their height — that left a big black gap at the bottom. Use dvh so the layout
+     tracks the actual visible viewport (mobile browser chrome), falling back to vh. */
   .chat-main {
     flex: 1;
     width: 100%;
     min-height: 0;
-    height: calc(100vh - var(--mobile-nav-height) * 2 - 10px);
-    max-height: calc(100vh - var(--mobile-nav-height) * 2 - 10px);
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -413,22 +418,25 @@
     width: 100%;
   }
 
-  /* Mobile navigation cluster - left side of button row */
+  /* Mobile navigation cluster - pushed to the far RIGHT so P/C sit above the robot-head action stack.
+     Two 48px buttons + 4px gap = 100px, matching the .input-action-stack width. */
   .mobile-nav-cluster {
     display: flex;
     gap: 4px;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   .mobile-nav-btn {
-    width: 36px;
-    height: 36px;
-    min-height: 36px;
-    border-radius: 50%;
+    width: 48px;
+    height: 34px;
+    min-height: 34px;
+    border-radius: 4px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
-    font-size: 1.1rem;
+    font-size: 1rem;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;

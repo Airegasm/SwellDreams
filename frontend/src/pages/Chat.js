@@ -2113,14 +2113,14 @@ function Chat() {
                   onClick={() => setLeftDrawerOpen(!leftDrawerOpen)}
                   aria-label="Toggle persona panel"
                   title="Persona"
-                >🎈</button>
+                >P</button>
                 <button
                   type="button"
                   className="mobile-nav-btn character-toggle"
                   onClick={() => setRightDrawerOpen(!rightDrawerOpen)}
                   aria-label="Toggle character panel"
                   title="Character"
-                >😈</button>
+                >C</button>
               </div>
 
 
@@ -2369,7 +2369,7 @@ function Chat() {
                 onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
                 title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — the AI only replies via Guided Response/triggers. Click to turn on.'}
               >
-                Auto-Reply {sessionState.autoReply ? 'ON' : 'OFF'}
+                Reply {sessionState.autoReply ? 'ON' : 'OFF'}
               </button>
             </div>
           </div>
