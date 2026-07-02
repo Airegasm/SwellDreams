@@ -405,6 +405,18 @@ function Chat() {
   }, [groupMembers.length]);
   const selectedMember = isGroupCard ? groupMembers[displayMemberIndex] : null;
 
+  // Primary-pump running state for the balloon toggle — keyed to the PRIMARY pump specifically, not
+  // "any device in pumpStatus" (a second device like a light would otherwise confuse it). pumpStatus
+  // is keyed the same way deviceService reports device_on: cloud brands by deviceId, local by ip.
+  const primaryPumpDev = (devices || []).find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  const primaryPumpKey = primaryPumpDev
+    ? (['govee', 'tuya', 'wyze'].includes(String(primaryPumpDev.brand || '').toLowerCase())
+        ? primaryPumpDev.deviceId
+        : primaryPumpDev.ip)
+    : null;
+  const primaryPumpStatus = primaryPumpKey ? (pumpStatus || {})[primaryPumpKey] : null;
+  const primaryPumpRunning = !!primaryPumpStatus;
+
   // Reset action page when character changes
   useEffect(() => {
     setActionPage(0);
@@ -2111,14 +2123,14 @@ function Chat() {
               <div className="mobile-pump-band mobile-only">
                 <button
                   type="button"
-                  className={`mobile-pump-toggle ${Object.keys(pumpStatus || {}).length > 0 ? 'running' : ''}`}
-                  onClick={() => sendWsMessage(Object.keys(pumpStatus || {}).length > 0 ? 'primary_pump_off' : 'primary_pump_on', {})}
-                  title="Toggle primary pump"
+                  className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
+                  onClick={() => sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {})}
+                  title={primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump'}
                   aria-label="Toggle primary pump"
                 >🎈</button>
-                {Object.entries(pumpStatus || {}).map(([ip, status]) => (
-                  <PumpStatusItem key={ip} deviceIp={ip} status={status} />
-                ))}
+                {primaryPumpStatus && (
+                  <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
+                )}
               </div>
               {/* Mobile Navigation Cluster - only visible on mobile */}
               <div className="mobile-nav-cluster mobile-only">
