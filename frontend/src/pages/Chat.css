@@ -1669,6 +1669,37 @@
 @media (min-width: 769px) {
   .input-pump-timer-row { min-height: 52px; }
 }
+
+/* "Next" (>>) gate button: greyed until a trigger sequence pauses between consecutive generated
+   messages, then flashes bright — click to release the next one. */
+.next-gate-btn {
+  pointer-events: auto;
+  min-width: 46px;
+  padding: 2px 14px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.5;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 7px;
+  background: var(--bg-secondary, #2a2a33);
+  color: var(--text-secondary, #7a7a85);
+  opacity: 0.35;
+  cursor: default;
+  transition: opacity 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+.next-gate-btn.active {
+  opacity: 1;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent-color, #4a9eff);
+  border-color: var(--accent-color, #4a9eff);
+  animation: next-gate-flash 0.9s ease-in-out infinite;
+}
+.next-gate-btn.active:hover { filter: brightness(1.12); }
+@keyframes next-gate-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,158,255,0.55); transform: scale(1); }
+  50% { box-shadow: 0 0 14px 4px rgba(74,158,255,0.9); transform: scale(1.07); }
+}
 /* On mobile the pump timer lives in the bottom band above; hide the portrait divider overlay so it
    isn't shown twice. */
 @media (max-width: 768px) {

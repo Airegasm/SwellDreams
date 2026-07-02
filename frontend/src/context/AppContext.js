@@ -318,6 +318,12 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, awaitState: data }));
         break;
 
+      case 'next_gate':
+        // A trigger sequence paused between consecutive generated messages — {active:true} lights the
+        // ">>" (Next) button so the player can read before the next one; {active:false} greys it.
+        setSessionState(prev => ({ ...prev, nextGateActive: !!(data && data.active) }));
+        break;
+
       case 'pump_vars_update':
         setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
         break;
@@ -948,6 +954,11 @@ export function AppProvider({ children }) {
   // Set live per-session pump-readiness (who is connected to a pump). entity: 'persona'|'character'|'member'.
   const setPumpReady = useCallback((entity, id, ready) => {
     sendWsMessage('set_pump_ready', { entity, id, ready });
+  }, [sendWsMessage]);
+
+  // Player pressed ">>" (Next) — release a paused trigger message sequence to the next message.
+  const advanceNext = useCallback(() => {
+    sendWsMessage('next_gate_advance', {});
   }, [sendWsMessage]);
 
   // Handle simple A/B choice response
@@ -1991,6 +2002,7 @@ export function AppProvider({ children }) {
     respondCheckpointChoice,
     toggleMemberMute,
     setPumpReady,
+    advanceNext,
 
     // Simple A/B Choice
     simpleABData,

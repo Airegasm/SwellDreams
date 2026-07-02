@@ -83,7 +83,7 @@ function PumpStatusItem({ deviceIp, status }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -2263,6 +2263,17 @@ function Chat() {
             {Object.entries(pumpStatus || {}).map(([ip, status]) => (
               <PumpStatusItem key={ip} deviceIp={ip} status={status} />
             ))}
+            {/* "Next" (>>) gate: greyed until a trigger sequence pauses between consecutive generated
+                messages, then flashes bright — click to release the next message. */}
+            <button
+              type="button"
+              className={`next-gate-btn ${sessionState.nextGateActive ? 'active' : ''}`}
+              onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+              disabled={!sessionState.nextGateActive}
+              title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+            >
+              »
+            </button>
           </div>
         </form>
       </div>

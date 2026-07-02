@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.9] - 2026-07-02
+
+### Added
+- **"Next" (»») gate for back-to-back trigger messages.** A greyed »» button now sits in the bottom band under the chat input. When a sequential trigger fires two or more GENERATED messages in a row (ai_message / member / impersonate), the sequence pauses between them and the button flashes bright — click it to release the next message, giving you time to read. Only message actions gate (instant actions don't); it clears on session reset or when a new range's sequence supersedes it.
+
 ## [v6.6.8] - 2026-07-02
 
 ### Changed

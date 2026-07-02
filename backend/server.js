@@ -3583,6 +3583,12 @@ function normalizeRangeTriggers(val) {
 async function fireTriggerSequence(triggers, startIdx, source, character, settings) {
   // Whose capacity a Fire% gate compares against (player vs character), derived from the range key.
   const gateType = String(source || '').startsWith('char-') ? 'char' : 'player';
+  // "Next" (>>) gate: when a sequence fires two+ GENERATED messages back-to-back, pause between them so
+  // the player can read one before the next starts (they take time to generate and can spam). Only
+  // message actions gate. lastWasMessage is per-run: on resume the first action already got the >>
+  // press, so it fires immediately and never re-gates.
+  const isMsgAction = (t) => t && (t.type === 'ai_message' || t.type === 'ai_message_member' || t.type === 'impersonate');
+  let lastWasMessage = false;
   for (let i = startIdx; i < (triggers || []).length; i++) {
     const trg = triggers[i];
     // Fire% gate: pause the sequence until capacity reaches this trigger's exact %. No-Fire%
@@ -3629,7 +3635,15 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
       console.log(`[Trigger/${source}] Await Input armed — words: ${words.join(', ')} (speaker: ${speaker})`);
       return;
     }
+    // Next gate: hold before a message that follows another message in this run, until the player hits >>.
+    if (isMsgAction(trg) && lastWasMessage) {
+      sessionState.pendingRangeAwait = { kind: 'next', rest: triggers.slice(i), source, characterId: character.id };
+      broadcast('next_gate', { active: true });
+      console.log(`[Trigger/${source}] Next gate — holding before a consecutive message; waiting for player >>`);
+      return;
+    }
     await executeTrigger(trg, source, character, settings);
+    if (isMsgAction(trg)) lastWasMessage = true;
   }
 }
 
@@ -3684,6 +3698,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (triggers.length > 0 && !firedCheckpointTriggers.has(triggerKey)) {
     if (sessionState.pendingRangeAwait) {
       console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
+      if (sessionState.pendingRangeAwait.kind === 'next') broadcast('next_gate', { active: false });
       sessionState.pendingRangeAwait = null;
       broadcast('await_state', null);
     }
@@ -4965,6 +4980,7 @@ function clearSessionContextForSwitch() {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
@@ -7792,6 +7808,16 @@ async function handleWsMessage(ws, type, data) {
     case 'gate_release':
       await handleGateRelease();
       break;
+
+    case 'next_gate_advance': {
+      // Player pressed ">>" (Next) — release the paused message sequence and continue with the next one.
+      const pa = sessionState.pendingRangeAwait;
+      if (pa && pa.kind === 'next') {
+        broadcast('next_gate', { active: false });
+        await resumeTriggerSequence(pa).catch(err => console.error('[NextGate] resume failed:', err?.message || err));
+      }
+      break;
+    }
 
     case 'toggle_member_mute': {
       // Toggle whether a multichar member can speak/reply this session
@@ -18485,6 +18511,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
