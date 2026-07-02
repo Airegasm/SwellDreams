@@ -3747,7 +3747,9 @@ async function executeTrigger(trigger, source, character, settings) {
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
           : baseCtx.systemPrompt;
-        const memGenSettings = { ...settings.llm };
+        // Stop the model from starting another speaker's turn (parity with the group individual path).
+        const otherStopN = (character.multiChar?.characters || []).filter(m => m.id !== tgt?.id && m.name).map(m => `\n${m.name}:`);
+        const memGenSettings = { ...settings.llm, stopSequences: [...(settings.llm?.stopSequences || []), ...(baseCtx.stopSequences || []), ...otherStopN] };
         // Token precedence mirrors the group individual-reply path: trigger override → member → card → global.
         const memMaxTok = Number(trigger.maxTokens) || Number(tgt?.responseTokens) || Number(character?.individualResponseTokens) || 0;
         if (memMaxTok > 0) memGenSettings.maxTokens = clampMaxTokens(memMaxTok);
@@ -3759,6 +3761,14 @@ async function executeTrigger(trigger, source, character, settings) {
             const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
             memText = stripSpeakerPrefixes(memText, [tgt.name, ...otherN, character.name, character.multiChar?.groupName].filter(Boolean));
           }
+          // Execute + strip device tags ([pump on] etc.) like every other reply path.
+          try {
+            const dvcs = loadData(DATA_FILES.devices) || [];
+            const reinf = aiDeviceControl.reinforcePumpControl(memText, dvcs, sessionState, settings, getCharacterLimits(character));
+            if (reinf.reinforced) memText = reinf.text;
+            const ctrl = await aiDeviceControl.processLlmOutput(memText, dvcs, deviceService, { settings, sessionState, broadcast, characterLimits: getCharacterLimits(character), injectContext: () => {} });
+            if (ctrl.commands?.length) memText = ctrl.text;
+          } catch (e) { console.error('[ai_message_member] device processing failed:', e?.message || e); }
           const msg = { id: uuidv4(), content: memText, sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
@@ -7149,7 +7159,10 @@ async function handleWsMessage(ws, type, data) {
         const cmChar = cmChars.find(c => c.id === cmSettings?.activeCharacterId);
         const cmPersonas = loadAllPersonas() || [];
         const cmPersona = cmPersonas.find(p => p.id === cmSettings?.activePersonaId);
-        if (cmChar?.multiChar?.enabled) {
+        // Respect the same send gates as the normal path: don't reply while a blocking video plays or
+        // when the message itself carries one; route the rest through handleChatMessage.
+        const hasBlockingVideo = /\[Video:([^\]:]+):blocking\]/i.test(data.content || '');
+        if (cmChar?.multiChar?.enabled && !cmSettings?.mediaBlocking && !sessionState.mediaBlocking && !hasBlockingVideo) {
           await handleIndividualResponses(data, cmChar, cmSettings, cmPersona, data.respondAs);
           break;
         }
@@ -12577,6 +12590,9 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   const soloId = sessionState?.soloSpeaker || null;
   if (soloId && chars.some(c => c.id === soloId)) {
     for (const c of chars) if (c.id !== soloId) muted.add(c.id);
+    // The solo speaker must ALWAYS be able to speak — even if they were muted. Otherwise targeting a
+    // muted member (trigger/guided) muted everyone and produced an empty, self-contradictory cast.
+    muted.delete(soloId);
   }
   const activeChars = chars.filter(c => !muted.has(c.id));
   const silentChars = chars.filter(c => muted.has(c.id));
@@ -13099,7 +13115,7 @@ function buildChatContext(character, settings, opts = {}) {
 
     const activeTerms = getInstructorActiveTerms(character, recentMessagesChat);
     if (activeTerms.length > 0) {
-      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeTerms, 'Known Terms');
+      systemPrompt += '\n' + substituteVars(reminderEngine.buildReminderPrompt(activeTerms, 'Known Terms'));
     }
   } else {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
@@ -13130,7 +13146,7 @@ function buildChatContext(character, settings, opts = {}) {
       recentMessagesChat
     );
     if (activeRemindersChat.length > 0) {
-      systemPrompt += '\n' + reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Lore');
+      systemPrompt += '\n' + substituteVars(reminderEngine.buildReminderPrompt(activeRemindersChat, 'Active Lore'));
     }
   }
 
@@ -13158,18 +13174,18 @@ function buildChatContext(character, settings, opts = {}) {
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
   if (checkpointChat?.preInflation) {
     console.log(`[Checkpoints] Injecting PRE-INFLATION for player at ${sessionState.capacity}%`);
-    systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointChat.preInflation}\n=== END REQUIREMENT ===\n`;
+    systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${substituteVars(checkpointChat.preInflation)}\n=== END REQUIREMENT ===\n`;
   }
   if (checkpointChat?.text) {
     console.log(`[Checkpoints] Injecting PLAYER checkpoint at ${sessionState.capacity}%: ${checkpointChat.text.substring(0, 60)}...`);
-    systemPrompt += `\n=== MANDATORY — PLAYER INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance for the player's current inflation level. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointChat.text}\n=== END STAGE DIRECTION ===\n`;
+    systemPrompt += `\n=== MANDATORY — PLAYER INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance for the player's current inflation level. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${substituteVars(checkpointChat.text)}\n=== END STAGE DIRECTION ===\n`;
   }
   systemPrompt += manualPumpBatchBlock(checkpointChat);
 
   const charCheckpointChat = getActiveCharacterCheckpoint(character);
   if (charCheckpointChat) {
     console.log(`[Checkpoints] Injecting CHARACTER checkpoint at ${sessionState.characterCapacity}%: ${charCheckpointChat.substring(0, 60)}...`);
-    systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S INFLATION STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this guidance for ${character.name}'s current inflation level. Do NOT describe their inflation beyond what ${sessionState.characterCapacity}% represents:\n${charCheckpointChat}\n=== END STAGE DIRECTION ===\n`;
+    systemPrompt += `\n=== MANDATORY — ${character.name.toUpperCase()}'S INFLATION STAGE DIRECTION (${sessionState.characterCapacity}%) ===\nYou MUST follow this guidance for ${character.name}'s current inflation level. Do NOT describe their inflation beyond what ${sessionState.characterCapacity}% represents:\n${substituteVars(charCheckpointChat)}\n=== END STAGE DIRECTION ===\n`;
   }
 
   // Checkpoint injections rolled for this generation (pop-up stage events)
