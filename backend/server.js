@@ -8438,6 +8438,12 @@ function handleDeleteMessage(data) {
   const msgIndex = sessionState.chatHistory.findIndex(m => m.id === id);
   if (msgIndex !== -1) {
     sessionState.chatHistory.splice(msgIndex, 1);
+    // chatMemorySummaryUpTo is an absolute index into chatHistory. Deleting a message BEFORE the
+    // summary boundary shifts everything down by one; without rebasing, an unsummarized message would
+    // slide under the boundary and fall out of the context window forever (permanent memory hole).
+    if (typeof sessionState.chatMemorySummaryUpTo === 'number' && msgIndex < sessionState.chatMemorySummaryUpTo) {
+      sessionState.chatMemorySummaryUpTo = Math.max(0, sessionState.chatMemorySummaryUpTo - 1);
+    }
     broadcast('message_deleted', { id });
     autosaveSession();
   }
@@ -9461,7 +9467,9 @@ async function handleChatMessage(data) {
           prompt: retryContext.prompt,
           messages: retryContext.messages,
           systemPrompt: retryContext.systemPrompt,
-          settings: { ...settings.llm, ...charTokenOverride(activeCharacter) }
+          // Keep the anti-role-bleed stop sequences on the retry too (the retry exists precisely to
+          // fix wrong-speaker/duplicate output, so dropping the name-guards made it worse).
+          settings: { ...settings.llm, ...charTokenOverride(activeCharacter), stopSequences: [...(settings.llm?.stopSequences || []), ...(retryContext.stopSequences || [])] }
         });
         finalText = stripCrossRoleContent(retryResult.text, context.stopSequences, true);
       }
@@ -12287,9 +12295,11 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     // Generate as the player
     systemPrompt = `You are ${playerName}, the player character. Write ONLY as ${playerName} — never write for ${character.name}.\n\n`;
     if (persona) {
-      if (persona.personality) systemPrompt += `Personality: ${persona.personality}\n`;
-      if (persona.appearance) systemPrompt += `Appearance: ${persona.appearance}\n`;
-      if (persona.relationshipWithInflation) systemPrompt += `Additional inflation context: ${persona.relationshipWithInflation}\n`;
+      // Include pronouns so the model writing AS the player does not misgender them.
+      if (persona.pronouns) systemPrompt += `Pronouns: ${persona.pronouns}\n`;
+      if (persona.personality) systemPrompt += `Personality: ${substituteVars(persona.personality)}\n`;
+      if (persona.appearance) systemPrompt += `Appearance: ${substituteVars(persona.appearance)}\n`;
+      if (persona.relationshipWithInflation) systemPrompt += `Additional inflation context: ${substituteVars(persona.relationshipWithInflation)}\n`;
       systemPrompt += buildPersonaInflationContext(persona, playerName);
       systemPrompt += '\n';
     }
@@ -12979,7 +12989,7 @@ function buildChatContext(character, settings) {
   } else if (character.multiChar?.enabled) {
     systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVars);
   } else {
-    systemPrompt = `You are ${character.name}. ${substituteVars(character.description)}\n`;
+    systemPrompt = `You are ${character.name}${character.gender ? `, ${character.gender}` : ''}. ${substituteVars(character.description)}\n`;
     systemPrompt += `Write ONLY as ${character.name} — never write for ${playerName}. Use first person in dialogue, third person for actions.\n`;
     systemPrompt += `Personality: ${substituteVars(character.personality)}\n\n`;
   }

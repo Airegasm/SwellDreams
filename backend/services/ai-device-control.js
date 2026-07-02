@@ -1116,7 +1116,9 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
   const limMaxCycleOn = (characterLimits?.llmMaxCycleOnDuration ?? 2);
   const limMaxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
   if (capacityModifier !== 1.0) {
-    log.info(`[Clamp] Capacity modifier ${capacityModifier}x applied to time limits: maxOn=${limMaxOn}s, maxTimed=${limMaxTimed}s, maxCycleOn=${limMaxCycleOn}s`);
+    // Durations use the RAW configured limits (v6.6.4); the capacity multiplier only scales capacity
+    // accrual, NOT on-times. Log accordingly so a pump-safety audit from logs isn't misled.
+    log.info(`[Clamp] Duration limits (raw, unaffected by capacity modifier ${capacityModifier}x): maxOn=${limMaxOn}s, maxTimed=${limMaxTimed}s, maxCycleOn=${limMaxCycleOn}s`);
   }
 
   for (const cmd of commands) {
