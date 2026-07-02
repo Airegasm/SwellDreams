@@ -12,9 +12,13 @@ const log = createLogger('LLM');
 // Track active requests for abort capability
 const activeRequests = new Set();
 
-// Cache llama.cpp server capabilities (fetched once from /props)
+// Cache llama.cpp server capabilities (fetched from /props). Time-limited so a model hot-swap behind
+// the same URL (e.g. LlamaHerder) picks up the new template/system-role support instead of using the
+// previous model's caps forever.
 let llamaCppCapsCache = null;
 let llamaCppCapsCacheUrl = null;
+let llamaCppCapsCacheTime = 0;
+const LLAMACPP_CAPS_TTL_MS = 30000;
 
 // Default sampler settings
 const DEFAULT_SETTINGS = {
@@ -592,6 +596,17 @@ function makeStreamingRequest(url, body, onToken) {
       const req = client.request(options, (res) => {
         let buffer = '';
 
+        // Non-2xx responses (400 context overflow, 401/404/500, etc.) send a JSON error body with no
+        // SSE "data:" lines — the parser would accumulate nothing and resolve with empty text, showing
+        // the user a blank reply and no error. Detect the bad status, collect the body, and reject.
+        if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+          let errBody = '';
+          res.on('data', c => { errBody += c.toString(); });
+          res.on('end', () => reject(new Error(`HTTP ${res.statusCode}: ${errBody.substring(0, 300)}`)));
+          res.on('error', () => reject(new Error(`HTTP ${res.statusCode}`)));
+          return;
+        }
+
         res.on('data', chunk => {
           buffer += chunk.toString();
 
@@ -767,7 +782,9 @@ function extractGeneratedText(response, apiType) {
     // OpenAI format
     if (response.choices && response.choices[0]) {
       if (response.choices[0].message) {
-        return response.choices[0].message.content;
+        // Reasoning models (e.g. DeepSeek R1) may return content:null with a separate reasoning
+        // field. Coalesce to '' so downstream .trim() never throws on null.
+        return response.choices[0].message.content ?? '';
       }
       if (response.choices[0].text) {
         return response.choices[0].text;
@@ -1362,6 +1379,7 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
       hostname: url.hostname,
       path: url.pathname,
       method: 'POST',
+      timeout: 120000, // never hang generation forever on a stalled connection
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(bodyStr),
@@ -1424,6 +1442,10 @@ function makeOpenRouterRequest(endpoint, apiKey, body) {
       console.error(`[OpenRouter] Request error: ${err.message} (code: ${err.code})`);
       if (LLM_DEBUG) console.error(`[OpenRouter DEBUG] Error stack: ${err.stack}`);
       reject(err);
+    });
+    req.on('timeout', () => {
+      console.error('[OpenRouter] Request timed out');
+      req.destroy(new Error('OpenRouter request timed out'));
     });
     req.write(bodyStr);
     req.end();
@@ -1493,7 +1515,7 @@ async function generateOpenRouter(options) {
     text = text.trim();
   }
 
-  console.log('[LLM] OpenRouter extracted text:', text ? text.substring(0, 200) : '(empty)');
+  if (LLM_DEBUG) console.log('[LLM] OpenRouter extracted text:', text ? text.substring(0, 200) : '(empty)');
 
   // Trim incomplete sentences if enabled
   if (settings.trimIncompleteSentences !== false && text) {
@@ -1546,6 +1568,7 @@ function hordeRequest(method, path, apiKey, body) {
       hostname: url.hostname,
       path: url.pathname + url.search,
       method,
+      timeout: 60000, // a stalled status poll must not hang the generation loop indefinitely
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -1574,6 +1597,10 @@ function hordeRequest(method, path, apiKey, body) {
       // explicitly so a blocked egress (firewall, no internet) is obvious.
       console.error(`[Horde] ✗ ${method} ${url.href} failed: ${err.message} (${err.code || 'no code'})`);
       reject(err);
+    });
+    req.on('timeout', () => {
+      console.error(`[Horde] ✗ ${method} ${url.href} timed out`);
+      req.destroy(new Error('AI Horde request timed out'));
     });
     if (bodyStr) req.write(bodyStr);
     req.end();
@@ -1931,7 +1958,11 @@ function useLlamaCppChat(settings) {
  * (e.g. Gemma 2) by merging system content into the first user message.
  */
 function buildChatMessages(systemPrompt, prompt, messages, settings) {
-  const supportsSystem = settings.supportsSystemRole === true;
+  // Default to a real system role. Most OpenAI-compatible / OpenRouter endpoints support it; only
+  // demote to a user turn when detection explicitly set supportsSystemRole=false (e.g. Gemma 2 via
+  // llama.cpp). Previously undefined (any endpoint that never ran llama.cpp detection) fell through
+  // to the demoted path, sending the whole system prompt as a user turn + a fake assistant ack.
+  const supportsSystem = settings.supportsSystemRole !== false;
   let chatMessages = [];
 
   if (systemPrompt) {
@@ -1988,7 +2019,7 @@ function inferSystemRoleSupport(chatTemplate) {
  * Fetch llama.cpp server capabilities from /props (cached per base URL)
  */
 async function getLlamaCppCaps(baseUrl) {
-  if (llamaCppCapsCache && llamaCppCapsCacheUrl === baseUrl) {
+  if (llamaCppCapsCache && llamaCppCapsCacheUrl === baseUrl && (Date.now() - llamaCppCapsCacheTime) < LLAMACPP_CAPS_TTL_MS) {
     return llamaCppCapsCache;
   }
   try {
@@ -2004,6 +2035,7 @@ async function getLlamaCppCaps(baseUrl) {
         modelAlias: propsResult.model_alias || '',
       };
       llamaCppCapsCacheUrl = baseUrl;
+      llamaCppCapsCacheTime = Date.now();
       console.log(`[LLM] Cached llama.cpp caps: supportsSystemRole=${llamaCppCapsCache.supportsSystemRole}, template=${llamaCppCapsCache.chatTemplate}`);
       return llamaCppCapsCache;
     }
