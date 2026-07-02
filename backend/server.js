@@ -4589,9 +4589,13 @@ function substituteAllVariables(text, context = {}) {
   result = result.replace(/\[PumpType\]/gi, sessionState.pumpType || 'electric');
   result = result.replace(/\[PumpInit\]/gi, sessionState.pumpInit || 'auto');
 
-  // Token Switching — replace overused LLM words with random alternatives
-  result = applyTokenSwitching(result, settings);
-  result = applyTokenRemovals(result, settings);
+  // Token Switching/Removal — rewrite overused words in generated OUTPUT only. NEVER apply to
+  // prompt text (callers building the system prompt pass { isPromptText: true }); otherwise these
+  // rules would randomly rewrite or delete the instructor mission, safety rules, and card fields.
+  if (!context.isPromptText) {
+    result = applyTokenSwitching(result, settings);
+    result = applyTokenRemovals(result, settings);
+  }
 
   // Normalize double asterisks to single (LLMs often use **bold** for actions)
   result = result.replace(/\*\*/g, '*');
@@ -5640,7 +5644,7 @@ async function sendWelcomeMessage(character, settings) {
       const playerName = settings?.activePersonaId ?
         (loadAllPersonas() || []).find(p => p.id === settings.activePersonaId)?.displayName || 'the player' :
         'the player';
-      const substituteVarsWelcome = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
+      const substituteVarsWelcome = (text) => substituteAllVariables(text, { playerName, characterName: character.name, isPromptText: true });
       let systemPrompt;
       if (isInstructor(character)) {
         systemPrompt = buildInstructorSystemPrompt(character, playerName, substituteVarsWelcome);
@@ -9075,8 +9079,12 @@ async function handleChatMessage(data) {
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
+  // A speaker-validation retry re-enters this function only to re-generate the AI reply. Skip every
+  // player-turn side effect (message push, events, pump firing) so the retry never duplicates them.
+  const isSpeakerRetry = !!data._speakerRetryCount;
+
   // Instructor pre-reqs configured to start after the first player message
-  if (activeCharacter && sender === 'player' && isInstructor(activeCharacter)
+  if (activeCharacter && sender === 'player' && !isSpeakerRetry && isInstructor(activeCharacter)
       && !sessionState.prereqsDone && !sessionState.pendingPrereqs) {
     const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
     if (aStory?.prereqTiming === 'after_first_message') {
@@ -9086,7 +9094,7 @@ async function handleChatMessage(data) {
 
   // Pre-Fill: a player message may advance/branch/exit the gated intro before we generate,
   // so the reply reflects the new step (or the freshly-started pump phase).
-  if (activeCharacter && sender === 'player' && sessionState.preFillActive) {
+  if (activeCharacter && sender === 'player' && !isSpeakerRetry && sessionState.preFillActive) {
     scanPreFill(activeCharacter, content);
   }
 
@@ -9150,16 +9158,18 @@ async function handleChatMessage(data) {
     return;
   }
 
-  // Add to chat history
+  // Add to chat history (not on a re-generation retry — the player message is already in history).
   const playerMessage = {
     id: uuidv4(),
     content,
     sender,
     timestamp: Date.now()
   };
-  sessionState.chatHistory.push(playerMessage);
-  broadcast('chat_message', playerMessage);
-  autosaveSession();
+  if (!isSpeakerRetry) {
+    sessionState.chatHistory.push(playerMessage);
+    broadcast('chat_message', playerMessage);
+    autosaveSession();
+  }
 
   // Check if message contains a blocking video - parse and set blocking state
   const blockingVideoPattern = /\[Video:([^\]:]+):blocking\]/i;
@@ -9178,12 +9188,14 @@ async function handleChatMessage(data) {
     return;
   }
 
-  // Trigger player speaks event for flow engine
-  await eventEngine.handleEvent('player_speaks', { content });
+  // Trigger player speaks event for flow engine (not on a re-generation retry — already fired).
+  if (!isSpeakerRetry) {
+    await eventEngine.handleEvent('player_speaks', { content });
 
-  // #19 Await Input: if a checkpoint sequence is paused waiting on a keyword and the PLAYER said one
-  // of the words (and the gate allows Player / Either), resume the gated triggers.
-  await tryResolveAwaitInput(content, 'player');
+    // #19 Await Input: if a checkpoint sequence is paused waiting on a keyword and the PLAYER said one
+    // of the words (and the gate allows Player / Either), resume the gated triggers.
+    await tryResolveAwaitInput(content, 'player');
+  }
 
   // Player Impersonate "Suppress auto reply": the message is sent and player_speaks fires above,
   // but no AI reply is generated.
@@ -9210,10 +9222,13 @@ async function handleChatMessage(data) {
     // Notify UI that AI is generating (group cards show the group name, not the base/Main name)
     broadcast('generating_start', { characterName: groupBubbleName(activeCharacter) || activeCharacter.name });
 
-    // Pump on every reply — fire before LLM generates so pump runs during generation
-    await executePumpOnEveryReply('', activeCharacter, false);
-    // Per-range auto-pump pacing (electric instructor ranges)
-    await executeAutoPumpPacing(activeCharacter, false);
+    // Pump on every reply — fire before LLM generates so pump runs during generation.
+    // Skip on a speaker-validation retry so the pump never fires twice for one player turn.
+    if (!isSpeakerRetry) {
+      await executePumpOnEveryReply('', activeCharacter, false);
+      // Per-range auto-pump pacing (electric instructor ranges)
+      await executeAutoPumpPacing(activeCharacter, false);
+    }
 
     try {
       // Roll personality attributes for this message
@@ -10347,7 +10362,7 @@ Keep responses SHORT and focused (2-3 sentences max).
 // the enhanced line stays focused on its own text instead of drifting into the scene.
 function buildLeanEnhanceContext(character, persona, settings, historyTail = 2) {
   const playerName = persona?.displayName || 'the player';
-  const sub = (t) => substituteAllVariables(t || '', { playerName, characterName: character.name });
+  const sub = (t) => substituteAllVariables(t || '', { playerName, characterName: character.name, isPromptText: true });
 
   let systemPrompt;
   if (isInstructor(character)) {
@@ -11538,10 +11553,10 @@ function preFillBlock(character) {
   const instr = injMsg(step.instruction);
   let s = `\n=== PRE-FILL PHASE (MANDATORY — NO PUMPING) ===\n`;
   s += `Inflation has NOT started. Do NOT pump, do NOT instruct the player to pump, never use [pump on]. There is zero pumping in this phase.\n`;
-  if (instr.text) s += `Current goal: ${substituteAllVariables(instr.text)}\n`;
+  if (instr.text) s += `Current goal: ${substituteAllVariables(instr.text, { isPromptText: true })}\n`;
   s += `Converse naturally toward that goal. This phase only advances when the player says the required phrase — never advance it yourself.\n`;
   if (sessionState.preFillNote) {
-    s += `A transition just happened — work this into your reply: ${substituteAllVariables(sessionState.preFillNote)}\n`;
+    s += `A transition just happened — work this into your reply: ${substituteAllVariables(sessionState.preFillNote, { isPromptText: true })}\n`;
   }
   s += `=== END PRE-FILL PHASE ===\n`;
   return s;
@@ -12200,7 +12215,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
   const playerName = persona?.displayName || 'The player';
 
   // Substitute variables in character fields (uses global substituteAllVariables)
-  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: character.name });
+  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: character.name, isPromptText: true });
 
   // Map capacity percentage to belly description
   const getCapacityDescription = (capacity) => {
@@ -12889,7 +12904,7 @@ function buildChatContext(character, settings) {
   const effectiveCharName = soloMember?.name || character.name;
 
   // Substitute variables in character fields (uses global substituteAllVariables)
-  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: effectiveCharName });
+  const substituteVars = (text) => substituteAllVariables(text, { playerName, characterName: effectiveCharName, isPromptText: true });
 
   // Map capacity percentage to belly description
   const getCapacityDescription = (capacity) => {
