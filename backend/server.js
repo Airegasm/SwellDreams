@@ -6079,10 +6079,12 @@ If announcing the result, say "${result}" - not something else.
           } else {
             variationContext = buildChatContext(activeCharacter, settings);
             variationContext.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===\nYour next response MUST be the character performing this specific action: "${data.content}"${challengeInstruction}${capacityStateInstruction}\nIMPORTANT: Write a UNIQUE and DIFFERENT response. Do not repeat previous messages.\n=== END CRITICAL INSTRUCTION ===`;
-            // Strip trailing speaker tag before adding our own
-            const charTagPattern = new RegExp(`(\\n?${activeCharacter.name}:)\\s*$`);
+            // Strip trailing speaker tag before adding our own. Group cards end with "[Characters]:",
+            // not "<Name>:", so cover both or the primer got duplicated.
+            const charTagPattern = new RegExp(`(\\n?${activeCharacter.name}:|\\n?\\[Characters\\]:)\\s*$`);
             variationContext.prompt = variationContext.prompt.replace(charTagPattern, '');
-            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${activeCharacter.name}:`;
+            const varPrimer = activeCharacter.multiChar?.enabled ? '[Characters]:' : `${activeCharacter.name}:`;
+            variationContext.prompt += `\n\n[Write a unique variation of: ${data.content}]\n${varPrimer}`;
           }
 
           const retryResult = await llmService.generate({
@@ -6301,6 +6303,9 @@ STRICT RULES:
 - Keep it SHORT - 1-3 sentences max
 - Example format: "*I gasp as the pressure builds...* Please, stop!"${capacityEmphasis}
 === END CRITICAL INSTRUCTION ===`;
+        // Strip the primer buildSpecialContext already added so we don't leave an empty "${playerName}:"
+        // turn before our instruction (the sibling ai_message path does the same).
+        context.prompt = context.prompt.replace(new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${playerName}:)\\s*$`), '');
         context.prompt += `\n\n[${playerName} (FIRST PERSON ONLY): ${data.content}]\n${playerName}:`;
 
         const impersonateSettings = { ...settings.llm };
@@ -12119,7 +12124,13 @@ async function summarizeOverflowMessages(settings) {
   const memSettings = getChatMemorySettings(settings);
   if (!memSettings.summarizationEnabled) return;
 
-  const depth = memSettings.chatHistoryDepth;
+  // Use the SAME effective window the prompt uses (a card may override the global depth). Summarizing
+  // against the global depth while the context uses a smaller card depth left the gap between them
+  // neither summarized nor in-window — a silent memory hole.
+  const activeChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const activeChar = activeChars.find(c => c.id === settings?.activeCharacterId);
+  const cardDepth = Number(activeChar?.historyDepth);
+  const depth = cardDepth > 0 ? cardDepth : memSettings.chatHistoryDepth;
   const totalMessages = sessionState.chatHistory.length;
 
   // Nothing to summarize if history fits in the window
