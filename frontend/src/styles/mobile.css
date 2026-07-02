@@ -419,18 +419,20 @@
   }
 
   /* Mobile navigation cluster - pushed to the far RIGHT so P/C sit above the robot-head action stack.
-     Two 48px buttons + 4px gap = 100px, matching the .input-action-stack width. */
+     Cluster width + 3px gap EXACTLY match the .input-action-stack (100px, 3px gap) so each P/C button
+     lines up with a robot head below it. */
   .mobile-nav-cluster {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex-shrink: 0;
     margin-left: auto;
+    width: 100px;
   }
 
   .mobile-nav-btn {
-    width: 48px;
-    height: 34px;
-    min-height: 34px;
+    flex: 1;
+    height: 36px;
+    min-height: 36px;
     border-radius: 4px;
     background: var(--bg-card);
     border: 1px solid var(--border-color);

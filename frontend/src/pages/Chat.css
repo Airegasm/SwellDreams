@@ -1678,7 +1678,9 @@
 .pump-timer-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* Match the chat-input-row gap so the >> button's right edge lines up with the textbox right edge
+     (Reply is flush-right at the action-stack width, >> sits one input-gap to its left). */
+  gap: var(--spacing-xs);
   margin-left: auto;
   pointer-events: auto;
 }
@@ -1686,20 +1688,24 @@
   pointer-events: auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  border-radius: 14px;
-  border: none;
+  justify-content: center;
+  width: 100px;              /* combined width of both robot heads (the action stack) */
+  padding: 5px 0;
+  border-radius: 4px;         /* rectangle */
+  border: 2px solid #c62828;  /* status color lives on the OUTLINE, not the fill */
+  background: transparent;    /* transparent background */
   cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.82rem;
+  font-weight: 800;
   letter-spacing: 0.4px;
   color: #fff;
+  /* Black outline so white REPLY text stays legible on light UI skins */
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 0 2px #000;
   white-space: nowrap;
-  transition: background 0.2s ease, filter 0.15s ease;
+  transition: border-color 0.2s ease, filter 0.15s ease;
 }
-.auto-reply-toggle.on { background: #2e7d32; }
-.auto-reply-toggle.off { background: #c62828; }
+.auto-reply-toggle.on { border-color: #2e7d32; }
+.auto-reply-toggle.off { border-color: #c62828; }
 .auto-reply-toggle:hover { filter: brightness(1.15); }
 @media (min-width: 769px) {
   .input-pump-timer-row { min-height: 52px; }
