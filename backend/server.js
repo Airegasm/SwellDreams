@@ -7771,6 +7771,36 @@ async function handleWsMessage(ws, type, data) {
       await handleManualPump();
       break;
 
+    case 'primary_pump_on': {
+      // Manual toggle of the primary pump from the chat UI (balloon button). Honors the capacity
+      // ceiling; stays on until primary_pump_off (a deliberate manual control).
+      if (pumpBlockedByCapacity()) {
+        console.log('[PrimaryPump] ON blocked — capacity at ceiling and over-inflation not allowed');
+        break;
+      }
+      const ppDevices = loadData(DATA_FILES.devices) || [];
+      const ppPump = ppDevices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+      if (ppPump) {
+        const id = resolveControlId(ppPump);
+        await deviceService.turnOn(id, ppPump);
+        broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: ppPump.label || ppPump.name || 'Pump' });
+      }
+      break;
+    }
+
+    case 'primary_pump_off': {
+      sessionState.playerIsInflating = false; // an explicit off ends any latched-pump mode
+      const ppDevices = loadData(DATA_FILES.devices) || [];
+      const ppPump = ppDevices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+      if (ppPump) {
+        const id = resolveControlId(ppPump);
+        clearServerTimedPumpTimer(id);
+        await deviceService.turnOff(id, ppPump);
+        broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: ppPump.label || ppPump.name || 'Pump' });
+      }
+      break;
+    }
+
     case 'gate_release':
       await handleGateRelease();
       break;

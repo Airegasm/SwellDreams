@@ -103,14 +103,41 @@
     transform: scale(1.1);
   }
 
-  /* Pump timer moves UP next to the capacity gauge (swapped with the E-STOP). */
+  /* The pump timer now lives in the .mobile-pump-band next to the gauge; hide the bottom-band copy on
+     mobile (it stays on desktop). */
   .input-pump-timer-row .pump-timer-left {
+    display: none;
+  }
+
+  /* Balloon pump-toggle + pump timer, fixed just right of the capacity gauge. */
+  .mobile-pump-band {
     position: fixed;
-    left: 56px;
+    left: 100px;
     bottom: 238px;
     z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     pointer-events: none;
   }
+  .mobile-pump-band .mobile-pump-toggle { pointer-events: auto; }
+  .mobile-pump-toggle {
+    width: 38px;
+    height: 38px;
+    border-radius: 0;          /* hard corners */
+    background: transparent;    /* transparent bg */
+    border: 2px solid #8a8f98;  /* grey outline */
+    font-size: 1.25rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .mobile-pump-toggle.running { border-color: #22c55e; }  /* green while the primary pump runs */
+  .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
+  .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
 
   /* Mobile E-STOP button - moved to the bottom-LEFT corner, under the up/down history arrows. */
   .mobile-estop-btn {

@@ -1530,6 +1530,21 @@ function Chat() {
         />
       </div>
 
+      {/* Mobile pump band — balloon toggle (grey outline; green when the primary pump is running,
+          click to toggle) just right of the gauge, with the running pump timer to its right. */}
+      <div className="mobile-pump-band mobile-only">
+        <button
+          type="button"
+          className={`mobile-pump-toggle ${Object.keys(pumpStatus || {}).length > 0 ? 'running' : ''}`}
+          onClick={() => sendWsMessage(Object.keys(pumpStatus || {}).length > 0 ? 'primary_pump_off' : 'primary_pump_on', {})}
+          title="Toggle primary pump"
+          aria-label="Toggle primary pump"
+        >🎈</button>
+        {Object.entries(pumpStatus || {}).map(([ip, status]) => (
+          <PumpStatusItem key={ip} deviceIp={ip} status={status} />
+        ))}
+      </div>
+
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
         {/* Persona Portrait with Status Badges Overlay */}
