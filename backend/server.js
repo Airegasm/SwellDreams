@@ -5740,6 +5740,8 @@ async function sendWelcomeMessage(character, settings) {
 
       if (result && result.text) {
         messageContent = result.text.trim();
+        // Instructors speak in plain directives — strip any RP prose the model added.
+        if (isInstructor(character)) messageContent = stripInstructorRoleplay(messageContent);
         console.log('[WELCOME] LLM enhanced message:', messageContent.substring(0, 100) + '...');
       } else {
         console.log('[WELCOME] LLM returned no response, using template', result);
@@ -8304,7 +8306,7 @@ async function handleSwipeMessage(data) {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     const isPlayerMsg = msg.sender === 'player';
-    let systemPrompt, prompt, swipeMessages;
+    let systemPrompt, prompt, swipeMessages, swipeStops;
 
     if (isPlayerMsg) {
       // For player messages, use impersonate with guidance if provided.
@@ -8315,6 +8317,7 @@ async function handleSwipeMessage(data) {
       systemPrompt = impersonateContext.systemPrompt;
       prompt = impersonateContext.prompt;
       swipeMessages = impersonateContext.messages;
+      swipeStops = impersonateContext.stopSequences;
     } else {
       // For character messages, roll personality attributes on the FULL history first.
       const attrResult = rollAttributes(activeCharacter);
@@ -8332,6 +8335,7 @@ async function handleSwipeMessage(data) {
       systemPrompt = context.systemPrompt;
       prompt = context.prompt;
       swipeMessages = context.messages;
+      swipeStops = context.stopSequences;
     }
 
     let resultText;
@@ -8345,7 +8349,7 @@ async function handleSwipeMessage(data) {
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: { ...settings.llm, ...swipeTokenSettings },
+        settings: { ...settings.llm, ...swipeTokenSettings, stopSequences: [...(settings.llm?.stopSequences || []), ...(swipeStops || [])] },
         onToken: (token, fullText) => {
           fullHistory[msgIndex].content = fullText;
           broadcast('stream_token', { messageId: id, token, fullText });
@@ -8357,7 +8361,7 @@ async function handleSwipeMessage(data) {
         prompt,
         messages: swipeMessages,
         systemPrompt,
-        settings: { ...settings.llm, ...swipeTokenSettings }
+        settings: { ...settings.llm, ...swipeTokenSettings, stopSequences: [...(settings.llm?.stopSequences || []), ...(swipeStops || [])] }
       });
       resultText = result.text;
     }
@@ -8375,6 +8379,12 @@ async function handleSwipeMessage(data) {
       broadcast('message_updated', sessionState.chatHistory[msgIndex]);
       return;
     }
+
+    // Strip cross-role bleed (and instructor RP prose) like the normal reply path — a swipe must not
+    // generate the other speaker's lines or leave *actions*/quotes in instructor output. Device tags
+    // are brackets, so they survive these strips and are executed below.
+    resultText = stripCrossRoleContent(resultText, swipeStops || [], !isPlayerMsg);
+    if (!isPlayerMsg && isInstructor(activeCharacter)) resultText = stripInstructorRoleplay(resultText);
 
     // Process AI device commands (e.g., [pump on], [vibe off]).
     const devices = loadData(DATA_FILES.devices) || [];
@@ -8709,8 +8719,10 @@ async function handleButtonSendMessage(action, characterId, personaId) {
         settings: { ...settings.llm, ...charTokenOverride(character) }
       });
 
-      // Update placeholder message with actual content (apply variable substitution)
-      placeholderMessage.content = substituteAllVariables(result.text);
+      // Update placeholder message with actual content (apply variable substitution + instructor strip)
+      placeholderMessage.content = isInstructor(character)
+        ? stripInstructorRoleplay(substituteAllVariables(result.text))
+        : substituteAllVariables(result.text);
       delete placeholderMessage.excludeFromContext; // now a real reply — include it in future context
 
       // Find and update message in chat history
@@ -9287,7 +9299,7 @@ async function handleChatMessage(data) {
       llmState.isGenerating = true;
 
       // Build context
-      const context = buildChatContext(activeCharacter, settings);
+      const context = buildChatContext(activeCharacter, settings, { consumePumpContext: true });
 
       console.log('[Chat] Generating AI response...');
 
@@ -9883,7 +9895,7 @@ async function generateAIResponseAfterBlocking() {
     if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'post-block' });
     if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
 
-    const context = buildChatContext(activeCharacter, settings);
+    const context = buildChatContext(activeCharacter, settings, { consumePumpContext: true });
     console.log('[Media] Generating AI response after blocking ended...');
 
     // Match the normal reply path: correct streaming key, real result.text (not the {text} object),
@@ -12955,7 +12967,7 @@ ensureDefaultDictionary();
 // author their own Library; the "Migrated Reminders" group is no longer created.
 // migrateGlobalRemindersToDictionary();
 
-function buildChatContext(character, settings) {
+function buildChatContext(character, settings, opts = {}) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
   const playerName = activePersona?.displayName || 'the player';
@@ -13077,10 +13089,12 @@ function buildChatContext(character, settings) {
     const painLabelNow = painLabelsInstr[sessionState.pain || 0] || 'None';
     systemPrompt += `\nCurrent capacity: ${capacityNow}%. Pain: ${painLabelNow} (${sessionState.pain || 0}/10).\n`;
 
-    // Manual pump activity since the last reply (consumed once).
+    // Manual pump activity since the last reply. Only CONSUME it on the real reply build (opts
+    // .consumePumpContext) — swipes/guided/retries build context too and would otherwise steal it
+    // from the next genuine reply. They still SEE it (just don't clear it).
     if (sessionState.pendingPumpContext?.length) {
       systemPrompt += `\nPump activity since your last reply:\n${sessionState.pendingPumpContext.map(s => `- ${s}`).join('\n')}\n`;
-      sessionState.pendingPumpContext = [];
+      if (opts.consumePumpContext) sessionState.pendingPumpContext = [];
     }
 
     const activeTerms = getInstructorActiveTerms(character, recentMessagesChat);
@@ -13715,6 +13729,11 @@ app.post('/api/settings', async (req, res) => {
       const personas = loadAllPersonas() || [];
       const activePersona = personas.find(p => p.id === settings.activePersonaId);
       sessionState.playerName = activePersona?.displayName || null;
+    }
+    if (personaChanged) {
+      // Checkpoint-trigger fired-ranges are not persona-scoped, so a new persona would otherwise
+      // inherit the outgoing persona's already-fired ranges (their triggers suppressed all session).
+      firedCheckpointTriggers.clear();
     }
 
     // Ensure AI pump flow assignments are correct for the new character or persona
