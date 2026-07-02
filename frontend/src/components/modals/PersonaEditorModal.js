@@ -5,7 +5,6 @@ import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import TriggerRow from '../common/TriggerRow';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import LibraryTreeSelect from '../common/LibraryTreeSelect';
-import { EMOTIONS } from '../../constants/stateValues';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
@@ -91,7 +90,6 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   useEffect(() => { if (isOpen && typeof api.getTriggerSets === 'function') { api.getTriggerSets().then(setTriggerSets).catch(() => {}); } }, [isOpen]);
 
   // Dropdown selections
-  const [selectedFlowToAdd, setSelectedFlowToAdd] = useState('');
   const [selectedButtonToAdd, setSelectedButtonToAdd] = useState('');
 
   const [showCropModal, setShowCropModal] = useState(false);
@@ -120,12 +118,6 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
   const buttons = useMemo(() => formData.buttons || [], [formData.buttons]);
 
   // Memoize dropdown options to prevent closing on re-render
-  const availableFlows = useMemo(() => {
-    if (!flows) return [];
-    const assignedFlows = formData.assignedFlows || [];
-    return flows.filter(f => !assignedFlows.includes(f.id));
-  }, [flows, formData.assignedFlows]);
-
   const availableButtons = useMemo(() => {
     const assignedButtons = formData.assignedButtons || [];
     return buttons.filter(b => !assignedButtons.includes(b.buttonId));
@@ -385,44 +377,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
     abortControllerRef.current = null;
   };
 
-  // Flow assignment handlers
-  const handleAddFlow = () => {
-    if (!selectedFlowToAdd) return;
-
-    const currentFlows = formData.assignedFlows || [];
-    if (currentFlows.includes(selectedFlowToAdd)) return;
-
-    // Find buttons created by this flow
-    const flowButtons = buttons.filter(b => b.sourceFlowId === selectedFlowToAdd);
-    const flowButtonIds = flowButtons.map(b => b.buttonId);
-
-    const currentButtons = formData.assignedButtons || [];
-    const newButtons = [...currentButtons, ...flowButtonIds.filter(id => !currentButtons.includes(id))];
-
-    setFormData({
-      ...formData,
-      assignedFlows: [...currentFlows, selectedFlowToAdd],
-      assignedButtons: newButtons
-    });
-    setSelectedFlowToAdd('');
-  };
-
-  const handleRemoveFlow = (flowId) => {
-    const currentFlows = formData.assignedFlows || [];
-
-    // Find buttons created by this flow
-    const flowButtons = buttons.filter(b => b.sourceFlowId === flowId);
-    const flowButtonIds = flowButtons.map(b => b.buttonId);
-
-    const currentButtons = formData.assignedButtons || [];
-    const newButtons = currentButtons.filter(id => !flowButtonIds.includes(id));
-
-    setFormData({
-      ...formData,
-      assignedFlows: currentFlows.filter(id => id !== flowId),
-      assignedButtons: newButtons
-    });
-  };
+  // (Associated-flows handlers removed — personas no longer assign flows.)
 
   // Button assignment handlers
   const handleAddButtonAssignment = () => {
@@ -620,19 +575,6 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                 </div>
 
                 <div className="form-group">
-                  <label>General Disposition</label>
-                  <select
-                    value={formData.disposition || 'neutral'}
-                    onChange={(e) => setFormData({ ...formData, disposition: e.target.value })}
-                  >
-                    {EMOTIONS.map(e => (
-                      <option key={e.key} value={e.key}>{e.emoji} {e.label}</option>
-                    ))}
-                  </select>
-                  <div className="form-hint">This persona's default emotional stance at session start</div>
-                </div>
-
-                <div className="form-group">
                   <label>Physical Appearance</label>
                   <textarea
                     value={formData.appearance}
@@ -778,40 +720,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
               </div>
             </div>
 
-            {/* Associated Flows Section */}
             <div className="associations-section">
-              <div className="form-group">
-                <label>Associated Flows</label>
-                <div className="dropdown-add-row">
-                  <select
-                    value={selectedFlowToAdd}
-                    onChange={(e) => setSelectedFlowToAdd(e.target.value)}
-                    className="association-dropdown"
-                  >
-                    <option value="">Select a flow...</option>
-                    {availableFlows.map(flow => (
-                      <option key={flow.id} value={flow.id}>{flow.name}</option>
-                    ))}
-                  </select>
-                  <button type="button" className="btn-icon btn-add-assoc" onClick={handleAddFlow} disabled={!selectedFlowToAdd}>+</button>
-                </div>
-                <div className="association-badges">
-                  {(formData.assignedFlows || []).length === 0 ? (
-                    <span className="empty-hint">No flows assigned</span>
-                  ) : (
-                    (formData.assignedFlows || []).map(flowId => {
-                      const flow = flows?.find(f => f.id === flowId);
-                      return flow ? (
-                        <span key={flowId} className="assoc-badge">
-                          {flow.name}
-                          <button type="button" className="badge-remove" onClick={() => handleRemoveFlow(flowId)}>−</button>
-                        </span>
-                      ) : null;
-                    })
-                  )}
-                </div>
-              </div>
-
               {/* Associated Custom Buttons Section */}
               <div className="form-group">
                 <label>Associated Custom Buttons</label>

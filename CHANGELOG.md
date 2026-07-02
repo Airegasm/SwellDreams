@@ -2,6 +2,12 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.8] - 2026-07-02
+
+### Changed
+- **Removed the separate "Personas" menu item** — Personas is now a tab inside the Characters page, so the hamburger menu no longer duplicates it.
+- **Persona editor decluttered** — removed the "General Disposition" dropdown (tied to the retired Pain/Emotion system) and the "Associated Flows" section (flows are deprecated), plus their now-dead handlers. Inflation Disposition and Associated Custom Buttons are unchanged.
+
 ## [v6.6.7] - 2026-07-02
 
 ### Fixed

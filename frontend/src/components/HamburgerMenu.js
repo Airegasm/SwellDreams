@@ -150,14 +150,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
           Chat
         </NavLink>
 
-        <NavLink
-          to="/characters-personas/personas"
-          className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
-          onClick={(e) => handleNavClick(e, '/characters-personas/personas')}
-        >
-          Personas
-        </NavLink>
-
+        {/* Personas are now a tab inside the Characters page — no separate menu item. */}
         <NavLink
           to="/characters-personas/characters"
           className={({ isActive }) => `hamburger-menu-item ${isActive ? 'active' : ''}`}
