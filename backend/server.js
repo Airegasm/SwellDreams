@@ -1263,7 +1263,8 @@ function clearAllServerTimedPumpTimers() {
 async function timedPumpOn(id, device, durationSeconds) {
   const dur = Math.max(1, Math.min(Number(durationSeconds) || 1, MAX_ON_SECONDS));
   clearServerTimedPumpTimer(id);
-  await deviceService.turnOn(id, device);
+  // durationInfo lets the frontend pump timer count DOWN instead of up.
+  await deviceService.turnOn(id, device, { untilType: 'timer', untilValue: dur });
   const timer = setTimeout(() => {
     serverTimedPumpTimers.delete(id);
     deviceService.turnOff(id, device).catch((err) => {
@@ -3508,6 +3509,7 @@ const sessionState = {
   runtimeTrackingEnabled: true, // Flag to enable/disable runtime tracking (used during emergency stop)
   activeAttributes: null, // Transient: rolled personality attributes for current LLM call
   characterCapacity: 0, // 0-100% simulated inflation for the AI character
+  memberCapacities: {}, // Per-member simulated inflation for group cards, keyed by member id (base member 0 uses characterCapacity)
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
@@ -4368,14 +4370,42 @@ function stopCharacterInflation() {
   }
 }
 
+// Per-member inflation lines for group cards: members with a manually-set capacity
+// (sessionState.memberCapacities) get a compact belly-state line so the model tracks each
+// body separately. The base member (index 0) rides characterCapacity via the card-level block.
+function buildMemberInflationLines(character) {
+  if (!character?.multiChar?.enabled) return '';
+  const caps = sessionState.memberCapacities || {};
+  const lines = [];
+  (character.multiChar.characters || []).forEach((m, idx) => {
+    if (idx === 0 || !m?.name || !m.isPumpable) return;
+    const cap = Math.round(caps[m.id] || 0);
+    if (cap <= 0) return;
+    let desc;
+    if (cap <= 10) desc = 'very slight fullness, barely noticeable';
+    else if (cap <= 25) desc = 'mildly bloated, noticeably rounder';
+    else if (cap <= 40) desc = 'visibly swollen, belly pushing outward';
+    else if (cap <= 55) desc = 'significantly inflated, round and taut';
+    else if (cap <= 70) desc = 'heavily inflated, stretched drum-tight';
+    else if (cap <= 85) desc = 'massively distended, skin pulled tight';
+    else if (cap <= 95) desc = 'enormous, straining at maximum capacity';
+    else desc = 'beyond full, dangerously over-inflated';
+    lines.push(`${m.name}'s belly is at ${cap}% capacity: ${desc}. Describe ${m.name} at exactly this level — no more, no less.`);
+  });
+  if (!lines.length) return '';
+  return `\n=== GROUP MEMBER INFLATION STATES ===\n${lines.join('\n')}\n=== END GROUP MEMBER INFLATION STATES ===\n`;
+}
+
 /**
  * Build character inflation context for the AI system prompt.
- * Only returns content if the character is pumpable and capacity > 0.
+ * Card-level block when the character is pumpable and capacity > 0, plus
+ * per-member lines for group members with their own capacity set.
  */
 function buildCharacterInflationContext(character) {
-  if (!character?.isPumpable) return '';
+  const memberLines = buildMemberInflationLines(character);
+  if (!character?.isPumpable) return memberLines;
   const cap = sessionState.characterCapacity || 0;
-  if (cap <= 0) return '';
+  if (cap <= 0) return memberLines;
 
   const charName = character.name || 'The character';
   const isInflating = !!charInflationTimer;
@@ -4469,7 +4499,7 @@ function buildCharacterInflationContext(character) {
   context += `Write ${cap}% if referencing a number.\n`;
   context += `=== END ${charName.toUpperCase()}'S INFLATION STATE ===\n`;
 
-  return context;
+  return context + memberLines;
 }
 
 /**
@@ -5583,7 +5613,7 @@ async function executePumpOnEveryReply(text, character, isFlowChain) {
   if (!allowOver && sessionState.capacity >= 100) return;
 
   try {
-    await deviceService.turnOn(deviceId, pumpDevice);
+    await deviceService.turnOn(deviceId, pumpDevice, { untilType: 'timer', untilValue: maxSeconds });
     console.log(`[PumpOnEveryReply] Pump ON (auto-off in ${maxSeconds}s)`);
     broadcast('ai_device_control', { device: 'pump', action: 'on', label: pumpDevice.label || pumpDevice.name || 'Pump' });
 
@@ -7395,6 +7425,18 @@ async function handleWsMessage(ws, type, data) {
       eventEngine.checkCharacterStateChanges({ characterCapacity: sessionState.characterCapacity });
       console.log(`[CharCapacity] Manually set to ${sessionState.characterCapacity}%`);
       break;
+
+    case 'update_member_capacity': {
+      // Manual per-member capacity for group cards (non-base members; the base member
+      // rides sessionState.characterCapacity via update_character_capacity).
+      if (!data.memberId) break;
+      if (!sessionState.memberCapacities) sessionState.memberCapacities = {};
+      const memberCap = Math.max(0, Math.min(100, parseInt(data.capacity) || 0));
+      sessionState.memberCapacities[data.memberId] = memberCap;
+      broadcast('member_capacity_update', { memberId: data.memberId, capacity: memberCap, memberCapacities: sessionState.memberCapacities });
+      console.log(`[MemberCapacity] ${data.memberId} manually set to ${memberCap}%`);
+      break;
+    }
 
     case 'character_inflate_start': {
       const charInflateSettings = loadData(DATA_FILES.settings) || {};
@@ -13680,6 +13722,9 @@ app.post('/api/settings', async (req, res) => {
         broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: 0 });
         broadcast('character_capacity_update', { characterCapacity: 0, elapsed: 0, inflating: false });
       }
+      // Member capacities belong to the previous card's members — always reset on switch
+      sessionState.memberCapacities = {};
+      broadcast('member_capacity_update', { memberCapacities: {} });
     }
 
     if (charChanged || personaChanged) {
@@ -18529,6 +18574,7 @@ app.post('/api/session/reset', async (req, res) => {
   for (const k of Object.keys(forceOffAttempts)) delete forceOffAttempts[k];
   stopCharacterInflation(); // Stop any active character inflation
   sessionState.characterCapacity = 0;
+  sessionState.memberCapacities = {};
   sessionState.characterInflationBaseCapacity = 0;
   // Reset checkpoint-injection + instructor pre-req state
   sessionState.checkpointInjectionCounts = {};

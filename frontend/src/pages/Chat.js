@@ -82,6 +82,89 @@ function PumpStatusItem({ deviceIp, status }) {
   );
 }
 
+// Group-member capacity gauge — click to open a single vertical slider (same interaction
+// as the persona gauge) and adjust that member's inflation individually.
+function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(0);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const toggleOpen = (e) => {
+    e.stopPropagation();
+    if (!open) setValue(Math.round(capacity || 0));
+    setOpen(!open);
+  };
+
+  const makeUpdater = (track, getClientY) => (ev) => {
+    const rect = track.getBoundingClientRect();
+    const pct = Math.round(Math.max(0, Math.min(100, ((rect.bottom - getClientY(ev)) / rect.height) * 100)));
+    setValue(pct);
+    onChangeCapacity(pct);
+  };
+
+  return (
+    <span
+      ref={ref}
+      className="multichar-member-gauge"
+      title={`${name}'s capacity: ${Math.round(capacity || 0)}% — click to adjust`}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 2, cursor: 'pointer' }}
+      role="button" tabIndex={0}
+      onClick={toggleOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(e); } }}
+    >
+      <span style={{ position: 'relative', display: 'inline-block', width: 28, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
+        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(capacity || 0, 100)}%`, background: '#e05a7a' }} />
+      </span>
+      <span style={{ fontSize: 10 }}>{Math.round(capacity || 0)}%</span>
+      {open && (
+        <span className="char-cap-slider-popup member-cap-slider-popup" onClick={(e) => e.stopPropagation()}>
+          <span className="capacity-slider-label">{value}%</span>
+          <div
+            className="capacity-slider-track char-cap-track"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              const update = makeUpdater(e.currentTarget, (ev) => ev.clientY);
+              update(e);
+              const onMove = (ev) => update(ev);
+              const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+              };
+              document.addEventListener('mousemove', onMove);
+              document.addEventListener('mouseup', onUp);
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              const update = makeUpdater(e.currentTarget, (ev) => ev.touches[0].clientY);
+              update(e);
+              const onMove = (ev) => { ev.preventDefault(); update(ev); };
+              const onEnd = () => {
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+              };
+              document.addEventListener('touchmove', onMove, { passive: false });
+              document.addEventListener('touchend', onEnd);
+            }}
+          >
+            <div className="capacity-slider-fill" style={{ height: `${value}%` }} />
+            <div className="capacity-slider-thumb" style={{ bottom: `${value}%` }} />
+          </div>
+          <span className="capacity-slider-min">0</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function Chat() {
   const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
@@ -2260,20 +2343,35 @@ function Chat() {
           {/* Bottom band mirroring the E-STOP band above the textbox — overlays the running pump
               timer text (visible on desktop AND mobile). Empty (just padding) when no pump runs. */}
           <div className="input-pump-timer-row">
-            {Object.entries(pumpStatus || {}).map(([ip, status]) => (
-              <PumpStatusItem key={ip} deviceIp={ip} status={status} />
-            ))}
-            {/* "Next" (>>) gate: greyed until a trigger sequence pauses between consecutive generated
-                messages, then flashes bright — click to release the next message. */}
-            <button
-              type="button"
-              className={`next-gate-btn ${sessionState.nextGateActive ? 'active' : ''}`}
-              onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
-              disabled={!sessionState.nextGateActive}
-              title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
-            >
-              »
-            </button>
+            {/* Pump timer(s) — left side, counts down for timed pumps */}
+            <div className="pump-timer-left">
+              {Object.entries(pumpStatus || {}).map(([ip, status]) => (
+                <PumpStatusItem key={ip} deviceIp={ip} status={status} />
+              ))}
+            </div>
+            <div className="pump-timer-right">
+              {/* "Next" (>>) gate: greyed until a trigger sequence pauses between consecutive generated
+                  messages, then flashes bright — click to release the next message. */}
+              <button
+                type="button"
+                className={`next-gate-btn ${sessionState.nextGateActive ? 'active' : ''}`}
+                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+                disabled={!sessionState.nextGateActive}
+                title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+              >
+                »
+              </button>
+              {/* Secondary Auto-Reply toggle — flips the live session auto-reply (same switch the
+                  card setting seeds on load) without opening the character editor. */}
+              <button
+                type="button"
+                className={`auto-reply-toggle ${sessionState.autoReply ? 'on' : 'off'}`}
+                onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
+                title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — the AI only replies via Guided Response/triggers. Click to turn on.'}
+              >
+                Auto-Reply {sessionState.autoReply ? 'ON' : 'OFF'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -2299,8 +2397,13 @@ function Chat() {
           {/* Multichar speak/mute overlay — stacked member names; click the bubble to mute */}
           {activeCharacter?.multiChar?.enabled && (activeCharacter.multiChar.characters || []).length > 0 && (
             <div className="multichar-mute-overlay">
-              {activeCharacter.multiChar.characters.map(m => {
+              {activeCharacter.multiChar.characters.map((m, memberIdx) => {
                 const muted = (sessionState.mutedMembers || []).includes(m.id);
+                // Base member (0) rides the card-level characterCapacity; others get their own value.
+                const isBaseMember = memberIdx === 0;
+                const memberCap = isBaseMember
+                  ? (sessionState.characterCapacity || 0)
+                  : (sessionState.memberCapacities?.[m.id] || 0);
                 return (
                   <button
                     key={m.id}
@@ -2312,13 +2415,13 @@ function Chat() {
                     <span className="multichar-mute-name">{m.name || 'Character'}</span>
                     <span className="multichar-mute-bubble">{muted ? '🚫' : '💬'}</span>
                     {m.isPumpable && (
-                      <span className="multichar-member-gauge" title={`Inflation capacity: ${sessionState.characterCapacity || 0}%`}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 2 }}>
-                        <span style={{ position: 'relative', display: 'inline-block', width: 28, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.25)', overflow: 'hidden' }}>
-                          <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(sessionState.characterCapacity || 0, 100)}%`, background: '#e05a7a' }} />
-                        </span>
-                        <span style={{ fontSize: 10 }}>{sessionState.characterCapacity || 0}%</span>
-                      </span>
+                      <MemberCapacityGauge
+                        name={m.name || 'Character'}
+                        capacity={memberCap}
+                        onChangeCapacity={(pct) => isBaseMember
+                          ? sendWsMessage('update_character_capacity', { characterCapacity: pct })
+                          : sendWsMessage('update_member_capacity', { memberId: m.id, capacity: pct })}
+                      />
                     )}
                     {m.isPumpable && (
                       <span role="button" tabIndex={0}
@@ -2479,7 +2582,7 @@ function Chat() {
                   const profileName = activeProfile?.name || (settings?.llm?.endpointStandard === 'openrouter' ? 'OpenRouter' : 'Connected');
                   return <li>LLM: {detectedModel || profileName}</li>;
                 })()}
-                {!activeCharacter?.autoReplyEnabled && <li>Auto-Reply Off</li>}
+                {!sessionState.autoReply && <li>Auto-Reply Off</li>}
                 {(() => {
                   const charFlows = sessionState?.flowAssignments?.characters?.[activeCharacter?.id]?.length || 0;
                   const personaFlows = sessionState?.flowAssignments?.personas?.[activePersona?.id]?.length || 0;

@@ -482,7 +482,12 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
     try {
       let result;
       if (cmd.action === 'on') {
-        result = await deviceService.turnOn(deviceId, device);
+        // Latched pumps run open-ended (count-up timer); everything else auto-offs, so tell
+        // the frontend the duration up front and its pump timer counts DOWN.
+        const willLatch = characterLimits?.latchPumpUntilOff === true && cmd.device === 'pump';
+        const autoOffSeconds = Math.min(maxSeconds, MAX_ON_SECONDS);
+        result = await deviceService.turnOn(deviceId, device,
+          willLatch ? null : { untilType: 'timer', untilValue: autoOffSeconds });
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {
@@ -566,7 +571,7 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
           MAX_ON_SECONDS
         );
 
-        result = await deviceService.turnOn(deviceId, device);
+        result = await deviceService.turnOn(deviceId, device, { untilType: 'timer', untilValue: duration });
         log.info(`AI TIMED ${device.label || device.name || cmd.device} for ${duration}s`);
 
         // Clear any existing timer for this device

@@ -329,13 +329,30 @@ export function AppProvider({ children }) {
         break;
 
       case 'auto_capacity_update':
-        setSessionState(prev => ({
-          ...prev,
-          capacity: data.capacity,
-          pain: data.pain,
-          isOverInflating: data.isOverInflating,
-          preInflationGateMet: data.preInflationGateMet ?? prev.preInflationGateMet
-        }));
+        // Overloaded message: capacity ticks carry {capacity, pain, ...}; the Auto-Track
+        // toggle carries {useAutoCapacity}. Discriminate — a toggle payload has no capacity,
+        // and a tick payload must not clobber the toggle state (or wipe capacity to undefined).
+        if (data.useAutoCapacity !== undefined) {
+          setSettings(prev => ({
+            ...prev,
+            globalCharacterControls: {
+              ...prev?.globalCharacterControls,
+              useAutoCapacity: data.useAutoCapacity
+            }
+          }));
+        } else {
+          setSessionState(prev => ({
+            ...prev,
+            capacity: data.capacity ?? prev.capacity,
+            pain: data.pain ?? prev.pain,
+            isOverInflating: data.isOverInflating ?? prev.isOverInflating,
+            preInflationGateMet: data.preInflationGateMet ?? prev.preInflationGateMet
+          }));
+        }
+        break;
+
+      case 'member_capacity_update':
+        setSessionState(prev => ({ ...prev, memberCapacities: data.memberCapacities || {} }));
         break;
 
       case 'character_capacity_update':
@@ -373,16 +390,6 @@ export function AppProvider({ children }) {
           globalCharacterControls: {
             ...prev?.globalCharacterControls,
             autoCapacityMultiplier: data.capacityModifier
-          }
-        }));
-        break;
-
-      case 'auto_capacity_update':
-        setSettings(prev => ({
-          ...prev,
-          globalCharacterControls: {
-            ...prev?.globalCharacterControls,
-            useAutoCapacity: data.useAutoCapacity
           }
         }));
         break;
