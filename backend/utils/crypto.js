@@ -314,6 +314,18 @@ function maskSettingsForResponse(settings) {
 
   const masked = { ...settings };
 
+  // The generation path keeps a plaintext working copy of the API keys inside settings.llm. The mask
+  // was shallow, so those nested keys leaked to every client. Deep-copy settings.llm and blank them.
+  if (masked.llm && typeof masked.llm === 'object') {
+    masked.llm = { ...masked.llm };
+    for (const k of ['openRouterApiKey', 'hordeApiKey', 'apiKey']) {
+      if (masked.llm[k]) {
+        masked.llm[`has${k.charAt(0).toUpperCase()}${k.slice(1)}`] = hasApiKey(masked.llm[k]);
+        masked.llm[k] = '';
+      }
+    }
+  }
+
   // Replace keys with masked versions and add hasKey indicators
   if (masked.openRouterApiKey) {
     masked.openRouterApiKeyMasked = maskApiKey(masked.openRouterApiKey);

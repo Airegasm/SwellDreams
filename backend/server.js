@@ -7091,23 +7091,30 @@ async function detectLlmModel() {
   const settings = loadData(DATA_FILES.settings);
   if (!settings?.llm?.llmUrl) return;
 
+  // testConnection can take seconds (a real short generation). RE-LOAD settings AFTER the await and
+  // write only the detectedModelName field, so a concurrent profile-switch / settings save during the
+  // probe isn't clobbered by this stale snapshot.
+  const applyDetectedModel = (modelName) => {
+    const fresh = loadData(DATA_FILES.settings);
+    if (!fresh?.llm) return;
+    fresh.llm.detectedModelName = modelName;
+    saveData(DATA_FILES.settings, fresh);
+    broadcast('settings_update', maskSettingsForResponse(fresh));
+  };
+
   try {
     const result = await llmService.testConnection(settings.llm);
     if (result.success && result.modelName) {
       if (result.modelName !== lastDetectedModel) {
         lastDetectedModel = result.modelName;
-        settings.llm.detectedModelName = result.modelName;
-        saveData(DATA_FILES.settings, settings);
-        broadcast('settings_update', maskSettingsForResponse(settings));
+        applyDetectedModel(result.modelName);
         log.info(`[LLM] Detected model: ${result.modelName}`);
       }
     }
   } catch (e) {
     if (lastDetectedModel !== null) {
       lastDetectedModel = null;
-      settings.llm.detectedModelName = null;
-      saveData(DATA_FILES.settings, settings);
-      broadcast('settings_update', maskSettingsForResponse(settings));
+      applyDetectedModel(null);
       log.info('[LLM] Model detection cleared (server unreachable)');
     }
   }
@@ -13875,7 +13882,13 @@ function activateAssignedFlows() {
 
 app.post('/api/settings/llm', (req, res) => {
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
-  settings.llm = { ...settings.llm, ...req.body };
+  // The client receives masked (blank) API keys, so it sends '' when a key field is untouched.
+  // Dropping empty key fields prevents a save from wiping the stored key.
+  const incoming = { ...req.body };
+  for (const k of ['openRouterApiKey', 'hordeApiKey', 'apiKey']) {
+    if (incoming[k] === '' || incoming[k] == null) delete incoming[k];
+  }
+  settings.llm = { ...settings.llm, ...incoming };
 
   // Encrypt OpenRouter API key if provided
   if (req.body.openRouterApiKey && req.body.openRouterApiKey !== '') {
@@ -13889,7 +13902,7 @@ app.post('/api/settings/llm', (req, res) => {
 
   saveData(DATA_FILES.settings, settings);
   broadcast('settings_update', maskSettingsForResponse(settings));
-  res.json(settings.llm);
+  res.json(maskSettingsForResponse(settings).llm); // never echo the plaintext key back
 });
 
 // --- LLM ---
@@ -15176,6 +15189,10 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
   const settings = loadData(DATA_FILES.settings) || {};
   const { id, name, createdAt, updatedAt, openRouterApiKey, ...llmSettings } = decryptedProfile;
   settings.llm = { ...settings.llm, ...llmSettings, activeProfileId: profile.id };
+  // Generation reads settings.llm.openRouterApiKey (the plaintext working copy) — keep it in sync with
+  // the activated profile, mirroring hordeApiKey. Without this, activating an OpenRouter profile left
+  // a stale/empty key and generation failed.
+  settings.llm.openRouterApiKey = openRouterApiKey || '';
 
   // Re-encrypt the API key for storage
   if (openRouterApiKey) {
