@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.5] - 2026-07-02
+
+### Changed
+- **Pump limits are now global only.** Per-character/per-story pump limits (Max ON, cycle, pulse, timed, latch) are removed — `getCharacterLimits` now resolves entirely from the PRIMARY automatic pump's limits (Settings → Devices → pump → "Limits"), falling back to factory defaults (Max ON 30s). This restores an adjustable Max ON duration (the per-character field was no longer exposed in the unified-card UI) and gives every card one consistent source of truth.
+
 ## [v6.6.4] - 2026-07-01
 
 ### Fixed

@@ -5427,37 +5427,24 @@ function stopPumpSafetyWatchdog() {
 // Get per-character device control limits from active story
 // Always returns hard defaults — these are safety ceilings, not optional
 function getCharacterLimits(character) {
-  const base = (!character?.stories?.length)
-    ? { llmMaxOnDuration: 5, llmMaxCycleOnDuration: 2, llmMaxCycleRepetitions: 2, llmMaxPulseRepetitions: 5, llmMaxTimedDuration: 10, latchPumpUntilOff: false }
-    : (() => {
-        const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
-        return {
-          llmMaxOnDuration: activeStory.llmMaxOnDuration ?? 5,
-          llmMaxCycleOnDuration: activeStory.llmMaxCycleOnDuration ?? 2,
-          llmMaxCycleRepetitions: activeStory.llmMaxCycleRepetitions ?? 2,
-          llmMaxPulseRepetitions: activeStory.llmMaxPulseRepetitions ?? 5,
-          llmMaxTimedDuration: activeStory.llmMaxTimedDuration ?? 10,
-          // When true, a model [pump on] latches the pump on until [pump off] — overriding time-based
-          // auto-off and the per-reply/per-char time limits. Capacity/pop ceiling still enforced.
-          latchPumpUntilOff: activeStory.latchPumpUntilOff === true
-        };
-      })();
-
-  // #30: the PRIMARY automatic pump's limits are the upper CEILING — clamp each per-story numeric
-  // to min(story, pump). Only fields the pump actually sets (finite, >0) clamp anything, so an
-  // unset/partial pump limits object never zeroes a working limit.
-  const pumpLimits = getPrimaryPumpLimits();
-  if (pumpLimits) {
-    for (const field of PUMP_LIMIT_FIELDS) {
-      const cap = Number(pumpLimits[field]);
-      if (Number.isFinite(cap) && cap > 0) base[field] = Math.min(base[field], cap);
-    }
-    // Latch is an ACTIVE pump override, NOT a silent veto: if the primary pump latches, latch
-    // (its "Latch Until Off" greys the numerics). If it does NOT latch, defer to the per-story
-    // setting — setting numeric pump limits must never disable a card's existing latch.
-    if (pumpLimits.latchPumpUntilOff === true) base.latchPumpUntilOff = true;
-  }
-  return base;
+  // Per-character / per-story pump limits were removed. The PRIMARY automatic pump's own limits
+  // (Settings → Devices → pump → "Limits") are the SINGLE global source of truth for every card.
+  // Any field the pump doesn't set falls back to the factory default. `character` is unused (kept
+  // for call-site compatibility).
+  const pumpLimits = getPrimaryPumpLimits() || {};
+  const pick = (field) => {
+    const v = Number(pumpLimits[field]);
+    return (Number.isFinite(v) && v > 0) ? v : FACTORY_PUMP_LIMITS[field];
+  };
+  return {
+    llmMaxOnDuration: pick('llmMaxOnDuration'),
+    llmMaxCycleOnDuration: pick('llmMaxCycleOnDuration'),
+    llmMaxCycleRepetitions: pick('llmMaxCycleRepetitions'),
+    llmMaxPulseRepetitions: pick('llmMaxPulseRepetitions'),
+    llmMaxTimedDuration: pick('llmMaxTimedDuration'),
+    // When true, a model [pump on] latches on until [pump off] — overriding time-based auto-off.
+    latchPumpUntilOff: pumpLimits.latchPumpUntilOff === true,
+  };
 }
 
 /**
