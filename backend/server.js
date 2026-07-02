@@ -9789,11 +9789,19 @@ async function generateAIResponseAfterBlocking() {
     const context = buildChatContext(activeCharacter, settings);
     console.log('[Media] Generating AI response after blocking ended...');
 
-    const useStreaming = settings?.llm?.streamResponse !== false;
+    // Match the normal reply path: correct streaming key, real result.text (not the {text} object),
+    // stop sequences, cross-role strip, instructor strip, and device-tag execution.
+    const useStreaming = settings?.llm?.streaming === true;
+    const llmSettings = {
+      ...settings.llm,
+      ...charTokenOverride(activeCharacter),
+      stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
+    };
     let finalText = '';
+    let streamMsgId = null;
 
     if (useStreaming) {
-      const streamMsgId = uuidv4();
+      streamMsgId = uuidv4();
       const aiMessage = {
         id: streamMsgId,
         content: '',
@@ -9806,49 +9814,62 @@ async function generateAIResponseAfterBlocking() {
       sessionState.chatHistory.push(aiMessage);
       broadcast('chat_message', aiMessage);
 
-      const llmSettings = {
-        ...settings.llm,
-        ...charTokenOverride(activeCharacter),
-        stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
-      };
-
-      finalText = await llmService.generateStream({
+      const result = await llmService.generateStream({
         prompt: context.prompt,
         messages: context.messages,
         systemPrompt: context.systemPrompt,
         settings: llmSettings,
-        onChunk: (chunk) => {
-          const streamMsg = sessionState.chatHistory.find(m => m.id === streamMsgId);
-          if (streamMsg) {
-            streamMsg.content += chunk;
-            broadcast('chat_chunk', { id: streamMsgId, chunk, content: streamMsg.content });
-          }
+        onToken: (token, fullText) => {
+          const sm = sessionState.chatHistory.find(m => m.id === streamMsgId);
+          if (sm) { sm.content = fullText; broadcast('stream_token', { messageId: streamMsgId, token, fullText }); }
         }
       });
-
-      const streamMsg = sessionState.chatHistory.find(m => m.id === streamMsgId);
-      if (streamMsg) {
-        streamMsg.content = stripCrossRoleContent(finalText, context.stopSequences, true);
-        streamMsg.content = substituteAllVariables(streamMsg.content);
-        streamMsg.streaming = false;
-        broadcast('chat_complete', { id: streamMsgId, content: streamMsg.content });
-      }
+      finalText = result.text;
     } else {
-      const llmSettings = {
-        ...settings.llm,
-        ...charTokenOverride(activeCharacter),
-        stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
-      };
-
       const result = await llmService.generate({
         prompt: context.prompt,
         messages: context.messages,
         systemPrompt: context.systemPrompt,
         settings: llmSettings
       });
-      finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
-      finalText = substituteAllVariables(finalText);
+      finalText = result.text;
+    }
 
+    // Abort guard — do not activate devices from a now-stale response.
+    if (eventEngine.aborted) {
+      broadcast('generating_stop', {});
+      return;
+    }
+
+    // Post-process exactly like the normal reply path.
+    finalText = stripCrossRoleContent(finalText, context.stopSequences, true);
+    finalText = substituteAllVariables(finalText);
+    if (isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
+
+    const devices = loadData(DATA_FILES.devices) || [];
+    const reinforceResult = aiDeviceControl.reinforcePumpControl(finalText, devices, sessionState, settings, getCharacterLimits(activeCharacter));
+    if (reinforceResult.reinforced) finalText = reinforceResult.text;
+    const aiControlResult = await aiDeviceControl.processLlmOutput(finalText, devices, deviceService, {
+      settings,
+      sessionState,
+      broadcast,
+      characterLimits: getCharacterLimits(activeCharacter),
+      injectContext: (text) => {
+        const lastAiMsg = sessionState.chatHistory.filter(m => m.sender === 'character').pop();
+        if (lastAiMsg) lastAiMsg.content += ` ${text}`;
+      }
+    });
+    if (aiControlResult.commands.length > 0) {
+      finalText = aiControlResult.text;
+      aiControlResult.results.forEach(r => {
+        if (r.success) broadcast('ai_device_control', { device: r.command.device, action: r.command.action, deviceName: r.device?.label || r.device?.name || r.command.device });
+      });
+    }
+
+    if (useStreaming) {
+      const sm = sessionState.chatHistory.find(m => m.id === streamMsgId);
+      if (sm) { sm.content = finalText; sm.streaming = false; broadcast('stream_complete', { messageId: streamMsgId, content: finalText }); }
+    } else {
       const aiMessage = {
         id: uuidv4(),
         content: finalText,
