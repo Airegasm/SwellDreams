@@ -1274,6 +1274,23 @@ async function timedPumpOn(id, device, durationSeconds) {
   serverTimedPumpTimers.set(id, timer);
 }
 
+// Effective max pump-ON seconds for automated/checkpoint/trigger pump firing. The PRIMARY pump's
+// own limit (per-device, via getCharacterLimits) takes priority, then it is capped by the global
+// LLM device-control max. Mirrors the clamp the LLM [pump on] path already applies.
+function effectiveMaxOnSeconds(settings) {
+  const s = settings || loadData(DATA_FILES.settings) || {};
+  const globalMax = Number(s.globalCharacterControls?.llmDeviceControlMaxSeconds) || 30;
+  const deviceMax = Number(getCharacterLimits(null)?.llmMaxOnDuration) || 5;
+  return Math.max(1, Math.min(deviceMax, globalMax));
+}
+
+// A pump must NOT start when capacity is at/above 100% and over-inflation is not allowed.
+function pumpBlockedByCapacity(settings) {
+  const s = settings || loadData(DATA_FILES.settings) || {};
+  if (s.globalCharacterControls?.allowOverInflation) return false;
+  return (sessionState.capacity || 0) >= 100;
+}
+
 // Latched-pump re-assertion (per-char latchPumpUntilOff). When sessionState.playerIsInflating is
 // set, keep the primary pump ON every reply turn — tagged or not — until [pump off]. Deliberately
 // schedules NO auto-off timer and clears any stray one, so the latch overrides time-based limits.
@@ -1294,11 +1311,17 @@ async function reassertLatchedPump() {
 // Fire the primary pump for a checkpoint-injection action ({mode:'timed'|'cycle', duration, cycles}).
 async function firePrimaryPump(action) {
   if (!action) return;
+  // Never fire past the capacity ceiling unless over-inflation is enabled (matches the other paths).
+  if (pumpBlockedByCapacity()) {
+    console.log('[FirePump] Blocked — capacity at ceiling and over-inflation not allowed');
+    return;
+  }
   const devices = loadData(DATA_FILES.devices) || [];
   const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
   if (!pump) return;
   const id = resolveControlId(pump);
-  const dur = Number(action.duration) || 5;
+  // Clamp the on-time to the effective limit (per-device first, then global).
+  const dur = Math.min(Number(action.duration) || 5, effectiveMaxOnSeconds());
   if (action.mode === 'cycle') {
     const cycles = Number(action.cycles) || 3;
     await deviceService.startCycle(id, { duration: dur, interval: dur, cycles }, pump);
@@ -1338,7 +1361,9 @@ async function executeAutoPumpPacing(character, isFlowChain) {
   if (serverTimedPumpTimers.has(id)) return;
 
   const maxSecs = parseInt(cp?.maxPumpOnSecs);
-  const dur = (maxSecs > 0) ? maxSecs : 5;
+  // Clamp the range-authored on-time to the primary pump's limit, then the global cap (v6.6.5 made
+  // the primary pump the single source of truth). Previously ran unclamped except MAX_ON_SECONDS.
+  const dur = Math.min((maxSecs > 0) ? maxSecs : 5, effectiveMaxOnSeconds(settings));
   await timedPumpOn(id, pump, dur);
   sessionState.messagesSincePumpOn = 0;
   broadcast('ai_device_control', { device: 'pump', action: 'timed', deviceName: pump.label || pump.name || 'Pump' });
@@ -3751,6 +3776,11 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
 
       case 'pump_on': {
+        // Manual latch-style on (ended by pump_off). Still honor the capacity ceiling.
+        if (pumpBlockedByCapacity()) {
+          console.log('[Trigger/pump_on] Blocked — capacity at ceiling and over-inflation not allowed');
+          break;
+        }
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
@@ -3900,19 +3930,24 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'set_pump_mode': {
+        // Never fire past the capacity ceiling unless over-inflation is enabled.
+        if (pumpBlockedByCapacity()) {
+          console.log('[Trigger/set_pump_mode] Blocked — capacity at ceiling and over-inflation not allowed');
+          break;
+        }
         const devices = loadData(DATA_FILES.devices) || [];
         const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
         if (pump) {
           const id = resolveControlId(pump);
-          const dur = trigger.duration || 5;
-          if (trigger.mode === 'on') await deviceService.turnOn(id, pump);
+          const maxOn = effectiveMaxOnSeconds();
+          const dur = Math.min(trigger.duration || 5, maxOn);
+          // 'on' previously turned the pump on with NO auto-off and no clamp (unbounded run while the
+          // safety watchdog is disabled). Route it through the tracked timed mechanism so it always
+          // auto-offs at the effective limit (per-device first, then global) and emergency stop clears it.
+          if (trigger.mode === 'on') await timedPumpOn(id, pump, maxOn);
           else if (trigger.mode === 'pulse') await deviceService.pulsePump(id, dur, pump);
           else if (trigger.mode === 'cycle') await deviceService.startCycle(id, { duration: dur, interval: dur, cycles: 3 }, pump);
-          else if (trigger.mode === 'timed') {
-            // Route through the tracked timed mechanism so emergency stop clears it,
-            // and clamp the on-time to the MAX_ON_SECONDS safety ceiling.
-            await timedPumpOn(id, pump, dur);
-          }
+          else if (trigger.mode === 'timed') await timedPumpOn(id, pump, dur);
           broadcast('ai_device_control', { device: 'pump', action: trigger.mode, deviceName: pump.label || pump.name || 'Pump' });
         }
         break;
