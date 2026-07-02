@@ -450,27 +450,29 @@ function buildChatCompletionRequest(messages, settings) {
   const body = {
     model: settings.model || 'default',
     messages: messages,
-    max_tokens: clampMaxTokens(settings.maxTokens),
-    temperature: settings.temperature,
-    top_p: settings.topP,
-    frequency_penalty: settings.frequencyPenalty,
-    presence_penalty: settings.presencePenalty
+    max_tokens: clampMaxTokens(settings.maxTokens)
   };
 
-  // Some OpenAI-compatible APIs support additional params
-  if (settings.topK > 0) {
-    body.top_k = settings.topK;
+  // Samplers: honor overrideSamplers just like the text-completion / llama.cpp builders. When it's
+  // explicitly false the caller wants the server's launched profile to govern, so send no samplers.
+  const sendSamplers = settings.overrideSamplers !== false;
+  if (sendSamplers) {
+    body.temperature = settings.temperature;
+    body.top_p = settings.topP;
+    body.frequency_penalty = settings.frequencyPenalty;
+    body.presence_penalty = settings.presencePenalty;
+    if (settings.topK > 0) body.top_k = settings.topK;
   }
 
-  // Stop sequences (OpenAI uses 'stop' parameter)
+  // Stop sequences (OpenAI uses 'stop' parameter) — always sent, they are role guards, not samplers.
   if (settings.stopSequences && settings.stopSequences.length > 0) {
     // OpenAI allows up to 4 stop sequences — prioritize injected cross-role
     // guards over the static defaults before truncating.
     body.stop = capStopSequences(settings.stopSequences, 4);
   }
 
-  // Neutralize samplers if requested
-  if (settings.neutralizeSamplers) {
+  // Neutralize samplers if requested (only meaningful when we are sending samplers at all)
+  if (settings.neutralizeSamplers && sendSamplers) {
     body.temperature = 1;
     body.top_p = 1;
     body.frequency_penalty = 0;

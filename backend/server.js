@@ -3217,6 +3217,9 @@ function migrateCharacterStories() {
       llmMaxTimedDuration: existingStory.llmMaxTimedDuration ?? 10
     }];
     character.activeStoryId = character.stories[0].id;
+    // Drop the now-migrated top-level example dialogues so they can't shadow story-level edits made
+    // later in the unified editor (buildChatContext prefers top-level when present).
+    delete character.exampleDialogues;
 
     migrated = true;
     migratedCharacters.push(character);
@@ -4666,6 +4669,8 @@ function applyTokenRemovals(text, settings) {
   if (!text) return text;
   const rules = settings?.tokenRemovals;
   if (!rules || !Array.isArray(rules) || rules.length === 0) return text;
+  // Honor the instructor "Ignore token swapping" opt-out for removals too (it already covers switching).
+  if (activeCharIgnoresTokenSwap(settings)) return text;
 
   // Build a combined list of all enabled triggers
   const allTriggers = [];
@@ -9014,6 +9019,7 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   const indTokens = clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150);
   const devices = loadData(DATA_FILES.devices) || [];
   const charLimits = getCharacterLimits(activeCharacter);
+  let lastReplyContent = '';
 
   for (const memberId of orderedIds) {
     if (eventEngine.aborted) break;
@@ -9083,8 +9089,17 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     broadcast('chat_message', aiMessage);
     autosaveSession();
     await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
+    lastReplyContent = finalText;
   }
   sessionState.soloSpeaker = null; // release the solo constraint so the next turn isn't stuck on one member
+
+  // Parity with the blended path: fire ai_speaks trigger TREES and resolve Char/Either Await-Input
+  // gates once after the round (individual mode previously fired neither, so ai_speaks-bound trees and
+  // checkpoint keyword gates never triggered for group cards in Individual Responses mode).
+  if (lastReplyContent) {
+    runEventTrees('ai_speaks', { content: lastReplyContent });
+    await tryResolveAwaitInput(lastReplyContent, 'char').catch(e => console.error('[Individual] awaitInput(char) failed:', e?.message || e));
+  }
 }
 
 async function handleChatMessage(data) {
@@ -10086,7 +10101,8 @@ async function handleSpecialGenerate(data) {
         }
       });
 
-      finalText = result.text;
+      finalText = stripCrossRoleContent(result.text, context.stopSequences, !isPlayerVoice);
+      if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
       message.content = substituteAllVariables(finalText);
 
       // Process AI device commands (e.g., [pump on], [vibe off])
@@ -10198,7 +10214,9 @@ async function handleSpecialGenerate(data) {
       return;
     }
 
-    // Apply variable substitution
+    // Strip cross-role bleed and (for instructor cards) roleplay prose, then substitute.
+    finalText = stripCrossRoleContent(finalText, context.stopSequences, !isPlayerVoice);
+    if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
     finalText = substituteAllVariables(finalText);
 
     // Process AI device commands (e.g., [pump on], [vibe off])
@@ -13177,14 +13195,20 @@ function buildChatContext(character, settings) {
     playerName: playerLabel,
     characterName: effectiveCharName,
     isPlayerVoice: false,
-    authorNote: (character?.authorsNote ?? settings?.globalPrompt),
+    // Instructors hide the Author's Note field (it's swapped for the instructor prompt), so don't
+    // inject the global RP-flavored default into their terse, on-mission context.
+    authorNote: isInstructor(character) ? '' : (character?.authorsNote ?? settings?.globalPrompt),
     authorNoteDepth: settings?.llm?.authorNoteDepth ?? 4,
   });
   prompt += history.flat;
 
+  // Instructors get no RP-flavored physical-state preface (they already have a terse capacity line).
+  const statePreface = isInstructor(character) ? '' : buildStatePreface(playerLabel, character.name, character);
+
   if (character.multiChar?.enabled) {
-    // Analyze recent speaker frequency to encourage diversity
-    const chars = character.multiChar.characters;
+    // Analyze recent speaker frequency to encourage diversity (skip in solo mode — the quiet-member
+    // hint contradicts the "write ONLY as X" constraint the solo prompt already imposes).
+    const chars = sessionState.soloSpeaker ? null : character.multiChar.characters;
     if (chars?.length > 1 && recentMessages.length >= 3) {
       const charMessages = recentMessages.filter(m => m.sender === 'character');
       const last6 = charMessages.slice(-6);
@@ -13203,10 +13227,10 @@ function buildChatContext(character, settings) {
         prompt += `\n[Hint: ${quietest.join(' and ')} ${quietest.length === 1 ? 'hasn\'t' : 'haven\'t'} had much to say recently — consider featuring ${quietest.length === 1 ? 'them' : 'one of them'} this turn.]\n`;
       }
     }
-    prompt += buildStatePreface(playerLabel, character.name, character);
+    prompt += statePreface;
     prompt += `[Characters]:`;
   } else {
-    prompt += buildStatePreface(playerLabel, character.name, character);
+    prompt += statePreface;
     prompt += `${character.name}:`;
   }
 
@@ -13243,7 +13267,7 @@ function buildChatContext(character, settings) {
   // Conversation turns + author note at depth (from the shared helper).
   messages.push(...history.messages);
   // Final state preface as a system-style instruction at depth 0 (right before generation).
-  messages.push({ role: 'user', content: buildStatePreface(playerLabel, character.name, character).trim() });
+  if (statePreface) messages.push({ role: 'user', content: statePreface.trim() });
 
   return { systemPrompt, prompt, stopSequences, messages, playerName: playerLabel, characterName: character.name };
 }
