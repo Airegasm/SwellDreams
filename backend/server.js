@@ -8226,23 +8226,25 @@ async function handleSwipeMessage(data) {
 
   const useStreaming = settings.llm?.streaming === true;
 
+  // Snapshot the FULL transcript up front and guarantee it is restored on EVERY exit path
+  // (success, abort, verbatim, or error). Previously only the success path restored it, so an
+  // abort/verbatim/throw left chatHistory permanently truncated to before the swiped message.
+  const originalContent = msg.content;
+  if (!msg.swipeHistory) {
+    msg.swipeHistory = [originalContent];
+    msg.activeSwipeIndex = 0;
+  }
+  const fullHistory = [...sessionState.chatHistory];
+  let historyRestored = false;
+  const restoreHistory = () => { if (!historyRestored) { sessionState.chatHistory = fullHistory; historyRestored = true; } };
+
   try {
-    // Store original content
-    const originalContent = msg.content;
-
-    // Initialize swipe history if first swipe
-    if (!msg.swipeHistory) {
-      msg.swipeHistory = [originalContent];
-      msg.activeSwipeIndex = 0;
-    }
-
     // Notify UI that AI is generating
     const isPlayerVoice = msg.sender === 'player';
     const generatingFor = isPlayerVoice ? (activePersona?.displayName || 'Player') : activeCharacter.name;
     broadcast('generating_start', { characterName: generatingFor, isPlayerVoice });
 
-    // For streaming, set message to empty and mark as streaming
-    // For non-streaming, set to "..." placeholder
+    // Placeholder while generating
     if (useStreaming) {
       sessionState.chatHistory[msgIndex].content = '';
       sessionState.chatHistory[msgIndex].streaming = true;
@@ -8250,33 +8252,29 @@ async function handleSwipeMessage(data) {
       sessionState.chatHistory[msgIndex].content = '...';
     }
     broadcast('message_updated', sessionState.chatHistory[msgIndex]);
-
-    // Small delay to ensure UI updates before heavy LLM processing
     await new Promise(resolve => setTimeout(resolve, 50));
-
-    // Build context up to but not including this message
-    const priorHistory = sessionState.chatHistory.slice(0, msgIndex);
-    const fullHistory = [...sessionState.chatHistory];
-    sessionState.chatHistory = priorHistory;
 
     const isPlayerMsg = msg.sender === 'player';
     let systemPrompt, prompt, swipeMessages;
 
     if (isPlayerMsg) {
-      // For player messages, use impersonate with guidance if provided
+      // For player messages, use impersonate with guidance if provided.
       const mode = guidanceText ? 'guided_impersonate' : 'impersonate';
+      // Truncate to before this message for context building.
+      sessionState.chatHistory = fullHistory.slice(0, msgIndex);
       const impersonateContext = buildSpecialContext(mode, guidanceText, activeCharacter, activePersona, settings);
-
       systemPrompt = impersonateContext.systemPrompt;
       prompt = impersonateContext.prompt;
       swipeMessages = impersonateContext.messages;
     } else {
-      // For character messages — roll personality attributes
+      // For character messages, roll personality attributes on the FULL history first.
       const attrResult = rollAttributes(activeCharacter);
       sessionState.activeAttributes = attrResult.active;
       await runReplyScopes(activeCharacter);
       if (attrResult.rolls.length > 0) broadcast('attribute_rolls', { rolls: attrResult.rolls, source: 'swipe' });
-      if (await deliverPendingVerbatimReply()) return; // verbatim injection replaces this reply
+      if (await deliverPendingVerbatimReply()) { restoreHistory(); return; } // verbatim injection replaces this reply
+      // Truncate to before this message for context building.
+      sessionState.chatHistory = fullHistory.slice(0, msgIndex);
       const context = applyCharacterGuidance(
         buildChatContext(activeCharacter, settings),
         activeCharacter,
@@ -8311,21 +8309,22 @@ async function handleSwipeMessage(data) {
       resultText = result.text;
     }
 
+    // Restore the full transcript before any post-processing / device activation.
+    restoreHistory();
+
     // Abort guard: if an emergency stop fired while the LLM was generating, do NOT
     // activate any device from this (now-stale) response.
     if (eventEngine.aborted) {
-      console.log('[Swipe] Aborted after generation — skipping device activation');
+      console.log('[Swipe] Aborted after generation - skipping device activation');
+      sessionState.chatHistory[msgIndex].content = originalContent;
+      sessionState.chatHistory[msgIndex].streaming = false;
       broadcast('generating_stop', {});
+      broadcast('message_updated', sessionState.chatHistory[msgIndex]);
       return;
     }
 
-    // Process AI device commands (e.g., [pump on], [vibe off])
+    // Process AI device commands (e.g., [pump on], [vibe off]).
     const devices = loadData(DATA_FILES.devices) || [];
-
-    // Inject [pump on] if pumpOnEveryReply is enabled
-    // pumpOnEveryReply handled before generation
-
-    // Reinforce pump control: detect pump phrases and auto-append [pump on] if needed
     const reinforceResult = aiDeviceControl.reinforcePumpControl(resultText, devices, sessionState, settings, getCharacterLimits(activeCharacter));
     if (reinforceResult.reinforced) {
       console.log(`[Swipe] Pump control reinforced - detected phrase: "${reinforceResult.matchedPhrase}"`);
@@ -8338,14 +8337,13 @@ async function handleSwipeMessage(data) {
       broadcast,
       characterLimits: getCharacterLimits(activeCharacter),
       injectContext: (text) => {
-        // Append to this message so LLM thinks they said it
+        // Append to this message so LLM thinks they said it.
         resultText += ` ${text}`;
       }
     });
     if (aiControlResult.commands.length > 0) {
       console.log(`[Swipe] AIDeviceControl executed ${aiControlResult.commands.length} device command(s)`);
       resultText = aiControlResult.text;
-      // Broadcast AI device control event for toast notification
       aiControlResult.results.forEach(r => {
         if (r.success) {
           broadcast('ai_device_control', {
@@ -8357,8 +8355,7 @@ async function handleSwipeMessage(data) {
       });
     }
 
-    // Restore history and update the message (apply variable substitution)
-    sessionState.chatHistory = fullHistory;
+    // Update the swiped message (apply variable substitution).
     const finalContent = substituteAllVariables(resultText);
     sessionState.chatHistory[msgIndex].content = finalContent;
     sessionState.chatHistory[msgIndex].swipeHistory.push(finalContent);
@@ -8380,11 +8377,15 @@ async function handleSwipeMessage(data) {
   } catch (error) {
     console.error('[Swipe] Error:', error);
     sessionState.activeAttributes = null;
-    // Restore original content on error
-    sessionState.chatHistory[msgIndex].content = originalContent;
-    sessionState.chatHistory[msgIndex].streaming = false;
+    restoreHistory(); // never leave the transcript truncated
+    if (sessionState.chatHistory[msgIndex]) {
+      sessionState.chatHistory[msgIndex].content = originalContent;
+      sessionState.chatHistory[msgIndex].streaming = false;
+      broadcast('message_updated', sessionState.chatHistory[msgIndex]);
+    }
     broadcast('generating_stop', {});
-    broadcast('message_updated', sessionState.chatHistory[msgIndex]);
+  } finally {
+    restoreHistory(); // final safety net
   }
 }
 
@@ -12901,7 +12902,7 @@ function buildChatContext(character, settings) {
 
   // Always-on global dictionary, unless this instructor opts out (Use Card Library Only)
   if (!(isInstructor(character) && character.ignoreDictionary)) {
-    systemPrompt += buildDictionaryPrompt();
+    systemPrompt += buildDictionaryPrompt(character);
   }
 
   // Add player info if available. Instructors only need the player's NAME/pronouns —
@@ -18026,7 +18027,8 @@ app.get('/api/export/persona/:id', (req, res) => {
   };
 
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', `attachment; filename="${persona.name.replace(/[^a-z0-9]/gi, '_')}_persona.json"`);
+  const personaFileLabel = (persona.displayName || persona.name || 'persona').replace(/[^a-z0-9]/gi, '_');
+  res.setHeader('Content-Disposition', `attachment; filename="${personaFileLabel}_persona.json"`);
   res.json(exportData);
 });
 
