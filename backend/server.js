@@ -8237,9 +8237,15 @@ function handleEditMessage(data) {
   const { id, content } = data;
   const msgIndex = sessionState.chatHistory.findIndex(m => m.id === id);
   if (msgIndex !== -1) {
-    sessionState.chatHistory[msgIndex].content = content;
-    sessionState.chatHistory[msgIndex].edited = true;
-    broadcast('message_updated', sessionState.chatHistory[msgIndex]);
+    const m = sessionState.chatHistory[msgIndex];
+    m.content = content;
+    m.edited = true;
+    // Keep the active swipe in sync — otherwise paging swipes away and back restores the old text
+    // from swipeHistory and silently reverts the edit.
+    if (Array.isArray(m.swipeHistory) && typeof m.activeSwipeIndex === 'number' && m.swipeHistory[m.activeSwipeIndex] !== undefined) {
+      m.swipeHistory[m.activeSwipeIndex] = content;
+    }
+    broadcast('message_updated', m);
     autosaveSession();
   }
 }
@@ -9019,7 +9025,15 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     // chatHistory, so each girl after the first sees the earlier individual replies. soloSpeaker makes
     // buildMultiCharSystemPrompt itself constrain the cast to just this member (all others silent).
     sessionState.soloSpeaker = memberId;
-    const context = buildChatContext(activeCharacter, settings);
+    let context;
+    try {
+      context = buildChatContext(activeCharacter, settings);
+    } finally {
+      // Clear immediately after building the solo context — soloSpeaker must NOT stay set during
+      // generation, device processing, or ai_speaks (nested trigger/flow generations would inherit
+      // it and be wrongly constrained to one member), and a throw here must not leave it latched.
+      sessionState.soloSpeaker = null;
+    }
     const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
 
     // Stop generation if the model tries to start ANOTHER speaker's turn ("\nOther:") — keeps the
@@ -9365,7 +9379,6 @@ async function handleChatMessage(data) {
 
             // Broadcast deletion
             broadcast('message_deleted', { id: aiMessage.id });
-            broadcast('generating_end');
 
             // Retry generation (recursive call with retry tracking)
             if (!data._speakerRetryCount || data._speakerRetryCount < 3) {
@@ -9376,6 +9389,9 @@ async function handleChatMessage(data) {
               });
             } else {
               console.log('[Chat/Stream] Max speaker validation retries reached - giving up');
+              // 'generating_end' is not a real event (the UI only handles 'generating_stop'); without
+              // this the typing indicator stuck on forever after a give-up.
+              broadcast('generating_stop', {});
               broadcast('chat_validation_error', {
                 reason: 'AI repeatedly spoke as wrong character',
                 message: 'AI generation failed speaker validation after multiple attempts.'
