@@ -173,7 +173,7 @@
         "sadistic": 12,
         "sensual": 35,
         "sexual": 15,
-        "psychopathic": 70
+        "psychopathic": 50
       },
       "llmMaxOnDuration": 50,
       "llmMaxCycleOnDuration": 20,
