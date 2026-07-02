@@ -4514,12 +4514,11 @@ function substituteAllVariables(text, context = {}) {
 
   let result = text;
 
-  // Player name — support both [Player] and SillyTavern {{user}} macro
-  const playerName = context.playerName || sessionState.playerName;
-  if (playerName) {
-    result = result.replace(/\[Player\]/gi, playerName);
-    result = result.replace(/\{\{user\}\}/gi, playerName);
-  }
+  // Player name — support both [Player] and SillyTavern {{user}} macro. Fall back to a generic
+  // label so the raw tags never leak into displayed output when no persona is active.
+  const playerName = context.playerName || sessionState.playerName || 'the player';
+  result = result.replace(/\[Player\]/gi, playerName);
+  result = result.replace(/\{\{user\}\}/gi, playerName);
 
   // Gender pronouns - context-aware substitution based on PLAYER persona
   const settings = loadData(DATA_FILES.settings);
@@ -5651,17 +5650,17 @@ async function sendWelcomeMessage(character, settings) {
       } else if (character.multiChar?.enabled) {
         systemPrompt = buildMultiCharSystemPrompt(character, playerName, substituteVarsWelcome);
       } else {
-        systemPrompt = `You are ${character.name}. ${character.description}\n`;
+        systemPrompt = `You are ${character.name}. ${substituteVarsWelcome(character.description)}\n`;
         systemPrompt += `IMPORTANT WRITING STYLE: Use "I/my/me" in DIALOGUE, but use "${character.name}" (third person) for ACTIONS.\nExample: "I'll turn this up," ${character.name} says, reaching for the dial.\n\n`;
         systemPrompt += `CRITICAL ROLE RULE: You are ONLY ${character.name}. NEVER write dialogue or actions for ${playerName}. NEVER include "${playerName}:" in your response. Stop immediately if you're about to write as ${playerName}.\n\n`;
         if (character.personality) {
-          systemPrompt += `Personality: ${character.personality}\n\n`;
+          systemPrompt += `Personality: ${substituteVarsWelcome(character.personality)}\n\n`;
         }
       }
 
       const scenario = getActiveScenario(character);
       if (scenario) {
-        systemPrompt += `Scenario: ${scenario}\n\n`;
+        systemPrompt += `Scenario: ${substituteVarsWelcome(scenario)}\n\n`;
       }
 
       // Always-on global dictionary, unless this instructor opts out (Use Card Library Only)
@@ -10324,13 +10323,15 @@ async function handleImpersonateRequest(data) {
 function buildActionWrapperContext(character, persona, settings, isPlayerVoice) {
   const playerName = persona?.displayName || 'the player';
   const speakerName = isPlayerVoice ? playerName : character.name;
+  // Resolve {{user}}/{{char}}/[Player]/[Char] in card + persona prose (prompt text — no token rules).
+  const sub = (t) => substituteAllVariables(t || '', { playerName, characterName: character.name, isPromptText: true });
 
   // Minimal system prompt - just character identity and current state
   let systemPrompt = isPlayerVoice
     ? `You are writing as ${playerName}, a player character.\n`
-    : `You are ${character.name}. ${character.description}\n`;
+    : `You are ${character.name}. ${sub(character.description)}\n`;
 
-  systemPrompt += `\nPersonality: ${isPlayerVoice ? (persona?.personality || 'a willing participant') : character.personality}\n`;
+  systemPrompt += `\nPersonality: ${isPlayerVoice ? (sub(persona?.personality) || 'a willing participant') : sub(character.personality)}\n`;
 
   // Add current capacity state
   if (sessionState.capacity !== undefined) {
@@ -12515,9 +12516,9 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
   for (const c of chars) {
     const pron = genderPronoun(c.gender);
     const silent = muted.has(c.id) && speakable !== chars;
-    prompt += `- ${c.name}${pron ? ` (${pron})` : ''}${silent ? ' [PRESENT BUT SILENT THIS TURN]' : ''}: ${substituteVars(c.description)}\n`;
+    prompt += `- ${c.name}${pron ? ` (${pron})` : ''}${silent ? ' [PRESENT BUT SILENT THIS TURN]' : ''}: ${substituteAllVariables(c.description || '', { playerName, characterName: c.name, isPromptText: true })}\n`;
     if (c.personality) {
-      prompt += `  Personality: ${substituteVars(c.personality)}\n`;
+      prompt += `  Personality: ${substituteAllVariables(c.personality || '', { playerName, characterName: c.name, isPromptText: true })}\n`;
     }
     // Per-member current personality drive (rolled this turn)
     const active = sessionState?.multiCharAttributes?.[c.id] || [];
@@ -12531,7 +12532,7 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
     if (Array.isArray(c.exampleDialogues) && c.exampleDialogues.length) {
       const ex = c.exampleDialogues.slice(0, 2)
         .filter(e => e && (e.user || e.character))
-        .map(e => `    ${playerName}: ${substituteVars(e.user || '')}\n    ${c.name}: ${substituteVars(e.character || '')}`)
+        .map(e => `    ${playerName}: ${substituteAllVariables(e.user || '', { playerName, characterName: c.name, isPromptText: true })}\n    ${c.name}: ${substituteAllVariables(e.character || '', { playerName, characterName: c.name, isPromptText: true })}`)
         .join('\n');
       if (ex) prompt += `  Voice example:\n${ex}\n`;
     }
@@ -12987,13 +12988,13 @@ function buildChatContext(character, settings) {
     systemPrompt += '.\n';
     if (!isInstructor(character)) {
       if (activePersona.appearance) {
-        systemPrompt += `Player appearance: ${activePersona.appearance}\n`;
+        systemPrompt += `Player appearance: ${substituteVars(activePersona.appearance)}\n`;
       }
       if (activePersona.personality) {
-        systemPrompt += `Player personality: ${activePersona.personality}\n`;
+        systemPrompt += `Player personality: ${substituteVars(activePersona.personality)}\n`;
       }
       if (activePersona.relationshipWithInflation) {
-        systemPrompt += `Player's additional inflation context: ${activePersona.relationshipWithInflation}\n`;
+        systemPrompt += `Player's additional inflation context: ${substituteVars(activePersona.relationshipWithInflation)}\n`;
       }
       systemPrompt += buildPersonaInflationContext(activePersona, activePersona.displayName || 'The player');
       systemPrompt += buildPersonaDispositionContext(activePersona, activePersona.displayName || 'The player');
@@ -13136,11 +13137,11 @@ function buildChatContext(character, settings) {
   if (exampleDialoguesSrc.length > 0) {
     if (character.multiChar?.enabled) {
       exampleDialoguesSrc.forEach(ex => {
-        prompt += `<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}\n`;
+        prompt += `<START>\n${playerLabel}: ${substituteVars(ex.user)}\n${substituteVars(ex.response || ex.character)}\n`;
       });
     } else {
       exampleDialoguesSrc.forEach(ex => {
-        prompt += `<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}\n`;
+        prompt += `<START>\n${playerLabel}: ${substituteVars(ex.user)}\n${character.name}: ${substituteVars(ex.character)}\n`;
       });
     }
     prompt += '\nCurrent conversation:\n';
@@ -13202,11 +13203,11 @@ function buildChatContext(character, settings) {
   if (exampleDialoguesSrc.length > 0) {
     if (character.multiChar?.enabled) {
       exampleDialoguesSrc.forEach(ex => {
-        leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${ex.response || ex.character}`);
+        leadIn.push(`<START>\n${playerLabel}: ${substituteVars(ex.user)}\n${substituteVars(ex.response || ex.character)}`);
       });
     } else {
       exampleDialoguesSrc.forEach(ex => {
-        leadIn.push(`<START>\n${playerLabel}: ${ex.user}\n${character.name}: ${ex.character}`);
+        leadIn.push(`<START>\n${playerLabel}: ${substituteVars(ex.user)}\n${character.name}: ${substituteVars(ex.character)}`);
       });
     }
   }
