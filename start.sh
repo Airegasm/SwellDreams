@@ -39,26 +39,33 @@ elif ! git remote get-url origin &>/dev/null; then
     git pull origin release
     echo "Remote added. Pulled from release branch."
 else
-    # Migrate master users to release branch
+    # Auto-update SAFELY. Deploy branch is 'release'; a developer checkout may be on its own
+    # branch, so we sync whatever branch is checked out (falling back to release for master/main
+    # or a detached HEAD). This NEVER uses "git reset --hard" or "git branch -D" — those used to
+    # wipe uncommitted work and resurrect the (now-removed) self-referential node_modules symlinks,
+    # breaking the build every launch.
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    if [ "$CURRENT_BRANCH" = "master" ] || [ "$CURRENT_BRANCH" = "main" ]; then
-        echo "Migrating from $CURRENT_BRANCH to release branch..."
-        git fetch origin release 2>/dev/null
-        if git checkout -f release 2>/dev/null; then
-            git branch -D "$CURRENT_BRANCH" 2>/dev/null
-            echo "Switched to release branch."
-        else
-            echo "Warning: Could not switch to release. Continuing on $CURRENT_BRANCH..."
-        fi
+    TRACK_BRANCH="$CURRENT_BRANCH"
+    if [ -z "$TRACK_BRANCH" ] || [ "$TRACK_BRANCH" = "HEAD" ] || [ "$TRACK_BRANCH" = "master" ] || [ "$TRACK_BRANCH" = "main" ]; then
+        TRACK_BRANCH="release"
     fi
-    # Force-sync to release. The launcher rebuilds the frontend every run, which dirties tracked
-    # build files and used to make "git pull" fail (stranding users on old versions). reset --hard
-    # only touches TRACKED files (code/defaults); all user data is gitignored.
-    if git fetch origin release; then
-        git reset --hard origin/release
-        echo "Update complete!"
+    if git fetch origin "$TRACK_BRANCH" 2>/dev/null; then
+        if ! git diff --quiet HEAD 2>/dev/null; then
+            # Uncommitted changes to tracked files — never discard them. (build/ and node_modules
+            # are gitignored, so a clean deploy checkout still updates normally.)
+            echo "Local changes present — skipping auto-update to protect your work. Running current version."
+        elif [ "$CURRENT_BRANCH" != "$TRACK_BRANCH" ]; then
+            # On master/main or detached: move onto the deploy branch without deleting anything.
+            git checkout "$TRACK_BRANCH" 2>/dev/null || git checkout -b "$TRACK_BRANCH" "origin/$TRACK_BRANCH" 2>/dev/null
+            git merge --ff-only "origin/$TRACK_BRANCH" 2>/dev/null && echo "Update complete!"
+        elif git merge --ff-only "origin/$TRACK_BRANCH" 2>/dev/null; then
+            # Fast-forward only: applies new upstream commits, never rewrites history.
+            echo "Update complete!"
+        else
+            echo "Note: '$CURRENT_BRANCH' has local commits not yet on origin — skipping auto-update."
+        fi
     else
-        echo "Warning: Could not update from git. Continuing with local version..."
+        echo "Warning: Could not reach git remote. Continuing with local version..."
     fi
 fi
 echo ""
