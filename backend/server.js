@@ -2899,28 +2899,30 @@ initializeDataFiles();
 function ensureDefaultConnectionProfiles() {
   const DEFAULT_PROFILES = [
     {
-      id: 'default-llamacpp-gemma27b',
-      name: 'LlamaCPP - Gemma 27B',
-      llmUrl: 'http://localhost:8080/',
-      apiType: 'auto',
-      endpointStandard: 'llamacpp',
-      promptTemplate: 'gemma3',
+      // Cloud inference via OpenRouter. Ships blank — add your own key + model in
+      // Settings -> Model. Chat-completion endpoint (system role supported).
+      id: 'default-openrouter',
+      name: 'OpenRouter',
+      llmUrl: '',
+      apiType: 'chat_completion',
+      endpointStandard: 'openrouter',
+      promptTemplate: 'chatml',
       supportsSystemRole: true,
       maxTokens: 320,
-      contextTokens: 16384,
+      contextTokens: 8192,
       streaming: true,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 150,
       temperature: 1,
-      topK: 64,
-      topP: 0.95,
+      topK: 0,
+      topP: 1,
       typicalP: 1,
-      minP: 0.05,
+      minP: 0,
       topA: 0,
       tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.05,
-      repPenRange: 1024,
+      repetitionPenalty: 1,
+      repPenRange: 0,
       repPenSlope: 1,
       frequencyPenalty: 0,
       presencePenalty: 0,
@@ -2930,153 +2932,6 @@ function ensureDefaultConnectionProfiles() {
       dryBase: 1.75,
       dryAllowedLength: 2,
       dryPenaltyLastN: 0,
-      drySequenceBreakers: [],
-      dynaTempRange: 0,
-      dynaTempExponent: 1,
-      xtcProbability: 0,
-      xtcThreshold: 0.1,
-      smoothingFactor: 0,
-      smoothingCurve: 1,
-      mirostat: 0,
-      mirostatTau: 5,
-      mirostatEta: 0.1,
-      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
-      bannedTokens: [],
-      grammar: '',
-      openRouterApiKey: '',
-      openRouterModel: '',
-      isDefault: true
-    },
-    {
-      id: 'default-llamacpp-patricide21b',
-      name: 'LlamaCPP-Patricide 21B',
-      llmUrl: 'http://localhost:8080/',
-      apiType: 'auto',
-      endpointStandard: 'llamacpp',
-      promptTemplate: 'chatml',
-      supportsSystemRole: true,
-      maxTokens: 320,
-      contextTokens: 16384,
-      streaming: true,
-      trimIncompleteSentences: true,
-      impersonateMaxTokens: 150,
-      temperature: 1.0,
-      topK: 0,
-      topP: 1.0,
-      typicalP: 1,
-      minP: 0.1,
-      topA: 0,
-      tfs: 1,
-      topNsigma: 0,
-      repetitionPenalty: 1.05,
-      repPenRange: 512,
-      repPenSlope: 1,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      neutralizeSamplers: false,
-      samplerOrder: [],
-      dryMultiplier: 0.8,
-      dryBase: 1.75,
-      dryAllowedLength: 2,
-      dryPenaltyLastN: 256,
-      drySequenceBreakers: [],
-      dynaTempRange: 0,
-      dynaTempExponent: 1,
-      xtcProbability: 0,
-      xtcThreshold: 0.1,
-      smoothingFactor: 0,
-      smoothingCurve: 1,
-      mirostat: 0,
-      mirostatTau: 5,
-      mirostatEta: 0.1,
-      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
-      bannedTokens: [],
-      grammar: '',
-      openRouterApiKey: '',
-      openRouterModel: '',
-      isDefault: false
-    },
-    {
-      id: 'default-llamacpp-vulpecula70b',
-      name: 'LlamaCPP-Vulpecula 70B',
-      llmUrl: 'http://localhost:8080/',
-      apiType: 'auto',
-      endpointStandard: 'llamacpp',
-      promptTemplate: 'llama3',
-      supportsSystemRole: true,
-      maxTokens: 320,
-      contextTokens: 16384,
-      streaming: true,
-      trimIncompleteSentences: true,
-      impersonateMaxTokens: 150,
-      temperature: 0.8,
-      topK: 0,
-      topP: 0.95,
-      typicalP: 1,
-      minP: 0.02,
-      topA: 0,
-      tfs: 1,
-      topNsigma: 0,
-      repetitionPenalty: 1.1,
-      repPenRange: 512,
-      repPenSlope: 1,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      neutralizeSamplers: false,
-      samplerOrder: [],
-      dryMultiplier: 0.8,
-      dryBase: 1.75,
-      dryAllowedLength: 4,
-      dryPenaltyLastN: 4096,
-      drySequenceBreakers: [],
-      dynaTempRange: 0,
-      dynaTempExponent: 1,
-      xtcProbability: 0.1,
-      xtcThreshold: 0.15,
-      smoothingFactor: 0,
-      smoothingCurve: 1,
-      mirostat: 0,
-      mirostatTau: 5,
-      mirostatEta: 0.1,
-      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
-      bannedTokens: [],
-      grammar: '',
-      openRouterApiKey: '',
-      openRouterModel: '',
-      isDefault: false
-    },
-    {
-      id: 'default-llamacpp-phr00ty32b',
-      name: 'LlamaCPP-Phr00ty 32B',
-      llmUrl: 'http://localhost:8080/',
-      apiType: 'auto',
-      endpointStandard: 'llamacpp',
-      promptTemplate: 'chatml',
-      supportsSystemRole: true,
-      maxTokens: 320,
-      contextTokens: 16384,
-      streaming: true,
-      trimIncompleteSentences: true,
-      impersonateMaxTokens: 150,
-      temperature: 0.9,
-      topK: 0,
-      topP: 0.9,
-      typicalP: 1,
-      minP: 0.05,
-      topA: 0,
-      tfs: 1,
-      topNsigma: 0,
-      repetitionPenalty: 1.03,
-      repPenRange: 256,
-      repPenSlope: 1,
-      frequencyPenalty: 0,
-      presencePenalty: 0,
-      neutralizeSamplers: false,
-      samplerOrder: [],
-      dryMultiplier: 0.3,
-      dryBase: 1.75,
-      dryAllowedLength: 2,
-      dryPenaltyLastN: 256,
       drySequenceBreakers: [],
       dynaTempRange: 0,
       dynaTempExponent: 1,
@@ -3105,22 +2960,22 @@ function ensureDefaultConnectionProfiles() {
       endpointStandard: 'aihorde',
       promptTemplate: 'alpaca',
       supportsSystemRole: true,
-      maxTokens: 200,          // Horde max_length: 16–512
-      contextTokens: 4096,     // Horde max_context_length: 80–32768
-      streaming: false,        // Horde has no token streaming (delivered on completion)
+      maxTokens: 200,
+      contextTokens: 4096,
+      streaming: false,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 150,
-      temperature: 0.75,       // 0–5
-      topK: 0,                 // 0–100
-      topP: 0.92,              // 0.001–1
-      typicalP: 1,             // 0–1
-      minP: 0.05,              // 0–1
-      topA: 0,                 // 0–1
-      tfs: 1,                  // 0–1
+      temperature: 0.75,
+      topK: 0,
+      topP: 0.92,
+      typicalP: 1,
+      minP: 0.05,
+      topA: 0,
+      tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.1,  // 1–3
-      repPenRange: 1024,       // 0–4096
-      repPenSlope: 0.7,        // 0–10
+      repetitionPenalty: 1.1,
+      repPenRange: 1024,
+      repPenSlope: 0.7,
       frequencyPenalty: 0,
       presencePenalty: 0,
       neutralizeSamplers: false,
@@ -3146,7 +3001,7 @@ function ensureDefaultConnectionProfiles() {
       openRouterModel: '',
       hordeApiKey: '',
       hordeModel: '',
-      isDefault: false
+      isDefault: true
     }
   ];
 
@@ -6511,6 +6366,7 @@ eventEngine.setSessionState(sessionState);
 // Inject storage helpers for per-char/per-flow storage access
 eventEngine.setStorageHelpers({
   loadCharacters: () => isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []),
+  loadPersonas: () => loadAllPersonas() || [],
   saveCharacter: (char) => {
     if (isPerCharStorageActive()) {
       saveCharacter(char);
@@ -7106,11 +6962,9 @@ wss.on('connection', async (ws) => {
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
     sessionState.characterName = activeCharacter?.name || null;
-    // Sync character's autoReplyEnabled to session state. Instructors auto-respond
-    // by default (overridable by setting autoReplyEnabled:false on the card).
-    sessionState.autoReply = isInstructor(activeCharacter)
-      ? (activeCharacter?.autoReplyEnabled ?? true)
-      : (activeCharacter?.autoReplyEnabled || false);
+    // Sync the card's effective auto-reply (active story → card fallback; instructors
+    // default on) to session state.
+    sessionState.autoReply = resolveCardAutoReply(activeCharacter);
   }
   if (settings?.activePersonaId) {
     const personas = loadAllPersonas() || [];
@@ -7248,7 +7102,7 @@ async function handleWsMessage(ws, type, data) {
         const cmSettings = loadData(DATA_FILES.settings);
         const cmChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
         const cmChar = cmChars.find(c => c.id === cmSettings?.activeCharacterId);
-        const cmPersonas = loadData(DATA_FILES.personas) || [];
+        const cmPersonas = loadAllPersonas() || [];
         const cmPersona = cmPersonas.find(p => p.id === cmSettings?.activePersonaId);
         if (cmChar?.multiChar?.enabled) {
           await handleIndividualResponses(data, cmChar, cmSettings, cmPersona, data.respondAs);
@@ -9180,7 +9034,7 @@ async function handleChatMessage(data) {
 
   // Load settings and personas for speaker validation
   const settings = loadData(DATA_FILES.settings);
-  const personas = loadData(DATA_FILES.personas) || [];
+  const personas = loadAllPersonas() || [];
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -9439,7 +9293,7 @@ async function handleChatMessage(data) {
         aiMessage.streaming = false;
 
         // Validate speaker - AI should speak as character, not player
-        const personas = loadData(DATA_FILES.personas) || [];
+        const personas = loadAllPersonas() || [];
         const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
         if (activePersona) {
@@ -9506,7 +9360,7 @@ async function handleChatMessage(data) {
       const maxRetries = 3;
 
       // Get persona for speaker validation
-      const personas = loadData(DATA_FILES.personas) || [];
+      const personas = loadAllPersonas() || [];
       const activePersona = personas.find(p => p.id === settings?.activePersonaId);
 
       // Retry if blank, duplicate, or wrong speaker (only in non-streaming mode)
@@ -12644,6 +12498,17 @@ function isInstructor(character) {
   return !!character?.instructor?.enabled;
 }
 
+// The card's effective auto-reply default. The unified editor stores this PER-STORY
+// (activeStory.autoReplyEnabled); older cards carry it at card level. Read the active
+// story first, fall back to the card flag. Instructors default ON unless explicitly off.
+function resolveCardAutoReply(character) {
+  if (!character) return false;
+  const story = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
+  const val = story?.autoReplyEnabled ?? character.autoReplyEnabled;
+  if (isInstructor(character)) return val ?? true;
+  return val ?? false;
+}
+
 const INSTRUCTOR_PROFILES_PATH = path.join(DATA_DIR, 'instructor-profiles.json');
 const INSTRUCTOR_LIBRARY_PATH = path.join(DATA_DIR, 'instructor-library.json');
 
@@ -13689,8 +13554,8 @@ app.post('/api/settings', async (req, res) => {
       const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
       const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
       sessionState.characterName = activeCharacter?.name || null;
-      // Sync character's autoReplyEnabled to session state
-      sessionState.autoReply = activeCharacter?.autoReplyEnabled || false;
+      // Sync the card's effective auto-reply (active story → card fallback; instructor default on)
+      sessionState.autoReply = resolveCardAutoReply(activeCharacter);
       broadcast('auto_reply_update', { enabled: sessionState.autoReply });
 
       // Sync flow assignments from active story
@@ -15364,11 +15229,16 @@ app.put('/api/characters/:id', async (req, res) => {
     const characters = isPerCharStorageActive() ? loadAllCharacters() : loadData(DATA_FILES.characters);
     broadcast('characters_update', characters);
 
-    // If this is the active character, sync autoReplyEnabled to session state
+    // If this is the active character, re-sync auto-reply from the SAVED card (the editor
+    // writes the flag per-story, so recompute from the whole character, not req.body).
     const settings = loadData(DATA_FILES.settings);
-    if (settings?.activeCharacterId === req.params.id && req.body.autoReplyEnabled !== undefined) {
-      sessionState.autoReply = req.body.autoReplyEnabled;
-      broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+    if (settings?.activeCharacterId === req.params.id) {
+      const savedChar = (isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []))
+        .find(c => c.id === req.params.id);
+      if (savedChar) {
+        sessionState.autoReply = resolveCardAutoReply(savedChar);
+        broadcast('auto_reply_update', { enabled: sessionState.autoReply });
+      }
     }
 
     // Activate flows if this is the active character

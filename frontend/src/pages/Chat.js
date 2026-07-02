@@ -1017,8 +1017,8 @@ function Chat() {
     e.preventDefault();
     if (!inputValue.trim() || isGenerating) return;
 
-    // Check if LLM is configured when auto-reply is on
-    if (activeCharacter?.autoReplyEnabled && !isLlmConfigured()) {
+    // Check if LLM is configured when auto-reply is on (live session state, not the card flag)
+    if (sessionState.autoReply && !isLlmConfigured()) {
       showError('LLM not configured. Go to Settings → Model to set up your connection.', 8000);
       return;
     }

@@ -633,7 +633,7 @@ class EventEngine {
         const message = this.substituteVariables(data.message || '');
         // Get persona name for display
         const settings = loadData(DATA_FILES.settings);
-        const personas = loadData(DATA_FILES.personas) || [];
+        const personas = this.storageHelpers?.loadPersonas?.() || loadData(DATA_FILES.personas) || [];
         const activePersona = personas.find(p => p.id === settings?.activePersonaId);
         const playerName = activePersona?.displayName || 'Player';
 
@@ -4614,7 +4614,7 @@ class EventEngine {
     // Skip if playerResponseEnabled is false
     if (!isSimpleAB && playerResponseEnabled) try {
       const settings = loadData(DATA_FILES.settings);
-      const personas = loadData(DATA_FILES.personas) || [];
+      const personas = this.storageHelpers?.loadPersonas?.() || loadData(DATA_FILES.personas) || [];
       // Use storage helpers if available for per-char storage support
       const characters = this.storageHelpers?.loadCharacters() || loadData(DATA_FILES.characters) || [];
       const activePersona = personas.find(p => p.id === settings?.activePersonaId);
