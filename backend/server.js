@@ -5512,9 +5512,9 @@ Tags: [pump on] / [pump off]
 ${examples}`;
 
   if (charLimits) {
-    const scaledMaxOn = Math.round((charLimits.llmMaxOnDuration ?? 5) * capacityMod);
-    const scaledMaxTimed = Math.round((charLimits.llmMaxTimedDuration ?? 10) * capacityMod);
-    const scaledMaxCycleOn = Math.round((charLimits.llmMaxCycleOnDuration ?? 2) * capacityMod);
+    const scaledMaxOn = charLimits.llmMaxOnDuration ?? 5;
+    const scaledMaxTimed = charLimits.llmMaxTimedDuration ?? 10;
+    const scaledMaxCycleOn = charLimits.llmMaxCycleOnDuration ?? 2;
     s += `\nLimits: max ON ${scaledMaxOn}s, max pulse ${charLimits.llmMaxPulseRepetitions ?? 5}x, max timed ${scaledMaxTimed}s, max cycle ON ${scaledMaxCycleOn}s x${charLimits.llmMaxCycleRepetitions ?? 2}`;
   }
   return s + '\n';
@@ -5572,7 +5572,7 @@ async function executePumpOnEveryReply(text, character, isFlowChain) {
   const capacityMod = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
   const globalMax = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
   const charLimits = getCharacterLimits(character);
-  const charMax = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
+  const charMax = charLimits?.llmMaxOnDuration ?? 5;
   const maxSeconds = Math.min(globalMax, charMax);
 
   // Safety: block at 100% unless over-inflation allowed
@@ -12361,7 +12361,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
       const charLimits = getCharacterLimits(character);
       const capacityMod = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-      const scaledMaxOn = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod);
+      const scaledMaxOn = charLimits?.llmMaxOnDuration ?? 5;
       const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn) : globalMax;
       systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod, playerName);
     }
@@ -13061,7 +13061,7 @@ function buildChatContext(character, settings) {
     const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
     const charLimits = getCharacterLimits(character);
     const capacityMod2 = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-    const scaledMaxOn2 = Math.round((charLimits?.llmMaxOnDuration ?? 5) * capacityMod2);
+    const scaledMaxOn2 = charLimits?.llmMaxOnDuration ?? 5;
     const maxSeconds = charLimits ? Math.min(globalMax, scaledMaxOn2) : globalMax;
     systemPrompt += buildDeviceControlInstruction(settings.llm?.promptTemplate, maxSeconds, charLimits, capacityMod2, playerName);
   }

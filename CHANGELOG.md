@@ -2,6 +2,11 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.4] - 2026-07-01
+
+### Fixed
+- **Pump on-time no longer gutted by the capacity multiplier.** The auto-capacity multiplier was being applied TWICE — once to the capacity accrual (correct) and again to the physical pump ON/timed/cycle durations (wrong) — so a multiplier of e.g. 0.6 shrank a 5s "Max ON" to 3s AND slowed capacity quadratically, with no way to adjust. Durations now use the RAW configured limits (`Max ON duration`, capped by the global max seconds); the multiplier affects capacity RATE only.
+
 ## [v6.6.3] - 2026-07-01
 
 ### Changed
