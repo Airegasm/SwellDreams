@@ -152,7 +152,7 @@ if [ ! -f "package.json" ]; then
     echo "ERROR: backend/package.json not found!"
     exit 1
 fi
-if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ]; then
+if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ] || [ ! -d "node_modules/express" ]; then
     echo "Installing backend dependencies..."
     npm install
     if [ $? -ne 0 ]; then
@@ -170,7 +170,7 @@ if [ ! -f "package.json" ]; then
     echo "ERROR: frontend/package.json not found!"
     exit 1
 fi
-if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ]; then
+if [ "$SOURCE_CHANGED" = "1" ] || [ ! -d "node_modules" ] || [ ! -e "node_modules/.bin/react-scripts" ]; then
     echo "Installing frontend dependencies..."
     npm install
     if [ $? -ne 0 ]; then

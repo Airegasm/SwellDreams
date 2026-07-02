@@ -2,6 +2,16 @@
 
 All notable changes to SwellDreams will be documented in this file.
 
+## [v6.6.7] - 2026-07-02
+
+### Fixed
+- **Installer no longer skips a needed dependency install (regression from v6.6.1).** The "skip install when unchanged" optimization only checked that `node_modules/` existed, so a partial/interrupted install (missing `react-scripts`) was skipped and the frontend build failed with *"'react-scripts' is not recognized."* start.sh / start.bat now also verify the actual build tool (`react-scripts`) and a key backend dep (`express`) are present, and reinstall if not — self-healing an incomplete `node_modules`.
+
+## [v6.6.7] - 2026-07-02
+
+### Fixed
+- **Installer no longer skips a needed dependency install (regression from v6.6.1).** The "skip install when unchanged" optimization only checked that `node_modules/` existed, so a partial/interrupted install (missing `react-scripts`) got skipped and the frontend build failed with *"'react-scripts' is not recognized."* start.sh / start.bat now also verify the build tool (`react-scripts`) and a key backend dep (`express`) are present, and reinstall if not — self-healing an incomplete `node_modules`.
+
 ## [v6.6.6] - 2026-07-02
 
 ### Fixed

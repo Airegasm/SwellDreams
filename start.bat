@@ -149,6 +149,7 @@ if not exist "package.json" (
 set "NEED_BE=0"
 if "%SOURCE_CHANGED%"=="1" set "NEED_BE=1"
 if not exist "node_modules" set "NEED_BE=1"
+if not exist "node_modules\express" set "NEED_BE=1"
 if "%NEED_BE%"=="1" (
     echo Installing backend dependencies...
     call npm install
@@ -172,6 +173,8 @@ if not exist "package.json" (
 set "NEED_FE=0"
 if "%SOURCE_CHANGED%"=="1" set "NEED_FE=1"
 if not exist "node_modules" set "NEED_FE=1"
+if not exist "node_modules\react-scripts" set "NEED_FE=1"
+if not exist "node_modules\.bin\react-scripts.cmd" set "NEED_FE=1"
 if "%NEED_FE%"=="1" (
     echo Installing frontend dependencies...
     call npm install
