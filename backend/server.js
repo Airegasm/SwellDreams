@@ -11672,6 +11672,9 @@ async function resumeTreeChoice(choiceId) {
     try { await runTree(after, ctx); } // post-choice fall-through at the choice's own level
     catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
   }
+  // If the intro ended ON this choice (its options have no follow-up and nothing re-armed), the intro
+  // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it.
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character);
 }
 
 // Resume a tree paused on the ">>" Next gate between back-to-back standalone messages. Rebuilds the
@@ -11739,6 +11742,7 @@ async function resumeTreeChooseMulti(selectedIds) {
     try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
   }
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character); // intro finished on this choice → arm UNLOCK
 }
 
 // Resume a suspended Trigger Tree call_minigame on the played exit (Phase 5). Sets the GameResult /
@@ -11782,6 +11786,7 @@ async function resumeTreeGame(firedExit, winner) {
   }
   try { await runTree(list, ctx); }
   catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character); // intro finished on this minigame → arm UNLOCK
 }
 
 // Tick a pending pause_resume down by one reply turn; when it reaches zero, run the deferred body
