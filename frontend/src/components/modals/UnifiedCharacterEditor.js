@@ -1733,7 +1733,7 @@ Write only the scenario description itself, no explanations.`;
                 )}
                 {ckptStory
                   ? <CheckpointProfiles story={ckptStory} updateStory={ckptUpdate} defaultPumpType={formData.defaultPumpType}
-                      cardName={(isGroup && !editingBase ? member?.name : formData.name) || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive }} />
+                      cardName={(isGroup && !editingBase ? member?.name : formData.name) || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive, members }} />
                   : <p className="section-hint">No story yet.</p>}
               </>
             );
