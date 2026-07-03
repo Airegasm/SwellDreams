@@ -120,6 +120,7 @@
     top: auto !important;
     left: 0 !important;
     right: auto !important;
+    transform: none !important;   /* cancel the default translateX(-50%) that yanked it off-screen */
     z-index: 700;
   }
 
@@ -255,20 +256,24 @@
     flex-shrink: 0;
   }
   .mobile-chat-header .mch-btn:disabled { opacity: 0.4; cursor: default; }
-  .mch-estop { font-size: 1.2rem; width: 72px; }   /* double width */
-  .mch-estop.active { background: #dc3545; border-color: #dc3545; color: #fff; }
-  .mch-estop.abort { background: #fd7e14; border-color: #fd7e14; color: #fff; }
-  .mch-estop.simulated { background: #6c757d; border-color: #6c757d; color: #fff; }
-  .mch-estop.go-release, .mch-estop.pump { background: #fff; border-color: #fff; color: #111; }
-  .mch-next { width: 72px; font-size: 1.4rem; opacity: 0.4; }   /* double width; greyed until active */
-  .mch-next.active { opacity: 1; animation: mchNextFlashWhite 0.9s ease-in-out infinite; }
+  /* E-STOP / REPLY show status as a colored OUTLINE (2px border) over the black skinnable face —
+     no background fill (which also read 1px taller than the other buttons). */
+  .mch-estop { font-size: 1.2rem; width: 72px; border-width: 2px; }   /* double width */
+  .mch-estop.active { border-color: #dc3545; }         /* red */
+  .mch-estop.abort { border-color: #fd7e14; }          /* orange */
+  .mch-estop.simulated { border-color: #6c757d; }
+  .mch-estop.go-release, .mch-estop.pump { border-color: #e6e9ee; }
+  /* NEXT: keep the black face (don't wash it out with opacity); dim only the » glyph until it's live. */
+  .mch-next { width: 72px; font-size: 1.4rem; color: #5a5f68; }   /* double width */
+  .mch-next:disabled { opacity: 1 !important; }
+  .mch-next.active { animation: mchNextFlashWhite 0.9s ease-in-out infinite; }
   @keyframes mchNextFlashWhite {
     0%, 100% { background: #ffffff; border-color: #ffffff; color: #111; }
-    50%      { background: var(--bg-card); border-color: var(--border-color); color: var(--text-primary); }
+    50%      { background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%)); border-color: #3d4147; color: #c7ccd4; }
   }
-  .mch-reply { width: 72px; font-size: 1.15rem; }               /* double width */
-  .mch-reply.on { background: #22c55e; border-color: #22c55e; color: #04210f; }
-  .mch-reply.off { opacity: 0.6; }
+  .mch-reply { width: 72px; font-size: 1.15rem; border-width: 2px; }   /* double width */
+  .mch-reply.on { border-color: #22c55e; color: #22c55e; }   /* green outline when Auto-Reply is on */
+  .mch-reply.off { border-color: #3d4147; }                  /* neutral outline (black face, not washed) */
   .mch-gear-wrap { position: relative; display: flex; flex-shrink: 0; }
   .mch-menu { margin-left: auto; width: 72px; }                  /* far right; double width */
 
