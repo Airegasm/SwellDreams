@@ -7177,6 +7177,14 @@ wss.on('connection', async (ws) => {
     }
   }));
 
+  // Re-sync the ">>" next-gate to THIS (re)connecting client. nextGateActive is a FRONTEND-only field,
+  // so the init above (setSessionState) clears it — which on a background/app-switch reconnect used to
+  // strand a live WAIT sequence (the intro >> chain), leaving UNLOCK locked forever. The backend's
+  // pendingTreeNext / pendingRangeAwait is the source of truth; re-broadcast it so the gate survives.
+  const _nextGateActive = !!(sessionState.pendingTreeNext
+    || (sessionState.pendingRangeAwait && (sessionState.pendingRangeAwait.kind === 'next' || sessionState.pendingRangeAwait.kind === 'next-individual')));
+  ws.send(JSON.stringify({ type: 'next_gate', data: { active: _nextGateActive }, timestamp: Date.now() }));
+
   // Send welcome message if character is active but no chat history
   // Only send if truly empty (prevents duplicate from rapid reconnections)
   if (settings?.activeCharacterId && sessionState.chatHistory.length === 0) {
