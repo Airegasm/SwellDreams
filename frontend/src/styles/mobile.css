@@ -45,13 +45,12 @@
     display: none !important;
   }
 
-  /* Mobile StatusBadges - capacity gauge in the BOTTOM padding, just RIGHT of the E-STOP button (which
-     is back in the bottom-left corner). Moved out of the mid-left band so it no longer covers the
-     message-edit SAVE button. */
+  /* Mobile StatusBadges - capacity gauge pinned to the FAR LEFT of the (taller) bottom padding.
+     Phase 2: E-STOP moved to the header, so the gauge owns the bottom-left corner. */
   .mobile-header-badges {
     position: fixed;
-    bottom: 44px;
-    left: 90px;
+    bottom: 8px;
+    left: 2px;
     right: auto;
     z-index: 500;
     display: flex;
@@ -111,21 +110,21 @@
     display: none;
   }
 
-  /* Balloon pump-toggle + pump timer — IN-FLOW in the upper padding row, now anchored to the FAR LEFT
-     (the capacity gauge moved out of the upper band down to the bottom padding). */
+  /* Balloon pump-toggle + pump timer — in the BOTTOM padding, immediately right of the capacity gauge.
+     The toggle uses the same skinnable .action-btn face as the Send-As arrows and matches their size. */
   .mobile-pump-band {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 2px;
     flex-shrink: 0;
   }
   .mobile-pump-toggle {
-    width: 48px;               /* match >> / P / C */
-    height: 36px;
-    border-radius: 4px;        /* rounded rectangle like the nav buttons */
-    background: transparent;
-    border: 2px solid #8a8f98;  /* grey outline (turns green while the pump runs) */
+    width: 48px;               /* same dimension as a Send-As arrow button */
+    height: 40px;
+    border-radius: 4px;
+    border: 1px solid #3d4147;
+    background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
     font-size: 1.2rem;
     line-height: 1;
     display: flex;
@@ -135,9 +134,11 @@
     padding: 0;
     flex-shrink: 0;
   }
-  .mobile-pump-toggle.running { border-color: #22c55e; }  /* green while the primary pump runs */
+  .mobile-pump-toggle.running { border-color: #22c55e; box-shadow: 0 0 0 1px #22c55e, inset 0 1px 0 rgba(255,255,255,0.3); }
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
+  /* Intro pump-lock notice — shown in the timer slot while the intro gates inflation. */
+  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
 
   /* NEXT (>>) gate — its OWN button just left of the P/C cluster (margin-left:auto pushes it + the
      cluster to the right). Sized to match P/C (36px tall) so nothing shrinks. Greyed until a sequence
@@ -238,8 +239,12 @@
   .mch-estop.simulated { background: #6c757d; border-color: #6c757d; color: #fff; }
   .mch-estop.go-release, .mch-estop.pump { background: #fff; border-color: #fff; color: #111; }
   .mch-next { width: 72px; font-size: 1.4rem; opacity: 0.4; }   /* double width; greyed until active */
-  .mch-next.active { opacity: 1; background: #22c55e; border-color: #22c55e; color: #04210f; }
-  .mch-reply { width: 36px; font-size: 1.15rem; }               /* square */
+  .mch-next.active { opacity: 1; animation: mchNextFlashWhite 0.9s ease-in-out infinite; }
+  @keyframes mchNextFlashWhite {
+    0%, 100% { background: #ffffff; border-color: #ffffff; color: #111; }
+    50%      { background: var(--bg-card); border-color: var(--border-color); color: var(--text-primary); }
+  }
+  .mch-reply { width: 72px; font-size: 1.15rem; }               /* double width */
   .mch-reply.on { background: #22c55e; border-color: #22c55e; color: #04210f; }
   .mch-reply.off { opacity: 0.6; }
   .mch-gear-wrap { position: relative; display: flex; flex-shrink: 0; }
@@ -254,6 +259,35 @@
   /* The header ☰ now opens the main menu — hide the floating HamburgerMenu overlay button on mobile
      (its panel/overlay still render when opened via the header button). */
   .hamburger-button { display: none !important; }
+
+  /* ===== PHASE 2 (mobile): bottom padding holds gauge + balloon + timer (left), P/C (right). ===== */
+  /* Upper padding row is empty now (balloon + P/C moved out; NEXT/E-STOP in the header) — remove it. */
+  .input-buttons-row { display: none !important; }
+  /* Bottom padding: taller, with the far-left column reserved for the fixed capacity gauge. */
+  .input-pump-timer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 92px;
+    padding-left: 92px;   /* clear the fixed gauge pinned at the far left */
+  }
+  .input-pump-timer-row .pump-timer-right { display: none; }   /* >> + REPLY live in the header now */
+  /* P/C drawer toggles — right-aligned under the Send-As arrow column (100px wide), action-btn style. */
+  .mobile-pc-row {
+    display: flex;
+    gap: 3px;
+    margin-left: auto;
+    width: 100px;
+    flex-shrink: 0;
+  }
+  .mobile-pc-row .action-btn {
+    flex: 1;
+    height: 40px;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .pc-persona-btn { color: #22c55e !important; }    /* P — green text */
+  .pc-character-btn { color: #ef4444 !important; }  /* C — red text */
 
   /* --------------------------------------------------------------------------
      Navigation Bar - Compact top bar with bottom navigation

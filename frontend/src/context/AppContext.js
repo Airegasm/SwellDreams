@@ -316,6 +316,11 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, awaitingGoRelease: data.awaitingGoRelease, releaseButtonLabel: data.releaseButtonLabel ?? null }));
         break;
 
+      case 'intro_state':
+        // Gated intro started/ended — drives the "Intro - Pump Locked Off" notice on the mobile pump timer.
+        setSessionState(prev => ({ ...prev, introActive: data.introActive }));
+        break;
+
       case 'await_state':
         // Paused checkpoint-trigger sequence: {kind:'input',words} shows clickable options on AI
         // bubbles; {kind:'pump',target,count} is state only; null clears it.

@@ -5049,7 +5049,7 @@ function clearSessionContextForSwitch() {
   sessionState.flowVariables = {};
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
-  sessionState.introActive = false;
+  setIntroActive(false);
   sessionState.pendingPrereqs = null;
   sessionState.prereqsDone = false;
   sessionState.bulbCurrent = 0;
@@ -11854,11 +11854,17 @@ function getIntroTree(character, treeIndex) {
   return resolveRefTree(ref, treeIndex);
 }
 function hasIntroTree(character) { return !!getIntroTree(character); }
+// Set + broadcast the intro-active flag so the frontend can show "Intro - Pump Locked Off" on the
+// mobile pump timer while the gated intro holds inflation shut.
+function setIntroActive(val) {
+  sessionState.introActive = !!val;
+  broadcast('intro_state', { introActive: !!val });
+}
 // Enter the gated intro at session start (opening line posted standalone). Returns true if started.
 async function startIntroScope(character, settings, treeIndex) {
   const tree = getIntroTree(character, treeIndex);
-  if (!tree) { sessionState.introActive = false; return false; }
-  sessionState.introActive = true;
+  if (!tree) { setIntroActive(false); return false; }
+  setIntroActive(true);
   sessionState.preInflationGateMet = false; // no pumping during the gated intro
   sessionState.prosePumpGuidanceOff = true; // no pump-prose guidance/reinforcement during the intro
   // "Press READY to exit intro" (intro-section checkbox): arm the release button so the player can
@@ -11886,7 +11892,7 @@ async function runIntroScope(character, settings, treeIndex) {
       sessionState.prosePumpGuidanceOff = false;
       broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
     }
-    sessionState.introActive = false;
+    setIntroActive(false);
     return;
   }
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'inReply', treeIndex }); }
@@ -12307,7 +12313,7 @@ async function handleGateRelease() {
     const ch = chars.find(c => c.id === s.activeCharacterId);
     const story = ch?.stories?.find(x => x.id === ch.activeStoryId) || ch?.stories?.[0];
     if (sessionState.introActive) {
-      sessionState.introActive = false;
+      setIntroActive(false);
       sessionState.prosePumpGuidanceOff = story?.treeRefs?.introEnableProsePumpAfter === false;
     }
     if (profId) sessionState.activeCheckpointProfileId = profId;
@@ -14751,7 +14757,7 @@ async function runNode(node, ctx) {
   // ----- end_intro: leave the gated intro phase, open the pump gate, optionally load a profile (Part 4) -----
   if (type === 'end_intro') {
     markTreeOnce(node, ctx);
-    sessionState.introActive = false; // intro is logically done (stop re-running its tree)
+    setIntroActive(false); // intro is logically done (stop re-running its tree)
     // Prose pump guidance after the intro: on unless the card opted out ("Enable prose pump
     // guidance after Intro" unchecked). Applies once the gate actually opens (incl. after GO!).
     const introStory = ctx.character?.stories?.find(s => s.id === ctx.character.activeStoryId) || ctx.character?.stories?.[0];
@@ -18995,7 +19001,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.prereqsDone = false;
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
-  sessionState.introActive = false;
+  setIntroActive(false);
   sessionState.prosePumpGuidanceOff = false;
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;

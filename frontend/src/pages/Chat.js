@@ -2178,86 +2178,10 @@ function Chat() {
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <div className="input-buttons-row">
             <div className="chat-buttons">
-              {/* Mobile pump band — balloon toggle (grey outline; green while the primary pump runs,
-                  click to toggle) sits in the upper padding just right of the gauge, pump timer to its
-                  right. In-flow (not a fixed overlay) so it's actually tappable. */}
-              <div className="mobile-pump-band mobile-only">
-                <button
-                  type="button"
-                  className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
-                  onClick={() => sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {})}
-                  title={primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump'}
-                  aria-label="Toggle primary pump"
-                >🎈</button>
-                {primaryPumpStatus && (
-                  <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
-                )}
-              </div>
-              {/* NEXT (>>) gate — its OWN button beside P on mobile, so the P/C cluster keeps its exact
-                  100px size + robot-head alignment. Greyed until a message sequence pauses; bottom-row
-                  copy hidden on mobile. */}
-              <button
-                type="button"
-                className={`mobile-next-btn mobile-only ${sessionState.nextGateActive ? 'active' : ''}`}
-                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
-                disabled={!sessionState.nextGateActive}
-                aria-label="Next message"
-                title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
-              >»</button>
-              {/* Mobile Navigation Cluster - only visible on mobile */}
-              <div className="mobile-nav-cluster mobile-only">
-                <button
-                  type="button"
-                  className="mobile-nav-btn persona-toggle"
-                  onClick={() => setLeftDrawerOpen(!leftDrawerOpen)}
-                  aria-label="Toggle persona panel"
-                  title="Persona"
-                >P</button>
-                <button
-                  type="button"
-                  className="mobile-nav-btn character-toggle"
-                  onClick={() => setRightDrawerOpen(!rightDrawerOpen)}
-                  aria-label="Toggle character panel"
-                  title="Character"
-                >C</button>
-              </div>
-
-
-              {/* Mobile E-STOP button — becomes PUMP for ANY card whose active pump is manual
-                  (bulb/bike): single-char, multichar, or instructor. Driven by sessionState.pumpInit,
-                  which applyActivePumpType resolves from the card's defaultPumpType / active profile. */}
-              {sessionState.awaitingGoRelease ? (
-                <button
-                  type="button"
-                  className="mobile-estop-btn mobile-only go-release"
-                  onClick={() => sendWsMessage('gate_release', {})}
-                  disabled={sessionLoading}
-                  title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}
-                >
-                  {sessionState.releaseButtonLabel || 'GO!'}
-                </button>
-              ) : sessionState.pumpInit === 'manual' ? (
-                <button
-                  type="button"
-                  className="mobile-estop-btn mobile-only pump"
-                  onClick={() => sendWsMessage('manual_pump', {})}
-                  disabled={sessionLoading}
-                  title={`Pump (${sessionState.pumpType || 'manual'})`}
-                >
-                  PUMP
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={`mobile-estop-btn mobile-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
-                  onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
-                  disabled={controlMode === 'simulated'}
-                  title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}
-                >
-                  {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
-                </button>
-              )}
-
+              {/* Phase 2 (mobile): the balloon band moved to the bottom padding, P/C moved under the
+                  Send-As arrows in the action stack, and NEXT/E-STOP now live in the header bar. This
+                  upper padding row is hidden on mobile (nothing left to show); desktop keeps its
+                  pc-estop-btn below. */}
             </div>
             {/* PC ESTOP/PUMP — centered in the grey padding above the textbox (desktop only;
                 mobile uses the button inside .chat-buttons). White when PUMP (manual bulb/bike),
@@ -2442,6 +2366,23 @@ function Chat() {
           {/* Bottom band mirroring the E-STOP band above the textbox — overlays the running pump
               timer text (visible on desktop AND mobile). Empty (just padding) when no pump runs. */}
           <div className="input-pump-timer-row">
+            {/* Phase 2 (mobile): balloon pump toggle + pump timer live here in the bottom padding,
+                just right of the capacity gauge. When the intro gates inflation, the timer slot shows
+                the pump-locked notice instead. */}
+            <div className="mobile-pump-band mobile-only">
+              <button
+                type="button"
+                className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
+                onClick={() => sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {})}
+                title={primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump'}
+                aria-label="Toggle primary pump"
+              >🎈</button>
+              {sessionState.introActive ? (
+                <span className="pump-intro-lock">Intro - Pump Locked Off</span>
+              ) : primaryPumpStatus ? (
+                <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
+              ) : null}
+            </div>
             {/* Pump timer(s) — left side, counts down for timed pumps */}
             <div className="pump-timer-left">
               {Object.entries(pumpStatus || {}).map(([ip, status]) => (
@@ -2470,6 +2411,24 @@ function Chat() {
               >
                 Reply {sessionState.autoReply ? 'ON' : 'OFF'}
               </button>
+            </div>
+            {/* Phase 2 (mobile): P/C drawer toggles sit here in the bottom padding, right-aligned under
+                the Send-As arrow column — same action-btn style/size, P green / C red. */}
+            <div className="mobile-pc-row mobile-only">
+              <button
+                type="button"
+                className="action-btn pc-persona-btn"
+                onClick={() => setLeftDrawerOpen(!leftDrawerOpen)}
+                aria-label="Toggle persona panel"
+                title="Persona"
+              >P</button>
+              <button
+                type="button"
+                className="action-btn pc-character-btn"
+                onClick={() => setRightDrawerOpen(!rightDrawerOpen)}
+                aria-label="Toggle character panel"
+                title="Character"
+              >C</button>
             </div>
           </div>
         </form>
