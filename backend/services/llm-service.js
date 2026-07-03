@@ -75,7 +75,13 @@ const DEFAULT_SETTINGS = {
   skipSpecialTokens: true, // strip special tokens from returned text (KoboldCpp skip_special_tokens)
   addBosToken: true,       // prepend the model BOS token (KoboldCpp add_bos_token)
   seed: -1,                // RNG seed (-1 = random). Kobold sampler_seed / llama.cpp seed
-  nKeep: 0                 // llama.cpp: leading prompt tokens to retain on context overflow (0 = none, -1 = all)
+  nKeep: 0,                // llama.cpp: leading prompt tokens to retain on context overflow (0 = none, -1 = all)
+  // --- Additional llama.cpp / KoboldCpp generation controls (SillyTavern parity) ---
+  minKeep: 0,              // min tokens truncation samplers must keep (0 = off). llama.cpp min_keep
+  temperatureLast: false,  // apply temperature LAST in the sampler chain (recommended for Cydonia/Mistral)
+  noRepeatNgramSize: 0,    // hard-block repeated n-grams of this size (0 = off). KoboldCpp no_repeat_ngram_size
+  skew: 0,                 // skew sampler (0 = off). KoboldCpp
+  repPenDecay: 0           // repetition-penalty decay (0 = off). KoboldCpp rep_pen_decay
 };
 
 /**
@@ -420,6 +426,14 @@ function buildTextCompletionRequest(prompt, settings) {
       body.mirostat_tau = settings.mirostatTau || 5;
       body.mirostat_eta = settings.mirostatEta || 0.1;
     }
+
+    // SillyTavern-parity extras — gated on non-default; KoboldCpp uses the ones it supports and
+    // ignores unknown keys.
+    if (settings.minKeep && settings.minKeep > 0) body.min_keep = settings.minKeep;
+    if (settings.temperatureLast) body.temperature_last = true;
+    if (settings.noRepeatNgramSize && settings.noRepeatNgramSize > 0) body.no_repeat_ngram_size = settings.noRepeatNgramSize;
+    if (settings.skew) body.skew = settings.skew;
+    if (settings.repPenDecay && settings.repPenDecay > 0) body.rep_pen_decay = settings.repPenDecay;
 
     // Neutralize samplers if requested
     if (settings.neutralizeSamplers) {
@@ -1933,6 +1947,13 @@ function buildLlamaCppRequest(prompt, settings) {
       body.xtc_probability = settings.xtcProbability;
       body.xtc_threshold = settings.xtcThreshold || 0.1;
     }
+
+    // SillyTavern-parity extras — min_keep is native to llama.cpp; temperature_last matches its default
+    // sampler order; skew / no_repeat_ngram_size are sent for servers that accept them (ignored otherwise).
+    if (settings.minKeep && settings.minKeep > 0) body.min_keep = settings.minKeep;
+    if (settings.temperatureLast) body.temperature_last = true;
+    if (settings.noRepeatNgramSize && settings.noRepeatNgramSize > 0) body.no_repeat_ngram_size = settings.noRepeatNgramSize;
+    if (settings.skew) body.skew = settings.skew;
 
     // Neutralize samplers if requested
     if (settings.neutralizeSamplers) {

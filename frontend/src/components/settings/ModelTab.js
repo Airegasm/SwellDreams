@@ -1518,6 +1518,41 @@ function ModelTab() {
               step={0.1}
               info="Top N-sigma sampling. 0 = disabled"
             />
+            <Slider
+              label="Min Keep"
+              value={llmSettings.minKeep ?? 0}
+              onChange={(v) => updateSetting('minKeep', v)}
+              min={0}
+              max={10}
+              step={1}
+              info="Min tokens truncation samplers must keep. 0 = off (llama.cpp)"
+            />
+            <Slider
+              label="No-Repeat N-gram"
+              value={llmSettings.noRepeatNgramSize ?? 0}
+              onChange={(v) => updateSetting('noRepeatNgramSize', v)}
+              min={0}
+              max={8}
+              step={1}
+              info="Hard-block repeated n-grams of this size. 0 = off"
+            />
+            <Slider
+              label="Skew"
+              value={llmSettings.skew ?? 0}
+              onChange={(v) => updateSetting('skew', v)}
+              min={-5}
+              max={5}
+              step={0.1}
+              info="Skew sampler. 0 = off (KoboldCpp)"
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, gridColumn: '1 / -1' }}>
+              <input
+                type="checkbox"
+                checked={!!llmSettings.temperatureLast}
+                onChange={(e) => updateSetting('temperatureLast', e.target.checked)}
+              />
+              <span>Temperature Last <span style={{ opacity: 0.6 }}>— apply temperature last in the sampler chain (recommended for Cydonia/Mistral)</span></span>
+            </label>
           </div>
         </div>
         )}
@@ -1558,6 +1593,15 @@ function ModelTab() {
               max={10}
               step={0.1}
               info="Slope for dynamic repetition penalty"
+            />
+            <Slider
+              label="Rep Pen Decay"
+              value={llmSettings.repPenDecay ?? 0}
+              onChange={(v) => updateSetting('repPenDecay', v)}
+              min={0}
+              max={1}
+              step={0.01}
+              info="Repetition-penalty decay. 0 = off (KoboldCpp)"
             />
             <Slider
               label="Frequency Penalty"

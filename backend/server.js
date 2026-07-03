@@ -2950,6 +2950,64 @@ initializeDataFiles();
 function ensureDefaultConnectionProfiles() {
   const DEFAULT_PROFILES = [
     {
+      // === RECOMMENDED MODEL ===
+      // Cydonia 24B (TheDrummer) — a Mistral-Small-24B roleplay finetune, the preferred model for
+      // SwellDreams. Runs locally via llama.cpp / LlamaHerder (KoboldCpp users: switch Endpoint to
+      // Kobold). Point llmUrl at your server — default is a local llama.cpp on :8080; LlamaHerder users
+      // set their host/IP. Uses the model's native Mistral V7 "Tekken" template, temperature-last, a
+      // light DRY pass, and min-p — a coherent, characterful baseline.
+      id: 'default-cydonia24b',
+      name: 'Cydonia 24B (Recommended)',
+      llmUrl: 'http://localhost:8080/',
+      apiType: 'chat_completion',
+      endpointStandard: 'llamacpp',
+      promptTemplate: 'mistral-tekken',
+      supportsSystemRole: true,
+      maxTokens: 400,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 175,
+      temperature: 1.0,
+      topK: 0,
+      topP: 1,
+      typicalP: 1,
+      minP: 0.05,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.05,
+      repPenRange: 2048,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0.8,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 0,
+      drySequenceBreakers: ['\n', ':', '"', '*'],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      minKeep: 0,
+      temperatureLast: true,
+      noRepeatNgramSize: 0,
+      skew: 0,
+      repPenDecay: 0,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      isDefault: false
+    },
+    {
       // Cloud inference via OpenRouter. Ships blank — add your own key + model in
       // Settings -> Model. Chat-completion endpoint (system role supported).
       id: 'default-openrouter',
