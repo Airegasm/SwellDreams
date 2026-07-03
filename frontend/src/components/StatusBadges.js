@@ -64,6 +64,7 @@ function StatusBadges({
       <div
         className="badge-capacity-circle"
         ref={capacityRef}
+        style={{ '--capacity': Math.min(Number(capacity) || 0, 100) }}
         onClick={() => {
           if (!onCapacityChange) return;
           if (!showCapacitySlider) {

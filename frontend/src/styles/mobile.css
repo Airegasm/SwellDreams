@@ -45,63 +45,74 @@
     display: none !important;
   }
 
-  /* Mobile StatusBadges - capacity gauge pinned to the FAR LEFT of the (taller) bottom padding.
-     Phase 2: E-STOP moved to the header, so the gauge owns the bottom-left corner. */
+  /* Mobile capacity gauge — rendered IN-FLOW in the bottom pump band, restyled from the circular gauge
+     into a rectangle % chip (same height as P/C). Clicking it still opens the StatusBadges capacity
+     slider + auto-capacity tracker toggle (unchanged behavior). */
   .mobile-header-badges {
-    position: fixed;
-    bottom: 8px;
-    left: 2px;
-    right: auto;
-    z-index: 500;
-    display: flex;
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: flex-start;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
   }
-
   .mobile-header-badges .status-badges-overlay {
     position: relative !important;
     display: flex !important;
-    flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
     pointer-events: auto;
   }
-
-  /* Hide the metallic frame and Automatic text in mobile */
+  /* Hide the frame, faces bar, mode text, AND the emotion/pain badges — this chip shows % only. */
   .mobile-header-badges .metallic-frame,
   .mobile-header-badges .faces-background-bar,
-  .mobile-header-badges .capacity-mode-indicator {
+  .mobile-header-badges .capacity-mode-indicator,
+  .mobile-header-badges .badges-row-container {
     display: none !important;
   }
-
-  /* Capacity gauge - anchored bottom-left, a tad smaller than before */
+  /* The gauge circle becomes a rectangle chip: green(0%) → red(100%) from the live --capacity var. */
   .mobile-header-badges .badge-capacity-circle {
     position: relative !important;
     top: auto !important;
     left: auto !important;
-    transform: scale(1.05);
-    transform-origin: bottom left;
-    opacity: 0.65;
-  }
-
-  /* Emotion/pain badges - to the RIGHT of the (now left-anchored) gauge */
-  .mobile-header-badges .badges-row-container {
-    position: absolute !important;
-    bottom: 10px !important;
-    left: 96px !important;
-    right: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    width: 52px;
+    height: 40px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #3d4147;
+    background: hsl(calc(120 - var(--capacity, 0) * 1.2), 62%, 42%);
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
   }
-
-  .mobile-header-badges .badges-left-stack {
-    flex-direction: column !important;
-    gap: 2px;
+  /* Strip the circular gauge internals; keep only the % readout. */
+  .mobile-header-badges .capacity-gauge-mini {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    background: none !important;
+    box-shadow: none !important;
   }
-
-  .mobile-header-badges .status-badge-mini {
-    transform: scale(1.1);
+  .mobile-header-badges .gauge-background-mini,
+  .mobile-header-badges .gauge-needle-mini,
+  .mobile-header-badges .gauge-center-mini {
+    display: none !important;
+  }
+  .mobile-header-badges .gauge-value-mini {
+    position: static !important;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  /* Slider popup pops ABOVE the chip (it sits near the screen bottom). */
+  .mobile-header-badges .capacity-slider-popup {
+    position: absolute !important;
+    bottom: calc(100% + 6px) !important;
+    top: auto !important;
+    left: 0 !important;
+    right: auto !important;
+    z-index: 700;
   }
 
   /* The pump timer now lives in the .mobile-pump-band next to the gauge; hide the bottom-band copy on
@@ -263,35 +274,15 @@
   /* ===== PHASE 2 (mobile): bottom padding holds capacity + balloon + timer (left), P/C (right). ===== */
   /* Upper padding row is empty now (balloon + P/C moved out; NEXT/E-STOP in the header) — remove it. */
   .input-buttons-row { display: none !important; }
-  /* The old circular capacity gauge overlay is replaced by the rectangle chip below — hide it. */
-  .mobile-header-badges { display: none !important; }
-  /* Bottom padding: taller; the capacity chip is now an in-flow button (no reserved gauge column). */
+  /* Bottom padding: COMPACT — just the 40px button row with ~1px breathing room top/bottom. */
   .input-pump-timer-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 92px;
-    padding-left: 6px;
+    min-height: 0;
+    padding: 1px 6px;
   }
   .input-pump-timer-row .pump-timer-right { display: none; }   /* >> + REPLY live in the header now */
-  /* Capacity readout — rectangle button, same height as P/C (40px). Background (green→red) is set
-     inline from the live capacity %. */
-  .mobile-capacity-chip {
-    height: 40px;
-    min-width: 46px;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #3d4147;
-    border-radius: 4px;
-    padding: 0 8px;
-    color: #fff;
-    font-weight: 800;
-    font-size: 0.95rem;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    flex-shrink: 0;
-  }
   /* Timer slot — always reserves room for the longest string ("Intro - Pump Locked Off"). */
   .mobile-pump-timer-slot {
     display: inline-flex;
@@ -577,8 +568,8 @@
     display: flex;
     flex-direction: column;
     padding: var(--spacing-sm);
-    gap: var(--spacing-xs);
-    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+    gap: 2px;                    /* tight gap above the compact pump-timer row */
+    padding-bottom: calc(2px + env(safe-area-inset-bottom));
   }
 
   /* Input field row */

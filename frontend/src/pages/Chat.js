@@ -1518,34 +1518,9 @@ function Chat() {
       {/* Blocking overlay - no longer needed, all interactive elements are inline */}
 
       {/* Mobile Header Badges - StatusBadges in header area on mobile */}
-      <div className="mobile-header-badges mobile-only">
-        <StatusBadges
-          selectedEmotion={sessionState.emotion || 'neutral'}
-          onEmotionChange={(emotion) => {
-            setSessionState(prev => ({ ...prev, emotion }));
-            sendWsMessage('update_emotion', { emotion });
-          }}
-          selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
-          onPainLevelChange={(level) => {
-            setSessionState(prev => ({ ...prev, pain: level }));
-            sendWsMessage('update_pain', { pain: level });
-          }}
-          capacity={sessionState.capacity || 0}
-          onCapacityChange={(cap) => {
-            setSessionState(prev => ({ ...prev, capacity: cap }));
-            sendWsMessage('update_capacity', { capacity: cap });
-          }}
-          capacityModifier={settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0}
-          onCapacityModifierChange={(mod) => {
-            sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
-          }}
-          personaName={activePersona?.displayName}
-          useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity ?? true}
-          onToggleAutoCapacity={(enabled) => sendWsMessage('update_auto_capacity', { enabled })}
-          hidePainEmotion={true}
-          multichar={!!activeCharacter?.multiChar?.enabled}
-        />
-      </div>
+      {/* Mobile capacity gauge (StatusBadges) is rendered in-flow inside the bottom pump band now —
+          see .mobile-pump-band below. Keeping a single instance means its click→slider (with the
+          auto-capacity tracker toggle) works unchanged. */}
 
       {/* Left Sidebar - Persona */}
       <div className={`chat-sidebar ${leftDrawerOpen ? 'drawer-open' : ''} ${isPanelBlocking ? 'panel-active' : ''}`}>
@@ -2370,12 +2345,37 @@ function Chat() {
                 padding. The timer slot always reserves width for the longest string ("Intro - Pump
                 Locked Off") so nothing shifts. */}
             <div className="mobile-pump-band mobile-only">
-              {/* Capacity — rectangle chip, same height as P/C; green at 0% → red at 100%. */}
-              <span
-                className="mobile-capacity-chip"
-                style={{ background: `hsl(${120 - Math.min(100, Math.max(0, sessionState.capacity || 0)) * 1.2}, 62%, 42%)` }}
-                title="Current capacity"
-              >{Math.round(sessionState.capacity || 0)}%</span>
+              {/* Capacity gauge — the SAME StatusBadges instance as before, now in-flow. Its gauge is
+                  restyled (mobile CSS) to a rectangle % chip (green→red), and clicking it still opens
+                  the capacity slider + auto-capacity tracker toggle. */}
+              <div className="mobile-header-badges">
+                <StatusBadges
+                  selectedEmotion={sessionState.emotion || 'neutral'}
+                  onEmotionChange={(emotion) => {
+                    setSessionState(prev => ({ ...prev, emotion }));
+                    sendWsMessage('update_emotion', { emotion });
+                  }}
+                  selectedPainLevel={typeof sessionState.pain === 'number' ? sessionState.pain : 0}
+                  onPainLevelChange={(level) => {
+                    setSessionState(prev => ({ ...prev, pain: level }));
+                    sendWsMessage('update_pain', { pain: level });
+                  }}
+                  capacity={sessionState.capacity || 0}
+                  onCapacityChange={(cap) => {
+                    setSessionState(prev => ({ ...prev, capacity: cap }));
+                    sendWsMessage('update_capacity', { capacity: cap });
+                  }}
+                  capacityModifier={settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0}
+                  onCapacityModifierChange={(mod) => {
+                    sendWsMessage('update_capacity_modifier', { capacityModifier: mod });
+                  }}
+                  personaName={activePersona?.displayName}
+                  useAutoCapacity={settings?.globalCharacterControls?.useAutoCapacity ?? true}
+                  onToggleAutoCapacity={(enabled) => sendWsMessage('update_auto_capacity', { enabled })}
+                  hidePainEmotion={true}
+                  multichar={!!activeCharacter?.multiChar?.enabled}
+                />
+              </div>
               <button
                 type="button"
                 className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
