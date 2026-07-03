@@ -680,15 +680,17 @@
 }
 
 .story-controls {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .story-select {
-  width: 100% !important;
+  flex: 1 1 auto;   /* dropdown shrinks to share the row with the +/rename/delete buttons */
+  min-width: 0;
   height: 34px;
   padding: 6px 10px;
   font-size: var(--font-size-sm);
-  justify-self: stretch;
 }
 
 .story-meta-group {
