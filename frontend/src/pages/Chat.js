@@ -1696,27 +1696,15 @@ function Chat() {
         {/* ===== MOBILE HEADER BAR (Phase 1) — action buttons moved off the reading area. Mobile only.
             Left→right: E-STOP(⚠️) · font − / + / ⚙ · NEXT(») · REPLY(💬) · … · hamburger(☰). ===== */}
         <div className="mobile-chat-header mobile-only">
-          {/* E-STOP — far left. Contextual: GO! (awaiting release) / PUMP (manual) / ⚠️ (emergency stop). */}
-          {sessionState.awaitingGoRelease ? (
-            <button type="button" className="mch-btn mch-estop go-release"
-              onClick={() => sendWsMessage('gate_release', {})} disabled={sessionLoading}
-              title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}>
-              {sessionState.releaseButtonLabel || 'GO!'}
-            </button>
-          ) : sessionState.pumpInit === 'manual' ? (
-            <button type="button" className="mch-btn mch-estop pump"
-              onClick={() => sendWsMessage('manual_pump', {})} disabled={sessionLoading} title={`Pump (${sessionState.pumpType || 'manual'})`}>
-              PUMP
-            </button>
-          ) : (
-            <button type="button"
-              className={`mch-btn mch-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
-              onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
-              disabled={controlMode === 'simulated'}
-              title={controlMode === 'simulated' ? 'Simulation mode active' : flowExecutions?.length > 0 ? 'Abort flows' : 'Emergency stop'}>
-              ⚠️
-            </button>
-          )}
+          {/* E-STOP — far left. ALWAYS the emergency stop (⚠️). No GO!/READY!/PUMP swaps: gate-release is
+              now the UNLOCK overlay, and manual pumping is the balloon button. */}
+          <button type="button"
+            className={`mch-btn mch-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+            onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
+            disabled={controlMode === 'simulated'}
+            title={controlMode === 'simulated' ? 'Simulation mode active' : flowExecutions?.length > 0 ? 'Abort flows' : 'Emergency stop'}>
+            ⚠️
+          </button>
           {/* Font size − / + and the ⚙ clear-menu (real buttons in the header now) */}
           <button type="button" className="mch-btn" onClick={decreaseFontSize} disabled={chatFontSize <= 10} title="Decrease font size">−</button>
           <button type="button" className="mch-btn" onClick={increaseFontSize} disabled={chatFontSize >= 32} title="Increase font size">+</button>
@@ -2379,12 +2367,19 @@ function Chat() {
                   multichar={!!activeCharacter?.multiChar?.enabled}
                 />
               </div>
+              {/* Balloon = the pump button. MANUAL mode (bulb/bike): each tap pumps. AUTOMATIC mode:
+                  toggles the primary pump on/off. */}
               <button
                 type="button"
                 className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
-                onClick={() => sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {})}
-                title={primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump'}
-                aria-label="Toggle primary pump"
+                onClick={() => {
+                  if (sessionState.pumpInit === 'manual') sendWsMessage('manual_pump', {});
+                  else sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {});
+                }}
+                title={sessionState.pumpInit === 'manual'
+                  ? `Pump (${sessionState.pumpType || 'manual'}) — tap to pump`
+                  : (primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump')}
+                aria-label="Pump"
               >🎈</button>
               <span className="mobile-pump-timer-slot">
                 {sessionState.introActive ? (
@@ -2393,6 +2388,18 @@ function Chat() {
                   <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
                 ) : null}
               </span>
+              {/* UNLOCK overlay — covers the chip + balloon while inflation is gated by the intro. Disabled
+                  (dim) until the intro's actions finish, then lights up green; tapping it releases the gate
+                  and the overlay vanishes, revealing the chip + pump button. */}
+              {(sessionState.introActive || sessionState.awaitingGoRelease) && (
+                <button
+                  type="button"
+                  className={`mobile-unlock-overlay ${(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'ready' : 'locked'}`}
+                  onClick={() => { if (sessionState.awaitingGoRelease && !sessionState.introActive) sendWsMessage('gate_release', {}); }}
+                  disabled={!(sessionState.awaitingGoRelease && !sessionState.introActive)}
+                  title={(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'Tap to UNLOCK inflation' : 'Locked — the intro must finish first'}
+                >UNLOCK</button>
+              )}
             </div>
             {/* Pump timer(s) — left side, counts down for timed pumps */}
             <div className="pump-timer-left">
