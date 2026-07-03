@@ -1127,20 +1127,16 @@ function Chat() {
       if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mentionMenu.matches[mentionMenu.hi]); return; }
       if (e.key === 'Escape') { e.preventDefault(); setMentionMenu(null); return; }
     }
-    // Enter key ALWAYS sends message - treat as single-line input with wrapping
-    // Prevent newlines entirely (no Shift+Enter or Ctrl+Enter for multiline)
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (inputValue.trim() && !isGenerating && !isPanelBlocking && !sessionLoading && activeCharacter) {
-        handleSubmit(e);
-      }
-      return;
-    }
+    // Enter inserts a NEWLINE (native textarea behavior) — sending is done ONLY via the Send-As (↖)
+    // buttons. (@-mention Enter is handled above while that menu is open.)
 
+    // ArrowUp/Down step through input history ONLY at the text boundaries, so the caret can still move
+    // between lines in the multi-line box; the ▲▼ buttons also do history.
     if (e.key === 'ArrowUp') {
-      e.preventDefault();
+      const el = e.target;
+      if (el.selectionStart !== 0 || el.selectionEnd !== 0) return; // not at the top — let the caret move up
       if (messageHistory.length === 0) return;
-
+      e.preventDefault();
       if (historyIndex === -1) {
         // Save current draft before entering history
         setCurrentDraft(inputValue);
@@ -1151,9 +1147,11 @@ function Chat() {
         setInputValue(messageHistory[historyIndex - 1]);
       }
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
+      const el = e.target;
+      const end = el.value.length;
+      if (el.selectionStart !== end || el.selectionEnd !== end) return; // not at the bottom — caret moves down
       if (historyIndex === -1) return;
-
+      e.preventDefault();
       if (historyIndex < messageHistory.length - 1) {
         setHistoryIndex(historyIndex + 1);
         setInputValue(messageHistory[historyIndex + 1]);
