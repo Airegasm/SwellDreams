@@ -45,6 +45,27 @@ cd /d "%SCRIPT_DIR%"
 REM Ensure git has an identity so no operation can fail with "tell me who you are".
 git config user.email >nul 2>nul || git config user.email "swelldreams@localhost"
 git config user.name >nul 2>nul || git config user.name "SwellDreams"
+
+REM --- One-time legacy node_modules cleanup ---------------------------------------------------------
+REM Builds prior to v6.6.8 TRACKED backend/node_modules and frontend/node_modules as directory
+REM symlinks. On Windows, "git reset --hard" (below) loops forever failing to unlink those symlinks
+REM ("unlink of 'backend/node_modules' failed"), stranding the user on the old version. If they're
+REM still tracked, untrack + physically remove them here so the sync is clean; npm install recreates
+REM real node_modules afterward. Gated on being tracked, so healthy (untracked) installs are left
+REM alone and the normal "skip reinstall when nothing changed" fast path still works.
+git ls-files --error-unmatch backend/node_modules >nul 2>nul
+if not errorlevel 1 (
+    echo Legacy node_modules detected - cleaning up before update...
+    git rm -r --cached --quiet backend/node_modules frontend/node_modules >nul 2>nul
+    if exist "backend\node_modules" rmdir "backend\node_modules" >nul 2>nul
+    if exist "backend\node_modules" rmdir /s /q "backend\node_modules" >nul 2>nul
+    if exist "backend\node_modules" del /f /q "backend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" rmdir "frontend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" rmdir /s /q "frontend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" del /f /q "frontend\node_modules" >nul 2>nul
+)
+REM -------------------------------------------------------------------------------------------------
+
 REM Snapshot the commit before syncing, so we can skip the slow reinstall+rebuild when nothing changed.
 set "BEFORE_HEAD=none"
 for /f "tokens=*" %%h in ('git rev-parse HEAD 2^>nul') do set "BEFORE_HEAD=%%h"
