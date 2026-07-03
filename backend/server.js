@@ -3543,6 +3543,7 @@ const sessionState = {
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
   pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
+  pendingTreeNext: null, // Armed when a tree holds on the ">>" gate between back-to-back standalone messages; { ctxSnapshot, after }
   playerIsInflating: false, // Latched-pump mode (per-char latchPumpUntilOff): [pump on] latches the pump
                            // ON across every reply until [pump off]; overrides time-based auto-off + limits.
                            // Exposed as the [PlayerIsInflating] system variable. Capacity/pop ceiling still applies.
@@ -5055,6 +5056,7 @@ function clearSessionContextForSwitch() {
   sessionState.pendingTreeGame = null;
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingTreeChoice = null;
+  sessionState.pendingTreeNext = null;
   sessionState.activeCheckpointInjections = [];
   sessionState.checkpointInjectionCounts = {};
   sessionState.playerIsInflating = false;
@@ -7976,6 +7978,9 @@ async function handleWsMessage(ws, type, data) {
         sessionState.pendingRangeAwait = null;
         broadcast('next_gate', { active: false });
         await resumeIndividualSequence(pa).catch(err => console.error('[NextGate/Individual] resume failed:', err?.message || err));
+      } else if (sessionState.pendingTreeNext) {
+        // Tree (e.g. gated intro) holding between back-to-back standalone messages.
+        await resumeTreeNext().catch(err => console.error('[NextGate/Tree] resume failed:', err?.message || err));
       }
       break;
     }
@@ -11641,6 +11646,32 @@ async function resumeTreeChoice(choiceId) {
   }
 }
 
+// Resume a tree paused on the ">>" Next gate between back-to-back standalone messages. Rebuilds the
+// ctx from the snapshot (mirrors resumeTreeChoice) and runs the stashed continuation.
+async function resumeTreeNext() {
+  const pend = sessionState.pendingTreeNext;
+  if (!pend) return;
+  const after = pend.after, snap = pend.ctxSnapshot || {};
+  sessionState.pendingTreeNext = null;
+  broadcast('next_gate', { active: false });
+  if (!Array.isArray(after) || !after.length) return;
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+  try { await runTree(after, ctx); }
+  catch (e) { console.error('[resumeTreeNext] continuation failed:', e?.message || e); }
+}
+
 // Resume a suspended Trigger Tree choose_multi on the player's confirmed selection. Runs EACH
 // picked option's body in author order, then the same-level continuation — all in one shared ctx
 // ('standalone' delivery), mirroring resumeTreeChoice. Clears the armed state FIRST so a nested
@@ -14921,6 +14952,11 @@ async function runNode(node, ctx) {
 //  - {__control:'suspend'}: a player_choice suspended the turn. Capture THIS list's remaining
 //    siblings as the post-choice continuation (innermost frame only — `after == null` guard),
 //    then bubble to runTreeScope so the turn ends.
+// A tree node that posts a generated AI message (the kind worth gating between back-to-back).
+function isTreeMsgNode(n) {
+  return !!(n && n.kind === 'action' && (n.type === 'ai_message' || n.type === 'ai_message_member' || n.type === 'impersonate'));
+}
+
 async function runTree(nodes, ctx) {
   if (ctx.depth > MAX_TREE_DEPTH) { console.warn('[runTree] max depth exceeded — aborting subtree'); return; }
   if (!Array.isArray(nodes)) return;
@@ -14931,6 +14967,21 @@ async function runTree(nodes, ctx) {
     let sig;
     try { sig = await runNode(node, ctx); }
     catch (e) { console.error(`[runTree] node ${node?.id}(${node?.type}) failed:`, e?.message || e); i++; continue; }
+
+    // Auto Next-gate: after a just-posted STANDALONE message, if the NEXT node is also a message,
+    // hold on the ">>" button so the player reads each before the next generates (same UX as the
+    // sequential-trigger and individual-reply next gates). Only standalone delivery posts separate
+    // bubbles worth gating; inReply weaves everything into one reply. The suspend handler below stashes
+    // the continuation (nodes.slice(i+1)) into pendingTreeNext.after; next_gate_advance resumes it.
+    if (!sig && ctx.delivery === 'standalone' && isTreeMsgNode(node) && isTreeMsgNode(nodes[i + 1])) {
+      sessionState.pendingTreeNext = {
+        ctxSnapshot: { treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth, delivery: ctx.delivery, source: ctx.source, visited: Array.from(ctx.visited || []) }
+      };
+      broadcast('next_gate', { active: true });
+      console.log('[Tree] Next gate — holding before the next back-to-back message; waiting for player >>');
+      sig = { __control: 'suspend', reason: 'next-gate' };
+    }
+
     if (sig) {
       if (sig.__control === 'goto') {
         if (!sig.name) { console.warn('[runTree] goto with empty name — skipping'); i++; continue; } // never match a blank label
@@ -14946,7 +14997,7 @@ async function runTree(nodes, ctx) {
         // Capture the innermost same-level continuation for post-resume fall-through. A choice/
         // choose_multi fills pendingTreeChoice; a pause_resume fills pendingTreeResume; a
         // call_minigame fills pendingTreeGame.
-        const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame;
+        const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame || sessionState.pendingTreeNext;
         if (pend && pend.after == null) pend.after = nodes.slice(i + 1);
         return sig;
       }
@@ -18931,6 +18982,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingTreeChoice = null;
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
+  sessionState.pendingTreeNext = null;
   sessionState.playerIsInflating = false;
   sessionState.pendingCheckpointResponse = null;
   sessionState.pendingPrereqs = null;
