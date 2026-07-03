@@ -408,7 +408,12 @@ function Chat() {
   // Primary-pump running state for the balloon toggle — keyed to the PRIMARY pump specifically, not
   // "any device in pumpStatus" (a second device like a light would otherwise confuse it). pumpStatus
   // is keyed the same way deviceService reports device_on: cloud brands by deviceId, local by ip.
-  const primaryPumpDev = (devices || []).find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  // Prefer the device explicitly flagged isPrimaryPump===true. With multiple deviceType==='PUMP'
+  // devices, a bare find(d => deviceType==='PUMP' || isPrimaryPump) returns the FIRST pump — which
+  // may be a secondary/offline one (e.g. .169) instead of the real primary (.174). Fall back to the
+  // first pump only if none is flagged.
+  const primaryPumpDev = (devices || []).find(d => d.isPrimaryPump === true)
+    || (devices || []).find(d => d.deviceType === 'PUMP');
   const primaryPumpKey = primaryPumpDev
     ? (['govee', 'tuya', 'wyze'].includes(String(primaryPumpDev.brand || '').toLowerCase())
         ? primaryPumpDev.deviceId

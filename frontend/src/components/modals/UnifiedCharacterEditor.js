@@ -255,7 +255,7 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
 
   // ---- Pumpable: player primary-pump calibration (for the sync-with-player option) ----
   const playerPumpCalibration = useMemo(() => {
-    const pump = devices?.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    const pump = devices?.find(d => d.isPrimaryPump === true) || devices?.find(d => d.deviceType === 'PUMP');
     return pump?.calibrationTime || null;
   }, [devices]);
 

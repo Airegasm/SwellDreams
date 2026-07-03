@@ -1165,6 +1165,16 @@ function getPrimaryPumpLimits() {
   return primary?.limits || null;
 }
 
+// Resolve the ONE primary pump DEVICE from the devices list. A user can have several devices flagged
+// deviceType==='PUMP'; the primary is the one explicitly flagged isPrimaryPump===true. A bare
+// find(d => d.deviceType==='PUMP' || d.isPrimaryPump) returns the FIRST pump instead — wrong when the
+// primary isn't listed first (or is offline). Always prefer the flagged primary, then fall back to the
+// first pump. Used everywhere a single "the pump" is needed (balloon toggle, firing, calibration).
+function getPrimaryPumpDevice(devices) {
+  const list = Array.isArray(devices) ? devices : [];
+  return list.find(d => d.isPrimaryPump === true) || list.find(d => d.deviceType === 'PUMP') || null;
+}
+
 // Alias for backwards compatibility
 function getCalibrationKey(device) {
   return getDeviceKey(device);
@@ -1299,7 +1309,7 @@ async function reassertLatchedPump() {
   if (!sessionState.playerIsInflating) return;
   try {
     const devices = loadData(DATA_FILES.devices) || [];
-    const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+    const pump = getPrimaryPumpDevice(devices);
     if (!pump) return;
     const id = resolveControlId(pump);
     clearServerTimedPumpTimer(id); // a latch must never be ended by a leftover auto-off timer
@@ -1317,7 +1327,7 @@ async function firePrimaryPump(action) {
     return;
   }
   const devices = loadData(DATA_FILES.devices) || [];
-  const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  const pump = getPrimaryPumpDevice(devices);
   if (!pump) return;
   const id = resolveControlId(pump);
   // Clamp the on-time to the effective limit (per-device first, then global).
@@ -1354,7 +1364,7 @@ async function executeAutoPumpPacing(character, isFlowChain) {
   if (sessionState.messagesSincePumpOn < gap) return;
 
   const devices = loadData(DATA_FILES.devices) || [];
-  const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  const pump = getPrimaryPumpDevice(devices);
   if (!pump) return;
   const id = resolveControlId(pump);
   // Already running (a timed-on is in flight) → skip without resetting the counter.
@@ -3804,7 +3814,7 @@ async function executeTrigger(trigger, source, character, settings) {
           break;
         }
         const devices = loadData(DATA_FILES.devices) || [];
-        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        const pump = getPrimaryPumpDevice(devices);
         if (pump) {
           const id = resolveControlId(pump);
           await deviceService.turnOn(id, pump);
@@ -3816,7 +3826,7 @@ async function executeTrigger(trigger, source, character, settings) {
       case 'pump_off': {
         sessionState.playerIsInflating = false; // an explicit off ends any latched-pump mode
         const devices = loadData(DATA_FILES.devices) || [];
-        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        const pump = getPrimaryPumpDevice(devices);
         if (pump) {
           const id = resolveControlId(pump);
           clearServerTimedPumpTimer(id);
@@ -3958,7 +3968,7 @@ async function executeTrigger(trigger, source, character, settings) {
           break;
         }
         const devices = loadData(DATA_FILES.devices) || [];
-        const pump = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+        const pump = getPrimaryPumpDevice(devices);
         if (pump) {
           const id = resolveControlId(pump);
           const maxOn = effectiveMaxOnSeconds();
@@ -4421,7 +4431,7 @@ function buildCharacterInflationContext(character) {
 function getCharacterCalibrationTime(character) {
   if (character?.charSyncCalibrationWithPlayer) {
     const devices = loadData(DATA_FILES.devices) || [];
-    const pump = devices.find(d => d.isPrimaryPump || d.deviceType === 'PUMP');
+    const pump = getPrimaryPumpDevice(devices);
     if (pump?.calibrationTime) return pump.calibrationTime;
   }
   return character?.characterCalibrationTime || 60;
@@ -5508,7 +5518,7 @@ async function executePumpOnEveryReply(text, character, isFlowChain) {
   if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return;
 
   const devices = loadData(DATA_FILES.devices) || [];
-  const pumpDevice = devices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+  const pumpDevice = getPrimaryPumpDevice(devices);
   if (!pumpDevice) return;
 
   const deviceId = pumpDevice.brand === 'govee' || pumpDevice.brand === 'tuya' || pumpDevice.brand === 'wyze'
@@ -7788,7 +7798,7 @@ async function handleWsMessage(ws, type, data) {
         break;
       }
       const ppDevices = loadData(DATA_FILES.devices) || [];
-      const ppPump = ppDevices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+      const ppPump = getPrimaryPumpDevice(ppDevices);
       if (ppPump) {
         const id = resolveControlId(ppPump);
         await deviceService.turnOn(id, ppPump);
@@ -7800,7 +7810,7 @@ async function handleWsMessage(ws, type, data) {
     case 'primary_pump_off': {
       sessionState.playerIsInflating = false; // an explicit off ends any latched-pump mode
       const ppDevices = loadData(DATA_FILES.devices) || [];
-      const ppPump = ppDevices.find(d => d.deviceType === 'PUMP' || d.isPrimaryPump);
+      const ppPump = getPrimaryPumpDevice(ppDevices);
       if (ppPump) {
         const id = resolveControlId(ppPump);
         clearServerTimedPumpTimer(id);
