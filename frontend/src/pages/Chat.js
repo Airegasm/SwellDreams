@@ -222,9 +222,12 @@ function Chat() {
   const PERSONA_ACTIONS_PER_PAGE = 6; // 2 columns x 3 rows
 
   // Chat input textarea height (persisted to localStorage)
+  // Minimum textarea height = the action-stack's natural height (robothead row + send-as row) so the
+  // drag-to-resize can't shrink the textbox shorter than the button column beside it.
+  const MIN_INPUT_HEIGHT = 96;
   const [inputHeight, setInputHeight] = useState(() => {
     const saved = localStorage.getItem('swelldreams_input_height');
-    return saved ? parseInt(saved, 10) : 80;
+    return Math.max(MIN_INPUT_HEIGHT, saved ? parseInt(saved, 10) : 96);
   });
   const dragRef = useRef(null);
 
@@ -1008,7 +1011,9 @@ function Chat() {
       if (!dragRef.current) return;
       const currentY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY;
       const delta = startY - currentY; // dragging up = bigger
-      const newHeight = Math.min(400, Math.max(40, startHeight + delta));
+      // Floor = the action-stack's natural height (robothead row + send-as row, ~44px buttons + gap);
+      // dragging shorter than that just leaves the textarea stranded above a taller button column.
+      const newHeight = Math.min(400, Math.max(MIN_INPUT_HEIGHT, startHeight + delta));
       setInputHeight(newHeight);
     };
 
