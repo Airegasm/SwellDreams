@@ -140,15 +140,18 @@ fi
 PID_DIR="$SCRIPT_DIR/.pids"
 mkdir -p "$PID_DIR"
 
-# Check if already running
+# Already running? STOP it first so this restart actually runs the updated backend code. Previously
+# this only warned and continued — the new `node server.js` then failed to bind the port, so the OLD
+# server kept running and server.js fixes never took effect (only the frontend, served as static
+# files, appeared to update). Only ever kills OUR saved PID and only if it's really a server.js
+# process, so unrelated node apps are never touched.
 if [ -f "$PID_DIR/server.pid" ]; then
     OLD_PID=$(cat "$PID_DIR/server.pid")
-    if kill -0 "$OLD_PID" 2>/dev/null; then
-        echo ""
-        echo "Warning: SwellDreams may already be running (PID: $OLD_PID)"
-        echo "Close it manually or run ./stop.sh first to avoid conflicts."
-        echo ""
-        sleep 3
+    if kill -0 "$OLD_PID" 2>/dev/null && ps -p "$OLD_PID" -o args= 2>/dev/null | grep -q "server.js"; then
+        echo "Stopping the previous SwellDreams server (PID $OLD_PID) so this restart runs the updated code..."
+        kill "$OLD_PID" 2>/dev/null
+        for _ in 1 2 3 4 5; do kill -0 "$OLD_PID" 2>/dev/null || break; sleep 1; done
+        kill -9 "$OLD_PID" 2>/dev/null || true
     fi
 fi
 
