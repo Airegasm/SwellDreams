@@ -11690,6 +11690,8 @@ async function resumeTreeNext() {
   };
   try { await runTree(after, ctx); }
   catch (e) { console.error('[resumeTreeNext] continuation failed:', e?.message || e); }
+  // If this was the intro sequence and it just finished (nothing new pending), arm the UNLOCK gate.
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character);
 }
 
 // Resume a suspended Trigger Tree choose_multi on the player's confirmed selection. Runs EACH
@@ -11894,7 +11896,34 @@ async function startIntroScope(character, settings, treeIndex, welcomePosted = f
   }
   try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex, gateFirstMsg: welcomePosted }); }
   catch (e) { console.error('[Intro] start failed:', e?.message || e); }
+  finalizeIntroSequence(character); // no-WAIT case: the whole sequence ran here → arm UNLOCK now
   return true;
+}
+// Does the intro tree contain an explicit end_intro action anywhere (incl. nested blocks)?
+function treeHasEndIntro(tree) {
+  if (!tree || !Array.isArray(tree.nodes)) return false;
+  const scan = (arr) => Array.isArray(arr) && arr.some(n => n && (
+    (n.kind === 'action' && n.type === 'end_intro') ||
+    scan(n.children) || scan(n.nodes) || scan(n.then) || scan(n.else) || scan(n.blocks)));
+  return scan(tree.nodes);
+}
+// Called when a gated intro's STANDALONE tree run finishes. A pure message-sequence intro (no explicit
+// end_intro) would otherwise leave introActive stuck true and the UNLOCK gate never armed — so once the
+// last message has posted (nothing pending), arm the manual-release gate so UNLOCK lights up.
+function finalizeIntroSequence(character) {
+  if (!sessionState.introActive) return;              // already ended via end_intro
+  if (sessionState.awaitingGoRelease) return;         // gate already armed (e.g. readyExit / manual end_intro)
+  if (sessionState.pendingTreeNext || sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame) return; // still mid-sequence (>> / choice / minigame pending)
+  if (treeHasEndIntro(getIntroTree(character))) return; // has its own end_intro — rely on it (inReply weave)
+  setIntroActive(false);
+  const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  sessionState.prosePumpGuidanceOff = introStory?.treeRefs?.introEnableProsePumpAfter === false;
+  sessionState.preInflationGateMet = false;           // still gated until UNLOCK is pressed
+  sessionState.awaitingGoRelease = true;
+  sessionState.releaseButtonLabel = 'UNLOCK';
+  broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'UNLOCK' });
+  broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: false });
+  console.log('[Intro] message sequence complete (no end_intro) → armed UNLOCK gate');
 }
 // Re-run the intro tree each reply while active (weaves guidance in-reply; its keyword/choice gates
 // fire end_intro when the player meets the condition).
