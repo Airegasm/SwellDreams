@@ -2767,6 +2767,9 @@ const DEFAULT_SETTINGS = {
     // Strip model scaffolding (scene headers like "# NEW SCENE", analysis/OOC preambles) that wraps the
     // actual roleplay reply. Only trims clearly-meta text outside the first/last "/* markers. On by default.
     stripModelScaffolding: true,
+    // Remove stray [bracketed] stage directions/meta the model emits (preserving [pump on] etc. device
+    // tags) from both the chat bubble and the stored context. On by default.
+    stripBracketsFromReplies: true,
   },
   globalReminders: [
     {
@@ -3859,7 +3862,9 @@ async function executeTrigger(trigger, source, character, settings) {
         const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         if (aiResult.text) {
           const { v4: uuidv4 } = require('uuid');
-          const msg = { id: uuidv4(), content: substituteAllVariables(aiResult.text), sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
+          let atxt = substituteAllVariables(aiResult.text);
+          if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
+          const msg = { id: uuidv4(), content: atxt, sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
           autosaveSession();
@@ -3902,6 +3907,7 @@ async function executeTrigger(trigger, source, character, settings) {
         if (memRes.text) {
           const { v4: uuidv4 } = require('uuid');
           let memText = substituteAllVariables(memRes.text);
+          if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) memText = stripStrayBrackets(memText);
           if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
             const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
             memText = stripSpeakerPrefixes(memText, [tgt.name, ...otherN, character.name, character.multiChar?.groupName].filter(Boolean));
@@ -6252,6 +6258,8 @@ If announcing the result, say "${result}" - not something else.
         if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) {
           finalText = stripModelScaffolding(finalText);
         }
+        // Remove stray [bracketed] stage directions/meta (device tags preserved for the pass below).
+        if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
         // Instructors never roleplay — strip asterisk actions / quoted dialogue here too.
         if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
 
@@ -8610,6 +8618,8 @@ async function handleSwipeMessage(data) {
     // are brackets, so they survive these strips and are executed below.
     resultText = stripCrossRoleContent(resultText, swipeStops || [], !isPlayerMsg);
     if (!isPlayerMsg && isInstructor(activeCharacter)) resultText = stripInstructorRoleplay(resultText);
+    // Remove stray [bracketed] meta (device tags preserved for the pass below).
+    if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) resultText = stripStrayBrackets(resultText);
 
     // Process AI device commands (e.g., [pump on], [vibe off]).
     const devices = loadData(DATA_FILES.devices) || [];
@@ -8945,9 +8955,11 @@ async function handleButtonSendMessage(action, characterId, personaId) {
       });
 
       // Update placeholder message with actual content (apply variable substitution + instructor strip)
-      placeholderMessage.content = isInstructor(character)
+      let guidedText = isInstructor(character)
         ? stripInstructorRoleplay(substituteAllVariables(result.text))
         : substituteAllVariables(result.text);
+      if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) guidedText = stripStrayBrackets(guidedText);
+      placeholderMessage.content = guidedText;
       delete placeholderMessage.excludeFromContext; // now a real reply — include it in future context
 
       // Find and update message in chat history
@@ -9267,6 +9279,21 @@ function stripModelScaffolding(text) {
   return cleaned || text;
 }
 
+// Remove stray [square-bracket] content the model injects (Cydonia loves "[He pauses]" / "[Scene]" /
+// "[continues]" stage directions). Device/media command tags ([pump on], [vibe:pulse:3], [Video:...])
+// are PRESERVED so device control still fires — it strips them downstream after executing, so they
+// never reach the bubble/context anyway. Applied to BOTH the displayed reply and the stored history.
+function stripStrayBrackets(text) {
+  if (!text) return text;
+  const PRESERVE = /^\[\s*(?:pump|vibe|tens)\b|^\[\s*(?:video|audio|image|img|sound)\s*:/i;
+  return String(text)
+    .replace(/\[[^\]\n]*\]/g, (m) => PRESERVE.test(m) ? m : '')
+    .replace(/[ \t]{2,}/g, ' ')          // collapse the gap a removed tag leaves
+    .replace(/[ \t]+([.,!?;:])/g, '$1')  // no space before punctuation
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds) {
   const content = data.content;
   // Player message — pushed once, before any individual reply.
@@ -9364,6 +9391,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
 
     let finalText = stripSpeakerPrefixes(substituteAllVariables((result?.text || '').trim()), knownNames);
     if (settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
+    if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
     if (!finalText) continue;
 
     // Drive devices from this girl's reply (pump/vibe/tens tags), same as the normal path.
