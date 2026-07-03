@@ -164,7 +164,10 @@ function makeBranch(isElse = false) {
 }
 function makeChoice() { return { id: rid('ch'), kind: 'container', type: 'choice', params: { label: 'Option' }, children: [] }; }
 function makeNode(kind, type) {
-  const node = { id: rid(), kind, type, params: {} };
+  // "once" (fire a single time per session) defaults ON for new nodes — trees re-run every reply turn
+  // while a scope is active, so without it a node re-fires each turn. Excludes pure control-flow
+  // markers (label/goto), where a one-time skip would break loops/redirects on re-run.
+  const node = { id: rid(), kind, type, once: type !== 'label' && type !== 'goto', params: {} };
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
   if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
