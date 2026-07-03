@@ -1757,18 +1757,8 @@ function Chat() {
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
 
         <div className="chat-messages" ref={messagesContainerRef}>
-          {/* Manual GO! gate-release — floats upper-left (PC), same row height as the font/gear
-              controls. Mobile uses the ESTOP→GO! swap instead. Shown only while awaiting release. */}
-          {sessionState.awaitingGoRelease && (
-            <button
-              type="button"
-              className="chat-go-release desktop-only"
-              onClick={() => sendWsMessage('gate_release', {})}
-              title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}
-            >
-              {sessionState.releaseButtonLabel || 'GO!'}
-            </button>
-          )}
+          {/* (Retired the floating GO!/READY! gate-release button — the UNLOCK button in the top input
+              row now handles gate release on desktop.) */}
           {/* Font size controls in upper right */}
           <div className="chat-font-controls">
             <button
@@ -2201,7 +2191,7 @@ function Chat() {
                 className={`pc-input-btn pc-reply ${sessionState.autoReply ? 'on' : 'off'}`}
                 onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
                 title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — click to turn on.'}
-              >AUTO-REPLY</button>
+              >💬 AUTO</button>
               {/* UNLOCK — shown during a gated intro; unclickable until the intro's last action, then it
                   lights up. Pressing it releases the gate and allows inflation. */}
               {(sessionState.introActive || sessionState.awaitingGoRelease) && (
