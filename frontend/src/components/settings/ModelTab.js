@@ -621,12 +621,20 @@ function ModelTab() {
     setModelStatus('Connecting...');
     setOpenRouterModels([]);
 
+    // Cancel any pending debounced auto-save FIRST — it was snapshotted from the previous profile's
+    // settings and would otherwise fire ~300ms later and overwrite the profile we're about to activate
+    // (this is what silently kicked the connection back to the previously-active profile, e.g. Horde).
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
+
     try {
       const result = await api.activateConnectionProfile(profileId);
       if (result.success && result.settings?.llm) {
         const profileSettings = result.settings.llm;
         setLlmSettings(profileSettings);
         setSelectedProfileId(profileId);
+        // Reset the persisted baseline to the just-activated profile so no stale rollback/debounce
+        // reverts it — the dropdown selection is now saved and authoritative until changed.
+        lastPersistedRef.current = profileSettings;
 
         // Restore endpoint standard and OpenRouter settings
         const newEndpoint = profileSettings.endpointStandard || 'openai';
