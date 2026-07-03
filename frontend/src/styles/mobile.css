@@ -138,7 +138,7 @@
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
   /* Intro pump-lock notice — shown in the timer slot while the intro gates inflation. */
-  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
+  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.72rem; white-space: nowrap; }
 
   /* NEXT (>>) gate — its OWN button just left of the P/C cluster (margin-left:auto pushes it + the
      cluster to the right). Sized to match P/C (36px tall) so nothing shrinks. Greyed until a sequence
@@ -260,18 +260,45 @@
      (its panel/overlay still render when opened via the header button). */
   .hamburger-button { display: none !important; }
 
-  /* ===== PHASE 2 (mobile): bottom padding holds gauge + balloon + timer (left), P/C (right). ===== */
+  /* ===== PHASE 2 (mobile): bottom padding holds capacity + balloon + timer (left), P/C (right). ===== */
   /* Upper padding row is empty now (balloon + P/C moved out; NEXT/E-STOP in the header) — remove it. */
   .input-buttons-row { display: none !important; }
-  /* Bottom padding: taller, with the far-left column reserved for the fixed capacity gauge. */
+  /* The old circular capacity gauge overlay is replaced by the rectangle chip below — hide it. */
+  .mobile-header-badges { display: none !important; }
+  /* Bottom padding: taller; the capacity chip is now an in-flow button (no reserved gauge column). */
   .input-pump-timer-row {
     display: flex;
     align-items: center;
     gap: 8px;
     min-height: 92px;
-    padding-left: 92px;   /* clear the fixed gauge pinned at the far left */
+    padding-left: 6px;
   }
   .input-pump-timer-row .pump-timer-right { display: none; }   /* >> + REPLY live in the header now */
+  /* Capacity readout — rectangle button, same height as P/C (40px). Background (green→red) is set
+     inline from the live capacity %. */
+  .mobile-capacity-chip {
+    height: 40px;
+    min-width: 46px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #3d4147;
+    border-radius: 4px;
+    padding: 0 8px;
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.95rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+  }
+  /* Timer slot — always reserves room for the longest string ("Intro - Pump Locked Off"). */
+  .mobile-pump-timer-slot {
+    display: inline-flex;
+    align-items: center;
+    min-width: 148px;
+    flex-shrink: 0;
+  }
   /* P/C drawer toggles — right-aligned under the Send-As arrow column (100px wide), action-btn style. */
   .mobile-pc-row {
     display: flex;

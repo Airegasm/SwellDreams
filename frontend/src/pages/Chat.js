@@ -2366,10 +2366,16 @@ function Chat() {
           {/* Bottom band mirroring the E-STOP band above the textbox — overlays the running pump
               timer text (visible on desktop AND mobile). Empty (just padding) when no pump runs. */}
           <div className="input-pump-timer-row">
-            {/* Phase 2 (mobile): balloon pump toggle + pump timer live here in the bottom padding,
-                just right of the capacity gauge. When the intro gates inflation, the timer slot shows
-                the pump-locked notice instead. */}
+            {/* Phase 2 (mobile): capacity readout + balloon toggle + pump timer live here in the bottom
+                padding. The timer slot always reserves width for the longest string ("Intro - Pump
+                Locked Off") so nothing shifts. */}
             <div className="mobile-pump-band mobile-only">
+              {/* Capacity — rectangle chip, same height as P/C; green at 0% → red at 100%. */}
+              <span
+                className="mobile-capacity-chip"
+                style={{ background: `hsl(${120 - Math.min(100, Math.max(0, sessionState.capacity || 0)) * 1.2}, 62%, 42%)` }}
+                title="Current capacity"
+              >{Math.round(sessionState.capacity || 0)}%</span>
               <button
                 type="button"
                 className={`mobile-pump-toggle ${primaryPumpRunning ? 'running' : ''}`}
@@ -2377,11 +2383,13 @@ function Chat() {
                 title={primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump'}
                 aria-label="Toggle primary pump"
               >🎈</button>
-              {sessionState.introActive ? (
-                <span className="pump-intro-lock">Intro - Pump Locked Off</span>
-              ) : primaryPumpStatus ? (
-                <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
-              ) : null}
+              <span className="mobile-pump-timer-slot">
+                {sessionState.introActive ? (
+                  <span className="pump-intro-lock">Intro - Pump Locked Off</span>
+                ) : primaryPumpStatus ? (
+                  <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
+                ) : null}
+              </span>
             </div>
             {/* Pump timer(s) — left side, counts down for timed pumps */}
             <div className="pump-timer-left">
