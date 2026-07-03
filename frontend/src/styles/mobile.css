@@ -79,12 +79,19 @@
     height: 40px;
     box-sizing: border-box;
     border-radius: 4px;
-    border: 1px solid #3d4147;
-    background: hsl(calc(120 - var(--capacity, 0) * 1.2), 62%, 42%);
+    /* Skinnable button FACE (same as the action buttons); the capacity level shows on the OUTLINE. */
+    background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
+    border: 2px solid hsl(calc(120 - var(--capacity, 0) * 1.2), 72%, 48%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+  }
+  /* Kill the leftover circular mask/glow that bled out behind the chip. */
+  .mobile-header-badges .badge-capacity-circle::before,
+  .mobile-header-badges .badge-capacity-circle::after {
+    display: none !important;
   }
   /* Strip the circular gauge internals; keep only the % readout. */
   .mobile-header-badges .capacity-gauge-mini {
@@ -101,10 +108,10 @@
   }
   .mobile-header-badges .gauge-value-mini {
     position: static !important;
-    color: #fff;
+    color: hsl(calc(120 - var(--capacity, 0) * 1.2), 80%, 55%) !important;   /* green(0%) → red(100%) */
     font-weight: 800;
     font-size: 0.9rem;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   }
   /* Slider popup pops ABOVE the chip (it sits near the screen bottom). */
   .mobile-header-badges .capacity-slider-popup {
@@ -222,8 +229,9 @@
     gap: 6px;
     min-height: 52px;                 /* match the input-row bottom padding */
     padding: 4px 8px;
-    background: var(--skin-section-header, var(--bg-secondary));
-    border-bottom: 1px solid var(--border-color);
+    /* Match the input/textbox AREA skin (same metallic panel as .chat-input-form). */
+    background: var(--skin-input-bg, linear-gradient(180deg, #3d4147 0%, #2d3036 20%, #1a1d21 40%, #0d0f12 60%, #1a1d21 80%, #2d3036 100%));
+    border-bottom: 1px solid #3d4147;
     flex-shrink: 0;
   }
   .mobile-chat-header .mch-btn {
@@ -231,9 +239,11 @@
     min-width: 36px;
     box-sizing: border-box;
     border-radius: 4px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
+    /* Match the textbox area's buttons (skinnable button face). */
+    background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%));
+    border: 1px solid #3d4147;
+    color: var(--skin-arrow-color, #c7ccd4);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
     font-size: 1.1rem;
     font-weight: 700;
     line-height: 1;
