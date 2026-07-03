@@ -9259,7 +9259,15 @@ function stripStrayBrackets(text) {
   if (!text) return text;
   const PRESERVE = /^\[\s*(?:pump|vibe|tens)\b|^\[\s*(?:video|audio|image|img|sound)\s*:/i;
   return String(text)
-    .replace(/\[[^\]\n]*\]/g, (m) => PRESERVE.test(m) ? m : '')
+    // Multi-line aware: [^\]] (not the newline-excluding [^\]\n]) so the big meta blocks Cydonia wraps
+    // across several lines — "[Understood, as Tempest I will stay dominant and...]" — get removed too,
+    // not just single-line stage directions. Device tags ([pump on] etc.) are still preserved.
+    .replace(/\[[^\]]*\]/g, (m) => PRESERVE.test(m) ? m : '')
+    // Also kill an UNTERMINATED meta block: a '[' that opens an acknowledgement and never closes (model
+    // kept going / we truncated) — only when it's clearly NOT the start of a device tag.
+    .replace(/\[(?!\s*(?:pump|vibe|tens)\b|\s*(?:video|audio|image|img|sound)\s*:)[^\]]*$/i, '')
+    // Drop any line that starts with '#' — markdown headers / "# Scene" section labels the model emits.
+    .replace(/^[ \t]*#.*(?:\r?\n|$)/gm, '')
     .replace(/[ \t]{2,}/g, ' ')          // collapse the gap a removed tag leaves
     .replace(/[ \t]+([.,!?;:])/g, '$1')  // no space before punctuation
     .replace(/\n{3,}/g, '\n\n')
