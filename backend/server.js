@@ -1347,37 +1347,12 @@ async function firePrimaryPump(action) {
 // no message/trigger — if the pump is already running or pacing isn't configured for the
 // active range. Runs before generation so the pump is moving while the model writes.
 async function executeAutoPumpPacing(character, isFlowChain) {
-  if (isFlowChain) return;
-  if (sessionState.pumpType !== 'electric') return;            // manual pumps use batch pacing
-  if (!sessionState.preInflationGateMet) return;               // respect the pre-inflation gate
-  const cp = getActiveCheckpointRaw(character, sessionState.capacity || 0); // pacing is device automation — not gated by Enable Checkpoints
-  const gap = parseInt(cp?.messagesBetweenOn);
-  if (!(gap > 0)) return;                                      // pacing disabled for this range
-
-  // Capacity ceiling (unless over-inflation is allowed).
-  const settings = loadData(DATA_FILES.settings) || {};
-  const allowOver = settings?.globalCharacterControls?.allowOverInflation;
-  if (!allowOver && (sessionState.capacity || 0) >= 100) return;
-
-  // Count this reply; only fire once the gap is reached.
-  sessionState.messagesSincePumpOn = (sessionState.messagesSincePumpOn || 0) + 1;
-  if (sessionState.messagesSincePumpOn < gap) return;
-
-  const devices = loadData(DATA_FILES.devices) || [];
-  const pump = getPrimaryPumpDevice(devices);
-  if (!pump) return;
-  const id = resolveControlId(pump);
-  // Already running (a timed-on is in flight) → skip without resetting the counter.
-  if (serverTimedPumpTimers.has(id)) return;
-
-  const maxSecs = parseInt(cp?.maxPumpOnSecs);
-  // Clamp the range-authored on-time to the primary pump's limit, then the global cap (v6.6.5 made
-  // the primary pump the single source of truth). Previously ran unclamped except MAX_ON_SECONDS.
-  const dur = Math.min((maxSecs > 0) ? maxSecs : 5, effectiveMaxOnSeconds(settings));
-  await timedPumpOn(id, pump, dur);
-  sessionState.messagesSincePumpOn = 0;
-  broadcast('ai_device_control', { device: 'pump', action: 'timed', deviceName: pump.label || pump.name || 'Pump' });
-  console.log(`[AutoPumpPacing] [pump on] for ${dur}s (every ${gap} msgs) at ${sessionState.capacity}%`);
+  // RETIRED as an auto-initiator. Pump pacing must NEVER guarantee the pump turns on — the pump fires
+  // ONLY when the story/AI explicitly calls for it (a [pump on] tag, a checkpoint trigger, or a manual
+  // control). The old behavior auto-fired a timed [pump on] every `messagesBetweenOn` replies, turning
+  // the pump on for no narrative reason. `messagesBetweenOn` / `maxPumpOnSecs` remain a per-range hint
+  // for how LONG / how OFTEN the story SHOULD pump (a throttle, not a scheduler); nothing auto-fires.
+  return;
 }
 
 /**

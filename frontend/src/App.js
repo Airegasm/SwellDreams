@@ -456,7 +456,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.6.42</span>
+      <span className="version-badge">v6.6.43</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
