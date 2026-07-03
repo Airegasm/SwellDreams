@@ -45,10 +45,12 @@
     display: none !important;
   }
 
-  /* Mobile StatusBadges - capacity gauge on the FAR LEFT, above the up/down history arrows. */
+  /* Mobile StatusBadges - capacity gauge in the BOTTOM padding, bottom-left, its right edge sitting
+     against the E-STOP button (which is nudged right of it). Moved out of the mid-left band so it no
+     longer covers the message-edit SAVE button. */
   .mobile-header-badges {
     position: fixed;
-    bottom: 232px;
+    bottom: 4px;
     left: 2px;
     right: auto;
     z-index: 500;
@@ -109,13 +111,13 @@
     display: none;
   }
 
-  /* Balloon pump-toggle + pump timer — IN-FLOW in the upper padding row (tappable, unlike the old
-     fixed overlay), pushed right to clear the fixed capacity-gauge overlay on the left. */
+  /* Balloon pump-toggle + pump timer — IN-FLOW in the upper padding row, now anchored to the FAR LEFT
+     (the capacity gauge moved out of the upper band down to the bottom padding). */
   .mobile-pump-band {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 84px;
+    margin-left: 2px;
     flex-shrink: 0;
   }
   .mobile-pump-toggle {
@@ -136,10 +138,18 @@
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
 
-  /* Mobile E-STOP button - moved to the bottom-LEFT corner, under the up/down history arrows. */
+  /* NEXT (>>) gate lives beside P in the upper padding on mobile — hide the bottom-row copy, and give
+     the nav-cluster one the greyed/lit states (inherits .mobile-nav-btn sizing so it matches P/C). */
+  .pump-timer-right .next-gate-btn { display: none; }
+  .mobile-next-btn { opacity: 0.35; font-size: 1.2rem; line-height: 1; }
+  .mobile-next-btn.active { opacity: 1; background: #22c55e; color: #04210f; }
+  .mobile-next-btn:disabled { cursor: default; }
+
+  /* Mobile E-STOP button - bottom padding, just RIGHT of the capacity gauge (gauge's right edge sits
+     against it). */
   .mobile-estop-btn {
     position: fixed;
-    left: 4px;
+    left: 92px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 6px 16px;
     font-size: 12px;
