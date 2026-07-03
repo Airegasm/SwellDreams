@@ -24,11 +24,15 @@ git config user.name "SwellDreams"
 git rm --cached -r frontend/build >/dev/null 2>&1
 git rm --cached backend/data/minigames.json backend/data/checkpoint-profiles.json backend/data/persona-checkpoint-profiles.json backend/data/trigger-sets.json >/dev/null 2>&1
 
-# Remove the pre-6.6.8 node_modules symlinks (self-referential) that a hard reset used to choke on /
-# resurrect. Untrack + delete the on-disk entry; start.sh's npm install recreates real node_modules.
-echo "Removing legacy node_modules links..."
-git rm -r --cached backend/node_modules frontend/node_modules >/dev/null 2>&1
-rm -rf backend/node_modules frontend/node_modules 2>/dev/null
+# Fix the pre-6.6.8 node_modules symlinks ONLY if still tracked (the broken legacy state) — a hard
+# reset used to choke on / resurrect them. Untrack + delete the on-disk entry; start.sh's npm install
+# recreates real node_modules. A healthy (untracked) install is left alone, so repair doesn't force a
+# needless reinstall when this problem doesn't exist.
+if git ls-files --error-unmatch backend/node_modules >/dev/null 2>&1; then
+    echo "Removing legacy node_modules links..."
+    git rm -r --cached backend/node_modules frontend/node_modules >/dev/null 2>&1
+    rm -rf backend/node_modules frontend/node_modules 2>/dev/null
+fi
 
 echo "Fetching the latest release..."
 if ! git fetch origin release; then

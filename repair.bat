@@ -32,17 +32,22 @@ REM (they used to be committed by mistake; this keeps your games/profiles/trigge
 git rm --cached -r frontend/build >nul 2>nul
 git rm --cached backend/data/minigames.json backend/data/checkpoint-profiles.json backend/data/persona-checkpoint-profiles.json backend/data/trigger-sets.json >nul 2>nul
 
-REM Remove the pre-6.6.8 node_modules symlinks. On Windows "git reset --hard" (below) loops forever
-REM trying to unlink these ("unlink of 'backend/node_modules' failed") — the exact bug this repairs.
-REM Untrack + delete the on-disk symlink/file/folder; start.bat's npm install recreates real ones.
-echo Removing legacy node_modules links...
-git rm -r --cached backend/node_modules frontend/node_modules >nul 2>nul
-if exist "backend\node_modules" rmdir "backend\node_modules" >nul 2>nul
-if exist "backend\node_modules" rmdir /s /q "backend\node_modules" >nul 2>nul
-if exist "backend\node_modules" del /f /q "backend\node_modules" >nul 2>nul
-if exist "frontend\node_modules" rmdir "frontend\node_modules" >nul 2>nul
-if exist "frontend\node_modules" rmdir /s /q "frontend\node_modules" >nul 2>nul
-if exist "frontend\node_modules" del /f /q "frontend\node_modules" >nul 2>nul
+REM Fix the pre-6.6.8 node_modules symlinks ONLY if they're still tracked (the broken legacy state).
+REM On Windows "git reset --hard" (below) loops forever unlinking these ("unlink of
+REM 'backend/node_modules' failed"). Untrack + delete the on-disk entry; start.bat's npm install
+REM recreates real node_modules. A healthy (untracked) install is left alone, so running repair when
+REM this particular problem does NOT exist won't force a needless full dependency reinstall.
+git ls-files --error-unmatch backend/node_modules >nul 2>nul
+if not errorlevel 1 (
+    echo Removing legacy node_modules links...
+    git rm -r --cached backend/node_modules frontend/node_modules >nul 2>nul
+    if exist "backend\node_modules" rmdir "backend\node_modules" >nul 2>nul
+    if exist "backend\node_modules" rmdir /s /q "backend\node_modules" >nul 2>nul
+    if exist "backend\node_modules" del /f /q "backend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" rmdir "frontend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" rmdir /s /q "frontend\node_modules" >nul 2>nul
+    if exist "frontend\node_modules" del /f /q "frontend\node_modules" >nul 2>nul
+)
 
 echo Fetching the latest release...
 git fetch origin release
