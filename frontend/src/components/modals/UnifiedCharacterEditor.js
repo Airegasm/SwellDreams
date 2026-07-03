@@ -1182,8 +1182,11 @@ Write only the scenario description itself, no explanations.`;
                           onClick={handleEnhanceWelcomeMessage} title={enhancingWelcomeMessage ? 'Click to abort' : 'Enhance with LLM'}>🪄</button>
                       </div>
                     </div>
+                    <p className="format-req-note" style={{ margin: '0 0 6px', fontSize: '0.8rem', lineHeight: 1.4, padding: '6px 8px', borderRadius: 4, background: 'rgba(220, 160, 40, 0.12)', border: '1px solid rgba(220, 160, 40, 0.4)', color: 'var(--text-primary, #e6e6e6)' }}>
+                      ⚠️ <strong>Required format (here and in Example Dialogues):</strong> put all spoken dialogue in <code>"double quotes"</code> and all actions/narration in <code>*asterisks*</code>. The app parses replies on these markers — unmarked text can be stripped or mis-attributed.
+                    </p>
                     <textarea value={getActiveWelcomeMessage()?.text || ''} onChange={(e) => handleUpdateWelcomeMessageText(e.target.value)}
-                      placeholder="The first message the character sends..." rows={9} />
+                      placeholder='The first message — e.g. *she smiles* "Hello there."' rows={9} />
                   </div>
 
                   {/* Scenario */}
