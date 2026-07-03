@@ -1765,8 +1765,10 @@ function Chat() {
             onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
             aria-label="Toggle auto-reply"
             title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Tap to turn off.' : 'Auto-Reply is OFF. Tap to turn on.'}>💬</button>
-          {/* Hamburger — far right (opens the player/persona drawer) */}
-          <button type="button" className="mch-btn mch-menu" onClick={() => setLeftDrawerOpen(!leftDrawerOpen)} aria-label="Menu" title="Menu">☰</button>
+          {/* Hamburger — far right, opens the main menu (the floating HamburgerMenu overlay is hidden on mobile) */}
+          <button type="button" className="mch-btn mch-menu"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggle-hamburger-menu'))}
+            aria-label="Menu" title="Menu">☰</button>
         </div>
 
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}

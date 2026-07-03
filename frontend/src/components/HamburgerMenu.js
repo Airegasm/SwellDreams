@@ -9,10 +9,11 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside (but NOT when tapping the mobile header's ☰ trigger, which
+  // toggles this menu via the 'toggle-hamburger-menu' event below).
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target) && !event.target.closest('.mch-menu')) {
         setIsOpen(false);
         setIsSessionSubmenuOpen(false);
       }
@@ -23,6 +24,13 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  // Mobile header ☰ button toggles this menu (the floating hamburger button is hidden on mobile).
+  useEffect(() => {
+    const toggle = () => { setIsOpen(o => !o); setIsSessionSubmenuOpen(false); };
+    window.addEventListener('toggle-hamburger-menu', toggle);
+    return () => window.removeEventListener('toggle-hamburger-menu', toggle);
+  }, []);
 
   // Close menu on route change
   useEffect(() => {
