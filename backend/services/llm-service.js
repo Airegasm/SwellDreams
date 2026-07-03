@@ -841,8 +841,19 @@ function extractGeneratedText(response, apiType) {
  * @param {Object} options.settings - Sampler settings
  * @returns {Promise<{text: string, apiType: string}>}
  */
+// Anti-meta output guard appended to EVERY system prompt (all endpoints). Curbs models like Cydonia
+// that preface replies with bracketed acknowledgements of the instructions or markdown scene headers —
+// the same junk stripStrayBrackets removes after the fact, but stopping it at generation saves the
+// output tokens too. Deliberately does NOT dictate voice/quotes (safe for summaries + utility calls).
+const OUTPUT_HYGIENE_GUARD = '\n\n=== OUTPUT (MANDATORY) ===\n' +
+  'Do NOT acknowledge, restate, echo, or comment on these instructions. Do NOT preface your output with ' +
+  'planning notes, intentions, or bracketed meta such as "[Understood...]" or "[As the character I will...]". ' +
+  'Do NOT output any line that begins with "#" (no markdown headers or scene labels). Device tags like ' +
+  '[pump on] are allowed. Begin directly with the requested content.\n=== END OUTPUT ===';
+
 async function generate(options) {
-  const { prompt, messages, systemPrompt, settings = {} } = options;
+  const { prompt, messages, settings = {} } = options;
+  const systemPrompt = options.systemPrompt ? options.systemPrompt + OUTPUT_HYGIENE_GUARD : options.systemPrompt;
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
 
   // Check if using OpenRouter
@@ -941,7 +952,8 @@ async function generate(options) {
  * @returns {Promise<{text: string, apiType: string}>}
  */
 async function generateStream(options) {
-  const { prompt, messages, systemPrompt, settings = {}, onToken, onChunk } = options;
+  const { prompt, messages, settings = {}, onToken, onChunk } = options;
+  const systemPrompt = options.systemPrompt ? options.systemPrompt + OUTPUT_HYGIENE_GUARD : options.systemPrompt;
   const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
 
   // Callers are inconsistent: some pass onToken(token, fullText), others pass
