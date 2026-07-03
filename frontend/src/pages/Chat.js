@@ -2161,41 +2161,10 @@ function Chat() {
                 disabled={controlMode === 'simulated'}
                 title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop — stops all devices, flows, and LLM'}
               >{controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}</button>
-              {/* Font size − / + and the ⚙ clear menu (were the floating overlay) */}
-              <button type="button" className="pc-input-btn" onClick={decreaseFontSize} disabled={chatFontSize <= 10} title="Decrease font size">−</button>
-              <button type="button" className="pc-input-btn" onClick={increaseFontSize} disabled={chatFontSize >= 32} title="Increase font size">+</button>
-              <div className="pc-gear-wrap">
-                <button type="button" className="pc-input-btn" onClick={() => setShowClearMenu(prev => !prev)} title="Clear options">⚙</button>
-                {showClearMenu && (
-                  <>
-                    <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)} />
-                    <div className="clear-menu">
-                      <div className="clear-menu-header">Clear</div>
-                      <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>Screen</button>
-                      <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'context' }); setShowClearMenu(false); }}>Context</button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* NEXT » — greyed until a message sequence pauses */}
-              <button
-                type="button"
-                className={`pc-input-btn pc-next ${sessionState.nextGateActive ? 'active' : ''}`}
-                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
-                disabled={!sessionState.nextGateActive}
-                title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
-              >»</button>
-              {/* AUTO-REPLY — outline tracks the skin player-outline when ON (no ON/OFF text) */}
-              <button
-                type="button"
-                className={`pc-input-btn pc-reply ${sessionState.autoReply ? 'on' : 'off'}`}
-                onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
-                title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — click to turn on.'}
-              >💬 AUTO</button>
-              {/* UNLOCK — shown during a gated intro; unclickable until the intro's last action, then it
-                  lights up. Pressing it releases the gate and allows inflation. */}
-              {(sessionState.introActive || sessionState.awaitingGoRelease) && (
-                <div className="pc-unlock-wrap">
+
+              {(sessionState.introActive || sessionState.awaitingGoRelease) ? (
+                /* Intro: UNLOCK + notice sit right after E-STOP (font/AUTO hidden; » stays for the WAIT gate). */
+                <>
                   <button
                     type="button"
                     className={`pc-input-btn pc-unlock ${(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'ready' : 'locked'}`}
@@ -2205,9 +2174,48 @@ function Chat() {
                   >UNLOCK</button>
                   <div className="pc-unlock-text">
                     <span>Pump cannot be activated while an intro is playing.</span>
-                    <span>Press UNLOCK when the Intro completes and you're ready to allow inflation.</span>
+                    <span>Press UNLOCK when the intro completes to allow inflation.</span>
                   </div>
-                </div>
+                  <button
+                    type="button"
+                    className={`pc-input-btn pc-next ${sessionState.nextGateActive ? 'active' : ''}`}
+                    onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+                    disabled={!sessionState.nextGateActive}
+                    title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+                  >»</button>
+                </>
+              ) : (
+                /* Normal: font − / + / ⚙ · » · 💬 AUTO */
+                <>
+                  <button type="button" className="pc-input-btn" onClick={decreaseFontSize} disabled={chatFontSize <= 10} title="Decrease font size">−</button>
+                  <button type="button" className="pc-input-btn" onClick={increaseFontSize} disabled={chatFontSize >= 32} title="Increase font size">+</button>
+                  <div className="pc-gear-wrap">
+                    <button type="button" className="pc-input-btn" onClick={() => setShowClearMenu(prev => !prev)} title="Clear options">⚙</button>
+                    {showClearMenu && (
+                      <>
+                        <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)} />
+                        <div className="clear-menu">
+                          <div className="clear-menu-header">Clear</div>
+                          <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>Screen</button>
+                          <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'context' }); setShowClearMenu(false); }}>Context</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={`pc-input-btn pc-next ${sessionState.nextGateActive ? 'active' : ''}`}
+                    onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+                    disabled={!sessionState.nextGateActive}
+                    title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+                  >»</button>
+                  <button
+                    type="button"
+                    className={`pc-input-btn pc-reply ${sessionState.autoReply ? 'on' : 'off'}`}
+                    onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
+                    title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — click to turn on.'}
+                  >💬 AUTO</button>
+                </>
               )}
             </div>
           </div>
