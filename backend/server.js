@@ -7266,7 +7266,16 @@ async function handleWsMessage(ws, type, data) {
         for (const [key, tracker] of Object.entries(sessionState.pumpRuntimeTracker)) {
           const dev = recalDevices.find(d => d.ip === key || `${d.ip}:${d.childId}` === key || d.deviceId === key);
           if (dev?.calibrationTime) {
-            autoCapacity += (tracker.totalSeconds / dev.calibrationTime) * 100 * recalModifier;
+            // Mirror the auto-capacity ENGINE exactly (see handlePumpRuntime): capacity accrues from
+            // effectiveSeconds (the modifier already banked in per-second as it ran), NOT
+            // totalSeconds*currentModifier. With a modifier ≠ 1.0 (this session: 0.67) the two disagree,
+            // so the old formula set a wrong offset and the next pump tick snapped the manual value to
+            // the wrong number. Using effectiveSeconds makes offset = manual - engineValue precisely,
+            // so engineValue + offset == the manual value you set, and it holds.
+            const effSeconds = tracker.effectiveSeconds !== undefined
+              ? tracker.effectiveSeconds
+              : (tracker.totalSeconds || 0) * recalModifier;
+            autoCapacity += (effSeconds / dev.calibrationTime) * 100;
           }
         }
         sessionState.capacityOffset = data.capacity - Math.round(autoCapacity);

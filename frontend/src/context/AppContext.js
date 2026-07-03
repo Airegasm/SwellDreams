@@ -125,6 +125,10 @@ export function AppProvider({ children }) {
   // Outbound message queue — buffers messages sent while the socket is not OPEN
   // so optimistic UI actions (e.g. character_inflate_stop) aren't silently dropped.
   const outboundQueueRef = useRef([]);
+  // When the user manually sets capacity (slider), a pump auto-capacity tick already in flight can land
+  // right after and stomp the value back. Record the manual-set time and briefly ignore auto ticks so
+  // the manual value wins (the backend's offset makes subsequent ticks agree with it anyway).
+  const capacityManualGuardRef = useRef(0);
 
   // Connect WebSocket
   const connectWebSocket = useCallback(() => {
@@ -341,9 +345,12 @@ export function AppProvider({ children }) {
             }
           }));
         } else {
+          // If the user just moved the slider, ignore an in-flight auto tick's capacity for a short
+          // window so it can't snap the manual value back (keep pain/other in sync regardless).
+          const manualGuardActive = (Date.now() - capacityManualGuardRef.current) < 1500;
           setSessionState(prev => ({
             ...prev,
-            capacity: data.capacity ?? prev.capacity,
+            capacity: manualGuardActive ? prev.capacity : (data.capacity ?? prev.capacity),
             pain: data.pain ?? prev.pain,
             isOverInflating: data.isOverInflating ?? prev.isOverInflating,
             preInflationGateMet: data.preInflationGateMet ?? prev.preInflationGateMet
@@ -855,6 +862,8 @@ export function AppProvider({ children }) {
   // Send WebSocket message. If the socket is not OPEN, buffer the message and
   // flush it on reconnect so optimistic UI updates don't silently desync.
   const sendWsMessage = useCallback((type, data) => {
+    // Manual capacity set (slider) — start the guard window so a stale auto tick can't revert it.
+    if (type === 'update_capacity') capacityManualGuardRef.current = Date.now();
     const message = { type, data };
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(message));
