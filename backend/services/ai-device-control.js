@@ -146,9 +146,8 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(air|liquid|fluid|gas|water)\s+(being|getting|is|was)\s+(pump|pumped|pushed|forced|sent)/i,
   /\b(air|liquid|fluid|gas|water)\s+\w*\s*(pump|pumped|pushing|forced|forcing|flowing)\s+(into|through|inside)/i,
   /\b(force|forces|forced|forcing)\s+\w*\s*(air|liquid|fluid|gas|water)\s+(into|through)/i,
-  /\btorrent\s+of\s+(air|liquid|fluid|water)/i,
-  /\b(flood|rush|torrent|stream|gush|trickle)\s+(of\s+)?(air|fluid)/i,
-  /\b(slow|steady|gentle)\s+trickle/i,
+  // (Removed "torrent/flood/rush/gush/trickle of air/fluid" DESCRIPTION patterns — these describe the
+  // sensation of inflation, not a pump activation, and fired on nearly every inflation reply.)
 
   // Control panel interactions
   /\bcontrol\s+panel\b.*\b(press|push|hit|flip|activate|adjust)/i,
@@ -164,9 +163,9 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(grip|grips|gripped|gripping)\s+.*?\bbulb\b/i,
   /\b(pump|squeeze)\s+bulb\b/i,
 
-  // Gauge/dial movement (pump running indicators)
-  /\b(dial|gauge|needle|meter)\s+(creep|creeps|crept|creeping|climb|climbs|climbing|rise|rises|rising|move|moves|moving)\s*(up|upward|higher)?/i,
-  /\b(analog|pressure|psi)\s+(dial|gauge|needle|meter)\b/i,
+  // (Removed gauge/dial DESCRIPTION patterns — "pressure gauge", "the needle climbs", etc. — they
+  // describe the apparatus/consequence, not a pump ACTIVATION, and fired [pump on] on ordinary
+  // inflation narration. Prose reinforcement should only synthesize a pump-on from an explicit action.)
 
   // Pump cycle/rhythm references
   /\bpump'?s?\s+(cycle|rhythm|pace|speed|rate)/i,
@@ -176,13 +175,9 @@ const PUMP_ACTIVITY_PHRASES = [
 
   // Pitch/speed changes (device working harder or changing state)
   /\b(motor|pump|compressor|machine)\s+(speed|pitch|tone|rpm)\s+(changes?|shifts?|increases?|rises?)/i,
-  /\b(settl|settling|settled)\s+(into|to)\s+(a|an)?\s*(higher|lower|faster|slower)\s+(pitch|speed|tone|pace)/i,
-  /\b(higher|lower|faster|slower)\s+(pitch|speed|tone|rpm)/i,
-  /\bsurge(s|ing)?\s+(of\s+)?(air|fluid|liquid|pressure)/i,
-  /\b(air|fluid|pressure)\s+surg(e|es|ing)/i,
-  /\bpulse(s|ing)?\s+(of\s+)?(air|fluid|liquid|pressure)/i,
-  /\b(air|fluid)\s+puls(e|es|ing)/i,
-  /\b(steady|rhythmic|pulsing|constant)\s+(flow|stream|pump|hiss|surge)/i
+  // (Removed loose "settles into a higher pitch/speed", bare pitch/speed, air/pressure "surge/pulse",
+  // and "steady flow" DESCRIPTION patterns — they match ordinary inflation narration, not a pump
+  // activation, and were a major source of phantom [pump on] injections.)
 ];
 
 // Phrases that indicate turning pump OFF (must contain "off" keyword)
