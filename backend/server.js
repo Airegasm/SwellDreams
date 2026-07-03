@@ -2764,6 +2764,9 @@ const DEFAULT_SETTINGS = {
     // (same UX as consecutive sequential-trigger messages) so the player reads each before the next
     // generates. On by default; set false for rapid-fire individual replies.
     pauseBetweenIndividualReplies: true,
+    // Strip model scaffolding (scene headers like "# NEW SCENE", analysis/OOC preambles) that wraps the
+    // actual roleplay reply. Only trims clearly-meta text outside the first/last "/* markers. On by default.
+    stripModelScaffolding: true,
   },
   globalReminders: [
     {
@@ -6124,6 +6127,11 @@ If announcing the result, say "${result}" - not something else.
 
         // Apply variable substitution to final result
         finalText = substituteAllVariables(finalText);
+        // Strip model scaffolding (scene headers / analysis preambles) around the reply — roleplay only
+        // (instructors have their own stripInstructorRoleplay below; their non-marked text is untouched).
+        if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) {
+          finalText = stripModelScaffolding(finalText);
+        }
         // Instructors never roleplay — strip asterisk actions / quoted dialogue here too.
         if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
 
@@ -9107,6 +9115,35 @@ function stripSpeakerPrefixes(text, names) {
   return text.replace(re, '').trimStart();
 }
 
+// Some models (notably Cydonia) prepend a scene header / analysis ("# NEW SCENE", "Analysis: ...", a
+// paragraph of meta-commentary) — or append trailing notes — instead of a clean in-character reply.
+// Roleplay replies are wrapped in dialogue quotes ("...") and action asterisks (*...*); the real reply
+// runs from the FIRST such marker to the LAST. This trims scaffolding OUTSIDE that span, but ONLY when
+// the outside text is clearly meta (a markdown header, or a known scene/analysis/OOC opener) — never
+// plain prose — so it can't eat a legitimate 'She walked in. "Hi."' lead-in. No markers → left untouched.
+function stripModelScaffolding(text) {
+  if (!text) return text;
+  const s = String(text);
+  const firsts = ['"', '*'].map(ch => s.indexOf(ch)).filter(i => i >= 0);
+  const lasts = ['"', '*'].map(ch => s.lastIndexOf(ch)).filter(i => i >= 0);
+  if (!firsts.length || !lasts.length) return text; // not a marked-up roleplay reply — leave it alone
+  const start = Math.min(...firsts);
+  const end = Math.max(...lasts);
+  if (end < start) return text;
+
+  // Precise meta/scaffolding signals so real narration is never stripped: a markdown header, a
+  // <think> block, or a known scene/analysis/OOC/label opener.
+  const SCAFFOLD = /(?:^|\n)\s*#{1,6}\s|\banalysis\b|\bnew scene\b|\bscene\s+(?:break|transition|change|shift)\b|<\/?think|(?:^|\n)\s*(?:scene|setting|summary|context|ooc|note|thoughts?)\s*[:#\-–]/i;
+
+  const lead = s.slice(0, start);
+  const tail = s.slice(end + 1);
+  const stripLead = lead.trim() && SCAFFOLD.test(lead);
+  const stripTail = tail.trim() && SCAFFOLD.test(tail);
+  if (!stripLead && !stripTail) return text;
+  const cleaned = ((stripLead ? '' : lead) + s.slice(start, end + 1) + (stripTail ? '' : tail)).trim();
+  return cleaned || text;
+}
+
 async function handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds) {
   const content = data.content;
   // Player message — pushed once, before any individual reply.
@@ -9203,6 +9240,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     if (eventEngine.aborted) break;
 
     let finalText = stripSpeakerPrefixes(substituteAllVariables((result?.text || '').trim()), knownNames);
+    if (settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
     if (!finalText) continue;
 
     // Drive devices from this girl's reply (pump/vibe/tens tags), same as the normal path.
