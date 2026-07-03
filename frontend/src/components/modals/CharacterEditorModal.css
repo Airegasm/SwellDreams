@@ -19,6 +19,16 @@
   max-width: 1200px;
 }
 
+/* DESKTOP breathing room. The base `.modal { max-width: 600px }` (App.css) has the SAME
+   single-class specificity as `.character-editor-modal`, so depending on stylesheet order the
+   600px clamp was winning and the editor rendered mobile-width on desktop. Scope a wider, higher-
+   specificity (`.modal.character-editor-modal`) override to real screens only — mobile keeps its
+   own 95% full-width rule untouched. */
+@media (min-width: 769px) {
+  .modal.character-editor-modal { width: 92%; max-width: 1120px; }
+  .modal.character-editor-modal--wide { max-width: 1360px; }
+}
+
 /* Modal Header - Gradient style matching Settings */
 .character-modal-header {
   display: flex;
