@@ -11512,6 +11512,12 @@ async function runReplyScopes(character) {
   // Gated intro (Part 4): while active it OWNS the turn — run only the intro tree and block every
   // other scope/event/button until an end_intro action opens the gate.
   if (sessionState.introActive) {
+    // Suspended on a player_choice or ">>" next-gate: the continuation is stashed and resumes on the
+    // player's pick / >> press. Do NOT restart the intro tree from the top — that re-fires its
+    // messages and re-arms the choice AHEAD of the (non-blocking, in-reply) generations, which is the
+    // out-of-order "choice popped first" bug. (Group Individual mode never hits runReplyScopes, so it
+    // only ran the intro once at session start — that's why it appeared to work there.)
+    if (sessionState.pendingTreeChoice || sessionState.pendingTreeNext) return;
     try { await runIntroScope(character, settings, treeIndex); }
     catch (e) { console.error('[runReplyScopes] intro failed:', e?.message || e); }
     return;
