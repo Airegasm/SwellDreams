@@ -2760,6 +2760,10 @@ const DEFAULT_SETTINGS = {
     autoPopRandomMin: 100,
     autoPopRandomMax: 150,
     hidePlayerBurstFromDetails: true,
+    // Group "Individual Responses" mode: hold behind the ">>" Next gate between each member's reply
+    // (same UX as consecutive sequential-trigger messages) so the player reads each before the next
+    // generates. On by default; set false for rapid-fire individual replies.
+    pauseBetweenIndividualReplies: true,
   },
   globalReminders: [
     {
@@ -3602,7 +3606,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   if (triggers.length > 0 && !firedCheckpointTriggers.has(triggerKey)) {
     if (sessionState.pendingRangeAwait) {
       console.log('[CheckpointTriggers] New populated range — aborting pending await from a previous range');
-      if (sessionState.pendingRangeAwait.kind === 'next') broadcast('next_gate', { active: false });
+      if (sessionState.pendingRangeAwait.kind === 'next' || sessionState.pendingRangeAwait.kind === 'next-individual') broadcast('next_gate', { active: false });
       sessionState.pendingRangeAwait = null;
       broadcast('await_state', null);
     }
@@ -7839,6 +7843,10 @@ async function handleWsMessage(ws, type, data) {
       if (pa && pa.kind === 'next') {
         broadcast('next_gate', { active: false });
         await resumeTriggerSequence(pa).catch(err => console.error('[NextGate] resume failed:', err?.message || err));
+      } else if (pa && pa.kind === 'next-individual') {
+        sessionState.pendingRangeAwait = null;
+        broadcast('next_gate', { active: false });
+        await resumeIndividualSequence(pa).catch(err => console.error('[NextGate/Individual] resume failed:', err?.message || err));
       }
       break;
     }
@@ -9118,15 +9126,31 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   try { const ir = rollAttributes(activeCharacter); if (ir?.rolls?.length) broadcast('attribute_rolls', { rolls: ir.rolls, source: 'individual' }); }
   catch (e) { console.error('[Individual] rollAttributes failed:', e?.message || e); }
 
+  await runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, '');
+}
+
+// Whether any id in the list is a member who can still speak (exists, named, not muted).
+function hasSpeakableMember(ids, members, muted) {
+  return (ids || []).some(id => { const m = members.find(mm => mm.id === id); return m && m.name && !muted.has(id); });
+}
+
+// Generate individual-mode member replies one at a time. When "pause between individual replies" is on,
+// hold behind the ">>" Next gate after each member (same UX as consecutive sequential-trigger messages)
+// so the player reads each girl's reply before the next generates. Resumable: the remaining member ids +
+// last reply are stashed in pendingRangeAwait (kind 'next-individual'), continued by next_gate_advance.
+async function runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, prevLastReply) {
   const members = activeCharacter.multiChar?.characters || [];
   const muted = new Set(sessionState.mutedMembers || []);
   const indTokens = clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150);
   const devices = loadData(DATA_FILES.devices) || [];
   const charLimits = getCharacterLimits(activeCharacter);
-  let lastReplyContent = '';
+  const pauseBetween = settings?.globalCharacterControls?.pauseBetweenIndividualReplies !== false;
+  let lastReplyContent = prevLastReply || '';
 
-  for (const memberId of orderedIds) {
+  const queue = Array.isArray(orderedIds) ? [...orderedIds] : [];
+  while (queue.length) {
     if (eventEngine.aborted) break;
+    const memberId = queue.shift();
     const member = members.find(m => m.id === memberId);
     if (!member || !member.name || muted.has(memberId)) continue; // muted girls don't speak
 
@@ -9194,6 +9218,15 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     autosaveSession();
     await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
     lastReplyContent = finalText;
+
+    // Next gate: hold before the NEXT member's reply until the player hits ">>", mirroring the
+    // sequential-trigger next gate. Only pause when a reply just landed and a speakable member remains.
+    if (pauseBetween && !eventEngine.aborted && hasSpeakableMember(queue, members, muted)) {
+      sessionState.pendingRangeAwait = { kind: 'next-individual', rest: queue, characterId: activeCharacter.id, lastReplyContent };
+      broadcast('next_gate', { active: true });
+      console.log('[Individual] Next gate — holding before the next member reply; waiting for player >>');
+      return;
+    }
   }
   sessionState.soloSpeaker = null; // release the solo constraint so the next turn isn't stuck on one member
 
@@ -9204,6 +9237,18 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
     runEventTrees('ai_speaks', { content: lastReplyContent });
     await tryResolveAwaitInput(lastReplyContent, 'char').catch(e => console.error('[Individual] awaitInput(char) failed:', e?.message || e));
   }
+}
+
+// Resume a paused individual-response sequence (the stashed remaining member ids), reloading fresh state
+// — mirrors resumeTriggerSequence. Continues generating from where the ">>" gate paused.
+async function resumeIndividualSequence(pending) {
+  if (!pending) return;
+  const settings = loadData(DATA_FILES.settings);
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === pending.characterId);
+  if (!character) return;
+  const persona = (loadAllPersonas() || []).find(p => p.id === settings?.activePersonaId);
+  await runIndividualSequence(pending.rest, character, settings, persona, pending.lastReplyContent);
 }
 
 async function handleChatMessage(data) {
