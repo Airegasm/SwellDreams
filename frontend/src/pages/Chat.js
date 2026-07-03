@@ -2381,13 +2381,6 @@ function Chat() {
                   : (primaryPumpRunning ? 'Primary pump running — tap to stop' : 'Tap to start the primary pump')}
                 aria-label="Pump"
               >🎈</button>
-              <span className="mobile-pump-timer-slot">
-                {sessionState.introActive ? (
-                  <span className="pump-intro-lock">Intro - Pump Locked Off</span>
-                ) : primaryPumpStatus ? (
-                  <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
-                ) : null}
-              </span>
               {/* UNLOCK overlay — covers the chip + balloon while inflation is gated by the intro. Disabled
                   (dim) until the intro's actions finish, then lights up green; tapping it releases the gate
                   and the overlay vanishes, revealing the chip + pump button. */}
@@ -2401,6 +2394,14 @@ function Chat() {
                 >UNLOCK</button>
               )}
             </div>
+            {/* Pump timer / intro-lock — a FLEXIBLE middle slot (shrinks; never pushes P/C off-row). */}
+            <span className="mobile-pump-timer-slot mobile-only">
+              {sessionState.introActive ? (
+                <span className="pump-intro-lock">Intro - Pump Locked Off</span>
+              ) : primaryPumpStatus ? (
+                <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
+              ) : null}
+            </span>
             {/* Pump timer(s) — left side, counts down for timed pumps */}
             <div className="pump-timer-left">
               {Object.entries(pumpStatus || {}).map(([ip, status]) => (

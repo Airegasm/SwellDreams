@@ -163,7 +163,7 @@
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
   /* Intro pump-lock notice — shown in the timer slot while the intro gates inflation. */
-  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.72rem; white-space: nowrap; }
+  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* UNLOCK overlay — a solid button that covers the capacity chip + balloon while inflation is gated by
      the intro. Dim/unclickable until the intro finishes, then lights up green; tapping it releases the
@@ -344,12 +344,15 @@
     padding: 0;
   }
   .input-pump-timer-row .pump-timer-right { display: none; }   /* >> + REPLY live in the header now */
-  /* Timer slot — always reserves room for the longest string ("Intro - Pump Locked Off"). */
+  /* Timer / intro-lock slot — a FLEXIBLE middle column: fills the gap between the pump band and P/C on
+     wide screens, and SHRINKS on narrow ones instead of overflowing the row and pushing P/C (and the
+     balloon) out of reach. (Was min-width:148px + flex-shrink:0, which forced the whole row too wide.) */
   .mobile-pump-timer-slot {
     display: inline-flex;
     align-items: center;
-    min-width: 148px;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
   }
   /* P/C drawer toggles — right-aligned under the Send-As arrow column (100px wide), action-btn style. */
   .mobile-pc-row {
