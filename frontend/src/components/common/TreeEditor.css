@@ -113,7 +113,13 @@
 .tree-add-menu {
   position: absolute; z-index: 50; top: 100%; left: 0; margin-top: 4px;
   background: var(--bg-elevated, #262626); border: 1px solid var(--border-color, #444);
-  border-radius: 6px; padding: 6px; min-width: 180px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  border-radius: 6px; padding: 6px; min-width: 200px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  max-height: 360px; overflow-y: auto;
+}
+.tree-add-search {
+  display: block; width: 100%; box-sizing: border-box; margin-bottom: 6px;
+  background: var(--bg-input, #1c1c1c); border: 1px solid var(--border-color, #444);
+  border-radius: 4px; color: var(--text-primary, #ddd); padding: 5px 8px; font-size: 12px;
 }
 .tree-add-group + .tree-add-group { margin-top: 6px; border-top: 1px solid var(--border-color, #383838); padding-top: 6px; }
 .tree-add-group-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary, #888); padding: 2px 6px; }

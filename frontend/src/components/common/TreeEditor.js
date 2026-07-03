@@ -114,6 +114,11 @@ const OPERATORS = [
 // specific action type and renders its params.
 const ADD_GROUPS = [
   {
+    label: 'Actions', items: [
+      { kind: 'action', type: '', label: 'Action…' },
+    ]
+  },
+  {
     label: 'Containers', items: [
       { kind: 'container', type: 'group', label: 'Group' },
       { kind: 'container', type: 'if', label: 'If / Else' },
@@ -144,11 +149,6 @@ const ADD_GROUPS = [
       { kind: 'action', type: 'fire_flow', label: 'Fire Flow (escape hatch)' },
       { kind: 'action', type: 'call_minigame', label: 'Call MiniGame' },
       { kind: 'action', type: 'end_intro', label: 'End Gated Intro' },
-    ]
-  },
-  {
-    label: 'Actions', items: [
-      { kind: 'action', type: '', label: 'Action…' },
     ]
   },
 ];
@@ -217,20 +217,30 @@ function summarize(node) {
 // Add-block dropdown.
 function AddMenu({ onAdd, small }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const groups = query
+    ? ADD_GROUPS.map(g => ({ ...g, items: g.items.filter(it => it.label.toLowerCase().includes(query)) })).filter(g => g.items.length)
+    : ADD_GROUPS;
+  const close = () => { setOpen(false); setQ(''); };
   return (
     <div className={`tree-add ${small ? 'tree-add-sm' : ''}`}>
       <button type="button" className="tree-add-btn" onClick={() => setOpen(o => !o)}>+ Add block</button>
       {open && (
-        <div className="tree-add-menu" onMouseLeave={() => setOpen(false)}>
-          {ADD_GROUPS.map(g => (
+        <div className="tree-add-menu" onMouseLeave={close}>
+          <input type="text" className="tree-add-search" value={q} autoFocus
+            onChange={(e) => setQ(e.target.value)} placeholder="Filter blocks…"
+            onKeyDown={(e) => { if (e.key === 'Escape') close(); }} />
+          {groups.map(g => (
             <div key={g.label} className="tree-add-group">
               <div className="tree-add-group-label">{g.label}</div>
               {g.items.map(it => (
                 <button key={it.type || 'action'} type="button" className="tree-add-item"
-                  onClick={() => { onAdd(makeNode(it.kind, it.type)); setOpen(false); }}>{it.label}</button>
+                  onClick={() => { onAdd(makeNode(it.kind, it.type)); close(); }}>{it.label}</button>
               ))}
             </div>
           ))}
+          {!groups.length && <div className="tree-add-group-label" style={{ opacity: 0.6, padding: '6px 8px' }}>No matches</div>}
         </div>
       )}
     </div>
@@ -370,6 +380,17 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
 }
 
 // Per-node body: the type-specific param editor + (for containers) a nested child list.
+// Comma-separated keyword input that keeps the RAW text locally so typing a space/comma doesn't get
+// re-split/trimmed mid-edit (which reset the caret to the start — "spacebar doesn't work"). The keys[]
+// array is derived on change; local text is re-seeded only on remount (i.e. switching nodes).
+function KeywordsInput({ value, onChange, placeholder }) {
+  const [text, setText] = React.useState(() => (value || []).join(', '));
+  return (
+    <input type="text" value={text} placeholder={placeholder}
+      onChange={(e) => { setText(e.target.value); onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean)); }} />
+  );
+}
+
 function NodeBody({ node, onChange, rowProps }) {
   const t = node.type;
   const setParams = (patch) => onChange({ ...node, params: { ...(node.params || {}), ...patch } });
@@ -446,9 +467,7 @@ function NodeBody({ node, onChange, rowProps }) {
     <div className="tree-params">
       <label className="tree-field">
         <span>Keywords (any of, comma-separated)</span>
-        <input type="text" value={(node.params?.keys || []).join(', ')}
-          onChange={(e) => setParams({ keys: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-          placeholder="e.g. balloon, inflate" />
+        <KeywordsInput value={node.params?.keys} onChange={(keys) => setParams({ keys })} placeholder="e.g. balloon, inflate" />
       </label>
       <label className="tree-check"><input type="checkbox" checked={!!node.params?.caseSensitive} onChange={(e) => setParams({ caseSensitive: e.target.checked })} /> case sensitive</label>
       <label className="tree-check"><input type="checkbox" checked={node.params?.matchWholeWords !== false} onChange={(e) => setParams({ matchWholeWords: e.target.checked })} /> whole words</label>
