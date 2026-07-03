@@ -456,7 +456,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.6.68</span>
+      <span className="version-badge">v6.6.69</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -470,21 +470,10 @@ function App() {
             🤖
           </span>
         </div>
-        {/* On the chat page this relocates to the grey strip above the textbox (in Chat.js);
-            keep it top-right on every other page so emergency stop stays reachable there. */}
-        {!onChatPage && (sessionState?.pumpInit === 'manual' ? (
-          /* Manual pump (bulb/bike) — the E-STOP button becomes PUMP, mirroring mobile.
-             Driven by sessionState.pumpInit, set by applyActivePumpType for any card type. */
-          <button
-            type="button"
-            className="estop-btn estop-active estop-pump"
-            onClick={() => sendWsMessage('manual_pump', {})}
-            disabled={stopping}
-            title={`Pump (${sessionState.pumpType || 'manual'}) — hardware disconnect is your emergency stop`}
-          >
-            PUMP
-          </button>
-        ) : (
+        {/* The chat page uses ONLY the E-STOP in the grey strip above the textbox (Chat.js). This
+            top-right one is kept on every OTHER page so emergency stop stays reachable there. Gated on
+            the actual route ('/' = chat) — onChatPage was unreliable since Chat is always mounted. */}
+        {location.pathname !== '/' && (
           <button
             className={`estop-btn ${estopState.className} ${stopping ? 'stopping' : ''}`}
             onClick={handleEmergencyStop}
@@ -493,7 +482,7 @@ function App() {
           >
             {stopping ? '...' : estopState.text}
           </button>
-        ))}
+        )}
       </div>
 
       {/* Hamburger menu floats independently on top of everything */}

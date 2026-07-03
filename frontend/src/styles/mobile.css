@@ -342,6 +342,8 @@
   /* ===== PHASE 2 (mobile): bottom padding holds capacity + balloon + timer (left), P/C (right). ===== */
   /* Upper padding row is empty now (balloon + P/C moved out; NEXT/E-STOP in the header) — remove it. */
   .input-buttons-row { display: none !important; }
+  /* Desktop-only left-column PUMP button — mobile uses the balloon; keep it out of the persona drawer. */
+  .left-pump-btn { display: none !important; }
   /* Bottom padding: COMPACT — just the 40px button row. Zero horizontal padding so the right-aligned
      P/C column lines up EXACTLY with the action-stack (robot/send-as) column above it. */
   .input-pump-timer-row {

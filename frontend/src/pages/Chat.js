@@ -1580,6 +1580,23 @@ function Chat() {
           )}
         </div>
 
+        {/* PUMP button (desktop) — the pump control, below the pump timer. Dual auto/manual per pump
+            type like mobile: MANUAL (bulb/bike) pumps on each click; AUTOMATIC toggles the pump on/off.
+            Always visible; greyed + unclickable while a gated intro holds inflation. */}
+        <button
+          type="button"
+          className={`left-pump-btn desktop-only ${primaryPumpRunning ? 'running' : ''}`}
+          onClick={() => {
+            if (sessionState.introActive || sessionState.awaitingGoRelease) return;
+            if (sessionState.pumpInit === 'manual') sendWsMessage('manual_pump', {});
+            else sendWsMessage(primaryPumpRunning ? 'primary_pump_off' : 'primary_pump_on', {});
+          }}
+          disabled={sessionState.introActive || sessionState.awaitingGoRelease}
+          title={sessionState.pumpInit === 'manual'
+            ? `Pump (${sessionState.pumpType || 'manual'}) — click to pump`
+            : (primaryPumpRunning ? 'Primary pump running — click to stop' : 'Click to start the primary pump')}
+        >PUMP</button>
+
         {/* Persona Button Menu - Static section below portrait */}
         <div className="persona-button-menu">
           {(() => {
@@ -2143,34 +2160,66 @@ function Chat() {
         />
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <div className="input-buttons-row">
-            <div className="chat-buttons">
-              {/* Phase 2 (mobile): the balloon band moved to the bottom padding, P/C moved under the
-                  Send-As arrows in the action stack, and NEXT/E-STOP now live in the header bar. This
-                  upper padding row is hidden on mobile (nothing left to show); desktop keeps its
-                  pc-estop-btn below. */}
-            </div>
-            {/* PC ESTOP/PUMP — centered in the grey padding above the textbox (desktop only;
-                mobile uses the button inside .chat-buttons). White when PUMP (manual bulb/bike),
-                like the mobile button. Same for single/instructor/multichar — it lives here now. */}
-            {sessionState?.pumpInit === 'manual' ? (
+            {/* Desktop input-action row: E-STOP (always) · font − / + / ⚙ · » · AUTO-REPLY, plus the
+                UNLOCK notice during a gated intro. All styled like the textbox action buttons. */}
+            <div className="pc-input-row desktop-only">
+              {/* E-STOP — ALWAYS emergency stop (no PUMP/READY swap; pump is the left-column PUMP button). */}
               <button
                 type="button"
-                className="pc-estop-btn pc-pump desktop-only"
-                onClick={() => sendWsMessage('manual_pump', {})}
-                title="Pump — hardware disconnect is your emergency stop"
-              >
-                PUMP
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={`pc-estop-btn desktop-only ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+                className={`pc-input-btn pc-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
                 onClick={handleEmergencyStop}
-                title="Emergency stop — stops all devices, flows, and LLM"
-              >
-                {controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}
-              </button>
-            )}
+                disabled={controlMode === 'simulated'}
+                title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop — stops all devices, flows, and LLM'}
+              >{controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}</button>
+              {/* Font size − / + and the ⚙ clear menu (were the floating overlay) */}
+              <button type="button" className="pc-input-btn" onClick={decreaseFontSize} disabled={chatFontSize <= 10} title="Decrease font size">−</button>
+              <button type="button" className="pc-input-btn" onClick={increaseFontSize} disabled={chatFontSize >= 32} title="Increase font size">+</button>
+              <div className="pc-gear-wrap">
+                <button type="button" className="pc-input-btn" onClick={() => setShowClearMenu(prev => !prev)} title="Clear options">⚙</button>
+                {showClearMenu && (
+                  <>
+                    <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)} />
+                    <div className="clear-menu">
+                      <div className="clear-menu-header">Clear</div>
+                      <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>Screen</button>
+                      <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'context' }); setShowClearMenu(false); }}>Context</button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* NEXT » — greyed until a message sequence pauses */}
+              <button
+                type="button"
+                className={`pc-input-btn pc-next ${sessionState.nextGateActive ? 'active' : ''}`}
+                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+                disabled={!sessionState.nextGateActive}
+                title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+              >»</button>
+              {/* AUTO-REPLY — outline tracks the skin player-outline when ON (no ON/OFF text) */}
+              <button
+                type="button"
+                className={`pc-input-btn pc-reply ${sessionState.autoReply ? 'on' : 'off'}`}
+                onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
+                title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — click to turn on.'}
+              >AUTO-REPLY</button>
+              {/* UNLOCK — shown during a gated intro; unclickable until the intro's last action, then it
+                  lights up. Pressing it releases the gate and allows inflation. */}
+              {(sessionState.introActive || sessionState.awaitingGoRelease) && (
+                <div className="pc-unlock-wrap">
+                  <button
+                    type="button"
+                    className={`pc-input-btn pc-unlock ${(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'ready' : 'locked'}`}
+                    onClick={() => { if (sessionState.awaitingGoRelease && !sessionState.introActive) sendWsMessage('gate_release', {}); }}
+                    disabled={!(sessionState.awaitingGoRelease && !sessionState.introActive)}
+                    title={(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'Press to UNLOCK inflation' : 'Locked — the intro must finish first'}
+                  >UNLOCK</button>
+                  <div className="pc-unlock-text">
+                    <span>Pump cannot be activated while an intro is playing.</span>
+                    <span>Press UNLOCK when the Intro completes and you're ready to allow inflation.</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="chat-input-row" style={{ position: 'relative' }}>
             <div className="input-arrow-buttons">
@@ -2402,35 +2451,8 @@ function Chat() {
                 <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
               ) : null}
             </span>
-            {/* Pump timer(s) — left side, counts down for timed pumps */}
-            <div className="pump-timer-left">
-              {Object.entries(pumpStatus || {}).map(([ip, status]) => (
-                <PumpStatusItem key={ip} deviceIp={ip} status={status} />
-              ))}
-            </div>
-            <div className="pump-timer-right">
-              {/* "Next" (>>) gate: greyed until a trigger sequence pauses between consecutive generated
-                  messages, then flashes bright — click to release the next message. */}
-              <button
-                type="button"
-                className={`next-gate-btn ${sessionState.nextGateActive ? 'active' : ''}`}
-                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
-                disabled={!sessionState.nextGateActive}
-                title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
-              >
-                »
-              </button>
-              {/* Secondary Auto-Reply toggle — flips the live session auto-reply (same switch the
-                  card setting seeds on load) without opening the character editor. */}
-              <button
-                type="button"
-                className={`auto-reply-toggle ${sessionState.autoReply ? 'on' : 'off'}`}
-                onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
-                title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Click to turn off.' : 'Auto-Reply is OFF — the AI only replies via Guided Response/triggers. Click to turn on.'}
-              >
-                Reply {sessionState.autoReply ? 'ON' : 'OFF'}
-              </button>
-            </div>
+            {/* Desktop: the duplicate pump timer (now shown in the left column) and the >> / Auto-Reply
+                buttons (now in the top input row) were removed; the bottom band is squashed on desktop. */}
             {/* Phase 2 (mobile): P/C drawer toggles sit here in the bottom padding, right-aligned under
                 the Send-As arrow column — same action-btn style/size, P green / C red. */}
             <div className="mobile-pc-row mobile-only">
