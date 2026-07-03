@@ -56,11 +56,12 @@
   }
   .mobile-header-badges .status-badges-overlay {
     position: relative !important;
-    inset: auto !important;      /* the .multichar variant forces absolute inset:0 — undo it */
+    inset: auto !important;      /* StatusBadges' default absolute inset:0 — undo it */
     display: flex !important;
     align-items: center;
-    pointer-events: none;        /* CRITICAL: was 'auto' — an invisible sheet over the whole row ate
-                                    every click (balloon, P, C). Only the chip re-enables pointer events. */
+    pointer-events: none;        /* the overlay itself must not eat clicks; only the chip re-enables them */
+    z-index: 1 !important;       /* StatusBadges defaults z-index:500 — drop it so the UNLOCK overlay
+                                    (z-index:25) can cover the chip when inflation is gated */
   }
   /* Hide the frame, faces bar, mode text, AND the emotion/pain badges — this chip shows % only. */
   .mobile-header-badges .metallic-frame,

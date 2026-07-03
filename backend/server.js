@@ -11875,7 +11875,9 @@ function setIntroActive(val) {
   broadcast('intro_state', { introActive: !!val });
 }
 // Enter the gated intro at session start (opening line posted standalone). Returns true if started.
-async function startIntroScope(character, settings, treeIndex) {
+// welcomePosted: when true, the intro's first standalone message waits behind the ">>" gate so the
+// player reads the welcome message first.
+async function startIntroScope(character, settings, treeIndex, welcomePosted = false) {
   const tree = getIntroTree(character, treeIndex);
   if (!tree) { setIntroActive(false); return false; }
   setIntroActive(true);
@@ -11890,7 +11892,7 @@ async function startIntroScope(character, settings, treeIndex) {
     sessionState.releaseButtonLabel = 'READY!';
     broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'READY!' });
   }
-  try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex }); }
+  try { await runTreeScope(tree, 'intro', character, settings, { delivery: 'standalone', treeIndex, gateFirstMsg: welcomePosted }); }
   catch (e) { console.error('[Intro] start failed:', e?.message || e); }
   return true;
 }
@@ -14990,6 +14992,22 @@ async function runTree(nodes, ctx) {
   while (i < nodes.length) {
     const node = nodes[i];
     if (!node || typeof node !== 'object') { i++; continue; }
+
+    // WAIT before the FIRST auto-generated (standalone) message — so the player reads the welcome
+    // message before the intro's opening message generates. One-shot (ctx.gateFirstMsg is only set on
+    // the intro's initial standalone run); any non-message nodes before it (variable-sets, etc.) run
+    // first, then the whole remaining tree from this message on is stashed and replays on ">>".
+    if (ctx.gateFirstMsg && ctx.delivery === 'standalone' && isTreeMsgNode(node)) {
+      ctx.gateFirstMsg = false;
+      sessionState.pendingTreeNext = {
+        ctxSnapshot: { treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth, delivery: ctx.delivery, source: ctx.source, visited: Array.from(ctx.visited || []) },
+        after: nodes.slice(i)
+      };
+      broadcast('next_gate', { active: true });
+      console.log('[Tree] Next gate — holding the intro before its first message (player reads the welcome first); waiting for >>');
+      return { __control: 'suspend', reason: 'next-gate-first' };
+    }
+
     let sig;
     try { sig = await runNode(node, ctx); }
     catch (e) { console.error(`[runTree] node ${node?.id}(${node?.type}) failed:`, e?.message || e); i++; continue; }
@@ -15050,6 +15068,8 @@ async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
     visited: new Set([treeId]), // DFS stack for the fire_tree cycle guard
     treeIndex: opts.treeIndex || null, // per-turn library index for fire_tree hops (null -> lazy buildTreeIndex)
     firedSet: sessionState.firedTreeNodes,
+    gateFirstMsg: !!opts.gateFirstMsg, // one-shot: hold the ">>" gate BEFORE the tree's first standalone
+                                       // message (used by the intro so the player reads the welcome first)
     labels: new Map() // scope-local label/goto frame
   };
   try { await runTree(tree.nodes, ctx); }
@@ -19110,7 +19130,9 @@ app.post('/api/session/reset', async (req, res) => {
       if (ssTree) await runTreeScope(ssTree, 'sessionStart', activeCharacter, settings, { delivery: 'standalone', treeIndex: ssTreeIndex });
       // Gated intro: prefer the Intro TREE scope; fall back to legacy Pre-Fill if no intro tree.
       // Either closes the gate and blocks other scopes until it completes.
-      const introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex);
+      // welcomePosted (!overrideWelcome) → the intro's first message waits behind ">>" so the player
+      // reads the welcome first.
+      const introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex, !overrideWelcome);
       const preFillStarted = introStarted ? false : startPreFill(activeCharacter);
       if (isInstr) {
         // Legacy modal pre-reqs only run when Pre-Fill is NOT in use — and NOT if the Session
