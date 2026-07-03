@@ -2950,17 +2950,72 @@ initializeDataFiles();
 function ensureDefaultConnectionProfiles() {
   const DEFAULT_PROFILES = [
     {
-      // === RECOMMENDED MODEL ===
+      // === RECOMMENDED MODEL — llama.cpp / LlamaHerder ===
       // Cydonia 24B (TheDrummer) — a Mistral-Small-24B roleplay finetune, the preferred model for
-      // SwellDreams. Runs locally via llama.cpp / LlamaHerder (KoboldCpp users: switch Endpoint to
-      // Kobold). Point llmUrl at your server — default is a local llama.cpp on :8080; LlamaHerder users
-      // set their host/IP. Uses the model's native Mistral V7 "Tekken" template, temperature-last, a
-      // light DRY pass, and min-p — a coherent, characterful baseline.
-      id: 'default-cydonia24b',
-      name: 'Cydonia 24B (Recommended)',
+      // SwellDreams. This preset targets a llama.cpp server (default port 8080, /completion). LlamaHerder
+      // users point llmUrl at their host/IP. text_completion so the FULL sampler set is delivered
+      // (min-p/DRY/temp-last — the chat-completion path only sends temp/top_p/penalties). Mistral V7
+      // "Tekken" template, temperature-last, light DRY, min-p — a coherent, characterful baseline.
+      id: 'default-cydonia24b-llamacpp',
+      name: 'Cydonia 24B — llama.cpp / LlamaHerder (Recommended)',
       llmUrl: 'http://localhost:8080/',
-      apiType: 'chat_completion',
+      apiType: 'text_completion',
       endpointStandard: 'llamacpp',
+      promptTemplate: 'mistral-tekken',
+      supportsSystemRole: true,
+      maxTokens: 400,
+      contextTokens: 16384,
+      streaming: true,
+      trimIncompleteSentences: true,
+      impersonateMaxTokens: 175,
+      temperature: 1.0,
+      topK: 0,
+      topP: 1,
+      typicalP: 1,
+      minP: 0.05,
+      topA: 0,
+      tfs: 1,
+      topNsigma: 0,
+      repetitionPenalty: 1.05,
+      repPenRange: 2048,
+      repPenSlope: 1,
+      frequencyPenalty: 0,
+      presencePenalty: 0,
+      neutralizeSamplers: false,
+      samplerOrder: [],
+      dryMultiplier: 0.8,
+      dryBase: 1.75,
+      dryAllowedLength: 2,
+      dryPenaltyLastN: 0,
+      drySequenceBreakers: ['\n', ':', '"', '*'],
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
+      xtcThreshold: 0.1,
+      smoothingFactor: 0,
+      smoothingCurve: 1,
+      mirostat: 0,
+      mirostatTau: 5,
+      mirostatEta: 0.1,
+      minKeep: 0,
+      temperatureLast: true,
+      noRepeatNgramSize: 0,
+      skew: 0,
+      repPenDecay: 0,
+      stopSequences: ['\n[Player]:', '\n[Char]:', '\nUser:', '\nAssistant:'],
+      bannedTokens: [],
+      grammar: '',
+      isDefault: false
+    },
+    {
+      // === RECOMMENDED MODEL — KoboldCpp ===
+      // Same Cydonia 24B baseline, but for a KoboldCpp server (default port 5001, /api/v1/generate).
+      // Point llmUrl at your host if not local. Same Mistral-Tekken + temp-last + min-p + DRY tuning.
+      id: 'default-cydonia24b-kobold',
+      name: 'Cydonia 24B — KoboldCpp (Recommended)',
+      llmUrl: 'http://localhost:5001/api/v1/generate',
+      apiType: 'text_completion',
+      endpointStandard: 'kobold',
       promptTemplate: 'mistral-tekken',
       supportsSystemRole: true,
       maxTokens: 400,
@@ -3116,6 +3171,11 @@ function ensureDefaultConnectionProfiles() {
 
   const profiles = loadData(DATA_FILES.connectionProfiles) || [];
   let added = false;
+
+  // Drop the superseded single Cydonia preset (v6.6.33) — replaced by split llama.cpp / KoboldCpp
+  // presets in v6.6.34. Safe: it only existed briefly and used chat_completion (dropped most samplers).
+  const staleCyd = profiles.findIndex(p => p.id === 'default-cydonia24b');
+  if (staleCyd >= 0) { profiles.splice(staleCyd, 1); added = true; console.log('[Startup] Removed superseded Cydonia preset (split into llama.cpp / KoboldCpp)'); }
 
   for (const defaultProfile of DEFAULT_PROFILES) {
     if (!profiles.some(p => p.id === defaultProfile.id)) {
