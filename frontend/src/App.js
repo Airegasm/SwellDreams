@@ -456,7 +456,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.6.67</span>
+      <span className="version-badge">v6.6.68</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -511,13 +511,12 @@ function App() {
       <div className="left-column-bottom-bar"></div>
       <div className="right-column-bottom-bar"></div>
 
-      {/* Offline Banner */}
+      {/* Reconnecting Banner */}
       {!connected && !bannerDismissed && (
-        <div className="offline-banner">
-          <span className="offline-icon">&#x26A0;</span>
+        <div className="offline-banner reconnecting">
+          <span className="spinner-small"></span>
           <div className="offline-message">
-            <strong>Server Disconnected</strong>
-            <span className="offline-hint">Run <code>start.bat</code> (Windows) or <code>./start.sh</code> (Linux/Mac) to start the server</span>
+            <strong>Reconnecting…</strong>
           </div>
           <button
             className="offline-banner-close"

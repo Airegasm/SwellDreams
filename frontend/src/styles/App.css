@@ -1351,6 +1351,32 @@ input[type="range"]::-webkit-slider-thumb {
   position: relative;
 }
 
+/* Reconnecting variant — a compact floating pill that OVERLAYS the top of the chat (just under the
+   header) instead of an in-flow red bar that shoved the chat down. */
+.offline-banner.reconnecting {
+  position: fixed;
+  top: calc(58px + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: 88%;
+  padding: 5px 16px;
+  gap: 8px;
+  border-radius: 999px;
+  background: rgba(28, 32, 40, 0.94);
+  color: #e6e9ee;
+  border: 1px solid var(--border-color, #3d4147);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+  animation: none;
+  font-weight: 500;
+  font-size: 0.82rem;
+  z-index: 900;
+}
+.offline-banner.reconnecting .offline-banner-close {
+  position: static;
+  margin-left: 4px;
+}
+
 .offline-icon {
   font-size: 16px;
 }
