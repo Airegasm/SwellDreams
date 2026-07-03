@@ -9268,6 +9268,12 @@ function stripStrayBrackets(text) {
     .replace(/\[(?!\s*(?:pump|vibe|tens)\b|\s*(?:video|audio|image|img|sound)\s*:)[^\]]*$/i, '')
     // Drop any line that starts with '#' — markdown headers / "# Scene" section labels the model emits.
     .replace(/^[ \t]*#.*(?:\r?\n|$)/gm, '')
+    // Drop separator lines that are ONLY dashes ("--" / "---" markdown rules) — inline em-dashes in
+    // prose ("she paused -- then smiled") are untouched because those lines still have text.
+    .replace(/^[ \t]*-{2,}[ \t]*(?:\r?\n|$)/gm, '')
+    // Drop lines that are ONLY asterisks ("*", "**", "***") — stray/orphaned *action* markers with no
+    // text on the line. Real "*she smiles*" keeps its text so it never matches.
+    .replace(/^[ \t]*\*+[ \t]*(?:\r?\n|$)/gm, '')
     .replace(/[ \t]{2,}/g, ' ')          // collapse the gap a removed tag leaves
     .replace(/[ \t]+([.,!?;:])/g, '$1')  // no space before punctuation
     .replace(/\n{3,}/g, '\n\n')
