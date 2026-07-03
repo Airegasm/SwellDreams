@@ -2137,18 +2137,19 @@ function Chat() {
                   <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
                 )}
               </div>
+              {/* NEXT (>>) gate — its OWN button beside P on mobile, so the P/C cluster keeps its exact
+                  100px size + robot-head alignment. Greyed until a message sequence pauses; bottom-row
+                  copy hidden on mobile. */}
+              <button
+                type="button"
+                className={`mobile-next-btn mobile-only ${sessionState.nextGateActive ? 'active' : ''}`}
+                onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
+                disabled={!sessionState.nextGateActive}
+                aria-label="Next message"
+                title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
+              >»</button>
               {/* Mobile Navigation Cluster - only visible on mobile */}
               <div className="mobile-nav-cluster mobile-only">
-                {/* NEXT (>>) gate — sits beside P in the upper padding on mobile (the bottom-row copy is
-                    hidden on mobile). Greyed until a message sequence pauses, then lights up. */}
-                <button
-                  type="button"
-                  className={`mobile-nav-btn mobile-next-btn ${sessionState.nextGateActive ? 'active' : ''}`}
-                  onClick={() => { if (sessionState.nextGateActive) advanceNext(); }}
-                  disabled={!sessionState.nextGateActive}
-                  aria-label="Next message"
-                  title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
-                >»</button>
                 <button
                   type="button"
                   className="mobile-nav-btn persona-toggle"

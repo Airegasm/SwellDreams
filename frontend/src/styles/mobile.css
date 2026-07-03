@@ -45,13 +45,13 @@
     display: none !important;
   }
 
-  /* Mobile StatusBadges - capacity gauge in the BOTTOM padding, bottom-left, its right edge sitting
-     against the E-STOP button (which is nudged right of it). Moved out of the mid-left band so it no
-     longer covers the message-edit SAVE button. */
+  /* Mobile StatusBadges - capacity gauge in the BOTTOM padding, just RIGHT of the E-STOP button (which
+     is back in the bottom-left corner). Moved out of the mid-left band so it no longer covers the
+     message-edit SAVE button. */
   .mobile-header-badges {
     position: fixed;
     bottom: 4px;
-    left: 2px;
+    left: 90px;
     right: auto;
     z-index: 500;
     display: flex;
@@ -138,18 +138,37 @@
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
 
-  /* NEXT (>>) gate lives beside P in the upper padding on mobile — hide the bottom-row copy, and give
-     the nav-cluster one the greyed/lit states (inherits .mobile-nav-btn sizing so it matches P/C). */
+  /* NEXT (>>) gate — its OWN button just left of the P/C cluster (margin-left:auto pushes it + the
+     cluster to the right). Sized to match P/C (36px tall) so nothing shrinks. Greyed until a sequence
+     pauses, green when live. Bottom-row copy hidden on mobile. */
   .pump-timer-right .next-gate-btn { display: none; }
-  .mobile-next-btn { opacity: 0.35; font-size: 1.2rem; line-height: 1; }
-  .mobile-next-btn.active { opacity: 1; background: #22c55e; color: #04210f; }
+  .mobile-next-btn {
+    margin-left: auto;
+    width: 48px;
+    height: 36px;
+    min-height: 36px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.4;
+  }
+  .mobile-next-btn.active { opacity: 1; background: #22c55e; border-color: #22c55e; color: #04210f; }
   .mobile-next-btn:disabled { cursor: default; }
 
-  /* Mobile E-STOP button - bottom padding, just RIGHT of the capacity gauge (gauge's right edge sits
-     against it). */
+  /* Mobile E-STOP button - back in the bottom-LEFT corner; the capacity gauge sits to its RIGHT. */
   .mobile-estop-btn {
     position: fixed;
-    left: 92px;
+    left: 4px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     padding: 6px 16px;
     font-size: 12px;
@@ -469,7 +488,7 @@
     display: flex;
     gap: 3px;
     flex-shrink: 0;
-    margin-left: auto;
+    margin-left: 3px;   /* sits just right of the NEXT (>>) button, which owns the margin-left:auto */
     width: 100px;
   }
 
