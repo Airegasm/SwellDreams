@@ -1790,17 +1790,20 @@ async function saveCharacterAsync(char, forceCustom = false, syncFactory = false
     isDefault = true;
   }
 
-  // Process any base64 images and save them to disk
-  const processedChar = await imageStorage.processCharacterImages(char, isDefault);
+  // COPY-ON-WRITE: a default character's normal save goes to custom/ so the git-tracked default stays
+  // pristine (gameplay/edits never dirty the repo, which would block start.sh auto-updates). Only an
+  // explicit "save as factory default" (syncFactory) writes into default/ + the factory backup.
+  const writeToDefault = isDefault && syncFactory;
+
+  // Process any base64 images and save them to disk (to the same tree we persist the JSON in)
+  const processedChar = await imageStorage.processCharacterImages(char, writeToDefault);
 
   // Save to new folder structure
-  await imageStorage.saveCharacterJson(processedChar, isDefault);
-  updateCharIndex(processedChar, isDefault ? 'default' : 'custom');
+  await imageStorage.saveCharacterJson(processedChar, writeToDefault);
+  updateCharIndex(processedChar, writeToDefault ? 'default' : 'custom');
 
-  // If this is a default character, optionally sync to the git-tracked factory backup.
-  // Normal gameplay saves (syncFactory=false) must NOT write into data/factory/ —
-  // only explicit "save as factory default" operations should mutate that tree.
-  if (isDefault && syncFactory) {
+  // Only an explicit "save as factory default" syncs into the git-tracked factory tree.
+  if (writeToDefault) {
     const FACTORY_DIR = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
     const sourceDir = path.join(CHARS_DEFAULT_DIR, char.id);
     syncDirToFactory(sourceDir, FACTORY_DIR);
@@ -1823,12 +1826,15 @@ function saveCharacter(char, forceCustom = false, syncFactory = false) {
   if (!isSafeId(char.id)) throw new Error('Invalid character id');
   // For sync calls, just save without async image processing
   // This is used during migration - images will be processed on next save
-  const isDefault = !forceCustom && (
+  const isDefaultId = !forceCustom && (
     fs.existsSync(path.join(CHARS_DEFAULT_DIR, char.id, 'char.json')) ||
     fs.existsSync(path.join(CHARS_DEFAULT_DIR, `${char.id}.json`))
   );
+  // COPY-ON-WRITE: normal saves of a default character go to custom/ (keeps the git-tracked default
+  // pristine); only an explicit "save as factory default" (syncFactory) writes default/ + factory.
+  const writeToDefault = isDefaultId && syncFactory;
 
-  const charDir = path.join(isDefault ? CHARS_DEFAULT_DIR : CHARS_CUSTOM_DIR, char.id);
+  const charDir = path.join(writeToDefault ? CHARS_DEFAULT_DIR : CHARS_CUSTOM_DIR, char.id);
   if (!fs.existsSync(charDir)) {
     fs.mkdirSync(charDir, { recursive: true });
   }
@@ -1837,11 +1843,11 @@ function saveCharacter(char, forceCustom = false, syncFactory = false) {
   const { _isDefault, ...toPersist } = char;
   const targetPath = path.join(charDir, 'char.json');
   atomicWriteJson(targetPath, toPersist);
-  updateCharIndex(char, isDefault ? 'default' : 'custom');
+  updateCharIndex(char, writeToDefault ? 'default' : 'custom');
 
   // Sync default characters to factory backup (whole dir, including img/) ONLY on
   // explicit request — never during normal gameplay/startup.
-  if (isDefault && syncFactory) {
+  if (writeToDefault) {
     const factoryDir = path.join(DATA_DIR, 'factory', 'chars-default', char.id);
     syncDirToFactory(charDir, factoryDir);
     console.log(`[SaveChar] Synced default character "${char.id}" to factory backup`);
@@ -1992,9 +1998,12 @@ function rebuildCharsIndex() {
     }
   }
 
-  saveCharsIndex(index);
-  console.log(`[Server] Rebuilt characters index: ${index.length} characters found`);
-  return index;
+  // Dedup by id — a custom copy of a default id (copy-on-write) overrides the pristine default entry
+  // (custom is scanned last, so it wins the Map).
+  const deduped = [...new Map(index.map(c => [c.id, c])).values()];
+  saveCharsIndex(deduped);
+  console.log(`[Server] Rebuilt characters index: ${deduped.length} characters found`);
+  return deduped;
 }
 
 // Ensure chars index exists, is populated, and all indexed characters exist on disk
@@ -15229,11 +15238,19 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
   const decryptedProfile = decryptConnectionProfile(profile);
   const settings = loadData(DATA_FILES.settings) || {};
   const { id, name, createdAt, updatedAt, openRouterApiKey, ...llmSettings } = decryptedProfile;
-  settings.llm = { ...settings.llm, ...llmSettings, activeProfileId: profile.id };
-  // Generation reads settings.llm.openRouterApiKey (the plaintext working copy) — keep it in sync with
-  // the activated profile, mirroring hordeApiKey. Without this, activating an OpenRouter profile left
-  // a stale/empty key and generation failed.
-  settings.llm.openRouterApiKey = openRouterApiKey || '';
+  // REPLACE the connection config with the activated profile's settings — do NOT merge over the
+  // previously-active profile. Merging leaked stale fields (endpoint type, samplers, model, URL) from
+  // the old profile, so the endpoint actually connected to would not match the one selected in the
+  // dropdown. Start from DEFAULT_SETTINGS.llm so any field the profile omits still has a sane value.
+  // Net effect: the profile chosen in the dropdown IS the connection, exactly, until changed.
+  // (detectedModelName is re-detected by detectLlmModel() at the end of this handler.)
+  settings.llm = {
+    ...(DEFAULT_SETTINGS.llm || {}),
+    ...llmSettings,
+    activeProfileId: profile.id,
+    // Generation reads settings.llm.openRouterApiKey (plaintext working copy) — sync it to this profile.
+    openRouterApiKey: openRouterApiKey || '',
+  };
 
   // Re-encrypt the API key for storage
   if (openRouterApiKey) {
@@ -19147,18 +19164,12 @@ const PORT = process.env.PORT || 8889;
   }
   console.log('[Startup] Factory defaults checked; missing/corrupt defaults restored');
 
-  // Clean up stale copies of default personas/chars in custom/ (from prior race condition bug)
-  for (const [defaultDir, customDir] of [[CHARS_DEFAULT_DIR, CHARS_CUSTOM_DIR], [PERSONAS_DEFAULT_DIR, PERSONAS_CUSTOM_DIR]]) {
-    if (!fs.existsSync(defaultDir) || !fs.existsSync(customDir)) continue;
-    const defaultIds = fs.readdirSync(defaultDir);
-    for (const id of defaultIds) {
-      const stalePath = path.join(customDir, id);
-      if (fs.existsSync(stalePath)) {
-        fs.rmSync(stalePath, { recursive: true, force: true });
-        console.log(`[Startup] Removed stale custom copy: ${id}`);
-      }
-    }
-  }
+  // NOTE: a custom/ copy of a default id is now LEGITIMATE — it's the copy-on-write override created
+  // when a default character/persona is edited or mutated during gameplay (keeps the git-tracked
+  // default pristine). loadCharacter/loadPersona prefer custom over default, so the override wins.
+  // The old "delete stale custom copies of default ids" cleanup was removed because it would wipe
+  // those overrides on every startup. (Personas still save to default/ on edit; if that becomes a
+  // problem, apply the same copy-on-write model to savePersona.)
 })();
 
 // Ensure all indexes exist and are valid before starting
