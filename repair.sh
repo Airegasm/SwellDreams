@@ -24,6 +24,12 @@ git config user.name "SwellDreams"
 git rm --cached -r frontend/build >/dev/null 2>&1
 git rm --cached backend/data/minigames.json backend/data/checkpoint-profiles.json backend/data/persona-checkpoint-profiles.json backend/data/trigger-sets.json >/dev/null 2>&1
 
+# Remove the pre-6.6.8 node_modules symlinks (self-referential) that a hard reset used to choke on /
+# resurrect. Untrack + delete the on-disk entry; start.sh's npm install recreates real node_modules.
+echo "Removing legacy node_modules links..."
+git rm -r --cached backend/node_modules frontend/node_modules >/dev/null 2>&1
+rm -rf backend/node_modules frontend/node_modules 2>/dev/null
+
 echo "Fetching the latest release..."
 if ! git fetch origin release; then
     echo "ERROR: Could not reach GitHub. Check your connection and try again."

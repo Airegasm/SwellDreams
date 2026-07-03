@@ -6,9 +6,13 @@ echo ========================================
 echo   SwellDreams One-Time Repair
 echo ========================================
 echo.
-echo This fixes the "can't update past v6.0" / "tell me who you are" problem.
+echo This fixes stuck updates: the "can't update past v6.0" / "tell me who you are"
+echo problem AND the "unlink of backend/node_modules failed" loop when upgrading
+echo from v6.6.7 or earlier on Windows.
 echo Your settings, characters, and personas are NOT touched.
 echo.
+echo Close the "SwellDreams Server" window first if it is open, then press a key.
+pause >nul
 
 if not exist ".git" (
     echo ERROR: This folder is not a git checkout, so it cannot self-repair.
@@ -27,6 +31,18 @@ REM Untrack the build folder + personal libraries FIRST so the hard reset preser
 REM (they used to be committed by mistake; this keeps your games/profiles/triggers).
 git rm --cached -r frontend/build >nul 2>nul
 git rm --cached backend/data/minigames.json backend/data/checkpoint-profiles.json backend/data/persona-checkpoint-profiles.json backend/data/trigger-sets.json >nul 2>nul
+
+REM Remove the pre-6.6.8 node_modules symlinks. On Windows "git reset --hard" (below) loops forever
+REM trying to unlink these ("unlink of 'backend/node_modules' failed") — the exact bug this repairs.
+REM Untrack + delete the on-disk symlink/file/folder; start.bat's npm install recreates real ones.
+echo Removing legacy node_modules links...
+git rm -r --cached backend/node_modules frontend/node_modules >nul 2>nul
+if exist "backend\node_modules" rmdir "backend\node_modules" >nul 2>nul
+if exist "backend\node_modules" rmdir /s /q "backend\node_modules" >nul 2>nul
+if exist "backend\node_modules" del /f /q "backend\node_modules" >nul 2>nul
+if exist "frontend\node_modules" rmdir "frontend\node_modules" >nul 2>nul
+if exist "frontend\node_modules" rmdir /s /q "frontend\node_modules" >nul 2>nul
+if exist "frontend\node_modules" del /f /q "frontend\node_modules" >nul 2>nul
 
 echo Fetching the latest release...
 git fetch origin release
