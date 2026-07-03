@@ -1715,6 +1715,60 @@ function Chat() {
           </div>
         )}
 
+        {/* ===== MOBILE HEADER BAR (Phase 1) — action buttons moved off the reading area. Mobile only.
+            Left→right: E-STOP(⚠️) · font − / + / ⚙ · NEXT(») · REPLY(💬) · … · hamburger(☰). ===== */}
+        <div className="mobile-chat-header mobile-only">
+          {/* E-STOP — far left. Contextual: GO! (awaiting release) / PUMP (manual) / ⚠️ (emergency stop). */}
+          {sessionState.awaitingGoRelease ? (
+            <button type="button" className="mch-btn mch-estop go-release"
+              onClick={() => sendWsMessage('gate_release', {})} disabled={sessionLoading}
+              title={sessionState.releaseButtonLabel === 'READY!' ? 'Press READY! to exit the intro' : 'Press GO! to begin — opens the pump gate'}>
+              {sessionState.releaseButtonLabel || 'GO!'}
+            </button>
+          ) : sessionState.pumpInit === 'manual' ? (
+            <button type="button" className="mch-btn mch-estop pump"
+              onClick={() => sendWsMessage('manual_pump', {})} disabled={sessionLoading} title={`Pump (${sessionState.pumpType || 'manual'})`}>
+              PUMP
+            </button>
+          ) : (
+            <button type="button"
+              className={`mch-btn mch-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+              onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
+              disabled={controlMode === 'simulated'}
+              title={controlMode === 'simulated' ? 'Simulation mode active' : flowExecutions?.length > 0 ? 'Abort flows' : 'Emergency stop'}>
+              ⚠️
+            </button>
+          )}
+          {/* Font size − / + and the ⚙ clear-menu (real buttons in the header now) */}
+          <button type="button" className="mch-btn" onClick={decreaseFontSize} disabled={chatFontSize <= 10} title="Decrease font size">−</button>
+          <button type="button" className="mch-btn" onClick={increaseFontSize} disabled={chatFontSize >= 32} title="Increase font size">+</button>
+          <div className="mch-gear-wrap">
+            <button type="button" className="mch-btn" onClick={() => setShowClearMenu(prev => !prev)} title="Clear options">⚙</button>
+            {showClearMenu && (
+              <>
+                <div className="clear-menu-overlay" onClick={() => setShowClearMenu(false)} />
+                <div className="clear-menu">
+                  <div className="clear-menu-header">Clear</div>
+                  <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'screen' }); setShowClearMenu(false); }}>Screen</button>
+                  <button className="clear-menu-item" onClick={() => { sendWsMessage('clear_chat', { mode: 'context' }); setShowClearMenu(false); }}>Context</button>
+                </div>
+              </>
+            )}
+          </div>
+          {/* NEXT (») — double width */}
+          <button type="button" className={`mch-btn mch-next ${sessionState.nextGateActive ? 'active' : ''}`}
+            onClick={() => { if (sessionState.nextGateActive) advanceNext(); }} disabled={!sessionState.nextGateActive}
+            aria-label="Next message"
+            title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}>»</button>
+          {/* REPLY — square speech-bubble toggle (auto-reply on/off) */}
+          <button type="button" className={`mch-btn mch-reply ${sessionState.autoReply ? 'on' : 'off'}`}
+            onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
+            aria-label="Toggle auto-reply"
+            title={sessionState.autoReply ? 'Auto-Reply is ON — the AI replies to every message. Tap to turn off.' : 'Auto-Reply is OFF. Tap to turn on.'}>💬</button>
+          {/* Hamburger — far right (opens the player/persona drawer) */}
+          <button type="button" className="mch-btn mch-menu" onClick={() => setLeftDrawerOpen(!leftDrawerOpen)} aria-label="Menu" title="Menu">☰</button>
+        </div>
+
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
 
         <div className="chat-messages" ref={messagesContainerRef}>

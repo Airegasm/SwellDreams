@@ -202,6 +202,56 @@
     position: relative;
   }
 
+  /* ===== MOBILE HEADER BAR (Phase 1) — action buttons live here, off the reading area. ===== */
+  .mobile-chat-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 52px;                 /* match the input-row bottom padding */
+    padding: 4px 8px;
+    background: var(--skin-section-header, var(--bg-secondary));
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+  .mobile-chat-header .mch-btn {
+    height: 36px;
+    min-width: 36px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0 6px;
+    flex-shrink: 0;
+  }
+  .mobile-chat-header .mch-btn:disabled { opacity: 0.4; cursor: default; }
+  .mch-estop { font-size: 1.2rem; }
+  .mch-estop.active { background: #dc3545; border-color: #dc3545; color: #fff; }
+  .mch-estop.abort { background: #fd7e14; border-color: #fd7e14; color: #fff; }
+  .mch-estop.simulated { background: #6c757d; border-color: #6c757d; color: #fff; }
+  .mch-estop.go-release, .mch-estop.pump { background: #fff; border-color: #fff; color: #111; }
+  .mch-next { width: 72px; font-size: 1.4rem; opacity: 0.4; }   /* double width; greyed until active */
+  .mch-next.active { opacity: 1; background: #22c55e; border-color: #22c55e; color: #04210f; }
+  .mch-reply { width: 36px; font-size: 1.15rem; }               /* square */
+  .mch-reply.on { background: #22c55e; border-color: #22c55e; color: #04210f; }
+  .mch-reply.off { opacity: 0.6; }
+  .mch-gear-wrap { position: relative; display: flex; flex-shrink: 0; }
+  .mch-menu { margin-left: auto; }                               /* far right */
+
+  /* These moved into the header — hide their old mobile placements. */
+  .mobile-estop-btn { display: none !important; }
+  .mobile-next-btn { display: none !important; }
+  .chat-font-controls { display: none !important; }
+  .mobile-drawer-toggles { display: none !important; }
+  .pump-timer-right .auto-reply-toggle { display: none !important; }
+
   /* --------------------------------------------------------------------------
      Navigation Bar - Compact top bar with bottom navigation
      -------------------------------------------------------------------------- */
