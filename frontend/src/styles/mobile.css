@@ -307,16 +307,23 @@
   .mch-estop.abort { border-color: #fd7e14; }          /* orange */
   .mch-estop.simulated { border-color: #6c757d; }
   .mch-estop.go-release, .mch-estop.pump { border-color: #e6e9ee; }
-  /* NEXT: keep the black face (don't wash it out with opacity); dim only the » glyph until it's live. */
-  .mch-next { width: 72px; font-size: 1.4rem; color: #5a5f68; }   /* double width */
-  .mch-next:disabled { opacity: 1 !important; }
+  .mch-next { width: 72px; font-size: 1.4rem; }   /* double width */
+  /* Inactive (can't advance): a FIXED metallic-grey face + near-black » — deliberately NOT the skin
+     button face, so it clearly reads as "not a live button" until a sequence is actually waiting. */
+  .mch-next:disabled {
+    opacity: 1 !important;
+    background: linear-gradient(180deg, #7a7f87 0%, #5c6067 45%, #43464c 100%) !important;
+    border-color: #34373c !important;
+    color: #16181c !important;
+  }
   .mch-next.active { animation: mchNextFlashWhite 0.9s ease-in-out infinite; }
   @keyframes mchNextFlashWhite {
     0%, 100% { background: #ffffff; border-color: #ffffff; color: #111; }
     50%      { background: var(--skin-btn-face, linear-gradient(180deg, #1a1d21 0%, #0d0f12 30%, #1a1d21 50%, #0d0f12 70%, #1a1d21 100%)); border-color: #3d4147; color: #c7ccd4; }
   }
   .mch-reply { width: 72px; font-size: 1.15rem; border-width: 2px; }   /* double width */
-  .mch-reply.on { border-color: #22c55e; color: #22c55e; }   /* green outline when Auto-Reply is on */
+  /* Outline matches the impersonate button's skin outline (--skin-player-outline). */
+  .mch-reply.on { border-color: var(--skin-player-outline, #00ff88); color: var(--skin-player-outline, #00ff88); }
   .mch-reply.off { border-color: #3d4147; }                  /* neutral outline (black face, not washed) */
   .mch-gear-wrap { position: relative; display: flex; flex-shrink: 0; }
   .mch-menu { margin-left: auto; width: 72px; }                  /* far right; double width */
@@ -342,6 +349,9 @@
     gap: 8px;
     min-height: 0;
     padding: 0;
+    pointer-events: auto;   /* THE FIX: desktop base sets this row pointer-events:none (only
+                               pump-status-item re-enabled it). On mobile it holds real buttons
+                               (balloon, P, C, UNLOCK) — re-enable clicks for the whole row. */
   }
   .input-pump-timer-row .pump-timer-right { display: none; }   /* >> + REPLY live in the header now */
   /* Timer / intro-lock slot — a FLEXIBLE middle column: fills the gap between the pump band and P/C on
