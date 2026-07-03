@@ -5485,12 +5485,15 @@ ${examples}`;
 }
 
 /**
- * Check if the active story has pumpOnEveryReply enabled
+ * RETIRED FEATURE. "Pump on every reply" (the old card-level "send pump on with every message"
+ * toggle + the `toggle_pump_always` trigger) was removed from the UI, but the flag stayed baked into
+ * some cards' data (e.g. Tempest Storm has story.pumpOnEveryReply === true) and kept firing the pump on
+ * nearly every reply. This gate now hard-returns false so NO card fires it, regardless of any stale
+ * `pumpOnEveryReply` flag on disk or a `toggle_pump_always` trigger. Delete this function (and its
+ * callers / the trigger case) if the feature is ever fully torn out.
  */
 function isPumpOnEveryReply(character) {
-  if (!character?.stories?.length) return false;
-  const activeStory = character.stories.find(s => s.id === character.activeStoryId) || character.stories[0];
-  return activeStory?.pumpOnEveryReply === true;
+  return false;
 }
 
 /**
