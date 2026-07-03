@@ -3944,12 +3944,9 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'toggle_pump_always': {
-        const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
-        if (activeStory) {
-          activeStory.pumpOnEveryReply = !!trigger.enabled;
-          if (trigger.chance !== undefined) activeStory.pumpOnEveryReplyChance = trigger.chance;
-          await saveCharacterAsync(character);
-        }
+        // RETIRED — the "pump on every reply" feature is dead (isPumpOnEveryReply hard-returns false).
+        // This trigger no longer re-bakes the pumpOnEveryReply flag into card data (which then lingered
+        // and fired the pump on older builds). No-op.
         break;
       }
 
