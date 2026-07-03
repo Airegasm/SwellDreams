@@ -2532,9 +2532,11 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;   /* E-STOP all the way left */
+  flex: 1 1 auto;                /* FILL the input-buttons-row (which is justify-content:flex-end) so
+                                    E-STOP reaches the real left edge instead of being shoved right */
   gap: 6px;
   padding: 2px 8px;              /* tight 2px above/below the row */
-  position: relative;           /* anchor for the absolute UNLOCK overlay */
+  position: relative;           /* anchor for the floating UNLOCK notice */
 }
 .pc-input-btn {
   height: 40px;                 /* was 36 → +2px top & bottom */
