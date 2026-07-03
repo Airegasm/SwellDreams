@@ -1079,20 +1079,26 @@ async function testConnection(settings) {
       let chatTemplate = null;
       let supportsSystemRole = true;
 
-      // Health check
-      const healthUrl = `${baseUrl}/health`;
-      console.log('[LLM] llama.cpp health check:', healthUrl);
-      const healthResult = await makeRequest(healthUrl, 'GET');
-      if (!healthResult || healthResult.status !== 'ok') {
-        return { success: false, error: 'llama.cpp health check failed' };
+      // Reachability. Prefer /health, but do NOT hard-fail on it: model-swapping proxies
+      // (llama-swap / LlamaHerder) may not expose a standard /health, or may return non-ok / 503
+      // while a model loads on demand, yet still generate fine. Treat the server as reachable if
+      // EITHER /health is ok OR /props responds (checked below).
+      let healthOk = false;
+      try {
+        const healthResult = await makeRequest(`${baseUrl}/health`, 'GET');
+        if (healthResult && healthResult.status === 'ok') healthOk = true;
+      } catch (e) {
+        console.log('[LLM] llama.cpp /health probe failed (falling back to /props):', e.message);
       }
 
-      // Get model info, context size, and chat template from /props
+      // Get model info, context size, and chat template from /props (also the reachability fallback)
+      let propsOk = false;
       try {
         const propsUrl = `${baseUrl}/props`;
         console.log('[LLM] llama.cpp props:', propsUrl);
         const propsResult = await makeRequest(propsUrl, 'GET');
         if (propsResult) {
+          propsOk = true;
           // Model name: try model_alias (display name) → model_path basename → legacy fields
           modelName = propsResult.model_alias
             || (propsResult.model_path ? propsResult.model_path.split('/').pop().replace(/\.gguf$/i, '') : null)
@@ -1142,9 +1148,15 @@ async function testConnection(settings) {
         console.log('[LLM] Failed to fetch llama.cpp props:', e.message);
       }
 
+      // Only fail if the server answered NEITHER probe — otherwise it's up (a swapper will load the
+      // model on the first generation request).
+      if (!healthOk && !propsOk) {
+        return { success: false, error: 'llama.cpp server not reachable (neither /health nor /props responded)' };
+      }
+
       return {
         success: true,
-        response: 'Health OK',
+        response: healthOk ? 'Health OK' : 'Reachable (via /props)',
         apiType: 'llamacpp',
         modelName: modelName,
         contextSize: contextSize,
