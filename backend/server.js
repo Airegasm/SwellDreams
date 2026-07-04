@@ -2939,7 +2939,7 @@ function ensureDefaultConnectionProfiles() {
       // (min-p/DRY/temp-last — the chat-completion path only sends temp/top_p/penalties). Mistral V7
       // "Tekken" template, temperature-last, light DRY, min-p — a coherent, characterful baseline.
       id: 'default-cydonia24b-llamacpp',
-      samplerRev: 2,
+      samplerRev: 3,
       name: 'Cydonia 24B — llama.cpp / LlamaHerder (Recommended)',
       llmUrl: 'http://localhost:8080/',
       apiType: 'text_completion',
@@ -2951,15 +2951,15 @@ function ensureDefaultConnectionProfiles() {
       streaming: true,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 175,
-      temperature: 0.6,
+      temperature: 1.0,
       topK: 0,
-      topP: 0.9,
+      topP: 1,
       typicalP: 1,
-      minP: 0.02,
+      minP: 0.05,
       topA: 0,
       tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.0,
+      repetitionPenalty: 1.05,
       repPenRange: 2048,
       repPenSlope: 1,
       frequencyPenalty: 0,
@@ -2971,9 +2971,9 @@ function ensureDefaultConnectionProfiles() {
       dryAllowedLength: 2,
       dryPenaltyLastN: 0,
       drySequenceBreakers: ['\n', ':', '"', '*'],
-      dynaTempRange: 0.1,
-      dynaTempExponent: 1.4,
-      xtcProbability: 0.5,
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
       xtcThreshold: 0.1,
       smoothingFactor: 0,
       smoothingCurve: 1,
@@ -2995,7 +2995,7 @@ function ensureDefaultConnectionProfiles() {
       // Same Cydonia 24B baseline, but for a KoboldCpp server (default port 5001, /api/v1/generate).
       // Point llmUrl at your host if not local. Same Mistral-Tekken + temp-last + min-p + DRY tuning.
       id: 'default-cydonia24b-kobold',
-      samplerRev: 2,
+      samplerRev: 3,
       name: 'Cydonia 24B — KoboldCpp (Recommended)',
       llmUrl: 'http://localhost:5001/api/v1/generate',
       apiType: 'text_completion',
@@ -3007,15 +3007,15 @@ function ensureDefaultConnectionProfiles() {
       streaming: true,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 175,
-      temperature: 0.6,
+      temperature: 1.0,
       topK: 0,
-      topP: 0.9,
+      topP: 1,
       typicalP: 1,
-      minP: 0.02,
+      minP: 0.05,
       topA: 0,
       tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.0,
+      repetitionPenalty: 1.05,
       repPenRange: 2048,
       repPenSlope: 1,
       frequencyPenalty: 0,
@@ -3027,9 +3027,9 @@ function ensureDefaultConnectionProfiles() {
       dryAllowedLength: 2,
       dryPenaltyLastN: 0,
       drySequenceBreakers: ['\n', ':', '"', '*'],
-      dynaTempRange: 0.1,
-      dynaTempExponent: 1.4,
-      xtcProbability: 0.5,
+      dynaTempRange: 0,
+      dynaTempExponent: 1,
+      xtcProbability: 0,
       xtcThreshold: 0.1,
       smoothingFactor: 0,
       smoothingCurve: 1,
@@ -3161,32 +3161,32 @@ function ensureDefaultConnectionProfiles() {
   const staleCyd = profiles.findIndex(p => p.id === 'default-cydonia24b');
   if (staleCyd >= 0) { profiles.splice(staleCyd, 1); added = true; console.log('[Startup] Removed superseded Cydonia preset (split into llama.cpp / KoboldCpp)'); }
 
-  // One-time reset of the Cydonia presets' samplers to TheDrummer's v4-line recommendation (dynatemp
-  // 0.5-0.7 exp 1.4, top_p 0.9, min_p 0.02, XTC 0.1/0.5). Earlier seeds shipped a static temp 1.0 / open
-  // top_p 1 that made Cydonia ramble into analysis/character sheets. samplerRev gates it so it runs ONCE
-  // and won't re-clobber a user's later manual tweaks.
-  const CYDONIA_SAMPLER_REV = 2;
+  // REVERT (v6.6.94): the v6.6.93 "v4-line" sampler retune made things worse — restore the original
+  // Cydonia baseline (temp 1.0, top_p 1, min_p 0.05, rep-pen 1.05, dynatemp/XTC off). samplerRev bumped
+  // to 3 so this reverses the runtime whether or not the rev-2 retune already ran, without re-clobbering
+  // a user's own later tweaks.
+  const CYDONIA_SAMPLER_REV = 3;
   const CYDONIA_SAMPLERS = {
-    temperature: 0.6, topK: 0, topP: 0.9, typicalP: 1, minP: 0.02, topA: 0, tfs: 1, topNsigma: 0,
-    repetitionPenalty: 1.0, dynaTempRange: 0.1, dynaTempExponent: 1.4, xtcProbability: 0.5, xtcThreshold: 0.1,
+    temperature: 1.0, topK: 0, topP: 1, typicalP: 1, minP: 0.05, topA: 0, tfs: 1, topNsigma: 0,
+    repetitionPenalty: 1.05, dynaTempRange: 0, dynaTempExponent: 1, xtcProbability: 0, xtcThreshold: 0.1,
   };
   const isCydoniaProfile = (id) => id === 'default-cydonia24b-llamacpp' || id === 'default-cydonia24b-kobold';
   for (const p of profiles) {
     if (isCydoniaProfile(p.id) && p.samplerRev !== CYDONIA_SAMPLER_REV) {
       Object.assign(p, CYDONIA_SAMPLERS, { samplerRev: CYDONIA_SAMPLER_REV });
       added = true;
-      console.log(`[Startup] Reset Cydonia samplers → v4-line recommendation: ${p.name || p.id}`);
+      console.log(`[Startup] Restored original Cydonia samplers: ${p.name || p.id}`);
     }
   }
-  // settings.llm is a COPY of the active profile, so also reset the LIVE session if it's a stale Cydonia one.
+  // settings.llm is a COPY of the active profile, so also restore the LIVE session if it's a Cydonia one.
   try {
     const st = loadData(DATA_FILES.settings);
     if (st?.llm && isCydoniaProfile(st.llm.activeProfileId) && st.llm.samplerRev !== CYDONIA_SAMPLER_REV) {
       st.llm = { ...st.llm, ...CYDONIA_SAMPLERS, samplerRev: CYDONIA_SAMPLER_REV };
       saveData(DATA_FILES.settings, st);
-      console.log('[Startup] Reset ACTIVE Cydonia samplers → v4-line recommendation');
+      console.log('[Startup] Restored original ACTIVE Cydonia samplers');
     }
-  } catch (e) { console.error('[Startup] Cydonia active-sampler reset failed:', e?.message || e); }
+  } catch (e) { console.error('[Startup] Cydonia sampler restore failed:', e?.message || e); }
 
   for (const defaultProfile of DEFAULT_PROFILES) {
     if (!profiles.some(p => p.id === defaultProfile.id)) {
@@ -6008,13 +6008,11 @@ async function sendWelcomeMessage(character, settings) {
       if (isInstructor(character)) {
         systemPrompt += `Deliver the opening instruction to the player. Stay terse, direct, and on-mission — do not embellish. Base it on this template:\n\n"${welcomeMsg.text}"`;
       } else {
-        systemPrompt += `Write ONLY the in-character opening message — begin immediately with in-character narration or dialogue. Do NOT output a character sheet, a list or description of the characters, an analysis, notes, markdown headings (#), bullet points, or any out-of-character/meta commentary. Expand this opening template in-character:\n\n"${welcomeMsg.text}"`;
+        systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
       }
 
       const result = await llmService.generate({
-        // Group cards prime with [Characters]: (matching buildMultiCharSystemPrompt / buildChatContext);
-        // a single-name primer against a group system prompt yields an empty completion → verbatim fallback.
-        prompt: character.multiChar?.enabled ? `[Characters]:` : `${character.name}:`,
+        prompt: `${character.name}:`,
         systemPrompt,
         settings: { ...settings.llm, ...charTokenOverride(character) }
       });
@@ -6024,17 +6022,7 @@ async function sendWelcomeMessage(character, settings) {
       if (result && result.text) {
         messageContent = result.text.trim();
         // Instructors speak in plain directives — strip any RP prose the model added.
-        if (isInstructor(character)) {
-          messageContent = stripInstructorRoleplay(messageContent);
-        } else {
-          // Same scaffolding cleanup every normal reply gets (the welcome path historically skipped it,
-          // so Cydonia's "# Character Sheet" / analysis preambles went straight through). Strips leaked
-          // directives, meta preamble before the first "/*, markdown headers, and separators.
-          if (settings?.globalCharacterControls?.stripModelScaffolding !== false) messageContent = stripModelScaffolding(messageContent);
-          if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) messageContent = stripStrayBrackets(messageContent);
-        }
-        // If cleanup left nothing usable (the model produced ONLY a sheet/analysis), fall back to the template.
-        if (!messageContent.trim()) { messageContent = welcomeMsg.text; console.log('[WELCOME] enhanced output was all scaffolding — using template'); }
+        if (isInstructor(character)) messageContent = stripInstructorRoleplay(messageContent);
         console.log('[WELCOME] LLM enhanced message:', messageContent.substring(0, 100) + '...');
       } else {
         console.log('[WELCOME] LLM returned no response, using template', result);
