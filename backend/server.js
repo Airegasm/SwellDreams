@@ -5983,7 +5983,9 @@ async function sendWelcomeMessage(character, settings) {
       }
 
       const result = await llmService.generate({
-        prompt: `${character.name}:`,
+        // Group cards prime with [Characters]: (matching buildMultiCharSystemPrompt / buildChatContext);
+        // a single-name primer against a group system prompt yields an empty completion → verbatim fallback.
+        prompt: character.multiChar?.enabled ? `[Characters]:` : `${character.name}:`,
         systemPrompt,
         settings: { ...settings.llm, ...charTokenOverride(character) }
       });
