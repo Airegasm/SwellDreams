@@ -5979,7 +5979,7 @@ async function sendWelcomeMessage(character, settings) {
       if (isInstructor(character)) {
         systemPrompt += `Deliver the opening instruction to the player. Stay terse, direct, and on-mission — do not embellish. Base it on this template:\n\n"${welcomeMsg.text}"`;
       } else {
-        systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
+        systemPrompt += `Write ONLY the in-character opening message — begin immediately with in-character narration or dialogue. Do NOT output a character sheet, a list or description of the characters, an analysis, notes, markdown headings (#), bullet points, or any out-of-character/meta commentary. Expand this opening template in-character:\n\n"${welcomeMsg.text}"`;
       }
 
       const result = await llmService.generate({
@@ -5995,7 +5995,17 @@ async function sendWelcomeMessage(character, settings) {
       if (result && result.text) {
         messageContent = result.text.trim();
         // Instructors speak in plain directives — strip any RP prose the model added.
-        if (isInstructor(character)) messageContent = stripInstructorRoleplay(messageContent);
+        if (isInstructor(character)) {
+          messageContent = stripInstructorRoleplay(messageContent);
+        } else {
+          // Same scaffolding cleanup every normal reply gets (the welcome path historically skipped it,
+          // so Cydonia's "# Character Sheet" / analysis preambles went straight through). Strips leaked
+          // directives, meta preamble before the first "/*, markdown headers, and separators.
+          if (settings?.globalCharacterControls?.stripModelScaffolding !== false) messageContent = stripModelScaffolding(messageContent);
+          if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) messageContent = stripStrayBrackets(messageContent);
+        }
+        // If cleanup left nothing usable (the model produced ONLY a sheet/analysis), fall back to the template.
+        if (!messageContent.trim()) { messageContent = welcomeMsg.text; console.log('[WELCOME] enhanced output was all scaffolding — using template'); }
         console.log('[WELCOME] LLM enhanced message:', messageContent.substring(0, 100) + '...');
       } else {
         console.log('[WELCOME] LLM returned no response, using template', result);
