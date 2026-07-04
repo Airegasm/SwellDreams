@@ -156,7 +156,7 @@ function SystemTab() {
 
             <h4 className="subsection-header">Syntax</h4>
             <p>
-              Custom flow variables use the format: <span className="variable-tag">[Flow:variableName]</span>
+              Custom character variables use the format: <span className="variable-tag">[CharVar:variableName]</span> ([Flow:variableName] still works as a legacy alias)
             </p>
 
             <h4 className="subsection-header">Creating Variables</h4>
@@ -173,10 +173,10 @@ function SystemTab() {
 
             <h4 className="subsection-header">Examples</h4>
             <div className="code-example">
-              [Flow:visitCount] - Track how many times something occurred<br />
-              [Flow:questPhase] - Track story progression<br />
-              [Flow:intensity] - Store a numeric value for device control<br />
-              [Flow:playerChoice] - Remember a player's decision
+              [CharVar:visitCount] - Track how many times something occurred<br />
+              [CharVar:questPhase] - Track story progression<br />
+              [CharVar:intensity] - Store a numeric value for device control<br />
+              [CharVar:playerChoice] - Remember a player's decision
             </div>
           </div>
         )}
