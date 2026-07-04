@@ -3942,8 +3942,10 @@ async function executeTrigger(trigger, source, character, settings) {
           aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         }
         if (aiResult.text) {
-          let atxt = stripLeakedDirectives(substituteAllVariables(aiResult.text)); // always drop leaked === MANDATORY === echoes
+          const rawAtxt = substituteAllVariables(aiResult.text);
+          let atxt = stripLeakedDirectives(rawAtxt); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
+          logTagDiag('trigger:ai_message', rawAtxt, atxt);
           if (aiStreamMsg) {
             aiStreamMsg.content = atxt;
             aiStreamMsg.streaming = false;
@@ -4007,8 +4009,10 @@ async function executeTrigger(trigger, source, character, settings) {
           memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
         }
         if (memRes.text) {
-          let memText = stripLeakedDirectives(substituteAllVariables(memRes.text)); // always drop leaked === MANDATORY === echoes
+          const rawMemText = substituteAllVariables(memRes.text);
+          let memText = stripLeakedDirectives(rawMemText); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) memText = stripStrayBrackets(memText);
+          logTagDiag('trigger:member_message', rawMemText, memText);
           if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
             const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
             memText = stripSpeakerPrefixes(memText, [tgt.name, ...otherN, character.name, character.multiChar?.groupName].filter(Boolean));
@@ -6369,6 +6373,7 @@ If announcing the result, say "${result}" - not something else.
 
         // Apply variable substitution to final result
         finalText = substituteAllVariables(finalText);
+        const rawForTagDiag = finalText;
         // Strip model scaffolding (scene headers / analysis preambles) around the reply — roleplay only
         // (instructors have their own stripInstructorRoleplay below; their non-marked text is untouched).
         if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) {
@@ -6376,6 +6381,7 @@ If announcing the result, say "${result}" - not something else.
         }
         // Remove stray [bracketed] stage directions/meta (device tags preserved for the pass below).
         if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+        logTagDiag('main-reply', rawForTagDiag, finalText);
         // Instructors never roleplay — strip asterisk actions / quoted dialogue here too.
         if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
 
@@ -9420,6 +9426,22 @@ function stripLeakedDirectives(text) {
   return out;
 }
 
+// Diagnostic: did the model emit device tags, and did they survive the cleanup chain?
+// Distinguishes "model never sent a tag" (prompt/sampler problem) from "tag eaten by a stripper"
+// (cleanup bug) at a glance in the backend log. Cheap; logs one line per reply.
+function logTagDiag(where, rawText, cleanText) {
+  try {
+    const TAG = /\[\s*(?:pump|vibe|tens)\b[^\]]*\]/gi;
+    const norm = (s) => (String(s || '').match(TAG) || []).map(t => t.toLowerCase().replace(/\s+/g, ' '));
+    const raw = norm(rawText);
+    const clean = norm(cleanText);
+    if (!raw.length) { console.log(`[TagDiag] ${where}: model emitted NO device tag`); return; }
+    const lost = raw.filter(t => !clean.includes(t));
+    if (lost.length) console.log(`[TagDiag] ${where}: TAG LOST IN CLEANUP raw=[${raw.join(' ')}] clean=[${clean.join(' ') || 'none'}]`);
+    else console.log(`[TagDiag] ${where}: tags ok [${clean.join(' ')}]`);
+  } catch { /* diagnostics must never break the reply path */ }
+}
+
 function stripModelScaffolding(text) {
   if (!text) return text;
   text = stripLeakedDirectives(text);
@@ -9592,8 +9614,10 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     if (eventEngine.aborted) break;
 
     let finalText = stripSpeakerPrefixes(substituteAllVariables((result?.text || '').trim()), knownNames);
+    const rawForTagDiag = finalText;
     if (settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
     if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+    logTagDiag(`individual:${member.name}`, rawForTagDiag, finalText);
     if (!finalText) {
       if (streamMsg) { sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== streamMsg.id); broadcast('message_deleted', { id: streamMsg.id }); }
       continue;
@@ -13263,6 +13287,7 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
     prompt += `- Do NOT write dialogue or actions for ${silentChars.map(c => c.name).join(', ')} this turn — they are present in the scene but silent.\n`;
   }
   prompt += `- Attribute dialogue and actions to characters by name.\n`;
+  prompt += `- NEVER restate, list, or summarize the CHARACTERS section above — no cast introductions, no "*Name:* description" lines. Begin INSIDE the scene with action or dialogue.\n`;
   prompt += `- Keep dialogue natural and concise — people speak in short sentences, not paragraphs.\n`;
   if (soloId) {
     const me = chars.find(c => c.id === soloId);
