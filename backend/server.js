@@ -4035,6 +4035,17 @@ async function executeTrigger(trigger, source, character, settings) {
           let atxt = stripLeakedDirectives(rawAtxt); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
           logTagDiag('trigger:ai_message', rawAtxt, atxt);
+          // Execute + strip device tags ([pump on] etc.) like every other reply path — this path
+          // used to skip it, so a trigger/checkpoint/button message that emitted [pump on] left the
+          // tag visible AND never fired the pump. (stripStrayBrackets PRESERVES device tags on purpose;
+          // processLlmOutput is what runs and then strips them.)
+          try {
+            const dvcs = loadData(DATA_FILES.devices) || [];
+            const reinf = aiDeviceControl.reinforcePumpControl(atxt, dvcs, sessionState, settings, getCharacterLimits(character));
+            if (reinf.reinforced) atxt = reinf.text;
+            const ctrl = await aiDeviceControl.processLlmOutput(atxt, dvcs, deviceService, { settings, sessionState, broadcast, characterLimits: getCharacterLimits(character), injectContext: () => {} });
+            if (ctrl.commands?.length) atxt = ctrl.text;
+          } catch (e) { console.error('[trigger:ai_message] device processing failed:', e?.message || e); }
           if (aiStreamMsg) {
             aiStreamMsg.content = atxt;
             aiStreamMsg.streaming = false;
