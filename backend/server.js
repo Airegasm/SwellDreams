@@ -3841,7 +3841,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         if (aiResult.text) {
           const { v4: uuidv4 } = require('uuid');
-          let atxt = substituteAllVariables(aiResult.text);
+          let atxt = stripLeakedDirectives(substituteAllVariables(aiResult.text)); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
           const msg = { id: uuidv4(), content: atxt, sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
@@ -3885,7 +3885,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
         if (memRes.text) {
           const { v4: uuidv4 } = require('uuid');
-          let memText = substituteAllVariables(memRes.text);
+          let memText = stripLeakedDirectives(substituteAllVariables(memRes.text)); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) memText = stripStrayBrackets(memText);
           if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
             const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
@@ -9240,8 +9240,23 @@ function stripSpeakerPrefixes(text, names) {
 // runs from the FIRST such marker to the LAST. This trims scaffolding OUTSIDE that span, but ONLY when
 // the outside text is clearly meta (a markdown header, or a known scene/analysis/OOC opener) — never
 // plain prose — so it can't eat a legitimate 'She walked in. "Hi."' lead-in. No markers → left untouched.
+// Some models echo the "=== MANDATORY — … ===" SYSTEM directives (director's note, stage direction,
+// pre-inflation requirement, critical instruction, individual-response) straight into the reply,
+// despite the "do NOT quote this note" line. Strip any leaked block — complete (header … === END … ===)
+// or truncated (header … end of output, when the model ran out of tokens before the END marker).
+function stripLeakedDirectives(text) {
+  if (!text) return text;
+  const KEYS = 'MANDATORY|CRITICAL INSTRUCTION|DIRECTOR|STAGE DIRECTION|PRE-INFLATION|INDIVIDUAL RESPONSE';
+  return String(text)
+    .replace(new RegExp(`\\n*={2,}\\s*(?:${KEYS})[\\s\\S]*?={2,}\\s*END[^\\n=]*={2,}\\n*`, 'gi'), '\n')
+    .replace(new RegExp(`\\n*={2,}\\s*(?:${KEYS})[\\s\\S]*$`, 'gi'), '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function stripModelScaffolding(text) {
   if (!text) return text;
+  text = stripLeakedDirectives(text);
   const s = String(text);
   const firsts = ['"', '*'].map(ch => s.indexOf(ch)).filter(i => i >= 0);
   const lasts = ['"', '*'].map(ch => s.lastIndexOf(ch)).filter(i => i >= 0);
@@ -9269,6 +9284,7 @@ function stripModelScaffolding(text) {
 // never reach the bubble/context anyway. Applied to BOTH the displayed reply and the stored history.
 function stripStrayBrackets(text) {
   if (!text) return text;
+  text = stripLeakedDirectives(text);
   const PRESERVE = /^\[\s*(?:pump|vibe|tens)\b|^\[\s*(?:video|audio|image|img|sound)\s*:/i;
   return String(text)
     // Multi-line aware: [^\]] (not the newline-excluding [^\]\n]) so the big meta blocks Cydonia wraps
