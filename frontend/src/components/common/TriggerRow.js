@@ -245,11 +245,6 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             {playerMsgMode}
             <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
               placeholder="Guidance for the impersonated line…" style={{ flex: 1, minWidth: '80px' }} />
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
-              title="Suppress auto reply — send the impersonated message without triggering an AI response. Unchecked: the AI responds as if you sent it.">
-              <input type="checkbox" checked={trigger.suppressAutoReply === true} onChange={(e) => update('suppressAutoReply', e.target.checked)} />
-              Suppress reply
-            </label>
             <input type="number" min="1" value={trigger.maxTokens ?? ''}
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}

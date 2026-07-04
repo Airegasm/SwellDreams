@@ -3826,7 +3826,8 @@ async function executeTrigger(trigger, source, character, settings) {
     switch (trigger.type) {
       case 'impersonate': {
         await waitForLlmIdle(); // queue behind any in-progress generation
-        broadcast('generating_start', { characterName: sessionState.playerName || 'Player', isPlayerVoice: true });
+        const { v4: uuidv4 } = require('uuid');
+        broadcast('generating_start', { characterName: activePersona?.displayName || sessionState.playerName || 'Player', isPlayerVoice: true });
         const mode = trigger.context ? 'guided_impersonate' : 'impersonate';
         const impContext = buildSpecialContext(mode, trigger.context || null, character, activePersona, settings);
         const impSettings = { ...settings.llm };
@@ -3835,16 +3836,40 @@ async function executeTrigger(trigger, source, character, settings) {
         const impMaxTok = Number(trigger.maxTokens);
         if (impMaxTok > 0) impSettings.maxTokens = clampMaxTokens(impMaxTok);
         impSettings.stopSequences = [...(settings.llm?.stopSequences || []), ...(impContext.stopSequences || [])];
-        const impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
+        // Stream the impersonated player message into a bubble up-front (same as the char paths); the
+        // impersonate action ALWAYS posts as the player without an AI reply (suppress is the immutable
+        // default), so we post the message directly + fire the player-turn side effects, no handleChatMessage.
+        const impStreaming = settings.llm?.streaming === true;
+        let impStreamMsg = null;
+        let impResult;
+        if (impStreaming) {
+          impStreamMsg = { id: uuidv4(), content: '', sender: 'player', timestamp: Date.now(), streaming: true };
+          sessionState.chatHistory.push(impStreamMsg);
+          broadcast('chat_message', impStreamMsg);
+          impResult = await llmService.generateStream({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings,
+            onToken: (token, fullText) => { impStreamMsg.content = fullText; broadcast('stream_token', { messageId: impStreamMsg.id, token, fullText }); } });
+        } else {
+          impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
+        }
         broadcast('generating_stop', {});
-        if (impResult.text) {
-          const impText = substituteAllVariables(stripCrossRoleContent(impResult.text, impContext.stopSequences, false)).trim();
-          if (impText) {
-            // Send it as a player message. "Suppress auto reply" (trigger.suppressAutoReply) sends
-            // without an AI response; otherwise the AI responds as if the player had sent it.
-            const suppress = trigger.suppressAutoReply === true;
-            await handleChatMessage({ content: impText, sender: 'player', suppressReply: suppress, forceReply: !suppress });
+        const impText = impResult?.text ? substituteAllVariables(stripCrossRoleContent(impResult.text, impContext.stopSequences, false)).trim() : '';
+        if (impText) {
+          if (impStreamMsg) {
+            impStreamMsg.content = impText;
+            impStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: impStreamMsg.id, content: impText });
+          } else {
+            const pmsg = { id: uuidv4(), content: impText, sender: 'player', timestamp: Date.now() };
+            sessionState.chatHistory.push(pmsg);
+            broadcast('chat_message', pmsg);
           }
+          autosaveSession();
+          // Player-turn side effects (keyword gates / event trees) — like a real send, but no AI reply.
+          await eventEngine.handleEvent('player_speaks', { content: impText }).catch(() => {});
+          await tryResolveAwaitInput(impText, 'player').catch(() => {});
+        } else if (impStreamMsg) { // empty generation — drop the placeholder
+          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== impStreamMsg.id);
+          broadcast('message_deleted', { id: impStreamMsg.id });
         }
         break;
       }
