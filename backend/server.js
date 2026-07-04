@@ -7043,7 +7043,6 @@ function loadFlowAssignments() {
   // Load global flow assignments from settings
   if (settings.globalFlows && settings.globalFlows.length > 0) {
     sessionState.flowAssignments.global = settings.globalFlows;
-    console.log(`[FlowLoad] Global flows: ${settings.globalFlows.join(', ')}`);
   }
 
   // Load character flow assignments (consider story-level flows for active story)
@@ -7053,7 +7052,6 @@ function loadFlowAssignments() {
     const flows = activeStory?.assignedFlows || char.assignedFlows || [];
     if (flows.length > 0) {
       sessionState.flowAssignments.characters[char.id] = flows;
-      console.log(`[FlowLoad] Character ${char.name}: ${flows.join(', ')}`);
     }
   });
 
@@ -7061,7 +7059,6 @@ function loadFlowAssignments() {
   personas.forEach(persona => {
     if (persona.assignedFlows && persona.assignedFlows.length > 0) {
       sessionState.flowAssignments.personas[persona.id] = persona.assignedFlows;
-      console.log(`[FlowLoad] Persona ${persona.displayName}: ${persona.assignedFlows.join(', ')}`);
     }
   });
 }

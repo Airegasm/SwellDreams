@@ -164,7 +164,7 @@
   .mobile-pump-band .pump-status-time { font-size: 1.1rem; }
   .mobile-pump-band .pump-status-label { font-size: 0.8rem; }
   /* Intro pump-lock notice — shown in the timer slot while the intro gates inflation. */
-  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pump-intro-lock { color: #f59e0b; font-weight: 700; font-size: 0.6rem; line-height: 1.1; white-space: normal; text-align: center; }
 
   /* UNLOCK overlay — a solid button that covers the capacity chip + balloon while inflation is gated by
      the intro. Dim/unclickable until the intro finishes, then lights up green; tapping it releases the

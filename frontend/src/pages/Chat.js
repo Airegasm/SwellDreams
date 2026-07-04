@@ -2442,7 +2442,7 @@ function Chat() {
             {/* Pump timer / intro-lock — a FLEXIBLE middle slot (shrinks; never pushes P/C off-row). */}
             <span className="mobile-pump-timer-slot mobile-only">
               {sessionState.introActive ? (
-                <span className="pump-intro-lock">Intro - Pump Locked Off</span>
+                <span className="pump-intro-lock">Press Unlock to Allow Pump Activation</span>
               ) : primaryPumpStatus ? (
                 <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
               ) : null}
