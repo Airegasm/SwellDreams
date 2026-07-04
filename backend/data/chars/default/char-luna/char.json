@@ -162,10 +162,17 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "c-bt",
+                  "id": "a-bt",
+                  "kind": "action",
+                  "type": "pump_off",
+                  "once": false,
+                  "params": {}
+                },
+                {
+                  "id": "c-bu",
                   "kind": "container",
                   "type": "call_minigame",
-                  "once": true,
+                  "once": false,
                   "params": {
                     "miniGameId": "mg-default-rps",
                     "exitGotos": {}
@@ -173,10 +180,10 @@
                   "children": []
                 },
                 {
-                  "id": "a-bu",
+                  "id": "a-bv",
                   "kind": "action",
                   "type": "ai_message",
-                  "once": true,
+                  "once": false,
                   "params": {
                     "context": "The rock-paper-scissors throw resolves as [CharVar:GameResult] for [Player]. Luna reacts to who won with delight, rewarding or teasing accordingly.",
                     "llmEnhance": true
@@ -199,10 +206,17 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "c-bv",
+                  "id": "a-bw",
+                  "kind": "action",
+                  "type": "pump_off",
+                  "once": false,
+                  "params": {}
+                },
+                {
+                  "id": "c-bx",
                   "kind": "container",
                   "type": "call_minigame",
-                  "once": true,
+                  "once": false,
                   "params": {
                     "miniGameId": "mg-default-blackjack",
                     "exitGotos": {}
@@ -210,10 +224,10 @@
                   "children": []
                 },
                 {
-                  "id": "a-bw",
+                  "id": "a-by",
                   "kind": "action",
                   "type": "ai_message",
-                  "once": true,
+                  "once": false,
                   "params": {
                     "context": "The blackjack hand ends: [CharVar:GameResult]. Luna plays it up as a sweet little bet between the two of them.",
                     "llmEnhance": true
@@ -227,6 +241,98 @@
     },
     {
       "buttonId": 5,
+      "name": "💞 Let's Play",
+      "enabled": true,
+      "actions": [
+        {
+          "type": "run_tree",
+          "config": {
+            "inline": {
+              "nodes": [
+                {
+                  "id": "a-bz",
+                  "kind": "action",
+                  "type": "pump_off",
+                  "once": false,
+                  "params": {}
+                },
+                {
+                  "id": "c-b16",
+                  "kind": "container",
+                  "type": "random",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "c-b12",
+                      "kind": "container",
+                      "type": "group",
+                      "once": false,
+                      "params": {},
+                      "children": [
+                        {
+                          "id": "c-b10",
+                          "kind": "container",
+                          "type": "call_minigame",
+                          "once": false,
+                          "params": {
+                            "miniGameId": "mg-default-rps",
+                            "exitGotos": {}
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "a-b11",
+                          "kind": "action",
+                          "type": "ai_message",
+                          "once": false,
+                          "params": {
+                            "context": "The game finishes — [CharVar:GameResult]! Luna reacts with delight, rewarding or gently teasing [Player] based on how it fell.",
+                            "llmEnhance": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "c-b15",
+                      "kind": "container",
+                      "type": "group",
+                      "once": false,
+                      "params": {},
+                      "children": [
+                        {
+                          "id": "c-b13",
+                          "kind": "container",
+                          "type": "call_minigame",
+                          "once": false,
+                          "params": {
+                            "miniGameId": "mg-default-blackjack",
+                            "exitGotos": {}
+                          },
+                          "children": []
+                        },
+                        {
+                          "id": "a-b14",
+                          "kind": "action",
+                          "type": "ai_message",
+                          "once": false,
+                          "params": {
+                            "context": "The game finishes — [CharVar:GameResult]! Luna reacts with delight, rewarding or gently teasing [Player] based on how it fell.",
+                            "llmEnhance": true
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "buttonId": 6,
       "name": "❤️ Safeword",
       "enabled": true,
       "actions": [
@@ -238,23 +344,23 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-bx",
+                    "id": "bt-b17",
                     "type": "pump_off"
                   },
                   {
-                    "id": "bt-by",
+                    "id": "bt-b18",
                     "type": "flow_var",
                     "variable": "safeword",
                     "operation": "set",
                     "value": "1"
                   },
                   {
-                    "id": "bt-bz",
+                    "id": "bt-b19",
                     "type": "system_message",
                     "content": "Safeword used — everything stops."
                   },
                   {
-                    "id": "bt-b10",
+                    "id": "bt-b1a",
                     "type": "ai_message",
                     "context": "Luna stops absolutely everything, gathers [Player] into her arms, and just holds them, all softness and care.",
                     "llmEnhance": true
@@ -306,6 +412,22 @@
         {
           "user": "*[Player] gasps* \"Luna... I need to stop...\"",
           "character": "*[Char] immediately reaches for the switch* \"Of course, baby.\" [pump off] *pulls [Player] close* \"Shhhh, I've got you.\" *strokes hair gently* \"You did amazing. I'm so proud of you. Just rest now, okay? We can always try again later.\""
+        },
+        {
+          "user": "*[Player] whispers* \"It's a lot...\"",
+          "character": "*[Char] laces her fingers through [Player]'s* \"I know, baby. Look how much you're taking for me — you're perfect. We stop the second you need.\""
+        },
+        {
+          "user": "*[Player] relaxes into her*",
+          "character": "*[Char] presses a slow kiss to their temple* \"There she is. That's my good one. Just breathe with me, sweetheart — I've got every bit of you.\""
+        },
+        {
+          "user": "*[Player] whispers* \"It's a lot...\"",
+          "character": "*[Char] laces her fingers through [Player]'s* \"I know, baby. Look how much you're taking for me — you're perfect. We stop the second you need.\""
+        },
+        {
+          "user": "*[Player] relaxes into her*",
+          "character": "*[Char] presses a slow kiss to their temple* \"There she is. That's my good one. Just breathe with me, sweetheart — I've got every bit of you.\""
         },
         {
           "user": "*[Player] whispers* \"It's a lot...\"",

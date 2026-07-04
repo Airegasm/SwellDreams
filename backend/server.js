@@ -4143,7 +4143,9 @@ async function executeTrigger(trigger, source, character, settings) {
         break;
 
       case 'pump_on': {
-        // Manual latch-style on (ended by pump_off). Still honor the capacity ceiling.
+        // Optional timer (trigger.duration, seconds): runs for that long then auto-offs (capped by the
+        // primary-pump / global / range limit switches). Blank/0 = latch-style on (ended by pump_off).
+        // Lets game outcomes fire different pump intervals (e.g. a prize-wheel segment → pump on 3s vs 8s).
         if (pumpBlockedByCapacity()) {
           console.log('[Trigger/pump_on] Blocked — capacity at ceiling and over-inflation not allowed');
           break;
@@ -4152,8 +4154,15 @@ async function executeTrigger(trigger, source, character, settings) {
         const pump = getPrimaryPumpDevice(devices);
         if (pump) {
           const id = resolveControlId(pump);
-          await deviceService.turnOn(id, pump);
-          broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
+          const dur = Number(trigger.duration);
+          if (Number.isFinite(dur) && dur > 0) {
+            const capped = Math.min(dur, effectiveMaxOnSeconds(settings)); // honor limit switches
+            await timedPumpOn(id, pump, capped);
+            broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: capped } });
+          } else {
+            await deviceService.turnOn(id, pump);
+            broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
+          }
         }
         break;
       }

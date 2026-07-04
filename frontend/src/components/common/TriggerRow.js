@@ -205,6 +205,13 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       </select>
     );
     switch (trigger.type) {
+      case 'pump_on':
+        // Optional timer: blank = latch on (until a Pump OFF); a number = run that many seconds then
+        // auto-off (capped by the pump/global/range limits). Lets game outcomes fire varied intervals.
+        return (
+          <input type="number" min={1} value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
+            placeholder="secs (blank = latch on)" style={{ width: '150px' }} title="Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Capped by the pump/global/range limit switches." />
+        );
       case 'await_pump':
         return (
           <input type="number" min={1} value={trigger.count ?? 3} onChange={(e) => update('count', e.target.value.replace(/[^0-9]/g, ''))}

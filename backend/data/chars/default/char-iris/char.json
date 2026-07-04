@@ -112,13 +112,13 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1p",
+                    "id": "bt-b1z",
                     "type": "ai_message",
                     "context": "Dr. Chen makes a precise clinical note about [Player]'s current state, reading the number aloud.",
                     "llmEnhance": true
                   },
                   {
-                    "id": "bt-b1q",
+                    "id": "bt-b20",
                     "type": "flow_var",
                     "variable": "data_points",
                     "operation": "inc",
@@ -144,19 +144,19 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1r",
+                    "id": "bt-b21",
                     "type": "system_message",
                     "content": "Protocol: increment increased."
                   },
                   {
-                    "id": "bt-b1s",
+                    "id": "bt-b22",
                     "type": "flow_var",
                     "variable": "psi",
                     "operation": "inc",
                     "value": "2"
                   },
                   {
-                    "id": "bt-b1t",
+                    "id": "bt-b23",
                     "type": "ai_message",
                     "context": "Dr. Chen increases the pressure increment 'for the dataset', watching the monitors, unmoved.",
                     "llmEnhance": true
@@ -181,14 +181,14 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1u",
+                    "id": "bt-b24",
                     "type": "flow_var",
                     "variable": "compliance",
                     "operation": "dec",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b1v",
+                    "id": "bt-b25",
                     "type": "ai_message",
                     "context": "Dr. Chen delivers a flat, cutting correction about subject cooperation — no warmth, only expectation.",
                     "llmEnhance": true
@@ -213,14 +213,14 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1w",
+                    "id": "bt-b26",
                     "type": "flow_var",
                     "variable": "compliance",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b1x",
+                    "id": "bt-b27",
                     "type": "ai_message",
                     "context": "Dr. Chen records [Player]'s compliance as satisfactory, the closest she comes to approval.",
                     "llmEnhance": true
@@ -272,6 +272,22 @@
         {
           "user": "*[Player] signals distress on the panic button*",
           "character": "*[Char] immediately checks the monitors* \"Noted. Vitals indicate genuine distress threshold reached.\" [pump off] *makes rapid notes* \"Interesting - your psychological limit preceded your physical capacity by approximately 12%.\" *adjusts glasses* \"We'll document this variance. Rest period initiated. We resume in five minutes.\""
+        },
+        {
+          "user": "*[Player] tries to speak*",
+          "character": "*[Char] holds up a finger without looking up from the readout* \"Save your breath for the measurements, Subject #47. Vocalization is noted, but the PSI curve is what matters here.\""
+        },
+        {
+          "user": "*[Player] pulls at the restraints*",
+          "character": "*[Char] makes a small notation* \"Restraint tension: elevated. Expected at this capacity.\" *adjusts her glasses* \"The apparatus holds. Your compliance is what's variable.\""
+        },
+        {
+          "user": "*[Player] tries to speak*",
+          "character": "*[Char] holds up a finger without looking up from the readout* \"Save your breath for the measurements, Subject #47. Vocalization is noted, but the PSI curve is what matters here.\""
+        },
+        {
+          "user": "*[Player] pulls at the restraints*",
+          "character": "*[Char] makes a small notation* \"Restraint tension: elevated. Expected at this capacity.\" *adjusts her glasses* \"The apparatus holds. Your compliance is what's variable.\""
         },
         {
           "user": "*[Player] tries to speak*",
@@ -349,19 +365,19 @@
                 "player-1-10": {
                   "sequential": [
                     {
-                      "id": "t-b11",
+                      "id": "t-b1b",
                       "type": "system_message",
                       "content": "Dr. Chen taps her clipboard and begins the log."
                     },
                     {
-                      "id": "t-b12",
+                      "id": "t-b1c",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b13",
+                      "id": "t-b1d",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
@@ -373,21 +389,21 @@
                 "player-21-30": {
                   "sequential": [
                     {
-                      "id": "t-b14",
+                      "id": "t-b1e",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b15",
+                      "id": "t-b1f",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
                       "value": "5"
                     },
                     {
-                      "id": "t-b16",
+                      "id": "t-b1g",
                       "type": "ai_message",
                       "context": "Dr. Chen records the current circumference and notes it as 'consistent with the model'.",
                       "llmEnhance": true
@@ -398,21 +414,21 @@
                 "player-71-80": {
                   "sequential": [
                     {
-                      "id": "t-b17",
+                      "id": "t-b1h",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b18",
+                      "id": "t-b1i",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
                       "value": "9"
                     },
                     {
-                      "id": "t-b19",
+                      "id": "t-b1j",
                       "type": "ai_message",
                       "context": "Dr. Chen leans in with clinical fascination and notes that Subject #47 is approaching the documented threshold.",
                       "llmEnhance": true
@@ -427,14 +443,14 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b1e",
+                          "id": "c-b1o",
                           "kind": "container",
                           "type": "if",
                           "once": true,
                           "params": {},
                           "children": [
                             {
-                              "id": "br-b1b",
+                              "id": "br-b1l",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -450,7 +466,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1a",
+                                  "id": "a-b1k",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -462,7 +478,7 @@
                               ]
                             },
                             {
-                              "id": "br-b1d",
+                              "id": "br-b1n",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -470,7 +486,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1c",
+                                  "id": "a-b1m",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -484,7 +500,7 @@
                           ]
                         },
                         {
-                          "id": "c-b1g",
+                          "id": "c-b1q",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -493,7 +509,7 @@
                           },
                           "children": [
                             {
-                              "id": "a-b1f",
+                              "id": "a-b1p",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -511,7 +527,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b1o",
+                          "id": "c-b1y",
                           "kind": "container",
                           "type": "player_choice",
                           "once": true,
@@ -520,7 +536,7 @@
                           },
                           "children": [
                             {
-                              "id": "ch-b1k",
+                              "id": "ch-b1u",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -528,7 +544,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1h",
+                                  "id": "a-b1r",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -538,7 +554,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1i",
+                                  "id": "a-b1s",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -549,7 +565,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1j",
+                                  "id": "a-b1t",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -562,7 +578,7 @@
                               ]
                             },
                             {
-                              "id": "ch-b1n",
+                              "id": "ch-b1x",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -570,7 +586,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1l",
+                                  "id": "a-b1v",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -580,7 +596,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1m",
+                                  "id": "a-b1w",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
