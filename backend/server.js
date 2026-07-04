@@ -4154,11 +4154,14 @@ async function executeTrigger(trigger, source, character, settings) {
         const pump = getPrimaryPumpDevice(devices);
         if (pump) {
           const id = resolveControlId(pump);
-          const dur = Number(trigger.duration);
+          // Duration may be a number OR a variable ("[CharVar:GameResult]" — e.g. a dice total drives
+          // the seconds). An AUTHORED trigger duration is capped only by the hard MAX_ON_SECONDS safety
+          // (via timedPumpOn), NOT the small per-reply LLM limit — that limit is for model [pump on]
+          // spam, and would gut an intentional 6–36s dice roll or an 8s wheel prize.
+          const dur = Number(substituteAllVariables(String(trigger.duration ?? '')));
           if (Number.isFinite(dur) && dur > 0) {
-            const capped = Math.min(dur, effectiveMaxOnSeconds(settings)); // honor limit switches
-            await timedPumpOn(id, pump, capped);
-            broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: capped } });
+            await timedPumpOn(id, pump, dur);
+            broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(dur, MAX_ON_SECONDS) } });
           } else {
             await deviceService.turnOn(id, pump);
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
@@ -17972,7 +17975,7 @@ const DEFAULT_MINIGAMES = [
     { id: 'seg-c', label: 'Contestant’s Choice', color: '#22c55e', weight: 1 },
     { id: 'seg-d', label: 'Mystery Box', color: '#a855f7', weight: 1 },
   ] } },
-  { id: 'mg-default-dice', name: 'Dice Roll', type: 'dice_roll', config: { diceCount: 2, characterAdvantage: 0 } },
+  { id: 'mg-default-dice', name: 'Dice Roll', type: 'dice_roll', config: { diceCount: 6, characterAdvantage: 0 } },
   { id: 'mg-default-coin', name: 'Coin Flip', type: 'coin_flip', config: { headsLabel: 'Heads', tailsLabel: 'Tails', headsWeight: 50, bestOf: 1 } },
   { id: 'mg-default-rps', name: 'Rock Paper Scissors', type: 'rps', config: { bestOf: 1, characterBias: 0 } },
   { id: 'mg-default-slots', name: 'Slots', type: 'slot_machine', config: { symbols: ['🍒', '🍋', '🔔', '⭐', '7️⃣'], exits: [
@@ -17988,10 +17991,19 @@ function ensureDefaultMiniGames() {
   if (!Array.isArray(data.games)) data.games = [];
   let added = false;
   for (const g of DEFAULT_MINIGAMES) {
-    if (!data.games.some(x => x.id === g.id)) {
+    const existing = data.games.find(x => x.id === g.id);
+    if (!existing) {
       data.games.push({ ...g, config: JSON.parse(JSON.stringify(g.config)), createdAt: Date.now(), updatedAt: Date.now() });
       added = true;
       console.log(`[Startup] Added default MiniGame: ${g.name} (${g.type})`);
+    } else if (JSON.stringify(existing.config) !== JSON.stringify(g.config) || existing.type !== g.type) {
+      // Keep the shipped defaults canonical (e.g. dice must be 6 dice → 6–36s). Refresh config/type
+      // for the reserved default ids so a new app version's tuning lands. Custom games are untouched.
+      existing.config = JSON.parse(JSON.stringify(g.config));
+      existing.type = g.type;
+      existing.updatedAt = Date.now();
+      added = true;
+      console.log(`[Startup] Refreshed default MiniGame config: ${g.name} (${g.type})`);
     }
   }
   if (added) saveMiniGames(data);

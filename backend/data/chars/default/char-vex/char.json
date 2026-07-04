@@ -259,10 +259,19 @@
                 {
                   "id": "a-b3a",
                   "kind": "action",
+                  "type": "pump_on",
+                  "once": false,
+                  "params": {
+                    "duration": "[CharVar:GameResult]"
+                  }
+                },
+                {
+                  "id": "a-b3b",
+                  "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The dice total [CharVar:GameResult]! Vex reads the roll aloud with maximum gameshow drama.",
+                    "context": "The dice total [CharVar:GameResult]! Vex reads the roll aloud and the pump runs for exactly that many seconds — the crowd counts it down.",
                     "llmEnhance": true
                   }
                 }
@@ -283,14 +292,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3b",
+                  "id": "a-b3c",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b3c",
+                  "id": "c-b3d",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -301,7 +310,7 @@
                   "children": []
                 },
                 {
-                  "id": "a-b3d",
+                  "id": "a-b3e",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -327,28 +336,28 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3e",
+                  "id": "a-b3f",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b3o",
+                  "id": "c-b3p",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b3h",
+                      "id": "c-b3i",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3f",
+                          "id": "c-b3g",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -359,7 +368,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3g",
+                          "id": "a-b3h",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -371,14 +380,14 @@
                       ]
                     },
                     {
-                      "id": "c-b3k",
+                      "id": "c-b3l",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3i",
+                          "id": "c-b3j",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -389,7 +398,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3j",
+                          "id": "a-b3k",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -401,14 +410,14 @@
                       ]
                     },
                     {
-                      "id": "c-b3n",
+                      "id": "c-b3o",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3l",
+                          "id": "c-b3m",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -419,7 +428,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3m",
+                          "id": "a-b3n",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -451,12 +460,12 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b3p",
+                    "id": "bt-b3q",
                     "type": "system_message",
                     "content": "🗳️ The audience votes!"
                   },
                   {
-                    "id": "bt-b3q",
+                    "id": "bt-b3r",
                     "type": "ai_message",
                     "context": "Vex throws to the studio audience for a vote on the contestant's fate, hamming up every second of the tally.",
                     "llmEnhance": true
@@ -481,19 +490,19 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b3r",
+                    "id": "bt-b3s",
                     "type": "flow_var",
                     "variable": "score",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b3s",
+                    "id": "bt-b3t",
                     "type": "system_message",
                     "content": "⭐ BONUS ROUND!"
                   },
                   {
-                    "id": "bt-b3t",
+                    "id": "bt-b3u",
                     "type": "ai_message",
                     "context": "Vex declares a surprise BONUS ROUND, doubling the stakes and the theatrics.",
                     "llmEnhance": true
@@ -545,6 +554,14 @@
         {
           "user": "*[Player] hits the buzzer frantically*",
           "character": "*[Char] slams hand on the control panel* \"AAAAND STOP!\" [pump off] *buzzer sounds* \"OHHH, tapping out at the LAST second!\" *turns to audience* \"Was it ENOUGH, folks?!\" *checks scoreboard dramatically* \"Let's see if our contestant earned their freedom... or their PUNISHMENT!\""
+        },
+        {
+          "user": "*[Player] groans*",
+          "character": "*[Char] spins toward an unseen camera* \"OOOH, did you hear that, folks?! That's the sound of a contestant EARNING their prize!\" *waggles eyebrows* \"And we're just getting started!\""
+        },
+        {
+          "user": "*[Player] begs for a break*",
+          "character": "*[Char] gasps theatrically and cups a hand to his ear* \"A BREAK? Let's ask the audience!\" *pauses, then grins* \"They said... KEEP GOING! Sorry, contestant — the people have SPOKEN!\""
         },
         {
           "user": "*[Player] groans*",

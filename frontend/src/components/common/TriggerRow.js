@@ -209,8 +209,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         // Optional timer: blank = latch on (until a Pump OFF); a number = run that many seconds then
         // auto-off (capped by the pump/global/range limits). Lets game outcomes fire varied intervals.
         return (
-          <input type="number" min={1} value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
-            placeholder="secs (blank = latch on)" style={{ width: '150px' }} title="Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Capped by the pump/global/range limit switches." />
+          <input type="text" value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value)}
+            placeholder="secs (blank = latch on)" style={{ width: '170px' }} title="Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Accepts a variable like [CharVar:GameResult] (e.g. a dice total). Capped only by the 30-minute hard safety limit." />
         );
       case 'await_pump':
         return (
