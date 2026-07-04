@@ -9395,16 +9395,27 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     const stopLabels = [...otherNames, activeCharacter.name, activePersona?.displayName].filter(Boolean).map(n => `\n${n}:`);
 
     broadcast('generating_start', { characterName: member.name });
+    const useStreaming = settings.llm?.streaming === true;
+    const memGenSettings = { ...settings.llm, maxTokens: memberTokens, stopSequences: [...(settings.llm?.stopSequences || []), ...stopLabels] };
+    // Streaming mode (parity with the blended path): create this member's bubble up-front and stream
+    // tokens into it, then finalize with stream_complete. Non-streaming falls back to a single generate.
+    let streamMsg = null;
     let result;
     try {
-      result = await llmService.generate({
-        prompt: context.prompt,
-        messages: context.messages,
-        systemPrompt: soloSystem,
-        settings: { ...settings.llm, maxTokens: memberTokens, stopSequences: [...(settings.llm?.stopSequences || []), ...stopLabels] },
-      });
+      if (useStreaming) {
+        streamMsg = { id: uuidv4(), content: '', sender: 'character', characterId: activeCharacter.id, characterName: member.name, memberId, timestamp: Date.now(), streaming: true };
+        sessionState.chatHistory.push(streamMsg);
+        broadcast('chat_message', streamMsg);
+        result = await llmService.generateStream({
+          prompt: context.prompt, messages: context.messages, systemPrompt: soloSystem, settings: memGenSettings,
+          onToken: (token, fullText) => { streamMsg.content = fullText; broadcast('stream_token', { messageId: streamMsg.id, token, fullText }); }
+        });
+      } else {
+        result = await llmService.generate({ prompt: context.prompt, messages: context.messages, systemPrompt: soloSystem, settings: memGenSettings });
+      }
     } catch (e) {
       console.error(`[Individual] generation failed for ${member.name}:`, e?.message || e);
+      if (streamMsg) { sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== streamMsg.id); broadcast('message_deleted', { id: streamMsg.id }); }
       broadcast('generating_stop', {});
       continue;
     }
@@ -9414,7 +9425,10 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     let finalText = stripSpeakerPrefixes(substituteAllVariables((result?.text || '').trim()), knownNames);
     if (settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
     if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
-    if (!finalText) continue;
+    if (!finalText) {
+      if (streamMsg) { sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== streamMsg.id); broadcast('message_deleted', { id: streamMsg.id }); }
+      continue;
+    }
 
     // Drive devices from this girl's reply (pump/vibe/tens tags), same as the normal path.
     try {
@@ -9426,9 +9440,18 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
       if (ctrl.commands?.length) finalText = ctrl.text;
     } catch (e) { console.error('[Individual] device processing failed:', e?.message || e); }
 
-    const aiMessage = { id: uuidv4(), content: finalText, sender: 'character', characterId: activeCharacter.id, characterName: member.name, memberId, timestamp: Date.now() };
-    sessionState.chatHistory.push(aiMessage);
-    broadcast('chat_message', aiMessage);
+    // Finalize: reuse the streamed placeholder (stream_complete), or create the bubble now (non-streaming).
+    let aiMessage;
+    if (streamMsg) {
+      streamMsg.content = finalText;
+      streamMsg.streaming = false;
+      aiMessage = streamMsg;
+      broadcast('stream_complete', { messageId: streamMsg.id, content: finalText });
+    } else {
+      aiMessage = { id: uuidv4(), content: finalText, sender: 'character', characterId: activeCharacter.id, characterName: member.name, memberId, timestamp: Date.now() };
+      sessionState.chatHistory.push(aiMessage);
+      broadcast('chat_message', aiMessage);
+    }
     autosaveSession();
     await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
     lastReplyContent = finalText;
