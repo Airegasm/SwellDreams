@@ -55,7 +55,7 @@ const PUMP_MODES = [
 // All available trigger types
 function getTriggerTypes(isPumpable, isManualPump) {
   const types = [
-    { value: 'impersonate', label: 'Player Impersonate' },
+    { value: 'impersonate', label: 'Player Message' },
     { value: 'ai_message', label: 'Char AI Message' },
     { value: 'ai_message_member', label: 'Group Member Message' },
     { value: 'system_message', label: 'System Message' },
@@ -125,7 +125,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
 
   // Flow-parity media + misc actions
   types.push(
-    { value: 'send_player_message', label: 'Send Player Message' },
+    { value: 'send_player_message', label: 'Player Message', hidden: true }, // reached via the Player Message mode picker (Verbatim)
     { value: 'show_image', label: 'Show Image' },
     { value: 'play_video', label: 'Play Video' },
     { value: 'play_audio', label: 'Play Audio' },
@@ -194,6 +194,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   }, [typeOpen]);
 
   const renderParams = () => {
+    // Player Message mode picker — one menu entry, two behaviours. Flips the underlying trigger type:
+    // 'impersonate' (AI writes a line in the player's voice) vs 'send_player_message' (post your exact
+    // text as the player, no generation). Shown in both cases so switching is in-row.
+    const playerMsgMode = (
+      <select value={trigger.type} onChange={(e) => update('type', e.target.value)} style={{ width: '170px', flexShrink: 0 }}
+        title="Impersonate = the AI writes the player's line. Verbatim = post your exact text as the player (suppresses AI generation).">
+        <option value="impersonate">Impersonate</option>
+        <option value="send_player_message">Verbatim (Suppress LLM)</option>
+      </select>
+    );
     switch (trigger.type) {
       case 'await_pump':
         return (
@@ -232,8 +242,9 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'impersonate':
         return (
           <>
+            {playerMsgMode}
             <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
-              placeholder="Optional context..." style={{ flex: 1, minWidth: '80px' }} />
+              placeholder="Guidance for the impersonated line…" style={{ flex: 1, minWidth: '80px' }} />
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
               title="Suppress auto reply — send the impersonated message without triggering an AI response. Unchecked: the AI responds as if you sent it.">
               <input type="checkbox" checked={trigger.suppressAutoReply === true} onChange={(e) => update('suppressAutoReply', e.target.checked)} />
@@ -295,8 +306,9 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'send_player_message':
         return (
           <>
+            {playerMsgMode}
             <input type="text" value={trigger.message || ''} onChange={(e) => update('message', e.target.value)}
-              placeholder="Player message…" style={{ flex: 1, minWidth: '80px' }} />
+              placeholder="Exact player message (verbatim)…" style={{ flex: 1, minWidth: '80px' }} />
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
               title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} /> LLM
@@ -584,9 +596,11 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   };
 
   const currentLabel = triggerTypes.find(t => t.value === trigger.type)?.label || trigger.type;
-  const filteredTypes = typeSearch
+  // `hidden` types (e.g. send_player_message) resolve for display above but are kept OUT of the
+  // add-dropdown — they're reached via an in-row mode picker instead of picked directly.
+  const filteredTypes = (typeSearch
     ? triggerTypes.filter(t => t.label.toLowerCase().includes(typeSearch.toLowerCase()))
-    : triggerTypes;
+    : triggerTypes).filter(t => !t.hidden);
 
   return (
     <>
