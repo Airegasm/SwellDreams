@@ -6,6 +6,10 @@
 const fs = require('fs');
 const path = require('path');
 
+// EXPERIMENT (flows retired in favour of triggers): stop ALL flow execution. Code kept intact —
+// flip to false to restore. Mirrors server.js FLOWS_DISABLED; gated in activateFlow below.
+const FLOWS_DISABLED = true;
+
 // Data file paths
 const DATA_DIR = path.join(__dirname, '../data');
 const DATA_FILES = {
@@ -1318,6 +1322,7 @@ class EventEngine {
    * @param {number} priority - Priority level (0 = highest/global, 1 = character, 2 = persona)
    */
   activateFlow(flow, priority = 2) {
+    if (FLOWS_DISABLED) return; // flows retired — never load into the active set, so nothing executes
     this.activeFlows.set(flow.id, { flow, priority });
     this.flowStates.set(flow.id, {
       triggeredNodes: new Set(),

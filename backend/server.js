@@ -13713,10 +13713,15 @@ function buildChatContext(character, settings, opts = {}) {
     prompt += `${character.name}:`;
   }
 
-  // Build stop sequences to prevent role confusion (like SillyTavern's names_as_stop_strings)
+  // Build stop sequences to prevent role confusion (like SillyTavern's names_as_stop_strings). Include
+  // BOTH the resolved persona name AND the literal [Player]: macro — the globalPrompt trains models on
+  // the [Player]:/[Char]: format, so a model that writes "[Player]: <line>" (rather than "Cora: <line>")
+  // would otherwise slip a persona turn through unstopped → "characters speaking for the persona".
   const stopSequences = [
     `\n${playerLabel}:`,
     `${playerLabel}:`,
+    `\n[Player]:`,
+    `[Player]:`,
   ];
   if (!character.multiChar?.enabled) {
     stopSequences.push(`\n${character.name}:`);
@@ -14226,7 +14231,11 @@ app.post('/api/settings', async (req, res) => {
   res.json(maskSettingsForResponse(settings));
 });
 
+// EXPERIMENT (flows retired in favour of triggers): stop ALL flow execution. Code kept intact — flip
+// FLOWS_DISABLED to false to restore. Gated here (auto-activation) AND in eventEngine.activateFlow.
+const FLOWS_DISABLED = true;
 function activateAssignedFlows() {
+  if (FLOWS_DISABLED) { console.log('[Flows] disabled — skipping auto-activation'); return; }
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
   const assignments = sessionState.flowAssignments || { characters: {}, personas: {}, global: [] };
 
