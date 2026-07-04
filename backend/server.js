@@ -19396,7 +19396,18 @@ if (fs.existsSync(FRONTEND_BUILD_PATH)) {
     if (req.path.startsWith('/api/')) {
       return next();
     }
-    res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'));
+    // No favicon asset ships — short-circuit the browser's auto /favicon.ico poll with 204 instead of
+    // falling through to index.html (which otherwise logged a bogus ENOENT while a rebuild was in flight).
+    if (req.path === '/favicon.ico') {
+      return res.status(204).end();
+    }
+    // `npm run build` wipes+rewrites build/, so index.html can vanish for a moment mid-rebuild. Handle
+    // the sendFile error gracefully (503 "refresh in a sec") instead of throwing an uncaught ENOENT.
+    res.sendFile(path.join(FRONTEND_BUILD_PATH, 'index.html'), (err) => {
+      if (err && !res.headersSent) {
+        res.status(503).type('text/plain').send('Frontend is rebuilding — refresh in a moment.');
+      }
+    });
   });
 
   log.always('Serving frontend from: ' + FRONTEND_BUILD_PATH);
