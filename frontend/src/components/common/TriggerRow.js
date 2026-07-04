@@ -642,12 +642,13 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       </div>
       {renderParams()}
       {showFirePercent && trigger.type !== 'capacity_inrange' && (
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', whiteSpace: 'nowrap' }}
           title="Fire% — hold the sequence here until capacity reaches this exact % (inside the range), then fire and continue. Leave blank to fire in turn as soon as the sequence reaches this trigger.">
+          <span style={{ opacity: 0.75, fontWeight: 600 }}>Fire @</span>
           <input type="number" min="0" max={firePercentMax} value={trigger.firePercent ?? ''}
             onChange={(e) => update('firePercent', e.target.value === '' ? '' : Math.max(0, Math.min(firePercentMax, parseInt(e.target.value, 10) || 0)))}
-            placeholder="Fire%" style={{ width: '58px' }} />
-          %
+            placeholder="blank = in turn" style={{ width: '120px' }} />
+          <span style={{ opacity: 0.75 }}>%</span>
         </label>
       )}
       {onDuplicate && <button type="button" className="btn-remove" onClick={onDuplicate} title="Duplicate this trigger">⧉</button>}

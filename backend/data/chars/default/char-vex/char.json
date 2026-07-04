@@ -594,6 +594,14 @@
         {
           "user": "*[Player] begs for a break*",
           "character": "*[Char] gasps theatrically and cups a hand to his ear* \"A BREAK? Let's ask the audience!\" *pauses, then grins* \"They said... KEEP GOING! Sorry, contestant — the people have SPOKEN!\""
+        },
+        {
+          "user": "*[Player] groans*",
+          "character": "*[Char] spins toward an unseen camera* \"OOOH, did you hear that, folks?! That's the sound of a contestant EARNING their prize!\" *waggles eyebrows* \"And we're just getting started!\""
+        },
+        {
+          "user": "*[Player] begs for a break*",
+          "character": "*[Char] gasps theatrically and cups a hand to his ear* \"A BREAK? Let's ask the audience!\" *pauses, then grins* \"They said... KEEP GOING! Sorry, contestant — the people have SPOKEN!\""
         }
       ],
       "autoReplyEnabled": true,
@@ -926,7 +934,9 @@
             }
           ],
           "defaultRangeSetId": "rs-vex",
-          "treeRefs": {}
+          "treeRefs": {
+            "introEnabled": false
+          }
         }
       ],
       "defaultCheckpointProfileId": "prof-vex"
