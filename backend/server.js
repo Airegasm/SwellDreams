@@ -3534,6 +3534,12 @@ const sessionState = {
   pendingGoProfileId: null, // checkpoint profile to load when GO! is pressed (stashed by the manual-release path)
   pendingRangeAwait: null,  // A paused checkpoint-trigger sequence waiting on an await gate:
                             // { kind:'pump'|'input', target?, count?, words?, rest:[triggers], source, characterId }
+  pendingCapacityGate: null, // A Fire% gate holding a checkpoint sequence until capacity reaches target.
+                            // SEPARATE slot from pendingRangeAwait so a message/next-gate WAIT can't clobber
+                            // it. Resolves when capacity >= target AND no message-gate is open (queued behind
+                            // the WAIT). { kind:'capacity', type, target, rest:[triggers], source, characterId }
+  pumpPausedForGate: false, // The primary pump was auto-stopped because a next-gate WAIT opened; resume it
+                            // when the WAIT clears (keeps capacity from ticking into the wrong range mid-wait).
   groupRotation: 0,         // Round-robin lead counter for group "Individual Responses" mode
   // PUMP-READY: who is connected to a pump and may be described being inflated. Live per-session
   // (reset on new session / character switch). Persona defaults ON; character/members default OFF
@@ -3610,7 +3616,7 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
     if (Number.isFinite(fp) && fp > 0) {
       const cap = gateType === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
       if (cap < fp) {
-        sessionState.pendingRangeAwait = { kind: 'capacity', type: gateType, target: fp, rest: triggers.slice(i), source, characterId: character.id };
+        sessionState.pendingCapacityGate = { kind: 'capacity', type: gateType, target: fp, rest: triggers.slice(i), source, characterId: character.id };
         console.log(`[Trigger/${source}] Fire% gate — holding sequence until capacity reaches ${fp}% (now ${cap}%)`);
         return;
       }
@@ -3651,6 +3657,7 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
     if (isMsgAction(trg) && lastWasMessage) {
       sessionState.pendingRangeAwait = { kind: 'next', rest: triggers.slice(i), source, characterId: character.id };
       broadcast('next_gate', { active: true });
+      pauseInflationForGate().catch(() => {}); // freeze the pump so capacity can't drift mid-WAIT
       console.log(`[Trigger/${source}] Next gate — holding before a consecutive message; waiting for player >>`);
       return;
     }
@@ -3669,6 +3676,56 @@ async function resumeTriggerSequence(pending) {
   const character = characters.find(c => c.id === pending.characterId);
   if (!character) return;
   await fireTriggerSequence(pending.rest, 0, pending.source, character, settings);
+}
+
+// ---- WAIT / next-gate coordination: keep the Fire% gate and the pump paused while a ">>" gate is open ----
+// True while a ">>" message/next-gate is holding a sequence (checkpoint 'next', individual 'next-individual',
+// or a tree/intro pendingTreeNext). While open, capacity must NOT advance the Fire% gate or tick the pump.
+function isNextGatePending() {
+  const pa = sessionState.pendingRangeAwait;
+  return !!(sessionState.pendingTreeNext || (pa && (pa.kind === 'next' || pa.kind === 'next-individual')));
+}
+
+// Stop the primary pump while a WAIT is open so capacity can't climb into another range and fire the wrong
+// triggers. Only pauses (and remembers) if the pump was actually running (latched OR an auto-off timer).
+async function pauseInflationForGate() {
+  if (sessionState.pumpPausedForGate) return; // already paused
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pump = getPrimaryPumpDevice(devices);
+  if (!pump) return;
+  const id = resolveControlId(pump);
+  const wasRunning = !!sessionState.playerIsInflating || serverTimedPumpTimers.has(id);
+  if (!wasRunning) return; // nothing running to pause
+  clearServerTimedPumpTimer(id);
+  try { await deviceService.turnOff(id, pump); } catch (e) { console.error('[GatePause] pump off failed:', e?.message || e); }
+  sessionState.pumpPausedForGate = true;
+  broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pump.label || pump.name || 'Pump' });
+  console.log('[GatePause] pump stopped while a WAIT is open — capacity frozen until it clears');
+}
+
+// Resume the primary pump after the WAIT clears — only if WE paused it and no gate is still open.
+async function resumeInflationAfterGate() {
+  if (!sessionState.pumpPausedForGate || isNextGatePending()) return; // nothing to resume, or still gated
+  sessionState.pumpPausedForGate = false;
+  if (pumpBlockedByCapacity()) return; // never re-on at the capacity ceiling
+  const devices = loadData(DATA_FILES.devices) || [];
+  const pump = getPrimaryPumpDevice(devices);
+  if (!pump) return;
+  const id = resolveControlId(pump);
+  try { await deviceService.turnOn(id, pump); } catch (e) { console.error('[GateResume] pump on failed:', e?.message || e); }
+  broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
+  console.log('[GateResume] pump resumed after WAIT cleared');
+}
+
+// After a WAIT clears, fire a queued Fire% gate whose capacity target is now met (queued behind the WAIT).
+async function tryResumeCapacityGate() {
+  const cg = sessionState.pendingCapacityGate;
+  if (!cg || isNextGatePending()) return; // still gated
+  const cap = cg.type === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
+  if (cap < cg.target) return; // not reached yet
+  sessionState.pendingCapacityGate = null;
+  console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) resuming — WAIT cleared, capacity ${cap}%`);
+  await resumeTriggerSequence(cg).catch(err => console.error('[Fire% resume] failed:', err?.message || err));
 }
 
 // Try to satisfy a pending Await Input keyword gate from a message. `speaker` is who spoke
@@ -3720,11 +3777,18 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
     return;
   }
 
-  // (2) Resume a sequence paused at a Fire% gate once capacity reaches that gate's %.
-  const pa = sessionState.pendingRangeAwait;
-  if (pa && pa.kind === 'capacity' && pa.type === type && newCapacity >= pa.target) {
-    console.log(`[CheckpointTriggers] Capacity reached Fire% gate (${pa.target}%) — resuming sequence`);
-    await resumeTriggerSequence(pa).catch(err => console.error('[CheckpointTriggers] Fire% resume failed:', err?.message || err));
+  // (2) Resume a sequence paused at a Fire% gate once capacity reaches that gate's % — but only when no
+  // message/next-gate WAIT is open. If one is, stay queued and let tryResumeCapacityGate() fire it when
+  // the WAIT clears, so the gated message plays first (and pump-pause keeps capacity from overshooting).
+  const cg = sessionState.pendingCapacityGate;
+  if (cg && cg.type === type && newCapacity >= cg.target) {
+    if (isNextGatePending()) {
+      console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) met at ${newCapacity}% — queued behind an open message gate`);
+    } else {
+      sessionState.pendingCapacityGate = null;
+      console.log(`[CheckpointTriggers] Capacity reached Fire% gate (${cg.target}%) — resuming sequence`);
+      await resumeTriggerSequence(cg).catch(err => console.error('[CheckpointTriggers] Fire% resume failed:', err?.message || err));
+    }
   }
 }
 
@@ -5089,6 +5153,8 @@ function clearSessionContextForSwitch() {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  sessionState.pendingCapacityGate = null;   // clear any queued Fire% gate
+  sessionState.pumpPausedForGate = false;    // pump is being force-stopped anyway
   broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
@@ -8014,6 +8080,9 @@ async function handleWsMessage(ws, type, data) {
         // Tree (e.g. gated intro) holding between back-to-back standalone messages.
         await resumeTreeNext().catch(err => console.error('[NextGate/Tree] resume failed:', err?.message || err));
       }
+      // WAIT resolved — if nothing re-armed another gate, un-pause the pump and fire any queued Fire% gate.
+      await resumeInflationAfterGate().catch(() => {});
+      await tryResumeCapacityGate().catch(() => {});
       break;
     }
 
@@ -9504,6 +9573,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     if (pauseBetween && !eventEngine.aborted && hasSpeakableMember(queue, members, muted)) {
       sessionState.pendingRangeAwait = { kind: 'next-individual', rest: queue, characterId: activeCharacter.id, lastReplyContent };
       broadcast('next_gate', { active: true });
+      pauseInflationForGate().catch(() => {}); // freeze the pump so capacity can't drift mid-WAIT
       console.log('[Individual] Next gate — holding before the next member reply; waiting for player >>');
       return;
     }
@@ -15182,6 +15252,7 @@ async function runTree(nodes, ctx) {
         after: nodes.slice(i)
       };
       broadcast('next_gate', { active: true });
+      pauseInflationForGate().catch(() => {}); // freeze the pump so capacity can't drift mid-WAIT
       console.log('[Tree] Next gate — holding the intro before its first message (player reads the welcome first); waiting for >>');
       return { __control: 'suspend', reason: 'next-gate-first' };
     }
@@ -15200,6 +15271,7 @@ async function runTree(nodes, ctx) {
         ctxSnapshot: { treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth, delivery: ctx.delivery, source: ctx.source, visited: Array.from(ctx.visited || []) }
       };
       broadcast('next_gate', { active: true });
+      pauseInflationForGate().catch(() => {}); // freeze the pump so capacity can't drift mid-WAIT
       console.log('[Tree] Next gate — holding before the next back-to-back message; waiting for player >>');
       sig = { __control: 'suspend', reason: 'next-gate' };
     }
@@ -17451,7 +17523,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 3. Stop ALL pump runtime tracking intervals
   sessionState.playerIsInflating = false; // emergency stop always ends latched-pump mode
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.pumpPausedForGate = false;
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
   clearAllServerTimedPumpTimers();
@@ -19177,6 +19249,8 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.releaseButtonLabel = null;
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
+  sessionState.pendingCapacityGate = null;   // clear any queued Fire% gate
+  sessionState.pumpPausedForGate = false;    // pump is being force-stopped anyway
   broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
@@ -19424,7 +19498,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
   sessionState.playerIsInflating = false; // never resume into a latched-pump state
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.pumpPausedForGate = false;
 
   // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
   // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).
