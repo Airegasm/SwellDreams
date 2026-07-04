@@ -9274,7 +9274,15 @@ function stripModelScaffolding(text) {
   // TAIL: only strip trailing text that matches a scaffolding signal (don't eat real closing narration).
   const stripTail = tail.trim() && SCAFFOLD.test(tail);
   if (!stripLead && !stripTail) return text;
-  const cleaned = ((stripLead ? '' : lead) + s.slice(start, end + 1) + (stripTail ? '' : tail)).trim();
+  // RESCUE device/media command tags that live in the zones we're about to drop — device control
+  // (reinforcePumpControl / processLlmOutput) parses these DOWNSTREAM of this strip, so a [pump on] the
+  // model placed in the lead/tail must survive or the pump silently never fires.
+  const DEVICE_TAG = /\[\s*(?:pump|vibe|tens)\b[^\]]*\]|\[\s*(?:video|audio|image|img|sound)\s*:[^\]]*\]/gi;
+  const rescued = [];
+  if (stripLead) rescued.push(...(lead.match(DEVICE_TAG) || []));
+  if (stripTail) rescued.push(...(tail.match(DEVICE_TAG) || []));
+  let cleaned = ((stripLead ? '' : lead) + s.slice(start, end + 1) + (stripTail ? '' : tail)).trim();
+  if (rescued.length) cleaned += '\n' + rescued.join('\n');
   return cleaned || text;
 }
 
