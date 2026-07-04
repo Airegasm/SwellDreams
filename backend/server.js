@@ -3947,7 +3947,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const { v4: uuidv4 } = require('uuid');
         broadcast('generating_start', { characterName: activePersona?.displayName || sessionState.playerName || 'Player', isPlayerVoice: true });
         const mode = trigger.context ? 'guided_impersonate' : 'impersonate';
-        const impContext = buildSpecialContext(mode, trigger.context || null, character, activePersona, settings);
+        const impContext = buildSpecialContext(mode, trigger.context ? substituteAllVariables(trigger.context) : null, character, activePersona, settings);
         const impSettings = { ...settings.llm };
         if (settings.llm?.impersonateMaxTokens) impSettings.maxTokens = settings.llm.impersonateMaxTokens;
         // Optional per-action "Max Response Tokens" override (takes precedence over the impersonate default).
@@ -4009,7 +4009,7 @@ async function executeTrigger(trigger, source, character, settings) {
         broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
-        const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
+        const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         // Optional per-action "Max Response Tokens" — restricts this generation; blank falls through
         // to the character/global token limit.
         const aiGenSettings = { ...settings.llm };
@@ -4083,7 +4083,7 @@ async function executeTrigger(trigger, source, character, settings) {
         await waitForLlmIdle();
         broadcast('generating_start', { characterName: speakerName });
         sessionState.soloSpeaker = tgt?.id || null; // constrain the group prompt to this member alone
-        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, trigger.context || 'Continue the conversation naturally.');
+        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         sessionState.soloSpeaker = null;
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
@@ -8118,7 +8118,7 @@ async function handleWsMessage(ws, type, data) {
       break;
 
     case 'tree_minigame_result':
-      await resumeTreeGame(data.exit, data.winner);
+      await resumeTreeGame(data.exit, data.winner, data.pick);
       break;
 
     case 'checkpoint_choice_response':
@@ -12082,17 +12082,20 @@ async function resumeTreeChooseMulti(selectedIds) {
 // exit is bound to a goto label, the continuation is sliced to resume AFTER that label (reusing the
 // engine's "jump to label in this list" semantics); an unbound exit just falls through. Clears the
 // armed state FIRST so a nested suspend in the continuation can re-arm cleanly.
-async function resumeTreeGame(firedExit, winner) {
+async function resumeTreeGame(firedExit, winner, pick) {
   const pend = sessionState.pendingTreeGame;
   if (!pend) return;
   const after = pend.after, snap = pend.ctxSnapshot || {}, exitGotos = pend.exitGotos || {};
   sessionState.pendingTreeGame = null;
   broadcast('tree_minigame_clear', {});
 
-  // Expose the outcome to the continuation/branches via [Flow:GameResult] / [Flow:GameWinner].
+  // Expose the outcome to the continuation/branches via [CharVar:GameResult] / [CharVar:GameWinner],
+  // plus [CharVar:GamePick] = what the PLAYER chose (coin call / RPS throw) so a player-impersonation
+  // or the character's reaction knows their move, not just the outcome. (Blank for no-choice games.)
   try {
     eventEngine.applySetVariable('custom', 'GameResult', 'set', firedExit || '');
-    if (winner) eventEngine.applySetVariable('custom', 'GameWinner', 'set', winner);
+    eventEngine.applySetVariable('custom', 'GameWinner', 'set', winner || '');
+    eventEngine.applySetVariable('custom', 'GamePick', 'set', pick || '');
   } catch (e) { console.error('[resumeTreeGame] set vars failed:', e?.message || e); }
 
   const settings = loadData(DATA_FILES.settings) || {};

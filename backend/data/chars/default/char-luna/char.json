@@ -202,6 +202,16 @@
                 {
                   "id": "a-b13",
                   "kind": "action",
+                  "type": "impersonate",
+                  "once": false,
+                  "params": {
+                    "context": "[Player] throws [CharVar:GamePick] on the count of three.",
+                    "maxTokens": 50
+                  }
+                },
+                {
+                  "id": "a-b14",
+                  "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
@@ -296,14 +306,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b1a",
+                  "id": "a-b1b",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b1b",
+                  "id": "a-b1c",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -314,7 +324,7 @@
                   }
                 },
                 {
-                  "id": "a-b1c",
+                  "id": "a-b1d",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -323,7 +333,7 @@
                   }
                 },
                 {
-                  "id": "c-b1d",
+                  "id": "c-b1e",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -334,7 +344,17 @@
                   "children": []
                 },
                 {
-                  "id": "a-b1e",
+                  "id": "a-b1f",
+                  "kind": "action",
+                  "type": "impersonate",
+                  "once": false,
+                  "params": {
+                    "context": "[Player] plays out their blackjack hand, deciding whether to hit or stay.",
+                    "maxTokens": 50
+                  }
+                },
+                {
+                  "id": "a-b1g",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -344,14 +364,14 @@
                   }
                 },
                 {
-                  "id": "c-b19",
+                  "id": "c-b1a",
                   "kind": "container",
                   "type": "if",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "br-b15",
+                      "id": "br-b16",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -367,7 +387,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b14",
+                          "id": "a-b15",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -378,7 +398,7 @@
                       ]
                     },
                     {
-                      "id": "br-b17",
+                      "id": "br-b18",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -394,7 +414,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b16",
+                          "id": "a-b17",
                           "kind": "action",
                           "type": "pump_off",
                           "once": false,
@@ -403,7 +423,7 @@
                       ]
                     },
                     {
-                      "id": "br-b18",
+                      "id": "br-b19",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -430,14 +450,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b1f",
+                  "id": "a-b1h",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b1g",
+                  "id": "a-b1i",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -448,7 +468,7 @@
                   }
                 },
                 {
-                  "id": "a-b1h",
+                  "id": "a-b1j",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -457,21 +477,21 @@
                   }
                 },
                 {
-                  "id": "c-b1o",
+                  "id": "c-b1s",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b1k",
+                      "id": "c-b1n",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b1i",
+                          "id": "c-b1k",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -482,7 +502,17 @@
                           "children": []
                         },
                         {
-                          "id": "a-b1j",
+                          "id": "a-b1l",
+                          "kind": "action",
+                          "type": "impersonate",
+                          "once": false,
+                          "params": {
+                            "context": "[Player] takes their turn at the game and waits for the result.",
+                            "maxTokens": 50
+                          }
+                        },
+                        {
+                          "id": "a-b1m",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -494,14 +524,14 @@
                       ]
                     },
                     {
-                      "id": "c-b1n",
+                      "id": "c-b1r",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b1l",
+                          "id": "c-b1o",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -512,7 +542,17 @@
                           "children": []
                         },
                         {
-                          "id": "a-b1m",
+                          "id": "a-b1p",
+                          "kind": "action",
+                          "type": "impersonate",
+                          "once": false,
+                          "params": {
+                            "context": "[Player] takes their turn at the game and waits for the result.",
+                            "maxTokens": 50
+                          }
+                        },
+                        {
+                          "id": "a-b1q",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -544,23 +584,23 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1p",
+                    "id": "bt-b1t",
                     "type": "pump_off"
                   },
                   {
-                    "id": "bt-b1q",
+                    "id": "bt-b1u",
                     "type": "flow_var",
                     "variable": "safeword",
                     "operation": "set",
                     "value": "1"
                   },
                   {
-                    "id": "bt-b1r",
+                    "id": "bt-b1v",
                     "type": "system_message",
                     "content": "Safeword used — everything stops."
                   },
                   {
-                    "id": "bt-b1s",
+                    "id": "bt-b1w",
                     "type": "ai_message",
                     "context": "Luna stops absolutely everything, gathers [Player] into her arms, and just holds them, all softness and care.",
                     "llmEnhance": true
@@ -612,6 +652,14 @@
         {
           "user": "*[Player] gasps* \"Luna... I need to stop...\"",
           "character": "*[Char] immediately reaches for the switch* \"Of course, baby.\" [pump off] *pulls [Player] close* \"Shhhh, I've got you.\" *strokes hair gently* \"You did amazing. I'm so proud of you. Just rest now, okay? We can always try again later.\""
+        },
+        {
+          "user": "*[Player] whispers* \"It's a lot...\"",
+          "character": "*[Char] laces her fingers through [Player]'s* \"I know, baby. Look how much you're taking for me — you're perfect. We stop the second you need.\""
+        },
+        {
+          "user": "*[Player] relaxes into her*",
+          "character": "*[Char] presses a slow kiss to their temple* \"There she is. That's my good one. Just breathe with me, sweetheart — I've got every bit of you.\""
         },
         {
           "user": "*[Player] whispers* \"It's a lot...\"",

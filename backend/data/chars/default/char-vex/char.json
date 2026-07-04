@@ -96,14 +96,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3n",
+                  "id": "a-b3r",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b3o",
+                  "id": "a-b3s",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -114,7 +114,7 @@
                   }
                 },
                 {
-                  "id": "a-b3p",
+                  "id": "a-b3t",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -123,7 +123,7 @@
                   }
                 },
                 {
-                  "id": "c-b3q",
+                  "id": "c-b3u",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -134,7 +134,17 @@
                   "children": []
                 },
                 {
-                  "id": "a-b3r",
+                  "id": "a-b3v",
+                  "kind": "action",
+                  "type": "impersonate",
+                  "once": false,
+                  "params": {
+                    "context": "[Player] reaches out and sets the prize wheel spinning.",
+                    "maxTokens": 50
+                  }
+                },
+                {
+                  "id": "a-b3w",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -144,14 +154,14 @@
                   }
                 },
                 {
-                  "id": "c-b3m",
+                  "id": "c-b3q",
                   "kind": "container",
                   "type": "if",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "br-b3g",
+                      "id": "br-b3k",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -167,7 +177,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b3f",
+                          "id": "a-b3j",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -178,7 +188,7 @@
                       ]
                     },
                     {
-                      "id": "br-b3i",
+                      "id": "br-b3m",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -194,7 +204,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b3h",
+                          "id": "a-b3l",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -205,7 +215,7 @@
                       ]
                     },
                     {
-                      "id": "br-b3k",
+                      "id": "br-b3o",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -221,7 +231,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b3j",
+                          "id": "a-b3n",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -232,7 +242,7 @@
                       ]
                     },
                     {
-                      "id": "br-b3l",
+                      "id": "br-b3p",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -259,14 +269,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3t",
+                  "id": "a-b3y",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b3u",
+                  "id": "a-b3z",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -277,7 +287,7 @@
                   }
                 },
                 {
-                  "id": "a-b3v",
+                  "id": "a-b40",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -286,7 +296,7 @@
                   }
                 },
                 {
-                  "id": "c-b3w",
+                  "id": "c-b41",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -297,7 +307,17 @@
                   "children": []
                 },
                 {
-                  "id": "a-b3x",
+                  "id": "a-b42",
+                  "kind": "action",
+                  "type": "impersonate",
+                  "once": false,
+                  "params": {
+                    "context": "[Player] scoops up the giant foam dice and hurls them down the table.",
+                    "maxTokens": 50
+                  }
+                },
+                {
+                  "id": "a-b43",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -307,7 +327,7 @@
                   }
                 },
                 {
-                  "id": "a-b3s",
+                  "id": "a-b3x",
                   "kind": "action",
                   "type": "pump_on",
                   "once": false,
@@ -332,14 +352,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b45",
+                  "id": "a-b4b",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b46",
+                  "id": "a-b4c",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -350,7 +370,7 @@
                   }
                 },
                 {
-                  "id": "a-b47",
+                  "id": "a-b4d",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -359,7 +379,7 @@
                   }
                 },
                 {
-                  "id": "c-b48",
+                  "id": "c-b4e",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -370,7 +390,17 @@
                   "children": []
                 },
                 {
-                  "id": "a-b49",
+                  "id": "a-b4f",
+                  "kind": "action",
+                  "type": "impersonate",
+                  "once": false,
+                  "params": {
+                    "context": "[Player] grips the lever and yanks it down, watching the reels blur.",
+                    "maxTokens": 50
+                  }
+                },
+                {
+                  "id": "a-b4g",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -380,14 +410,14 @@
                   }
                 },
                 {
-                  "id": "c-b44",
+                  "id": "c-b4a",
                   "kind": "container",
                   "type": "if",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "br-b3z",
+                      "id": "br-b45",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -403,7 +433,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b3y",
+                          "id": "a-b44",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -414,7 +444,7 @@
                       ]
                     },
                     {
-                      "id": "br-b41",
+                      "id": "br-b47",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -430,7 +460,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b40",
+                          "id": "a-b46",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -441,7 +471,7 @@
                       ]
                     },
                     {
-                      "id": "br-b43",
+                      "id": "br-b49",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -449,7 +479,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b42",
+                          "id": "a-b48",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -478,14 +508,14 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b4a",
+                  "id": "a-b4h",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "a-b4b",
+                  "id": "a-b4i",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
@@ -496,7 +526,7 @@
                   }
                 },
                 {
-                  "id": "a-b4c",
+                  "id": "a-b4j",
                   "kind": "action",
                   "type": "delay",
                   "once": false,
@@ -505,21 +535,21 @@
                   }
                 },
                 {
-                  "id": "c-b4m",
+                  "id": "c-b4w",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b4f",
+                      "id": "c-b4n",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b4d",
+                          "id": "c-b4k",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -530,7 +560,17 @@
                           "children": []
                         },
                         {
-                          "id": "a-b4e",
+                          "id": "a-b4l",
+                          "kind": "action",
+                          "type": "impersonate",
+                          "once": false,
+                          "params": {
+                            "context": "[Player] takes their turn at the game and waits for the result.",
+                            "maxTokens": 50
+                          }
+                        },
+                        {
+                          "id": "a-b4m",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -542,14 +582,14 @@
                       ]
                     },
                     {
-                      "id": "c-b4i",
+                      "id": "c-b4r",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b4g",
+                          "id": "c-b4o",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -560,7 +600,17 @@
                           "children": []
                         },
                         {
-                          "id": "a-b4h",
+                          "id": "a-b4p",
+                          "kind": "action",
+                          "type": "impersonate",
+                          "once": false,
+                          "params": {
+                            "context": "[Player] takes their turn at the game and waits for the result.",
+                            "maxTokens": 50
+                          }
+                        },
+                        {
+                          "id": "a-b4q",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -572,14 +622,14 @@
                       ]
                     },
                     {
-                      "id": "c-b4l",
+                      "id": "c-b4v",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b4j",
+                          "id": "c-b4s",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -590,7 +640,17 @@
                           "children": []
                         },
                         {
-                          "id": "a-b4k",
+                          "id": "a-b4t",
+                          "kind": "action",
+                          "type": "impersonate",
+                          "once": false,
+                          "params": {
+                            "context": "[Player] takes their turn at the game and waits for the result.",
+                            "maxTokens": 50
+                          }
+                        },
+                        {
+                          "id": "a-b4u",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -622,12 +682,12 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b4n",
+                    "id": "bt-b4x",
                     "type": "system_message",
                     "content": "🗳️ The audience votes!"
                   },
                   {
-                    "id": "bt-b4o",
+                    "id": "bt-b4y",
                     "type": "ai_message",
                     "context": "Vex throws to the studio audience for a vote on the contestant's fate, hamming up every second of the tally.",
                     "llmEnhance": true
@@ -652,19 +712,19 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b4p",
+                    "id": "bt-b4z",
                     "type": "flow_var",
                     "variable": "score",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b4q",
+                    "id": "bt-b50",
                     "type": "system_message",
                     "content": "⭐ BONUS ROUND!"
                   },
                   {
-                    "id": "bt-b4r",
+                    "id": "bt-b51",
                     "type": "ai_message",
                     "context": "Vex declares a surprise BONUS ROUND, doubling the stakes and the theatrics.",
                     "llmEnhance": true
@@ -716,6 +776,14 @@
         {
           "user": "*[Player] hits the buzzer frantically*",
           "character": "*[Char] slams hand on the control panel* \"AAAAND STOP!\" [pump off] *buzzer sounds* \"OHHH, tapping out at the LAST second!\" *turns to audience* \"Was it ENOUGH, folks?!\" *checks scoreboard dramatically* \"Let's see if our contestant earned their freedom... or their PUNISHMENT!\""
+        },
+        {
+          "user": "*[Player] groans*",
+          "character": "*[Char] spins toward an unseen camera* \"OOOH, did you hear that, folks?! That's the sound of a contestant EARNING their prize!\" *waggles eyebrows* \"And we're just getting started!\""
+        },
+        {
+          "user": "*[Player] begs for a break*",
+          "character": "*[Char] gasps theatrically and cups a hand to his ear* \"A BREAK? Let's ask the audience!\" *pauses, then grins* \"They said... KEEP GOING! Sorry, contestant — the people have SPOKEN!\""
         },
         {
           "user": "*[Player] groans*",
@@ -833,19 +901,19 @@
                 "player-1-10": {
                   "sequential": [
                     {
-                      "id": "t-b2q",
+                      "id": "t-b2u",
                       "type": "system_message",
                       "content": "🎪 The show begins! Applause."
                     },
                     {
-                      "id": "t-b2r",
+                      "id": "t-b2v",
                       "type": "flow_var",
                       "variable": "rounds",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b2s",
+                      "id": "t-b2w",
                       "type": "ai_message",
                       "context": "Vex throws to the audience: 'Give it UP for our contestant, folks!'",
                       "llmEnhance": true
@@ -856,21 +924,21 @@
                 "player-51-60": {
                   "sequential": [
                     {
-                      "id": "t-b2t",
+                      "id": "t-b2x",
                       "type": "flow_var",
                       "variable": "rounds",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b2u",
+                      "id": "t-b2y",
                       "type": "flow_var",
                       "variable": "score",
                       "operation": "inc",
                       "value": "10"
                     },
                     {
-                      "id": "t-b2v",
+                      "id": "t-b2z",
                       "type": "ai_message",
                       "context": "Vex announces the contestant has cleared another round — points on the board! The crowd goes wild.",
                       "llmEnhance": true
@@ -881,12 +949,12 @@
                 "player-91-100": {
                   "sequential": [
                     {
-                      "id": "t-b2w",
+                      "id": "t-b30",
                       "type": "system_message",
                       "content": "🥁 FINALE ROUND"
                     },
                     {
-                      "id": "t-b2x",
+                      "id": "t-b31",
                       "type": "ai_message",
                       "context": "Vex grabs the mic: 'Ladies and gentlemen — THE FINAL ROUND. Anything can happen!'",
                       "llmEnhance": true
@@ -901,7 +969,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "a-b2y",
+                          "id": "a-b32",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -911,7 +979,7 @@
                           }
                         },
                         {
-                          "id": "c-b31",
+                          "id": "c-b35",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -920,7 +988,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b2z",
+                              "id": "c-b33",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -931,7 +999,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b30",
+                              "id": "a-b34",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -949,7 +1017,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b34",
+                          "id": "c-b38",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -958,7 +1026,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b32",
+                              "id": "c-b36",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -969,7 +1037,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b33",
+                              "id": "a-b37",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -981,14 +1049,14 @@
                           ]
                         },
                         {
-                          "id": "c-b39",
+                          "id": "c-b3d",
                           "kind": "container",
                           "type": "if",
                           "once": true,
                           "params": {},
                           "children": [
                             {
-                              "id": "br-b36",
+                              "id": "br-b3a",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -1004,7 +1072,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b35",
+                                  "id": "a-b39",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -1016,7 +1084,7 @@
                               ]
                             },
                             {
-                              "id": "br-b38",
+                              "id": "br-b3c",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -1024,7 +1092,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b37",
+                                  "id": "a-b3b",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -1044,7 +1112,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "a-b3a",
+                          "id": "a-b3e",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -1054,7 +1122,7 @@
                           }
                         },
                         {
-                          "id": "c-b3d",
+                          "id": "c-b3h",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -1063,7 +1131,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b3b",
+                              "id": "c-b3f",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -1074,7 +1142,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b3c",
+                              "id": "a-b3g",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -1086,7 +1154,7 @@
                           ]
                         },
                         {
-                          "id": "a-b3e",
+                          "id": "a-b3i",
                           "kind": "action",
                           "type": "flow_var",
                           "once": true,

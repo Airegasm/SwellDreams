@@ -30,7 +30,8 @@ export function MiniCoin({ config = {}, interactive, onResult }) {
       setDone(true);
       const playerWon = landedSide === choice;
       setLanded(playerWon ? 'Player' : 'Character');
-      onResult && onResult(isHeads ? heads : tails, playerWon ? 'Player' : 'Character');
+      // 3rd arg = the player's CALL (so the character knows what they picked, not just the landing).
+      onResult && onResult(isHeads ? heads : tails, playerWon ? 'Player' : 'Character', choice === 'heads' ? heads : tails);
     }, 1500);
   };
 
@@ -81,7 +82,8 @@ export function MiniRPS({ config = {}, interactive, onResult }) {
         setC(cc);
         const r = rpsJudge(choice, cc);
         setRes(r); setBusy(false);
-        onResult && onResult(r, r === 'Win' ? 'Player' : r === 'Lose' ? 'Character' : 'Draw');
+        // 3rd arg = the player's throw (rock/paper/scissors) so the character can react to it.
+        onResult && onResult(r, r === 'Win' ? 'Player' : r === 'Lose' ? 'Character' : 'Draw', choice);
       }
     }, 110);
   };

@@ -968,8 +968,8 @@ export function AppProvider({ children }) {
   }, [treeChooseMultiData, sendWsMessage]);
 
   // Report the played exit of a Trigger Tree call_minigame back to the tree resume path (Phase 5).
-  const respondTreeMiniGame = useCallback((exit, winner) => {
-    sendWsMessage('tree_minigame_result', { exit, winner: winner || null });
+  const respondTreeMiniGame = useCallback((exit, winner, pick) => {
+    sendWsMessage('tree_minigame_result', { exit, winner: winner || null, pick: pick || null });
     setTreeMiniGameData(null);
   }, [sendWsMessage]);
 
