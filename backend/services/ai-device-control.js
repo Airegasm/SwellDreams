@@ -55,62 +55,26 @@ const MALFORMED_DEVICE_TAG_PATTERN = /\[\s*(pump|vibe|tens)\b[^\]]*\]/gi;
 
 // Phrases that indicate the LLM is describing pump activity (used for reinforcement)
 // These patterns use word boundaries and flexible matching with wildcards
-const PUMP_ACTIVITY_PHRASES = [
-  // Direct pump references (word boundaries added to prevent "machine" matching "machinery")
+// Prose ON-detection is TWO-TIER and SENTENCE-SCOPED (see detectPumpActivityPhrases):
+//   STRONG — the sentence itself names the device or moves air INTO a body; fires alone.
+//   WEAK   — control-hardware gestures (dials/switches/buttons/wrists) that are only pump-related
+//            in context; fires ONLY when the same or an adjacent sentence contains a device noun
+//            (DEVICE_CONTEXT). This kills the keyword-without-context false positives: "pushed her
+//            buttons", "grips the door handle", "turned away, fighting for control", "adrenaline
+//            kicks in", "cranks up the music", "the steady rhythm of their...".
+const PUMP_STRONG_PHRASES = [
+  // Direct pump operation (device named in-sentence)
   /\b(turn|turns|turned|turning)\s+(on|up)\s+\w*\s*(pump|compressor|machine)\b/i,
   /\b(turn|turns|turned|turning)\s+(?:the\s+)?(pump|compressor|machine)\s+(up|on|higher)\b/i,
   /\b(start|starts|started|starting)\s+\w*\s*(pump|compressor|machine)\b/i,
   /\b(activate|activates|activated|activating)\s+\w*\s*(pump|compressor|machine)\b/i,
   /\b(engage|engages|engaged|engaging)\s+\w*\s*(pump|compressor|machine)\b/i,
+  /\b(start|starts|started|starting)\s+(?:the\s+)?(pump|machine|compressor|inflation)\b/i,
 
-  // Pump state/activity (removed "approaches device" patterns - too aggressive)
+  // Pump state/activity (device is the subject)
   /\bpump\s+(begins?|starts?|activates?|continues?|runs?|running|hums?|humming|whirs?|whirring)\b/i,
   /\bpump\s+is\s+(on|running|active|going)\b/i,
   /\b(the\s+)?(pump|machine)\b\s+(kicks|springs?|whirs?|hums?|roars?|comes?)\s*(in|into|to\s+life|alive|on)/i,
-
-  // Flow/pressure references (pump-related)
-  /\b(increase|increases|increased|increasing)\s+(?:\S+\s+){0,3}(flow|pressure|airflow)/i,
-  /\b(increase|increases|increased|increasing)\s+the\s+(air\s*)?flow\s+(steadily|gradually|slowly|quickly)?\s*(once\s+more|again|further)?/i,
-  /\b(adjust|adjusts|adjusted|adjusting)\s+.*?(flow|dial|dials|setting|settings|pressure|knob|knobs)/i,
-  /\b(adjust|adjusts|adjusted|adjusting)\s+(the\s+)?(pump|compressor|machine|motor)\b\s+settings?/i,
-  /\b(adjust|adjusts|adjusting)\s+(a|the)\s+(dial|knob|valve|control)\s+(with|slowly|carefully|deliberately)?/i,
-  /\b(adjust|adjusts|adjusted|adjusting)\s*.*?\s*(dial|knob|valve|control|setting|lever)/i,
-  /\b(turn|turns|turned|turning)\s+up\s+\w*\s*(flow|dial|pressure)/i,
-  /\b(crank|cranks|cranked|cranking)\s+\w*\s*(up|higher|max)/i,
-  /\b(crank|cranks|cranked|cranking)\s+\w*\s*(pressure|dial|flow|pump)/i,
-  /\bpressure\s+(up\s+)?(to\s+)?(max|maximum|full|high)/i,
-  /\bflow\s+(begins?|starts?|increases?|continues?)/i,
-  /\b(start|starts|started|starting|restart|restarts|restarted|restarting)\s+(the\s+)?flow/i,
-  /\bflow\s+of\s+(air|fluid|liquid|water)/i,
-  /\b(air|liquid|fluid)\s+\w*\s*(flow|flowing|flows|pump|pumping|fill|filling|rush|rushing|surge|surging|hiss|hissing|pulsing|pulses)/i,
-  /\b(air|fluid)\s+surg(e|es|ing)\s+(into|through|inside)/i,
-  /\b(air|fluid|liquid)\s+flow(s|ing)?\s+(into|through|inside)/i,
-  /\bpulsing\s+(air|fluid|liquid)\s+(into|through)/i,
-
-  // Dial/control/button references - flexible article matching
-  /\b(flip|flips|flipped|flipping|flick|flicks|flicked|flicking)\s+.*?\s*(switch|lever|dial|knob|control)/i,
-  /\b(press|presses|pressed|pressing)\s+\w*\s*(button|remote)/i,
-  /\b(push|pushes|pushed|pushing)\s+\w*\s*button/i,
-  /\b(hit|hits|hitting)\s+\w*\s*button/i,
-
-  // Wrist/hand gestures with controls
-  /\b(flick|twist|turn|movement)\s+of\s+(her|his|their)\s+(wrist|hand).*?(turn|turns|flip|flips|adjust|adjusts|press|presses)/i,
-  /\bwith\s+a\s+(quick|flick|twist|turn)\s+of\s+(her|his|their)\s+(wrist|hand)/i,
-
-  // Switch/button/remote press followed by device activation
-  /\b(press|presses|pressed|push|pushes|pushed|hit|hits|flip|flips|flipping)\s+.*?(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
-  /\b(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
-  /\b(flip|flips|flipped|flipping)\s+(a|the)\s+switch.*?(machine|pump|compressor)\s+(whirs?|kicks?|springs?|comes?|hums?)\s+(to\s+life|on)/i,
-  /\b(reach|reaches|reached|reaching)\s+(for|toward)\s+\w*\s*(dial|controls?|switch|button|pump|panel)/i,
-  /\b(hand|hands|finger|fingers?)\s+\w*\s*(move|moves|on|to|toward|press|presses|hit|hits)\s+\w*\s*(dial|controls?|button|panel)/i,
-  /\b(grasp|grasps|grasped|grasping|grab|grabs|grabbed|grabbing|grip|grips|gripped|gripping)\s+.*?(dial|knob|control|handle|lever|valve)/i,
-  /\b(turn|turns|turned|turning)\s+(it|the\s+dial|the\s+knob|the\s+valve)\s*(to|and)?\s*(start|begin|increase|restart)?/i,
-  /\b(turn|turns|turned|turning)\s+the\s+(dial|knob|valve)/i,
-  /\b(turn|turns|turned|turning)\s+(?:the\s+)?(?:pump|machine|compressor)\s+(dial|knob|valve|control)/i,
-  /\b(turn|turns|turned|turning)\s*.*?\s*(dial|knob|valve|control|lever)/i,
-  /\b(open|opens|opened|opening)\s+(the\s+)?(valve|release)/i,
-
-  // Machine/device coming to life or running
   /\b(machine|device|pump|compressor|motor)\b\s+(whirs?|hums?|roars?|buzzes?|comes?|springs?|kicks?)\s*(to\s+life|alive|into\s+action|on)/i,
   /\b(pump|machine|compressor|motor)\b\s+(roar|roars|roaring|whir|whirs|whirring|hum|hums|humming)/i,
   /\b(motor|pump|compressor)\b\s+(hum|hums|humming)\s+(loud|louder|loudly)/i,
@@ -118,67 +82,107 @@ const PUMP_ACTIVITY_PHRASES = [
   /\b(air\s+)?pump\b\s+kicks\s+on/i,
   /\b(air\s+)?(pump|compressor)\b\s+springs\s+to\s+life/i,
   /\b(the\s+)?(machine|pump|compressor|device)\b\s+whirs\s+to\s+life/i,
-  /\bkicks\s+(on|in|into\s+life)/i,
-  /\bwhir(s|ring)?\s+to\s+life/i,
-  /\bhum(s|ming)?\s+to\s+life/i,
-  /\broar(s|ing)?\s+like\s+a/i,
+  /\b(motor|pump|compressor|machine)\s+(speed|pitch|tone|rpm)\s+(changes?|shifts?|increases?|rises?)/i,
+  // Pump rhythm/pace WITH a state-change verb (bare "rhythm quickens" was a sex-scene false positive)
+  /\bpump'?s?\s+(cycle|rhythm|pace|speed|rate)\s+\w*\s*(chang|shift|increas|ris|rises|quicken|continu|resum)\w*/i,
 
-  // Air/hissing sounds - strong pump indicators
-  /\b(air|gas)\s+(hiss|hisses|hissing)\s*(through|into|from)/i,
-  /\bhiss(es|ing)?\s+(of\s+)?(air|gas)/i,
-  /\bhiss(es|ing)?\s+through\s+\w*\s*(tub|hose|line|pipe)/i,
-  /\b(tub|hose|line|pipe)\w*\s+(hiss|hisses|hissing|fills?|swells?)/i,
+  // Control gesture + device reaction in one breath
+  /\b(press|presses|pressed|push|pushes|pushed|hit|hits|flip|flips|flipping)\s+.*?(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
+  /\b(button|switch|remote|lever).*?(pump|compressor|machine)\s+(springs?|kicks?|comes?|whirs?|hums?|roars?)\s+(to\s+life|on|alive)/i,
+  /\b(flip|flips|flipped|flipping)\s+(a|the)\s+switch.*?(machine|pump|compressor)\s+(whirs?|kicks?|springs?|comes?|hums?)\s+(to\s+life|on)/i,
 
-  // Inflation/filling references (contextual pump activity - require device/machine context)
-  /\b(begin|begins|began|beginning)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
-  /\b(start|starts|started|starting)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
-  /\b(start|starts|started|starting)\s+(?:the\s+)?(pump|machine|compressor|inflation)\b/i,
+  // Air moving INTO a body — directional, so it can't fire on breath/deflation ("air rushed from
+  // her lungs", "air hisses out") the way the old direction-blind patterns did.
+  /\b(sends?|sending)\s+(more\s+)?(air|liquid|fluid)\s+(into|through)/i,
+  /\b(pumps?|pumping)\s+(more\s+)?(air|liquid|fluid)\s+(into|through|in)\b/i,
+  /\b(air|fluid)\s+surg(e|es|ing)\s+(into|through|inside)/i,
+  /\b(air|fluid|liquid)\s+flow(s|ing)?\s+(into|through|inside)/i,
+  /\bpulsing\s+(air|fluid|liquid)\s+(into|through)/i,
+  /\b(air|liquid|fluid|gas|water)\s+(?:\w+\s+){0,2}(pumped|pumping|pushed|forced|forcing|flowing)\s+(into|through|inside)/i,
+  /\b(force|forces|forced|forcing)\s+\w*\s*(air|liquid|fluid|gas|water)\s+(into|through)/i,
+  /\b(air|gas)\s+(hiss|hisses|hissing)\s*(through|into)/i,
+  /\bhiss(es|ing)?\s+through\s+\w*\s*(tube|tubing|hose|line|pipe)/i,
+  /\b(tube|tubing|hose|pipe)\w*\s+(hiss|hisses|hissing|fills?|swells?)/i,
+
+  // Inflation explicitly under way
   /\bair\s+to\s+begin\s+pump/i,
   /\binflation\s+(begins?|starts?|continues?|resumes?)/i,
   /\b(filling|inflation|pumping)\s+(process|sequence|cycle)\s+(begins?|starts?|continues?)/i,
-
-  // Character action phrases
-  /\b(sends?|sending)\s+(more\s+)?(air|liquid|fluid)\s+(into|through)/i,
-  /\b(pumps?|pumping)\s+(more\s+)?(air|liquid|fluid)/i,
   /\b(resume|resumes|resumed|resuming)\s+\w*\s*(pumping|inflation|filling)/i,
+];
 
-  // Passive voice - "air being pumped", "fluid being pushed", etc.
+const PUMP_WEAK_PHRASES = [
+  // Flow/pressure adjustments (no device named in the phrase itself)
+  /\b(increase|increases|increased|increasing)\s+(?:\S+\s+){0,3}(flow|pressure|airflow)/i,
+  /\b(adjust|adjusts|adjusted|adjusting)\s*.*?\s*(flow|dial|dials|setting|settings|pressure|knob|knobs|valve|control|lever)/i,
+  /\b(turn|turns|turned|turning)\s+up\s+\w*\s*(flow|dial|pressure)/i,
+  /\b(crank|cranks|cranked|cranking)\s+\w*\s*(up|higher|max|pressure|dial|flow|pump)/i,
+  /\bpressure\s+(up\s+)?(to\s+)?(max|maximum|full|high)/i,
+  /\bflow\s+(begins?|starts?|increases?|continues?)/i,
+  /\b(start|starts|started|starting|restart|restarts|restarted|restarting)\s+(the\s+)?flow/i,
+  /\bflow\s+of\s+(air|fluid|liquid|water)/i,
+  /\b(air|liquid|fluid)\s+\w*\s*(flow|flowing|flows|pump|pumping|fill|filling|rush|rushing|surge|surging|hiss|hissing|pulsing|pulses)/i,
+  /\bhiss(es|ing)?\s+(of\s+)?(air|gas)/i,
   /\b(air|liquid|fluid|gas|water)\s+(being|getting|is|was)\s+(pump|pumped|pushed|forced|sent)/i,
-  /\b(air|liquid|fluid|gas|water)\s+\w*\s*(pump|pumped|pushing|forced|forcing|flowing)\s+(into|through|inside)/i,
-  /\b(force|forces|forced|forcing)\s+\w*\s*(air|liquid|fluid|gas|water)\s+(into|through)/i,
-  // (Removed "torrent/flood/rush/gush/trickle of air/fluid" DESCRIPTION patterns — these describe the
-  // sensation of inflation, not a pump activation, and fired on nearly every inflation reply.)
 
-  // Control panel interactions
+  // Control-hardware gestures — only pump-related when a device noun is nearby
+  /\b(flip|flips|flipped|flipping|flick|flicks|flicked|flicking)\s+.*?\s*(switch|lever|dial|knob|control)/i,
+  /\b(press|presses|pressed|pressing)\s+\w*\s*(button|remote)/i,
+  /\b(push|pushes|pushed|pushing)\s+\w*\s*button/i,
+  /\b(hit|hits|hitting)\s+\w*\s*button/i,
+  /\b(flick|twist|turn|movement)\s+of\s+(her|his|their)\s+(wrist|hand).*?(turn|turns|flip|flips|adjust|adjusts|press|presses)/i,
+  /\bwith\s+a\s+(quick|flick|twist|turn)\s+of\s+(her|his|their)\s+(wrist|hand)/i,
+  /\b(turn|turns|turned|turning)\s+(it|the\s+dial|the\s+knob|the\s+valve)\s*(to|and)?\s*(start|begin|increase|restart)?/i,
+  /\b(turn|turns|turned|turning|twist|twists|twisted|twisting|rotate|rotates|rotated|rotating)\s+the\s+(dial|knob|valve)/i,
+  /\b(turn|turns|turned|turning)\s+(?:the\s+)?(?:pump|machine|compressor)\s+(dial|knob|valve|control)/i,
+  /\b(turn|turns|turned|turning|twist|twists|twisted|twisting|rotate|rotates|rotated|rotating)\s*.*?\s*(dial|knob|valve|lever)/i,
+  /\b(open|opens|opened|opening)\s+(the\s+)?(valve|release)/i,
+  /\bwhir(s|ring)?\s+to\s+life/i,
+  /\bhum(s|ming)?\s+to\s+life/i,
+
+  // Inflation/filling verbs without a device in the phrase ("began to fill the room" must not fire)
+  /\b(begin|begins|began|beginning)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
+  /\b(start|starts|started|starting)\s+(to\s+)?(inflate|fill|pump)\s+(the|her|his|their|\[)/i,
+
+  // Control panel / remote interactions
   /\bcontrol\s+panel\b.*\b(press|push|hit|flip|activate|adjust)/i,
   /\b(press|push|hit|flip|activate|adjust)\w*.*\bcontrol\s+panel/i,
-
-  // Remote control interactions
   /\b(press|presses|pressed|push|pushes|pushed|click|clicks|clicked|tap|taps|tapped)\s+.*?\b(on\s+the\s+)?remote/i,
   /\b(use|uses|used|using|pick|picks|picked|grab|grabs|grabbed)\s+.*?\bremote/i,
   /\bremote.*?\b(press|push|click|tap|activate)/i,
 
-  // Squeeze/bulb pump references
-  /\bsqueeze(s|d|ing)?\s+(the\s+)?(bulb|pump|handle)/i,
+  // Squeeze/bulb pump ("handle" removed — door handles; grasp/grab/grip patterns removed entirely,
+  // grabbing hardware isn't operating it and "door handle"/"doorknob" fired [pump on])
+  /\bsqueeze(s|d|ing)?\s+(the\s+)?(bulb|pump)\b/i,
   /\b(grip|grips|gripped|gripping)\s+.*?\bbulb\b/i,
   /\b(pump|squeeze)\s+bulb\b/i,
-
-  // (Removed gauge/dial DESCRIPTION patterns — "pressure gauge", "the needle climbs", etc. — they
-  // describe the apparatus/consequence, not a pump ACTIVATION, and fired [pump on] on ordinary
-  // inflation narration. Prose reinforcement should only synthesize a pump-on from an explicit action.)
-
-  // Pump cycle/rhythm references
-  /\bpump'?s?\s+(cycle|rhythm|pace|speed|rate)/i,
-  /\bpump\s+\w+\s+(its|the|a)?\s*\w*\s*(rhythm|cycle|pace)/i,
-  /\b(cycle|rhythm|pace)\s+(changes?|shifts?|increases?|decreases?|quickens?|slows?|continues?)/i,
-  /\b(merciless|relentless|steady|constant|rhythmic)\s+(rhythm|pace|pumping|cycle)/i,
-
-  // Pitch/speed changes (device working harder or changing state)
-  /\b(motor|pump|compressor|machine)\s+(speed|pitch|tone|rpm)\s+(changes?|shifts?|increases?|rises?)/i,
-  // (Removed loose "settles into a higher pitch/speed", bare pitch/speed, air/pressure "surge/pulse",
-  // and "steady flow" DESCRIPTION patterns — they match ordinary inflation narration, not a pump
-  // activation, and were a major source of phantom [pump on] injections.)
 ];
+// DELETED outright (irredeemable false-positive sources, for the record):
+//   /\bkicks\s+(on|in|into\s+life)/       — "her instincts kick in", "adrenaline kicks in"
+//   /\broar(s|ing)?\s+like\s+a/           — "she roars like a lioness" (no device at all)
+//   /\b(cycle|rhythm|pace)\s+(changes?…)/ — breathing/intimacy cadence ("their rhythm quickens")
+//   /\b(merciless|relentless|steady|constant|rhythmic)\s+(rhythm|pace|pumping|cycle)/ — same
+//   /\b(reach|hand|finger)…(dial|panel…)/ — reaching toward hardware is not operating it
+//   /\b(grasp|grab|grip)…(handle|knob…)/  — "grabs the door handle", "grips the doorknob"
+
+// Device nouns that make a WEAK gesture pump-plausible when they appear in the same or an
+// adjacent sentence. Deliberately excludes bare "air"/"switch"/"button" (too generic).
+const DEVICE_CONTEXT = /\b(pump|compressor|machine|motor|hose|tube|tubing|nozzle|valve|inflat\w+|airflow|air\s?line|gauge|psi)\b/i;
+
+// Deflation / air-ESCAPING context — a weak air-activity match in a sentence like "air hisses
+// from the open valve as her belly shrinks" is air going the WRONG WAY; never synthesize
+// [pump on] from it. (Strong patterns are direction-locked to into/through and unaffected.)
+const DEFLATION_CONTEXT = /\b(?:hiss\w*|rush\w*|flow\w*|leak\w*|escap\w*|seep\w*|whoosh\w*)\s+(?:out|from)\b|\bout\s+of\s+(?:her|his|their|your|the)\b|\bdeflat\w+|\bshrink\w+|\bempt(?:y|ies|ying|ied)\b|\breleas\w+\s+the\s+(?:air|pressure)\b/i;
+
+// ON-path negators, checked against the MATCHED SENTENCE: "without starting the pump",
+// "doesn't touch the dial", "stops short of flipping the switch" must not fire.
+const PUMP_ON_NEGATORS = /\b(do\s*n['’]?t|does\s*n['’]?t|did\s*n['’]?t|wo\s*n['’]?t|will\s+not|ca\s*n['’]?t|cannot|could\s*n['’]?t|not\s+yet|never|without|refus\w+|stops?\s+short|instead\s+of|rather\s+than|declin\w+|resist\w*\s+the\s+urge)\b/i;
+
+// Split a reply into sentences (newlines are always boundaries). Used to give the phrase
+// matchers actual sentence context instead of scanning the whole reply as one keyword soup.
+function splitIntoSentences(text) {
+  return String(text || '').split(/(?<=[.!?…])\s+|\n+/).map(s => s.trim()).filter(Boolean);
+}
 
 // Phrases that indicate turning pump OFF (must contain "off" keyword)
 const PUMP_OFF_PHRASES = [
@@ -775,18 +779,36 @@ function clearAllLlmTimers(deviceService) {
  * @returns {{detected: boolean, matchedPhrase: string|null}}
  */
 function detectPumpActivityPhrases(text) {
-  if (!text) return { detected: false, matchedPhrase: null };
+  if (!text) return { detected: false, matchedPhrase: null, sentence: null };
 
-  const lowerText = text.toLowerCase();
+  // SENTENCE-SCOPED, TWO-TIER matching. The old version ran every regex against the whole
+  // reply, so (a) `.*?` patterns matched across sentence boundaries ("She adjusts her hair.
+  // Careful control of…" → "adjust … control" → phantom [pump on]) and (b) one hypothetical
+  // marker ANYWHERE ("she imagines…") vetoed a real activation in a different sentence.
+  const sentences = splitIntoSentences(text);
+  for (let i = 0; i < sentences.length; i++) {
+    const s = sentences[i];
+    if (isHypothetical(s)) continue;      // scoped to THIS sentence only
+    if (PUMP_ON_NEGATORS.test(s)) continue; // "without starting the pump", "doesn't touch the dial"
 
-  for (const pattern of PUMP_ACTIVITY_PHRASES) {
-    const match = text.match(pattern);
-    if (match) {
-      return { detected: true, matchedPhrase: match[0] };
+    // Strong phrases carry their own device/direction context — fire on their own.
+    for (const pattern of PUMP_STRONG_PHRASES) {
+      const m = s.match(pattern);
+      if (m) return { detected: true, matchedPhrase: m[0], sentence: s };
+    }
+
+    // Weak phrases (control-hardware gestures) need a device noun in this or an adjacent
+    // sentence — "flips the switch" only counts near a pump, not near a light switch.
+    const neighborhood = `${sentences[i - 1] || ''} ${s} ${sentences[i + 1] || ''}`;
+    if (!DEVICE_CONTEXT.test(neighborhood)) continue;
+    if (DEFLATION_CONTEXT.test(s)) continue; // air going OUT is not an activation
+    for (const pattern of PUMP_WEAK_PHRASES) {
+      const m = s.match(pattern);
+      if (m) return { detected: true, matchedPhrase: m[0], sentence: s };
     }
   }
 
-  return { detected: false, matchedPhrase: null };
+  return { detected: false, matchedPhrase: null, sentence: null };
 }
 
 /**
@@ -953,21 +975,25 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
   // Check for OFF phrases first. OFF reinforcement is fail-safe, but it must not
   // fire on negated ("won't stop"), hypothetical ("imagine shutting it off"), or
   // cross-clause false matches — those spuriously kill a running pump.
-  if (!isHypothetical(text)) {
+  // SENTENCE-SCOPED: the old whole-text hypothetical check meant one "she imagines…"
+  // ANYWHERE blocked a real kill-switch in another sentence — the UNSAFE direction
+  // (pump kept running). Each sentence is now judged on its own.
+  for (const offSentence of splitIntoSentences(text)) {
+    if (isHypothetical(offSentence)) continue;
     for (const pattern of PUMP_OFF_PHRASES) {
       pattern.lastIndex = 0;
-      const match = text.match(pattern);
+      const match = offSentence.match(pattern);
       if (!match) continue;
 
       // The OFF verb and the device can sit far apart with the loose `.*?`
-      // patterns; ignore matches that span a sentence boundary (likely unrelated).
+      // patterns; ignore matches that span a sentence boundary (multi-sentence lines).
       if (/[.!?]/.test(match[0])) {
         log.info(`[Reinforce] OFF match spans a sentence — ignoring: "${match[0]}"`);
         continue;
       }
 
       // Negation right before the match ("she won't stop the pump") = keep running.
-      const leadIn = text.slice(Math.max(0, match.index - 28), match.index);
+      const leadIn = offSentence.slice(Math.max(0, match.index - 28), match.index);
       if (PUMP_OFF_NEGATORS.test(leadIn + ' ' + match[0])) {
         log.info(`[Reinforce] OFF phrase is negated — ignoring: "${(leadIn + match[0]).trim()}"`);
         continue;
@@ -987,76 +1013,32 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
-  // Detect pump activity phrases (opt-in prose reinforcement path only)
-  const { detected, matchedPhrase } = detectPumpActivityPhrases(text);
+  // Detect pump activity phrases (opt-in prose reinforcement path only).
+  // Sentence-scoped: hypothetical / negation checks happen INSIDE the detector against
+  // the matched sentence — a "she imagines…" elsewhere in the reply no longer vetoes a
+  // real activation, and a real activation no longer fires off a keyword in an unrelated clause.
+  const { detected, matchedPhrase, sentence } = detectPumpActivityPhrases(text);
 
   if (detected) {
-    // Skip clearly hypothetical / imagined / recalled framing ("imagine starting
-    // the pump", "she dreamed of being inflated") — not a real activation.
-    if (isHypothetical(text)) {
-      log.info(`[Reinforce] Hypothetical framing - skipping ON: "${matchedPhrase}"`);
-      return { text, reinforced: false, matchedPhrase: null, isPulse: false };
-    }
-
     // NOTE: we intentionally do NOT suppress on "descriptive" body-state phrases
     // (belly fills with air, swells larger, etc.). Reaching this point already
-    // REQUIRES a pump-ACTIVATION phrase (start/turn on/activate/engage/pump
-    // begins|runs|continues) from PUMP_ACTIVITY_PHRASES — pure passive description
-    // never matches those. The old descriptive filter scanned the whole message and
-    // killed legitimate activations simply because the same reply also described the
-    // belly inflating (true of nearly every inflation message), which is the main
-    // reason prose ON-reinforcement "never fired." In an inflation pump context an
+    // REQUIRES a pump-ACTIVATION phrase in a non-hypothetical, non-negated sentence —
+    // pure passive description never matches. In an inflation pump context an
     // active fill IS the pump working, so we let the activation stand.
 
-    // Check for specific mode indicators in the text
-    const isPulse = containsPulsePhrase(text);
-    const isCycle = /\b(cycle|cycles|cycling|rhythm|rhythmic|pattern|patterns|repeat|repeats|repeating|intervals?)\b/i.test(text);
-    const isTimed = /\b(for\s+\d+\s*(seconds?|minutes?|secs?|mins?)|timed|duration|temporary|briefly|momentarily)\b/i.test(text);
-
-    // Weighted random selection if no specific mode indicated
-    // 35% on, ~22% pulse, ~22% cycle, ~21% timed
-    const rand = Math.random();
-    let mode, tag;
-
-    // Per-character limit caps — safe defaults, never Infinity
-    // Pump durations use the RAW configured limits — the capacity multiplier only affects capacity
-  // ACCRUAL (server.js handlePumpRuntime), never the physical on-time.
-    const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
+    // Mode is DETERMINISTIC: plain [pump on] (auto-off + the limit switches cap it), or a
+    // small capped pulse when the MATCHED SENTENCE itself reads as pulsing. The old logic
+    // rolled RANDOM pulse(20-30)/cycle/timed modes, which amplified any false positive into
+    // a long multi-burst run. A synthesized command should be the mildest thing the prose supports.
     const maxPulse = characterLimits?.llmMaxPulseRepetitions ?? 5;
-    const maxCycleOn = (characterLimits?.llmMaxCycleOnDuration ?? 2);
-    const maxCycleReps = characterLimits?.llmMaxCycleRepetitions ?? 2;
-    const maxTimed = (characterLimits?.llmMaxTimedDuration ?? 10);
-    const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-
-    if (isPulse || (!isCycle && !isTimed && rand < 0.22)) {
-      // PULSE mode (22% random, or if pulse keyword detected)
-      const rawPulses = Math.floor(Math.random() * 11) + 20; // 20-30
-      const pulses = Math.min(rawPulses, maxPulse);
-      tag = `[pump:pulse:${pulses}]`;
+    let tag = '[pump on]';
+    let mode = 'on';
+    if (containsPulsePhrase(sentence || matchedPhrase || '')) {
+      tag = `[pump:pulse:${Math.min(3, maxPulse)}]`;
       mode = 'pulse';
-    } else if (isCycle || (!isPulse && !isTimed && rand >= 0.22 && rand < 0.44)) {
-      // CYCLE mode (22% random, or if "cycle" mentioned)
-      const rawCycleDuration = Math.floor(Math.random() * 8) + 3; // 3-10 secs
-      const cycleInterval = Math.floor(Math.random() * 4) + 2; // 2-5 secs
-      const rawCycles = Math.floor(Math.random() * 6) + 5; // 5-10 cycles
-      const cycleDuration = Math.min(rawCycleDuration, maxCycleOn);
-      const cycles = Math.min(rawCycles, maxCycleReps);
-      tag = `[pump:cycle:${cycleDuration}:${cycleInterval}:${cycles}]`;
-      mode = 'cycle';
-    } else if (isTimed || (!isPulse && !isCycle && rand >= 0.44 && rand < 0.65)) {
-      // TIMED mode (21% random, or if duration mentioned)
-      const baseDuration = globalMaxSeconds;
-      const rawDuration = Math.floor(Math.random() * baseDuration) + baseDuration; // baseDuration to 2x
-      const duration = Math.min(rawDuration, maxTimed, globalMaxSeconds, MAX_ON_SECONDS);
-      tag = `[pump:timed:${duration}]`;
-      mode = 'timed';
-    } else {
-      // Simple ON (35% of the time when no specific mode)
-      tag = '[pump on]';
-      mode = 'on';
     }
 
-    log.info(`[Reinforce] Detected pump activity: "${matchedPhrase}" - using ${mode} mode: ${tag}`);
+    log.info(`[Reinforce] Detected pump activity: "${matchedPhrase}" in sentence: "${(sentence || '').slice(0, 100)}" — using ${mode} mode: ${tag}`);
     const reinforcedText = text.trimEnd() + ` ${tag}`;
     return { text: reinforcedText, reinforced: true, matchedPhrase, mode };
   }
