@@ -9387,11 +9387,37 @@ function stripSpeakerPrefixes(text, names) {
 function stripLeakedDirectives(text) {
   if (!text) return text;
   const KEYS = 'MANDATORY|CRITICAL INSTRUCTION|DIRECTOR|STAGE DIRECTION|PRE-INFLATION|INDIVIDUAL RESPONSE';
-  return String(text)
-    .replace(new RegExp(`\\n*={2,}\\s*(?:${KEYS})[\\s\\S]*?={2,}\\s*END[^\\n=]*={2,}\\n*`, 'gi'), '\n')
-    .replace(new RegExp(`\\n*={2,}\\s*(?:${KEYS})[\\s\\S]*$`, 'gi'), '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  const src = String(text);
+  // RESCUE: capture real actuation tags — device/media tags ALONE on the trailing lines (the
+  // instructed "tag alone on the final line" anatomy) — so an echoed-directive strip can never
+  // silently kill the pump command. Tags merely MENTIONED inside an echoed block ("do not use
+  // [pump on] until…") sit mid-sentence, not alone on trailing lines, so they are never resurrected.
+  const TAG_LINE = /^\[\s*(?:pump|vibe|tens)\b[^\]]*\]$|^\[\s*(?:video|audio|image|img|sound)\s*:[^\]]*\]$/i;
+  const tailTags = [];
+  {
+    const lines = src.trimEnd().split('\n');
+    for (let i = lines.length - 1; i >= 0 && tailTags.length < 4; i--) {
+      const ln = lines[i].trim();
+      if (!ln) continue;
+      if (TAG_LINE.test(ln)) { tailTags.unshift(ln); continue; }
+      break;
+    }
+  }
+  // 1) Complete echoed blocks (header … === END … ===) — removed wherever they appear.
+  let out = src.replace(new RegExp(`\\n*={2,}\\s*(?:${KEYS})[\\s\\S]*?={2,}\\s*END[^\\n=]*={2,}\\n*`, 'gi'), '\n');
+  // 2) Truncated TRAILING echo (header … end of output, model ran out of tokens before END).
+  //    Only cut when the remainder is SHORT — the old header-to-EOF nuke destroyed entire replies
+  //    (story AND the final [pump on]) whenever a header leaked early. A long remainder is real
+  //    story: leave it (cosmetic leak beats a destroyed reply).
+  const trunc = new RegExp(`={2,}\\s*(?:${KEYS})`, 'gi');
+  let m, lastIdx = -1;
+  while ((m = trunc.exec(out)) !== null) lastIdx = m.index;
+  if (lastIdx >= 0 && out.length - lastIdx <= 800 && !/={2,}\s*END/i.test(out.slice(lastIdx))) {
+    out = out.slice(0, lastIdx);
+  }
+  out = out.replace(/\n{3,}/g, '\n\n').trim();
+  for (const t of tailTags) if (!out.includes(t)) out += `\n${t}`;
+  return out;
 }
 
 function stripModelScaffolding(text) {
