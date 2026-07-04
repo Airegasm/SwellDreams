@@ -3626,8 +3626,25 @@ function normalizeRangeTriggers(val) {
 // handleManualPump (pump) or a matching player message (input) resumes the rest. Mirrors the
 // tree pause_resume pattern. resumeTriggerSequence() continues a paused sequence.
 async function fireTriggerSequence(triggers, startIdx, source, character, settings) {
+  // Gauge freeze while the chain executes (incl. its LLM generations): nested calls
+  // (capacity_inrange) stack the counter; the finally + outermost check below unwind it.
+  sessionState.triggerChainDepth = (sessionState.triggerChainDepth || 0) + 1;
+  try {
+    return await fireTriggerSequenceInner(triggers, startIdx, source, character, settings);
+  } finally {
+    sessionState.triggerChainDepth = Math.max(0, (sessionState.triggerChainDepth || 1) - 1);
+    // Outermost chain finished: if a Fire% gate is armed and its target was already met while we
+    // were frozen, fire it now (tryResumeCapacityGate self-guards on gate/freeze/capacity).
+    if (sessionState.triggerChainDepth === 0) {
+      Promise.resolve(tryResumeCapacityGate()).catch(e => console.error('[Fire% resume] post-chain failed:', e?.message || e));
+    }
+  }
+}
+
+async function fireTriggerSequenceInner(triggers, startIdx, source, character, settings) {
   // Whose capacity a Fire% gate compares against (player vs character), derived from the range key.
-  const gateType = String(source || '').startsWith('char-') ? 'char' : 'player';
+  // includes() so persona keys ('p-char-11-20') resolve to the char axis too, not just 'char-…'.
+  const gateType = String(source || '').includes('char-') ? 'char' : 'player';
   // "Next" (>>) gate: when a sequence fires two+ GENERATED messages back-to-back, pause between them so
   // the player can read one before the next starts (they take time to generate and can spam). Only
   // message actions gate. lastWasMessage is per-run: on resume the first action already got the >>
@@ -3644,6 +3661,7 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
       const cap = gateType === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
       if (cap < fp) {
         sessionState.pendingCapacityGate = { kind: 'capacity', type: gateType, target: fp, rest: triggers.slice(i), source, characterId: character.id };
+        broadcast('capacity_gate', { active: true, target: fp, gateType, now: cap });
         console.log(`[Trigger/${source}] Fire% gate — holding sequence until capacity reaches ${fp}% (now ${cap}%)`);
         return;
       }
@@ -3658,7 +3676,16 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
       const block = Array.isArray(trg.triggers) ? trg.triggers : [];
       if (cap >= lo && cap <= hi) {
         console.log(`[Trigger/${source}] Capacity In-Range [${lo}-${hi}] — ${cap}% in range, running ${block.length} nested action(s)`);
+        const awaitBefore = sessionState.pendingRangeAwait, gateBefore = sessionState.pendingCapacityGate;
         await fireTriggerSequence(block, 0, source, character, settings);
+        // If the nested block ARMED a gate (await/Fire%/next), STOP this outer sequence — continuing
+        // would fire outer triggers over the armed gate, and a later outer await would clobber the
+        // single pendingRangeAwait slot (the nested rest would be silently lost).
+        if ((sessionState.pendingRangeAwait && sessionState.pendingRangeAwait !== awaitBefore) ||
+            (sessionState.pendingCapacityGate && sessionState.pendingCapacityGate !== gateBefore)) {
+          console.log(`[Trigger/${source}] Nested In-Range block armed a gate — halting the outer sequence (place outer follow-ups inside the block)`);
+          return;
+        }
       } else {
         console.log(`[Trigger/${source}] Capacity In-Range [${lo}-${hi}] — ${cap}% out of range, skipping block`);
       }
@@ -3712,6 +3739,26 @@ function isNextGatePending() {
   return !!(sessionState.pendingTreeNext || (pa && (pa.kind === 'next' || pa.kind === 'next-individual')));
 }
 
+// FULL gauge-freeze predicate: true whenever the SCENE is stalled — waiting on the player or on a
+// trigger chain's LLM generations — so pump runtime (and char inflation) must NOT advance capacity.
+// Covers, beyond the ">>" gates:
+//   • pendingTreeChoice  — a Player Choice / Choose Multiple is on screen (human interaction)
+//   • pendingTreeGame    — a MiniGame is open (human interaction)
+//   • pendingRangeAwait 'input' — an Await Input keyword gate is armed (pump may have been left ON)
+//   • triggerChainDepth  — a checkpoint trigger sequence is EXECUTING (incl. its LLM generation time)
+// Deliberately NOT frozen:
+//   • pendingCapacityGate (Fire%) — it WAITS for capacity to rise; freezing would deadlock it
+//   • pendingTreeResume (Wait / Pause blocks) — they defer by REPLY TURNS of live play; scene time
+//     is supposed to advance while they count down
+//   • pendingRangeAwait 'pump' — the gate ASKS the player to pump; their pumping must register
+function isGaugeFrozen() {
+  return isNextGatePending()
+    || !!sessionState.pendingTreeChoice
+    || !!sessionState.pendingTreeGame
+    || sessionState.pendingRangeAwait?.kind === 'input'
+    || (sessionState.triggerChainDepth || 0) > 0;
+}
+
 // NOTE: the pump is NOT stopped during a WAIT — it keeps physically running (realistic). Instead the
 // GAUGE is frozen in handlePumpRuntime (wait-period runtime is discarded, never banked), so capacity
 // holds where it froze and resumes there when the WAIT clears — never a catch-up jump.
@@ -3719,10 +3766,11 @@ function isNextGatePending() {
 // After a WAIT clears, fire a queued Fire% gate whose capacity target is now met (queued behind the WAIT).
 async function tryResumeCapacityGate() {
   const cg = sessionState.pendingCapacityGate;
-  if (!cg || isNextGatePending()) return; // still gated
+  if (!cg || isGaugeFrozen()) return; // still stalled (>>/choice/game/input gate or an executing chain)
   const cap = cg.type === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
   if (cap < cg.target) return; // not reached yet
   sessionState.pendingCapacityGate = null;
+  broadcast('capacity_gate', { active: false });
   console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) resuming — WAIT cleared, capacity ${cap}%`);
   await resumeTriggerSequence(cg).catch(err => console.error('[Fire% resume] failed:', err?.message || err));
 }
@@ -3770,6 +3818,14 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
       sessionState.pendingRangeAwait = null;
       broadcast('await_state', null);
     }
+    // Same precedence for an armed Fire% gate: the new range's sequence supersedes it. Abort LOUDLY
+    // instead of letting the new sequence overwrite the slot mid-run (rest silently lost).
+    if (sessionState.pendingCapacityGate) {
+      const cg = sessionState.pendingCapacityGate;
+      console.log(`[CheckpointTriggers] New populated range — aborting a pending Fire% gate (${cg.target}%, ${cg.rest?.length ?? 0} queued trigger(s)) from a previous range`);
+      sessionState.pendingCapacityGate = null;
+      broadcast('capacity_gate', { active: false });
+    }
     firedCheckpointTriggers.add(triggerKey);
     console.log(`[CheckpointTriggers] Starting sequence for ${triggerKey} (${triggers.length} trigger(s))`);
     await fireTriggerSequence(triggers, 0, triggerKey, activeCharacter, settings);
@@ -3781,10 +3837,11 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   // the WAIT clears, so the gated message plays first (and pump-pause keeps capacity from overshooting).
   const cg = sessionState.pendingCapacityGate;
   if (cg && cg.type === type && newCapacity >= cg.target) {
-    if (isNextGatePending()) {
-      console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) met at ${newCapacity}% — queued behind an open message gate`);
+    if (isGaugeFrozen()) {
+      console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) met at ${newCapacity}% — queued behind an open stall (gate/choice/game/chain)`);
     } else {
       sessionState.pendingCapacityGate = null;
+      broadcast('capacity_gate', { active: false });
       console.log(`[CheckpointTriggers] Capacity reached Fire% gate (${cg.target}%) — resuming sequence`);
       await resumeTriggerSequence(cg).catch(err => console.error('[CheckpointTriggers] Fire% resume failed:', err?.message || err));
     }
@@ -3815,12 +3872,14 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   if (!triggers || triggers.length === 0) return;
 
   // Character checkpoint precedence: if a character checkpoint trigger already fired
-  // for this range with the same trigger type, skip the persona version of that type
+  // for this range with the same trigger type, skip the persona version of that type.
+  // Read from the ACTIVE CHECKPOINT PROFILE (same source executeCheckpointTriggers uses) —
+  // this used to read the legacy story-level set, so precedence compared against stale data.
   const charTriggerKey = `${type}-${newRange}`;
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
-  const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
-  const charTriggers = normalizeRangeTriggers(activeStory?.checkpointTriggers?.[charTriggerKey]).sequential;
+  const charRangeTriggers = activeCharacter ? (getActiveProfileRangeTriggers(getActiveCheckpointProfile(activeCharacter)) || {}) : {};
+  const charTriggers = normalizeRangeTriggers(charRangeTriggers[charTriggerKey]).sequential;
   const charTriggerTypes = new Set(charTriggers.map(t => t.type));
 
   // Filter persona triggers: skip any type that character already handles for this range
@@ -3837,17 +3896,39 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   firedCheckpointTriggers.add(triggerKey);
   console.log(`[PersonaCheckpointTriggers] Firing ${filteredTriggers.length} trigger(s) for ${triggerKey} (${triggers.length - filteredTriggers.length} skipped for char precedence)`);
 
-  for (const trigger of filteredTriggers) {
-    await executeTrigger(trigger, triggerKey, activeCharacter, settings);
-  }
+  // Route through the REAL sequence walker (this was a plain executeTrigger loop, so persona
+  // scripts silently lost Fire%, Await Pump/Input, Capacity In-Range, and next-gates).
+  await fireTriggerSequence(filteredTriggers, 0, triggerKey, activeCharacter, settings);
 }
 
 /**
  * Execute a single trigger action. Shared by post-welcome, checkpoint, and future trigger sources.
  */
+// Declarative required-parameter contracts for trigger actions (audit B3). Field names verified
+// against each case's reads. A missing required param used to silently no-op deep inside the case;
+// now it logs ONE loud, actionable line and skips — so a misconfigured action is visible instantly.
+const TRIGGER_REQUIRED_PARAMS = {
+  device_on: ['device'], device_off: ['device'],
+  play_audio: ['tag'], play_video: ['tag'], show_image: ['tag'],
+  flow_var: ['variable'],
+  toggle_button: ['buttonId'],
+  toggle_reminder: ['reminderId'], toggle_library_entry: ['reminderId'],
+  set_instructor_profile: ['value'],
+};
+
 async function executeTrigger(trigger, source, character, settings) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // Required-param gate (loud skip instead of a silent deep no-op)
+  const reqParams = TRIGGER_REQUIRED_PARAMS[trigger?.type];
+  if (reqParams) {
+    const missing = reqParams.filter(f => trigger[f] === undefined || trigger[f] === null || trigger[f] === '');
+    if (missing.length) {
+      console.warn(`[Trigger/${source}] SKIPPED '${trigger.type}' — missing required parameter(s): ${missing.join(', ')} (fix the action in the editor)`);
+      return;
+    }
+  }
 
   try {
     console.log(`[Trigger/${source}] Executing: ${trigger.type}`);
@@ -4484,7 +4565,16 @@ function startCharacterInflation(calibrationTime, burstPercent = 100) {
   // Broadcast initial state (pump just turned on)
   broadcast('character_inflate_state', { active: true, elapsed: 0, characterCapacity: startCap });
 
+  let charInflationLastTick = Date.now();
   charInflationTimer = setInterval(async () => {
+    // GAUGE PAUSE (char axis): while the scene is stalled (>>/choice/game/input gate or an executing
+    // trigger chain), shift the start time forward by the frozen tick so elapsed — and therefore the
+    // character's capacity — holds exactly where it froze and resumes there. Wall-clock elapsed would
+    // otherwise bank the whole stall on resume as one catch-up jump.
+    const nowTick = Date.now();
+    const tickMs = nowTick - charInflationLastTick;
+    charInflationLastTick = nowTick;
+    if (isGaugeFrozen()) { charInflationStartTime += tickMs; return; }
     const elapsed = (Date.now() - charInflationStartTime) / 1000;
     const gain = (elapsed / calibrationTime) * 100;
     const newCapacity = Math.min(burstPercent, Math.round(startCap + gain));
@@ -5182,7 +5272,9 @@ function clearSessionContextForSwitch() {
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.pendingCapacityGate = null;   // clear any queued Fire% gate
+  sessionState.triggerChainDepth = 0;        // never leave the gauge frozen across a reset
   broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
+  broadcast('capacity_gate', { active: false }); // clear the Fire% status chip too
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
@@ -5300,12 +5392,13 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
 
   // Calculate total capacity from all pumps, applying the capacity modifier from settings
   const capacityModifier = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-  // GAUGE PAUSE: while a ">>" WAIT holds a message sequence, the pump keeps physically running but its
+  // GAUGE PAUSE: while the scene is stalled (">>" WAIT, player choice/minigame open, await-input
+  // keyword gate, or a trigger chain executing/generating), the pump keeps physically running but its
   // runtime must NOT count toward capacity — the gauge freezes where it is (e.g. 4%) and resumes at that
-  // exact value when the WAIT clears, no matter how long the wait/triggers take. We do this by advancing
+  // exact value when the stall clears, no matter how long the wait/triggers take. We do this by advancing
   // the accounting pointer (consuming the seconds) WITHOUT banking them into effectiveSeconds, so the
-  // wait-period pumping is discarded rather than deferred (no catch-up jump).
-  const gaugeFrozen = isNextGatePending();
+  // stall-period pumping is discarded rather than deferred (no catch-up jump).
+  const gaugeFrozen = isGaugeFrozen();
   let totalCapacity = 0;
   const devices = loadData(DATA_FILES.devices) || [];
 
@@ -5733,90 +5826,12 @@ ${examples}`;
   return s + '\n';
 }
 
-/**
- * RETIRED FEATURE. "Pump on every reply" (the old card-level "send pump on with every message"
- * toggle + the `toggle_pump_always` trigger) was removed from the UI, but the flag stayed baked into
- * some cards' data (e.g. Tempest Storm has story.pumpOnEveryReply === true) and kept firing the pump on
- * nearly every reply. This gate now hard-returns false so NO card fires it, regardless of any stale
- * `pumpOnEveryReply` flag on disk or a `toggle_pump_always` trigger. Delete this function (and its
- * callers / the trigger case) if the feature is ever fully torn out.
- */
-function isPumpOnEveryReply(character) {
-  return false;
-}
-
-/**
- * Programmatically turn on the pump if pumpOnEveryReply is enabled.
- * Runs after each LLM response. Skips if already has a pump tag in text,
- * if it's a flow chain message, or if the pump is already on.
- */
-const pumpEveryReplyTimers = new Map();
-
-async function executePumpOnEveryReply(text, character, isFlowChain) {
-  if (isFlowChain) return;
-  if (!isPumpOnEveryReply(character)) return;
-
-  // Pre-inflation gate: block if gate is not met
-  if (!sessionState.preInflationGateMet) {
-    console.log('[PumpOnEveryReply] Skipped — pre-inflation gate not met');
-    return;
-  }
-
-  // Roll against chance percentage (default 100%)
-  const activeStory = character.stories?.find(s => s.id === character.activeStoryId) || character.stories?.[0];
-  const chance = activeStory?.pumpOnEveryReplyChance ?? 100;
-  if (chance < 100 && Math.random() * 100 >= chance) {
-    console.log(`[PumpOnEveryReply] Skipped (rolled above ${chance}% chance)`);
-    return;
-  }
-
-  // Don't double up if text already has a pump command
-  if (/\[\s*pump\s+(on|off)\s*\]/i.test(text)) return;
-
-  const devices = loadData(DATA_FILES.devices) || [];
-  const pumpDevice = getPrimaryPumpDevice(devices);
-  if (!pumpDevice) return;
-
-  const deviceId = pumpDevice.brand === 'govee' || pumpDevice.brand === 'tuya' || pumpDevice.brand === 'wyze'
-    ? pumpDevice.deviceId : pumpDevice.ip;
-
-  // Check if pump is already on
-  const currentState = sessionState.executionHistory?.deviceActions?.[deviceId];
-  if (currentState?.state === 'on') return;
-
-  const settings = loadData(DATA_FILES.settings);
-  const capacityMod = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-  const globalMax = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
-  const charLimits = getCharacterLimits(character);
-  const charMax = charLimits?.llmMaxOnDuration ?? 5;
-  const maxSeconds = Math.min(globalMax, charMax);
-
-  // Safety: block at 100% unless over-inflation allowed
-  const allowOver = settings?.globalCharacterControls?.allowOverInflation;
-  if (!allowOver && sessionState.capacity >= 100) return;
-
-  try {
-    await deviceService.turnOn(deviceId, pumpDevice, { untilType: 'timer', untilValue: maxSeconds });
-    console.log(`[PumpOnEveryReply] Pump ON (auto-off in ${maxSeconds}s)`);
-    broadcast('ai_device_control', { device: 'pump', action: 'on', label: pumpDevice.label || pumpDevice.name || 'Pump' });
-
-    // Auto-off timer (use module-level Map to avoid circular ref issues)
-    const timerKey = `pump-every-reply-${deviceId}`;
-    if (pumpEveryReplyTimers.has(timerKey)) clearTimeout(pumpEveryReplyTimers.get(timerKey));
-    pumpEveryReplyTimers.set(timerKey, setTimeout(async () => {
-      try {
-        await deviceService.turnOff(deviceId, pumpDevice);
-        console.log(`[PumpOnEveryReply] Auto-off after ${maxSeconds}s`);
-        broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pumpDevice.label || pumpDevice.name || 'Pump', autoOff: true });
-      } catch (e) {
-        console.error('[PumpOnEveryReply] Auto-off error:', e.message);
-      }
-      pumpEveryReplyTimers.delete(timerKey);
-    }, maxSeconds * 1000));
-  } catch (e) {
-    console.error('[PumpOnEveryReply] Pump ON error:', e.message);
-  }
-}
+// RETIRED FEATURE — fully torn out (audit finding #7). "Pump on every reply" (card flag
+// `pumpOnEveryReply` + the `toggle_pump_always` trigger) was UI-removed long ago and its gate
+// hard-returned false since v6.6.x; the dead executor (executePumpOnEveryReply), its timers, and
+// all call sites are now deleted. The `toggle_pump_always` executeTrigger case remains as an inert
+// tombstone so old card data referencing it logs nothing scary. Stale `pumpOnEveryReply` flags on
+// disk are ignored entirely.
 
 // Get active welcome message for a character
 function getActiveWelcomeMessage(character) {
@@ -6003,11 +6018,8 @@ async function sendWelcomeMessage(character, settings) {
         systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
       }
 
-      // Inject pre-inflation checkpoint for welcome message
-      const checkpointWelcome = getActiveCheckpoint(character, capacity);
-      if (checkpointWelcome?.preInflation) {
-        systemPrompt += `=== PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${checkpointWelcome.preInflation}\n=== END PRE-INFLATION REQUIREMENT ===\n\n`;
-      }
+      // (removed) preInflation prompt block — getActiveCheckpoint hardcodes preInflation:null
+      // (the 0% gate was replaced by Pre-Fill/Gated Intro), so the block could never render.
 
       if (isInstructor(character)) {
         systemPrompt += `Deliver the opening instruction to the player. Stay terse, direct, and on-mission — do not embellish. Base it on this template:\n\n"${welcomeMsg.text}"`;
@@ -8118,7 +8130,7 @@ async function handleWsMessage(ws, type, data) {
         await resumeTreeNext().catch(err => console.error('[NextGate/Tree] resume failed:', err?.message || err));
       }
       // WAIT resolved — fire any queued Fire% gate now that no message gate is open (the gauge also
-      // unfreezes automatically: handlePumpRuntime banks runtime again once isNextGatePending() is false).
+      // unfreezes automatically: handlePumpRuntime banks runtime again once isGaugeFrozen() is false).
       await tryResumeCapacityGate().catch(() => {});
       break;
     }
@@ -9194,6 +9206,10 @@ async function handleButtonCycle(action) {
 }
 
 async function handleButtonLinkToFlow(action, characterId, buttonId) {
+  // Flows are kill-switched. activateFlow is gated in event-engine, but triggerButtonPressByLabel
+  // below was NOT — an old tree's fire_flow node (or a stale button link) could still partially
+  // poke the flow engine. Gate the whole entry point.
+  if (FLOWS_DISABLED) { console.log('[Button] link_to_flow ignored — flows are disabled'); return; }
   const flowId = action.config?.flowId;
   const flowActionLabel = action.config?.flowActionLabel;
 
@@ -9520,7 +9536,6 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   await tryResolveAwaitInput(content, 'player').catch(e => console.error('[Individual] awaitInput failed:', e?.message || e));
   // Card-level pump behaviors fire once per player turn, matching the blended path (these are driven by
   // card/checkpoint config, not LLM tags, so they'd otherwise be lost in individual mode).
-  await executePumpOnEveryReply('', activeCharacter, false).catch(e => console.error('[Individual] pumpOnEveryReply failed:', e?.message || e));
   await executeAutoPumpPacing(activeCharacter, false).catch(e => console.error('[Individual] autoPumpPacing failed:', e?.message || e));
 
   // Roll each member's attributes ONCE this turn — buildMultiCharSystemPrompt reads
@@ -9835,10 +9850,9 @@ async function handleChatMessage(data) {
     // Notify UI that AI is generating (group cards show the group name, not the base/Main name)
     broadcast('generating_start', { characterName: groupBubbleName(activeCharacter) || activeCharacter.name });
 
-    // Pump on every reply — fire before LLM generates so pump runs during generation.
+    // Card-level pump pacing — fire before LLM generates so pump runs during generation.
     // Skip on a speaker-validation retry so the pump never fires twice for one player turn.
     if (!isSpeakerRetry) {
-      await executePumpOnEveryReply('', activeCharacter, false);
       // Per-range auto-pump pacing (electric instructor ranges)
       await executeAutoPumpPacing(activeCharacter, false);
     }
@@ -10611,9 +10625,8 @@ async function handleSpecialGenerate(data) {
   // Notify UI that we're generating
   broadcast('generating_start', { characterName: generatingFor, isPlayerVoice });
 
-  // Pump on every reply — fire before LLM generates
+  // Per-range auto-pump pacing — fire before LLM generates
   if (!isPlayerVoice) {
-    await executePumpOnEveryReply('', activeCharacter, false);
     await executeAutoPumpPacing(activeCharacter, false);
   }
 
@@ -11920,6 +11933,7 @@ async function resumeTreeChoice(choiceId) {
   // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it. force=true:
   // we ran to the end, so an end_intro on an untaken branch no longer gates us.
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
+  await tryResumeCapacityGate().catch(() => {}); // choice stall cleared — fire a queued Fire% gate if met
 }
 
 // Resume a tree paused on the ">>" Next gate between back-to-back standalone messages. Rebuilds the
@@ -11988,6 +12002,7 @@ async function resumeTreeChooseMulti(selectedIds) {
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this choice → arm UNLOCK
+  await tryResumeCapacityGate().catch(() => {}); // choice stall cleared — fire a queued Fire% gate if met
 }
 
 // Resume a suspended Trigger Tree call_minigame on the played exit (Phase 5). Sets the GameResult /
@@ -12032,6 +12047,7 @@ async function resumeTreeGame(firedExit, winner) {
   try { await runTree(list, ctx); }
   catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this minigame → arm UNLOCK
+  await tryResumeCapacityGate().catch(() => {}); // game stall cleared — fire a queued Fire% gate if met
 }
 
 // Tick a pending pause_resume down by one reply turn; when it reaches zero, run the deferred body
@@ -12043,7 +12059,9 @@ async function checkPendingTreeResume() {
   if (--pend.remaining > 0) return; // still waiting
   const body = pend.body, after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeResume = null;
-  sessionState.pendingTreeGame = null;
+  // (fixed) this used to also clear pendingTreeGame — a Wait resolving would silently dismiss an
+  // armed MiniGame (its UI stayed open but the resume found nothing → dead buttons). They are
+  // independent channels; never cross-clear.
 
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
@@ -13109,9 +13127,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
 
     // Inject checkpoints at end (recency = higher LLM priority)
     const checkpointSpecial = getActiveCheckpoint(character, sessionState.capacity);
-    if (checkpointSpecial?.preInflation) {
-      systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\n${checkpointSpecial.preInflation}\n=== END REQUIREMENT ===\n`;
-    }
+    // (removed) preInflation block — always null since the 0% gate became Pre-Fill/Gated Intro.
     if (checkpointSpecial?.text) {
       systemPrompt += `\n=== MANDATORY — INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${checkpointSpecial.text}\n=== END STAGE DIRECTION ===\n`;
     }
@@ -13827,10 +13843,7 @@ function buildChatContext(character, settings, opts = {}) {
   // Inject checkpoints at end of system prompt (recency = higher priority for LLM)
   refreshRangePumpGates(character); // stash this range's pump limit-switches for the pump-on paths
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
-  if (checkpointChat?.preInflation) {
-    console.log(`[Checkpoints] Injecting PRE-INFLATION for player at ${sessionState.capacity}%`);
-    systemPrompt += `\n=== MANDATORY PRE-INFLATION REQUIREMENT ===\nDo NOT activate the pump, begin inflation, or use [pump on] tags until the following has been accomplished:\n${substituteVars(checkpointChat.preInflation)}\n=== END REQUIREMENT ===\n`;
-  }
+  // (removed) preInflation block — always null since the 0% gate became Pre-Fill/Gated Intro.
   if (checkpointChat?.text) {
     console.log(`[Checkpoints] Injecting PLAYER checkpoint at ${sessionState.capacity}%: ${checkpointChat.text.substring(0, 60)}...`);
     systemPrompt += `\n=== MANDATORY — PLAYER INFLATION STAGE DIRECTION (${sessionState.capacity}%) ===\nYou MUST follow this guidance for the player's current inflation level. Do NOT describe inflation beyond what ${sessionState.capacity}% represents:\n${substituteVars(checkpointChat.text)}\n=== END STAGE DIRECTION ===\n`;
@@ -17602,7 +17615,7 @@ app.post('/api/emergency-stop', async (req, res) => {
 
   // 3. Stop ALL pump runtime tracking intervals
   sessionState.playerIsInflating = false; // emergency stop always ends latched-pump mode
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.triggerChainDepth = 0;
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
   clearAllServerTimedPumpTimers();
@@ -19329,7 +19342,9 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pendingGoProfileId = null;
   sessionState.pendingRangeAwait = null;
   sessionState.pendingCapacityGate = null;   // clear any queued Fire% gate
+  sessionState.triggerChainDepth = 0;        // never leave the gauge frozen across a reset
   broadcast('next_gate', { active: false }); // clear any stuck ">>" gate on reset
+  broadcast('capacity_gate', { active: false }); // clear the Fire% status chip too
   sessionState.groupRotation = 0;
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
@@ -19576,7 +19591,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.flowAssignments = session.flowAssignments || { personas: {}, characters: {}, global: [] };
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
   sessionState.playerIsInflating = false; // never resume into a latched-pump state
-  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null;
+  sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.triggerChainDepth = 0;
 
   // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
   // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).

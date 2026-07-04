@@ -128,3 +128,17 @@
   color: var(--text-primary, #ddd); padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 12px;
 }
 .tree-add-item:hover { background: var(--bg-hover, #333); }
+
+/* Inline misconfiguration badge (validateNode) — broken nodes are flagged while authoring */
+.tree-node-warn {
+  font-size: 0.68rem;
+  color: #ff8f8f;
+  background: rgba(255, 90, 90, 0.12);
+  border: 1px solid rgba(255, 90, 90, 0.35);
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46%;
+}

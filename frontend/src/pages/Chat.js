@@ -2149,6 +2149,21 @@ function Chat() {
           title="Drag to resize"
         />
         <form className="chat-input-form" onSubmit={handleSubmit}>
+          {/* Gate-status chip: makes trigger-sequence holds visible without reading backend logs.
+              Fire% hold > await-input keywords > await-pump count > ">>" gate. */}
+          {(sessionState.capacityGate || sessionState.awaitState || sessionState.nextGateActive) && (
+            <div className="gate-status-chip" title="A trigger sequence is holding">
+              {sessionState.capacityGate
+                ? `⏳ Scene holding until ${sessionState.capacityGate.target}% capacity`
+                : sessionState.awaitState?.kind === 'input'
+                  ? `🗝 Waiting for: ${(sessionState.awaitState.words || []).join(', ')}`
+                  : sessionState.awaitState?.kind === 'pump'
+                    ? `🎈 Waiting for pumps — ${sessionState.awaitState.count || 0}/${sessionState.awaitState.target || 1}`
+                    : sessionState.nextGateActive
+                      ? '» Press Next to continue the sequence'
+                      : ''}
+            </div>
+          )}
           <div className="input-buttons-row">
             {/* Desktop input-action row: E-STOP (always) · font − / + / ⚙ · » · AUTO-REPLY, plus the
                 UNLOCK notice during a gated intro. All styled like the textbox action buttons. */}

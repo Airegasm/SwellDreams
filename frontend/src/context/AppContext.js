@@ -333,6 +333,12 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, nextGateActive: !!(data && data.active) }));
         break;
 
+      case 'capacity_gate':
+        // A Fire% gate is holding a trigger sequence until capacity reaches {target}% — drives the
+        // gate-status chip in the chat so holds are visible without reading backend logs.
+        setSessionState(prev => ({ ...prev, capacityGate: data && data.active ? data : null }));
+        break;
+
       case 'pump_vars_update':
         setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
         break;

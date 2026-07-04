@@ -167,7 +167,7 @@ function makeNode(kind, type) {
   if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
   if (type === 'chance') node.params.chance = 50;
   if (type === 'repeat') { node.params.mode = 'fixed'; node.params.iterations = 3; }
-  if (type === 'pause_resume') { node.params.resumeAfterType = 'turns'; node.params.resumeAfterValue = 4; }
+  if (type === 'pause_resume') { node.params.resumeAfterValue = 4; } // reply turns — the only unit the backend implements (resumeAfterType was vestigial)
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'wait') node.params.messages = 2;
@@ -473,6 +473,12 @@ function NodeBody({ node, onChange, rowProps }) {
           <option value="either">Either</option>
         </select>
       </label>
+      <label className="tree-field">
+        <span>AND also requires (any of, comma-separated — optional)</span>
+        <KeywordsInput value={node.params?.secondaryKeys}
+          onChange={(secondaryKeys) => setParams({ secondaryKeys, logic: (secondaryKeys || []).length ? 'and_any' : undefined })}
+          placeholder="e.g. yes, please — message must contain a keyword AND one of these" />
+      </label>
       <label className="tree-check"><input type="checkbox" checked={!!node.params?.caseSensitive} onChange={(e) => setParams({ caseSensitive: e.target.checked })} /> case sensitive</label>
       <label className="tree-check"><input type="checkbox" checked={node.params?.matchWholeWords !== false} onChange={(e) => setParams({ matchWholeWords: e.target.checked })} /> whole words</label>
     </div>
@@ -528,16 +534,41 @@ function NodeBody({ node, onChange, rowProps }) {
 }
 
 // One node row: header (collapse, type/summary, once, move, delete) + body.
+// Inline misconfiguration check — mirrors what the backend walker would skip/warn on at runtime,
+// so a broken node is red-flagged while AUTHORING instead of silently no-oping mid-session.
+function validateNode(node, rowProps) {
+  const p = node.params || {};
+  if (node.type === 'goto') {
+    if (!p.name) return 'Go To has no label name';
+    if (Array.isArray(rowProps?.treeLabels) && !rowProps.treeLabels.includes(p.name)) return `no Label named "${p.name}" in this tree`;
+  }
+  if (node.type === 'label' && !p.name) return 'Label is unnamed — a Go To can never target it';
+  if (node.type === 'fire_tree' && !p.treeId) return 'Fire Tree has no target tree';
+  if (node.type === 'call_minigame' && !p.miniGameId) return 'Call MiniGame has no game selected';
+  if (node.type === 'player_choice' || node.type === 'choose_multi') {
+    const opts = (node.children || []).filter(c => c && c.type === 'choice' && c.params?.label);
+    if (!opts.length) return 'no options with labels — the choice will be skipped';
+  }
+  if (node.type === 'keyword_gate' && !(p.keys || []).length) return 'no keywords — the gate can never open';
+  if (node.type === 'if') {
+    const passable = (node.children || []).some(b => b && b.type === 'branch' && (b.params?.else === true || (b.params?.conditions || []).length));
+    if (!passable) return 'no passable branch (add conditions or an Else)';
+  }
+  return null;
+}
+
 function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, rowProps }) {
   const [open, setOpen] = useState(node.kind === 'action' ? true : true);
   const isContainer = node.kind !== 'action';
   const ancestorOnce = React.useContext(AncestorOnceContext); // a parent block is "once" → force this one once
   const effectiveOnce = ancestorOnce || !!node.once;
+  const warn = validateNode(node, rowProps);
   return (
     <div className={`tree-node tree-node-${node.kind}`}>
       <div className="tree-node-head">
         <button type="button" className="tree-collapse" onClick={() => setOpen(o => !o)} title={open ? 'Collapse' : 'Expand'}>{open ? '▾' : '▸'}</button>
         <span className="tree-node-kind">{node.kind === 'action' ? 'Action' : node.kind === 'event' ? 'Event' : 'Block'}</span>
+        {warn && <span className="tree-node-warn" title={warn}>⚠ {warn}</span>}
         {!open && <span className="tree-node-summary">{summarize(node)}</span>}
         <span className="tree-node-spacer" />
         <label className="tree-once" title={ancestorOnce ? 'Locked once — a parent block is set to Once, so everything inside it runs once' : 'Fire only once per session'}><input type="checkbox" checked={effectiveOnce} disabled={ancestorOnce} onChange={(e) => onChange({ ...node, once: e.target.checked })} /> once</label>
