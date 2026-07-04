@@ -1615,7 +1615,9 @@ function Chat() {
               return flowActions.some(a => assignedFlows.includes(a.config.flowId));
             });
 
-            const isDisabled = sessionLoading || isGenerating;
+            const isDisabled = sessionLoading || isGenerating || sessionState.isGenerating || sessionState.actionBusy
+              || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
+              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!inputData;
             const totalPages = Math.ceil(filteredButtons.length / PERSONA_ACTIONS_PER_PAGE);
             const currentPageButtons = filteredButtons.slice(
               personaActionPage * PERSONA_ACTIONS_PER_PAGE,
@@ -2834,7 +2836,15 @@ function Chat() {
                     return flowActions.some(a => assignedFlows.includes(a.config.flowId));
                   });
 
-                  const isDisabled = flowInProgress || sessionLoading || isGenerating;
+                  // Buttons are locked while ANYTHING is mid-flight: a generation (player OR a
+                  // button/trigger-driven one via sessionState.isGenerating), a WAIT/gate (">>" next,
+                  // await input/pump, Fire% capacity hold), or an open interactive modal (minigame /
+                  // choice / input). Prevents overlapping fires while a button's own tree is running.
+                  const actionsBusy = isGenerating || sessionState.isGenerating
+                    || sessionState.actionBusy
+                    || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
+                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!inputData;
+                  const isDisabled = flowInProgress || sessionLoading || actionsBusy;
                   const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
                   const currentPageButtons = filteredButtons.slice(
                     actionPage * ACTIONS_PER_PAGE,
@@ -2850,7 +2860,7 @@ function Chat() {
                             className={`panel-action-btn ${isDisabled ? 'disabled' : ''}`}
                             onClick={() => !isDisabled && handleExecuteButton(button)}
                             disabled={isDisabled}
-                            title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : button.name}
+                            title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : actionsBusy ? 'Please wait…' : button.name}
                           >
                             {button.name}
                           </button>

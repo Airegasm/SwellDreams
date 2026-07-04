@@ -114,14 +114,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b4o",
+                  "id": "a-b5q",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b4p",
+                  "id": "a-b5r",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Scarlett taps out a slow rhythm on the arm of the chair. 'Repeat it back — exactly. Prove you can still follow instruction.' She warns [Player], quietly, that failure has a consequence.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b5s",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b5t",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -132,14 +152,67 @@
                   "children": []
                 },
                 {
-                  "id": "a-b4q",
+                  "id": "a-b5u",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The obedience drill concludes: [CharVar:GameResult]. Scarlett responds coldly to whether [Player] kept the pattern — rare approval or precise consequence.",
+                    "context": "The drill concludes: [CharVar:GameResult]. Scarlett responds coldly to whether [Player] kept the pattern — a rare mercy if completed, a precise consequence if failed.",
                     "llmEnhance": true
                   }
+                },
+                {
+                  "id": "c-b5p",
+                  "kind": "container",
+                  "type": "if",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "br-b5m",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Completed"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b5l",
+                          "kind": "action",
+                          "type": "pump_off",
+                          "once": false,
+                          "params": {}
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b5o",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "else": true
+                      },
+                      "children": [
+                        {
+                          "id": "a-b5n",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "5"
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -158,14 +231,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b4r",
+                  "id": "a-b60",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b4s",
+                  "id": "a-b61",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Scarlett produces a silver coin and holds it up between two fingers. 'Fate will decide your mercy. Call it — heads or tails.' A cold, amused pause. 'You do not want to lose.'",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b62",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b63",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -176,14 +269,67 @@
                   "children": []
                 },
                 {
-                  "id": "a-b4t",
+                  "id": "a-b64",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The coin falls: [CharVar:GameResult]. Scarlett pronounces mercy or more with elegant, remorseless calm.",
+                    "context": "The coin falls: [CharVar:GameResult]. Scarlett pronounces [Player]'s fate from it with elegant, remorseless calm — more if it favours her, mercy if it favours them.",
                     "llmEnhance": true
                   }
+                },
+                {
+                  "id": "c-b5z",
+                  "kind": "container",
+                  "type": "if",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "br-b5w",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Heads"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b5v",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "6"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b5y",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "else": true
+                      },
+                      "children": [
+                        {
+                          "id": "a-b5x",
+                          "kind": "action",
+                          "type": "pump_off",
+                          "once": false,
+                          "params": {}
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -202,14 +348,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b4u",
+                  "id": "a-b66",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b4v",
+                  "id": "a-b67",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Scarlett sets a handful of dice before [Player]. 'The roll decides how long you suffer — the higher the number, the longer.' She gestures, unhurried. 'Roll.'",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b68",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b69",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -220,22 +386,22 @@
                   "children": []
                 },
                 {
-                  "id": "a-b4w",
+                  "id": "a-b6a",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "The dice total [CharVar:GameResult]. Scarlett notes the number, sets the pump to match, and makes [Player] thank her for it either way.",
+                    "llmEnhance": true
+                  }
+                },
+                {
+                  "id": "a-b65",
                   "kind": "action",
                   "type": "pump_on",
                   "once": false,
                   "params": {
                     "duration": "[CharVar:GameResult]"
-                  }
-                },
-                {
-                  "id": "a-b4x",
-                  "kind": "action",
-                  "type": "ai_message",
-                  "once": false,
-                  "params": {
-                    "context": "The dice total [CharVar:GameResult]. Scarlett reads [Player]'s fate from the roll — the pump runs that many seconds — and makes them thank her for it either way.",
-                    "llmEnhance": true
                   }
                 }
               ]
@@ -255,28 +421,48 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b4y",
+                  "id": "a-b6b",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b58",
+                  "id": "a-b6c",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Scarlett considers [Player] for a long, cool moment. 'I so rarely leave things to chance. Tonight, I'll make an exception.' She selects a game to decide their fate.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b6d",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b6n",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b51",
+                      "id": "c-b6g",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b4z",
+                          "id": "c-b6e",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -287,7 +473,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b50",
+                          "id": "a-b6f",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -299,14 +485,14 @@
                       ]
                     },
                     {
-                      "id": "c-b54",
+                      "id": "c-b6j",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b52",
+                          "id": "c-b6h",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -317,7 +503,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b53",
+                          "id": "a-b6i",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -329,14 +515,14 @@
                       ]
                     },
                     {
-                      "id": "c-b57",
+                      "id": "c-b6m",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b55",
+                          "id": "c-b6k",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -347,7 +533,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b56",
+                          "id": "a-b6l",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -379,21 +565,21 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b59",
+                    "id": "bt-b6o",
                     "type": "flow_var",
                     "variable": "defiance",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b5a",
+                    "id": "bt-b6p",
                     "type": "flow_var",
                     "variable": "punishments",
                     "operation": "inc",
                     "value": "1"
                   },
                   {
-                    "id": "bt-b5b",
+                    "id": "bt-b6q",
                     "type": "ai_message",
                     "context": "Scarlett answers [Player]'s defiance with a swift, unhurried, precisely-calibrated punishment.",
                     "llmEnhance": true
@@ -418,21 +604,21 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b5c",
+                    "id": "bt-b6r",
                     "type": "flow_var",
                     "variable": "obedience",
                     "operation": "inc",
                     "value": "15"
                   },
                   {
-                    "id": "bt-b5d",
+                    "id": "bt-b6s",
                     "type": "flow_var",
                     "variable": "defiance",
                     "operation": "dec",
                     "value": "5"
                   },
                   {
-                    "id": "bt-b5e",
+                    "id": "bt-b6t",
                     "type": "ai_message",
                     "context": "Scarlett grants [Player] a rare, meaningful reward for their obedience — a moment of quiet, earned approval.",
                     "llmEnhance": true
@@ -488,6 +674,14 @@
         {
           "user": "*[Player] completes the challenge successfully*",
           "character": "*[Char] raises an eyebrow, genuinely impressed* \"Well, well. You actually did it.\" [pump off] *slow clap* \"Perhaps I underestimated you.\" *slight smile* \"You've earned a rest. Savor it - the next challenge won't be so forgiving.\""
+        },
+        {
+          "user": "*[Player] squirms against the restraints*",
+          "character": "*[Char] does not raise her voice* \"Stillness. I asked for stillness.\" *she waits, unblinking* \"Every second you make me repeat myself, the evening grows longer. Choose wisely.\""
+        },
+        {
+          "user": "*[Player] apologizes*",
+          "character": "*[Char] studies them for a long, cool moment* \"Apologies are cheap. Obedience is the only currency I accept.\" *she adjusts the valve a precise fraction* \"Show me, and perhaps I'll be generous.\""
         },
         {
           "user": "*[Player] squirms against the restraints*",
@@ -598,12 +792,12 @@
                 "player-1-10": {
                   "sequential": [
                     {
-                      "id": "t-b3v",
+                      "id": "t-b4s",
                       "type": "system_message",
                       "content": "Mistress Scarlett regards you coolly and sets the terms."
                     },
                     {
-                      "id": "t-b3w",
+                      "id": "t-b4t",
                       "type": "ai_message",
                       "context": "Scarlett states, quietly, that [Player]'s obedience tonight will determine how the evening goes.",
                       "llmEnhance": true
@@ -614,7 +808,7 @@
                 "player-31-40": {
                   "sequential": [
                     {
-                      "id": "t-b3x",
+                      "id": "t-b4u",
                       "type": "ai_message",
                       "context": "Scarlett observes [Player]'s composure and adjusts her expectations aloud, formally.",
                       "llmEnhance": true
@@ -625,14 +819,14 @@
                 "player-91-100": {
                   "sequential": [
                     {
-                      "id": "t-b3y",
+                      "id": "t-b4v",
                       "type": "flow_var",
                       "variable": "punishments",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b3z",
+                      "id": "t-b4w",
                       "type": "ai_message",
                       "context": "Scarlett lowers her voice to near silence — the most dangerous she gets — and takes complete control of the finish.",
                       "llmEnhance": true
@@ -647,7 +841,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b48",
+                          "id": "c-b55",
                           "kind": "container",
                           "type": "player_choice",
                           "once": true,
@@ -656,7 +850,7 @@
                           },
                           "children": [
                             {
-                              "id": "ch-b43",
+                              "id": "ch-b50",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -664,7 +858,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b40",
+                                  "id": "a-b4x",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -674,7 +868,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b41",
+                                  "id": "a-b4y",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -685,7 +879,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b42",
+                                  "id": "a-b4z",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -698,7 +892,7 @@
                               ]
                             },
                             {
-                              "id": "ch-b47",
+                              "id": "ch-b54",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -706,7 +900,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b44",
+                                  "id": "a-b51",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -716,7 +910,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b45",
+                                  "id": "a-b52",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -727,7 +921,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b46",
+                                  "id": "a-b53",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -748,14 +942,14 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b4d",
+                          "id": "c-b5a",
                           "kind": "container",
                           "type": "if",
                           "once": true,
                           "params": {},
                           "children": [
                             {
-                              "id": "br-b4a",
+                              "id": "br-b57",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -771,7 +965,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b49",
+                                  "id": "a-b56",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -783,7 +977,7 @@
                               ]
                             },
                             {
-                              "id": "br-b4c",
+                              "id": "br-b59",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -791,7 +985,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b4b",
+                                  "id": "a-b58",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -805,7 +999,7 @@
                           ]
                         },
                         {
-                          "id": "a-b4e",
+                          "id": "a-b5b",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -815,7 +1009,7 @@
                           }
                         },
                         {
-                          "id": "c-b4h",
+                          "id": "c-b5e",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -824,7 +1018,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b4f",
+                              "id": "c-b5c",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -835,7 +1029,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b4g",
+                              "id": "a-b5d",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -853,7 +1047,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "a-b4i",
+                          "id": "a-b5f",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -863,7 +1057,7 @@
                           }
                         },
                         {
-                          "id": "c-b4l",
+                          "id": "c-b5i",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -872,7 +1066,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b4j",
+                              "id": "c-b5g",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -883,7 +1077,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b4k",
+                              "id": "a-b5h",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -895,7 +1089,7 @@
                           ]
                         },
                         {
-                          "id": "c-b4n",
+                          "id": "c-b5k",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -904,7 +1098,7 @@
                           },
                           "children": [
                             {
-                              "id": "a-b4m",
+                              "id": "a-b5j",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,

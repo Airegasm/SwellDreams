@@ -339,6 +339,12 @@ export function AppProvider({ children }) {
         setSessionState(prev => ({ ...prev, capacityGate: data && data.active ? data : null }));
         break;
 
+      case 'action_busy':
+        // A custom button's tree is running (its generations, its WAIT/delay, the gaps between nodes) —
+        // lock the action buttons for the whole run so a second press can't overlap.
+        setSessionState(prev => ({ ...prev, actionBusy: !!(data && data.active) }));
+        break;
+
       case 'pump_vars_update':
         setSessionState(prev => ({ ...prev, bulbCurrent: data.bulbCurrent, bikeCurrent: data.bikeCurrent }));
         break;

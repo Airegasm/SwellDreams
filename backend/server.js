@@ -8288,7 +8288,12 @@ async function handleWsMessage(ws, type, data) {
 
     case 'execute_button':
     case 'execute_event':  // Keep for backwards compatibility
-      await handleExecuteButton(data);
+      // Lock the action buttons for the WHOLE button run (its generations, its WAIT/delay, the gaps
+      // between nodes) so a second press can't overlap. Frontend disables on sessionState.actionBusy.
+      sessionState.actionBusy = true;
+      broadcast('action_busy', { active: true });
+      try { await handleExecuteButton(data); }
+      finally { sessionState.actionBusy = false; broadcast('action_busy', { active: false }); }
       break;
 
     case 'flow_pause':

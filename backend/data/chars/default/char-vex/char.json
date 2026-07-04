@@ -96,14 +96,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b2x",
+                  "id": "a-b3n",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b2y",
+                  "id": "a-b3o",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Vex grabs the mic and whips the crowd up — 'It's time to SPIN THE PRIZE WHEEL, folks!' He tells [Player] the wheel decides their fate: a Double Puff, a tense Hold, a merciful Contestant's Choice, or the Mystery Box. He slaps the big red button.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b3p",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b3q",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -114,14 +134,24 @@
                   "children": []
                 },
                 {
-                  "id": "c-b36",
+                  "id": "a-b3r",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "The wheel stops on '[CharVar:GameResult]'! Vex reacts with explosive showmanship as the pump answers the prize.",
+                    "llmEnhance": true
+                  }
+                },
+                {
+                  "id": "c-b3m",
                   "kind": "container",
                   "type": "if",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "br-b30",
+                      "id": "br-b3g",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -137,7 +167,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b2z",
+                          "id": "a-b3f",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -148,7 +178,7 @@
                       ]
                     },
                     {
-                      "id": "br-b32",
+                      "id": "br-b3i",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -164,7 +194,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b31",
+                          "id": "a-b3h",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -175,7 +205,7 @@
                       ]
                     },
                     {
-                      "id": "br-b34",
+                      "id": "br-b3k",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -191,7 +221,7 @@
                       },
                       "children": [
                         {
-                          "id": "a-b33",
+                          "id": "a-b3j",
                           "kind": "action",
                           "type": "pump_on",
                           "once": false,
@@ -202,7 +232,7 @@
                       ]
                     },
                     {
-                      "id": "br-b35",
+                      "id": "br-b3l",
                       "kind": "container",
                       "type": "branch",
                       "params": {
@@ -211,16 +241,6 @@
                       "children": []
                     }
                   ]
-                },
-                {
-                  "id": "a-b37",
-                  "kind": "action",
-                  "type": "ai_message",
-                  "once": false,
-                  "params": {
-                    "context": "The prize wheel lands on '[CharVar:GameResult]'! Vex reacts with a showman's flourish as the pump responds to the prize — a long blast, a short tease, or a merciful pass.",
-                    "llmEnhance": true
-                  }
                 }
               ]
             }
@@ -239,14 +259,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b38",
+                  "id": "a-b3t",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b39",
+                  "id": "a-b3u",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Vex rattles the giant foam dice and plays the crowd — 'Snake eyes or BOXCARS?!' He announces the total is exactly how many seconds the pump runs, then lets them fly.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b3v",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b3w",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -257,22 +297,22 @@
                   "children": []
                 },
                 {
-                  "id": "a-b3a",
+                  "id": "a-b3x",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "The dice total [CharVar:GameResult]! Vex reads the roll with maximum gameshow drama as the crowd counts every second down.",
+                    "llmEnhance": true
+                  }
+                },
+                {
+                  "id": "a-b3s",
                   "kind": "action",
                   "type": "pump_on",
                   "once": false,
                   "params": {
                     "duration": "[CharVar:GameResult]"
-                  }
-                },
-                {
-                  "id": "a-b3b",
-                  "kind": "action",
-                  "type": "ai_message",
-                  "once": false,
-                  "params": {
-                    "context": "The dice total [CharVar:GameResult]! Vex reads the roll aloud and the pump runs for exactly that many seconds — the crowd counts it down.",
-                    "llmEnhance": true
                   }
                 }
               ]
@@ -292,14 +332,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3c",
+                  "id": "a-b45",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b3d",
+                  "id": "a-b46",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Vex hauls [Player]'s hand onto the giant slot lever — 'PULL IT for the LIGHTNING ROUND!' He explains: three-of-a-kind is the JACKPOT, two is a small win, no match is heartbreak. The reels blur.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b47",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b48",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -310,14 +370,96 @@
                   "children": []
                 },
                 {
-                  "id": "a-b3e",
+                  "id": "a-b49",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The slot reels land on '[CharVar:GameResult]'! Vex reacts — jackpot euphoria or theatrical heartbreak.",
+                    "context": "The reels land on '[CharVar:GameResult]'! Vex reacts — jackpot euphoria or theatrical heartbreak — as the pump pays out.",
                     "llmEnhance": true
                   }
+                },
+                {
+                  "id": "c-b44",
+                  "kind": "container",
+                  "type": "if",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "br-b3z",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Jackpot"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b3y",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "8"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b41",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Small Win"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b40",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "4"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b43",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "else": true
+                      },
+                      "children": [
+                        {
+                          "id": "a-b42",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "2"
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }
@@ -336,28 +478,48 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-b3f",
+                  "id": "a-b4a",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b3p",
+                  "id": "a-b4b",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Vex cackles — 'Let's leave it to CHANCE, folks!' He announces a surprise game is coming and the machine decides [Player]'s fate. Drumroll…",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b4c",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b4m",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b3i",
+                      "id": "c-b4f",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3g",
+                          "id": "c-b4d",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -368,26 +530,26 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3h",
+                          "id": "a-b4e",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
                           "params": {
-                            "context": "The game lands on [CharVar:GameResult]! Vex reacts to the result with maximum gameshow spectacle — sirens, patter, the works.",
+                            "context": "The game lands on [CharVar:GameResult]! Vex reacts with maximum gameshow spectacle — sirens, patter, the works.",
                             "llmEnhance": true
                           }
                         }
                       ]
                     },
                     {
-                      "id": "c-b3l",
+                      "id": "c-b4i",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3j",
+                          "id": "c-b4g",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -398,26 +560,26 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3k",
+                          "id": "a-b4h",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
                           "params": {
-                            "context": "The game lands on [CharVar:GameResult]! Vex reacts to the result with maximum gameshow spectacle — sirens, patter, the works.",
+                            "context": "The game lands on [CharVar:GameResult]! Vex reacts with maximum gameshow spectacle — sirens, patter, the works.",
                             "llmEnhance": true
                           }
                         }
                       ]
                     },
                     {
-                      "id": "c-b3o",
+                      "id": "c-b4l",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b3m",
+                          "id": "c-b4j",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -428,12 +590,12 @@
                           "children": []
                         },
                         {
-                          "id": "a-b3n",
+                          "id": "a-b4k",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
                           "params": {
-                            "context": "The game lands on [CharVar:GameResult]! Vex reacts to the result with maximum gameshow spectacle — sirens, patter, the works.",
+                            "context": "The game lands on [CharVar:GameResult]! Vex reacts with maximum gameshow spectacle — sirens, patter, the works.",
                             "llmEnhance": true
                           }
                         }
@@ -460,12 +622,12 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b3q",
+                    "id": "bt-b4n",
                     "type": "system_message",
                     "content": "🗳️ The audience votes!"
                   },
                   {
-                    "id": "bt-b3r",
+                    "id": "bt-b4o",
                     "type": "ai_message",
                     "context": "Vex throws to the studio audience for a vote on the contestant's fate, hamming up every second of the tally.",
                     "llmEnhance": true
@@ -490,19 +652,19 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b3s",
+                    "id": "bt-b4p",
                     "type": "flow_var",
                     "variable": "score",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b3t",
+                    "id": "bt-b4q",
                     "type": "system_message",
                     "content": "⭐ BONUS ROUND!"
                   },
                   {
-                    "id": "bt-b3u",
+                    "id": "bt-b4r",
                     "type": "ai_message",
                     "context": "Vex declares a surprise BONUS ROUND, doubling the stakes and the theatrics.",
                     "llmEnhance": true
@@ -554,6 +716,14 @@
         {
           "user": "*[Player] hits the buzzer frantically*",
           "character": "*[Char] slams hand on the control panel* \"AAAAND STOP!\" [pump off] *buzzer sounds* \"OHHH, tapping out at the LAST second!\" *turns to audience* \"Was it ENOUGH, folks?!\" *checks scoreboard dramatically* \"Let's see if our contestant earned their freedom... or their PUNISHMENT!\""
+        },
+        {
+          "user": "*[Player] groans*",
+          "character": "*[Char] spins toward an unseen camera* \"OOOH, did you hear that, folks?! That's the sound of a contestant EARNING their prize!\" *waggles eyebrows* \"And we're just getting started!\""
+        },
+        {
+          "user": "*[Player] begs for a break*",
+          "character": "*[Char] gasps theatrically and cups a hand to his ear* \"A BREAK? Let's ask the audience!\" *pauses, then grins* \"They said... KEEP GOING! Sorry, contestant — the people have SPOKEN!\""
         },
         {
           "user": "*[Player] groans*",
@@ -663,19 +833,19 @@
                 "player-1-10": {
                   "sequential": [
                     {
-                      "id": "t-b28",
+                      "id": "t-b2q",
                       "type": "system_message",
                       "content": "🎪 The show begins! Applause."
                     },
                     {
-                      "id": "t-b29",
+                      "id": "t-b2r",
                       "type": "flow_var",
                       "variable": "rounds",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b2a",
+                      "id": "t-b2s",
                       "type": "ai_message",
                       "context": "Vex throws to the audience: 'Give it UP for our contestant, folks!'",
                       "llmEnhance": true
@@ -686,21 +856,21 @@
                 "player-51-60": {
                   "sequential": [
                     {
-                      "id": "t-b2b",
+                      "id": "t-b2t",
                       "type": "flow_var",
                       "variable": "rounds",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b2c",
+                      "id": "t-b2u",
                       "type": "flow_var",
                       "variable": "score",
                       "operation": "inc",
                       "value": "10"
                     },
                     {
-                      "id": "t-b2d",
+                      "id": "t-b2v",
                       "type": "ai_message",
                       "context": "Vex announces the contestant has cleared another round — points on the board! The crowd goes wild.",
                       "llmEnhance": true
@@ -711,12 +881,12 @@
                 "player-91-100": {
                   "sequential": [
                     {
-                      "id": "t-b2e",
+                      "id": "t-b2w",
                       "type": "system_message",
                       "content": "🥁 FINALE ROUND"
                     },
                     {
-                      "id": "t-b2f",
+                      "id": "t-b2x",
                       "type": "ai_message",
                       "context": "Vex grabs the mic: 'Ladies and gentlemen — THE FINAL ROUND. Anything can happen!'",
                       "llmEnhance": true
@@ -731,7 +901,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "a-b2g",
+                          "id": "a-b2y",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -741,7 +911,7 @@
                           }
                         },
                         {
-                          "id": "c-b2j",
+                          "id": "c-b31",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -750,7 +920,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b2h",
+                              "id": "c-b2z",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -761,7 +931,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b2i",
+                              "id": "a-b30",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -779,7 +949,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b2m",
+                          "id": "c-b34",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -788,7 +958,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b2k",
+                              "id": "c-b32",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -799,7 +969,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b2l",
+                              "id": "a-b33",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -811,14 +981,14 @@
                           ]
                         },
                         {
-                          "id": "c-b2r",
+                          "id": "c-b39",
                           "kind": "container",
                           "type": "if",
                           "once": true,
                           "params": {},
                           "children": [
                             {
-                              "id": "br-b2o",
+                              "id": "br-b36",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -834,7 +1004,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b2n",
+                                  "id": "a-b35",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -846,7 +1016,7 @@
                               ]
                             },
                             {
-                              "id": "br-b2q",
+                              "id": "br-b38",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -854,7 +1024,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b2p",
+                                  "id": "a-b37",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -874,7 +1044,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "a-b2s",
+                          "id": "a-b3a",
                           "kind": "action",
                           "type": "ai_message",
                           "once": true,
@@ -884,7 +1054,7 @@
                           }
                         },
                         {
-                          "id": "c-b2v",
+                          "id": "c-b3d",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -893,7 +1063,7 @@
                           },
                           "children": [
                             {
-                              "id": "c-b2t",
+                              "id": "c-b3b",
                               "kind": "container",
                               "type": "call_minigame",
                               "once": true,
@@ -904,7 +1074,7 @@
                               "children": []
                             },
                             {
-                              "id": "a-b2u",
+                              "id": "a-b3c",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -916,7 +1086,7 @@
                           ]
                         },
                         {
-                          "id": "a-b2w",
+                          "id": "a-b3e",
                           "kind": "action",
                           "type": "flow_var",
                           "once": true,

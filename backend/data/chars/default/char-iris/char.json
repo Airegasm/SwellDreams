@@ -112,13 +112,13 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b1z",
+                    "id": "bt-b2h",
                     "type": "ai_message",
                     "context": "Dr. Chen makes a precise clinical note about [Player]'s current state, reading the number aloud.",
                     "llmEnhance": true
                   },
                   {
-                    "id": "bt-b20",
+                    "id": "bt-b2i",
                     "type": "flow_var",
                     "variable": "data_points",
                     "operation": "inc",
@@ -144,19 +144,19 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b21",
+                    "id": "bt-b2j",
                     "type": "system_message",
                     "content": "Protocol: increment increased."
                   },
                   {
-                    "id": "bt-b22",
+                    "id": "bt-b2k",
                     "type": "flow_var",
                     "variable": "psi",
                     "operation": "inc",
                     "value": "2"
                   },
                   {
-                    "id": "bt-b23",
+                    "id": "bt-b2l",
                     "type": "ai_message",
                     "context": "Dr. Chen increases the pressure increment 'for the dataset', watching the monitors, unmoved.",
                     "llmEnhance": true
@@ -181,14 +181,14 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b24",
+                    "id": "bt-b2m",
                     "type": "flow_var",
                     "variable": "compliance",
                     "operation": "dec",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b25",
+                    "id": "bt-b2n",
                     "type": "ai_message",
                     "context": "Dr. Chen delivers a flat, cutting correction about subject cooperation — no warmth, only expectation.",
                     "llmEnhance": true
@@ -213,14 +213,14 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b26",
+                    "id": "bt-b2o",
                     "type": "flow_var",
                     "variable": "compliance",
                     "operation": "inc",
                     "value": "10"
                   },
                   {
-                    "id": "bt-b27",
+                    "id": "bt-b2p",
                     "type": "ai_message",
                     "context": "Dr. Chen records [Player]'s compliance as satisfactory, the closest she comes to approval.",
                     "llmEnhance": true
@@ -272,6 +272,14 @@
         {
           "user": "*[Player] signals distress on the panic button*",
           "character": "*[Char] immediately checks the monitors* \"Noted. Vitals indicate genuine distress threshold reached.\" [pump off] *makes rapid notes* \"Interesting - your psychological limit preceded your physical capacity by approximately 12%.\" *adjusts glasses* \"We'll document this variance. Rest period initiated. We resume in five minutes.\""
+        },
+        {
+          "user": "*[Player] tries to speak*",
+          "character": "*[Char] holds up a finger without looking up from the readout* \"Save your breath for the measurements, Subject #47. Vocalization is noted, but the PSI curve is what matters here.\""
+        },
+        {
+          "user": "*[Player] pulls at the restraints*",
+          "character": "*[Char] makes a small notation* \"Restraint tension: elevated. Expected at this capacity.\" *adjusts her glasses* \"The apparatus holds. Your compliance is what's variable.\""
         },
         {
           "user": "*[Player] tries to speak*",
@@ -381,19 +389,19 @@
                 "player-1-10": {
                   "sequential": [
                     {
-                      "id": "t-b1b",
+                      "id": "t-b1t",
                       "type": "system_message",
                       "content": "Dr. Chen taps her clipboard and begins the log."
                     },
                     {
-                      "id": "t-b1c",
+                      "id": "t-b1u",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b1d",
+                      "id": "t-b1v",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
@@ -405,21 +413,21 @@
                 "player-21-30": {
                   "sequential": [
                     {
-                      "id": "t-b1e",
+                      "id": "t-b1w",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b1f",
+                      "id": "t-b1x",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
                       "value": "5"
                     },
                     {
-                      "id": "t-b1g",
+                      "id": "t-b1y",
                       "type": "ai_message",
                       "context": "Dr. Chen records the current circumference and notes it as 'consistent with the model'.",
                       "llmEnhance": true
@@ -430,21 +438,21 @@
                 "player-71-80": {
                   "sequential": [
                     {
-                      "id": "t-b1h",
+                      "id": "t-b1z",
                       "type": "flow_var",
                       "variable": "data_points",
                       "operation": "inc",
                       "value": "1"
                     },
                     {
-                      "id": "t-b1i",
+                      "id": "t-b20",
                       "type": "flow_var",
                       "variable": "psi",
                       "operation": "set",
                       "value": "9"
                     },
                     {
-                      "id": "t-b1j",
+                      "id": "t-b21",
                       "type": "ai_message",
                       "context": "Dr. Chen leans in with clinical fascination and notes that Subject #47 is approaching the documented threshold.",
                       "llmEnhance": true
@@ -459,14 +467,14 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b1o",
+                          "id": "c-b26",
                           "kind": "container",
                           "type": "if",
                           "once": true,
                           "params": {},
                           "children": [
                             {
-                              "id": "br-b1l",
+                              "id": "br-b23",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -482,7 +490,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1k",
+                                  "id": "a-b22",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -494,7 +502,7 @@
                               ]
                             },
                             {
-                              "id": "br-b1n",
+                              "id": "br-b25",
                               "kind": "container",
                               "type": "branch",
                               "params": {
@@ -502,7 +510,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1m",
+                                  "id": "a-b24",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -516,7 +524,7 @@
                           ]
                         },
                         {
-                          "id": "c-b1q",
+                          "id": "c-b28",
                           "kind": "container",
                           "type": "chance",
                           "once": true,
@@ -525,7 +533,7 @@
                           },
                           "children": [
                             {
-                              "id": "a-b1p",
+                              "id": "a-b27",
                               "kind": "action",
                               "type": "ai_message",
                               "once": true,
@@ -543,7 +551,7 @@
                     "inline": {
                       "nodes": [
                         {
-                          "id": "c-b1y",
+                          "id": "c-b2g",
                           "kind": "container",
                           "type": "player_choice",
                           "once": true,
@@ -552,7 +560,7 @@
                           },
                           "children": [
                             {
-                              "id": "ch-b1u",
+                              "id": "ch-b2c",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -560,7 +568,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1r",
+                                  "id": "a-b29",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -570,7 +578,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1s",
+                                  "id": "a-b2a",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -581,7 +589,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1t",
+                                  "id": "a-b2b",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,
@@ -594,7 +602,7 @@
                               ]
                             },
                             {
-                              "id": "ch-b1x",
+                              "id": "ch-b2f",
                               "kind": "container",
                               "type": "choice",
                               "params": {
@@ -602,7 +610,7 @@
                               },
                               "children": [
                                 {
-                                  "id": "a-b1v",
+                                  "id": "a-b2d",
                                   "kind": "action",
                                   "type": "ai_message",
                                   "once": true,
@@ -612,7 +620,7 @@
                                   }
                                 },
                                 {
-                                  "id": "a-b1w",
+                                  "id": "a-b2e",
                                   "kind": "action",
                                   "type": "flow_var",
                                   "once": true,

@@ -162,14 +162,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-bt",
+                  "id": "a-bz",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-bu",
+                  "id": "a-b10",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Luna's eyes light up — she suggests a quick game of rock-paper-scissors, winner picks what happens next, and grins at [Player] to make their throw.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b11",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b12",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -180,14 +200,84 @@
                   "children": []
                 },
                 {
-                  "id": "a-bv",
+                  "id": "a-b13",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The rock-paper-scissors throw resolves as [CharVar:GameResult] for [Player]. Luna reacts to who won with delight, rewarding or teasing accordingly.",
+                    "context": "The throw resolves as [CharVar:GameResult] for [Player]. Luna reacts with delight — if they won she rewards them with a break, if they lost she giggles and gets to add a little more.",
                     "llmEnhance": true
                   }
+                },
+                {
+                  "id": "c-by",
+                  "kind": "container",
+                  "type": "if",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "br-bu",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Lose"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-bt",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "4"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-bw",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Win"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-bv",
+                          "kind": "action",
+                          "type": "pump_off",
+                          "once": false,
+                          "params": {}
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-bx",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "else": true
+                      },
+                      "children": []
+                    }
+                  ]
                 }
               ]
             }
@@ -206,14 +296,34 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-bw",
+                  "id": "a-b1a",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-bx",
+                  "id": "a-b1b",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Luna deals a hand of blackjack, teasing [Player] about the sweet stakes: beat her and they get a break, lose and she fills them a touch more. She asks if they're ready, playful and warm.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b1c",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b1d",
                   "kind": "container",
                   "type": "call_minigame",
                   "once": false,
@@ -224,14 +334,84 @@
                   "children": []
                 },
                 {
-                  "id": "a-by",
+                  "id": "a-b1e",
                   "kind": "action",
                   "type": "ai_message",
                   "once": false,
                   "params": {
-                    "context": "The blackjack hand ends: [CharVar:GameResult]. Luna plays it up as a sweet little bet between the two of them.",
+                    "context": "The blackjack hand ends: [CharVar:GameResult]. Luna plays it up as a loving little bet — a break if [Player] won, a gentle top-up if she did.",
                     "llmEnhance": true
                   }
+                },
+                {
+                  "id": "c-b19",
+                  "kind": "container",
+                  "type": "if",
+                  "once": false,
+                  "params": {},
+                  "children": [
+                    {
+                      "id": "br-b15",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Lose"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b14",
+                          "kind": "action",
+                          "type": "pump_on",
+                          "once": false,
+                          "params": {
+                            "duration": "4"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b17",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "match": "all",
+                        "conditions": [
+                          {
+                            "varType": "flow",
+                            "variable": "GameResult",
+                            "operator": "contains",
+                            "value": "Win"
+                          }
+                        ]
+                      },
+                      "children": [
+                        {
+                          "id": "a-b16",
+                          "kind": "action",
+                          "type": "pump_off",
+                          "once": false,
+                          "params": {}
+                        }
+                      ]
+                    },
+                    {
+                      "id": "br-b18",
+                      "kind": "container",
+                      "type": "branch",
+                      "params": {
+                        "else": true
+                      },
+                      "children": []
+                    }
+                  ]
                 }
               ]
             }
@@ -250,28 +430,48 @@
             "inline": {
               "nodes": [
                 {
-                  "id": "a-bz",
+                  "id": "a-b1f",
                   "kind": "action",
                   "type": "pump_off",
                   "once": false,
                   "params": {}
                 },
                 {
-                  "id": "c-b16",
+                  "id": "a-b1g",
+                  "kind": "action",
+                  "type": "ai_message",
+                  "once": false,
+                  "params": {
+                    "context": "Luna bounces up with a mischievous grin — 'Let's play for it, baby.' She picks a game between them and tells [Player] the winner decides the next move.",
+                    "llmEnhance": true,
+                    "maxTokens": 155
+                  }
+                },
+                {
+                  "id": "a-b1h",
+                  "kind": "action",
+                  "type": "delay",
+                  "once": false,
+                  "params": {
+                    "duration": "2"
+                  }
+                },
+                {
+                  "id": "c-b1o",
                   "kind": "container",
                   "type": "random",
                   "once": false,
                   "params": {},
                   "children": [
                     {
-                      "id": "c-b12",
+                      "id": "c-b1k",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b10",
+                          "id": "c-b1i",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -282,7 +482,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b11",
+                          "id": "a-b1j",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -294,14 +494,14 @@
                       ]
                     },
                     {
-                      "id": "c-b15",
+                      "id": "c-b1n",
                       "kind": "container",
                       "type": "group",
                       "once": false,
                       "params": {},
                       "children": [
                         {
-                          "id": "c-b13",
+                          "id": "c-b1l",
                           "kind": "container",
                           "type": "call_minigame",
                           "once": false,
@@ -312,7 +512,7 @@
                           "children": []
                         },
                         {
-                          "id": "a-b14",
+                          "id": "a-b1m",
                           "kind": "action",
                           "type": "ai_message",
                           "once": false,
@@ -344,23 +544,23 @@
                 "type": "group",
                 "triggers": [
                   {
-                    "id": "bt-b17",
+                    "id": "bt-b1p",
                     "type": "pump_off"
                   },
                   {
-                    "id": "bt-b18",
+                    "id": "bt-b1q",
                     "type": "flow_var",
                     "variable": "safeword",
                     "operation": "set",
                     "value": "1"
                   },
                   {
-                    "id": "bt-b19",
+                    "id": "bt-b1r",
                     "type": "system_message",
                     "content": "Safeword used — everything stops."
                   },
                   {
-                    "id": "bt-b1a",
+                    "id": "bt-b1s",
                     "type": "ai_message",
                     "context": "Luna stops absolutely everything, gathers [Player] into her arms, and just holds them, all softness and care.",
                     "llmEnhance": true
@@ -412,6 +612,14 @@
         {
           "user": "*[Player] gasps* \"Luna... I need to stop...\"",
           "character": "*[Char] immediately reaches for the switch* \"Of course, baby.\" [pump off] *pulls [Player] close* \"Shhhh, I've got you.\" *strokes hair gently* \"You did amazing. I'm so proud of you. Just rest now, okay? We can always try again later.\""
+        },
+        {
+          "user": "*[Player] whispers* \"It's a lot...\"",
+          "character": "*[Char] laces her fingers through [Player]'s* \"I know, baby. Look how much you're taking for me — you're perfect. We stop the second you need.\""
+        },
+        {
+          "user": "*[Player] relaxes into her*",
+          "character": "*[Char] presses a slow kiss to their temple* \"There she is. That's my good one. Just breathe with me, sweetheart — I've got every bit of you.\""
         },
         {
           "user": "*[Player] whispers* \"It's a lot...\"",
