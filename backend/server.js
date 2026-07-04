@@ -11948,8 +11948,11 @@ function treeHasEndIntro(tree) {
 // end_intro) would otherwise leave introActive stuck true and the UNLOCK gate never armed — so once the
 // last message has posted (nothing pending), arm the manual-release gate so UNLOCK lights up.
 function finalizeIntroSequence(character, force = false) {
-  if (!sessionState.introActive) { console.log('[Intro] finalize skip — not active'); return; }        // already ended via end_intro
-  if (sessionState.awaitingGoRelease) { console.log('[Intro] finalize skip — already armed'); return; } // gate already armed
+  if (!sessionState.introActive) { console.log('[Intro] finalize skip — not active'); return; } // already ended via end_intro
+  // NOTE: do NOT early-return on awaitingGoRelease. The "Press UNLOCK to exit intro" option arms
+  // awaitingGoRelease at intro START (while introActive is still true) — bailing here would leave
+  // introActive stuck true forever, so UNLOCK (ready = awaitingGoRelease && !introActive) never lit.
+  // We MUST fall through to clear introActive on completion even when the gate was pre-armed.
   if (sessionState.pendingTreeNext || sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame) {
     console.log('[Intro] finalize deferred — still pending', { next: !!sessionState.pendingTreeNext, choice: !!sessionState.pendingTreeChoice, resume: !!sessionState.pendingTreeResume, game: !!sessionState.pendingTreeGame });
     return; // genuinely mid-sequence (>> / choice / minigame armed) — wait for it
