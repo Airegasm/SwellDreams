@@ -909,6 +909,13 @@ Write only the scenario description itself, no explanations.`;
     set({ versions: versions.filter(x => x.id !== id), activeVersionId: formData.activeVersionId === id ? '' : formData.activeVersionId });
   };
 
+  // ---- Character Variables (Library tab): named vars with a default value that loads on New Session.
+  // Reference anywhere with [CharVar:Name]; a "Set CharVar" trigger mutates them mid-session. ----
+  const charVariables = formData.charVariables || [];
+  const addCharVar = () => set({ charVariables: [...charVariables, { id: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, name: '', value: '' }] });
+  const updateCharVar = (id, field, val) => set({ charVariables: charVariables.map(v => (v.id === id ? { ...v, [field]: val } : v)) });
+  const deleteCharVar = (id) => set({ charVariables: charVariables.filter(v => v.id !== id) });
+
   // ---- Button Sets (swap whole sets of custom buttons; isolated by card mode) ----
   // The working buttons live in formData.buttons (backend + existing CRUD use them). A set is a
   // named snapshot tagged with a mode; loading copies its buttons into formData.buttons. Saving on
@@ -1776,6 +1783,27 @@ Write only the scenario description itself, no explanations.`;
         {/* ---- Library (matches the release single-char Library tab: the lorebook-format
                 entry editor only; Dictionary/shared groups live on the Main tab via CardLoreSection) ---- */}
         <div className="modal-body character-modal-body" style={{ display: activeTab === 'library' ? 'block' : 'none' }}>
+          {/* ---- Character Variables: default value loads on New Session; [CharVar:Name] anywhere ---- */}
+          <div className="events-header">
+            <h4>Character Variables</h4>
+            <button type="button" className="btn btn-primary btn-sm" onClick={addCharVar}>+ Add Variable</button>
+          </div>
+          <p className="section-hint">Named values seeded at the start of a new session. Reference anywhere with <code>[CharVar:Name]</code> (prompts, welcome, triggers); a <strong>Set CharVar</strong> trigger changes them mid-scene. Great for tracking state across ranges (e.g. <code>defiance</code>, <code>rounds_won</code>).</p>
+          <div className="charvar-list" style={{ marginBottom: 16 }}>
+            {charVariables.length === 0 ? (
+              <p className="empty-message">No character variables yet.</p>
+            ) : charVariables.map(v => (
+              <div key={v.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                <input type="text" value={v.name} onChange={(e) => updateCharVar(v.id, 'name', e.target.value.replace(/[^A-Za-z0-9_]/g, ''))}
+                  placeholder="Name (letters/numbers/_)" style={{ flex: 1, minWidth: 0 }} title="Referenced as [CharVar:Name]" />
+                <span style={{ opacity: 0.6 }}>=</span>
+                <input type="text" value={v.value} onChange={(e) => updateCharVar(v.id, 'value', e.target.value)}
+                  placeholder="default value" style={{ flex: 1, minWidth: 0 }} />
+                <button type="button" className="btn btn-sm btn-danger" onClick={() => deleteCharVar(v.id)}>−</button>
+              </div>
+            ))}
+          </div>
+
           {/* ---- Per-card lore entries (standard/group): author globalReminders via LoreEntryEditor ---- */}
           {!isInstructorMode && (
             <div className="reminders-editor">
@@ -2178,6 +2206,7 @@ Write only the scenario description itself, no explanations.`;
 
             {[
               { key: 'dominant', label: 'Dominant', hint: 'Take control of the situation. Be assertive, commanding, and decisive.' },
+              { key: 'submissive', label: 'Submissive', hint: 'Yield and defer. Be eager to please, obedient, and responsive to direction.' },
               { key: 'sadistic', label: 'Sadistic', hint: 'Be cruel, teasing, and take pleasure in discomfort.' },
               { key: 'psychopathic', label: 'Psychopathic', hint: 'Be unhinged, unpredictable, and unsettling.' },
               { key: 'sensual', label: 'Sensual', hint: 'Be caring, tender, and amorous. Focus on intimacy and connection.' },

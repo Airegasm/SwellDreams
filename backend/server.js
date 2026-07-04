@@ -5250,6 +5250,22 @@ function clearCharSession(charId) {
     if (fs.existsSync(p)) fs.unlinkSync(p);
   } catch (e) { console.error('[CharSession] clear failed:', e?.message || e); }
 }
+// Seed a character's Character Variables (Library tab) into the live variable store — each gets its
+// default value at the start of a NEW session. Reference them anywhere with [CharVar:Name]; triggers
+// (Set CharVar) mutate them from there. Restored/saved sessions keep their saved values instead.
+function seedCharVariables(character) {
+  const vars = character?.charVariables;
+  if (!Array.isArray(vars) || !vars.length) return;
+  let n = 0;
+  for (const v of vars) {
+    const name = String(v?.name || '').trim();
+    if (!name) continue;
+    eventEngine.applySetVariable('custom', name, 'set', v.value ?? '');
+    n++;
+  }
+  if (n) console.log(`[Session] Seeded ${n} character variable default(s) for ${character.name}`);
+}
+
 // Clear the live chat/context (no device side-effects) before restoring or starting a session on a
 // character switch — prevents the previous character's context from bleeding into the new one.
 function clearSessionContextForSwitch() {
@@ -5279,6 +5295,7 @@ function clearSessionContextForSwitch() {
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
   sessionState.flowVariables = {};
+  eventEngine.variables = {}; // canonical [CharVar:] map — without this the OLD character's variables leaked across a switch
   sessionState.preFillActive = false;
   sessionState.preFillStepId = null;
   setIntroActive(false);
@@ -11028,6 +11045,7 @@ function buildLeanEnhanceContext(character, persona, settings, historyTail = 2) 
 
 const ATTRIBUTE_PROMPTS = {
   dominant: 'Take control of the situation. Be assertive, commanding, and decisive. Direct the scene rather than following.',
+  submissive: 'Yield and defer. Be eager to please, obedient, and responsive to direction rather than leading the scene.',
   sadistic: 'Be cruel, teasing, and take pleasure in discomfort. Push boundaries and enjoy reactions.',
   psychopathic: 'Be unhinged, unpredictable, and unsettling. Disregard normal social boundaries completely.',
   sensual: 'Be caring, tender, and amorous. Focus on intimacy, touch, and emotional connection.',
@@ -11144,7 +11162,7 @@ function rollAttributes(character) {
     const fallback = activeStory?.attributes || {};
     const byMember = {};
     const rolls = [];
-    const TRAIT_KEYS = ['dominant', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
+    const TRAIT_KEYS = ['dominant', 'submissive', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
     for (const m of (character.multiChar.characters || [])) {
       // Fall back to the shared card attributes unless this member has a NON-ZERO trait chance of its
       // own. (memberAttributes[id] also holds dispositions/zeroed sliders, so Object.keys length would
@@ -14374,6 +14392,7 @@ app.post('/api/settings', async (req, res) => {
         sessionState.chatMemorySummary = snap.chatMemorySummary || null;
         sessionState.chatMemorySummaryUpTo = snap.chatMemorySummaryUpTo || 0;
         sessionState.flowVariables = snap.flowVariables || {};
+        eventEngine.variables = { ...(snap.flowVariables || {}) }; // keep the canonical [CharVar:] map in step with the restore
         switchRestored = true;
       }
     }
@@ -14384,6 +14403,7 @@ app.post('/api/settings', async (req, res) => {
       const _st = _ch?.stories?.find(s => s.id === _ch.activeStoryId) || _ch?.stories?.[0];
       sessionState.capacity = _st?.startingCapacity || 0;
       sessionState.pain = 0;
+      seedCharVariables(_ch); // Character Variables load their defaults with the new session
     }
     // Set the pre-inflation gate for the NEW character (mirrors /api/session/reset). Without this,
     // a switch inherits a stale gate from a previous instructor/intro/pre-fill session, which would
@@ -17919,6 +17939,43 @@ function loadMiniGames() {
 }
 function saveMiniGames(data) { fs.writeFileSync(MINIGAMES_PATH, JSON.stringify(data, null, 2)); }
 
+// Ship one of every MiniGame type as a stable-id default (minigames.json is gitignored runtime
+// data, so we seed like ensureDefaultConnectionProfiles rather than commit the file). Default cards
+// reference these ids in Call MiniGame nodes. Only ADDS missing ids — a user's own games and edits
+// to a seeded game are untouched; a deleted default re-appears on next start (matches profiles).
+const DEFAULT_MINIGAMES = [
+  { id: 'mg-default-wheel', name: 'Prize Wheel', type: 'prize_wheel', config: { segments: [
+    { id: 'seg-a', label: 'Double Puff', color: '#fb923c', weight: 1 },
+    { id: 'seg-b', label: 'Hold Pressure', color: '#3b82f6', weight: 1 },
+    { id: 'seg-c', label: 'Contestant’s Choice', color: '#22c55e', weight: 1 },
+    { id: 'seg-d', label: 'Mystery Box', color: '#a855f7', weight: 1 },
+  ] } },
+  { id: 'mg-default-dice', name: 'Dice Roll', type: 'dice_roll', config: { diceCount: 2, characterAdvantage: 0 } },
+  { id: 'mg-default-coin', name: 'Coin Flip', type: 'coin_flip', config: { headsLabel: 'Heads', tailsLabel: 'Tails', headsWeight: 50, bestOf: 1 } },
+  { id: 'mg-default-rps', name: 'Rock Paper Scissors', type: 'rps', config: { bestOf: 1, characterBias: 0 } },
+  { id: 'mg-default-slots', name: 'Slots', type: 'slot_machine', config: { symbols: ['🍒', '🍋', '🔔', '⭐', '7️⃣'], exits: [
+    { id: 'ex-a', label: 'Jackpot', pattern: 'three-of-a-kind' },
+    { id: 'ex-b', label: 'Small Win', pattern: 'two-of-a-kind' },
+    { id: 'ex-c', label: 'No Matches', pattern: 'no-match' },
+  ] } },
+  { id: 'mg-default-blackjack', name: 'Blackjack', type: 'card_draw', config: { target: 21, charStandsAt: 17 } },
+  { id: 'mg-default-simon', name: 'Simon', type: 'simon_challenge', config: { startingLength: 3, maxLength: 8, maxMisses: 3, penaltyDevice: '', penaltyDuration: 3, grandPenaltyDevice: '', grandPenaltyDuration: 10, rewardDevice: '', rewardDuration: 5 } },
+];
+function ensureDefaultMiniGames() {
+  const data = loadMiniGames();
+  if (!Array.isArray(data.games)) data.games = [];
+  let added = false;
+  for (const g of DEFAULT_MINIGAMES) {
+    if (!data.games.some(x => x.id === g.id)) {
+      data.games.push({ ...g, config: JSON.parse(JSON.stringify(g.config)), createdAt: Date.now(), updatedAt: Date.now() });
+      added = true;
+      console.log(`[Startup] Added default MiniGame: ${g.name} (${g.type})`);
+    }
+  }
+  if (added) saveMiniGames(data);
+}
+ensureDefaultMiniGames();
+
 app.get('/api/minigames', (req, res) => res.json(loadMiniGames()));
 
 app.post('/api/minigames', (req, res) => {
@@ -19373,6 +19430,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.pumpReady = pumpReadyDefaults();
   sessionState.soloSpeaker = null;
   sessionState.flowVariables = {};
+  eventEngine.variables = {}; // canonical [CharVar:] map — reset with the session, reseeded from charVariables below
   sessionState.flowAssignments = { personas: {}, characters: {}, global: [] };
   sessionState.executionHistory = {
     deliveredMessages: new Set(),
@@ -19441,6 +19499,7 @@ app.post('/api/session/reset', async (req, res) => {
   if (settings?.activeCharacterId) {
     const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
     const activeCharacter = characters.find(c => c.id === settings.activeCharacterId);
+    seedCharVariables(activeCharacter); // Character Variables (Library tab) load their defaults on New Session
     let gateActive = false;
 
     if (activeCharacter && sessionState.capacity === 0) {

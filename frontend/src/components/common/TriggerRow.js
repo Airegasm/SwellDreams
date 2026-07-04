@@ -42,7 +42,7 @@ const POP_OTHERS_OPTIONS = [
   { value: 'sadistic', label: 'Sadistic' }
 ];
 
-const ATTRIBUTE_KEYS = ['dominant', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
+const ATTRIBUTE_KEYS = ['dominant', 'submissive', 'sadistic', 'psychopathic', 'sensual', 'sexual'];
 const PERSONA_ATTRIBUTE_KEYS = ['dominant', 'submissive', 'sadistic', 'masochistic', 'sensual', 'sexual'];
 
 const PUMP_MODES = [
