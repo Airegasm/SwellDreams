@@ -11313,6 +11313,12 @@ function buildStatePreface(playerName, charName, character) {
     preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
   }
 
+  // HARD failsafe — the size/sensation lines above only STATE reality; this FORBIDS escalation.
+  // Without it, an aggressive card (maxed attributes, an "obsessed" inflator, "pump to the limit",
+  // an author's note to "drive the plot forward / avoid positivity bias") narrates a belly far ahead
+  // of the gauge — the model plays the character's goal instead of the current number. Injected at
+  // depth-0 (right before the primer), so it's the last thing the model reads before generating.
+  preface += `This is the ONLY size and sensation that exists right now — describe exactly this and nothing further. Do NOT depict ${playerName}${(isPumpable && charCap > 0) ? ` or ${charName}` : ''} as bigger, fuller, rounder, or further along than the percentage stated above, no matter what any character wants, intends, or is "eager" to do. The belly grows ONLY as the number rises, never in narration or imagination. If you state a number, use ONLY the exact percentage above.\n`;
   preface += `]\n`;
   return preface;
 }
