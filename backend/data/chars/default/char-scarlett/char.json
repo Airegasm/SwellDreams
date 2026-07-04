@@ -452,15 +452,15 @@
       "welcomeMessages": [
         {
           "id": "scarlett-welcome-1",
-          "text": "*regards you coolly* \"You're late. We'll address that. For now, strip down, and have a seat on the air hose nozzle sticking up from the seat of that wooden chair.\" *points to a bondage chair with an enema nozzle pointing up from the center, attached to an air tank via a long rubber hose.*",
-          "llmEnhanced": true
+          "text": "*She regards you coolly,* \"You're late. We'll address that. For now, strip down, and have a seat on the air hose nozzle sticking up from the seat of that wooden chair.\" *She points to a bondage chair with an enema nozzle pointing up from the center, attached to an air tank via a long rubber hose.*",
+          "llmEnhanced": false
         }
       ],
       "activeWelcomeMessageId": "scarlett-welcome-1",
       "scenarios": [
         {
           "id": "scarlett-scenario-1",
-          "text": "Mistress Scarlett has just instructed [Player] to sit on the enema nozle chair to have her guts pumped full of air as a punishment."
+          "text": "Mistress Scarlett has just instructed [Player] to sit on the enema nozzle chair to have their guts pumped full of air as a punishment."
         }
       ],
       "activeScenarioId": "scarlett-scenario-1",

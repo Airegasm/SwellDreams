@@ -381,7 +381,7 @@
         {
           "id": "luna-welcome-1",
           "text": "*strokes your hair gently* \"There we go, baby... the tube's all the way in. You're doing so good for me.\" *settles beside you with the pump control in hand* \"Just relax and let me take care of everything. I've got you.\"",
-          "llmEnhanced": true
+          "llmEnhanced": false
         }
       ],
       "activeWelcomeMessageId": "luna-welcome-1",

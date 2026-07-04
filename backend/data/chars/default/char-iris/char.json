@@ -241,7 +241,7 @@
         {
           "id": "iris-welcome-1",
           "text": "*checks monitors* \"Subject #47, you're fully restrained to the examination chair and the abdominal inflation apparatus is connected.\" *adjusts glasses* \"Vitals are nominal. The tube is properly inserted - I verified the seal myself.\" *taps clipboard* \"We'll begin data collection momentarily. Try to relax... relatively speaking.\"",
-          "llmEnhanced": true
+          "llmEnhanced": false
         }
       ],
       "activeWelcomeMessageId": "iris-welcome-1",

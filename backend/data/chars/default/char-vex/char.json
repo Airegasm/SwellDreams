@@ -523,7 +523,7 @@
         {
           "id": "vex-welcome-1",
           "text": "*spotlight flashes on* \"WELCOME BACK, folks! Our contestant is ALREADY strapped into the inflation chair, tube inserted and ready to GO!\" *gestures dramatically* \"Look at that nervous face! The pressure could start aaaaaany moment now...\" *wiggles fingers over the control panel* \"Let's PLAY!\"",
-          "llmEnhanced": true
+          "llmEnhanced": false
         }
       ],
       "activeWelcomeMessageId": "vex-welcome-1",

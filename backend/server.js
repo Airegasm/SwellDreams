@@ -6072,7 +6072,7 @@ async function sendWelcomeMessage(character, settings) {
       if (isInstructor(character)) {
         systemPrompt += `Deliver the opening instruction to the player. Stay terse, direct, and on-mission — do not embellish. Base it on this template:\n\n"${welcomeMsg.text}"`;
       } else {
-        systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it:\n\n"${welcomeMsg.text}"`;
+        systemPrompt += `Write an engaging, in-character first message to greet the player. Base it on this template but expand and enhance it. Keep roleplay formatting: put *actions and narration in asterisks* and "spoken dialogue in quotes" — do not flatten actions into plain prose.\n\n"${welcomeMsg.text}"`;
       }
 
       const result = await llmService.generate({
