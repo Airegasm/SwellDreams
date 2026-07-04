@@ -285,7 +285,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <textarea
           value={selProfile?.rules || ''}
           onChange={(e) => setProfileRules(e.target.value)}
-          placeholder="Profile-specific behaviour rules — appended while this profile is active. Supports [Flow:Name], [Capacity], etc."
+          placeholder="Profile-specific behaviour rules — appended while this profile is active. Supports [CharVar:Name], [Capacity], etc."
           rows={4}
         />
         <p className="section-hint">Active whenever this profile is loaded (across all 1–100% ranges).</p>

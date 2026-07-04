@@ -32,8 +32,8 @@ function collectLabelNames(nodes, out = []) {
 }
 
 // call_minigame editor (Phase 5): pick a library MiniGame, then bind an OPTIONAL goto per exit —
-// chosen from the tree's Labels (rowProps.treeLabels). The played exit sets [Flow:GameResult]/
-// [Flow:GameWinner]; a bound exit jumps to its Label (placed AFTER this node), unbound falls through.
+// chosen from the tree's Labels (rowProps.treeLabels). The played exit sets [CharVar:GameResult]/
+// [CharVar:GameWinner]; a bound exit jumps to its Label (placed AFTER this node), unbound falls through.
 function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
   const [games, setGames] = React.useState(null);
   React.useEffect(() => {
@@ -58,7 +58,7 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
       {game && (
         <div className="tree-field">
           <span>On each exit, go to (optional; blank = fall through)</span>
-          {exits.length === 0 && <div className="section-hint">No named exits — this game sets <code>[Flow:GameResult]</code> only (e.g. dice = numeric total). Branch on it with conditions.</div>}
+          {exits.length === 0 && <div className="section-hint">No named exits — this game sets <code>[CharVar:GameResult]</code> only (e.g. dice = numeric total). Branch on it with conditions.</div>}
           {exits.map(exit => {
             const cur = gotos[exit] || '';
             // Include the stored value even if its Label was since removed, so it isn't lost.
@@ -75,7 +75,7 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
             );
           })}
           {exits.length > 0 && labels.length === 0 && <div className="section-hint">Add <strong>Label</strong> nodes after this one to bind gotos.</div>}
-          <div className="section-hint">Sets <code>[Flow:GameResult]</code>{game.competitive ? <> and <code>[Flow:GameWinner]</code></> : null}. Goto targets must be Labels placed AFTER this node.</div>
+          <div className="section-hint">Sets <code>[CharVar:GameResult]</code>{game.competitive ? <> and <code>[CharVar:GameWinner]</code></> : null}. Goto targets must be Labels placed AFTER this node.</div>
         </div>
       )}
     </div>
@@ -201,7 +201,7 @@ function summarize(node) {
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
     if (t === 'end_intro') return `End Gated Intro${p.manualRelease ? ' (GO! gate)' : ''}${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
-    if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'Flow'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
+    if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'CharVar'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
   }
   if (t === 'group') return `Group · ${(node.children || []).length} item(s)`;
@@ -259,7 +259,7 @@ function ConditionRow({ cond, onChange, onRemove }) {
   return (
     <div className="tree-cond-row">
       <select value={cond.varType || 'flow'} onChange={(e) => set({ varType: e.target.value })} title="Variable source">
-        <option value="flow">Flow</option>
+        <option value="flow">CharVar</option>
         <option value="system">System</option>
       </select>
       {cond.varType === 'system' ? (
@@ -274,7 +274,7 @@ function ConditionRow({ cond, onChange, onRemove }) {
         {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {!noOperand && (
-        <input type="text" value={cond.value ?? ''} onChange={(e) => set({ value: e.target.value })} placeholder="value or [Flow:x]" />
+        <input type="text" value={cond.value ?? ''} onChange={(e) => set({ value: e.target.value })} placeholder="value or [CharVar:x]" />
       )}
       <button type="button" className="tree-x" onClick={onRemove} title="Remove condition">×</button>
     </div>

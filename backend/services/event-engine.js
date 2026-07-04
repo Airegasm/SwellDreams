@@ -5333,10 +5333,11 @@ class EventEngine {
     result = result.replace(/\[Roll\]/gi, this.variables['Roll'] || '');          // Dice total rolled
     result = result.replace(/\[Slots\]/gi, this.variables['Slots'] || '');        // Slot machine symbols
 
-    // Flow variables - [Flow:varname] syntax. The name may contain spaces or
-    // be built dynamically by an inner substitution on a prior pass (e.g. a
-    // choice label like "Big Red"); brackets are excluded so it stops cleanly.
-    result = result.replace(/\[Flow:([^[\]]+)\]/gi, (match, varName) => {
+    // Character variables — [CharVar:varname] is the DOCUMENTED syntax (flows are retired, so the
+    // old [Flow:...] name only confuses); [Flow:varname] stays a silent legacy alias for old cards.
+    // The name may contain spaces or be built dynamically by an inner substitution on a prior pass
+    // (e.g. a choice label like "Big Red"); brackets are excluded so it stops cleanly.
+    result = result.replace(/\[(?:CharVar|Flow):([^[\]]+)\]/gi, (match, varName) => {
       const key = varName.trim();
       return this.variables[key] !== undefined ? this.variables[key] : match;
     });
@@ -5361,12 +5362,12 @@ class EventEngine {
       return parseFloat(expr);
     }
 
-    // Check for [Flow:varname] syntax
-    const flowMatch = expr.match(/^\[Flow:(\w+)\]$/i);
+    // Check for [CharVar:varname] syntax ([Flow:...] = legacy alias)
+    const flowMatch = expr.match(/^\[(?:CharVar|Flow):(\w+)\]$/i);
     if (flowMatch) {
       const varName = flowMatch[1];
       const value = this.variables[varName];
-      console.log(`[EventEngine] evaluateExpression: [Flow:${varName}] = ${value}`);
+      console.log(`[EventEngine] evaluateExpression: [CharVar:${varName}] = ${value}`);
       return value !== undefined ? value : expr;
     }
 

@@ -59,7 +59,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'ai_message', label: 'Char AI Message' },
     { value: 'ai_message_member', label: 'Group Member Message' },
     { value: 'system_message', label: 'System Message' },
-    { value: 'flow_var', label: 'Set Flow Variable' },
+    { value: 'flow_var', label: 'Set CharVar (variable)' },
   ];
 
   if (isPumpable) {

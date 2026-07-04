@@ -4928,8 +4928,8 @@ function substituteAllVariables(text, context = {}) {
     result = result.replace(/\[ChallengeOutcome\]/gi, '');
   }
 
-  // Flow variables - [Flow:varname] syntax
-  result = result.replace(/\[Flow:(\w+)\]/gi, (match, varName) => {
+  // Character variables — [CharVar:varname] (documented) / [Flow:varname] (legacy alias)
+  result = result.replace(/\[(?:CharVar|Flow):(\w+)\]/gi, (match, varName) => {
     return sessionState.flowVariables?.[varName] !== undefined
       ? sessionState.flowVariables[varName]
       : match;

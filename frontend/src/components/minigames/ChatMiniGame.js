@@ -7,7 +7,7 @@ import './ChatMiniGame.css';
 
 // In-chat host for a Trigger Tree "Call MiniGame" (Phase 5). Renders the interactive game for the
 // resolved template and reports the fired exit (+ winner for competitive games) via onResult,
-// which the tree resume path turns into [Flow:GameResult] / [Flow:GameWinner] + the bound goto.
+// which the tree resume path turns into [CharVar:GameResult] / [CharVar:GameWinner] + the bound goto.
 // Mirrors the authoring Preview in MiniGames.js, but normalizes every game's onResult to (exit, winner).
 function ChatMiniGame({ data, onResult }) {
   if (!data) return null;

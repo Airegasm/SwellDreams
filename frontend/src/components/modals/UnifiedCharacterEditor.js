@@ -1980,7 +1980,7 @@ Write only the scenario description itself, no explanations.`;
 
             {/* Initial Setup Variables — story-nested (prereqInitVars). */}
             <CollapsibleSection title="Initial Setup Variables" subtitle="Flow/system vars seeded once at session start" badge={(activeStory?.prereqInitVars || []).length || ''}>
-              <p className="section-hint">Reference them anywhere with [Flow:Name]. System: only <strong>capacity</strong> is settable.</p>
+              <p className="section-hint">Reference them anywhere with [CharVar:Name]. System: only <strong>capacity</strong> is settable.</p>
               {(activeStory?.prereqInitVars || []).map((v, i) => {
                 const list = activeStory?.prereqInitVars || [];
                 const upd = (patch) => updateStoryField('prereqInitVars', list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));

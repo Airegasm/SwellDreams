@@ -103,7 +103,7 @@ function PrereqEditor({ steps = [], onChange, profiles = [], defaultPumpType = '
                   rows={2}
                   value={(c.response && typeof c.response === 'object' ? c.response.text : c.response) || ''}
                   onChange={(e) => updChoice(si, ci, { response: { ...(typeof c.response === 'object' ? c.response : {}), text: e.target.value } })}
-                  placeholder="Instructor response when this choice is picked (supports [Flow:Name], [Choice], etc.) — optional"
+                  placeholder="Instructor response when this choice is picked (supports [CharVar:Name], [Choice], etc.) — optional"
                 />
                 <label className="prereq-resp-enh" title="Rewrite this response through the LLM instead of sending it verbatim">
                   <input
