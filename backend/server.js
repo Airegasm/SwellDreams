@@ -9271,7 +9271,10 @@ function stripModelScaffolding(text) {
 
   const lead = s.slice(0, start);
   const tail = s.slice(end + 1);
-  const stripLead = lead.trim() && SCAFFOLD.test(lead);
+  // LEAD: strip EVERYTHING before the first " or * (whichever comes first) — that's where the roleplay
+  // actually begins; anything ahead of it is meta-preamble ("I'll roleplay as … Here is my reply:").
+  const stripLead = !!lead.trim();
+  // TAIL: only strip trailing text that matches a scaffolding signal (don't eat real closing narration).
   const stripTail = tail.trim() && SCAFFOLD.test(tail);
   if (!stripLead && !stripTail) return text;
   const cleaned = ((stripLead ? '' : lead) + s.slice(start, end + 1) + (stripTail ? '' : tail)).trim();
