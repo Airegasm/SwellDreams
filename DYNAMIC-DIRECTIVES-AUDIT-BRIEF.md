@@ -67,3 +67,17 @@ Lesson: sound theory ≠ better output with these models. The baseline (temp 1.0
 5. **Verdict:** proceed with the 1-block device-control test, expand scope, or don't bother — and why.
 
 Please read the cited files directly before judging; line numbers are from `v6.6.94` and may drift.
+
+---
+
+# AUDIT RESULT (Fable 5, 2026-07-04)
+
+**Verdict: do NOT proceed as proposed.** Findings against section 7:
+
+1. **Architecture (Q1): claim true but overstated.** Layer-1/2 split confirmed (`wrapWithTemplate` is envelope-only). BUT the two highest-leverage blocks are ALREADY model-family-aware by design:
+   - `buildDeviceControlInstruction` (server.js:5684) branches Gemma/ChatML (terse rule-list) vs Mistral-family (**worked few-shot demonstration block**, 5697-5714) — a stronger adherence technique than `[OOC:]` framing.
+   - `applyCharacterGuidance` (13938) already injects the director's note at **depth 0 before the primer** to exploit Mistral recency weighting (deliberate, commented, 13945-13948).
+2. **Payoff (Q2): wrong variable.** Experimental record: tags reliable at baseline with `===` wording; compliance collapsed ONLY when samplers changed (v6.6.93 XTC/rep-pen-off) and recovered on revert. Tag compliance is dominated by samplers + few-shot examples + position — all already in the known-good state. No observed adherence failure is attributable to directive wording. The one REAL wording-related symptom is directive **echo** (why `stripLeakedDirectives` exists).
+3. **Style (Q3):** `[OOC:]` or `[SYSTEM NOTE:]` acceptable (single bracket block; echoes cleaned generically by `stripStrayBrackets`). `---`/`###` block REJECTED: `stripStrayBrackets` drops `---`/`#` lines but keeps `* bullet` text → echoed bullets leak into the bubble.
+4. **Regression surface (Q4): SAFETY-CRITICAL coupling found.** `stripLeakedDirectives` (9387) is keyed to the current `===` header keywords. Reformatting directives without updating it in the same commit means echoed blocks stop being stripped — and the device instruction's examples contain literal `[pump on]` lines. Today an echoed block is removed BEFORE device parsing; a reformatted echo would survive (`stripStrayBrackets` preserves pump tags by design) and could **fire the physical pump from an echoed instruction**.
+5. **Recommendation (Q5):** Skip the ~30-block conversion. Never convert `buildDeviceControlInstruction` first (already tuned, safety-critical, known-good — the brief's step-2 inverted). The only worthwhile narrow experiment: convert the echo-prone narrative directives (director's note + stage directions) to `[OOC:]` on Mistral only, update `stripLeakedDirectives` in lockstep, measure **echo frequency** (primary) with **tag reliability** as guardrail. Modest expected win; contained blast radius.
