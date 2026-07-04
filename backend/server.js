@@ -1291,7 +1291,11 @@ function effectiveMaxOnSeconds(settings) {
   const s = settings || loadData(DATA_FILES.settings) || {};
   const globalMax = Number(s.globalCharacterControls?.llmDeviceControlMaxSeconds) || 30;
   const deviceMax = Number(getCharacterLimits(null)?.llmMaxOnDuration) || 5;
-  return Math.max(1, Math.min(deviceMax, globalMax));
+  // Checkpoint range LIMIT SWITCH takes precedence when set and lower: checkpoint → per-pump → global.
+  let eff = Math.max(1, Math.min(deviceMax, globalMax));
+  const rangeCap = sessionState.rangePumpCapSecs;
+  if (Number.isFinite(rangeCap) && rangeCap > 0) eff = Math.max(1, Math.min(eff, rangeCap));
+  return eff;
 }
 
 // A pump must NOT start when capacity is at/above 100% and over-inflation is not allowed.
@@ -12432,6 +12436,20 @@ function getActiveCheckpointRaw(character, capacity) {
   };
 }
 
+// Resolve the active range's pump LIMIT SWITCHES and stash them on sessionState so the cross-module
+// pump-on paths (AI [pump on] in ai-device-control; timedPumpOn / effectiveMaxOnSeconds) can read
+// them. Both are independent and OPTIONAL — blank/unset → null (does not apply, never forces a pump):
+//   • rangePumpCapSecs      — caps a pump-ON's duration in this range (min'd with pump + global limits)
+//   • rangePumpCooldownMsgs — minimum CHAT MESSAGES (player + every character/member bubble) between
+//                             pump-ONs; a pump-on that arrives sooner is blocked.
+function refreshRangePumpGates(character) {
+  const cp = character ? getActiveCheckpointRaw(character, sessionState.capacity) : null;
+  const cap = Number(cp?.maxPumpOnSecs);
+  const cool = Number(cp?.messagesBetweenOn);
+  sessionState.rangePumpCapSecs = (Number.isFinite(cap) && cap > 0) ? cap : null;
+  sessionState.rangePumpCooldownMsgs = (Number.isFinite(cool) && cool > 0) ? cool : null;
+}
+
 // Manual-pump pacing directive for the active range (bulb/bike instructors only).
 // Tells the LLM how many pump operations it may request per batch and how long to
 // wait between batches. Returns '' for electric/auto pumps or when no limits are set.
@@ -13552,6 +13570,7 @@ function buildChatContext(character, settings, opts = {}) {
   systemPrompt += buildPumpReadyDirective(character, activePersona); // who may be described being inflated
 
   // Inject checkpoints at end of system prompt (recency = higher priority for LLM)
+  refreshRangePumpGates(character); // stash this range's pump limit-switches for the pump-on paths
   const checkpointChat = getActiveCheckpoint(character, sessionState.capacity);
   if (checkpointChat?.preInflation) {
     console.log(`[Checkpoints] Injecting PRE-INFLATION for player at ${sessionState.capacity}%`);
@@ -14717,7 +14736,11 @@ function treeKeywordMatches(node) {
     matchWholeWords: node.params?.matchWholeWords !== false,
     logic: node.params?.logic || 'and_any'
   };
-  return reminderEngine._matchKeys(entry, latestPlayerText());
+  // Who has to say the keyword: player (default), character (the AI's last message), or either.
+  const who = node.params?.speaker || 'player';
+  const hitPlayer = (who === 'player' || who === 'either') && reminderEngine._matchKeys(entry, latestPlayerText());
+  const hitChar = (who === 'char' || who === 'character' || who === 'either') && reminderEngine._matchKeys(entry, latestAiText());
+  return !!(hitPlayer || hitChar);
 }
 
 // Run a single Trigger Tree node. Returns a control sentinel (reserved) or undefined.

@@ -302,15 +302,22 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         const on = (introEnabled && (iRef?.inline?.nodes?.length || iRef?.treeId)) ? 'on' : '';
         return (
           <CollapsibleSection title="Intro" subtitle="gated — no pump, blocks other scopes until it ends" badge={on}>
-            <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
-              <input type="checkbox" checked={introEnabled} onChange={(e) => setEnabled(e.target.checked)} />
-              &nbsp;Enable Intro <span className="section-hint" style={{ fontWeight: 400 }}>— when off, the intro never runs and nothing is gated (the pump can fire from the first reply).</span>
-            </label>
-            {introEnabled && (
-              <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
-                <input type="checkbox" checked={readyExit} onChange={(e) => setReadyExit(e.target.checked)} />
-                &nbsp;Press READY to exit intro <span className="section-hint" style={{ fontWeight: 400 }}>— turns the E-STOP/PUMP button into a “READY!” button; pressing it ends the intro, opens the pump gate, and reverts the button to the session's pump.</span>
+            {/* Stacked for mobile: tickbox on its own line, wrapped description below it. */}
+            <div style={{ marginBottom: 8 }}>
+              <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <input type="checkbox" checked={introEnabled} onChange={(e) => setEnabled(e.target.checked)} />
+                Enable Intro
               </label>
+              <div className="section-hint" style={{ fontWeight: 400, marginTop: 2 }}>When off, the intro never runs and nothing is gated — the pump can fire from the first reply.</div>
+            </div>
+            {introEnabled && (
+              <div style={{ marginBottom: 8 }}>
+                <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                  <input type="checkbox" checked={readyExit} onChange={(e) => setReadyExit(e.target.checked)} />
+                  Press UNLOCK to exit intro
+                </label>
+                <div className="section-hint" style={{ fontWeight: 400, marginTop: 2 }}>Lights up the reserved UNLOCK button once the intro's actions finish; pressing it ends the intro, opens the pump gate, and hands control back to the session's pump.</div>
+              </div>
             )}
             {introEnabled && (
               <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
@@ -354,23 +361,28 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
             </div>
           )}
           {isAutoPump && (
-            <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
-              <div>
-                <label title="How many replies between automatic [pump on] events. Skips if the pump is already running.">MSG / ON</label>
-                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.messagesBetweenOn ?? ''}
-                  onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))} placeholder="0 = off" style={{ maxWidth: 120 }} />
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <label title="LIMIT SWITCH — minimum replies between pump-ON events while capacity is in this range; a pump-on that comes too soon is blocked. Blank = no cooldown (does not apply). Never forces the pump on.">Min Replies / Pump ON</label>
+                  <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.messagesBetweenOn ?? ''}
+                    onChange={(e) => setRangeField(key, 'messagesBetweenOn', e.target.value.replace(/[^0-9]/g, ''))} placeholder="blank = no limit" style={{ maxWidth: 150 }} />
+                </div>
+                <div>
+                  <label title="LIMIT SWITCH — caps how long any pump-ON lasts while capacity is in this range. Blank = no range cap. If set and lower than the pump's own / global limit, this value wins. Never forces the pump on.">Max Pump ON (s)</label>
+                  <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.maxPumpOnSecs ?? ''}
+                    onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))} placeholder="blank = no cap" style={{ maxWidth: 150 }} />
+                </div>
               </div>
-              <div>
-                <label title="How long the pump stays ON each time, in seconds (auto-off).">Max Pump ON (s)</label>
-                <input type="text" inputMode="numeric" value={selRangeSet?.ranges?.[key]?.maxPumpOnSecs ?? ''}
-                  onChange={(e) => setRangeField(key, 'maxPumpOnSecs', e.target.value.replace(/[^0-9]/g, ''))} placeholder="5" style={{ maxWidth: 120 }} />
+              <div className="section-hint" style={{ marginTop: 4 }}>
+                Limit switches — they only <em>cap</em> pumps the story fires, never trigger one. Blank = doesn't apply. Effective ON cap = the lowest that's set of: this range's Max Pump ON → the pump's own limit → the global limit.
               </div>
             </div>
           )}
-          <label className="ci-label">Main theme</label>
+          <label className="ci-label">Plot Steer / Rules</label>
           <textarea className="ci-main-theme" value={selRangeSet?.ranges?.[key]?.mainTheme || ''}
             onChange={(e) => setRangeText(key, 'mainTheme', e.target.value)}
-            placeholder="Always-on guidance while capacity is in this range…" rows={2} />
+            placeholder="Guidance the AI must follow while the player's capacity is in this range (sent to the LLM every reply)…" rows={2} />
           <RangeTriggerEditor value={triggersFor(key)} onChange={(v) => setTriggers(key, v)} triggerSets={triggerSets} profiles={cpProfiles} isPumpable={false} isManualPump={isManualPump} firePercentMax={key === '100+' ? 200 : 100} />
           {(() => {
             const rRef = selRangeSet?.treeRefs?.ranges?.[`player-${key}`] || {};

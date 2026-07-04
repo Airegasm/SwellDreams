@@ -408,7 +408,11 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
   const capacityModifier = settings?.globalCharacterControls?.autoCapacityMultiplier || sessionState?.capacityModifier || 1.0;
   const globalMaxSeconds = settings?.globalCharacterControls?.llmDeviceControlMaxSeconds || 30;
   const charMaxOn = (characterLimits?.llmMaxOnDuration ?? 5);
-  const maxSeconds = Math.min(globalMaxSeconds, charMaxOn);
+  // Checkpoint range LIMIT SWITCH (set by server.js refreshRangePumpGates) caps the ON duration when
+  // set and lower — order: checkpoint → per-pump → global. Blank/null = does not apply.
+  let maxSeconds = Math.min(globalMaxSeconds, charMaxOn);
+  const rangeCapSecs = Number(sessionState?.rangePumpCapSecs);
+  if (Number.isFinite(rangeCapSecs) && rangeCapSecs > 0) maxSeconds = Math.min(maxSeconds, rangeCapSecs);
 
   // Deduplicate: if same device has multiple commands, only execute the LAST one
   // This handles cases where LLM outputs both [pump on] and [pump off] in same message
@@ -459,6 +463,19 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
       }
     }
 
+    // Checkpoint range LIMIT SWITCH — minimum CHAT MESSAGES between pump-ONs (counts player + every
+    // character/member bubble). A pump-on that arrives too soon is blocked; it never forces one on.
+    if (cmd.action === 'on' && cmd.device === 'pump') {
+      const cooldown = Number(sessionState?.rangePumpCooldownMsgs);
+      const nowMsgs = sessionState?.chatHistory?.length || 0;
+      const lastMsgs = Number(sessionState?.lastPumpOnMsgCount);
+      if (Number.isFinite(cooldown) && cooldown > 0 && Number.isFinite(lastMsgs) && (nowMsgs - lastMsgs) < cooldown) {
+        log.info(`AI pump-on blocked by range cooldown — ${nowMsgs - lastMsgs}/${cooldown} messages since last ON`);
+        results.push({ command: cmd, success: false, blocked: true, error: `Pump cooldown: ${nowMsgs - lastMsgs}/${cooldown} msgs since last ON` });
+        continue;
+      }
+    }
+
     // Auto-disable PULSE on cloud-gated devices (Tuya/Govee/Wyze): rapid on/off bursts blow through
     // their API rate limits. Downgrade to a single ON (with normal auto-off). Local devices pulse fine.
     if (cmd.action === 'pulse' && cmd.device === 'pump' && isCloudGatedDevice(device)) {
@@ -483,6 +500,8 @@ async function executeDeviceCommands(commands, devices, deviceService, options =
         const autoOffSeconds = Math.min(maxSeconds, MAX_ON_SECONDS);
         result = await deviceService.turnOn(deviceId, device,
           willLatch ? null : { untilType: 'timer', untilValue: autoOffSeconds });
+        // Stamp the message count of this pump-ON so the range cooldown can measure the gap.
+        if (cmd.device === 'pump' && sessionState) sessionState.lastPumpOnMsgCount = sessionState.chatHistory?.length || 0;
 
         // Clear any existing timer for this device
         if (llmDeviceTimers.has(timerKey)) {

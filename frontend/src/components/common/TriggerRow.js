@@ -57,7 +57,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
   const types = [
     { value: 'impersonate', label: 'Player Impersonate' },
     { value: 'ai_message', label: 'Char AI Message' },
-    { value: 'ai_message_member', label: 'Char AI Message (Member)' },
+    { value: 'ai_message_member', label: 'Group Member Message' },
     { value: 'system_message', label: 'System Message' },
     { value: 'flow_var', label: 'Set Flow Variable' },
   ];
@@ -70,7 +70,6 @@ function getTriggerTypes(isPumpable, isManualPump) {
   types.push(
     { value: 'pump_on', label: 'Primary Pump ON' },
     { value: 'pump_off', label: 'Primary Pump OFF' },
-    { value: 'toggle_pump_always', label: 'Toggle Send Pump Always' },
     { value: 'set_attribute', label: 'Set Char Attribute' },
     { value: 'set_persona_attribute', label: 'Set Player Attribute' },
     { value: 'set_player_capacity', label: 'Set Player Capacity' },

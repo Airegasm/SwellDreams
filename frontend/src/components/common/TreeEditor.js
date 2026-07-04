@@ -112,10 +112,16 @@ const OPERATORS = [
 
 // Add-block menu, grouped. Actions are a single generic node — TriggerRow picks the
 // specific action type and renders its params.
+// True when an ANCESTOR block is "once": children are then forced-once (checkbox shown checked +
+// locked), since a once parent only runs its subtree a single time per session anyway.
+const AncestorOnceContext = React.createContext(false);
+
 const ADD_GROUPS = [
   {
     label: 'Actions', items: [
       { kind: 'action', type: '', label: 'Action…' },
+      { kind: 'action', type: 'fire_tree', label: 'Fire Tree (library)' },
+      { kind: 'action', type: 'end_intro', label: 'End Gated Intro' },
     ]
   },
   {
@@ -126,14 +132,10 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'choose_multi', label: 'Choose Multiple' },
       { kind: 'container', type: 'chance', label: 'Chance (%)' },
       { kind: 'container', type: 'random', label: 'Random (one of)' },
-      { kind: 'container', type: 'keyword_gate', label: 'Keyword Gate' },
+      { kind: 'container', type: 'keyword_gate', label: 'On Keyword' },
       { kind: 'container', type: 'repeat', label: 'Repeat / Loop' },
       { kind: 'container', type: 'pause_resume', label: 'Pause / Resume' },
-    ]
-  },
-  {
-    label: 'Events', items: [
-      { kind: 'event', type: 'keyword', label: 'On Player Keyword' },
+      { kind: 'container', type: 'call_minigame', label: 'Call MiniGame' },
     ]
   },
   {
@@ -141,14 +143,6 @@ const ADD_GROUPS = [
       { kind: 'action', type: 'label', label: 'Label (jump target)' },
       { kind: 'action', type: 'goto', label: 'Go To (jump)' },
       { kind: 'action', type: 'wait', label: 'Wait (spacer)' },
-    ]
-  },
-  {
-    label: 'Flow', items: [
-      { kind: 'action', type: 'fire_tree', label: 'Fire Tree (library)' },
-      { kind: 'action', type: 'fire_flow', label: 'Fire Flow (escape hatch)' },
-      { kind: 'action', type: 'call_minigame', label: 'Call MiniGame' },
-      { kind: 'action', type: 'end_intro', label: 'End Gated Intro' },
     ]
   },
 ];
@@ -209,8 +203,10 @@ function summarize(node) {
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
   if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
   if (t === 'pause_resume') return `Pause · resume after ${p.resumeAfterValue ?? 4} turn(s)`;
-  if (t === 'keyword_gate') return `Keyword Gate: ${(p.keys || []).join(', ') || '(none)'}`;
-  if (t === 'keyword') return `On Keyword: ${(p.keys || []).join(', ') || '(none)'}`;
+  if (t === 'keyword_gate' || t === 'keyword') {
+    const who = (p.speaker === 'char' || p.speaker === 'character') ? 'char' : p.speaker === 'either' ? 'either' : 'player';
+    return `On Keyword (${who}): ${(p.keys || []).join(', ') || '(none)'}`;
+  }
   return t;
 }
 
@@ -469,6 +465,14 @@ function NodeBody({ node, onChange, rowProps }) {
         <span>Keywords (any of, comma-separated)</span>
         <KeywordsInput value={node.params?.keys} onChange={(keys) => setParams({ keys })} placeholder="e.g. balloon, inflate" />
       </label>
+      <label className="tree-field tree-field-inline">
+        <span>Who says it</span>
+        <select value={node.params?.speaker || 'player'} onChange={(e) => setParams({ speaker: e.target.value })} title="Whose message the keyword must appear in">
+          <option value="player">Player</option>
+          <option value="char">Character</option>
+          <option value="either">Either</option>
+        </select>
+      </label>
       <label className="tree-check"><input type="checkbox" checked={!!node.params?.caseSensitive} onChange={(e) => setParams({ caseSensitive: e.target.checked })} /> case sensitive</label>
       <label className="tree-check"><input type="checkbox" checked={node.params?.matchWholeWords !== false} onChange={(e) => setParams({ matchWholeWords: e.target.checked })} /> whole words</label>
     </div>
@@ -527,6 +531,8 @@ function NodeBody({ node, onChange, rowProps }) {
 function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, rowProps }) {
   const [open, setOpen] = useState(node.kind === 'action' ? true : true);
   const isContainer = node.kind !== 'action';
+  const ancestorOnce = React.useContext(AncestorOnceContext); // a parent block is "once" → force this one once
+  const effectiveOnce = ancestorOnce || !!node.once;
   return (
     <div className={`tree-node tree-node-${node.kind}`}>
       <div className="tree-node-head">
@@ -534,14 +540,16 @@ function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, rowProps }) {
         <span className="tree-node-kind">{node.kind === 'action' ? 'Action' : node.kind === 'event' ? 'Event' : 'Block'}</span>
         {!open && <span className="tree-node-summary">{summarize(node)}</span>}
         <span className="tree-node-spacer" />
-        <label className="tree-once" title="Fire only once per session"><input type="checkbox" checked={!!node.once} onChange={(e) => onChange({ ...node, once: e.target.checked })} /> once</label>
+        <label className="tree-once" title={ancestorOnce ? 'Locked once — a parent block is set to Once, so everything inside it runs once' : 'Fire only once per session'}><input type="checkbox" checked={effectiveOnce} disabled={ancestorOnce} onChange={(e) => onChange({ ...node, once: e.target.checked })} /> once</label>
         <button type="button" className="tnode-ctrl" onClick={onMoveUp} title="Move up">↑</button>
         <button type="button" className="tnode-ctrl" onClick={onMoveDown} title="Move down">↓</button>
         <button type="button" className="tnode-ctrl tnode-del" onClick={onRemove} title="Remove">×</button>
       </div>
       {open && (
         <div className="tree-node-body">
-          <NodeBody node={node} onChange={onChange} rowProps={rowProps} />
+          <AncestorOnceContext.Provider value={effectiveOnce}>
+            <NodeBody node={node} onChange={onChange} rowProps={rowProps} />
+          </AncestorOnceContext.Provider>
         </div>
       )}
     </div>
