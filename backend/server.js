@@ -2939,6 +2939,7 @@ function ensureDefaultConnectionProfiles() {
       // (min-p/DRY/temp-last — the chat-completion path only sends temp/top_p/penalties). Mistral V7
       // "Tekken" template, temperature-last, light DRY, min-p — a coherent, characterful baseline.
       id: 'default-cydonia24b-llamacpp',
+      samplerRev: 2,
       name: 'Cydonia 24B — llama.cpp / LlamaHerder (Recommended)',
       llmUrl: 'http://localhost:8080/',
       apiType: 'text_completion',
@@ -2950,15 +2951,15 @@ function ensureDefaultConnectionProfiles() {
       streaming: true,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 175,
-      temperature: 1.0,
+      temperature: 0.6,
       topK: 0,
-      topP: 1,
+      topP: 0.9,
       typicalP: 1,
-      minP: 0.05,
+      minP: 0.02,
       topA: 0,
       tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.05,
+      repetitionPenalty: 1.0,
       repPenRange: 2048,
       repPenSlope: 1,
       frequencyPenalty: 0,
@@ -2970,9 +2971,9 @@ function ensureDefaultConnectionProfiles() {
       dryAllowedLength: 2,
       dryPenaltyLastN: 0,
       drySequenceBreakers: ['\n', ':', '"', '*'],
-      dynaTempRange: 0,
-      dynaTempExponent: 1,
-      xtcProbability: 0,
+      dynaTempRange: 0.1,
+      dynaTempExponent: 1.4,
+      xtcProbability: 0.5,
       xtcThreshold: 0.1,
       smoothingFactor: 0,
       smoothingCurve: 1,
@@ -2994,6 +2995,7 @@ function ensureDefaultConnectionProfiles() {
       // Same Cydonia 24B baseline, but for a KoboldCpp server (default port 5001, /api/v1/generate).
       // Point llmUrl at your host if not local. Same Mistral-Tekken + temp-last + min-p + DRY tuning.
       id: 'default-cydonia24b-kobold',
+      samplerRev: 2,
       name: 'Cydonia 24B — KoboldCpp (Recommended)',
       llmUrl: 'http://localhost:5001/api/v1/generate',
       apiType: 'text_completion',
@@ -3005,15 +3007,15 @@ function ensureDefaultConnectionProfiles() {
       streaming: true,
       trimIncompleteSentences: true,
       impersonateMaxTokens: 175,
-      temperature: 1.0,
+      temperature: 0.6,
       topK: 0,
-      topP: 1,
+      topP: 0.9,
       typicalP: 1,
-      minP: 0.05,
+      minP: 0.02,
       topA: 0,
       tfs: 1,
       topNsigma: 0,
-      repetitionPenalty: 1.05,
+      repetitionPenalty: 1.0,
       repPenRange: 2048,
       repPenSlope: 1,
       frequencyPenalty: 0,
@@ -3025,9 +3027,9 @@ function ensureDefaultConnectionProfiles() {
       dryAllowedLength: 2,
       dryPenaltyLastN: 0,
       drySequenceBreakers: ['\n', ':', '"', '*'],
-      dynaTempRange: 0,
-      dynaTempExponent: 1,
-      xtcProbability: 0,
+      dynaTempRange: 0.1,
+      dynaTempExponent: 1.4,
+      xtcProbability: 0.5,
       xtcThreshold: 0.1,
       smoothingFactor: 0,
       smoothingCurve: 1,
@@ -3158,6 +3160,33 @@ function ensureDefaultConnectionProfiles() {
   // presets in v6.6.34. Safe: it only existed briefly and used chat_completion (dropped most samplers).
   const staleCyd = profiles.findIndex(p => p.id === 'default-cydonia24b');
   if (staleCyd >= 0) { profiles.splice(staleCyd, 1); added = true; console.log('[Startup] Removed superseded Cydonia preset (split into llama.cpp / KoboldCpp)'); }
+
+  // One-time reset of the Cydonia presets' samplers to TheDrummer's v4-line recommendation (dynatemp
+  // 0.5-0.7 exp 1.4, top_p 0.9, min_p 0.02, XTC 0.1/0.5). Earlier seeds shipped a static temp 1.0 / open
+  // top_p 1 that made Cydonia ramble into analysis/character sheets. samplerRev gates it so it runs ONCE
+  // and won't re-clobber a user's later manual tweaks.
+  const CYDONIA_SAMPLER_REV = 2;
+  const CYDONIA_SAMPLERS = {
+    temperature: 0.6, topK: 0, topP: 0.9, typicalP: 1, minP: 0.02, topA: 0, tfs: 1, topNsigma: 0,
+    repetitionPenalty: 1.0, dynaTempRange: 0.1, dynaTempExponent: 1.4, xtcProbability: 0.5, xtcThreshold: 0.1,
+  };
+  const isCydoniaProfile = (id) => id === 'default-cydonia24b-llamacpp' || id === 'default-cydonia24b-kobold';
+  for (const p of profiles) {
+    if (isCydoniaProfile(p.id) && p.samplerRev !== CYDONIA_SAMPLER_REV) {
+      Object.assign(p, CYDONIA_SAMPLERS, { samplerRev: CYDONIA_SAMPLER_REV });
+      added = true;
+      console.log(`[Startup] Reset Cydonia samplers → v4-line recommendation: ${p.name || p.id}`);
+    }
+  }
+  // settings.llm is a COPY of the active profile, so also reset the LIVE session if it's a stale Cydonia one.
+  try {
+    const st = loadData(DATA_FILES.settings);
+    if (st?.llm && isCydoniaProfile(st.llm.activeProfileId) && st.llm.samplerRev !== CYDONIA_SAMPLER_REV) {
+      st.llm = { ...st.llm, ...CYDONIA_SAMPLERS, samplerRev: CYDONIA_SAMPLER_REV };
+      saveData(DATA_FILES.settings, st);
+      console.log('[Startup] Reset ACTIVE Cydonia samplers → v4-line recommendation');
+    }
+  } catch (e) { console.error('[Startup] Cydonia active-sampler reset failed:', e?.message || e); }
 
   for (const defaultProfile of DEFAULT_PROFILES) {
     if (!profiles.some(p => p.id === defaultProfile.id)) {
