@@ -11693,8 +11693,9 @@ async function resumeTreeChoice(choiceId) {
     catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
   }
   // If the intro ended ON this choice (its options have no follow-up and nothing re-armed), the intro
-  // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it.
-  if (snap.scopeKey === 'intro') finalizeIntroSequence(character);
+  // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it. force=true:
+  // we ran to the end, so an end_intro on an untaken branch no longer gates us.
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
 }
 
 // Resume a tree paused on the ">>" Next gate between back-to-back standalone messages. Rebuilds the
@@ -11722,7 +11723,7 @@ async function resumeTreeNext() {
   try { await runTree(after, ctx); }
   catch (e) { console.error('[resumeTreeNext] continuation failed:', e?.message || e); }
   // If this was the intro sequence and it just finished (nothing new pending), arm the UNLOCK gate.
-  if (snap.scopeKey === 'intro') finalizeIntroSequence(character);
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
 }
 
 // Resume a suspended Trigger Tree choose_multi on the player's confirmed selection. Runs EACH
@@ -11762,7 +11763,7 @@ async function resumeTreeChooseMulti(selectedIds) {
     try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
   }
-  if (snap.scopeKey === 'intro') finalizeIntroSequence(character); // intro finished on this choice → arm UNLOCK
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this choice → arm UNLOCK
 }
 
 // Resume a suspended Trigger Tree call_minigame on the played exit (Phase 5). Sets the GameResult /
@@ -11806,7 +11807,7 @@ async function resumeTreeGame(firedExit, winner) {
   }
   try { await runTree(list, ctx); }
   catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
-  if (snap.scopeKey === 'intro') finalizeIntroSequence(character); // intro finished on this minigame → arm UNLOCK
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this minigame → arm UNLOCK
 }
 
 // Tick a pending pause_resume down by one reply turn; when it reaches zero, run the deferred body
@@ -11943,11 +11944,21 @@ function treeHasEndIntro(tree) {
 // Called when a gated intro's STANDALONE tree run finishes. A pure message-sequence intro (no explicit
 // end_intro) would otherwise leave introActive stuck true and the UNLOCK gate never armed — so once the
 // last message has posted (nothing pending), arm the manual-release gate so UNLOCK lights up.
-function finalizeIntroSequence(character) {
-  if (!sessionState.introActive) return;              // already ended via end_intro
-  if (sessionState.awaitingGoRelease) return;         // gate already armed (e.g. readyExit / manual end_intro)
-  if (sessionState.pendingTreeNext || sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame) return; // still mid-sequence (>> / choice / minigame pending)
-  if (treeHasEndIntro(getIntroTree(character))) return; // has its own end_intro — rely on it (inReply weave)
+function finalizeIntroSequence(character, force = false) {
+  if (!sessionState.introActive) { console.log('[Intro] finalize skip — not active'); return; }        // already ended via end_intro
+  if (sessionState.awaitingGoRelease) { console.log('[Intro] finalize skip — already armed'); return; } // gate already armed
+  if (sessionState.pendingTreeNext || sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame) {
+    console.log('[Intro] finalize deferred — still pending', { next: !!sessionState.pendingTreeNext, choice: !!sessionState.pendingTreeChoice, resume: !!sessionState.pendingTreeResume, game: !!sessionState.pendingTreeGame });
+    return; // genuinely mid-sequence (>> / choice / minigame armed) — wait for it
+  }
+  // `force`: a suspended node (choice/next/minigame) just resolved and the sequence ran to its end
+  // WITHOUT firing end_intro. We've empirically hit the end, so arm UNLOCK even if an end_intro sits on
+  // some OTHER, untaken branch (it can never fire now). Only startIntroScope's initial standalone pass
+  // (force=false) still defers to a tree that owns an end_intro (keyword-gated / weave-style ends).
+  if (!force && treeHasEndIntro(getIntroTree(character))) {
+    console.log('[Intro] finalize deferred — tree owns an end_intro elsewhere (relying on it to fire)');
+    return;
+  }
   setIntroActive(false);
   const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   sessionState.prosePumpGuidanceOff = introStory?.treeRefs?.introEnableProsePumpAfter === false;
@@ -11956,7 +11967,7 @@ function finalizeIntroSequence(character) {
   sessionState.releaseButtonLabel = 'UNLOCK';
   broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'UNLOCK' });
   broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: false });
-  console.log('[Intro] message sequence complete (no end_intro) → armed UNLOCK gate');
+  console.log(`[Intro] sequence complete${force ? ' (forced after a node resolved)' : ''} → armed UNLOCK gate`);
 }
 // Re-run the intro tree each reply while active (weaves guidance in-reply; its keyword/choice gates
 // fire end_intro when the player meets the condition).
