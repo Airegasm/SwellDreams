@@ -18027,6 +18027,67 @@ function ensureDefaultMiniGames() {
 }
 ensureDefaultMiniGames();
 
+// Shipped, read-only CHECKPOINT PRESET PROFILES — generic capacity-pacing sets a player can apply to
+// ANY character in one click (great for imported cards with no checkpoints, which otherwise let the
+// prose run ahead of the gauge). Applying one COPIES it onto the character as a normal, editable
+// profile; the presets themselves live only here (can't be edited or deleted). Pure per-range Plot
+// Steer — no character-specific triggers — so they layer cleanly onto any card. Each range's text is
+// injected as a MANDATORY stage direction ("Do NOT describe inflation beyond what X% represents").
+const CHECKPOINT_PRESET_PROFILES = [
+  {
+    id: 'preset-standard', name: 'Standard Pacing',
+    description: 'Even, realistic escalation from flat to full across 1–100%. The safe default — bind any card\'s description to the gauge.',
+    ranges: {
+      '1-10':  { mainTheme: "Inflation has barely begun — the belly looks essentially normal, only a faint internal warmth or subtle awareness of fullness. Keep physical description minimal; focus on the scene, dialogue, and anticipation, not the body." },
+      '11-20': { mainTheme: "Very early. A slight, soft fullness — like after a big meal. Clothes still fit the same. One brief physical mention at most, then back to the interaction." },
+      '21-30': { mainTheme: "Mild, visible bloating begins — a gentle roundness, the waistband snug. Still understated; the belly is subtly rounder than normal, nothing dramatic." },
+      '31-40': { mainTheme: "Clearly rounding now — a noticeable dome, skin starting to feel taut. Pressure is present but comfortable. Balance physical description with dialogue." },
+      '41-50': { mainTheme: "Firmly swollen and round — obvious inflation, tightness building, clothes straining. About half full. Sensations are noticeable but manageable." },
+      '51-60': { mainTheme: "Heavily rounded and taut — the belly dominates now, movement affected, real pressure building. Reactions should match the growing intensity." },
+      '61-70': { mainTheme: "Very full and drum-tight — stretched skin, laboured movement, pressure hard to ignore. The body is clearly working." },
+      '71-80': { mainTheme: "Hugely distended — skin shiny and stretched, every motion an effort, genuine strain. Discomfort is real and constant." },
+      '81-90': { mainTheme: "Massive and straining — near the limit, creaking pressure, difficulty breathing deeply. This is the intense stretch of the scene." },
+      '91-100':{ mainTheme: "At absolute capacity — impossibly full, at the very edge of what's safe. The climax; every detail is strained to the maximum." },
+      '100+':  { mainTheme: "Beyond full — over-inflated, past safe limits, dangerously tight. Extreme tension throughout." },
+    },
+  },
+  {
+    id: 'preset-slowburn', name: 'Slow Burn',
+    description: 'Stays understated far longer — the belly reads small well past the halfway mark, with the big payoff reserved for the top ranges. Great for long, teasing scenes.',
+    ranges: {
+      '1-10':  { mainTheme: "Nothing visible at all — at most a faint warmth or a private awareness of the tube. Do not describe any size change. This is pure build-up and conversation." },
+      '11-20': { mainTheme: "Still looks completely normal. Perhaps the faintest hint of fullness that only the character notices. Keep it entirely subtextual." },
+      '21-30': { mainTheme: "Barely-there softness — a slight give under a hand, nothing anyone would notice at a glance. Understate everything." },
+      '31-40': { mainTheme: "A small, soft roundness at last — like a light meal. Mention it lightly, once, then move on. Still early days." },
+      '41-50': { mainTheme: "Gently rounded and noticeably fuller — the first point where it's clearly visible. Snug, not tight. Savour the slow reveal." },
+      '51-60': { mainTheme: "Clearly swollen and firm now, pressure beginning in earnest. The belly is finally becoming the focus." },
+      '61-70': { mainTheme: "Round, taut, and heavy — real tightness, movement affected. The slow build is paying off." },
+      '71-80': { mainTheme: "Very full and drum-tight — stretched skin, strain in every motion, pressure hard to ignore." },
+      '81-90': { mainTheme: "Hugely distended and straining — near the limit, creaking, laboured breathing. Intense." },
+      '91-100':{ mainTheme: "At absolute capacity — impossibly full, at the edge of safe. The long-awaited climax, maximum strain." },
+      '100+':  { mainTheme: "Beyond full — over-inflated and dangerously tight, far past any comfortable limit." },
+    },
+  },
+  {
+    id: 'preset-intense', name: 'Quick & Intense',
+    description: 'Ramps fast and leans into strain and pressure early — for scenes that want the payoff sooner. Still bound to the gauge, just a steeper curve.',
+    ranges: {
+      '1-10':  { mainTheme: "The very start — a faint warmth and the first hint of pressure, belly still flat but the sensation is already there and building fast." },
+      '11-20': { mainTheme: "Quickly softening and filling — a clear, growing fullness, the pressure noticeable and rising. The pace is brisk." },
+      '21-30': { mainTheme: "Visibly rounding already — a firm dome, tightness setting in early, clothes beginning to strain. The body is filling eagerly." },
+      '31-40': { mainTheme: "Swollen and taut — obvious inflation, real pressure, movement starting to be affected. Sensations are front and centre." },
+      '41-50': { mainTheme: "Heavily rounded and tight — the belly dominates, pressure hard to ignore, breathing a little deliberate. Halfway and intense." },
+      '51-60': { mainTheme: "Very full and drum-tight — stretched skin, laboured movement, constant pressure. The strain is real." },
+      '61-70': { mainTheme: "Hugely distended — shiny stretched skin, every motion an effort, genuine discomfort throughout." },
+      '71-80': { mainTheme: "Massive and straining — near the limit, creaking pressure, hard to breathe deeply. Overwhelming tightness." },
+      '81-90': { mainTheme: "At the edge — impossibly full, skin creaking, pure strain, on the verge. Maximum intensity." },
+      '91-100':{ mainTheme: "Absolute capacity — beyond full, at the breaking point of what's safe, every second on the edge of too much." },
+      '100+':  { mainTheme: "Past the limit — dangerously over-inflated, extreme pressure, could give at any moment." },
+    },
+  },
+];
+app.get('/api/checkpoint-presets', (req, res) => res.json({ presets: CHECKPOINT_PRESET_PROFILES }));
+
 app.get('/api/minigames', (req, res) => res.json(loadMiniGames()));
 
 app.post('/api/minigames', (req, res) => {

@@ -57,6 +57,8 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
   const [selProfId, setSelectedProfileId] = useState(null);
   const [selRsId, setSelectedRangeSetId] = useState(null);
   const [visibleCheckpoints, setVisibleCheckpoints] = useState({});
+  const [presets, setPresets] = useState([]);       // shipped read-only preset profiles
+  const [selPresetId, setSelPresetId] = useState('');
   const [bulbMaxField, setBulbMaxField] = useState('');
   const [bikeMaxField, setBikeMaxField] = useState('');
   useEffect(() => {
@@ -64,6 +66,11 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     setBulbMaxField(sv.BulbMax ?? '');
     setBikeMaxField(sv.BikeMax ?? '');
   }, [settings?.systemVariables]);
+  // Load the shipped read-only preset profiles (generic capacity pacing) once.
+  useEffect(() => {
+    apiFetch(`${API_BASE}/api/checkpoint-presets`).then(d => setPresets(d?.presets || [])).catch(() => {});
+  }, []);
+
   const saveMaxField = (which, raw) => {
     const clean = String(raw).replace(/[^0-9]/g, '');
     const sv = { ...(settings?.systemVariables || {}) };
@@ -131,6 +138,23 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     const id = `prof-${Date.now()}`;
     setCpProfiles([...cpProfiles, { id, name: `Profile ${cpProfiles.length + 1}`, ranges: {} }]);
     setSelectedProfileId(id);
+  };
+  // Apply a shipped preset → COPY it onto this character as a new, editable profile (the preset itself
+  // is read-only and stays in the library). Wraps the preset's ranges into the profile/rangeSet shape.
+  const applyPreset = () => {
+    const preset = presets.find(p => p.id === selPresetId);
+    if (!preset) return;
+    const pid = `prof-${Date.now()}`;
+    const rsId = `rs-${Date.now()}`;
+    const newProf = {
+      id: pid, name: preset.name,
+      rangeSets: [{ id: rsId, name: 'Default', ranges: JSON.parse(JSON.stringify(preset.ranges || {})), checkpointTriggers: {}, treeRefs: { ranges: {} } }],
+      defaultRangeSetId: rsId,
+      treeRefs: { introEnabled: false },
+    };
+    setCpProfiles([...cpProfiles, newProf]);
+    setSelectedProfileId(pid);
+    setSelPresetId('');
   };
   const renameProfile = (name) => setCpProfiles(cpProfiles.map(p => (p.id === selId ? { ...p, name } : p)));
   const deleteProfile = () => {
@@ -262,6 +286,22 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <button type="button" className="btn btn-sm btn-secondary" onClick={setDefaultProfile} disabled={selId === story?.defaultCheckpointProfileId}>Set Default</button>
         <button type="button" className="btn btn-sm btn-danger" onClick={deleteProfile} disabled={cpProfiles.length <= 1}>Delete</button>
       </div>
+
+      {/* Apply a shipped preset (generic capacity pacing) as a new editable profile — one-click fix for
+          cards with no checkpoints, so the description stays bound to the gauge. */}
+      {presets.length > 0 && (
+        <div className="checkpoint-profile-bar" style={{ marginTop: 6 }}>
+          <span className="section-hint">Apply preset:</span>
+          <select value={selPresetId} onChange={(e) => setSelPresetId(e.target.value)} style={{ flex: 1, minWidth: 120 }}>
+            <option value="">— generic pacing preset —</option>
+            {presets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <button type="button" className="btn btn-sm btn-primary" onClick={applyPreset} disabled={!selPresetId}>Apply as new profile</button>
+        </div>
+      )}
+      {selPresetId && presets.find(p => p.id === selPresetId)?.description && (
+        <p className="section-hint" style={{ marginTop: 2 }}>{presets.find(p => p.id === selPresetId).description} — adds an editable copy; you can tweak or delete it after.</p>
+      )}
 
       <div className="form-group" style={{ marginTop: 8 }}>
         <label>Pump Type for “{selProfile?.name || 'this profile'}”</label>
