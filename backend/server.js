@@ -1728,6 +1728,14 @@ function migratePersonaPortraitMedia(persona) {
   return persona;
 }
 
+// True if this id belongs to a SHIPPED default character (folder or flat form in default/). Default
+// characters are read-only; the editor/API refuse to overwrite them (duplicate-to-edit instead).
+function isDefaultCharacterId(charId) {
+  if (!isSafeId(charId)) return false;
+  return fs.existsSync(path.join(CHARS_DEFAULT_DIR, charId, 'char.json'))
+      || fs.existsSync(path.join(CHARS_DEFAULT_DIR, `${charId}.json`));
+}
+
 // Load single character by ID (checks both default and custom dirs)
 // Supports both old format ({id}.json) and new folder format ({id}/char.json)
 function loadCharacter(charId) {
@@ -16112,15 +16120,20 @@ app.put('/api/characters/:id', async (req, res) => {
     }
     let updatedCharacter;
 
+    // Default characters are READ-ONLY — reject edits (the UI offers "Duplicate to Edit" instead).
+    // Guards the API directly so a stale client or a direct call can't mutate a shipped default.
+    if (isDefaultCharacterId(req.params.id)) {
+      return res.status(403).json({ error: 'Default characters are read-only. Duplicate it to make an editable copy.' });
+    }
+
     if (isPerCharStorageActive()) {
       const existingCharacter = loadCharacter(req.params.id);
       if (!existingCharacter) {
         return res.status(404).json({ error: 'Character not found' });
       }
       const charToSave = { ...existingCharacter, ...req.body, id: req.params.id, updatedAt: Date.now() };
-      // Use async version to process images. This is an explicit user save via the
-      // editor, so sync default characters back into the git-tracked factory tree.
-      updatedCharacter = await saveCharacterAsync(charToSave, false, true);
+      // Normal editor save → custom/ only (never default/ or the factory tree; defaults are immutable).
+      updatedCharacter = await saveCharacterAsync(charToSave, false, false);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
       const index = characters.findIndex(c => c.id === req.params.id);
@@ -19926,12 +19939,31 @@ const PORT = process.env.PORT || 8889;
   }
   console.log('[Startup] Factory defaults checked; missing/corrupt defaults restored');
 
-  // NOTE: a custom/ copy of a default id is now LEGITIMATE — it's the copy-on-write override created
-  // when a default character/persona is edited or mutated during gameplay (keeps the git-tracked
-  // default pristine). loadCharacter/loadPersona prefer custom over default, so the override wins.
-  // The old "delete stale custom copies of default ids" cleanup was removed because it would wipe
-  // those overrides on every startup. (Personas still save to default/ on edit; if that becomes a
-  // problem, apply the same copy-on-write model to savePersona.)
+})();
+
+// Default CHARACTERS are read-only and AUTHORITATIVE. On every startup, delete any custom/ shadow of
+// a default character id so the git-tracked default/ (which ships fresh with each app version) always
+// wins — this is how "the new version overwrites everyone's copy" is enforced. Editing a default is
+// blocked at the API (duplicate-to-edit instead), so a shadow is only ever a stale pre-immutability
+// override; removing it is safe. Genuine custom characters (unique ids not present in default/) are
+// never touched. (Personas intentionally NOT included — only characters were made immutable.)
+(function resetDefaultCharacterShadows() {
+  try {
+    if (!fs.existsSync(CHARS_DEFAULT_DIR) || !fs.existsSync(CHARS_CUSTOM_DIR)) return;
+    let removed = 0;
+    for (const entry of fs.readdirSync(CHARS_DEFAULT_DIR, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const id = entry.name;
+      const shadowDir = path.join(CHARS_CUSTOM_DIR, id);
+      const shadowFlat = path.join(CHARS_CUSTOM_DIR, `${id}.json`);
+      if (fs.existsSync(shadowDir)) { fs.rmSync(shadowDir, { recursive: true, force: true }); removed++; }
+      if (fs.existsSync(shadowFlat)) { fs.rmSync(shadowFlat, { force: true }); removed++; }
+    }
+    if (removed) {
+      console.log(`[Startup] Removed ${removed} stale custom override(s) of default character(s) — defaults are read-only and refreshed from the shipped version`);
+      try { rebuildCharsIndex(); } catch (e) { /* ensureCharsIndex below will handle it */ }
+    }
+  } catch (e) { console.error('[Startup] resetDefaultCharacterShadows failed:', e?.message || e); }
 })();
 
 // Ensure all indexes exist and are valid before starting

@@ -951,12 +951,28 @@ Write only the scenario description itself, no explanations.`;
     set({ buttonSets: buttonSets.filter(s => s.id !== activeButtonSet.id), activeButtonSetId: '' });
   };
 
+  // Shipped default characters are read-only (backend rejects edits too). The editor becomes a
+  // viewer with a "Duplicate to Edit" action that spins off an editable custom copy.
+  const isDefaultReadOnly = !!character?._isDefault;
+
   const handleSave = () => {
+    if (isDefaultReadOnly) return; // guarded in the UI, but never save a default
     // Sync the active set's buttons with the working buttons so edits to a loaded set persist.
     const data = activeButtonSet
       ? { ...formData, buttonSets: buttonSets.map(s => (s.id === activeButtonSet.id ? { ...s, buttons: formData.buttons || [] } : s)) }
       : formData;
     onSave?.(data);
+  };
+
+  const handleDuplicateToEdit = async () => {
+    try {
+      const { id, _isDefault, createdAt, updatedAt, activeVersionId, versions, ...charData } = formData;
+      await api.createCharacter({ ...charData, name: `${formData.name || 'Character'} (Copy)` });
+      onClose?.(); // the new editable copy now appears in the list
+    } catch (e) {
+      console.error('Duplicate failed:', e);
+      alert('Failed to duplicate character.');
+    }
   };
 
   // Tabs depend on mode (the "face" change). Standard and Instructor get SEPARATE Library/Checkpoint tabs.
@@ -2445,8 +2461,18 @@ Write only the scenario description itself, no explanations.`;
         )}
 
         <div className="character-modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={handleSave}>Save</button>
+          {isDefaultReadOnly ? (
+            <>
+              <span className="section-hint" style={{ flex: 1, alignSelf: 'center' }}>🔒 Default character — read-only. Duplicate it to make an editable copy.</span>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
+              <button type="button" className="btn btn-primary" onClick={handleDuplicateToEdit}>Duplicate to Edit</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={handleSave}>Save</button>
+            </>
+          )}
         </div>
       </div>
 
