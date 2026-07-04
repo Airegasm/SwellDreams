@@ -11569,6 +11569,18 @@ function compareEventOp(actual, operator, target) {
   }
 }
 
+// "Enable prose pump guidance after Intro" resolver — reads the ACTIVE PROFILE's treeRefs first
+// (where the Intro section now lives/writes), falling back to the legacy story-level flag for old
+// cards. Default ON (only an explicit false opts out). The story-level read alone was orphaned:
+// the UI checkbox moved to per-profile treeRefs, so the opt-out silently never applied.
+function prosePumpAfterIntroOff(character, story) {
+  const profRefs = character ? resolveScopeRefs(character) : {};
+  const v = (profRefs?.introEnableProsePumpAfter !== undefined)
+    ? profRefs.introEnableProsePumpAfter
+    : story?.treeRefs?.introEnableProsePumpAfter;
+  return v === false;
+}
+
 // Per-session event-trigger runtime: fireOnce latches + message-cooldown stamps + idle latches.
 // Reset alongside firedTreeNodes (session/chat clear, new_session) via resetEventTriggerState.
 function resetEventTriggerState() {
@@ -12206,7 +12218,7 @@ function finalizeIntroSequence(character, force = false) {
   }
   setIntroActive(false);
   const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  sessionState.prosePumpGuidanceOff = introStory?.treeRefs?.introEnableProsePumpAfter === false;
+  sessionState.prosePumpGuidanceOff = prosePumpAfterIntroOff(character, introStory);
   sessionState.preInflationGateMet = false;           // still gated until UNLOCK is pressed
   sessionState.awaitingGoRelease = true;
   sessionState.releaseButtonLabel = 'UNLOCK';
@@ -12648,7 +12660,7 @@ async function handleGateRelease() {
     const story = ch?.stories?.find(x => x.id === ch.activeStoryId) || ch?.stories?.[0];
     if (sessionState.introActive) {
       setIntroActive(false);
-      sessionState.prosePumpGuidanceOff = story?.treeRefs?.introEnableProsePumpAfter === false;
+      sessionState.prosePumpGuidanceOff = prosePumpAfterIntroOff(ch, story);
     }
     if (profId) sessionState.activeCheckpointProfileId = profId;
     // Always resolve the pump mode so the button reverts to the correct E-STOP / PUMP for this session.
@@ -15119,7 +15131,7 @@ async function runNode(node, ctx) {
     // Prose pump guidance after the intro: on unless the card opted out ("Enable prose pump
     // guidance after Intro" unchecked). Applies once the gate actually opens (incl. after GO!).
     const introStory = ctx.character?.stories?.find(s => s.id === ctx.character.activeStoryId) || ctx.character?.stories?.[0];
-    sessionState.prosePumpGuidanceOff = introStory?.treeRefs?.introEnableProsePumpAfter === false;
+    sessionState.prosePumpGuidanceOff = prosePumpAfterIntroOff(ctx.character, introStory);
     const profId = node.params?.loadProfileId || '';
     // Manual-release ("GO!") gate: keep the pump gate CLOSED and wait for a player button press
     // before opening it / loading the profile / entering checkpoints. Prevents premature pumping
@@ -19266,6 +19278,18 @@ app.post('/api/import/backup', async (req, res) => {
 
 app.get('/api/session', (req, res) => {
   res.json(sessionState);
+});
+
+// Reset the session's ONCE memory only (script-testing aid): fired tree nodes, fired range
+// sequences, random-block budgets, and event latches — WITHOUT touching the chat, capacity, or
+// gates. Lets an author re-test triggers/checkpoints without starting a whole new session.
+app.post('/api/session/reset-once', (req, res) => {
+  firedCheckpointTriggers.clear();
+  sessionState.firedTreeNodes?.clear?.();
+  sessionState.randomBlockBudget = {};
+  resetEventTriggerState();
+  console.log('[Session] once-memory reset (fired nodes/ranges, random budgets, event latches)');
+  res.json({ ok: true });
 });
 
 app.post('/api/session/reset', async (req, res) => {

@@ -16,10 +16,20 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
   const data = norm(value);
   const emit = (patch) => onChange({ ...data, ...patch });
 
+  // Deep-clone a trigger with FRESH ids (nested capacity_inrange actions included) — random-block
+  // repeat budgets and once-latches key on ids, so a shared id would make the copy count as spent.
+  const cloneTrigger = (t) => {
+    const c = JSON.parse(JSON.stringify(t));
+    c.id = newId('trg');
+    if (Array.isArray(c.triggers)) c.triggers = c.triggers.map(x => ({ ...x, id: newId('trg') }));
+    return c;
+  };
+
   // --- Sequential ---
   const addSeq = () => emit({ sequential: [...data.sequential, { id: newId('trg'), type: '', value: '' }] });
   const updSeq = (i, t) => emit({ sequential: data.sequential.map((x, idx) => (idx === i ? t : x)) });
   const rmSeq = (i) => emit({ sequential: data.sequential.filter((_, idx) => idx !== i) });
+  const dupSeq = (i) => emit({ sequential: [...data.sequential.slice(0, i + 1), cloneTrigger(data.sequential[i]), ...data.sequential.slice(i + 1)] });
   const moveSeq = (i, dir) => {
     const j = i + dir;
     if (j < 0 || j >= data.sequential.length) return;
@@ -32,9 +42,16 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
   const updBlock = (i, patch) => emit({ random: data.random.map((b, idx) => (idx === i ? { ...b, ...patch } : b)) });
   const addBlock = () => emit({ random: [...data.random, { id: newId('blk'), chance: 50, repeats: 1, mode: 'group', triggers: [], setId: '' }] });
   const rmBlock = (i) => emit({ random: data.random.filter((_, idx) => idx !== i) });
+  const dupBlock = (i) => {
+    const c = JSON.parse(JSON.stringify(data.random[i]));
+    c.id = newId('blk'); // fresh id → fresh repeat budget
+    if (Array.isArray(c.triggers)) c.triggers = c.triggers.map(cloneTrigger);
+    emit({ random: [...data.random.slice(0, i + 1), c, ...data.random.slice(i + 1)] });
+  };
   const addBlockTrigger = (i) => updBlock(i, { triggers: [...(data.random[i].triggers || []), { id: newId('trg'), type: '', value: '' }] });
   const updBlockTrigger = (i, ti, t) => updBlock(i, { triggers: (data.random[i].triggers || []).map((x, idx) => (idx === ti ? t : x)) });
   const rmBlockTrigger = (i, ti) => updBlock(i, { triggers: (data.random[i].triggers || []).filter((_, idx) => idx !== ti) });
+  const dupBlockTrigger = (i, ti) => updBlock(i, { triggers: (() => { const a = data.random[i].triggers || []; return [...a.slice(0, ti + 1), cloneTrigger(a[ti]), ...a.slice(ti + 1)]; })() });
 
   return (
     <div className="range-trigger-editor">
@@ -44,6 +61,7 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
           <TriggerRow key={t.id || i} trigger={t} onChange={(u) => updSeq(i, u)} onRemove={() => rmSeq(i)} showFirePercent
             onMoveUp={i > 0 ? () => moveSeq(i, -1) : undefined}
             onMoveDown={i < data.sequential.length - 1 ? () => moveSeq(i, 1) : undefined}
+            onDuplicate={() => dupSeq(i)}
             {...rowProps} />
         ))}
         <button type="button" className="btn btn-sm btn-secondary" onClick={addSeq}>+ Sequential Trigger</button>
@@ -60,6 +78,7 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
                 <option value="group">Group</option>
                 <option value="set">From Set (random 1)</option>
               </select>
+              <button type="button" className="ci-del" onClick={() => dupBlock(i)} title="Duplicate this block (fresh repeat budget)">⧉</button>
               <button type="button" className="ci-del" onClick={() => rmBlock(i)} title="Remove block">×</button>
             </div>
             {b.mode === 'set' ? (
@@ -70,7 +89,8 @@ function RangeTriggerEditor({ value, onChange, triggerSets = [], ...rowProps }) 
             ) : (
               <div className="rte-block-triggers">
                 {(b.triggers || []).map((t, ti) => (
-                  <TriggerRow key={t.id || ti} trigger={t} onChange={(u) => updBlockTrigger(i, ti, u)} onRemove={() => rmBlockTrigger(i, ti)} {...rowProps} />
+                  <TriggerRow key={t.id || ti} trigger={t} onChange={(u) => updBlockTrigger(i, ti, u)} onRemove={() => rmBlockTrigger(i, ti)}
+                    onDuplicate={() => dupBlockTrigger(i, ti)} {...rowProps} />
                 ))}
                 <button type="button" className="btn btn-sm btn-secondary" onClick={() => addBlockTrigger(i)}>+ Trigger</button>
               </div>

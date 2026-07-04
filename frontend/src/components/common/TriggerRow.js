@@ -154,7 +154,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
  *   reminders: array — character reminders
  *   globalReminders: array — global reminders
  */
-function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false, firePercentMax = 100, onMoveUp, onMoveDown }) {
+function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPumpable, isManualPump, reminders = [], globalReminders = [], members = [], profiles = [], showFirePercent = false, firePercentMax = 100, onMoveUp, onMoveDown, onDuplicate }) {
   // Reusable "target character" picker for multichar attribute triggers
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
@@ -643,6 +643,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           %
         </label>
       )}
+      {onDuplicate && <button type="button" className="btn-remove" onClick={onDuplicate} title="Duplicate this trigger">⧉</button>}
       {onMoveUp && <button type="button" className="btn-remove" onClick={onMoveUp} title="Move up">↑</button>}
       {onMoveDown && <button type="button" className="btn-remove" onClick={onMoveDown} title="Move down">↓</button>}
       {!hideRemove && <button type="button" className="btn-remove" onClick={onRemove}>−</button>}
@@ -654,6 +655,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           <TriggerRow key={k.id || i} trigger={k} onChange={(u) => updKid(i, u)} onRemove={() => rmKid(i)}
             onMoveUp={i > 0 ? () => { const a = [...kids]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; setKids(a); } : undefined}
             onMoveDown={i < kids.length - 1 ? () => { const a = [...kids]; [a[i + 1], a[i]] = [a[i], a[i + 1]]; setKids(a); } : undefined}
+            onDuplicate={() => { const c = JSON.parse(JSON.stringify(k)); c.id = `trg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; setKids([...kids.slice(0, i + 1), c, ...kids.slice(i + 1)]); }}
             {...childProps} />
         ))}
         <button type="button" className="btn btn-sm btn-secondary" onClick={addKid}>+ Action (in {trigger.min ?? 0}–{trigger.max ?? 200}%)</button>

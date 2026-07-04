@@ -1927,3 +1927,37 @@
 .character-modal-body .csec p {
   color: var(--text-secondary, #b9c0c9) !important;
 }
+
+/* Range navigator strip — one chip per capacity range; dot = has content in the active Range Set */
+.ckpt-range-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 10px;
+}
+.ckpt-range-chip {
+  position: relative;
+  font-size: 0.7rem;
+  padding: 3px 8px 3px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 140, 180, 0.3);
+  background: rgba(120, 120, 160, 0.08);
+  color: var(--text-secondary, #b8b8c8);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.ckpt-range-chip.has-content {
+  border-color: rgba(120, 190, 255, 0.55);
+  color: var(--text-primary, #e8e8f0);
+  background: rgba(90, 150, 230, 0.14);
+}
+.ckpt-range-chip.open { outline: 1px solid rgba(120, 190, 255, 0.8); }
+.ckpt-range-chip .ckpt-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #6fc1ff;
+  margin-left: 5px;
+  vertical-align: middle;
+}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { apiFetch } from '../../utils/api';
+import { API_BASE } from '../../config';
 import ScopeTreeSection from './ScopeTreeSection';
 import EventTriggersSection from './EventTriggersSection';
 import RangeTriggerEditor from './RangeTriggerEditor';
@@ -189,6 +191,41 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
   const triggersFor = (key) => selRangeSet?.checkpointTriggers?.[`player-${key}`] || [];
   const setTriggers = (key, items) => updateRangeSet({ checkpointTriggers: { ...(selRangeSet?.checkpointTriggers || {}), [`player-${key}`]: items } });
 
+  // Per-range content summary — drives the navigator strip dots and the collapsed subtitle so you
+  // can see WHERE the content lives without opening all 11 sections. (Triggers may be a legacy flat
+  // array or the {sequential,random} shape — mirror the backend's normalizeRangeTriggers.)
+  const rangeSummary = (key) => {
+    const r = selRangeSet?.ranges?.[key] || {};
+    const t = selRangeSet?.checkpointTriggers?.[`player-${key}`];
+    const seq = Array.isArray(t) ? t.length : (Array.isArray(t?.sequential) ? t.sequential.length : 0);
+    const rnd = Array.isArray(t?.random) ? t.random.length : 0;
+    const scriptRef = selRangeSet?.treeRefs?.ranges?.[`player-${key}`];
+    const script = scriptRef?.inline?.nodes?.length || (scriptRef?.treeId ? 1 : 0);
+    const limits = (r.messagesBetweenOn > 0) || (r.maxPumpOnSecs > 0) || (r.messagesBetweenBatches > 0) || (r.maxPumpsPerBatch > 0);
+    const parts = [];
+    if ((r.mainTheme || '').trim()) parts.push('steer');
+    if (seq) parts.push(`${seq} seq`);
+    if (rnd) parts.push(`${rnd} rnd`);
+    if (script) parts.push('script');
+    if (limits) parts.push('limits');
+    return { hasContent: parts.length > 0, text: parts.join(' · ') };
+  };
+  const jumpToRange = (key) => {
+    setVisibleCheckpoints(prev => ({ ...prev, [key]: true }));
+    // Scroll after the section opens.
+    setTimeout(() => document.getElementById(`ckpt-range-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
+
+  // Script-testing aid: clear the SESSION's once-memory (fired nodes/ranges, random budgets, event
+  // latches) without resetting the chat, so authors can re-trigger scripts while iterating.
+  const [onceResetMsg, setOnceResetMsg] = useState('');
+  const resetOnceMemory = async () => {
+    try {
+      await apiFetch(`${API_BASE}/api/session/reset-once`, { method: 'POST' });
+      setOnceResetMsg('✓ reset'); setTimeout(() => setOnceResetMsg(''), 2000);
+    } catch { setOnceResetMsg('failed'); setTimeout(() => setOnceResetMsg(''), 2000); }
+  };
+
   const profRowProps = { ...rowProps, triggerSets, profiles: cpProfiles };
 
   if (!cpProfiles.length) {
@@ -198,25 +235,23 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
   return (
     <>
       {/* Top: enable/disable the whole checkpoint system for this card. */}
-      <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontWeight: 600 }}>
-        <input type="checkbox" checked={story?.checkpointsEnabled !== false} onChange={(e) => updateStory('checkpointsEnabled', e.target.checked)} />
-        Enable Checkpoints
-      </label>
-      <p className="section-hint" style={{ marginTop: '-6px', marginBottom: 10 }}>(Advanced.)</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, margin: 0 }}>
+          <input type="checkbox" checked={story?.checkpointsEnabled !== false} onChange={(e) => updateStory('checkpointsEnabled', e.target.checked)} />
+          Enable Checkpoints
+        </label>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="btn btn-sm btn-secondary" onClick={resetOnceMemory}
+          title="Testing aid: clears the SESSION's once-memory (fired script nodes, fired range sequences, random budgets, event latches) WITHOUT resetting the chat — so scripts can fire again while you iterate.">
+          Reset script memory {onceResetMsg && <em>{onceResetMsg}</em>}
+        </button>
+      </div>
 
       {(story?.checkpointsEnabled !== false) && (<>
-      <div className="checkpoint-tab-header">
-        <h4>Checkpoint Profiles (1–100%)</h4>
-        <button type="button" className="btn btn-sm btn-secondary" onClick={() => {
-          const anyShown = Object.values(visibleCheckpoints).some(Boolean);
-          if (anyShown) { setVisibleCheckpoints({}); return; }
-          const v = {};
-          CHECKPOINT_RANGES.forEach(({ key }) => { v[key] = true; });
-          setVisibleCheckpoints(v);
-        }}>Show/Hide All</button>
-      </div>
-      <p className="section-hint">Each profile is a full 1–100% checkpoint set. A pre-req choice / trigger loads the matching profile; the Default applies otherwise.</p>
+      <h4 style={{ margin: '4px 0' }}>Checkpoint Profiles (1–100%)</h4>
+      <p className="section-hint" style={{ marginTop: 0 }}>Each profile is a full 1–100% checkpoint set. A pre-req choice / trigger loads the matching profile; the Default applies otherwise.</p>
       <div className="checkpoint-profile-bar">
+        <span className="section-hint">Profile:</span>
         <select value={selId || ''} onChange={(e) => setSelectedProfileId(e.target.value)}>
           {cpProfiles.map(p => (
             <option key={p.id} value={p.id}>{p.name}{p.id === story?.defaultCheckpointProfileId ? ' (default)' : ''}</option>
@@ -320,6 +355,17 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
               </div>
             )}
             {introEnabled && (
+              <div style={{ marginBottom: 8 }}>
+                <label className="checkbox-inline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                  <input type="checkbox" checked={selProfile?.treeRefs?.introEnableProsePumpAfter !== false}
+                    onChange={(e) => setCpProfiles(cpProfiles.map(p => p.id === selId
+                      ? { ...p, treeRefs: { ...(p.treeRefs || {}), introEnableProsePumpAfter: e.target.checked } } : p))} />
+                  Enable prose pump guidance after intro
+                </label>
+                <div className="section-hint" style={{ fontWeight: 400, marginTop: 2 }}>After the intro ends, narrated pump prose ("she flips the switch…") may reinforce a real [pump on] (when Prose Reinforcement is enabled in Settings). Untick to keep prose reinforcement off for this profile even after the intro.</div>
+              </div>
+            )}
+            {introEnabled && (
               <ScopeTreeSection label="" hint="Runs at session start and each reply until an 'End Gated Intro' action fires. No pumping; always-on / event triggers / buttons are blocked while active."
                 refValue={iRef} onChange={setRef} defaultName="Intro" source={`from card: ${cardName}`} rowProps={{ ...profRowProps, profiles: cpProfiles }} />
             )}
@@ -332,6 +378,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
       <h4 style={{ margin: '12px 0 4px' }}>Range Sets</h4>
       <p className="section-hint" style={{ marginTop: 0 }}>Each set is its own full 1–100% range list. Switch between them mid-session with a “Set Range Set” trigger (e.g. for story switch-ups); the Default applies otherwise.</p>
       <div className="checkpoint-profile-bar">
+        <span className="section-hint">Range Set:</span>
         <select value={rsId || ''} onChange={(e) => setSelectedRangeSetId(e.target.value)}>
           {rangeSets.map(rs => (
             <option key={rs.id} value={rs.id}>{rs.name}{rs.id === selProfile?.defaultRangeSetId ? ' (default)' : ''}</option>
@@ -343,8 +390,32 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <button type="button" className="btn btn-sm btn-danger" onClick={deleteRangeSet} disabled={rangeSets.length <= 1}>Delete</button>
       </div>
 
-      {CHECKPOINT_RANGES.map(({ key, label, hint }) => (
-        <CollapsibleSection key={key} title={label} subtitle={hint}
+      {/* Range navigator: one chip per range; a dot marks ranges with content in THIS set.
+          Click = open + scroll to that range. Replaces scrolling the 11-section accordion blind. */}
+      <div className="ckpt-range-strip">
+        {CHECKPOINT_RANGES.map(({ key }) => {
+          const s = rangeSummary(key);
+          return (
+            <button key={key} type="button"
+              className={`ckpt-range-chip ${s.hasContent ? 'has-content' : ''} ${visibleCheckpoints[key] ? 'open' : ''}`}
+              title={s.hasContent ? s.text : 'empty'}
+              onClick={() => jumpToRange(key)}>
+              {key === '100+' ? '100+' : key}{s.hasContent && <span className="ckpt-dot" />}
+            </button>
+          );
+        })}
+        <button type="button" className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => {
+          const anyShown = Object.values(visibleCheckpoints).some(Boolean);
+          if (anyShown) { setVisibleCheckpoints({}); return; }
+          const v = {};
+          CHECKPOINT_RANGES.forEach(({ key }) => { v[key] = true; });
+          setVisibleCheckpoints(v);
+        }}>Show/Hide All</button>
+      </div>
+
+      {CHECKPOINT_RANGES.map(({ key, label }) => (
+        <div key={key} id={`ckpt-range-${key}`}>
+        <CollapsibleSection title={label} subtitle={rangeSummary(key).text}
           open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
           {isManualPump && (
             <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
@@ -395,6 +466,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
             );
           })()}
         </CollapsibleSection>
+        </div>
       ))}
       </>)}
     </>

@@ -142,3 +142,11 @@
   text-overflow: ellipsis;
   max-width: 46%;
 }
+
+/* Collapse/expand-all toolbar */
+.tree-editor-toolbar {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}

@@ -178,6 +178,15 @@ function makeNode(kind, type) {
   return node;
 }
 
+// Deep-duplicate a node: fresh ids all the way down (REQUIRED — 'once' memory is keyed per node id,
+// so a shared id would make the copy count as already-fired the moment the original fires).
+function cloneNodeDeep(n) {
+  const c = { ...n, id: rid() };
+  if (n.params) c.params = JSON.parse(JSON.stringify(n.params));
+  if (Array.isArray(n.children)) c.children = n.children.map(cloneNodeDeep);
+  return c;
+}
+
 // One-row summary shown when a node is collapsed.
 function summarize(node) {
   const t = node.type;
@@ -273,7 +282,7 @@ function ConditionRow({ cond, onChange, onRemove }) {
 }
 
 // A branch within an 'if'. Header (If / Else if / Else) + conditions + a nested child list.
-function BranchBlock({ branch, index, isLast, onChange, onRemove, rowProps }) {
+function BranchBlock({ branch, index, isLast, onChange, onRemove, onDuplicate, rowProps }) {
   const isElse = branch.params?.else === true;
   const conds = branch.params?.conditions || [];
   const setParams = (patch) => onChange({ ...branch, params: { ...(branch.params || {}), ...patch } });
@@ -290,6 +299,7 @@ function BranchBlock({ branch, index, isLast, onChange, onRemove, rowProps }) {
             <option value="any">match ANY</option>
           </select>
         )}
+        {!isElse && onDuplicate && <button type="button" className="tree-x" onClick={onDuplicate} title="Duplicate this branch (conditions + contents)">⧉</button>}
         <button type="button" className="tree-x" onClick={onRemove} title="Remove branch">×</button>
       </div>
       {!isElse && (
@@ -327,6 +337,7 @@ function IfBlock({ node, onChange, rowProps }) {
         <BranchBlock key={b.id || i} branch={b} index={i} isLast={i === branches.length - 1}
           onChange={(u) => setBranches(branches.map((x, idx) => idx === i ? u : x))}
           onRemove={() => setBranches(branches.filter((_, idx) => idx !== i))}
+          onDuplicate={() => setBranches([...branches.slice(0, i + 1), cloneNodeDeep(b), ...branches.slice(i + 1)])}
           rowProps={rowProps} />
       ))}
       <div className="tree-if-controls">
@@ -338,12 +349,13 @@ function IfBlock({ node, onChange, rowProps }) {
 }
 
 // One option within a player_choice: a label + its body (the subtree run when picked).
-function ChoiceBlock({ choice, onChange, onRemove, rowProps }) {
+function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps }) {
   return (
     <div className="tree-branch">
       <div className="tree-branch-head">
         <span className="tree-branch-label">Option</span>
         <input type="text" value={choice.params?.label || ''} onChange={(e) => onChange({ ...choice, params: { ...(choice.params || {}), label: e.target.value } })} placeholder="button label" style={{ flex: 1 }} />
+        {onDuplicate && <button type="button" className="tree-x" onClick={onDuplicate} title="Duplicate this option (label + contents)">⧉</button>}
         <button type="button" className="tree-x" onClick={onRemove} title="Remove option">×</button>
       </div>
       <div className="tree-branch-body">
@@ -368,6 +380,7 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
         <ChoiceBlock key={c.id || i} choice={c}
           onChange={(u) => setChoices(choices.map((x, idx) => idx === i ? u : x))}
           onRemove={() => setChoices(choices.filter((_, idx) => idx !== i))}
+          onDuplicate={choices.length < max ? () => setChoices([...choices.slice(0, i + 1), cloneNodeDeep(c), ...choices.slice(i + 1)]) : undefined}
           rowProps={rowProps} />
       ))}
       {choices.length < max && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
@@ -557,8 +570,13 @@ function validateNode(node, rowProps) {
   return null;
 }
 
-function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, rowProps }) {
+// Collapse/expand-all broadcast: TreeEditor bumps {n, open}; every NodeRow follows it.
+const CollapseSignalContext = React.createContext(null);
+
+function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, onDuplicate, rowProps }) {
   const [open, setOpen] = useState(node.kind === 'action' ? true : true);
+  const collapseSig = React.useContext(CollapseSignalContext);
+  React.useEffect(() => { if (collapseSig) setOpen(collapseSig.open); }, [collapseSig]);
   const isContainer = node.kind !== 'action';
   const ancestorOnce = React.useContext(AncestorOnceContext); // a parent block is "once" → force this one once
   const effectiveOnce = ancestorOnce || !!node.once;
@@ -572,6 +590,7 @@ function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, rowProps }) {
         {!open && <span className="tree-node-summary">{summarize(node)}</span>}
         <span className="tree-node-spacer" />
         <label className="tree-once" title={ancestorOnce ? 'Locked once — a parent block is set to Once, so everything inside it runs once' : 'Fire only once per session'}><input type="checkbox" checked={effectiveOnce} disabled={ancestorOnce} onChange={(e) => onChange({ ...node, once: e.target.checked })} /> once</label>
+        {onDuplicate && <button type="button" className="tnode-ctrl" onClick={onDuplicate} title="Duplicate this block (with everything inside it; fresh once-memory)">⧉</button>}
         <button type="button" className="tnode-ctrl" onClick={onMoveUp} title="Move up">↑</button>
         <button type="button" className="tnode-ctrl" onClick={onMoveDown} title="Move down">↓</button>
         <button type="button" className="tnode-ctrl tnode-del" onClick={onRemove} title="Remove">×</button>
@@ -592,6 +611,7 @@ function NodeList({ nodes, onChange, rowProps }) {
   const list = Array.isArray(nodes) ? nodes : [];
   const update = (i, n) => onChange(list.map((x, idx) => (idx === i ? n : x)));
   const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const duplicate = (i) => onChange([...list.slice(0, i + 1), cloneNodeDeep(list[i]), ...list.slice(i + 1)]);
   const move = (i, dir) => {
     const j = i + dir;
     if (j < 0 || j >= list.length) return;
@@ -604,7 +624,8 @@ function NodeList({ nodes, onChange, rowProps }) {
       {list.map((node, i) => (
         <NodeRow key={node.id || i} node={node}
           onChange={(n) => update(i, n)} onRemove={() => remove(i)}
-          onMoveUp={() => move(i, -1)} onMoveDown={() => move(i, 1)} rowProps={rowProps} />
+          onMoveUp={() => move(i, -1)} onMoveDown={() => move(i, 1)}
+          onDuplicate={() => duplicate(i)} rowProps={rowProps} />
       ))}
       <AddMenu small={list.length > 0} onAdd={(n) => onChange([...list, n])} />
     </div>
@@ -615,9 +636,19 @@ function NodeList({ nodes, onChange, rowProps }) {
 function TreeEditor({ value, onChange, ...rowProps }) {
   // Expose this tree's Label names so Call MiniGame (and future goto pickers) can offer them as a dropdown.
   const treeLabels = React.useMemo(() => Array.from(new Set(collectLabelNames(value || []))), [value]);
+  const [collapseSig, setCollapseSig] = useState(null); // {n, open} — bump n so the effect re-fires
+  const hasNodes = Array.isArray(value) && value.length > 0;
   return (
     <div className="tree-editor">
-      <NodeList nodes={value || []} onChange={onChange} rowProps={{ ...rowProps, treeLabels }} />
+      {hasNodes && (
+        <div className="tree-editor-toolbar">
+          <button type="button" className="tree-mini" onClick={() => setCollapseSig(s => ({ n: (s?.n || 0) + 1, open: false }))}>Collapse all</button>
+          <button type="button" className="tree-mini" onClick={() => setCollapseSig(s => ({ n: (s?.n || 0) + 1, open: true }))}>Expand all</button>
+        </div>
+      )}
+      <CollapseSignalContext.Provider value={collapseSig}>
+        <NodeList nodes={value || []} onChange={onChange} rowProps={{ ...rowProps, treeLabels }} />
+      </CollapseSignalContext.Provider>
     </div>
   );
 }

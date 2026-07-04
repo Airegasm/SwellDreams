@@ -867,17 +867,47 @@ Write only the scenario description itself, no explanations.`;
   };
 
   // ---- Versioning CRUD (saved full-card snapshots) ----
+  // Fixed semantics: loading CONFIRMS before clobbering the form; deleting confirms + detaches
+  // activeVersionId (it used to keep pointing at the deleted snapshot → blank select); versions
+  // can be renamed and updated in place ("Save New" was the only op, so iterating piled up
+  // "Version 1..N" and edits silently diverged from the snapshot the select claimed was loaded).
   const versions = formData.versions || [];
   const saveVersion = () => {
+    const name = window.prompt('Name for this version snapshot:', `Version ${versions.length + 1}`);
+    if (name === null) return;
     const id = `v-${Date.now()}`;
     const { versions: _v, activeVersionId: _a, ...config } = formData;
-    set({ versions: [...versions, { id, name: `Version ${versions.length + 1}`, savedAt: Date.now(), config }], activeVersionId: id });
+    set({ versions: [...versions, { id, name: name.trim() || `Version ${versions.length + 1}`, savedAt: Date.now(), config }], activeVersionId: id });
+  };
+  const updateVersion = () => {
+    const id = formData.activeVersionId;
+    const v = versions.find(x => x.id === id);
+    if (!v) return;
+    if (!window.confirm(`Overwrite "${v.name}" with the current form state?`)) return;
+    const { versions: _v, activeVersionId: _a, ...config } = formData;
+    set({ versions: versions.map(x => (x.id === id ? { ...x, savedAt: Date.now(), config } : x)) });
+  };
+  const renameVersion = () => {
+    const id = formData.activeVersionId;
+    const v = versions.find(x => x.id === id);
+    if (!v) return;
+    const name = window.prompt('Rename version:', v.name || '');
+    if (name === null || !name.trim()) return;
+    set({ versions: versions.map(x => (x.id === id ? { ...x, name: name.trim() } : x)) });
   };
   const loadVersion = (id) => {
+    if (!id) { set({ activeVersionId: '' }); return; } // detach to "(current)" without touching the form
     const v = versions.find(x => x.id === id);
-    if (v) setFormData(prev => ({ ...v.config, versions: prev.versions, activeVersionId: id }));
+    if (!v) return;
+    if (!window.confirm(`Load "${v.name}"? The editor will be replaced with that snapshot — unsaved edits to the current state are lost.`)) return;
+    setFormData(prev => ({ ...v.config, versions: prev.versions, activeVersionId: id }));
   };
-  const deleteVersion = (id) => set({ versions: versions.filter(v => v.id !== id) });
+  const deleteVersion = (id) => {
+    const v = versions.find(x => x.id === id);
+    if (!v) return;
+    if (!window.confirm(`Delete version "${v.name}"? Only the snapshot is removed — the current form is unchanged.`)) return;
+    set({ versions: versions.filter(x => x.id !== id), activeVersionId: formData.activeVersionId === id ? '' : formData.activeVersionId });
+  };
 
   // ---- Button Sets (swap whole sets of custom buttons; isolated by card mode) ----
   // The working buttons live in formData.buttons (backend + existing CRUD use them). A set is a
@@ -961,12 +991,15 @@ Write only the scenario description itself, no explanations.`;
           <div style={{ flex: 1 }} />
           <div className="checkpoint-profile-bar" style={{ margin: 0 }}>
             <span className="section-hint">Version:</span>
-            <select value={formData.activeVersionId || ''} onChange={(e) => loadVersion(e.target.value)}>
-              <option value="">(current — unsaved)</option>
+            <select value={formData.activeVersionId || ''} onChange={(e) => loadVersion(e.target.value)}
+              title="Saved full-card snapshots. Picking one asks before replacing the editor with it.">
+              <option value="">(current)</option>
               {versions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
-            <button type="button" className="btn btn-sm btn-secondary" onClick={saveVersion}>Save as Version</button>
-            <button type="button" className="btn btn-sm btn-danger" onClick={() => formData.activeVersionId && deleteVersion(formData.activeVersionId)} disabled={!formData.activeVersionId}>Delete</button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={saveVersion} title="Snapshot the current form as a NEW version">Save New</button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={updateVersion} disabled={!formData.activeVersionId} title="Overwrite the selected version with the current form">Update</button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={renameVersion} disabled={!formData.activeVersionId} title="Rename the selected version">Rename</button>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => formData.activeVersionId && deleteVersion(formData.activeVersionId)} disabled={!formData.activeVersionId} title="Delete the selected snapshot (the current form is unchanged)">Delete</button>
           </div>
         </div>
 
