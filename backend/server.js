@@ -3838,15 +3838,37 @@ async function executeTrigger(trigger, source, character, settings) {
         const aiGenSettings = { ...settings.llm };
         const aiMaxTok = Number(trigger.maxTokens);
         if (aiMaxTok > 0) aiGenSettings.maxTokens = clampMaxTokens(aiMaxTok);
-        const aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
+        const { v4: uuidv4 } = require('uuid');
+        // Stream the trigger-driven message (intro / checkpoint char messages) when streaming is on —
+        // create the bubble up-front and stream tokens in, mirroring the normal reply path.
+        const aiStreaming = settings.llm?.streaming === true;
+        let aiStreamMsg = null;
+        let aiResult;
+        if (aiStreaming) {
+          aiStreamMsg = { id: uuidv4(), content: '', sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now(), streaming: true };
+          sessionState.chatHistory.push(aiStreamMsg);
+          broadcast('chat_message', aiStreamMsg);
+          aiResult = await llmService.generateStream({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings,
+            onToken: (token, fullText) => { aiStreamMsg.content = fullText; broadcast('stream_token', { messageId: aiStreamMsg.id, token, fullText }); } });
+        } else {
+          aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
+        }
         if (aiResult.text) {
-          const { v4: uuidv4 } = require('uuid');
           let atxt = stripLeakedDirectives(substituteAllVariables(aiResult.text)); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
-          const msg = { id: uuidv4(), content: atxt, sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
-          sessionState.chatHistory.push(msg);
-          broadcast('chat_message', msg);
+          if (aiStreamMsg) {
+            aiStreamMsg.content = atxt;
+            aiStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: aiStreamMsg.id, content: atxt });
+          } else {
+            const msg = { id: uuidv4(), content: atxt, sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
+            sessionState.chatHistory.push(msg);
+            broadcast('chat_message', msg);
+          }
           autosaveSession();
+        } else if (aiStreamMsg) { // empty generation — drop the placeholder
+          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== aiStreamMsg.id);
+          broadcast('message_deleted', { id: aiStreamMsg.id });
         }
         broadcast('generating_stop', {});
         break;
@@ -3882,9 +3904,21 @@ async function executeTrigger(trigger, source, character, settings) {
         // Token precedence mirrors the group individual-reply path: trigger override → member → card → global.
         const memMaxTok = Number(trigger.maxTokens) || Number(tgt?.responseTokens) || Number(character?.individualResponseTokens) || 0;
         if (memMaxTok > 0) memGenSettings.maxTokens = clampMaxTokens(memMaxTok);
-        const memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
+        const { v4: uuidv4 } = require('uuid');
+        // Stream the member's trigger-driven message when streaming is on (bubble up-front, tokens in).
+        const memStreaming = settings.llm?.streaming === true;
+        let memStreamMsg = null;
+        let memRes;
+        if (memStreaming) {
+          memStreamMsg = { id: uuidv4(), content: '', sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now(), streaming: true };
+          sessionState.chatHistory.push(memStreamMsg);
+          broadcast('chat_message', memStreamMsg);
+          memRes = await llmService.generateStream({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings,
+            onToken: (token, fullText) => { memStreamMsg.content = fullText; broadcast('stream_token', { messageId: memStreamMsg.id, token, fullText }); } });
+        } else {
+          memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
+        }
         if (memRes.text) {
-          const { v4: uuidv4 } = require('uuid');
           let memText = stripLeakedDirectives(substituteAllVariables(memRes.text)); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) memText = stripStrayBrackets(memText);
           if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
@@ -3899,10 +3933,19 @@ async function executeTrigger(trigger, source, character, settings) {
             const ctrl = await aiDeviceControl.processLlmOutput(memText, dvcs, deviceService, { settings, sessionState, broadcast, characterLimits: getCharacterLimits(character), injectContext: () => {} });
             if (ctrl.commands?.length) memText = ctrl.text;
           } catch (e) { console.error('[ai_message_member] device processing failed:', e?.message || e); }
-          const msg = { id: uuidv4(), content: memText, sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
-          sessionState.chatHistory.push(msg);
-          broadcast('chat_message', msg);
+          if (memStreamMsg) {
+            memStreamMsg.content = memText;
+            memStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: memStreamMsg.id, content: memText });
+          } else {
+            const msg = { id: uuidv4(), content: memText, sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
+            sessionState.chatHistory.push(msg);
+            broadcast('chat_message', msg);
+          }
           autosaveSession();
+        } else if (memStreamMsg) { // empty generation — drop the placeholder
+          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== memStreamMsg.id);
+          broadcast('message_deleted', { id: memStreamMsg.id });
         }
         broadcast('generating_stop', {});
         break;
