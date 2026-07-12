@@ -155,6 +155,21 @@ if [ -f "$PID_DIR/server.pid" ]; then
     fi
 fi
 
+# Belt-and-braces: the app port may STILL be held by a SwellDreams server that was started
+# outside this script (so it isn't in our pid file) — the exact case where the new server used
+# to die on a port collision while the banner below still printed "running!". Only a process
+# whose command line is a server.js node process is ever touched.
+APP_PORT=8889
+if command -v lsof &> /dev/null; then
+    PORT_PID=$(lsof -t -i :$APP_PORT 2>/dev/null | head -1)
+    if [ -n "$PORT_PID" ] && ps -p "$PORT_PID" -o args= 2>/dev/null | grep -q "server.js"; then
+        echo "Stopping the SwellDreams server holding port $APP_PORT (PID $PORT_PID, started outside this script)..."
+        kill "$PORT_PID" 2>/dev/null
+        for _ in 1 2 3 4 5; do kill -0 "$PORT_PID" 2>/dev/null || break; sleep 1; done
+        kill -9 "$PORT_PID" 2>/dev/null || true
+    fi
+fi
+
 # Install/update backend dependencies — only when the code changed or deps are missing.
 echo ""
 cd "$SCRIPT_DIR/backend"
@@ -214,8 +229,16 @@ node server.js &
 SERVER_PID=$!
 echo $SERVER_PID > "$PID_DIR/server.pid"
 
-# Wait for server to start
+# Wait for server to start, then VERIFY it actually did — previously a port collision or a
+# startup crash still printed the success banner while the old/stale app kept serving.
 sleep 2
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo ""
+    echo "ERROR: SwellDreams server failed to start (process exited immediately)."
+    echo "Check the output above for the cause (usually a port conflict or a startup crash)."
+    rm -f "$PID_DIR/server.pid"
+    exit 1
+fi
 
 echo ""
 echo "========================================"

@@ -32,6 +32,7 @@ function Triggers() {
   const [trees, setTrees] = useState([]);
   const [selectedTreeId, setSelectedTreeId] = useState(null);
   const [treeFilter, setTreeFilter] = useState('');
+  const [treeSaveStatus, setTreeSaveStatus] = useState(''); // '' | 'saving' | 'saved'
   const treeSaveTimers = useRef(new Map());
   const selectedTree = trees.find(t => t.id === selectedTreeId) || null;
 
@@ -249,6 +250,30 @@ function Triggers() {
     try { const created = await api.createTriggerTree('New Trigger Tree', [], '', ''); await loadTrees(created?.id); }
     catch (err) { console.error('Failed to create tree', err); }
   };
+
+  // Explicit Save: flushes the debounced auto-save NOW and reports the result (the debounce is
+  // silent, so authors had no confirmation). Built-in trees can't be modified (backend rejects) —
+  // for them this saves an editable COPY instead, carrying any local edits made in the editor.
+  const handleSaveTree = async () => {
+    if (!selectedTree) return;
+    try {
+      setTreeSaveStatus('saving');
+      if (selectedTree.builtIn) {
+        const created = await api.createTriggerTree(`${selectedTree.name} (copy)`, selectedTree.nodes || [], selectedTree.tag || '', selectedTree.source || '');
+        await loadTrees(created?.id);
+      } else {
+        const pending = treeSaveTimers.current.get(selectedTree.id);
+        if (pending) { clearTimeout(pending); treeSaveTimers.current.delete(selectedTree.id); }
+        await api.updateTriggerTree(selectedTree.id, { name: selectedTree.name, nodes: selectedTree.nodes, tag: selectedTree.tag, source: selectedTree.source });
+      }
+      setTreeSaveStatus('saved');
+      setTimeout(() => setTreeSaveStatus(''), 2500);
+    } catch (err) {
+      console.error('Save failed', err);
+      setTreeSaveStatus('');
+      window.alert('Save failed: ' + (err.message || err));
+    }
+  };
   const handleDeleteTree = async (id, e) => {
     if (e) e.stopPropagation();
     if (!window.confirm('Delete this library tree?')) return;
@@ -327,8 +352,14 @@ function Triggers() {
                 {!selectedTree && <div style={{ opacity: 0.6, padding: '20px', fontSize: '0.9rem' }}>Select a library tree, or create one. Library trees are card-agnostic — reference them from a character's scope sections (Assign from Library).</div>}
                 {selectedTree && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {selectedTree.builtIn && <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>🔒 Built-in tree — read-only.</div>}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {selectedTree.builtIn && <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>🔒 Built-in tree — read-only. Edits here are NOT saved; use <strong>Save as Copy</strong> to fork an editable version.</div>}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
+                      {treeSaveStatus === 'saved' && <span style={{ fontSize: '0.8rem', color: 'var(--success-color, #4caf50)' }}>Saved ✓</span>}
+                      {treeSaveStatus === 'saving' && <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Saving…</span>}
+                      <button type="button" className="btn btn-sm btn-primary" onClick={handleSaveTree} disabled={treeSaveStatus === 'saving'}
+                        title={selectedTree.builtIn ? 'Built-ins are read-only — saves an editable copy (with your current edits)' : 'Save this tree now (edits also auto-save after a moment)'}>
+                        {selectedTree.builtIn ? 'Save as Copy' : 'Save'}
+                      </button>
                       <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleExportTree(selectedTree.id)} title="Export this tree + its fire_tree closure">Export…</button>
                     </div>
                     <div className="form-group" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

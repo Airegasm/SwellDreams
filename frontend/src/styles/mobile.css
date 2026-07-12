@@ -317,15 +317,17 @@
   .mobile-auto-pump .apr-cap { min-width: 34px; text-align: right; }
   .mobile-auto-pump .apr-btn {
     margin-left: auto;   /* push to a shared right column, max clearance from the text */
-    min-width: 84px;     /* equal buttons across rows; grows only if the label truly needs it */
+    min-width: 78px;     /* equal buttons across rows; grows only if the label truly needs it */
     width: auto;
-    height: 13px;
+    height: 11px;        /* clearly INSIDE the 15px row — the button can never set row height */
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    align-self: center;
+    flex-shrink: 0;
     white-space: nowrap;
-    font-size: 9px;
+    font-size: 8px;
     padding: 0 6px;
     line-height: 1;
     border-radius: 2px;
