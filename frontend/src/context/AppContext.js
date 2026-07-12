@@ -77,6 +77,7 @@ export function AppProvider({ children }) {
 
   // Choose Multi (multi-select) state
   const [chooseMultiData, setChooseMultiData] = useState(null);
+  const [selectMemberData, setSelectMemberData] = useState(null);
 
   // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
   const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
@@ -465,6 +466,14 @@ export function AppProvider({ children }) {
         setTreeChooseMultiData(data);
         break;
 
+      case 'tree_select_member':
+        setSelectMemberData(data);
+        break;
+
+      case 'tree_select_member_clear':
+        setSelectMemberData(null);
+        break;
+
       case 'tree_minigame':
         setTreeMiniGameData(data);
         break;
@@ -480,6 +489,7 @@ export function AppProvider({ children }) {
       case 'checkpoint_choice_clear':
         setCheckpointChoiceData(null);
         setTreeChooseMultiData(null);
+        setSelectMemberData(null); // generic "armed choice cleared" signal (chat clear / session reset)
         break;
 
       case 'member_mute_update':
@@ -966,6 +976,13 @@ export function AppProvider({ children }) {
     });
     setTreeChooseMultiData(null);
   }, [treeChooseMultiData, sendWsMessage]);
+
+  // Answer a Trigger Tree Select Member popup. memberId = the pick; null = Cancel, which aborts
+  // the suspended tree run on the backend.
+  const respondSelectMember = useCallback((memberId) => {
+    sendWsMessage('tree_select_member_response', { memberId: memberId || null });
+    setSelectMemberData(null);
+  }, [sendWsMessage]);
 
   // Report the played exit of a Trigger Tree call_minigame back to the tree resume path (Phase 5).
   const respondTreeMiniGame = useCallback((exit, winner, pick) => {
@@ -2029,6 +2046,8 @@ export function AppProvider({ children }) {
     handleChooseMulti,
     treeChooseMultiData,
     confirmTreeChooseMulti,
+    selectMemberData,
+    respondSelectMember,
     treeMiniGameData,
     respondTreeMiniGame,
     checkpointChoiceData,

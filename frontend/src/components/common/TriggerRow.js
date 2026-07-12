@@ -297,6 +297,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
                 style={{ maxWidth: '150px', flexShrink: 0 }} title="Which member speaks this message">
                 <option value="">Whole group</option>
                 {members.map((m, mi) => <option key={m.id || mi} value={m.id}>{m.name || (mi === 0 ? 'Base character' : `Character ${mi + 1}`)}</option>)}
+                <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
               </select>
             ) : (
               <select disabled style={{ maxWidth: '150px', flexShrink: 0 }}
@@ -529,6 +530,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
                   const isBase = members.indexOf(m) === 0;
                   return <option key={m.id || i} value={isBase ? '' : m.id}>{m.name || (isBase ? 'Base character' : `Character ${i + 1}`)}</option>;
                 })}
+                <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
               </select>
             ) : (
               <select disabled style={{ maxWidth: '140px', flexShrink: 0 }}

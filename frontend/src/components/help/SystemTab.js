@@ -70,8 +70,13 @@ function SystemTab() {
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[CharCapacity:Name]</span></td>
-                  <td>A group member's capacity, by member name (or member id). The base member reads the same value as [CharCapacity].</td>
+                  <td>A group member's capacity, by member name (or member id). The base member reads the same value as [CharCapacity]. Nests: [CharCapacity:[SelectedChar]].</td>
                   <td>30</td>
+                </tr>
+                <tr>
+                  <td><span className="variable-tag">[SelectedChar]</span></td>
+                  <td>The member picked by a trigger tree's Select Member popup. Resets to the base character at the start of every tree run.</td>
+                  <td>Bella</td>
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[Feeling]</span></td>

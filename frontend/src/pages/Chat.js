@@ -166,10 +166,13 @@ function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  // Current pick in the tree Select Member popup (defaults to the first eligible member).
+  const [selectMemberPick, setSelectMemberPick] = useState('');
+  useEffect(() => { setSelectMemberPick(selectMemberData?.members?.[0]?.id || ''); }, [selectMemberData]);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -777,12 +780,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || treeMiniGameData || checkpointChoiceData || simpleABData || challengeData) {
+    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || selectMemberData || treeMiniGameData || checkpointChoiceData || simpleABData || challengeData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, treeMiniGameData, checkpointChoiceData, simpleABData, challengeData]);
+  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, selectMemberData, treeMiniGameData, checkpointChoiceData, simpleABData, challengeData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -1617,7 +1620,7 @@ function Chat() {
 
             const isDisabled = sessionLoading || isGenerating || sessionState.isGenerating || sessionState.actionBusy
               || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!inputData;
+              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!inputData;
             const totalPages = Math.ceil(filteredButtons.length / PERSONA_ACTIONS_PER_PAGE);
             const currentPageButtons = filteredButtons.slice(
               personaActionPage * PERSONA_ACTIONS_PER_PAGE,
@@ -2074,6 +2077,27 @@ function Chat() {
                   subContext={subContext}
                   compact={true}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Inline Trigger Tree Select Member popup: dropdown of the eligible group members.
+              OK stores the pick in [SelectedChar] and resumes the tree; Cancel aborts the run. */}
+          {selectMemberData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Select a character</span>
+              </div>
+              <div className="choice-inline-container" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '8px 10px' }}>
+                {selectMemberData.prompt && <span style={{ width: '100%' }}>{selectMemberData.prompt}</span>}
+                <select value={selectMemberPick || selectMemberData.members?.[0]?.id || ''}
+                  onChange={(e) => setSelectMemberPick(e.target.value)} style={{ flex: 1, minWidth: 160 }}>
+                  {(selectMemberData.members || []).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                <button type="button" className="btn btn-primary btn-sm"
+                  onClick={() => respondSelectMember(selectMemberPick || selectMemberData.members?.[0]?.id || null)}>OK</button>
+                <button type="button" className="btn btn-secondary btn-sm" title="Cancel — aborts this trigger sequence"
+                  onClick={() => respondSelectMember(null)}>Cancel</button>
               </div>
             </div>
           )}
@@ -2843,7 +2867,7 @@ function Chat() {
                   const actionsBusy = isGenerating || sessionState.isGenerating
                     || sessionState.actionBusy
                     || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!inputData;
+                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!inputData;
                   const isDisabled = flowInProgress || sessionLoading || actionsBusy;
                   const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
                   const currentPageButtons = filteredButtons.slice(

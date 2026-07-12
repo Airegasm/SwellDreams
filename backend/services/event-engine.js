@@ -5307,6 +5307,8 @@ class EventEngine {
       result = result.replace(/\[Char\]/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\{\{char\}\}/gi, this.sessionState.characterName || 'Character');
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
+      // Tree Select Member pick; null resolves to the base character (parity with server.js).
+      result = result.replace(/\[SelectedChar\]/gi, this.sessionState.selectedChar || this.sessionState.characterName || 'Character');
       result = result.replace(/\[CharCapacity\]/gi, this.sessionState.characterCapacity ?? 0);
       result = result.replace(/\{\{charCapacity\}\}/gi, this.sessionState.characterCapacity ?? 0);
       // Convert pain number to descriptive label

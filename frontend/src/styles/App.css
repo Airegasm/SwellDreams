@@ -106,6 +106,86 @@ body {
   display: none;
 }
 
+/* ===== Auto-Pump header extension ===================================================
+   Fixed strip hanging from the top frame, centered between the two corner toppers.
+   One compact row per pumpable character: name · live capacity · AUTO-PUMP toggle. */
+.auto-pump-header {
+  position: fixed;
+  top: 6px; /* flush under the top-frame-border */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 190; /* below the corner toppers (200), above filmstrips (150) */
+  background: var(--skin-trim-topper, linear-gradient(180deg, #3d4147 0%, #2d3036 30%, #1a1d21 70%, #0d0f12 100%));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  padding: 2px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.auto-pump-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 2px 0; /* minimal padding per spec */
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text-primary, #e8e8e8);
+}
+
+.auto-pump-row + .auto-pump-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.apr-name {
+  min-width: 90px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.apr-cap {
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #aab);
+}
+
+.apr-btn {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary, #99a);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.apr-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.apr-btn.on {
+  background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+  border-color: #4caf50;
+  color: #eaffea;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 4px rgba(180, 255, 180, 0.6);
+}
+
+/* The strip is a desktop affordance; the mobile header band owns the small-screen layout. */
+@media (max-width: 768px) {
+  .auto-pump-header { display: none; }
+}
+
 /* Top metallic border - spans full width */
 .chat-layout .top-frame-border {
   position: fixed;

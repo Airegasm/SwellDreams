@@ -3560,6 +3560,8 @@ const sessionState = {
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
+  selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
+                      // base character at read time, and every runTreeScope resets it so trees stay agnostic
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
   pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
@@ -3926,6 +3928,20 @@ const TRIGGER_REQUIRED_PARAMS = {
   char_capacity: ['value'],
 };
 
+// Resolve a trigger's member reference: a raw member id, a member NAME, or a variable like
+// [SelectedChar] (substituted first, so the Select Member pick routes actions). Returns '' for
+// the base character (empty ref, base id, or base name all normalize), a member id for others,
+// or null when a non-empty ref matches nobody (caller should warn + fall back).
+function resolveMemberRef(ref, character) {
+  const raw = substituteAllVariables(String(ref ?? ''), { isPromptText: true }).trim();
+  if (!raw) return '';
+  const mm = character?.multiChar?.characters || [];
+  let idx = mm.findIndex(m => m && m.id === raw);
+  if (idx < 0) idx = mm.findIndex(m => m && (m.name || '').toLowerCase() === raw.toLowerCase());
+  if (idx < 0) return null;
+  return idx === 0 ? '' : mm[idx].id;
+}
+
 async function executeTrigger(trigger, source, character, settings) {
   const personas = loadAllPersonas() || [];
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
@@ -4067,9 +4083,12 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'ai_message_member': {
-        // Individual-mode Char AI Message: generate/post as ONE selected group member (trigger.targetMember).
+        // Individual-mode Char AI Message: generate/post as ONE selected group member. The target
+        // may be a member id, a name, or [SelectedChar]; a non-empty ref resolving to the base
+        // char speaks AS the base member (only an EMPTY ref means "whole group").
         const mm = character?.multiChar?.characters || [];
-        const tgt = trigger.targetMember ? mm.find(m => m.id === trigger.targetMember) : null;
+        const memRef = trigger.targetMember ? resolveMemberRef(trigger.targetMember, character) : null;
+        const tgt = memRef ? mm.find(m => m.id === memRef) : (memRef === '' ? mm[0] || null : null);
         const speakerName = tgt?.name || character.name;
         if (trigger.llmEnhance === false) {
           const vtext = (trigger.context || '').trim();
@@ -4088,7 +4107,7 @@ async function executeTrigger(trigger, source, character, settings) {
         const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         sessionState.soloSpeaker = null;
         const soloSys = tgt
-          ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
+          ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
           : baseCtx.systemPrompt;
         // Stop the model from starting another speaker's turn (parity with the group individual path).
         const otherStopN = (character.multiChar?.characters || []).filter(m => m.id !== tgt?.id && m.name).map(m => `\n${m.name}:`);
@@ -4318,10 +4337,11 @@ async function executeTrigger(trigger, source, character, settings) {
         // (matches set_char_capacity — avoids trigger→event→trigger cascades).
         const ccOp = (trigger.operation === 'inc' || trigger.operation === 'dec') ? trigger.operation : 'set';
         const ccAmt = Math.max(0, Math.min(100, parseInt(trigger.value) || 0));
-        const ccMembers = character?.multiChar?.characters || [];
-        const ccTgt = String(trigger.targetMember || '').trim();
+        // Ref may be an id, a name, or [SelectedChar] — '' = base char; null = unresolvable.
+        const ccTgt = resolveMemberRef(trigger.targetMember, character);
+        if (ccTgt === null) { console.warn(`[Trigger/${source}] char_capacity: target '${trigger.targetMember}' matches no member — skipped`); break; }
         const ccApply = (cur) => ccOp === 'set' ? ccAmt : ccOp === 'inc' ? cur + ccAmt : cur - ccAmt;
-        if (!ccTgt || (ccMembers[0] && ccMembers[0].id === ccTgt)) {
+        if (!ccTgt) {
           sessionState.characterCapacity = Math.max(0, Math.min(200, ccApply(sessionState.characterCapacity ?? 0)));
           broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
           console.log(`[Trigger/${source}] char_capacity ${ccOp} ${ccAmt} → base char at ${sessionState.characterCapacity}%`);
@@ -4691,8 +4711,12 @@ function buildMemberInflationLines(character) {
   const caps = sessionState.memberCapacities || {};
   const lines = [];
   (character.multiChar.characters || []).forEach((m, idx) => {
-    if (idx === 0 || !m?.name || !m.isPumpable) return;
-    const cap = Math.round(caps[m.id] || 0);
+    if (!m?.name || !m.isPumpable) return;
+    // Base member (idx 0) rides characterCapacity. The card-level block covers it ONLY when the
+    // card-level isPumpable flag is set (single-mode legacy) — group cards use per-member flags,
+    // so without this line a group's pumpable base member was reported nowhere.
+    if (idx === 0 && character.isPumpable) return;
+    const cap = Math.round(idx === 0 ? (sessionState.characterCapacity || 0) : (caps[m.id] || 0));
     if (cap <= 0) return;
     let desc;
     if (cap <= 10) desc = 'very slight fullness, barely noticeable';
@@ -4965,6 +4989,10 @@ function substituteAllVariables(text, context = {}) {
 
   // Session state variables
   result = result.replace(/\[Capacity\]/gi, sessionState.capacity ?? 0);
+  // Selected member — set by the tree Select Member popup; resolves to the BASE character's name
+  // whenever nothing is selected (runTreeScope resets it per tree run). Substituted BEFORE the
+  // [CharCapacity:...] block so the nested form [CharCapacity:[SelectedChar]] collapses first.
+  result = result.replace(/\[SelectedChar\]/gi, sessionState.selectedChar || charName || sessionState.characterName || '');
   // Char capacity — [CharCapacity] = the base character; [CharCapacity:Name] (or :memberId) = a
   // group member. The base member rides characterCapacity; other members read memberCapacities.
   // Unknown member → tag left visible so the author sees the typo. Member lookup loads the active
@@ -5354,6 +5382,7 @@ function clearSessionContextForSwitch() {
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingTreeChoice = null;
   sessionState.pendingTreeNext = null;
+  sessionState.selectedChar = null; // [SelectedChar] back to "resolves to the base char"
   sessionState.activeCheckpointInjections = [];
   sessionState.checkpointInjectionCounts = {};
   sessionState.playerIsInflating = false;
@@ -8156,6 +8185,11 @@ async function handleWsMessage(ws, type, data) {
       );
       break;
 
+    case 'tree_select_member_response':
+      // OK carries the picked memberId; Cancel carries null → the whole tree run aborts.
+      await resumeTreeSelectMember(data.memberId || null);
+      break;
+
     case 'tree_choose_multi_response':
       await resumeTreeChooseMulti(data.selectedIds);
       break;
@@ -9548,6 +9582,15 @@ function stripLeakedDirectives(text) {
   if (lastIdx >= 0 && out.length - lastIdx <= 800 && !/={2,}\s*END/i.test(out.slice(lastIdx))) {
     out = out.slice(0, lastIdx);
   }
+  // 3) Echoed physical-state preface — the one injected block that is NOT ===-fenced
+  //    ('[Current physical reality — …]'); observed replayed verbatim at the end of real replies.
+  //    Handled HERE (not only stripStrayBrackets) so it dies on every path that runs this cleaner,
+  //    including with the brackets toggle off. Unterminated tail form included.
+  out = out.replace(/\[Current physical reality[\s\S]*?(?:\]|$)/gi, '');
+  // 4) Leading "obedience preamble" — '[Understood. I will write ONLY as X, following all
+  //    instructions…]' acknowledgment (+ a trailing --- rule) emitted before the actual reply.
+  //    Keyed to instruction-y phrases so genuine in-fiction brackets survive.
+  out = out.replace(/^\s*\[[^\]]{0,800}?(?:follow(?:ing)?\s+(?:all\s+)?instructions|write\s+ONLY\s+as|stay\s+in\s+character|portray\s+[\w\s]{1,40}?(?:realistically|accurately))[^\]]*\]\s*(?:[-–]{2,}\s*)?/i, '');
   out = out.replace(/\n{3,}/g, '\n\n').trim();
   for (const t of tailTags) if (!out.includes(t)) out += `\n${t}`;
   return out;
@@ -9703,7 +9746,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
       // it and be wrongly constrained to one member), and a throw here must not leave it latched.
       sessionState.soloSpeaker = null;
     }
-    const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
+    const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
 
     // Stop generation if the model tries to start ANOTHER speaker's turn ("\nOther:") — keeps the
     // reply to this member only. Also collect known names to strip any leading label it emits anyway.
@@ -10723,7 +10766,7 @@ async function handleSpecialGenerate(data) {
   const smBubbleName = smTarget?.name || activeCharacter.name;
   const smDisplayName = smTarget ? null : groupBubbleName(activeCharacter);
   const smSolo = smTarget
-    ? `\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${smTarget.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Output a single, in-character reply from ${smTarget.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
+    ? `\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${smTarget.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${smTarget.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
     : '';
   const smTokens = smTarget
     ? clampMaxTokens(Number(smTarget.responseTokens) || Number(activeCharacter.individualResponseTokens) || Number(settings.llm?.maxTokens), clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150))
@@ -10806,6 +10849,15 @@ async function handleSpecialGenerate(data) {
 
       finalText = stripCrossRoleContent(result.text, context.stopSequences, !isPlayerVoice);
       if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
+      // Guided replies echo directives like every other reply — run the standard cleaner chain,
+      // BEFORE device processing (an echoed device-instruction example must never fire the pump).
+      // This was the ONE reply route that skipped it: the real in-session leaks ('[Understood.
+      // I will write ONLY as X…]' preambles, verbatim state-preface echoes) both came from here.
+      finalText = stripLeakedDirectives(finalText);
+      if (!isPlayerVoice) {
+        if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
+        if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+      }
       message.content = substituteAllVariables(finalText);
 
       // Process AI device commands (e.g., [pump on], [vibe off])
@@ -10920,6 +10972,12 @@ async function handleSpecialGenerate(data) {
     // Strip cross-role bleed and (for instructor cards) roleplay prose, then substitute.
     finalText = stripCrossRoleContent(finalText, context.stopSequences, !isPlayerVoice);
     if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
+    // Same cleaner chain as the streaming branch (and every other reply path) — see note there.
+    finalText = stripLeakedDirectives(finalText);
+    if (!isPlayerVoice) {
+      if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
+      if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+    }
     finalText = substituteAllVariables(finalText);
 
     // Process AI device commands (e.g., [pump on], [vibe off])
@@ -11317,7 +11375,8 @@ function buildAttributeBlock(activeAttributes) {
 function buildStatePreface(playerName, charName, character) {
   const playerCap = sessionState.capacity || 0;
   const charCap = sessionState.characterCapacity || 0;
-  const isPumpable = character?.isPumpable;
+  const mm = character?.multiChar?.characters || [];
+  const isGroup = !!character?.multiChar?.enabled && mm.length > 1;
 
   // Player physical state lookup
   const playerDesc = playerCap <= 0 ? 'flat and completely normal'
@@ -11341,38 +11400,48 @@ function buildStatePreface(playerName, charName, character) {
     : playerCap <= 95 ? 'pure agony, feeling like they could burst any second'
     : 'beyond agony, seconds from popping';
 
+  const bellyDescFor = (cap) => cap <= 5 ? 'normal-looking — inflation has just barely started'
+    : cap <= 15 ? 'mostly flat with a very faint hint of fullness'
+    : cap <= 30 ? 'slightly bloated, subtly rounder than normal'
+    : cap <= 50 ? 'noticeably rounded and swollen'
+    : cap <= 70 ? 'very swollen, visibly inflated and taut'
+    : cap <= 85 ? 'hugely distended, skin tight and shiny'
+    : cap <= 95 ? 'enormous, about to burst, straining at the absolute limit'
+    : 'impossibly over-inflated, about to pop';
+
+  const bellyFeelFor = (cap) => cap <= 5 ? 'barely aware of anything'
+    : cap <= 15 ? 'a faint warmth and subtle pressure'
+    : cap <= 30 ? 'mild fullness and growing pressure'
+    : cap <= 50 ? 'persistent tightness and real pressure'
+    : cap <= 70 ? 'intense pressure, hard to ignore'
+    : cap <= 85 ? 'overwhelming tightness, real pain'
+    : cap <= 95 ? 'pure agony, feeling like they could burst any second'
+    : 'beyond agony, seconds from popping';
+
+  // EVERY valid pumpable body gets its state EVERY reply — single card → the card-level flag
+  // (characterCapacity); group → every member flagged isPumpable (the base member rides
+  // characterCapacity, the rest ride memberCapacities). 0% bodies are stated flat explicitly,
+  // so the model never invents a size for an unmentioned member.
+  const bodies = isGroup
+    ? mm.filter(m => m?.isPumpable && m?.name).map(m => ({
+        name: m.name,
+        cap: Math.round(m.id === mm[0].id ? charCap : (sessionState.memberCapacities?.[m.id] ?? 0))
+      }))
+    : (character?.isPumpable ? [{ name: charName, cap: Math.round(charCap) }] : []);
+
   let preface = `[Current physical reality — use this, not your imagination:\n`;
   preface += `${playerName}'s belly (${playerCap}%) is ${playerDesc}. ${playerName} feels ${playerFeeling}.\n`;
 
-  if (isPumpable && charCap > 0) {
-    const charDesc = charCap <= 5 ? 'normal-looking — inflation has just barely started'
-      : charCap <= 15 ? 'mostly flat with a very faint hint of fullness'
-      : charCap <= 30 ? 'slightly bloated, subtly rounder than normal'
-      : charCap <= 50 ? 'noticeably rounded and swollen'
-      : charCap <= 70 ? 'very swollen, visibly inflated and taut'
-      : charCap <= 85 ? 'hugely distended, skin tight and shiny'
-      : charCap <= 95 ? 'enormous, about to burst, straining at the absolute limit'
-      : 'impossibly over-inflated, about to pop';
-
-    const charFeeling = charCap <= 5 ? 'barely aware of anything'
-      : charCap <= 15 ? 'a faint warmth and subtle pressure'
-      : charCap <= 30 ? 'mild fullness and growing pressure'
-      : charCap <= 50 ? 'persistent tightness and real pressure'
-      : charCap <= 70 ? 'intense pressure, hard to ignore'
-      : charCap <= 85 ? 'overwhelming tightness, real pain'
-      : charCap <= 95 ? 'pure agony, feeling like they could burst any second'
-      : 'beyond agony, seconds from popping';
-
-    preface += `${charName}'s belly (${charCap}%) is ${charDesc}. ${charName} feels ${charFeeling}.\n`;
-    preface += `${playerName} can see that ${charName}'s belly looks ${charDesc}.\n`;
-    preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
-  } else if (isPumpable && charCap <= 0) {
-    preface += `${charName}'s belly is completely flat and normal — not inflated at all.\n`;
-    if (playerCap > 0) {
-      preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
+  for (const b of bodies) {
+    if (b.cap > 0) {
+      preface += `${b.name}'s belly (${b.cap}%) is ${bellyDescFor(b.cap)}. ${b.name} feels ${bellyFeelFor(b.cap)}.\n`;
+      preface += `${playerName} can see that ${b.name}'s belly looks ${bellyDescFor(b.cap)}.\n`;
+    } else {
+      preface += `${b.name}'s belly is completely flat and normal — not inflated at all.\n`;
     }
-  } else if (playerCap > 0) {
-    // Non-pumpable char can still see the player
+  }
+  const inflatedBodies = bodies.filter(b => b.cap > 0);
+  if (inflatedBodies.length || playerCap > 0) {
     preface += `${charName} can see that ${playerName}'s belly looks ${playerDesc}.\n`;
   }
 
@@ -11381,7 +11450,8 @@ function buildStatePreface(playerName, charName, character) {
   // an author's note to "drive the plot forward / avoid positivity bias") narrates a belly far ahead
   // of the gauge — the model plays the character's goal instead of the current number. Injected at
   // depth-0 (right before the primer), so it's the last thing the model reads before generating.
-  preface += `This is the ONLY size and sensation that exists right now — describe exactly this and nothing further. Do NOT depict ${playerName}${(isPumpable && charCap > 0) ? ` or ${charName}` : ''} as bigger, fuller, rounder, or further along than the percentage stated above, no matter what any character wants, intends, or is "eager" to do. The belly grows ONLY as the number rises, never in narration or imagination. If you state a number, use ONLY the exact percentage above.\n`;
+  const guarded = [playerName, ...inflatedBodies.map(b => b.name)];
+  preface += `This is the ONLY size and sensation that exists right now — describe exactly this and nothing further. Do NOT depict ${guarded.join(' or ')} as bigger, fuller, rounder, or further along than the percentage stated above, no matter what any character wants, intends, or is "eager" to do. The belly grows ONLY as the number rises, never in narration or imagination. If you state a number, use ONLY the exact percentage above.\n`;
   preface += `]\n`;
   return preface;
 }
@@ -12036,6 +12106,7 @@ function checkpointInjectionsBlock() {
 async function resumeTreeChoice(choiceId) {
   const pend = sessionState.pendingTreeChoice;
   if (!pend) return;
+  if (pend.multi || pend.selectMember) return; // wrong channel — a stray single-choice click must not clear these
   const chosen = (pend.choices || []).find(c => c.id === choiceId);
   const after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeChoice = null;
@@ -12137,6 +12208,49 @@ async function resumeTreeChooseMulti(selectedIds) {
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this choice → arm UNLOCK
   await tryResumeCapacityGate().catch(() => {}); // choice stall cleared — fire a queued Fire% gate if met
+}
+
+// Resume a suspended Select Member popup. OK (memberId) → store the member's NAME in
+// sessionState.selectedChar ([SelectedChar]) and run the node's body, then the same-level
+// continuation. Cancel (null/stale id) → ABORT the entire tree run: body + continuation discarded.
+async function resumeTreeSelectMember(memberId) {
+  const pend = sessionState.pendingTreeChoice;
+  if (!pend || !pend.selectMember) return;
+  const chosen = memberId ? (pend.choices || []).find(c => c.id === memberId) : null;
+  const body = pend.body, after = pend.after, snap = pend.ctxSnapshot || {};
+  sessionState.pendingTreeChoice = null;
+  broadcast('tree_select_member_clear', {});
+  if (!chosen) {
+    console.log('[Tree] Select Member cancelled — aborting the tree run');
+    await tryResumeCapacityGate().catch(() => {}); // the stall is cleared even though the tree died
+    return;
+  }
+  sessionState.selectedChar = chosen.label; // member NAME → [SelectedChar] / [CharCapacity:[SelectedChar]]
+  console.log(`[Tree] Select Member → [SelectedChar] = ${chosen.label}`);
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+  let sig;
+  try { sig = await runTree(body || [], ctx); }
+  catch (e) { console.error('[resumeTreeSelectMember] body failed:', e?.message || e); }
+  if (sig) return; // body re-armed a nested suspend (or a goto bubbled out) — stop here
+  if (Array.isArray(after) && after.length) {
+    try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
+    catch (e) { console.error('[resumeTreeSelectMember] continuation failed:', e?.message || e); }
+  }
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
+  await tryResumeCapacityGate().catch(() => {});
 }
 
 // Resume a suspended Trigger Tree call_minigame on the played exit (Phase 5). Sets the GameResult /
@@ -13451,6 +13565,7 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
     prompt += `\n=== SOLO RESPONSE (MANDATORY) ===\n`;
     prompt += `You are writing ONLY as ${me?.name || 'this character'} this turn. Output a single in-character reply from ${me?.name || 'them'} alone.\n`;
     if (others.length) prompt += `Do NOT write dialogue, actions, thoughts, or narration for ${others.join(', ')} — they may be present, but this turn is ${me?.name}'s alone. You may reference them, but never voice or act for them.\n`;
+    prompt += `Begin DIRECTLY with the reply — do NOT acknowledge these instructions or announce what you will do.\n`;
     prompt += `=== END SOLO RESPONSE ===\n\n`;
   } else {
     prompt += `\nCONVERSATION DYNAMICS (important):\n`;
@@ -15405,6 +15520,42 @@ async function runNode(node, ctx) {
         return { __control: 'suspend', reason: 'choose_multi' };
       }
 
+      case 'select_member': {
+        // Popup member picker — GROUP MODE ONLY. Suspends the tree; OK stores the pick's NAME in
+        // [SelectedChar] and runs the body + same-level continuation, Cancel ABORTS the entire
+        // tree run (body and continuation are discarded). Single mode: skip silently (children
+        // too, once not consumed) — [SelectedChar] already resolves to the base char there.
+        const smAll = ctx.character?.multiChar?.characters || [];
+        if (!(ctx.character?.multiChar?.enabled && smAll.length > 1)) return;
+        const smList = (node.params?.pumpableOnly ? smAll.filter(m => m?.isPumpable) : smAll).filter(m => m?.name);
+        if (!smList.length) { console.warn(`[runTree] select_member node ${node.id}: no eligible members — skipping`); return; }
+        if (node.params?.pumpableOnly && smList.length === 1) {
+          // Exactly one eligible pick — no popup: auto-select it and run the body inline, no suspend.
+          const child = enterChild(node, ctx); // consumes once, depth-bumps for the body
+          if (!child) return;
+          sessionState.selectedChar = smList[0].name;
+          console.log(`[Tree] Select Member auto-pick (single pumpable member) → [SelectedChar] = ${smList[0].name}`);
+          return await runTree(node.children || [], child);
+        }
+        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'select_member' };
+        markTreeOnce(node, ctx); // presenting IS the effect
+        sessionState.pendingTreeChoice = {
+          selectMember: true,
+          choices: smList.map(m => ({ id: m.id, label: m.name })),
+          body: node.children || [],
+          ctxSnapshot: {
+            treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
+            delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+          },
+          after: null // innermost sibling tail, filled by runTree as the suspend bubbles
+        };
+        broadcast('tree_select_member', {
+          prompt: node.params?.prompt || '',
+          members: smList.map(m => ({ id: m.id, name: m.name, portrait: m.portrait || null }))
+        });
+        return { __control: 'suspend', reason: 'select_member' };
+      }
+
       case 'pause_resume': {
         // Defer the rest of THIS tree for N reply turns, then run this node's body + the same-level
         // continuation. Non-blocking: uses pendingTreeResume (NOT pendingTreeChoice) so other scopes
@@ -15544,6 +15695,10 @@ async function runTree(nodes, ctx) {
 // (post immediately — used by Session Start, which runs before any reply turn).
 async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
   if (!tree || !Array.isArray(tree.nodes)) return;
+  // [SelectedChar] resets at the start of EVERY tree run (back to "resolves to the base char"),
+  // so trees can reference it unconditionally without inheriting a stale pick from a prior tree.
+  // A Select Member node inside this run (or a resume of this run's suspend) re-fills it.
+  sessionState.selectedChar = null;
   const treeId = tree.id || `inline:${scopeKey || 'default'}`;
   const ctx = {
     character, settings,

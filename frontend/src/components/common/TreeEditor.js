@@ -135,6 +135,7 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'keyword_gate', label: 'On Keyword' },
       { kind: 'container', type: 'repeat', label: 'Repeat / Loop' },
       { kind: 'container', type: 'pause_resume', label: 'Pause / Resume' },
+      { kind: 'container', type: 'select_member', label: 'Select Member' },
       { kind: 'container', type: 'call_minigame', label: 'Call MiniGame' },
     ]
   },
@@ -150,7 +151,7 @@ const ADD_GROUPS = [
 const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
-const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume']); // not if/player_choice/choose_multi (special children)
+const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume', 'select_member']); // not if/player_choice/choose_multi (special children)
 
 function makeCond() { return { varType: 'flow', variable: '', operator: '==', value: '' }; }
 function makeBranch(isElse = false) {
@@ -212,6 +213,7 @@ function summarize(node) {
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
   if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
   if (t === 'pause_resume') return `Pause · resume after ${p.resumeAfterValue ?? 4} turn(s)`;
+  if (t === 'select_member') return `Select Member · ${p.pumpableOnly ? 'pumpable only' : 'all members'} → [SelectedChar]`;
   if (t === 'keyword_gate' || t === 'keyword') {
     const who = (p.speaker === 'char' || p.speaker === 'character') ? 'char' : p.speaker === 'either' ? 'either' : 'player';
     return `On Keyword (${who}): ${(p.keys || []).join(', ') || '(none)'}`;
@@ -533,11 +535,25 @@ function NodeBody({ node, onChange, rowProps }) {
     </div>
   );
 
+  const selectMemberParams = t === 'select_member' && (
+    <div className="tree-params">
+      <label className="tree-field tree-field-inline" title="Only list members marked as valid inflation targets">
+        <input type="checkbox" checked={!!node.params?.pumpableOnly} onChange={(e) => setParams({ pumpableOnly: e.target.checked })} />
+        <span>Pumpable members only</span>
+      </label>
+      <div className="tree-hint">
+        Group mode only: pops up a member picker. OK stores the pick in [SelectedChar] and runs the body below;
+        Cancel aborts the whole tree. [SelectedChar] resets to the base character at the start of every tree run.
+      </div>
+    </div>
+  );
+
   return (
     <div className="tree-container-body">
       {chanceParams}
       {repeatParams}
       {pauseParams}
+      {selectMemberParams}
       {keywordParams}
       {HOLDS_CHILDREN.has(t) && (
         <NodeList nodes={node.children || []} onChange={(next) => onChange({ ...node, children: next })} rowProps={rowProps} />

@@ -353,8 +353,11 @@ function buildTextCompletionRequest(prompt, settings) {
   if (settings.bannedTokens && settings.bannedTokens.length > 0) {
     body.banned_tokens = settings.bannedTokens;
   }
-  if (settings.bannedStrings && settings.bannedStrings.length > 0) {
-    body.banned_strings = settings.bannedStrings; // KoboldCpp anti-slop
+  const koboldBannedStrings = [...(settings.bannedStrings || [])];
+  // Directive-echo fence ban (parity with the llamacpp logit_bias ban — see buildLlamaCppRequest).
+  if (settings.banFenceEcho !== false) koboldBannedStrings.push('===');
+  if (koboldBannedStrings.length > 0) {
+    body.banned_strings = koboldBannedStrings; // KoboldCpp anti-slop
   }
   const koboldLogitBias = toKoboldLogitBias(settings.logitBias);
   if (koboldLogitBias) body.logit_bias = koboldLogitBias;
@@ -1906,6 +1909,15 @@ function buildLlamaCppRequest(prompt, settings) {
     for (const t of settings.bannedTokens) {
       if (/^\d+$/.test(String(t).trim())) llamaBias.push([parseInt(t), false]);
     }
+  }
+  // Directive-echo fence ban (default ON; settings.banFenceEcho=false to disable): every injected
+  // directive block is fenced with '===', which is a DEDICATED token in Mistral/Tekken-family
+  // vocabs ('===' → one token; '2+2=4' / 'a=b' use different '=' tokens — verified via /tokenize).
+  // Banning it makes a fenced-block regurgitation UNSAMPLEABLE instead of stripped after the fact.
+  // String entries are tokenized server-side, so this stays correct across models; prose, device
+  // tags and math are untouched (A/B verified: identical outputs, tag compliance unchanged).
+  if (settings.banFenceEcho !== false) {
+    llamaBias.push(['===', false], [' ===', false]);
   }
   if (llamaBias.length) body.logit_bias = llamaBias;
 

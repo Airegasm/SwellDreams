@@ -12,6 +12,7 @@ import CharactersPersonas from './pages/CharactersPersonas';
 import MediaAlbum from './pages/MediaAlbum';
 import Triggers from './pages/Triggers';
 import HamburgerMenu from './components/HamburgerMenu';
+import AutoPumpHeader from './components/AutoPumpHeader';
 import HelpPanel from './components/HelpPanel';
 import SaveSessionModal from './components/modals/SaveSessionModal';
 import LoadSessionModal from './components/modals/LoadSessionModal';
@@ -456,7 +457,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.8.5</span>
+      <span className="version-badge">v6.8.6</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -484,6 +485,10 @@ function App() {
           </button>
         )}
       </div>
+
+      {/* Header extension: one row per pumpable char (name · capacity · AUTO-PUMP). Chat page only;
+          stays mounted so the toggles survive navigation. */}
+      <AutoPumpHeader visible={location.pathname === '/'} />
 
       {/* Hamburger menu floats independently on top of everything */}
       <HamburgerMenu

@@ -65,3 +65,30 @@ sheets / garbage). Current shipped state = the ORIGINAL (below, "before").
 Note: the `[Characters]:` primer + strips is what produced the "# Character Sheet" dumps with
 model B's loose sampling. If we retry the welcome, do it with model A's tighter tag-friendly
 sampling, not B's.
+
+---
+
+## Directive regurgitation — root cause & layered fix (2026-07-12)
+
+Mined real session files for leaks that actually reached the screen. Findings:
+
+- **Fenced `=== MANDATORY ===` echoes never reach the user** (stripLeakedDirectives works);
+  the surviving leak shapes were (1) a verbatim replay of the `[Current physical reality …]`
+  state preface at the end of a reply, and (2) an "obedience preamble" —
+  `[Understood. I will write ONLY as X, following all instructions…]` + `---` + `X:` label.
+- **Both real leaks came from ONE code path**: `handleSpecialGenerate` (Guided Response, incl.
+  guided member replies) was the only reply route that never ran the cleaner chain. The strip
+  functions, fed those exact messages, cleaned them fully — bypass, not regex gap.
+
+Fix layers (v6.8.6):
+1. `handleSpecialGenerate` now runs the standard cleaners (stripLeakedDirectives + gated
+   scaffolding/brackets) on both streaming and non-streaming branches, BEFORE device processing.
+2. **Fence-token ban** (`banFenceEcho`, default ON, set `false` in the profile to disable):
+   llamacpp requests logit-ban `===` / ` ===` (dedicated Tekken tokens 43555/6615 — `2+2=4`,
+   `a=b`, `[pump on]` use different tokens); KoboldCpp gets `===` via `banned_strings`. A fenced
+   echo becomes UNSAMPLEABLE instead of stripped after the fact. A/B on live Cydonia (12+12 gens):
+   outputs identical, tag compliance unchanged (4/6 vs 4/6), zero prose impact.
+3. stripLeakedDirectives gained rules for the two observed non-fenced shapes (preface replay incl.
+   truncated tail; leading obedience preamble + `---`).
+4. The INDIVIDUAL/SOLO RESPONSE blocks now end with "Begin DIRECTLY with the reply — do NOT
+   acknowledge these instructions…" (targets the preamble at the source).
