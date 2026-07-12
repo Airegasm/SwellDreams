@@ -280,6 +280,57 @@
     border-bottom: 1px solid #3d4147;
     flex-shrink: 0;
   }
+
+  /* Auto-pump rows appended below the mobile header — same panel skin, minimal padding.
+     Row internals (.auto-pump-row / .apr-*) are the shared styles from App.css. */
+  .mobile-auto-pump {
+    padding: 0 10px;
+    background: var(--skin-input-bg, linear-gradient(180deg, #2d3036 0%, #1a1d21 60%, #0d0f12 100%));
+    border-bottom: 1px solid #3d4147;
+    flex-shrink: 0;
+  }
+  .mobile-auto-pump:empty {
+    display: none; /* no pumpable chars → no bar */
+  }
+  /* Ultra-compact on mobile: one 15px row PER MEMBER (explicit pixel heights so nothing
+     inherited can inflate them), generous horizontal gaps, and a FIXED-width button so
+     every row's button matches exactly (ON/OFF labels don't change its size) and they
+     line up in a clean right-hand column. */
+  .mobile-auto-pump {
+    padding: 1px 10px;
+    /* Stop mobile font-boosting from inflating the tiny row/button text past its pixel budget. */
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+  }
+  .mobile-auto-pump .auto-pump-row {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    gap: 18px;
+    font-size: 10px;
+    line-height: 12px;
+    height: 15px;
+    min-height: 0;
+  }
+  .mobile-auto-pump .auto-pump-row + .auto-pump-row { border-top: none; }
+  .mobile-auto-pump .apr-name { min-width: 80px; max-width: 140px; font-weight: 500; }
+  .mobile-auto-pump .apr-cap { min-width: 34px; text-align: right; }
+  .mobile-auto-pump .apr-btn {
+    margin-left: auto;   /* push to a shared right column, max clearance from the text */
+    min-width: 84px;     /* equal buttons across rows; grows only if the label truly needs it */
+    width: auto;
+    height: 13px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    font-size: 9px;
+    padding: 0 6px;
+    line-height: 1;
+    border-radius: 2px;
+    letter-spacing: 0.02em;
+  }
   .mobile-chat-header .mch-btn {
     height: 36px;
     min-width: 36px;

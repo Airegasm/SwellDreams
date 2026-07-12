@@ -78,6 +78,11 @@ export function AppProvider({ children }) {
   // Choose Multi (multi-select) state
   const [chooseMultiData, setChooseMultiData] = useState(null);
   const [selectMemberData, setSelectMemberData] = useState(null);
+  const [treePlayerInputData, setTreePlayerInputData] = useState(null);
+  // Auto-pump toggle state per pumpable member (header strip / mobile rows). Visual-only for
+  // now — the actual pumping behavior gets wired later. Shared here so desktop + mobile agree.
+  const [autoPumpArmed, setAutoPumpArmed] = useState({});
+  const toggleAutoPump = useCallback((id) => setAutoPumpArmed(prev => ({ ...prev, [id]: !prev[id] })), []);
 
   // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
   const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
@@ -474,6 +479,14 @@ export function AppProvider({ children }) {
         setSelectMemberData(null);
         break;
 
+      case 'tree_player_input':
+        setTreePlayerInputData(data);
+        break;
+
+      case 'tree_player_input_clear':
+        setTreePlayerInputData(null);
+        break;
+
       case 'tree_minigame':
         setTreeMiniGameData(data);
         break;
@@ -490,6 +503,7 @@ export function AppProvider({ children }) {
         setCheckpointChoiceData(null);
         setTreeChooseMultiData(null);
         setSelectMemberData(null); // generic "armed choice cleared" signal (chat clear / session reset)
+        setTreePlayerInputData(null);
         break;
 
       case 'member_mute_update':
@@ -982,6 +996,13 @@ export function AppProvider({ children }) {
   const respondSelectMember = useCallback((memberId) => {
     sendWsMessage('tree_select_member_response', { memberId: memberId || null });
     setSelectMemberData(null);
+  }, [sendWsMessage]);
+
+  // Answer a Trigger Tree Player Input popup. values = array aligned with the rows; null = Cancel
+  // (aborts the suspended tree run on the backend).
+  const respondTreePlayerInput = useCallback((values) => {
+    sendWsMessage('tree_player_input_response', { values: Array.isArray(values) ? values : null });
+    setTreePlayerInputData(null);
   }, [sendWsMessage]);
 
   // Report the played exit of a Trigger Tree call_minigame back to the tree resume path (Phase 5).
@@ -2048,6 +2069,10 @@ export function AppProvider({ children }) {
     confirmTreeChooseMulti,
     selectMemberData,
     respondSelectMember,
+    treePlayerInputData,
+    respondTreePlayerInput,
+    autoPumpArmed,
+    toggleAutoPump,
     treeMiniGameData,
     respondTreeMiniGame,
     checkpointChoiceData,

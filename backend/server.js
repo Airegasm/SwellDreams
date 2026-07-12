@@ -1223,6 +1223,23 @@ const deviceService = new DeviceService();
 // Initialize event engine
 const eventEngine = new EventEngine(deviceService, llmService);
 
+// Late-bound resolver for [CharCapacity:member] inside event-engine substitutions (tree
+// conditions, Set CharVar values, flow text). Injected so the engine needs no knowledge of
+// per-char storage; called lazily only when the :member form actually appears. Returns the
+// member's capacity, or null when the key matches nobody on the active card.
+eventEngine.resolveMemberCapacity = (key) => {
+  try {
+    const settings = loadData(DATA_FILES.settings) || {};
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const card = chars.find(c => c.id === settings.activeCharacterId);
+    const mm = card?.multiChar?.characters || [];
+    const k = String(key).trim().toLowerCase();
+    const idx = mm.findIndex(m => m && ((m.name || '').toLowerCase() === k || m.id === String(key).trim()));
+    if (idx < 0) return null;
+    return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+  } catch (e) { return null; }
+};
+
 // ============================================
 // Pump safety constants & helpers
 // ============================================
@@ -3562,6 +3579,7 @@ const sessionState = {
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
                       // base character at read time, and every runTreeScope resets it so trees stay agnostic
+  playerInputs: {}, // Tree Player Input popup values, 1-based per form ([PlayerInput:Row#]); replaced wholesale on each OK
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
   pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
@@ -3928,6 +3946,20 @@ const TRIGGER_REQUIRED_PARAMS = {
   char_capacity: ['value'],
 };
 
+// Wrap a message action's final text with its optional Prepend/Append Verbatim blocks: literal
+// author text in the SAME bubble, before/after whatever was generated (or typed, for verbatim
+// messages). Variables resolve at fire time. Applied BEFORE the message is stored/broadcast, so
+// the combined text is exactly what lands in chat history — i.e. it is IN CONTEXT for later
+// prompts, not display-only.
+function applyVerbatimWraps(text, trigger) {
+  let out = text ?? '';
+  const pre = trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '' ? substituteAllVariables(trigger.prependText) : null;
+  const app = trigger.appendVerbatim && String(trigger.appendText || '').trim() !== '' ? substituteAllVariables(trigger.appendText) : null;
+  if (pre) out = `${pre}\n${out}`;
+  if (app) out = `${out}\n${app}`;
+  return out;
+}
+
 // Resolve a trigger's member reference: a raw member id, a member NAME, or a variable like
 // [SelectedChar] (substituted first, so the Select Member pick routes actions). Returns '' for
 // the base character (empty ref, base id, or base name all normalize), a member id for others,
@@ -3988,7 +4020,8 @@ async function executeTrigger(trigger, source, character, settings) {
           impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
         }
         broadcast('generating_stop', {});
-        const impText = impResult?.text ? substituteAllVariables(stripCrossRoleContent(impResult.text, impContext.stopSequences, false)).trim() : '';
+        let impText = impResult?.text ? substituteAllVariables(stripCrossRoleContent(impResult.text, impContext.stopSequences, false)).trim() : '';
+        if (impText) impText = applyVerbatimWraps(impText, trigger);
         if (impText) {
           if (impStreamMsg) {
             impStreamMsg.content = impText;
@@ -4016,7 +4049,7 @@ async function executeTrigger(trigger, source, character, settings) {
           const vtext = (trigger.context || '').trim();
           if (vtext) {
             const { v4: uuidv4 } = require('uuid');
-            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
+            const vmsg = { id: uuidv4(), content: applyVerbatimWraps(substituteAllVariables(vtext), trigger), sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now() };
             sessionState.chatHistory.push(vmsg);
             broadcast('chat_message', vmsg);
             autosaveSession();
@@ -4064,6 +4097,7 @@ async function executeTrigger(trigger, source, character, settings) {
             const ctrl = await aiDeviceControl.processLlmOutput(atxt, dvcs, deviceService, { settings, sessionState, broadcast, characterLimits: getCharacterLimits(character), injectContext: () => {} });
             if (ctrl.commands?.length) atxt = ctrl.text;
           } catch (e) { console.error('[trigger:ai_message] device processing failed:', e?.message || e); }
+          atxt = applyVerbatimWraps(atxt, trigger); // after device processing — wrap text stays literal
           if (aiStreamMsg) {
             aiStreamMsg.content = atxt;
             aiStreamMsg.streaming = false;
@@ -4088,13 +4122,22 @@ async function executeTrigger(trigger, source, character, settings) {
         // char speaks AS the base member (only an EMPTY ref means "whole group").
         const mm = character?.multiChar?.characters || [];
         const memRef = trigger.targetMember ? resolveMemberRef(trigger.targetMember, character) : null;
-        const tgt = memRef ? mm.find(m => m.id === memRef) : (memRef === '' ? mm[0] || null : null);
+        let tgt = memRef ? mm.find(m => m.id === memRef) : (memRef === '' ? mm[0] || null : null);
+        // SAFETY: a solo member message only makes sense in Individual-Responses mode. On a
+        // blended-mode group card, force the whole-group path (group bubble, no solo constraint)
+        // so a member-targeted action can't break the blended flow. Verbatim text still names
+        // the member, so narrative attribution survives.
+        const isGroupCard = !!character?.multiChar?.enabled && mm.length > 1;
+        if (isGroupCard && character.multiChar.responseMode !== 'individual' && tgt) {
+          console.log(`[Trigger/${source}] ai_message_member: card is in group-response mode — posting as the whole group instead of ${tgt.name}`);
+          tgt = null;
+        }
         const speakerName = tgt?.name || character.name;
         if (trigger.llmEnhance === false) {
           const vtext = (trigger.context || '').trim();
           if (vtext) {
             const { v4: uuidv4 } = require('uuid');
-            const vmsg = { id: uuidv4(), content: substituteAllVariables(vtext), sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
+            const vmsg = { id: uuidv4(), content: applyVerbatimWraps(substituteAllVariables(vtext), trigger), sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now() };
             sessionState.chatHistory.push(vmsg);
             broadcast('chat_message', vmsg);
             autosaveSession();
@@ -4146,6 +4189,7 @@ async function executeTrigger(trigger, source, character, settings) {
             const ctrl = await aiDeviceControl.processLlmOutput(memText, dvcs, deviceService, { settings, sessionState, broadcast, characterLimits: getCharacterLimits(character), injectContext: () => {} });
             if (ctrl.commands?.length) memText = ctrl.text;
           } catch (e) { console.error('[ai_message_member] device processing failed:', e?.message || e); }
+          memText = applyVerbatimWraps(memText, trigger); // after device processing — wrap text stays literal
           if (memStreamMsg) {
             memStreamMsg.content = memText;
             memStreamMsg.streaming = false;
@@ -4165,14 +4209,33 @@ async function executeTrigger(trigger, source, character, settings) {
       }
 
       case 'char_inflate_start': {
+        // Target-aware mock pump ON: ''/base → the original base-char engine (characterCapacity);
+        // a member id / name / [SelectedChar] / [CharVar:x] → that member's own independent ticker.
+        const ciTgt = resolveMemberRef(trigger.targetMember, character);
+        if (ciTgt === null) { console.warn(`[Trigger/${source}] char_inflate_start: target '${trigger.targetMember}' matches no member — skipped`); break; }
         const ciCalTime = getCharacterCalibrationTime(character);
-        if (character?.isPumpable && ciCalTime) startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
+        if (!ciCalTime) break;
+        const ciMembers = character?.multiChar?.characters || [];
+        if (!ciTgt) {
+          // Base char: card-level flag (single cards) or the group base member's per-member flag.
+          const basePumpable = character?.isPumpable || (character?.multiChar?.enabled && ciMembers[0]?.isPumpable);
+          if (basePumpable) startCharacterInflation(ciCalTime, character.charBurstPercent || 100);
+          else console.log(`[Trigger/${source}] char_inflate_start: base character is not pumpable — skipped`);
+        } else {
+          const ciMember = ciMembers.find(m => m.id === ciTgt);
+          if (ciMember?.isPumpable) startMemberInflation(ciTgt, ciMember.name, ciCalTime, character.charBurstPercent || 100);
+          else console.log(`[Trigger/${source}] char_inflate_start: member '${ciMember?.name || ciTgt}' is not pumpable — skipped`);
+        }
         break;
       }
 
-      case 'char_inflate_stop':
-        stopCharacterInflation();
+      case 'char_inflate_stop': {
+        const csTgt = resolveMemberRef(trigger.targetMember, character);
+        if (csTgt === null) { console.warn(`[Trigger/${source}] char_inflate_stop: target '${trigger.targetMember}' matches no member — skipped`); break; }
+        if (!csTgt) stopCharacterInflation();
+        else stopMemberInflation(csTgt);
         break;
+      }
 
       case 'pump_on': {
         // Optional timer (trigger.duration, seconds): runs for that long then auto-offs (capped by the
@@ -4336,7 +4399,10 @@ async function executeTrigger(trigger, source, character, settings) {
         // same clamp as their manual WS path). Deliberately does NOT fire char state-change events
         // (matches set_char_capacity — avoids trigger→event→trigger cascades).
         const ccOp = (trigger.operation === 'inc' || trigger.operation === 'dec') ? trigger.operation : 'set';
-        const ccAmt = Math.max(0, Math.min(100, parseInt(trigger.value) || 0));
+        // Amount accepts variables and math ("[CharVar:PumpPct]", "[PlayerInput:1] * 50 / 80"):
+        // substitute, evaluate, then round + clamp.
+        const ccRaw = eventEngine.evaluateExpression(eventEngine.substituteVariables(String(trigger.value ?? '')));
+        const ccAmt = Math.max(0, Math.min(100, Math.round(parseFloat(ccRaw) || 0)));
         // Ref may be an id, a name, or [SelectedChar] — '' = base char; null = unresolvable.
         const ccTgt = resolveMemberRef(trigger.targetMember, character);
         if (ccTgt === null) { console.warn(`[Trigger/${source}] char_capacity: target '${trigger.targetMember}' matches no member — skipped`); break; }
@@ -4514,8 +4580,10 @@ async function executeTrigger(trigger, source, character, settings) {
 
       case 'flow_var': {
         if (trigger.variable) {
-          eventEngine.applySetVariable('custom', trigger.variable, trigger.operation || 'set', trigger.value);
-          console.log(`[Trigger/${source}] flow_var ${trigger.variable} ${trigger.operation || 'set'} ${trigger.value}`);
+          // sourceVar (optional) = left operand for the math: X = [sourceVar] op value. Name and
+          // value both accept CharVars / system vars / nested combos; value accepts arithmetic.
+          eventEngine.applySetVariable('custom', trigger.variable, trigger.operation || 'set', trigger.value, null, trigger.sourceVar ?? null);
+          console.log(`[Trigger/${source}] flow_var ${trigger.variable} ${trigger.operation || 'set'}${trigger.sourceVar ? ` (from ${trigger.sourceVar})` : ''} ${trigger.value}`);
         }
         break;
       }
@@ -4546,7 +4614,7 @@ async function executeTrigger(trigger, source, character, settings) {
       // ---- Post a player-voice message (verbatim when llmEnhance===false) ----
       case 'send_player_message': {
         const text = (trigger.message || trigger.context || '').trim();
-        if (text) await eventEngine.broadcast('player_message', { content: substituteAllVariables(text), suppressLlm: trigger.suppressLlm === true || trigger.llmEnhance === false });
+        if (text) await eventEngine.broadcast('player_message', { content: applyVerbatimWraps(substituteAllVariables(text), trigger), suppressLlm: trigger.suppressLlm === true || trigger.llmEnhance === false });
         break;
       }
 
@@ -4701,6 +4769,54 @@ function stopCharacterInflation() {
     console.log(`[CharInflation] Stopped at ${sessionState.characterCapacity}%`);
     broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: sessionState.characterCapacity });
   }
+}
+
+// ---- Per-member mock auto-pumps ---------------------------------------------------------------
+// Independent simulated inflation per GROUP MEMBER (the base member keeps riding the original
+// engine above via characterCapacity). Each member gets its own ticker writing
+// sessionState.memberCapacities[id], with the same gauge-freeze hold and burst auto-stop
+// semantics as the base engine. Keyed by member id; restart-safe per member.
+const memberInflationTimers = new Map(); // memberId -> { timer, startTime, lastTick, startCap, calTime, burstPercent, name }
+
+function startMemberInflation(memberId, memberName, calibrationTime, burstPercent = 100) {
+  stopMemberInflation(memberId);
+  if (!sessionState.memberCapacities) sessionState.memberCapacities = {};
+  const startCap = sessionState.memberCapacities[memberId] ?? 0;
+  const st = { startTime: Date.now(), lastTick: Date.now(), startCap, calTime: calibrationTime, burstPercent, name: memberName || memberId };
+  console.log(`[MemberInflation] ${st.name}: starting — calibration=${calibrationTime}s from ${startCap}%, burst@${burstPercent}%`);
+  broadcast('member_inflate_state', { memberId, active: true, elapsed: 0, capacity: startCap });
+  st.timer = setInterval(() => {
+    const now = Date.now();
+    const tickMs = now - st.lastTick;
+    st.lastTick = now;
+    if (isGaugeFrozen()) { st.startTime += tickMs; return; } // hold exactly where it froze (same as base engine)
+    const elapsed = (now - st.startTime) / 1000;
+    const newCap = Math.min(st.burstPercent, Math.round(st.startCap + (elapsed / st.calTime) * 100));
+    if (newCap !== (sessionState.memberCapacities[memberId] ?? 0)) {
+      sessionState.memberCapacities[memberId] = newCap;
+    }
+    broadcast('member_capacity_update', { memberId, capacity: newCap, memberCapacities: sessionState.memberCapacities, elapsed: Math.round(elapsed), inflating: true });
+    if (newCap >= st.burstPercent) {
+      console.log(`[MemberInflation] ${st.name} reached ${st.burstPercent}% — auto-stopping (POP!)`);
+      stopMemberInflation(memberId);
+      broadcast('member_burst', { memberId, capacity: newCap, burstPercent: st.burstPercent });
+    }
+  }, 1000);
+  memberInflationTimers.set(memberId, st);
+}
+
+function stopMemberInflation(memberId) {
+  const st = memberInflationTimers.get(memberId);
+  if (!st) return;
+  clearInterval(st.timer);
+  memberInflationTimers.delete(memberId);
+  const cap = sessionState.memberCapacities?.[memberId] ?? 0;
+  console.log(`[MemberInflation] ${st.name} stopped at ${cap}%`);
+  broadcast('member_inflate_state', { memberId, active: false, elapsed: 0, capacity: cap });
+}
+
+function stopAllMemberInflation() {
+  for (const id of [...memberInflationTimers.keys()]) stopMemberInflation(id);
 }
 
 // Per-member inflation lines for group cards: members with a manually-set capacity
@@ -4993,6 +5109,12 @@ function substituteAllVariables(text, context = {}) {
   // whenever nothing is selected (runTreeScope resets it per tree run). Substituted BEFORE the
   // [CharCapacity:...] block so the nested form [CharCapacity:[SelectedChar]] collapses first.
   result = result.replace(/\[SelectedChar\]/gi, sessionState.selectedChar || charName || sessionState.characterName || '');
+  // Player Input popup values — [PlayerInput:1], [PlayerInput:2], … (1-based row numbers of the
+  // most recent Player Input form). Unknown row → tag left visible so the author sees the gap.
+  result = result.replace(/\[PlayerInput:(\d+)\]/gi, (match, n) => {
+    const v = sessionState.playerInputs?.[n];
+    return v !== undefined ? v : match;
+  });
   // Char capacity — [CharCapacity] = the base character; [CharCapacity:Name] (or :memberId) = a
   // group member. The base member rides characterCapacity; other members read memberCapacities.
   // Unknown member → tag left visible so the author sees the typo. Member lookup loads the active
@@ -5383,6 +5505,7 @@ function clearSessionContextForSwitch() {
   sessionState.pendingTreeChoice = null;
   sessionState.pendingTreeNext = null;
   sessionState.selectedChar = null; // [SelectedChar] back to "resolves to the base char"
+  sessionState.playerInputs = {}; // Player Input values belong to the outgoing session
   sessionState.activeCheckpointInjections = [];
   sessionState.checkpointInjectionCounts = {};
   sessionState.playerIsInflating = false;
@@ -7566,6 +7689,7 @@ async function handleWsMessage(ws, type, data) {
       // Stop timers
       deviceService.stopAllPumpRuntimeTracking();
       stopCharacterInflation();
+      stopAllMemberInflation();
       stopPumpSafetyWatchdog();
       clearAllServerTimedPumpTimers();
       // Stop all devices CONCURRENTLY with per-device timeout, confirming each
@@ -8188,6 +8312,11 @@ async function handleWsMessage(ws, type, data) {
     case 'tree_select_member_response':
       // OK carries the picked memberId; Cancel carries null → the whole tree run aborts.
       await resumeTreeSelectMember(data.memberId || null);
+      break;
+
+    case 'tree_player_input_response':
+      // OK carries values (array aligned with the armed rows); Cancel carries null → tree aborts.
+      await resumeTreePlayerInput(Array.isArray(data.values) ? data.values : null);
       break;
 
     case 'tree_choose_multi_response':
@@ -12106,7 +12235,7 @@ function checkpointInjectionsBlock() {
 async function resumeTreeChoice(choiceId) {
   const pend = sessionState.pendingTreeChoice;
   if (!pend) return;
-  if (pend.multi || pend.selectMember) return; // wrong channel — a stray single-choice click must not clear these
+  if (pend.multi || pend.selectMember || pend.playerInput) return; // wrong channel — a stray single-choice click must not clear these
   const chosen = (pend.choices || []).find(c => c.id === choiceId);
   const after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeChoice = null;
@@ -12248,6 +12377,65 @@ async function resumeTreeSelectMember(memberId) {
   if (Array.isArray(after) && after.length) {
     try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
     catch (e) { console.error('[resumeTreeSelectMember] continuation failed:', e?.message || e); }
+  }
+  if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
+  await tryResumeCapacityGate().catch(() => {});
+}
+
+// Resume a suspended Player Input popup. OK (values array, index-aligned with the armed rows)
+// → store each as [PlayerInput:Row#] (sessionState.playerInputs, 1-based) and run the node's
+// body + same-level continuation. Cancel (null) → ABORT the entire tree run.
+async function resumeTreePlayerInput(values) {
+  const pend = sessionState.pendingTreeChoice;
+  if (!pend || !pend.playerInput) return;
+  const body = pend.body, after = pend.after, snap = pend.ctxSnapshot || {}, rows = pend.rows || [];
+  sessionState.pendingTreeChoice = null;
+  broadcast('tree_player_input_clear', {});
+  if (!Array.isArray(values)) {
+    console.log('[Tree] Player Input cancelled — aborting the tree run');
+    await tryResumeCapacityGate().catch(() => {});
+    return;
+  }
+  const stored = {};
+  rows.forEach((r, i) => {
+    let v = values[i];
+    if (r.type === 'num') {
+      const n = parseFloat(v);
+      const fallback = r.def !== '' && r.def != null ? Number(r.def) : r.min;
+      v = Number.isFinite(n) ? Math.max(r.min, Math.min(r.max, n)) : fallback;
+    } else {
+      v = String(v ?? r.def ?? '');
+    }
+    stored[r.n] = v;
+  });
+  sessionState.playerInputs = stored; // whole map replaced per popup — row numbers are per-form
+  // Rows flagged "Store as CharVar" also land in the named variable (via applySetVariable so the
+  // canonical map + sessionState.flowVariables mirror + logging stay consistent).
+  for (const r of rows) {
+    if (r.varName) eventEngine.applySetVariable('custom', r.varName, 'set', String(stored[r.n]));
+  }
+  console.log(`[Tree] Player Input → ${rows.map(r => `[PlayerInput:${r.n}]=${stored[r.n]}${r.varName ? ` (→ [CharVar:${r.varName}])` : ''}`).join(' ')}`);
+
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+  const ctx = {
+    character, settings,
+    treeId: snap.treeId, scopeKey: snap.scopeKey,
+    depth: snap.childDepth || 0,
+    delivery: snap.delivery || 'standalone',
+    source: snap.source || `tree:${snap.treeId}`,
+    visited: new Set(snap.visited || [snap.treeId]),
+    firedSet: sessionState.firedTreeNodes,
+    labels: new Map()
+  };
+  let sig;
+  try { sig = await runTree(body || [], ctx); }
+  catch (e) { console.error('[resumeTreePlayerInput] body failed:', e?.message || e); }
+  if (sig) return; // body re-armed a nested suspend (or a goto bubbled out) — stop here
+  if (Array.isArray(after) && after.length) {
+    try { await runTree(after, ctx); }
+    catch (e) { console.error('[resumeTreePlayerInput] continuation failed:', e?.message || e); }
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
   await tryResumeCapacityGate().catch(() => {});
@@ -13902,8 +14090,72 @@ function migrateGlobalRemindersToDictionary() {
   saveData(DATA_FILES.settings, settings);
 }
 
+// Ships-with-the-app manual pump Trigger Trees. Flow: Player Input (pump count) → Select
+// Member(s) → var math (ml → % of the 8000ml max capacity) → Char Capacity inc → verbatim
+// message. [SelectedChar] resolves to the base char on single cards (Select Member skips
+// there), so all four trees work on any pumpable card without if/else. The (Char) variants
+// pick the PUMPER first and stash them in [CharVar:Pumper] before the target selection
+// overwrites [SelectedChar]; the message posts as that member (Group Member Message).
+function ensureDefaultPumpTrees() {
+  const data = loadTriggerTrees();
+  if (!Array.isArray(data.trees)) data.trees = [];
+  const MAX_ML = 8000; // full capacity — ml / 80 = % of max
+  const defs = [
+    { id: 'tree-builtin-bulb-pump-persona', name: 'Bulb Pump (Persona)', ml: 50, def: 10, charMode: false,
+      action: 'squeezes the bulb pump [PlayerInput:1] time(s), pumping a total of' },
+    { id: 'tree-builtin-bike-pump-persona', name: 'Bike Pump (Persona)', ml: 200, def: 3, charMode: false,
+      action: 'drives the bike pump through [PlayerInput:1] full stroke(s), forcing a total of' },
+    { id: 'tree-builtin-bulb-pump-char', name: 'Bulb Pump (Char)', ml: 50, def: 10, charMode: true,
+      action: 'squeezes the bulb pump [PlayerInput:1] time(s), pumping a total of' },
+    { id: 'tree-builtin-bike-pump-char', name: 'Bike Pump (Char)', ml: 200, def: 3, charMode: true,
+      action: 'drives the bike pump through [PlayerInput:1] full stroke(s), forcing a total of' },
+  ];
+  let added = 0;
+  for (const d of defs) {
+    if (data.trees.some(t => t.id === d.id)) continue;
+    const bodyTail = `[CharVar:PumpMl]ml of air into [SelectedChar], raising their capacity to [CharCapacity:[SelectedChar]]%.*`;
+    const siblings = [];
+    if (d.charMode) {
+      // Pumper first (any member may pump), stashed before the target select overwrites [SelectedChar].
+      siblings.push(
+        { id: `${d.id}-selp`, kind: 'container', type: 'select_member', once: false,
+          params: { prompt: 'Who does the pumping?', pumpableOnly: false }, children: [] },
+        { id: `${d.id}-pumper`, kind: 'action', type: 'flow_var', once: false,
+          params: { variable: 'Pumper', operation: 'set', value: '[SelectedChar]' } }
+      );
+    }
+    siblings.push(
+      { id: `${d.id}-sel`, kind: 'container', type: 'select_member', once: false,
+        params: { prompt: d.charMode ? 'Who gets pumped?' : 'Who do you pump?', pumpableOnly: true }, children: [] },
+      { id: `${d.id}-ml`, kind: 'action', type: 'flow_var', once: false,
+        params: { variable: 'PumpMl', operation: 'set', value: `[PlayerInput:1] * ${d.ml}` } },
+      { id: `${d.id}-pct`, kind: 'action', type: 'flow_var', once: false,
+        params: { variable: 'PumpPct', operation: 'set', value: `[CharVar:PumpMl] / ${MAX_ML / 100}` } },
+      { id: `${d.id}-cap`, kind: 'action', type: 'char_capacity', once: false,
+        params: { targetMember: '[SelectedChar]', operation: 'inc', value: '[CharVar:PumpPct]' } },
+      d.charMode
+        ? { id: `${d.id}-msg`, kind: 'action', type: 'ai_message_member', once: false,
+            params: { targetMember: '[CharVar:Pumper]', llmEnhance: false, context: `*[CharVar:Pumper] ${d.action} ${bodyTail}` } }
+        : { id: `${d.id}-msg`, kind: 'action', type: 'send_player_message', once: false,
+            params: { llmEnhance: false, message: `*[Player] ${d.action} ${bodyTail}` } }
+    );
+    data.trees.push({
+      id: d.id, name: d.name, builtIn: true, tag: 'pump',
+      nodes: [{
+        id: `${d.id}-input`, kind: 'container', type: 'player_input', once: false,
+        params: { rows: [{ id: `${d.id}-r1`, label: 'Number of pumps', type: 'num', min: 1, max: Math.floor(MAX_ML / d.ml), def: d.def }] },
+        children: siblings
+      }]
+    });
+    added++;
+  }
+  if (added) { saveTriggerTrees(data); console.log(`[Startup] Seeded ${added} built-in pump tree(s)`); }
+}
+
 ensureDefaultInstructorProfiles();
 ensureDefaultDictionary();
+// ensureDefaultPumpTrees() runs in the server.listen callback — it reads TRIGGER_TREES_PATH,
+// a const declared further down (calling it here at module-eval time is a TDZ ReferenceError).
 // Global-reminder→Dictionary migration retired: cards default to the "Inflation Tools" group and
 // author their own Library; the "Migrated Reminders" group is no longer created.
 // migrateGlobalRemindersToDictionary();
@@ -14697,6 +14949,8 @@ app.post('/api/settings', async (req, res) => {
         broadcast('character_inflate_state', { active: false, elapsed: 0, characterCapacity: 0 });
         broadcast('character_capacity_update', { characterCapacity: 0, elapsed: 0, inflating: false });
       }
+      // Member mock pumps never survive a character switch — their ids belong to the old card.
+      stopAllMemberInflation();
       // Member capacities belong to the previous card's members — always reset on switch
       sessionState.memberCapacities = {};
       broadcast('member_capacity_update', { memberCapacities: {} });
@@ -15554,6 +15808,36 @@ async function runNode(node, ctx) {
           members: smList.map(m => ({ id: m.id, name: m.name, portrait: m.portrait || null }))
         });
         return { __control: 'suspend', reason: 'select_member' };
+      }
+
+      case 'player_input': {
+        // Popup form: one input row per configured row (label + numbox/text). Suspends the tree;
+        // OK stores each row's value as [PlayerInput:Row#] and runs the body + continuation,
+        // Cancel ABORTS the entire tree run. Rides the pendingTreeChoice channel like
+        // select_member (same scope-blocking + after-capture machinery).
+        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'player_input' };
+        const piRows = (node.params?.rows || []).filter(r => r && typeof r === 'object');
+        if (!piRows.length) { console.warn(`[runTree] player_input node ${node.id}: no rows configured — skipping`); return; }
+        markTreeOnce(node, ctx); // presenting IS the effect
+        sessionState.pendingTreeChoice = {
+          playerInput: true,
+          rows: piRows.map((r, i) => ({
+            n: i + 1,
+            label: r.label || `Value ${i + 1}`,
+            type: r.type === 'text' ? 'text' : 'num',
+            min: Number(r.min ?? 0), max: Number(r.max ?? 100),
+            def: r.def ?? '',
+            varName: (r.storeVar && (r.varName || '').trim()) ? r.varName.trim() : null // also store as this CharVar
+          })),
+          body: node.children || [],
+          ctxSnapshot: {
+            treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
+            delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
+          },
+          after: null // innermost sibling tail, filled by runTree as the suspend bubbles
+        };
+        broadcast('tree_player_input', { prompt: node.params?.prompt || '', rows: sessionState.pendingTreeChoice.rows });
+        return { __control: 'suspend', reason: 'player_input' };
       }
 
       case 'pause_resume': {
@@ -17923,6 +18207,7 @@ app.post('/api/emergency-stop', async (req, res) => {
   sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.triggerChainDepth = 0;
   deviceService.stopAllPumpRuntimeTracking();
   stopCharacterInflation();
+  stopAllMemberInflation();
   clearAllServerTimedPumpTimers();
   stopPumpSafetyWatchdog();
 
@@ -19786,6 +20071,7 @@ app.post('/api/session/reset', async (req, res) => {
   for (const k of Object.keys(pumpActiveSince)) delete pumpActiveSince[k];
   for (const k of Object.keys(forceOffAttempts)) delete forceOffAttempts[k];
   stopCharacterInflation(); // Stop any active character inflation
+  stopAllMemberInflation(); // Per-member mock pumps die with the session too
   sessionState.characterCapacity = 0;
   sessionState.memberCapacities = {};
   sessionState.characterInflationBaseCapacity = 0;
@@ -20319,6 +20605,7 @@ server.listen(PORT, BIND_HOST, () => {
   // Detect model name from active LLM endpoint on startup
   detectLlmModel();
   startTreeIdleCheck(); // Phase 3 idle event-binding timer — started here, after all module-level decls init
+  ensureDefaultPumpTrees(); // built-in Bulb/Bike pump trees — here so TRIGGER_TREES_PATH is initialized
 });
 
 // ============================================

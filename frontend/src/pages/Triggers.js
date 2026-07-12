@@ -7,7 +7,12 @@ import './Settings.css';
 
 function Triggers() {
   const navigate = useNavigate();
-  const { api } = useApp();
+  const { api, characters, settings } = useApp();
+  // Sets are character-agnostic in storage, but member pickers (Group Member Message / Char
+  // Capacity) list the ACTIVE card's group so they're usable here. A pick that doesn't exist on
+  // whatever card is active at fire time degrades gracefully (backend resolveMemberRef → warn /
+  // group fallback); [SelectedChar] and CharVar refs are card-independent.
+  const activeCardMembers = (characters || []).find(c => c.id === settings?.activeCharacterId)?.multiChar?.characters || [];
   const [animationState, setAnimationState] = useState('entering');
   const isExiting = useRef(false);
 
@@ -424,6 +429,7 @@ function Triggers() {
                         isPumpable={true}
                         reminders={[]}
                         globalReminders={[]}
+                        members={activeCardMembers}
                         onChange={(updated) => handleTriggerChange(tIdx, updated)}
                         onRemove={() => handleTriggerRemove(tIdx)}
                         dragProps={{

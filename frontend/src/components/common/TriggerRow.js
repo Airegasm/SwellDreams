@@ -161,6 +161,68 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   const renderMemberTarget = (update) => members.length > 0 ? (
     <MemberTargetPicker members={members} value={trigger.targetMember || ''} onChange={(v) => update('targetMember', v)} />
   ) : null;
+
+  // Prepend/Append Verbatim (all message actions): literal author text placed in the SAME chat
+  // bubble before/after whatever the action generates (or posts verbatim). Variables resolve at
+  // fire time, and the combined text is stored in chat history — so it's in context, not
+  // display-only. Textareas wrap to their own full-width line (the row is flex-wrap).
+  const renderVerbatimWraps = () => (
+    <>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+        title="Prepend Verbatim — literal text at the START of the same bubble (variables resolve; goes in context)">
+        <input type="checkbox" checked={!!trigger.prependVerbatim} onChange={(e) => update('prependVerbatim', e.target.checked)} />
+        Prepend
+      </label>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+        title="Append Verbatim — literal text at the END of the same bubble (variables resolve; goes in context)">
+        <input type="checkbox" checked={!!trigger.appendVerbatim} onChange={(e) => update('appendVerbatim', e.target.checked)} />
+        Append
+      </label>
+      {trigger.prependVerbatim && (
+        <textarea value={trigger.prependText || ''} onChange={(e) => update('prependText', e.target.value)} rows={2}
+          placeholder="Prepended verbatim text — appears BEFORE the message in the same bubble ([CharVar:x] etc. resolve)…"
+          style={{ flexBasis: '100%', resize: 'vertical' }} />
+      )}
+      {trigger.appendVerbatim && (
+        <textarea value={trigger.appendText || ''} onChange={(e) => update('appendText', e.target.value)} rows={2}
+          placeholder="Appended verbatim text — appears AFTER the message in the same bubble ([CharVar:x] etc. resolve)…"
+          style={{ flexBasis: '100%', resize: 'vertical' }} />
+      )}
+    </>
+  );
+
+  // Shared member-ref dropdown (Group Member Message / Char Capacity / Char Pump ON-OFF):
+  // base char + (optionally pumpable-only) members when the card context provides them, plus the
+  // dynamic refs — [SelectedChar] and a CharVar holding a member name — which work everywhere
+  // (trees, blocks, character-agnostic Trigger Sets). Backend resolves all forms uniformly.
+  const renderMemberRefPicker = ({ baseLabel, pumpableOnly = false, title }) => {
+    const tm = trigger.targetMember || '';
+    const isCV = /^\[CharVar:/i.test(tm);
+    const known = tm === '' || tm === '[SelectedChar]' || members.some(m => m.id === tm);
+    const list = pumpableOnly ? members.filter((m, i) => i === 0 || m?.isPumpable) : members;
+    return (
+      <>
+        <select value={isCV ? '__charvar__' : tm}
+          onChange={(e) => update('targetMember', e.target.value === '__charvar__' ? '[CharVar:]' : e.target.value)}
+          style={{ maxWidth: '150px', flexShrink: 0 }} title={title}>
+          <option value="">{baseLabel}</option>
+          {members.length > 1 && list.map((m, mi) => {
+            if (members.indexOf(m) === 0) return null; // base is the '' option above
+            return <option key={m.id || mi} value={m.id}>{m.name || `Character ${mi + 1}`}</option>;
+          })}
+          <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
+          <option value="__charvar__">CharVar…</option>
+          {!isCV && !known && <option value={tm}>(missing member: {tm})</option>}
+        </select>
+        {isCV && (
+          <input type="text" value={tm.replace(/^\[CharVar:/i, '').replace(/\]$/, '')}
+            onChange={(e) => update('targetMember', `[CharVar:${e.target.value.trim()}]`)}
+            placeholder="variable name" style={{ width: '100px', flexShrink: 0 }}
+            title="The member is resolved at fire time from this CharVar's value (a member name or id)" />
+        )}
+      </>
+    );
+  };
   const [typeSearch, setTypeSearch] = React.useState('');
   const [typeOpen, setTypeOpen] = React.useState(false);
   const typeRef = React.useRef(null);
@@ -258,7 +320,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
               title="Max Response Tokens — caps this generation's length. Blank = use the character/global limit." />
-          </>
+          {renderVerbatimWraps()}
+            </>
         );
 
       case 'ai_message':
@@ -283,28 +346,14 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
               title="Max Response Tokens — caps this generation's length. Blank = use the character/global limit." />
-          </>
+          {renderVerbatimWraps()}
+            </>
         );
 
-      case 'ai_message_member':
+      case 'ai_message_member': {
         return (
           <>
-            {/* Speaker dropdown — always visible. Group (2+ members): pick a member or the whole
-                group. Single mode / no card context: locked to the base character (the backend
-                already speaks as the base character when no targetMember is set). */}
-            {members.length > 1 ? (
-              <select value={trigger.targetMember || ''} onChange={(e) => update('targetMember', e.target.value)}
-                style={{ maxWidth: '150px', flexShrink: 0 }} title="Which member speaks this message">
-                <option value="">Whole group</option>
-                {members.map((m, mi) => <option key={m.id || mi} value={m.id}>{m.name || (mi === 0 ? 'Base character' : `Character ${mi + 1}`)}</option>)}
-                <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
-              </select>
-            ) : (
-              <select disabled style={{ maxWidth: '150px', flexShrink: 0 }}
-                title="Single mode — the base character speaks. Add group members to pick a different speaker.">
-                <option>{members[0]?.name || 'Base character'}</option>
-              </select>
-            )}
+            {renderMemberRefPicker({ baseLabel: members.length > 1 ? 'Whole group' : 'Base character', title: 'Which member speaks this message' })}
             {trigger.llmEnhance === false ? (
               <textarea value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
                 placeholder="Message (verbatim, Enter = new line)..." rows={2}
@@ -322,8 +371,22 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
               title="Max Response Tokens — blank uses this member's Response Tokens, then the global limit." />
-          </>
+          {renderVerbatimWraps()}
+            </>
         );
+      }
+
+      case 'char_inflate_start':
+      case 'char_inflate_stop':
+        // Mock auto-pump per body: base char rides the classic engine; each member gets an
+        // independent capacity ticker. Same target refs as the Group Member Message dropdown.
+        return renderMemberRefPicker({
+          baseLabel: members[0]?.name || 'Base character',
+          pumpableOnly: true,
+          title: trigger.type === 'char_inflate_start'
+            ? 'Whose mock auto-pump turns ON (their capacity ticks independently)'
+            : 'Whose mock auto-pump turns OFF'
+        });
 
       case 'groupmem_pump_ready':
         return (
@@ -347,7 +410,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} /> LLM
             </label>
-          </>
+          {renderVerbatimWraps()}
+            </>
         );
 
       case 'show_image':
@@ -434,7 +498,22 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         return (
           <>
             <input type="text" value={trigger.variable || ''} onChange={(e) => update('variable', e.target.value)}
-              placeholder="Variable" style={{ width: '110px' }} />
+              placeholder="Variable" style={{ width: '100px' }}
+              title="Target variable name (may itself use [CharVar:x] / [Choice] / [SelectedChar])" />
+            {/* Left operand: This Var (classic X = X op value) or another CharVar (X = Y op value)
+                — set a var from math between two OTHER vars in one action. */}
+            <select value={trigger.sourceVar != null ? '__charvar__' : ''}
+              onChange={(e) => update('sourceVar', e.target.value === '__charvar__' ? '' : null)}
+              style={{ width: '90px' }}
+              title="Left operand of the math: This Var = the target's current value; CharVar = another variable's value">
+              <option value="">This Var</option>
+              <option value="__charvar__">CharVar…</option>
+            </select>
+            {trigger.sourceVar != null && (
+              <input type="text" value={trigger.sourceVar || ''} onChange={(e) => update('sourceVar', e.target.value)}
+                placeholder="source var" style={{ width: '90px' }}
+                title="The variable whose value is the left operand (Set = copies it; Inc/Dec/Mult/Div = source op value)" />
+            )}
             <select value={trigger.operation || 'set'} onChange={(e) => update('operation', e.target.value)} style={{ width: '95px' }}>
               <option value="set">Set =</option>
               <option value="inc">Inc +=</option>
@@ -443,7 +522,8 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <option value="div">Div ÷=</option>
             </select>
             <input type="text" value={trigger.value ?? ''} onChange={(e) => update('value', e.target.value)}
-              placeholder="Value" style={{ width: '70px' }} />
+              placeholder="Value / expression…" style={{ flex: 1, minWidth: '110px' }}
+              title="Accepts variables and math: [CharVar:x], [System:Name], [Capacity], [CharCapacity:Member], [SelectedChar], nested combos — e.g. ([CharCapacity:[SelectedChar]] + 10) * 2" />
           </>
         );
 
@@ -518,26 +598,9 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         );
 
       case 'char_capacity': {
-        // Whose capacity: base character (default) + every pumpable group member. Single mode /
-        // no card context → locked to the base character (the backend defaults to it).
-        const ccPumpables = members.filter((m, mi) => mi === 0 || m?.isPumpable);
         return (
           <>
-            {ccPumpables.length > 1 ? (
-              <select value={trigger.targetMember || ''} onChange={(e) => update('targetMember', e.target.value)}
-                style={{ maxWidth: '140px', flexShrink: 0 }} title="Whose capacity changes">
-                {ccPumpables.map((m, i) => {
-                  const isBase = members.indexOf(m) === 0;
-                  return <option key={m.id || i} value={isBase ? '' : m.id}>{m.name || (isBase ? 'Base character' : `Character ${i + 1}`)}</option>;
-                })}
-                <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
-              </select>
-            ) : (
-              <select disabled style={{ maxWidth: '140px', flexShrink: 0 }}
-                title="Single mode — the base character's capacity. Mark group members Pumpable to target them.">
-                <option>{members[0]?.name || 'Base character'}</option>
-              </select>
-            )}
+            {renderMemberRefPicker({ baseLabel: members[0]?.name || 'Base character', pumpableOnly: true, title: 'Whose capacity changes' })}
             <select value={trigger.operation || 'set'} onChange={(e) => update('operation', e.target.value)} style={{ width: '65px' }}
               title="Set = to this value; Inc/Dec = by this value">
               <option value="set">Set</option>

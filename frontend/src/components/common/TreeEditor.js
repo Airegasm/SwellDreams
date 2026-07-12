@@ -136,6 +136,7 @@ const ADD_GROUPS = [
       { kind: 'container', type: 'repeat', label: 'Repeat / Loop' },
       { kind: 'container', type: 'pause_resume', label: 'Pause / Resume' },
       { kind: 'container', type: 'select_member', label: 'Select Member' },
+      { kind: 'container', type: 'player_input', label: 'Player Input' },
       { kind: 'container', type: 'call_minigame', label: 'Call MiniGame' },
     ]
   },
@@ -151,7 +152,7 @@ const ADD_GROUPS = [
 const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
-const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume', 'select_member']); // not if/player_choice/choose_multi (special children)
+const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume', 'select_member', 'player_input']); // not if/player_choice/choose_multi (special children)
 
 function makeCond() { return { varType: 'flow', variable: '', operator: '==', value: '' }; }
 function makeBranch(isElse = false) {
@@ -166,6 +167,7 @@ function makeNode(kind, type) {
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
   if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
+  if (type === 'player_input') node.params.rows = [{ id: rid('pir'), label: '', type: 'num', min: 0, max: 100, def: '' }]; // one row by default
   if (type === 'chance') node.params.chance = 50;
   if (type === 'repeat') { node.params.mode = 'fixed'; node.params.iterations = 3; }
   if (type === 'pause_resume') { node.params.resumeAfterValue = 4; } // reply turns — the only unit the backend implements (resumeAfterType was vestigial)
@@ -214,6 +216,7 @@ function summarize(node) {
   if (t === 'repeat') return p.mode === 'until' ? `Repeat until ${p.condition?.variable || '?'} ${p.condition?.operator || ''} ${p.condition?.value ?? ''}` : `Repeat ×${p.iterations ?? 1}`;
   if (t === 'pause_resume') return `Pause · resume after ${p.resumeAfterValue ?? 4} turn(s)`;
   if (t === 'select_member') return `Select Member · ${p.pumpableOnly ? 'pumpable only' : 'all members'} → [SelectedChar]`;
+  if (t === 'player_input') return `Player Input · ${(p.rows || []).length} row(s) → [PlayerInput:#]`;
   if (t === 'keyword_gate' || t === 'keyword') {
     const who = (p.speaker === 'char' || p.speaker === 'character') ? 'char' : p.speaker === 'either' ? 'either' : 'player';
     return `On Keyword (${who}): ${(p.keys || []).join(', ') || '(none)'}`;
@@ -537,6 +540,11 @@ function NodeBody({ node, onChange, rowProps }) {
 
   const selectMemberParams = t === 'select_member' && (
     <div className="tree-params">
+      <label className="tree-field">
+        <span>Prompt (shown in the popup)</span>
+        <input type="text" value={node.params?.prompt || ''} onChange={(e) => setParams({ prompt: e.target.value })}
+          placeholder="e.g. Who gets pumped?" />
+      </label>
       <label className="tree-field tree-field-inline" title="Only list members marked as valid inflation targets">
         <input type="checkbox" checked={!!node.params?.pumpableOnly} onChange={(e) => setParams({ pumpableOnly: e.target.checked })} />
         <span>Pumpable members only</span>
@@ -548,12 +556,62 @@ function NodeBody({ node, onChange, rowProps }) {
     </div>
   );
 
+  const playerInputParams = t === 'player_input' && (() => {
+    const rows = node.params?.rows || [];
+    const setRows = (next) => setParams({ rows: next });
+    const upd = (i, patch) => setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    const move = (i, d) => { const j = i + d; if (j < 0 || j >= rows.length) return; const n = [...rows]; [n[i], n[j]] = [n[j], n[i]]; setRows(n); };
+    return (
+      <div className="tree-params">
+        {rows.map((r, i) => (
+          <div key={r.id || i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+            <span style={{ opacity: 0.7, minWidth: 20 }}>#{i + 1}</span>
+            <input type="text" value={r.label || ''} onChange={(e) => upd(i, { label: e.target.value })}
+              placeholder={`Label for row ${i + 1}…`} style={{ flex: 1, minWidth: 110 }} />
+            <select value={r.type === 'text' ? 'text' : 'num'} onChange={(e) => upd(i, { type: e.target.value })} title="Input type">
+              <option value="num">Numbox</option>
+              <option value="text">Text</option>
+            </select>
+            {r.type !== 'text' ? (
+              <>
+                <label className="tree-field tree-field-inline"><span>min</span><input type="number" value={r.min ?? 0} onChange={(e) => upd(i, { min: parseInt(e.target.value, 10) || 0 })} style={{ width: 58 }} /></label>
+                <label className="tree-field tree-field-inline"><span>max</span><input type="number" value={r.max ?? 100} onChange={(e) => upd(i, { max: parseInt(e.target.value, 10) || 0 })} style={{ width: 58 }} /></label>
+                <label className="tree-field tree-field-inline"><span>default</span><input type="number" value={r.def ?? ''} onChange={(e) => upd(i, { def: e.target.value === '' ? '' : parseInt(e.target.value, 10) || 0 })} placeholder="—" style={{ width: 62 }} title="Optional — blank leaves the field empty (min used if OK'd empty)" /></label>
+              </>
+            ) : (
+              <input type="text" value={r.def ?? ''} onChange={(e) => upd(i, { def: e.target.value })}
+                placeholder="Default text (optional)…" style={{ flex: 1, minWidth: 100 }} />
+            )}
+            <label className="tree-field tree-field-inline" title="Also write this row's value into a named CharVar on OK">
+              <input type="checkbox" checked={!!r.storeVar} onChange={(e) => upd(i, { storeVar: e.target.checked })} />
+              <span>Store as CharVar</span>
+            </label>
+            {r.storeVar && (
+              <input type="text" value={r.varName || ''} onChange={(e) => upd(i, { varName: e.target.value })}
+                placeholder="variable name" style={{ width: 100 }} title="CharVar to receive this row's value ([CharVar:<name>])" />
+            )}
+            <button type="button" className="tnode-ctrl" onClick={() => move(i, -1)} disabled={i === 0} title="Move up">▲</button>
+            <button type="button" className="tnode-ctrl" onClick={() => move(i, 1)} disabled={i === rows.length - 1} title="Move down">▼</button>
+            <button type="button" className="tnode-ctrl" onClick={() => setRows([...rows.slice(0, i + 1), { ...r, id: rid('pir') }, ...rows.slice(i + 1)])} title="Duplicate this row">⧉</button>
+            <button type="button" className="ci-del" onClick={() => setRows(rows.filter((_, idx) => idx !== i))} title="Remove row">×</button>
+          </div>
+        ))}
+        <button type="button" className="prereq-add-sm" onClick={() => setRows([...rows, { id: rid('pir'), label: '', type: 'num', min: 0, max: 100, def: '' }])}>+ Row</button>
+        <div className="tree-hint">
+          Pops up a form for the player. Each row's value is stored as <strong>[PlayerInput:Row#]</strong> ([PlayerInput:1], [PlayerInput:2], …),
+          plus any "Store as CharVar" name you set. OK runs the body below; Cancel aborts the whole tree.
+        </div>
+      </div>
+    );
+  })();
+
   return (
     <div className="tree-container-body">
       {chanceParams}
       {repeatParams}
       {pauseParams}
       {selectMemberParams}
+      {playerInputParams}
       {keywordParams}
       {HOLDS_CHILDREN.has(t) && (
         <NodeList nodes={node.children || []} onChange={(next) => onChange({ ...node, children: next })} rowProps={rowProps} />
@@ -574,6 +632,7 @@ function validateNode(node, rowProps) {
   if (node.type === 'label' && !p.name) return 'Label is unnamed — a Go To can never target it';
   if (node.type === 'fire_tree' && !p.treeId) return 'Fire Tree has no target tree';
   if (node.type === 'call_minigame' && !p.miniGameId) return 'Call MiniGame has no game selected';
+  if (node.type === 'player_input' && !(p.rows || []).length) return 'no input rows — the popup will be skipped';
   if (node.type === 'player_choice' || node.type === 'choose_multi') {
     const opts = (node.children || []).filter(c => c && c.type === 'choice' && c.params?.label);
     if (!opts.length) return 'no options with labels — the choice will be skipped';

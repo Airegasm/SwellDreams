@@ -5169,7 +5169,7 @@ class EventEngine {
    * references. Shared by the set_variable action and Player Choice var ops.
    * Returns true on success, false if the variable was missing/unknown.
    */
-  applySetVariable(varType, rawVariable, operation, rawValue, flowId = null) {
+  applySetVariable(varType, rawVariable, operation, rawValue, flowId = null, rawSource = null) {
     operation = operation || 'set';
     varType = varType || 'custom';
 
@@ -5177,6 +5177,10 @@ class EventEngine {
     // "score_[Choice]", "[Flow:[Choice]]") and in the value.
     const variable = this.substituteVariables(String(rawVariable ?? '')).trim();
     const value = this.evaluateExpression(this.substituteVariables(String(rawValue ?? '')));
+    // Optional LEFT-OPERAND override ("set X = Y op value"): a source CharVar name — itself
+    // substitutable, so a dynamically-built name works. Empty/null → classic behavior (the
+    // target variable's own current value is the left operand).
+    const sourceName = rawSource != null ? this.substituteVariables(String(rawSource)).trim() : '';
 
     if (!variable) {
       console.log('[EventEngine] applySetVariable: No variable specified');
@@ -5201,7 +5205,12 @@ class EventEngine {
     };
 
     if (varType === 'custom') {
-      this.variables[variable] = applyOperation(this.variables[variable], value);
+      // With a source var: 'set' copies it (value ignored); math ops use it as the left operand
+      // (X = Y op value) — enabling X-from-two-other-vars in one action.
+      const base = sourceName !== '' ? this.variables[sourceName] : this.variables[variable];
+      this.variables[variable] = (operation === 'set' && sourceName !== '')
+        ? (this.variables[sourceName] !== undefined ? this.variables[sourceName] : value)
+        : applyOperation(base, value);
       // Mirror into the flow-scoped map so switch/loop(until)/sessionTimer
       // (which read this.flowVariables) see the same value.
       if (flowId) {
@@ -5309,7 +5318,18 @@ class EventEngine {
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
       // Tree Select Member pick; null resolves to the base character (parity with server.js).
       result = result.replace(/\[SelectedChar\]/gi, this.sessionState.selectedChar || this.sessionState.characterName || 'Character');
-      result = result.replace(/\[CharCapacity\]/gi, this.sessionState.characterCapacity ?? 0);
+      // Player Input popup values (parity with server.js) — [PlayerInput:Row#], 1-based.
+      result = result.replace(/\[PlayerInput:(\d+)\]/gi, (match, n) => {
+        const v = this.sessionState.playerInputs?.[n];
+        return v !== undefined ? v : match;
+      });
+      // [CharCapacity] = base char; [CharCapacity:Name-or-id] = a group member, resolved via the
+      // server-injected resolver (this engine has no per-char storage access of its own).
+      result = result.replace(/\[CharCapacity(?::([^\]\r\n]+))?\]/gi, (match, memberKey) => {
+        if (!memberKey) return this.sessionState.characterCapacity ?? 0;
+        const cap = typeof this.resolveMemberCapacity === 'function' ? this.resolveMemberCapacity(memberKey) : null;
+        return cap == null ? match : cap;
+      });
       result = result.replace(/\{\{charCapacity\}\}/gi, this.sessionState.characterCapacity ?? 0);
       // Convert pain number to descriptive label
       const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
@@ -5377,6 +5397,18 @@ class EventEngine {
     if (expr.startsWith('{') && expr.endsWith('}')) {
       const varName = expr.slice(1, -1);
       return this.variables[varName];
+    }
+
+    // Arithmetic: by this point substituteVariables has collapsed [CharVar:x]/[Capacity]/
+    // [CharCapacity:Member]/[System:...] etc. to numbers, so "7 + 10 * 2" or "(33 + 7) / 2"
+    // should COMPUTE, not store as a literal string. Strict character whitelist keeps this a
+    // calculator (digits + - * / % ( ) . only), never an eval of anything else.
+    const arith = expr.trim();
+    if (/^[\d\s+\-*/%().]+$/.test(arith) && /\d/.test(arith)) {
+      try {
+        const n = Function(`"use strict"; return (${arith});`)();
+        if (typeof n === 'number' && isFinite(n)) return Math.round(n * 1000) / 1000;
+      } catch (e) { /* not a valid expression — fall through to the plain string */ }
     }
 
     return expr;

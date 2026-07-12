@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../context/AppContext';
 
-// Header extension strip: one compact row per pumpable character in the session —
-// name · live capacity · AUTO-PUMP toggle. The toggle is visual-only for now (state
-// is kept here per member id, lights up when armed); its behavior gets wired later.
-// Kept mounted across route changes (visible prop) so the toggles don't reset on nav.
-function AutoPumpHeader({ visible }) {
-  const { characters, settings, sessionState } = useApp();
-  const [autoPump, setAutoPump] = useState({}); // member id -> armed?
-
-  if (!visible) return null;
+// Auto-pump rows: one compact row per pumpable character in the session —
+// name · live capacity · AUTO-PUMP toggle. The toggle's armed state lives in AppContext
+// (autoPumpArmed / toggleAutoPump) so the desktop strip and the mobile block stay in sync;
+// its behavior gets wired later. Rendered in two places:
+//   • AutoPumpHeader (default export) — fixed strip hanging from the desktop top frame
+//   • AutoPumpRows — embedded in-flow under the mobile chat header (Chat.js)
+export function AutoPumpRows() {
+  const { characters, settings, sessionState, autoPumpArmed, toggleAutoPump } = useApp();
 
   const active = (characters || []).find(c => c.id === settings?.activeCharacterId);
   if (!active) return null;
@@ -28,25 +27,41 @@ function AutoPumpHeader({ visible }) {
 
   if (!rows.length) return null;
 
-  const toggle = (id) => setAutoPump(prev => ({ ...prev, [id]: !prev[id] }));
-
   return (
-    <div className="auto-pump-header">
+    <>
       {rows.map(r => {
-        const on = !!autoPump[r.id];
+        const on = !!autoPumpArmed[r.id];
         return (
           <div className="auto-pump-row" key={r.id}>
             <span className="apr-name" title={r.name}>{r.name}</span>
             <span className="apr-cap">{Math.round(r.cap)}%</span>
             <button type="button"
               className={`apr-btn ${on ? 'on' : ''}`}
-              onClick={() => toggle(r.id)}
+              onClick={() => toggleAutoPump(r.id)}
               title={on ? `Auto-pump armed for ${r.name} — click to disarm` : `Arm auto-pump for ${r.name}`}>
               {on ? 'AUTO-PUMP OFF' : 'AUTO-PUMP ON'}
             </button>
           </div>
         );
       })}
+    </>
+  );
+}
+
+// Desktop strip: fixed under the top frame, centered between the corner toppers.
+function AutoPumpHeader({ visible }) {
+  const { characters, settings } = useApp();
+  if (!visible) return null;
+  // Cheap emptiness pre-check so we don't render an empty shell (AutoPumpRows also self-nulls).
+  const active = (characters || []).find(c => c.id === settings?.activeCharacterId);
+  const mm = active?.multiChar?.characters || [];
+  const isGroup = !!active?.multiChar?.enabled && mm.length > 1;
+  const hasRows = isGroup ? mm.some(m => m?.isPumpable && m?.name) : !!active?.isPumpable;
+  if (!hasRows) return null;
+
+  return (
+    <div className="auto-pump-header">
+      <AutoPumpRows />
     </div>
   );
 }

@@ -79,6 +79,11 @@ function SystemTab() {
                   <td>Bella</td>
                 </tr>
                 <tr>
+                  <td><span className="variable-tag">[PlayerInput:1]</span></td>
+                  <td>Row values from a trigger tree's Player Input popup, 1-based ([PlayerInput:1], [PlayerInput:2], …). Rows can also store into named CharVars.</td>
+                  <td>30</td>
+                </tr>
+                <tr>
                   <td><span className="variable-tag">[Feeling]</span></td>
                   <td>Current physical sensation state</td>
                   <td>stretched</td>

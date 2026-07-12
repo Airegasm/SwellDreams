@@ -15,6 +15,7 @@ import { parseMediaVariables } from '../utils/mediaVariables';
 import { getPortraitForCapacity, getPortraitTransition } from '../utils/stagedPortraits';
 import PortraitDisplay from '../components/chat/PortraitDisplay';
 import StatusBadges from '../components/StatusBadges';
+import { AutoPumpRows } from '../components/AutoPumpHeader';
 import { EMOTIONS } from '../constants/stateValues';
 import MediaBubble from '../components/chat/MediaBubble';
 import SilentAudioPlayer from '../components/chat/SilentAudioPlayer';
@@ -166,13 +167,16 @@ function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   // Current pick in the tree Select Member popup (defaults to the first eligible member).
   const [selectMemberPick, setSelectMemberPick] = useState('');
   useEffect(() => { setSelectMemberPick(selectMemberData?.members?.[0]?.id || ''); }, [selectMemberData]);
+  // Tree Player Input popup row values (seeded from each row's default when the form arrives).
+  const [treeInputVals, setTreeInputVals] = useState([]);
+  useEffect(() => { setTreeInputVals((treePlayerInputData?.rows || []).map(r => r.def ?? '')); }, [treePlayerInputData]);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [showReminderModal, setShowReminderModal] = useState(false);
@@ -780,12 +784,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || selectMemberData || treeMiniGameData || checkpointChoiceData || simpleABData || challengeData) {
+    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || selectMemberData || treePlayerInputData || treeMiniGameData || checkpointChoiceData || simpleABData || challengeData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, selectMemberData, treeMiniGameData, checkpointChoiceData, simpleABData, challengeData]);
+  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, selectMemberData, treePlayerInputData, treeMiniGameData, checkpointChoiceData, simpleABData, challengeData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -1620,7 +1624,7 @@ function Chat() {
 
             const isDisabled = sessionLoading || isGenerating || sessionState.isGenerating || sessionState.actionBusy
               || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!inputData;
+              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!treePlayerInputData || !!inputData;
             const totalPages = Math.ceil(filteredButtons.length / PERSONA_ACTIONS_PER_PAGE);
             const currentPageButtons = filteredButtons.slice(
               personaActionPage * PERSONA_ACTIONS_PER_PAGE,
@@ -1757,6 +1761,13 @@ function Chat() {
           <button type="button" className="mch-btn mch-menu"
             onClick={() => window.dispatchEvent(new CustomEvent('toggle-hamburger-menu'))}
             aria-label="Menu" title="Menu">☰</button>
+        </div>
+
+        {/* Auto-pump rows (mobile): the header extends down one compact row per pumpable char —
+            name · live capacity · AUTO-PUMP toggle. Desktop shows the same rows in the fixed
+            top-frame strip (AutoPumpHeader in App.js); state is shared via AppContext. */}
+        <div className="mobile-auto-pump mobile-only">
+          <AutoPumpRows />
         </div>
 
         {/* Interactive elements (choices, inputs, challenges) are now rendered inline in messages */}
@@ -2098,6 +2109,39 @@ function Chat() {
                   onClick={() => respondSelectMember(selectMemberPick || selectMemberData.members?.[0]?.id || null)}>OK</button>
                 <button type="button" className="btn btn-secondary btn-sm" title="Cancel — aborts this trigger sequence"
                   onClick={() => respondSelectMember(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline Trigger Tree Player Input form: label + numbox/text per row. OK stores each
+              row as [PlayerInput:Row#] (and any configured CharVars) and resumes the tree;
+              Cancel aborts the run. */}
+          {treePlayerInputData && (
+            <div className="message message-choice">
+              <div className="message-header">
+                <span className="message-sender">Your input</span>
+              </div>
+              <div className="choice-inline-container" style={{ padding: '8px 10px' }}>
+                {treePlayerInputData.prompt && <div style={{ marginBottom: 6 }}>{treePlayerInputData.prompt}</div>}
+                {(treePlayerInputData.rows || []).map((r, i) => (
+                  <div key={r.n} style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ minWidth: 120, textAlign: 'right' }}>{r.label}</span>
+                    {r.type === 'num' ? (
+                      <input type="number" min={r.min} max={r.max} value={treeInputVals[i] ?? ''}
+                        onChange={(e) => setTreeInputVals(v => v.map((x, xi) => (xi === i ? e.target.value : x)))}
+                        style={{ width: 110 }} title={`${r.min}–${r.max}`} />
+                    ) : (
+                      <input type="text" value={treeInputVals[i] ?? ''}
+                        onChange={(e) => setTreeInputVals(v => v.map((x, xi) => (xi === i ? e.target.value : x)))}
+                        style={{ flex: 1, minWidth: 140 }} />
+                    )}
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => respondTreePlayerInput(treeInputVals)}>OK</button>
+                  <button type="button" className="btn btn-secondary btn-sm" title="Cancel — aborts this trigger sequence"
+                    onClick={() => respondTreePlayerInput(null)}>Cancel</button>
+                </div>
               </div>
             </div>
           )}
@@ -2867,7 +2911,7 @@ function Chat() {
                   const actionsBusy = isGenerating || sessionState.isGenerating
                     || sessionState.actionBusy
                     || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!inputData;
+                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!treePlayerInputData || !!inputData;
                   const isDisabled = flowInProgress || sessionLoading || actionsBusy;
                   const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
                   const currentPageButtons = filteredButtons.slice(
