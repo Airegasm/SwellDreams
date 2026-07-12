@@ -307,9 +307,9 @@
     align-items: center;
     padding: 0;
     gap: 18px;
-    font-size: 10px;
-    line-height: 12px;
-    height: 15px;
+    font-size: 11px;
+    line-height: 14px;
+    height: 22px; /* a little taller — room for a comfortably sized button */
     min-height: 0;
   }
   .mobile-auto-pump .auto-pump-row + .auto-pump-row { border-top: none; }
@@ -317,9 +317,9 @@
   .mobile-auto-pump .apr-cap { min-width: 34px; text-align: right; }
   .mobile-auto-pump .apr-btn {
     margin-left: auto;   /* push to a shared right column, max clearance from the text */
-    min-width: 78px;     /* equal buttons across rows; grows only if the label truly needs it */
+    min-width: 88px;     /* equal buttons across rows; grows only if the label truly needs it */
     width: auto;
-    height: 11px;        /* clearly INSIDE the 15px row — the button can never set row height */
+    height: 17px;        /* comfortably inside the 22px row */
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
@@ -327,18 +327,18 @@
     align-self: center;
     flex-shrink: 0;
     white-space: nowrap;
-    font-size: 8px;
-    padding: 0 6px;
+    font-size: 9px;
+    padding: 0 8px;
     line-height: 1;
-    border-radius: 2px;
+    border-radius: 3px;
     letter-spacing: 0.02em;
   }
-  /* Lit state: same box, NO outer glow (it bled past the 15px rows and looked like the button
-     grew) — the green fill is the indicator on mobile. Size re-locked at .on specificity. */
+  /* Lit state: same box, NO outer glow (it bleeds past compact rows and reads as growth) —
+     the green fill is the indicator on mobile. Size re-locked at .on specificity. */
   .mobile-auto-pump .apr-btn.on {
-    height: 11px;
-    padding: 0 6px;
-    font-size: 8px;
+    height: 17px;
+    padding: 0 8px;
+    font-size: 9px;
     line-height: 1;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
     text-shadow: none;

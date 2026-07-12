@@ -79,12 +79,9 @@ export function AppProvider({ children }) {
   const [chooseMultiData, setChooseMultiData] = useState(null);
   const [selectMemberData, setSelectMemberData] = useState(null);
   const [treePlayerInputData, setTreePlayerInputData] = useState(null);
-  // AUTO-PUMP header buttons: start/stop the mock auto-inflation engine for one body. Lit state
-  // is LIVE engine state (characterInflating / memberInflating from backend broadcasts), not a
-  // local toggle — so it reflects bursts, e-stops, and trigger-driven starts too.
-  const toggleAutoPump = useCallback((memberId, enabled) => {
-    sendWsMessage('toggle_member_auto_pump', { memberId: memberId || '', enabled: !!enabled });
-  }, [sendWsMessage]);
+  // (toggleAutoPump lives below, AFTER sendWsMessage is declared — referencing it from up here
+  // put the not-yet-initialized const in a deps array and crashed the whole app with a TDZ
+  // ReferenceError at first render.)
 
   // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
   const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
@@ -1005,6 +1002,13 @@ export function AppProvider({ children }) {
     });
     setTreeChooseMultiData(null);
   }, [treeChooseMultiData, sendWsMessage]);
+
+  // AUTO-PUMP header buttons: start/stop the mock auto-inflation engine for one body. Lit state
+  // is LIVE engine state (characterInflating / memberInflating from backend broadcasts), not a
+  // local toggle — so it reflects bursts, e-stops, and trigger-driven starts too.
+  const toggleAutoPump = useCallback((memberId, enabled) => {
+    sendWsMessage('toggle_member_auto_pump', { memberId: memberId || '', enabled: !!enabled });
+  }, [sendWsMessage]);
 
   // Answer a Trigger Tree Select Member popup. memberId = the pick; null = Cancel, which aborts
   // the suspended tree run on the backend.
