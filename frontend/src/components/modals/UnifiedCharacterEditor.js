@@ -1639,13 +1639,17 @@ Write only the scenario description itself, no explanations.`;
               <>
                 {selectedMemberIndex === 0 && (
                   <p className="section-hint" style={{ background: 'var(--bg-input, rgba(0,0,0,0.2))', padding: '8px 10px', borderRadius: 'var(--border-radius)' }}>
-                    <strong>Base character.</strong> Its name, description, personality, gender, and portrait ARE the card's own — edit them on the <strong>Main</strong> tab. Only per-member settings (tokens, example dialogue, attributes) are editable here.
+                    <strong>Base character.</strong> Gender, description, and personality edit the card itself from right here. Only the name and portrait live on the <strong>Main</strong> tab.
                   </p>
                 )}
                 <div className="form-group" style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                   <div style={{ flex: '0 0 auto' }}>
                     <label>Gender</label>
-                    <select value={member.gender || ''} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { gender: e.target.value })}>
+                    {/* Base member edits write the CARD field via set() — the member-0 mirror keeps
+                        them identical (the old disabled state left these uneditable anywhere in
+                        group mode, since the Main tab hides them behind !isGroup). */}
+                    <select value={(selectedMemberIndex === 0 ? formData.gender : member.gender) || ''}
+                      onChange={(e) => selectedMemberIndex === 0 ? set({ gender: e.target.value }) : updateMember(selectedMemberIndex, { gender: e.target.value })}>
                       {MEMBER_GENDERS.map(g => <option key={g.value || 'none'} value={g.value}>{g.label}</option>)}
                     </select>
                   </div>
@@ -1660,12 +1664,14 @@ Write only the scenario description itself, no explanations.`;
 
                 <div className="form-group">
                   <label>Description</label>
-                  <textarea value={member.description || ''} readOnly={selectedMemberIndex === 0} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { description: e.target.value })}
+                  <textarea value={(selectedMemberIndex === 0 ? formData.description : member.description) || ''}
+                    onChange={(e) => selectedMemberIndex === 0 ? set({ description: e.target.value }) : updateMember(selectedMemberIndex, { description: e.target.value })}
                     placeholder={`Description for ${member.name || 'this character'}…`} />
                 </div>
                 <div className="form-group">
                   <label>Personality</label>
-                  <textarea value={member.personality || ''} readOnly={selectedMemberIndex === 0} disabled={selectedMemberIndex === 0} onChange={(e) => updateMember(selectedMemberIndex, { personality: e.target.value })}
+                  <textarea value={(selectedMemberIndex === 0 ? formData.personality : member.personality) || ''}
+                    onChange={(e) => selectedMemberIndex === 0 ? set({ personality: e.target.value }) : updateMember(selectedMemberIndex, { personality: e.target.value })}
                     placeholder={`Personality traits for ${member.name || 'this character'}…`} />
                 </div>
 

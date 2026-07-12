@@ -65,8 +65,13 @@ function SystemTab() {
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[CharCapacity]</span></td>
-                  <td>Character's inflation capacity (0-100) — for pumpable characters</td>
+                  <td>Character's inflation capacity (0-100) — for pumpable characters. Always the base character.</td>
                   <td>72</td>
+                </tr>
+                <tr>
+                  <td><span className="variable-tag">[CharCapacity:Name]</span></td>
+                  <td>A group member's capacity, by member name (or member id). The base member reads the same value as [CharCapacity].</td>
+                  <td>30</td>
                 </tr>
                 <tr>
                   <td><span className="variable-tag">[Feeling]</span></td>

@@ -77,7 +77,9 @@ function getTriggerTypes(isPumpable, isManualPump) {
   );
 
   if (isPumpable) {
-    types.push({ value: 'set_char_capacity', label: 'Set Char Capacity' });
+    // Supersedes 'set_char_capacity' (kept rendering/executing for saved cards): adds member
+    // targeting + set/inc/dec. Base char by default; pumpable group members selectable.
+    types.push({ value: 'char_capacity', label: 'Char Capacity' });
   }
 
   types.push(
@@ -262,8 +264,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'ai_message':
         return (
           <>
-            <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
-              placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            {/* Verbatim (LLM unchecked) posts the text as-is → multi-line editor; enhanced mode is
+                one-line guidance for the generation. */}
+            {trigger.llmEnhance === false ? (
+              <textarea value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+                placeholder="Message (verbatim, Enter = new line)..." rows={2}
+                style={{ flex: 1, minWidth: '80px', resize: 'vertical' }} />
+            ) : (
+              <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+                placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            )}
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
               title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
@@ -294,8 +304,14 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
                 <option>{members[0]?.name || 'Base character'}</option>
               </select>
             )}
-            <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
-              placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            {trigger.llmEnhance === false ? (
+              <textarea value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+                placeholder="Message (verbatim, Enter = new line)..." rows={2}
+                style={{ flex: 1, minWidth: '80px', resize: 'vertical' }} />
+            ) : (
+              <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
+                placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
+            )}
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
               title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
@@ -323,8 +339,9 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         return (
           <>
             {playerMsgMode}
-            <input type="text" value={trigger.message || ''} onChange={(e) => update('message', e.target.value)}
-              placeholder="Exact player message (verbatim)…" style={{ flex: 1, minWidth: '80px' }} />
+            <textarea value={trigger.message || ''} onChange={(e) => update('message', e.target.value)}
+              placeholder="Exact player message (verbatim, Enter = new line)…" rows={2}
+              style={{ flex: 1, minWidth: '80px', resize: 'vertical' }} />
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
               title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} /> LLM
@@ -407,8 +424,9 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
 
       case 'system_message':
         return (
-          <input type="text" value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
-            placeholder="System message text..." style={{ flex: 1, minWidth: '120px' }} />
+          <textarea value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
+            placeholder="System message text... (Enter = new line)" rows={2}
+            style={{ flex: 1, minWidth: '120px', resize: 'vertical' }} />
         );
 
       case 'flow_var':
@@ -497,6 +515,39 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             {!skinsList && <option value={trigger.skinId || 'swelldreams-default'}>Loading...</option>}
           </select>
         );
+
+      case 'char_capacity': {
+        // Whose capacity: base character (default) + every pumpable group member. Single mode /
+        // no card context → locked to the base character (the backend defaults to it).
+        const ccPumpables = members.filter((m, mi) => mi === 0 || m?.isPumpable);
+        return (
+          <>
+            {ccPumpables.length > 1 ? (
+              <select value={trigger.targetMember || ''} onChange={(e) => update('targetMember', e.target.value)}
+                style={{ maxWidth: '140px', flexShrink: 0 }} title="Whose capacity changes">
+                {ccPumpables.map((m, i) => {
+                  const isBase = members.indexOf(m) === 0;
+                  return <option key={m.id || i} value={isBase ? '' : m.id}>{m.name || (isBase ? 'Base character' : `Character ${i + 1}`)}</option>;
+                })}
+              </select>
+            ) : (
+              <select disabled style={{ maxWidth: '140px', flexShrink: 0 }}
+                title="Single mode — the base character's capacity. Mark group members Pumpable to target them.">
+                <option>{members[0]?.name || 'Base character'}</option>
+              </select>
+            )}
+            <select value={trigger.operation || 'set'} onChange={(e) => update('operation', e.target.value)} style={{ width: '65px' }}
+              title="Set = to this value; Inc/Dec = by this value">
+              <option value="set">Set</option>
+              <option value="inc">Inc</option>
+              <option value="dec">Dec</option>
+            </select>
+            <input type="number" min={1} max={100} value={trigger.value ?? ''}
+              onChange={(e) => update('value', e.target.value === '' ? '' : Math.max(1, Math.min(100, parseInt(e.target.value, 10) || 0)))}
+              placeholder="%" style={{ width: '60px' }} title="Amount (1-100%)" />
+          </>
+        );
+      }
 
       case 'set_player_capacity':
       case 'set_char_capacity':

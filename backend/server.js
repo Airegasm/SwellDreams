@@ -3923,6 +3923,7 @@ const TRIGGER_REQUIRED_PARAMS = {
   toggle_button: ['buttonId'],
   toggle_reminder: ['reminderId'], toggle_library_entry: ['reminderId'],
   set_instructor_profile: ['value'],
+  char_capacity: ['value'],
 };
 
 async function executeTrigger(trigger, source, character, settings) {
@@ -4308,6 +4309,31 @@ async function executeTrigger(trigger, source, character, settings) {
         sessionState.characterCapacity = Math.max(0, Math.min(200, parseInt(trigger.value) || 0));
         broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
         break;
+
+      case 'char_capacity': {
+        // Char Capacity action: set/inc/dec the base character's or a pumpable member's capacity.
+        // No targetMember (or the base member's id) → base char (sessionState.characterCapacity,
+        // same 0-200 headroom as set_char_capacity); other members ride memberCapacities (0-100,
+        // same clamp as their manual WS path). Deliberately does NOT fire char state-change events
+        // (matches set_char_capacity — avoids trigger→event→trigger cascades).
+        const ccOp = (trigger.operation === 'inc' || trigger.operation === 'dec') ? trigger.operation : 'set';
+        const ccAmt = Math.max(0, Math.min(100, parseInt(trigger.value) || 0));
+        const ccMembers = character?.multiChar?.characters || [];
+        const ccTgt = String(trigger.targetMember || '').trim();
+        const ccApply = (cur) => ccOp === 'set' ? ccAmt : ccOp === 'inc' ? cur + ccAmt : cur - ccAmt;
+        if (!ccTgt || (ccMembers[0] && ccMembers[0].id === ccTgt)) {
+          sessionState.characterCapacity = Math.max(0, Math.min(200, ccApply(sessionState.characterCapacity ?? 0)));
+          broadcast('character_capacity_update', { characterCapacity: sessionState.characterCapacity, elapsed: 0, inflating: !!charInflationTimer });
+          console.log(`[Trigger/${source}] char_capacity ${ccOp} ${ccAmt} → base char at ${sessionState.characterCapacity}%`);
+        } else {
+          if (!sessionState.memberCapacities) sessionState.memberCapacities = {};
+          const ccNext = Math.max(0, Math.min(100, ccApply(sessionState.memberCapacities[ccTgt] ?? 0)));
+          sessionState.memberCapacities[ccTgt] = ccNext;
+          broadcast('member_capacity_update', { memberId: ccTgt, capacity: ccNext, memberCapacities: sessionState.memberCapacities });
+          console.log(`[Trigger/${source}] char_capacity ${ccOp} ${ccAmt} → member ${ccTgt} at ${ccNext}%`);
+        }
+        break;
+      }
 
       case 'toggle_device_control': {
         const s = loadData(DATA_FILES.settings) || {};
@@ -4939,6 +4965,22 @@ function substituteAllVariables(text, context = {}) {
 
   // Session state variables
   result = result.replace(/\[Capacity\]/gi, sessionState.capacity ?? 0);
+  // Char capacity — [CharCapacity] = the base character; [CharCapacity:Name] (or :memberId) = a
+  // group member. The base member rides characterCapacity; other members read memberCapacities.
+  // Unknown member → tag left visible so the author sees the typo. Member lookup loads the active
+  // card lazily (only when the :member form is actually present).
+  result = result.replace(/\[CharCapacity(?::([^\]\r\n]+))?\]/gi, (match, memberKey) => {
+    if (!memberKey) return Math.round(sessionState.characterCapacity ?? 0);
+    try {
+      const ccChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const ccCard = ccChars.find(c => c.id === settings?.activeCharacterId);
+      const mm = ccCard?.multiChar?.characters || [];
+      const key = memberKey.trim().toLowerCase();
+      const idx = mm.findIndex(m => m && ((m.name || '').toLowerCase() === key || m.id === memberKey.trim()));
+      if (idx < 0) return match;
+      return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+    } catch (e) { return match; }
+  });
   result = result.replace(/\[PlayerIsInflating\]/gi, sessionState.playerIsInflating ? 'true' : 'false');
   // Convert pain number to descriptive label
   const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
