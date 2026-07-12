@@ -1235,8 +1235,12 @@ eventEngine.resolveMemberCapacity = (key) => {
     const mm = card?.multiChar?.characters || [];
     const k = String(key).trim().toLowerCase();
     const idx = mm.findIndex(m => m && ((m.name || '').toLowerCase() === k || m.id === String(key).trim()));
-    if (idx < 0) return null;
-    return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+    if (idx >= 0) return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+    // Base character by card name — single cards have no members array (parity with server-side).
+    if ((card?.name || '').trim().toLowerCase() === k || (sessionState.characterName || '').trim().toLowerCase() === k) {
+      return Math.round(sessionState.characterCapacity ?? 0);
+    }
+    return null;
   } catch (e) { return null; }
 };
 
@@ -3970,8 +3974,11 @@ function resolveMemberRef(ref, character) {
   const mm = character?.multiChar?.characters || [];
   let idx = mm.findIndex(m => m && m.id === raw);
   if (idx < 0) idx = mm.findIndex(m => m && (m.name || '').toLowerCase() === raw.toLowerCase());
-  if (idx < 0) return null;
-  return idx === 0 ? '' : mm[idx].id;
+  if (idx >= 0) return idx === 0 ? '' : mm[idx].id;
+  // No member match — the BASE CHARACTER by card name (single cards have no members array;
+  // [SelectedChar] resolves to the card name there, so 'into Luna' must mean the base char).
+  if ((character?.name || '').trim().toLowerCase() === raw.toLowerCase()) return '';
+  return null;
 }
 
 async function executeTrigger(trigger, source, character, settings) {
@@ -4008,14 +4015,19 @@ async function executeTrigger(trigger, source, character, settings) {
         // impersonate action ALWAYS posts as the player without an AI reply (suppress is the immutable
         // default), so we post the message directly + fire the player-turn side effects, no handleChatMessage.
         const impStreaming = settings.llm?.streaming === true;
+        // Live prepend: with Prepend Verbatim set, the bubble appears IMMEDIATELY with the literal
+        // text so the player reads it while generation runs (streamed tokens land under it).
+        const impPre = (trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '') ? substituteAllVariables(trigger.prependText) : null;
         let impStreamMsg = null;
         let impResult;
-        if (impStreaming) {
-          impStreamMsg = { id: uuidv4(), content: '', sender: 'player', timestamp: Date.now(), streaming: true };
+        if (impStreaming || impPre) {
+          impStreamMsg = { id: uuidv4(), content: impPre || '', sender: 'player', timestamp: Date.now(), streaming: impStreaming };
           sessionState.chatHistory.push(impStreamMsg);
           broadcast('chat_message', impStreamMsg);
+        }
+        if (impStreaming) {
           impResult = await llmService.generateStream({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings,
-            onToken: (token, fullText) => { impStreamMsg.content = fullText; broadcast('stream_token', { messageId: impStreamMsg.id, token, fullText }); } });
+            onToken: (token, fullText) => { const live = impPre ? `${impPre}\n${fullText}` : fullText; impStreamMsg.content = live; broadcast('stream_token', { messageId: impStreamMsg.id, token, fullText: live }); } });
         } else {
           impResult = await llmService.generate({ prompt: impContext.prompt, messages: impContext.messages, systemPrompt: impContext.systemPrompt, settings: impSettings });
         }
@@ -4036,9 +4048,18 @@ async function executeTrigger(trigger, source, character, settings) {
           // Player-turn side effects (keyword gates / event trees) — like a real send, but no AI reply.
           await eventEngine.handleEvent('player_speaks', { content: impText }).catch(() => {});
           await tryResolveAwaitInput(impText, 'player').catch(() => {});
-        } else if (impStreamMsg) { // empty generation — drop the placeholder
-          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== impStreamMsg.id);
-          broadcast('message_deleted', { id: impStreamMsg.id });
+        } else if (impStreamMsg) {
+          // Empty generation: with a live prepend keep the bubble (the literal text stands alone);
+          // otherwise drop the placeholder.
+          if (impPre) {
+            impStreamMsg.content = applyVerbatimWraps('', trigger).trim();
+            impStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: impStreamMsg.id, content: impStreamMsg.content });
+            autosaveSession();
+          } else {
+            sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== impStreamMsg.id);
+            broadcast('message_deleted', { id: impStreamMsg.id });
+          }
         }
         break;
       }
@@ -4070,14 +4091,18 @@ async function executeTrigger(trigger, source, character, settings) {
         // Stream the trigger-driven message (intro / checkpoint char messages) when streaming is on —
         // create the bubble up-front and stream tokens in, mirroring the normal reply path.
         const aiStreaming = settings.llm?.streaming === true;
+        // Live prepend: bubble appears immediately with the literal text; tokens land under it.
+        const aiPre = (trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '') ? substituteAllVariables(trigger.prependText) : null;
         let aiStreamMsg = null;
         let aiResult;
-        if (aiStreaming) {
-          aiStreamMsg = { id: uuidv4(), content: '', sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now(), streaming: true };
+        if (aiStreaming || aiPre) {
+          aiStreamMsg = { id: uuidv4(), content: aiPre || '', sender: 'character', characterName: character.name, displayName: groupBubbleName(character), timestamp: Date.now(), streaming: aiStreaming };
           sessionState.chatHistory.push(aiStreamMsg);
           broadcast('chat_message', aiStreamMsg);
+        }
+        if (aiStreaming) {
           aiResult = await llmService.generateStream({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings,
-            onToken: (token, fullText) => { aiStreamMsg.content = fullText; broadcast('stream_token', { messageId: aiStreamMsg.id, token, fullText }); } });
+            onToken: (token, fullText) => { const live = aiPre ? `${aiPre}\n${fullText}` : fullText; aiStreamMsg.content = live; broadcast('stream_token', { messageId: aiStreamMsg.id, token, fullText: live }); } });
         } else {
           aiResult = await llmService.generate({ prompt: aiContext.prompt, messages: aiContext.messages, systemPrompt: aiContext.systemPrompt, settings: aiGenSettings });
         }
@@ -4108,9 +4133,17 @@ async function executeTrigger(trigger, source, character, settings) {
             broadcast('chat_message', msg);
           }
           autosaveSession();
-        } else if (aiStreamMsg) { // empty generation — drop the placeholder
-          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== aiStreamMsg.id);
-          broadcast('message_deleted', { id: aiStreamMsg.id });
+        } else if (aiStreamMsg) {
+          // Empty generation: keep the bubble when a live prepend already shows; else drop it.
+          if (aiPre) {
+            aiStreamMsg.content = applyVerbatimWraps('', trigger).trim();
+            aiStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: aiStreamMsg.id, content: aiStreamMsg.content });
+            autosaveSession();
+          } else {
+            sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== aiStreamMsg.id);
+            broadcast('message_deleted', { id: aiStreamMsg.id });
+          }
         }
         broadcast('generating_stop', {});
         break;
@@ -4161,14 +4194,18 @@ async function executeTrigger(trigger, source, character, settings) {
         const { v4: uuidv4 } = require('uuid');
         // Stream the member's trigger-driven message when streaming is on (bubble up-front, tokens in).
         const memStreaming = settings.llm?.streaming === true;
+        // Live prepend: bubble appears immediately with the literal text; tokens land under it.
+        const memPre = (trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '') ? substituteAllVariables(trigger.prependText) : null;
         let memStreamMsg = null;
         let memRes;
-        if (memStreaming) {
-          memStreamMsg = { id: uuidv4(), content: '', sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now(), streaming: true };
+        if (memStreaming || memPre) {
+          memStreamMsg = { id: uuidv4(), content: memPre || '', sender: 'character', characterId: character.id, characterName: speakerName, displayName: tgt ? null : groupBubbleName(character), memberId: tgt?.id, timestamp: Date.now(), streaming: memStreaming };
           sessionState.chatHistory.push(memStreamMsg);
           broadcast('chat_message', memStreamMsg);
+        }
+        if (memStreaming) {
           memRes = await llmService.generateStream({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings,
-            onToken: (token, fullText) => { memStreamMsg.content = fullText; broadcast('stream_token', { messageId: memStreamMsg.id, token, fullText }); } });
+            onToken: (token, fullText) => { const live = memPre ? `${memPre}\n${fullText}` : fullText; memStreamMsg.content = live; broadcast('stream_token', { messageId: memStreamMsg.id, token, fullText: live }); } });
         } else {
           memRes = await llmService.generate({ prompt: baseCtx.prompt, messages: baseCtx.messages, systemPrompt: soloSys, settings: memGenSettings });
         }
@@ -4200,9 +4237,17 @@ async function executeTrigger(trigger, source, character, settings) {
             broadcast('chat_message', msg);
           }
           autosaveSession();
-        } else if (memStreamMsg) { // empty generation — drop the placeholder
-          sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== memStreamMsg.id);
-          broadcast('message_deleted', { id: memStreamMsg.id });
+        } else if (memStreamMsg) {
+          // Empty generation: keep the bubble when a live prepend already shows; else drop it.
+          if (memPre) {
+            memStreamMsg.content = applyVerbatimWraps('', trigger).trim();
+            memStreamMsg.streaming = false;
+            broadcast('stream_complete', { messageId: memStreamMsg.id, content: memStreamMsg.content });
+            autosaveSession();
+          } else {
+            sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== memStreamMsg.id);
+            broadcast('message_deleted', { id: memStreamMsg.id });
+          }
         }
         broadcast('generating_stop', {});
         break;
@@ -4614,7 +4659,10 @@ async function executeTrigger(trigger, source, character, settings) {
       // ---- Post a player-voice message (verbatim when llmEnhance===false) ----
       case 'send_player_message': {
         const text = (trigger.message || trigger.context || '').trim();
-        if (text) await eventEngine.broadcast('player_message', { content: applyVerbatimWraps(substituteAllVariables(text), trigger), suppressLlm: trigger.suppressLlm === true || trigger.llmEnhance === false });
+        // This variant IS the verbatim mode (the generated one is 'impersonate'), so it always
+        // suppresses generation — except legacy triggers that explicitly opted INTO enhancement
+        // via the since-removed LLM tickbox (llmEnhance === true).
+        if (text) await eventEngine.broadcast('player_message', { content: applyVerbatimWraps(substituteAllVariables(text), trigger), suppressLlm: trigger.llmEnhance !== true });
         break;
       }
 
@@ -5127,8 +5175,13 @@ function substituteAllVariables(text, context = {}) {
       const mm = ccCard?.multiChar?.characters || [];
       const key = memberKey.trim().toLowerCase();
       const idx = mm.findIndex(m => m && ((m.name || '').toLowerCase() === key || m.id === memberKey.trim()));
-      if (idx < 0) return match;
-      return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+      if (idx >= 0) return idx === 0 ? Math.round(sessionState.characterCapacity ?? 0) : Math.round(sessionState.memberCapacities?.[mm[idx].id] ?? 0);
+      // No member match — the BASE CHARACTER itself (single cards have no members array, and
+      // [SelectedChar] resolves to the card name there): match by card/session name → base capacity.
+      if ((ccCard?.name || '').trim().toLowerCase() === key || (sessionState.characterName || '').trim().toLowerCase() === key) {
+        return Math.round(sessionState.characterCapacity ?? 0);
+      }
+      return match;
     } catch (e) { return match; }
   });
   result = result.replace(/\[PlayerIsInflating\]/gi, sessionState.playerIsInflating ? 'true' : 'false');
@@ -7932,6 +7985,31 @@ async function handleWsMessage(ws, type, data) {
     case 'character_inflate_stop':
       stopCharacterInflation();
       break;
+
+    case 'toggle_member_auto_pump': {
+      // AUTO-PUMP header buttons: start/stop the mock auto-inflation engine for ONE body.
+      // memberId '' / 'base' / the group base member's id → the classic base-char engine
+      // (characterCapacity); any other member id → that member's independent ticker.
+      const apSettings = loadData(DATA_FILES.settings) || {};
+      const apChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const apChar = apChars.find(c => c.id === apSettings.activeCharacterId);
+      if (!apChar) break;
+      const apCal = getCharacterCalibrationTime(apChar);
+      const apBurst = apChar.charBurstPercent || 100;
+      const apMm = apChar.multiChar?.characters || [];
+      const apId = String(data.memberId || '');
+      const apIsBase = !apId || apId === 'base' || (apMm[0] && apMm[0].id === apId);
+      if (apIsBase) {
+        const basePumpable = apChar.isPumpable || (apChar.multiChar?.enabled && apMm[0]?.isPumpable);
+        if (data.enabled) { if (basePumpable && apCal) startCharacterInflation(apCal, apBurst); }
+        else stopCharacterInflation();
+      } else {
+        const apMem = apMm.find(m => m.id === apId);
+        if (data.enabled) { if (apMem?.isPumpable && apCal) startMemberInflation(apId, apMem.name, apCal, apBurst); }
+        else stopMemberInflation(apId);
+      }
+      break;
+    }
 
     case 'update_pain':
       sessionState.pain = data.pain;
@@ -14099,6 +14177,11 @@ function migrateGlobalRemindersToDictionary() {
 function ensureDefaultPumpTrees() {
   const data = loadTriggerTrees();
   if (!Array.isArray(data.trees)) data.trees = [];
+  // Seed revision: bumping this replaces the four stock trees with the new revision. Rev is
+  // recorded in the trees file, so once seeded the user may EDIT or DELETE them freely (they
+  // ship unlocked, builtIn: false) and neither restarts nor deletions resurrect/clobber them.
+  const SEED_REV = 2;
+  if ((data.pumpTreesSeedRev || 0) >= SEED_REV) return;
   const MAX_ML = 8000; // full capacity — ml / 80 = % of max
   const defs = [
     { id: 'tree-builtin-bulb-pump-persona', name: 'Bulb Pump (Persona)', ml: 50, def: 10, charMode: false,
@@ -14112,7 +14195,9 @@ function ensureDefaultPumpTrees() {
   ];
   let added = 0;
   for (const d of defs) {
-    if (data.trees.some(t => t.id === d.id)) continue;
+    // Rev upgrade: replace the previous stock revision of this tree outright (v1 shipped locked,
+    // so there are no user edits to preserve in it).
+    data.trees = data.trees.filter(t => t.id !== d.id);
     const bodyTail = `[CharVar:PumpMl]ml of air into [SelectedChar], raising their capacity to [CharCapacity:[SelectedChar]]%.*`;
     const siblings = [];
     if (d.charMode) {
@@ -14136,11 +14221,17 @@ function ensureDefaultPumpTrees() {
       d.charMode
         ? { id: `${d.id}-msg`, kind: 'action', type: 'ai_message_member', once: false,
             params: { targetMember: '[CharVar:Pumper]', llmEnhance: false, context: `*[CharVar:Pumper] ${d.action} ${bodyTail}` } }
-        : { id: `${d.id}-msg`, kind: 'action', type: 'send_player_message', once: false,
-            params: { llmEnhance: false, message: `*[Player] ${d.action} ${bodyTail}` } }
+        // Persona: the exact-numbers line is a LIVE PREPEND (shows before generation starts),
+        // then a guided impersonate writes the player's in-character reaction under it.
+        : { id: `${d.id}-msg`, kind: 'action', type: 'impersonate', once: false,
+            params: {
+              prependVerbatim: true,
+              prependText: `*[Player] ${d.action} ${bodyTail}`,
+              context: `You just used the pump on [SelectedChar]: narrate, as [Player], the effort of those [PlayerInput:1] pump(s) and your reaction to [SelectedChar]'s belly now sitting at [CharCapacity:[SelectedChar]]% capacity. React to the change only — do NOT continue pumping or invent new pumps.`
+            } }
     );
     data.trees.push({
-      id: d.id, name: d.name, builtIn: true, tag: 'pump',
+      id: d.id, name: d.name, builtIn: false, tag: 'pump',
       nodes: [{
         id: `${d.id}-input`, kind: 'container', type: 'player_input', once: false,
         params: { rows: [{ id: `${d.id}-r1`, label: 'Number of pumps', type: 'num', min: 1, max: Math.floor(MAX_ML / d.ml), def: d.def }] },
@@ -14149,7 +14240,9 @@ function ensureDefaultPumpTrees() {
     });
     added++;
   }
-  if (added) { saveTriggerTrees(data); console.log(`[Startup] Seeded ${added} built-in pump tree(s)`); }
+  data.pumpTreesSeedRev = SEED_REV;
+  saveTriggerTrees(data);
+  console.log(`[Startup] Seeded ${added} stock pump tree(s) (rev ${SEED_REV}, editable)`);
 }
 
 ensureDefaultInstructorProfiles();

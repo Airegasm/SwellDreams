@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 //   • AutoPumpHeader (default export) — fixed strip hanging from the desktop top frame
 //   • AutoPumpRows — embedded in-flow under the mobile chat header (Chat.js)
 export function AutoPumpRows() {
-  const { characters, settings, sessionState, autoPumpArmed, toggleAutoPump } = useApp();
+  const { characters, settings, sessionState, toggleAutoPump } = useApp();
 
   const active = (characters || []).find(c => c.id === settings?.activeCharacterId);
   if (!active) return null;
@@ -16,29 +16,31 @@ export function AutoPumpRows() {
   const isGroup = !!active.multiChar?.enabled && mm.length > 1;
 
   // Pumpable rows: group → members flagged isPumpable (base member rides the main character
-  // capacity); single → the card itself when isPumpable.
+  // capacity + the classic inflation engine); single → the card itself when isPumpable.
   const rows = isGroup
     ? mm.filter(m => m?.isPumpable && m?.name).map(m => ({
         id: m.id,
         name: m.name,
+        isBase: !!mm[0] && m.id === mm[0].id,
         cap: mm[0] && m.id === mm[0].id ? (sessionState.characterCapacity ?? 0) : (sessionState.memberCapacities?.[m.id] ?? 0)
       }))
-    : (active.isPumpable ? [{ id: 'base', name: active.name, cap: sessionState.characterCapacity ?? 0 }] : []);
+    : (active.isPumpable ? [{ id: 'base', name: active.name, isBase: true, cap: sessionState.characterCapacity ?? 0 }] : []);
 
   if (!rows.length) return null;
 
   return (
     <>
       {rows.map(r => {
-        const on = !!autoPumpArmed[r.id];
+        // Lit = LIVE engine state, so bursts / e-stops / trigger-driven pumps reflect here too.
+        const on = r.isBase ? !!sessionState.characterInflating : !!sessionState.memberInflating?.[r.id];
         return (
           <div className="auto-pump-row" key={r.id}>
             <span className="apr-name" title={r.name}>{r.name}</span>
             <span className="apr-cap">{Math.round(r.cap)}%</span>
             <button type="button"
               className={`apr-btn ${on ? 'on' : ''}`}
-              onClick={() => toggleAutoPump(r.id)}
-              title={on ? `Auto-pump armed for ${r.name} — click to disarm` : `Arm auto-pump for ${r.name}`}>
+              onClick={() => toggleAutoPump(r.isBase ? '' : r.id, !on)}
+              title={on ? `${r.name}'s auto-pump is inflating — click to stop` : `Start ${r.name}'s auto-pump (mock inflation at the card's calibration rate)`}>
               {on ? 'AUTO-PUMP OFF' : 'AUTO-PUMP ON'}
             </button>
           </div>

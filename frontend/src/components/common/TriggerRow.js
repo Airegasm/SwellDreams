@@ -403,13 +403,11 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         return (
           <>
             {playerMsgMode}
+            {/* No LLM tickbox here — the Impersonate/Verbatim mode dropdown IS the choice; this
+                variant is always verbatim (posted exactly as typed, no generation). */}
             <textarea value={trigger.message || ''} onChange={(e) => update('message', e.target.value)}
               placeholder="Exact player message (verbatim, Enter = new line)…" rows={2}
               style={{ flex: 1, minWidth: '80px', resize: 'vertical' }} />
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
-              title="LLM Enhance — generate from this. Uncheck to post the text verbatim.">
-              <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} /> LLM
-            </label>
           {renderVerbatimWraps()}
             </>
         );

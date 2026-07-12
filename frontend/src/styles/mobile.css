@@ -333,6 +333,16 @@
     border-radius: 2px;
     letter-spacing: 0.02em;
   }
+  /* Lit state: same box, NO outer glow (it bled past the 15px rows and looked like the button
+     grew) — the green fill is the indicator on mobile. Size re-locked at .on specificity. */
+  .mobile-auto-pump .apr-btn.on {
+    height: 11px;
+    padding: 0 6px;
+    font-size: 8px;
+    line-height: 1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    text-shadow: none;
+  }
   .mobile-chat-header .mch-btn {
     height: 36px;
     min-width: 36px;

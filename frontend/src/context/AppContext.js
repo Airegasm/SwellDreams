@@ -79,10 +79,12 @@ export function AppProvider({ children }) {
   const [chooseMultiData, setChooseMultiData] = useState(null);
   const [selectMemberData, setSelectMemberData] = useState(null);
   const [treePlayerInputData, setTreePlayerInputData] = useState(null);
-  // Auto-pump toggle state per pumpable member (header strip / mobile rows). Visual-only for
-  // now — the actual pumping behavior gets wired later. Shared here so desktop + mobile agree.
-  const [autoPumpArmed, setAutoPumpArmed] = useState({});
-  const toggleAutoPump = useCallback((id) => setAutoPumpArmed(prev => ({ ...prev, [id]: !prev[id] })), []);
+  // AUTO-PUMP header buttons: start/stop the mock auto-inflation engine for one body. Lit state
+  // is LIVE engine state (characterInflating / memberInflating from backend broadcasts), not a
+  // local toggle — so it reflects bursts, e-stops, and trigger-driven starts too.
+  const toggleAutoPump = useCallback((memberId, enabled) => {
+    sendWsMessage('toggle_member_auto_pump', { memberId: memberId || '', enabled: !!enabled });
+  }, [sendWsMessage]);
 
   // Trigger Tree choose_multi state (tree path; distinct from the flow choose_multi above)
   const [treeChooseMultiData, setTreeChooseMultiData] = useState(null);
@@ -382,7 +384,20 @@ export function AppProvider({ children }) {
         break;
 
       case 'member_capacity_update':
-        setSessionState(prev => ({ ...prev, memberCapacities: data.memberCapacities || {} }));
+        setSessionState(prev => ({
+          ...prev,
+          memberCapacities: data.memberCapacities || {},
+          // Per-member ticks carry inflating — fold it in so the AUTO-PUMP buttons self-heal
+          // to live engine state within a tick even after a reload mid-inflation.
+          ...(data.memberId && data.inflating !== undefined
+            ? { memberInflating: { ...(prev.memberInflating || {}), [data.memberId]: !!data.inflating } }
+            : {})
+        }));
+        break;
+
+      case 'member_inflate_state':
+        // A member's mock auto-pump turned on/off — drives the AUTO-PUMP header buttons.
+        setSessionState(prev => ({ ...prev, memberInflating: { ...(prev.memberInflating || {}), [data.memberId]: !!data.active } }));
         break;
 
       case 'character_capacity_update':
@@ -2071,7 +2086,6 @@ export function AppProvider({ children }) {
     respondSelectMember,
     treePlayerInputData,
     respondTreePlayerInput,
-    autoPumpArmed,
     toggleAutoPump,
     treeMiniGameData,
     respondTreeMiniGame,

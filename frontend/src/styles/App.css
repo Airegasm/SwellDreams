@@ -189,8 +189,13 @@ body {
   background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
   border-color: #4caf50;
   color: #eaffea;
-  box-shadow: 0 0 8px rgba(76, 175, 80, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 0 4px rgba(180, 255, 180, 0.6);
+  /* Tight glow: the old 8px spread bled past the compact row edges and read as the button
+     growing taller when lit. Size is re-locked here so no state/specificity change can alter it. */
+  box-shadow: 0 0 3px rgba(76, 175, 80, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: none;
+  height: 14px;
+  padding: 0 8px;
+  line-height: 1;
 }
 
 /* The strip is a desktop affordance; the mobile header band owns the small-screen layout. */
