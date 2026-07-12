@@ -3559,6 +3559,7 @@ const sessionState = {
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
+  btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   pendingTreeChoice: null, // Armed when a tree player_choice/choose_multi suspends; { choices, ctxSnapshot, after }
   pendingTreeResume: null, // Armed when a tree pause_resume suspends; { remaining, body, ctxSnapshot, after }
   pendingTreeGame: null, // Armed when a tree call_minigame suspends; { miniGameId, exitGotos, ctxSnapshot, after }
@@ -8595,8 +8596,12 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
-  sessionState.pendingTreeGame = null;
     sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeChoice = null;
+    sessionState.pendingTreeNext = null;
+    sessionState.pendingCheckpointChoice = null;
+    broadcast('next_gate', { active: false });      // don't leave a stuck ">>" gate pointing at wiped context
+    broadcast('checkpoint_choice_clear', {});       // dismiss any armed choice panel (its continuation is void)
     sessionState.playerIsInflating = false;
 
     // Set the summary as the rolling memory
@@ -8643,8 +8648,12 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
-  sessionState.pendingTreeGame = null;
     sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeChoice = null;
+    sessionState.pendingTreeNext = null;
+    sessionState.pendingCheckpointChoice = null;
+    broadcast('next_gate', { active: false });      // don't leave a stuck ">>" gate pointing at wiped context
+    broadcast('checkpoint_choice_clear', {});       // dismiss any armed choice panel (its continuation is void)
     sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: preserved, contextOnly: true });
@@ -8659,8 +8668,12 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.pendingTreeResume = null;
-  sessionState.pendingTreeGame = null;
     sessionState.pendingTreeGame = null;
+    sessionState.pendingTreeChoice = null;
+    sessionState.pendingTreeNext = null;
+    sessionState.pendingCheckpointChoice = null;
+    broadcast('next_gate', { active: false });      // don't leave a stuck ">>" gate pointing at wiped context
+    broadcast('checkpoint_choice_clear', {});       // dismiss any armed choice panel (its continuation is void)
     sessionState.playerIsInflating = false;
     autosaveSession();
     broadcast('chat_cleared', { messages: [] });
@@ -9022,8 +9035,10 @@ async function handleExecuteButton(data) {
 }
 
 // Button "Run Trigger Tree" action: resolve the button's tree ref ({inline}|{treeId}) and run
-// it standalone (ai_message posts immediately, like other button actions). scopeKey btn:<id> so
-// `once` nodes fire once per button per session.
+// it standalone (ai_message posts immediately, like other button actions). scopeKey btn:<id>#<seq>:
+// each press gets a FRESH once-scope, so `once` still guards loops/re-entry WITHIN a run but a new
+// press re-runs the whole tree. (With a press-stable scope, the editor's default-ON `once` flag made
+// every button tree fire exactly once per session — pressed once, then dead until a new session.)
 async function handleButtonRunTree(action, characterId) {
   if (sessionState.introActive || sessionState.preFillActive) { console.log('[Button] run_tree blocked — gated intro active'); return; }
   const ref = action.config?.treeRef || (action.config?.treeId ? { treeId: action.config.treeId } : action.config?.inline ? { inline: action.config.inline } : null);
@@ -9034,7 +9049,8 @@ async function handleButtonRunTree(action, characterId) {
   const treeIndex = buildTreeIndex();
   const tree = resolveRefTree(ref, treeIndex);
   if (!tree) { console.log('[Button] run_tree: ref did not resolve to a tree'); return; }
-  await runTreeScope(tree, `btn:${action.config?.buttonId || action.id || 'x'}`, character, settings, { delivery: 'standalone', treeIndex });
+  sessionState.btnTreeRunSeq = (sessionState.btnTreeRunSeq || 0) + 1;
+  await runTreeScope(tree, `btn:${action.config?.buttonId || action.id || 'x'}#${sessionState.btnTreeRunSeq}`, character, settings, { delivery: 'standalone', treeIndex });
 }
 
 async function handleButtonTriggerBlocks(action, characterId) {
@@ -11960,7 +11976,11 @@ async function deliverPendingVerbatimReply() {
 function checkpointInjectionsBlock() {
   const inj = sessionState.activeCheckpointInjections || [];
   if (!inj.length) return '';
-  return `\n=== STAGE EVENTS (THIS MESSAGE) ===\nWeave the following into this reply naturally:\n${inj.map(t => `- ${t}`).join('\n')}\n=== END STAGE EVENTS ===\n`;
+  // "MANDATORY —" header: puts this block under the same enforcement shape the model already obeys
+  // for checkpoints AND makes an echoed copy strippable (stripLeakedDirectives keys on MANDATORY;
+  // the old "STAGE EVENTS" header matched no strip key). "Weave naturally" alone let events get
+  // alluded to or dropped; each listed event is authored to HAPPEN in this reply.
+  return `\n=== MANDATORY — STAGE EVENTS (THIS MESSAGE) ===\nEVERY event below MUST happen in this reply — depict each one explicitly, in scene, now:\n${inj.map(t => `- ${t}`).join('\n')}\nWeave them in naturally but unmistakably. Do NOT skip, postpone, or merely allude to any of them. Do NOT quote this list.\n=== END STAGE EVENTS ===\n`;
 }
 
 // (GC step 6) fireCheckpointInjectionAction + presentCheckpointChoice removed — dead with
@@ -13265,11 +13285,14 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
   // same "=== MANDATORY ===" shape the model already obeys for checkpoints, makes it stick.
   let guidanceDirective = '';
   if (guidedText) {
-    const subject = isPlayerVoicePrimer ? `${playerName}'s` : `${character.name}'s`;
-    guidanceDirective = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST center on: "${guidedText}"\nMake this the focus of the reply right now. Stay in character. Do NOT quote this note.\n=== END NOTE ===\n`;
+    const speaker = isPlayerVoicePrimer ? playerName : character.name;
+    // Statement + explicit prohibition (the v6.7.6 lesson: a bare "center on X" gets treated as a
+    // theme and drifts; forbidding the escape hatches — postpone/summarize/substitute — is what
+    // makes the model actually perform the direction).
+    guidanceDirective = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${speaker}'s next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidedText}"\nThis is a hard requirement, not a theme: depict it explicitly, in ${speaker}'s own voice. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
     prompt += guidanceDirective;
-    // Light reinforcement in the system block too (helps ChatML-style models).
-    systemPrompt += `\n[Director's note for the next reply: ${guidedText}]`;
+    // Reinforcement in the system block too (helps ChatML-style models).
+    systemPrompt += `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidedText}]`;
   }
 
   // Generation primer uses the REAL speaker name.
@@ -14085,7 +14108,10 @@ function applyCharacterGuidance(context, character, guidanceText) {
   // obeys for checkpoints. Mistral/Tekken-family models weight the most recent
   // instruction far above the system block, so this must sit right before the
   // primer (and as the final chat message) — not buried in the system prompt.
-  const directive = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST center on: "${guidanceText}"\nMake this the focus of the reply right now. Stay in character. Do NOT quote this note.\n=== END NOTE ===\n`;
+  // Statement + explicit prohibition (v6.7.6 lesson): "center on X" reads as a theme and drifts;
+  // naming the escape hatches — postpone/summarize/substitute — and forbidding them is what makes
+  // the model actually perform the direction instead of gesturing at it.
+  const directive = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidanceText}"\nThis is a hard requirement, not a theme: depict it explicitly, in character. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
 
   // Flat prompt (text-completion): insert just before the trailing primer.
   if (typeof context.prompt === 'string') {
@@ -14102,8 +14128,8 @@ function applyCharacterGuidance(context, character, guidanceText) {
     context.messages.push({ role: 'user', content: directive.trim() });
   }
 
-  // Light reinforcement in the system block too (helps ChatML-style models).
-  context.systemPrompt += `\n[Director's note for the next reply: ${guidanceText}]`;
+  // Reinforcement in the system block too (helps ChatML-style models).
+  context.systemPrompt += `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidanceText}]`;
   return context;
 }
 

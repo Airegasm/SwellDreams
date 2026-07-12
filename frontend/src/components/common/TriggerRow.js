@@ -279,7 +279,21 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'ai_message_member':
         return (
           <>
-            {renderMemberTarget(update)}
+            {/* Speaker dropdown — always visible. Group (2+ members): pick a member or the whole
+                group. Single mode / no card context: locked to the base character (the backend
+                already speaks as the base character when no targetMember is set). */}
+            {members.length > 1 ? (
+              <select value={trigger.targetMember || ''} onChange={(e) => update('targetMember', e.target.value)}
+                style={{ maxWidth: '150px', flexShrink: 0 }} title="Which member speaks this message">
+                <option value="">Whole group</option>
+                {members.map((m, mi) => <option key={m.id || mi} value={m.id}>{m.name || (mi === 0 ? 'Base character' : `Character ${mi + 1}`)}</option>)}
+              </select>
+            ) : (
+              <select disabled style={{ maxWidth: '150px', flexShrink: 0 }}
+                title="Single mode — the base character speaks. Add group members to pick a different speaker.">
+                <option>{members[0]?.name || 'Base character'}</option>
+              </select>
+            )}
             <input type="text" value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
               placeholder="Message / context..." style={{ flex: 1, minWidth: '80px' }} />
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}

@@ -4,11 +4,15 @@ import { useDraft, getDraftKey } from '../../hooks/useDraft';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
 import TriggerRow from '../common/TriggerRow';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
-import LibraryTreeSelect from '../common/LibraryTreeSelect';
+import ScopeTreeSection from '../common/ScopeTreeSection';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
-  const { flows, devices, settings, api } = useApp();
+  const { flows, devices, settings, api, characters } = useApp();
+  // Persona buttons execute against the ACTIVE character, so member pickers (Group Member
+  // Message etc.) list the active card's group. A stale member id degrades gracefully on the
+  // backend (falls back to the group bubble / base character).
+  const activeCardMembers = (characters || []).find(c => c.id === settings?.activeCharacterId)?.multiChar?.characters || [];
 
   // Helper to filter out flow IDs that no longer exist
   const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
@@ -936,10 +940,18 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                                 </select>
                               )}
                               {action.type === 'trigger_blocks' && (
-                                <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets} />
+                                <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets}
+                                  rowProps={{ members: activeCardMembers }} />
                               )}
                               {action.type === 'run_tree' && (
-                                <LibraryTreeSelect value={action.config.treeId} onChange={(treeId) => handleUpdateAction(index, 'treeId', treeId)} />
+                                <ScopeTreeSection
+                                  label="" hint="build the tree inline, or link a library tree"
+                                  refValue={action.config.treeRef || (action.config.treeId ? { treeId: action.config.treeId } : undefined)}
+                                  onChange={(ref) => handleUpdateAction(index, 'treeRef', ref)}
+                                  defaultName={`${buttonForm.name || 'Button'} Tree`}
+                                  source={`from persona button: ${buttonForm.name || 'unnamed'}`}
+                                  rowProps={{ triggerSets, members: activeCardMembers }}
+                                />
                               )}
                             </div>
                             <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>

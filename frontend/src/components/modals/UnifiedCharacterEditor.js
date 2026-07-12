@@ -6,7 +6,7 @@ import CheckpointProfiles from '../common/CheckpointProfiles';
 import CardLoreSection from '../common/CardLoreSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import LoreEntryEditor from '../common/LoreEntryEditor';
-import LibraryTreeSelect from '../common/LibraryTreeSelect';
+import ScopeTreeSection from '../common/ScopeTreeSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import MediaCropModal from './MediaCropModal';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
@@ -2181,10 +2181,18 @@ Write only the scenario description itself, no explanations.`;
                               </select>
                             )}
                             {action.type === 'run_tree' && (
-                              <LibraryTreeSelect value={action.config.treeId} onChange={(treeId) => handleUpdateAction(index, 'treeId', treeId)} />
+                              <ScopeTreeSection
+                                label="" hint="build the tree inline, or link a library tree"
+                                refValue={action.config.treeRef || (action.config.treeId ? { treeId: action.config.treeId } : undefined)}
+                                onChange={(ref) => handleUpdateAction(index, 'treeRef', ref)}
+                                defaultName={`${buttonForm.name || 'Button'} Tree`}
+                                source={`from button: ${buttonForm.name || 'unnamed'}`}
+                                rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [] }}
+                              />
                             )}
                             {action.type === 'trigger_blocks' && (
-                              <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets} />
+                              <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets}
+                                rowProps={{ isPumpable: pumpUiActive, members, profiles: activeStory?.checkpointProfiles || [] }} />
                             )}
                           </div>
                           <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>
