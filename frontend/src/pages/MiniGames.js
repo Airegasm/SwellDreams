@@ -132,7 +132,7 @@ function GameEditor({ type, config, set }) {
             <Num label="Max length" value={config.maxLength} onChange={(v) => upd({ maxLength: v })} />
             <Num label="Max misses" value={config.maxMisses} onChange={(v) => upd({ maxMisses: v })} />
           </div>
-          <p className="mg-hint">A wrong pad = a miss (the round replays). Each miss fires the <strong>MiniGame miss</strong> event (Checkpoints → Events) — bind a tree there for penalty pumps/messages. Hitting Max misses fires the <strong>Failed</strong> exit; completing the Max-length round fires <strong>Completed</strong>.</p>
+          <p className="mg-hint">A wrong pad = a miss (the round replays). Each miss fires the <strong>MiniGame miss</strong> event (Checkpoints → Events) AND the Call MiniGame block's <strong>Miss</strong> goto, if bound — the tree runs from that label while the game stays open (penalty pumps/messages mid-game). Hitting Max misses fires the <strong>Failed</strong> exit; completing the Max-length round fires <strong>Completed</strong>.</p>
         </>
       );
     default:

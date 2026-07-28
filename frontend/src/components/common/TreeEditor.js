@@ -82,6 +82,7 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
             );
           })}
           {exits.length > 0 && labels.length === 0 && <div className="section-hint">Add <strong>Label</strong> nodes after this one to bind gotos.</div>}
+          {game.type === 'simon_challenge' && <div className="section-hint"><strong>Miss</strong> fires DURING play, per wrong move — the tree runs from its label while the game stays open (the game then continues; Completed/Failed still end it). The MiniGame-miss event bindings fire too.</div>}
           <div className="section-hint">Sets <code>[CharVar:GameResult]</code>{game.competitive ? <> and <code>[CharVar:GameWinner]</code></> : null}. Goto targets must be Labels placed AFTER this node.</div>
         </div>
       )}

@@ -63,7 +63,7 @@ export function exitsFor(type, config) {
     case 'coin_flip': return [config.headsLabel || 'Heads', config.tailsLabel || 'Tails'];
     case 'rps': return ['Win', 'Lose', 'Draw'];
     case 'card_draw': return ['Win', 'Lose', 'Push']; // Blackjack outcome (player perspective)
-    case 'simon_challenge': return ['Completed', 'Failed'];
+    case 'simon_challenge': return ['Completed', 'Failed', 'Miss']; // Miss fires DURING play (side-run; the game stays open)
     default: return [];
   }
 }

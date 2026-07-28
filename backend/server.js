@@ -9006,15 +9006,45 @@ async function handleWsMessage(ws, type, data) {
       await resumeTreeGame(data.exit, data.winner, data.pick);
       break;
 
-    case 'tree_minigame_miss':
-      // Mid-game miss (game still running — no resume). Fires 'minigame_miss' event bindings so
-      // penalties live in trigger trees, not in the game config.
+    case 'tree_minigame_miss': {
+      // Mid-game miss (game still running — no resume). Fires 'minigame_miss' event bindings AND,
+      // when the Call MiniGame block bound a goto to its 'Miss' exit, SIDE-RUNS the tree from that
+      // label: the game overlay stays open and pendingTreeGame stays armed for the real
+      // Completed/Failed exit. Runs per wrong move (once-nodes inside still fire once per session).
       await runEventTrees('minigame_miss', {
         gameId: sessionState.pendingTreeGame?.miniGameId || null,
         misses: Number(data.misses) || 0,
         maxMisses: Number(data.maxMisses) || 0
       });
+      const missPend = sessionState.pendingTreeGame;
+      const missGoto = missPend?.exitGotos?.Miss;
+      if (missGoto && Array.isArray(missPend.rootNodes)) {
+        const missIdx = missPend.rootNodes.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === missGoto);
+        if (missIdx < 0) {
+          console.warn(`[Tree] Miss goto label '${missGoto}' not found at the tree's top level — skipping (place Miss labels at the top level)`);
+        } else {
+          const snap = missPend.ctxSnapshot || {};
+          const settings = loadData(DATA_FILES.settings) || {};
+          const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+          const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+          const ctx = {
+            character, settings,
+            treeId: snap.treeId, scopeKey: `${snap.scopeKey || 'default'}>miss`, // own once-scope for the side-run
+            depth: snap.childDepth || 0, delivery: 'standalone',
+            source: snap.source || `tree:${snap.treeId}`,
+            visited: new Set(snap.visited || [snap.treeId]),
+            firedSet: sessionState.firedTreeNodes,
+            rootNodes: missPend.rootNodes,
+            labels: new Map()
+          };
+          try {
+            const sig = await runTree(missPend.rootNodes.slice(missIdx + 1), ctx);
+            if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+          } catch (e) { console.error('[Tree] Miss goto side-run failed:', e?.message || e); }
+        }
+      }
       break;
+    }
 
     case 'checkpoint_choice_response':
       await handleCheckpointChoice(data.choiceId);
