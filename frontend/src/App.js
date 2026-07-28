@@ -3,14 +3,16 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useApp } from './context/AppContext';
 import { useError } from './context/ErrorContext';
 import Chat from './pages/Chat';
-import Settings from './pages/Settings';
-import FlowEditor from './pages/FlowEditor';
-import MiniGames from './pages/MiniGames';
-import Dictionary from './pages/Dictionary';
-import Help from './pages/Help';
-import CharactersPersonas from './pages/CharactersPersonas';
-import MediaAlbum from './pages/MediaAlbum';
-import Triggers from './pages/Triggers';
+// Code-split every non-Chat page (audit C3): Chat is the app; the rest load on first visit,
+// which cuts the main bundle for the page people actually sit in.
+const Settings = React.lazy(() => import('./pages/Settings'));
+const FlowEditor = React.lazy(() => import('./pages/FlowEditor'));
+const MiniGames = React.lazy(() => import('./pages/MiniGames'));
+const Dictionary = React.lazy(() => import('./pages/Dictionary'));
+const Help = React.lazy(() => import('./pages/Help'));
+const CharactersPersonas = React.lazy(() => import('./pages/CharactersPersonas'));
+const MediaAlbum = React.lazy(() => import('./pages/MediaAlbum'));
+const Triggers = React.lazy(() => import('./pages/Triggers'));
 import HamburgerMenu from './components/HamburgerMenu';
 import AutoPumpHeader from './components/AutoPumpHeader';
 import HelpPanel from './components/HelpPanel';
@@ -457,7 +459,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.9.11</span>
+      <span className="version-badge">v6.9.12</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -527,6 +529,7 @@ function App() {
         <Chat />
 
         {/* Center Modal Overlays - positioned over middle section only */}
+        <React.Suspense fallback={<div className="center-modal-overlay"><div style={{ padding: 24 }}>Loading…</div></div>}>
         <Routes>
           <Route path="/" element={null} />
           <Route path="/characters-personas" element={
@@ -574,6 +577,7 @@ function App() {
             </div>
           } />
         </Routes>
+        </React.Suspense>
       </main>
 
       {/* Terms of Service Modal */}

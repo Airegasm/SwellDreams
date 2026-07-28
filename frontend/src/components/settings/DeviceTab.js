@@ -12,7 +12,7 @@ const DEVICE_TYPES = [
   { value: 'CUSTOM', label: 'Custom Device Control' }
 ];
 
-const MAX_DEVICES = 5;
+const MAX_DEVICES = 16; // raised from 5 (audit C5) — outlets now host pumps AND custom devices
 
 // Factory defaults for an automatic pump's device-control limits. Mirror of FACTORY_PUMP_LIMITS in
 // backend/server.js — keep in sync. Used by the "Reset to Factory" action in the Limits popup.

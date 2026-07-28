@@ -1460,7 +1460,7 @@ function charTokenOverride(character) {
 // custom_device trigger action and the [CustomDevice:name:on|off|timed:secs] LLM tag.
 const CUSTOM_DEVICES_PATH = path.join(__dirname, 'data', 'custom-devices.json');
 function loadCustomDevices() {
-  try { return JSON.parse(fs.readFileSync(CUSTOM_DEVICES_PATH, 'utf8')); } catch (e) { return { devices: [] }; }
+  try { return readJsonCached(CUSTOM_DEVICES_PATH) ?? { devices: [] }; } catch (e) { return { devices: [] }; }
 }
 function saveCustomDevices(data) { fs.writeFileSync(CUSTOM_DEVICES_PATH, JSON.stringify(data, null, 2)); }
 
@@ -1718,11 +1718,27 @@ async function stopAllDevicesConcurrently(devices, logPrefix = '[Stop]', opts = 
 // Data Persistence
 // ============================================
 
+// ---- mtime-checked JSON read cache (audit C1) ----
+// A single chat turn re-reads settings/devices/characters many times over; each used to be a
+// full disk read + JSON.parse. Parsed values cache by path and invalidate purely by stat
+// (mtime+size), so ANY writer — saveData, atomic writers, even hand-edits — is picked up on the
+// next read with no invalidation hooks. Returns a structuredClone each time, so the pervasive
+// "mutate the loaded object, maybe save it" call pattern can never poison the cache.
+const _jsonCache = new Map(); // absolute path -> { mtimeMs, size, value }
+function readJsonCached(file) {
+  let st;
+  try { st = fs.statSync(file); } catch (e) { _jsonCache.delete(file); return undefined; } // missing file
+  const hit = _jsonCache.get(file);
+  if (hit && hit.mtimeMs === st.mtimeMs && hit.size === st.size) return structuredClone(hit.value);
+  const value = JSON.parse(fs.readFileSync(file, 'utf8')); // throws on corrupt JSON — callers keep their recovery paths
+  _jsonCache.set(file, { mtimeMs: st.mtimeMs, size: st.size, value });
+  return structuredClone(value);
+}
+
 function loadData(file) {
   try {
-    if (fs.existsSync(file)) {
-      return JSON.parse(fs.readFileSync(file, 'utf8'));
-    }
+    const cached = readJsonCached(file);
+    if (cached !== undefined) return cached;
   } catch (e) {
     console.error(`Error loading ${file}:`, e);
     // Primary file is corrupt/unparseable — attempt the rolling backup loudly.
@@ -2016,14 +2032,13 @@ function loadCharacter(charId) {
   ];
 
   for (const { path: charPath, isDefault } of paths) {
-    if (fs.existsSync(charPath)) {
-      try {
-        const char = JSON.parse(fs.readFileSync(charPath, 'utf8'));
-        char._isDefault = isDefault;
-        return migrateCharPortraitMedia(char);
-      } catch (e) {
-        console.error(`Error loading character ${charId}:`, e);
-      }
+    try {
+      const char = readJsonCached(charPath); // clone — the mutations below never touch the cache
+      if (char === undefined) continue;
+      char._isDefault = isDefault;
+      return migrateCharPortraitMedia(char);
+    } catch (e) {
+      console.error(`Error loading character ${charId}:`, e);
     }
   }
   return null;
@@ -6027,13 +6042,39 @@ function clearSessionContextForSwitch() {
 
 const wsClients = new Set();
 
-function broadcast(type, data) {
+function broadcastNow(type, data) {
   const message = JSON.stringify({ type, data, timestamp: Date.now() });
   wsClients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }
   });
+}
+
+// Broadcast coalescing (audit C4/C2): high-frequency or heavyweight message types where clients
+// only ever need the LATEST payload get a trailing-edge throttle — capacity_update fires several
+// times a second during pump runtime; characters_update ships the full ~2MB library and bursts
+// on multi-save operations. Every other type broadcasts immediately.
+const COALESCED_BROADCASTS = { capacity_update: 400, characters_update: 1000 };
+const _coalesceState = new Map(); // type -> { timer, lastSent, payload }
+function broadcast(type, data) {
+  const win = COALESCED_BROADCASTS[type];
+  if (!win) return broadcastNow(type, data);
+  let st = _coalesceState.get(type);
+  if (!st) { st = { timer: null, lastSent: 0, payload: null }; _coalesceState.set(type, st); }
+  st.payload = data;
+  const now = Date.now();
+  if (now - st.lastSent >= win) {
+    st.lastSent = now;
+    return broadcastNow(type, st.payload);
+  }
+  if (!st.timer) {
+    st.timer = setTimeout(() => {
+      st.timer = null;
+      st.lastSent = Date.now();
+      broadcastNow(type, st.payload);
+    }, win - (now - st.lastSent));
+  }
 }
 
 // ============================================
@@ -19344,7 +19385,7 @@ app.delete('/api/dictionary/:id', (req, res) => {
 // --- Trigger Trees (global library — nested-block scripting; see plan typed-dazzling-nygaard.md) ---
 const TRIGGER_TREES_PATH = path.join(DATA_DIR, 'trigger-trees.json');
 function loadTriggerTrees() {
-  try { return JSON.parse(fs.readFileSync(TRIGGER_TREES_PATH, 'utf8')); } catch (e) { return { trees: [] }; }
+  try { return readJsonCached(TRIGGER_TREES_PATH) ?? { trees: [] }; } catch (e) { return { trees: [] }; }
 }
 function saveTriggerTrees(data) { fs.writeFileSync(TRIGGER_TREES_PATH, JSON.stringify(data, null, 2)); }
 
@@ -19393,7 +19434,7 @@ app.delete('/api/trigger-trees/:id', (req, res) => {
 // (loadMiniGames in runNode). Modeled on the trigger-trees store above.
 const MINIGAMES_PATH = path.join(DATA_DIR, 'minigames.json');
 function loadMiniGames() {
-  try { return JSON.parse(fs.readFileSync(MINIGAMES_PATH, 'utf8')); } catch (e) { return { games: [] }; }
+  try { return readJsonCached(MINIGAMES_PATH) ?? { games: [] }; } catch (e) { return { games: [] }; }
 }
 function saveMiniGames(data) { fs.writeFileSync(MINIGAMES_PATH, JSON.stringify(data, null, 2)); }
 
