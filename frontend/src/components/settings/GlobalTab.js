@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { API_BASE } from '../../config';
 import { useError } from '../../context/ErrorContext';
-import FlowAssignmentModal from '../modals/FlowAssignmentModal';
 import DataTab from './DataTab';
 import './SettingsTabs.css';
 
 function GlobalTab() {
-  const { flows, sessionState, sendWsMessage, settings, api, controlMode, setControlMode, simulationRequired, simulationReason, devices, characters } = useApp();
+  const { sessionState, sendWsMessage, settings, api, controlMode, setControlMode, simulationRequired, simulationReason, devices, characters } = useApp();
   const { showError } = useError();
   const navigate = useNavigate();
   const [showFlowModal, setShowFlowModal] = useState(false);
@@ -28,6 +28,29 @@ function GlobalTab() {
 
   // Remote Settings state
   const [remoteSettings, setRemoteSettings] = useState({ allowRemote: false, whitelistedIps: [], isLocalRequest: false });
+
+  // Voice / TTS (F2): config mirrors settings.tts; voices scanned server-side from the models dir.
+  const [ttsCfg, setTtsCfg] = useState({ enabled: false, piperPath: '', voicesDir: '', defaultVoice: '', autoSpeak: false });
+  const [ttsVoices, setTtsVoices] = useState([]);
+  const [ttsMsg, setTtsMsg] = useState('');
+  useEffect(() => { if (settings?.tts) setTtsCfg(c => ({ ...c, ...settings.tts })); }, [settings?.tts]);
+  const refreshTtsVoices = useCallback(() => {
+    api.getTtsVoices?.().then(d => setTtsVoices(d?.voices || [])).catch(() => {});
+  }, [api]);
+  useEffect(() => { refreshTtsVoices(); }, [refreshTtsVoices]);
+  const saveTts = async (cfg) => {
+    setTtsCfg(cfg);
+    try { await api.updateSettings({ tts: cfg }); setTtsMsg(''); refreshTtsVoices(); }
+    catch (e) { setTtsMsg('Save failed: ' + (e.message || e)); }
+  };
+  const testTtsVoice = async () => {
+    setTtsMsg('Synthesizing…');
+    try {
+      const r = await api.ttsSpeak('Voice check. This is your SwellDreams narrator.', ttsCfg.defaultVoice);
+      new Audio(`${API_BASE}${r.url}`).play().catch(() => {});
+      setTtsMsg('✓ Played');
+    } catch (e) { setTtsMsg('✗ ' + (e.message || e)); }
+  };
   const [newIp, setNewIp] = useState('');
   const [isLoadingRemote, setIsLoadingRemote] = useState(true);
 
@@ -678,7 +701,7 @@ function GlobalTab() {
     tokenSwitching: false,
     dictionary: false,
     reminders: false,
-    flows: false,
+    voice: false,
     remote: false
   });
 
@@ -961,24 +984,6 @@ function GlobalTab() {
     } catch (error) {
       console.error('Failed to save character controls:', error);
     }
-  };
-
-  const getGlobalFlows = () => {
-    return sessionState.flowAssignments?.global || [];
-  };
-
-  const handleSaveFlows = (flowIds) => {
-    sendWsMessage('update_global_flows', {
-      flows: flowIds
-    });
-  };
-
-  const handleRemoveGlobalFlow = (flowId) => {
-    const currentFlows = getGlobalFlows();
-    const updatedFlows = currentFlows.filter(id => id !== flowId);
-    sendWsMessage('update_global_flows', {
-      flows: updatedFlows
-    });
   };
 
   return (
@@ -1322,6 +1327,62 @@ function GlobalTab() {
           </div>
         </div>
       )}
+
+      {/* Voice / TTS (F2): local Piper synthesis */}
+      <div className="settings-section-collapsible">
+        <div className="settings-section-header" onClick={() => toggleSection('voice')}>
+          <span>Voice (TTS)</span>
+          <span className="collapse-icon">{expandedSections.voice ? '▼' : '▶'}</span>
+        </div>
+        {expandedSections.voice && (
+          <div className="settings-section-content">
+            <p className="section-description">
+              Local text-to-speech via <strong>Piper</strong>. Install Piper, download voice models (.onnx),
+              point the fields at them, and character replies get a 🔊 button in chat (plus optional auto-speak).
+            </p>
+            <div className="remote-toggle-row">
+              <label className="toggle-switch">
+                <input type="checkbox" checked={ttsCfg.enabled === true}
+                  onChange={(e) => saveTts({ ...ttsCfg, enabled: e.target.checked })} />
+                <span className="toggle-slider"></span>
+              </label>
+              <span className="toggle-label">Enable voice</span>
+            </div>
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label>Piper binary path</label>
+              <input type="text" value={ttsCfg.piperPath || ''} placeholder="/usr/local/bin/piper or C:\piper\piper.exe"
+                onChange={(e) => setTtsCfg(c => ({ ...c, piperPath: e.target.value }))}
+                onBlur={() => saveTts(ttsCfg)} />
+            </div>
+            <div className="form-group">
+              <label>Voices folder (contains .onnx models)</label>
+              <input type="text" value={ttsCfg.voicesDir || ''} placeholder="/home/you/piper-voices"
+                onChange={(e) => setTtsCfg(c => ({ ...c, voicesDir: e.target.value }))}
+                onBlur={() => saveTts(ttsCfg)} />
+            </div>
+            <div className="form-group">
+              <label>Default voice</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <select value={ttsCfg.defaultVoice || ''} onChange={(e) => saveTts({ ...ttsCfg, defaultVoice: e.target.value })} style={{ flex: 1 }}>
+                  <option value="">— pick a voice —</option>
+                  {ttsVoices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+                <button className="btn btn-sm btn-secondary" onClick={refreshTtsVoices}>Rescan</button>
+                <button className="btn btn-sm btn-secondary" onClick={testTtsVoice} disabled={!ttsCfg.defaultVoice}>Test</button>
+              </div>
+              {ttsMsg && <p className="section-hint">{ttsMsg}</p>}
+            </div>
+            <div className="remote-toggle-row">
+              <label className="toggle-switch">
+                <input type="checkbox" checked={ttsCfg.autoSpeak === true}
+                  onChange={(e) => saveTts({ ...ttsCfg, autoSpeak: e.target.checked })} />
+                <span className="toggle-slider"></span>
+              </label>
+              <span className="toggle-label">Auto-speak new character replies</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Remote Connections Section — restore of the IP whitelist UI dropped in the Settings reorg */}
       <div className="settings-section-collapsible">

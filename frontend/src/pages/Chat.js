@@ -599,6 +599,37 @@ function Chat() {
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
 
+  // 🔊 Voice (F2): local Piper TTS — per-bubble speak buttons + optional auto-speak of new
+  // character replies. Fully inert unless enabled in Settings → Global → Voice.
+  const [ttsInfo, setTtsInfo] = useState(null);
+  useEffect(() => { api.getTtsVoices?.().then(setTtsInfo).catch(() => {}); }, [api]);
+  const ttsAudioRef = useRef(null);
+  const ttsQueueRef = useRef([]);
+  const playNextTts = useCallback(() => {
+    const next = ttsQueueRef.current.shift();
+    if (!next) { ttsAudioRef.current = null; return; }
+    const a = new Audio(next);
+    ttsAudioRef.current = a;
+    a.onended = () => playNextTts();
+    a.onerror = () => playNextTts();
+    a.play().catch(() => playNextTts());
+  }, []);
+  const speakMessage = useCallback(async (msg) => {
+    try {
+      const r = await api.ttsSpeak(msg.content);
+      ttsQueueRef.current.push(`${API_BASE}${r.url}`);
+      if (!ttsAudioRef.current) playNextTts();
+    } catch (e) { showError?.(e.message || 'TTS failed'); }
+  }, [api, playNextTts, showError]);
+  const lastSpokenRef = useRef(null);
+  useEffect(() => {
+    if (!ttsInfo?.enabled || !ttsInfo?.autoSpeak) return;
+    const tail = [...messages].reverse().find(m => m.sender === 'character' && !m.streaming && m.content);
+    if (!tail) return;
+    if (lastSpokenRef.current === null) { lastSpokenRef.current = tail.id; return; } // never speak loaded history
+    if (tail.id !== lastSpokenRef.current) { lastSpokenRef.current = tail.id; speakMessage(tail); }
+  }, [messages, ttsInfo, speakMessage]);
+
   // 🔧 Engine debug panel (audit D3): live view of armed suspensions, running trees, session
   // overrides, gates, and CharVars — the "why did my tree stop" panel. Subscribes only while open.
   const [showEngineDbg, setShowEngineDbg] = useState(false);
@@ -1913,6 +1944,9 @@ function Chat() {
                           onClick={() => handleEditMessage(msg)}
                           title="Edit message"
                         >✏️</button>
+                        {msg.sender === 'character' && ttsInfo?.enabled && (
+                          <button className="msg-btn" onClick={() => speakMessage(msg)} title="Speak this message">🔊</button>
+                        )}
                         {msg.swipeHistory && msg.swipeHistory.length > 1 ? (
                           <>
                             <button className="msg-btn"

@@ -1666,6 +1666,12 @@ export function AppProvider({ children }) {
       method: 'POST', body: JSON.stringify(envelope)
     }),
     // MiniGames store (Phase 5): server-side templates resolved by the Call MiniGame tree action.
+    // Voice/TTS (F2)
+    getTtsVoices: () => apiFetch(`${API_BASE}/api/tts/voices`),
+    ttsSpeak: (text, voice) => apiFetch(`${API_BASE}/api/tts/speak`, {
+      method: 'POST', body: JSON.stringify({ text, voice }), timeout: 70000
+    }),
+
     getMiniGames: () => apiFetch(`${API_BASE}/api/minigames`),
     createMiniGame: (name, type, config, id) => apiFetch(`${API_BASE}/api/minigames`, {
       method: 'POST', body: JSON.stringify(id ? { name, type, config, id } : { name, type, config })

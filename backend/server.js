@@ -19537,6 +19537,36 @@ const CHECKPOINT_PRESET_PROFILES = [
 ];
 app.get('/api/checkpoint-presets', (req, res) => res.json({ presets: CHECKPOINT_PRESET_PROFILES }));
 
+// ---- Voice / TTS (F2): local Piper synthesis, optional + graceful when unconfigured ----
+const ttsService = require('./services/tts-service');
+
+app.get('/api/tts/voices', (req, res) => {
+  const cfg = (loadData(DATA_FILES.settings) || {}).tts || {};
+  res.json({
+    enabled: cfg.enabled === true,
+    configured: ttsService.isConfigured(cfg),
+    autoSpeak: cfg.autoSpeak === true,
+    defaultVoice: cfg.defaultVoice || '',
+    voices: ttsService.listVoices(cfg)
+  });
+});
+
+app.post('/api/tts/speak', async (req, res) => {
+  try {
+    const cfg = (loadData(DATA_FILES.settings) || {}).tts || {};
+    const file = await ttsService.synthesize(req.body?.text, req.body?.voice, cfg);
+    res.json({ success: true, url: `/api/tts/audio/${file}` });
+  } catch (e) {
+    res.status(400).json({ error: e.message || 'TTS failed' });
+  }
+});
+
+app.get('/api/tts/audio/:file', (req, res) => {
+  const p = ttsService.audioFilePath(req.params.file);
+  if (!p || !fs.existsSync(p)) return res.status(404).json({ error: 'Audio not found' });
+  res.sendFile(p);
+});
+
 app.get('/api/minigames', (req, res) => res.json(loadMiniGames()));
 
 app.post('/api/minigames', (req, res) => {
