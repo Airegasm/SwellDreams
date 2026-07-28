@@ -204,16 +204,37 @@ function MiniGames() {
       if (res?.id) { setGames(prev => [...prev, { id: res.id, name, type, config }]); setSelectedId(res.id); setRailOpen(false); }
     } catch (e) { console.error('create minigame failed', e); }
   };
+  // Save pipeline is debounced-auto + explicit: every edit schedules a PUT 400ms out, the 💾
+  // button (and page unmount) flush immediately, and saveState makes success/failure VISIBLE —
+  // "silently maybe-saved" is how fields appear to reset.
+  const [saveState, setSaveState] = useState('');
+  const flushSave = (id) => {
+    if (!id) return Promise.resolve();
+    clearTimeout(saveTimers.current[id]);
+    delete saveTimers.current[id];
+    const g = (gamesRef.current || []).find(x => x.id === id);
+    if (!g) return Promise.resolve();
+    setSaveState('saving…');
+    return api.updateMiniGame(id, { name: g.name, type: g.type, config: g.config })
+      .then(() => setSaveState(`✓ saved ${new Date().toLocaleTimeString()}`))
+      .catch(e => { console.error('save minigame failed', e); setSaveState(`⚠ SAVE FAILED: ${e.message || e}`); });
+  };
   const update = (patch) => {
     if (!selectedId) return;
     setGames(prev => prev.map(g => (g.id === selectedId ? { ...g, ...patch } : g)));
     const id = selectedId;
+    setSaveState('unsaved…');
     clearTimeout(saveTimers.current[id]); // debounce config-drag edits into one PUT
-    saveTimers.current[id] = setTimeout(() => {
-      const g = (gamesRef.current || []).find(x => x.id === id);
-      if (g) api.updateMiniGame(id, { name: g.name, type: g.type, config: g.config }).catch(e => console.error('save minigame failed', e));
-    }, 400);
+    saveTimers.current[id] = setTimeout(() => flushSave(id), 400);
   };
+  // Leaving the page mid-debounce must not drop the last edit.
+  useEffect(() => () => {
+    for (const id of Object.keys(saveTimers.current)) {
+      clearTimeout(saveTimers.current[id]);
+      const g = (gamesRef.current || []).find(x => x.id === id);
+      if (g) api.updateMiniGame(id, { name: g.name, type: g.type, config: g.config }).catch(() => {});
+    }
+  }, [api]);
   const remove = async (id) => {
     setGames(prev => prev.filter(g => g.id !== id));
     if (selectedId === id) setSelectedId(null);
@@ -274,6 +295,8 @@ function MiniGames() {
               <div className="mg-editor-head">
                 <span className="mg-editor-icon">{gameDef(selected.type).icon}</span>
                 <input className="mg-editor-name" value={selected.name} onChange={(e) => update({ name: e.target.value })} placeholder="Name" />
+                <button className="mg-add" onClick={() => flushSave(selectedId)} title="Save this game's profile now (edits also auto-save)">💾 Save</button>
+                {saveState && <span className="mg-hint" style={{ marginLeft: 6 }}>{saveState}</span>}
                 <span className="mg-editor-type">{gameDef(selected.type).name}</span>
                 <button className="mg-editor-del" onClick={() => remove(selected.id)} title="Delete">Delete</button>
               </div>

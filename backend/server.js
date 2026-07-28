@@ -1568,6 +1568,21 @@ const pctPumpFollowUps = new Map(); // pumpId -> timeout
 // pulses, cycles, buttons, manual presses) is physical delivery and must tick the gauge live.
 // Keyed by the device's tracker key; timed runs expire shortly after their scheduled end,
 // latch/cycle runs stay exempt until the device turns off (device_off cleans up).
+// True (unrounded) capacity. The displayed gauge is Math.round()ed — percentage runs aim at an
+// INTEGER target computed from this, otherwise fractional drift makes a +2 request display as
+// +1 or +3 depending on where the rounding boundaries fall.
+function computeTrueCapacityUnrounded() {
+  const devices = loadData(DATA_FILES.devices) || [];
+  let total = 0;
+  for (const [key, tracker] of Object.entries(sessionState.pumpRuntimeTracker || {})) {
+    const d = devices.find(dd => dd.ip === key || `${dd.ip}:${dd.childId}` === key || dd.deviceId === key);
+    if (!d?.calibrationTime) continue;
+    const eff = tracker.effectiveSeconds !== undefined ? tracker.effectiveSeconds : (tracker.totalSeconds || 0);
+    total += (eff / d.calibrationTime) * 100;
+  }
+  return Math.max(0, total + (sessionState.capacityOffset || 0));
+}
+
 const forcedPumpExemptions = new Map(); // deviceKey -> exemptUntilMs (Infinity for latch/cycle)
 function exemptForcedRun(id, seconds) {
   const secs = Number(seconds);
@@ -4736,17 +4751,22 @@ async function executeTrigger(trigger, source, character, settings) {
               break;
             }
             const req = Math.min(100, Math.max(0, dur));
-            const cap = Math.min(100, Math.max(0, sessionState.capacity || 0));
-            const inc = Math.min(req, 100 - cap);
             if (!Number.isFinite(dur) || req <= 0) { console.warn(`[Trigger/${source}] pump_on percentage mode: '${trigger.duration}' is not a usable % — skipped`); break; }
-            if (inc <= 0) { console.log(`[Trigger/${source}] pump_on percentage mode: capacity already at 100% — skipped`); break; }
+            // Integer targeting: displayed delta must equal the request exactly. Aim the run at
+            // round(true)+req and deliver the TRUE distance to it, so fractional drift between
+            // runs can never make a +2 show as +1 or +3.
+            const trueCap = Math.min(100, computeTrueCapacityUnrounded());
+            const cap = Math.max(0, Math.round(trueCap)); // what the gauge shows
+            const target = Math.min(100, cap + req);
+            const incTrue = target - trueCap;
+            if (incTrue <= 0) { console.log(`[Trigger/${source}] pump_on percentage mode: already at/above target ${target}% — skipped`); break; }
             const pctSettings = loadData(DATA_FILES.settings) || {};
             const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
-            const secs = (inc / 100) * pump.calibrationTime / (modifier || 1);
+            const secs = (incTrue / 100) * pump.calibrationTime / (modifier || 1);
             await timedPumpOn(id, pump, secs);
-            schedulePctShortfallCheck(id, pump, cap, inc, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
+            schedulePctShortfallCheck(id, pump, cap, target - cap, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
-            console.log(`[Trigger/${source}] pump_on percentage mode: +${inc}% (requested ${req}%, at ${cap}%) → ${secs.toFixed(1)}s`);
+            console.log(`[Trigger/${source}] pump_on percentage mode: +${req}% → target ${target}% (true ${trueCap.toFixed(2)}%, shown ${cap}%) → ${secs.toFixed(1)}s`);
           } else if (Number.isFinite(dur) && dur > 0) {
             await timedPumpOn(id, pump, dur);
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(dur, MAX_ON_SECONDS) } });
