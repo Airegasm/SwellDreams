@@ -1550,12 +1550,12 @@ function Chat() {
   return (
     <div className="chat-page">
       {/* 🔧 Engine debug (fixed overlay; position in the tree is irrelevant) */}
-      <button type="button" onClick={() => setShowEngineDbg(v => !v)}
+      <button type="button" className="engine-debug-ui" onClick={() => setShowEngineDbg(v => !v)}
         title="Engine debug — live trigger/suspension state"
         style={{ position: 'fixed', bottom: 8, left: 8, zIndex: 4000, opacity: showEngineDbg ? 1 : 0.35, background: 'rgba(30,42,74,0.9)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 13 }}>
         🔧
       </button>
-      <button type="button" onClick={() => setShowTimeline(v => !v)}
+      <button type="button" className="engine-debug-ui" onClick={() => setShowTimeline(v => !v)}
         title="Session timeline — capacity graph + engine events"
         style={{ position: 'fixed', bottom: 8, left: 44, zIndex: 4000, opacity: showTimeline ? 1 : 0.35, background: 'rgba(30,42,74,0.9)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 13 }}>
         📈
@@ -2367,7 +2367,7 @@ function Chat() {
               {/* 2 · UNLOCK slot — FIXED width, always reserved so nothing else ever shifts. Empty when
                   idle; during a gated intro UNLOCK fills it and its 2-row notice floats just above. */}
               <div className="pc-unlock-slot">
-                {(sessionState.introActive || sessionState.awaitingGoRelease) && (
+                {((sessionState.introActive && sessionState.introUnlockFlow) || sessionState.awaitingGoRelease) && (
                   <>
                     <button
                       type="button"
@@ -2631,7 +2631,7 @@ function Chat() {
               {/* UNLOCK overlay — covers the chip + balloon while inflation is gated by the intro. Disabled
                   (dim) until the intro's actions finish, then lights up green; tapping it releases the gate
                   and the overlay vanishes, revealing the chip + pump button. */}
-              {(sessionState.introActive || sessionState.awaitingGoRelease) && (
+              {((sessionState.introActive && sessionState.introUnlockFlow) || sessionState.awaitingGoRelease) && (
                 <button
                   type="button"
                   className={`mobile-unlock-overlay ${(sessionState.awaitingGoRelease && !sessionState.introActive) ? 'ready' : 'locked'}`}
@@ -2644,7 +2644,7 @@ function Chat() {
             {/* Pump timer / intro-lock — a FLEXIBLE middle slot (shrinks; never pushes P/C off-row). */}
             <span className="mobile-pump-timer-slot mobile-only">
               {sessionState.introActive ? (
-                <span className="pump-intro-lock">Press Unlock to Allow Pump Activation</span>
+                <span className="pump-intro-lock">{sessionState.introUnlockFlow ? 'Press Unlock to Allow Pump Activation' : 'Intro playing…'}</span>
               ) : primaryPumpStatus ? (
                 <PumpStatusItem key={primaryPumpKey} deviceIp={primaryPumpKey} status={primaryPumpStatus} />
               ) : null}

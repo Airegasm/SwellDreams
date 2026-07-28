@@ -13537,7 +13537,9 @@ function hasIntroTree(character) { return !!getIntroTree(character); }
 // mobile pump timer while the gated intro holds inflation shut.
 function setIntroActive(val) {
   sessionState.introActive = !!val;
-  broadcast('intro_state', { introActive: !!val });
+  // introUnlockFlow: whether THIS intro uses the UNLOCK flow (the card's "Press UNLOCK to exit
+  // intro" tickbox) — the frontend only shows the UNLOCK overlay/notice when it does.
+  broadcast('intro_state', { introActive: !!val, introUnlockFlow: sessionState.introUnlockFlow === true });
 }
 // Enter the gated intro at session start (opening line posted standalone). Returns true if started.
 // welcomePosted: when true, the intro's first standalone message waits behind the ">>" gate so the
@@ -13545,13 +13547,14 @@ function setIntroActive(val) {
 async function startIntroScope(character, settings, treeIndex, welcomePosted = false) {
   const tree = getIntroTree(character, treeIndex);
   if (!tree) { setIntroActive(false); return false; }
+  // "Press READY/UNLOCK to exit intro" (intro-section checkbox) — computed BEFORE setIntroActive
+  // so the intro_state broadcast carries whether this intro uses the UNLOCK flow at all.
+  const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+  const readyExit = !!(resolveScopeRefs(character)?.introReadyExit ?? introStory?.treeRefs?.introReadyExit);
+  sessionState.introUnlockFlow = readyExit;
   setIntroActive(true);
   sessionState.preInflationGateMet = false; // no pumping during the gated intro
   sessionState.prosePumpGuidanceOff = true; // no pump-prose guidance/reinforcement during the intro
-  // "Press READY to exit intro" (intro-section checkbox): arm the release button so the player can
-  // leave the intro on demand (reuses the GO! gate-release infra; labeled READY! via releaseButtonLabel).
-  const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
-  const readyExit = !!(resolveScopeRefs(character)?.introReadyExit ?? introStory?.treeRefs?.introReadyExit);
   if (readyExit) {
     sessionState.awaitingGoRelease = true;
     sessionState.releaseButtonLabel = 'READY!';

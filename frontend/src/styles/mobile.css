@@ -1297,3 +1297,9 @@
   }
 
 }
+
+/* Developer overlays (🔧 engine debug, 📈 timeline) are desktop tools — on mobile they collide
+   with the pump band / gauge area. */
+@media (max-width: 768px) {
+  .engine-debug-ui { display: none !important; }
+}

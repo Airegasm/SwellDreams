@@ -316,7 +316,7 @@ export function AppProvider({ children }) {
 
       case 'intro_state':
         // Gated intro started/ended — drives the "Intro - Pump Locked Off" notice on the mobile pump timer.
-        setSessionState(prev => ({ ...prev, introActive: data.introActive }));
+        setSessionState(prev => ({ ...prev, introActive: data.introActive, introUnlockFlow: data.introUnlockFlow === true }));
         break;
 
       case 'await_state':
