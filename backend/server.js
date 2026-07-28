@@ -15628,6 +15628,7 @@ function applyCharacterGuidance(context, character, guidanceText) {
   const isMulti = character.multiChar?.enabled;
   const primer = isMulti ? '[Characters]:' : `${character.name}:`;
   const subject = isMulti ? "The characters'" : `${character.name}'s`;
+  const instructor = isInstructor(character);
 
   // Guidance at DEPTH 0, in the same "=== MANDATORY ===" shape the model already
   // obeys for checkpoints. Mistral/Tekken-family models weight the most recent
@@ -15636,7 +15637,13 @@ function applyCharacterGuidance(context, character, guidanceText) {
   // Statement + explicit prohibition (v6.7.6 lesson): "center on X" reads as a theme and drifts;
   // naming the escape hatches — postpone/summarize/substitute — and forbidding them is what makes
   // the model actually perform the direction instead of gesturing at it.
-  const directive = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidanceText}"\nThis is a hard requirement, not a theme: depict it explicitly, in character. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+  // INSTRUCTOR cards get their own wording: "act this out / in character / depict" is roleplay
+  // language, and at depth 0 it outweighs the instructor style anchor — guided responses came out
+  // as a human performing *actions* instead of the computerized agent. Same enforcement shape,
+  // agent voice restated inside the note itself.
+  const directive = instructor
+    ? `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST carry out this direction as the MAIN CONTENT of the reply, now:\n"${guidanceText}"\nThis is a hard requirement: do NOT postpone it, summarize it, water it down, or substitute something similar. Deliver it in your normal operating voice — a computerized agent speaking aloud: direct statements, commands, and answers. No "quoted dialogue", no *asterisk actions*, no narration, no roleplay prose, no human mannerisms. Do NOT quote or mention this note.\n=== END NOTE ===\n`
+    : `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${subject} next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidanceText}"\nThis is a hard requirement, not a theme: depict it explicitly, in character. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
 
   // Flat prompt (text-completion): insert just before the trailing primer.
   if (typeof context.prompt === 'string') {
@@ -15653,8 +15660,12 @@ function applyCharacterGuidance(context, character, guidanceText) {
     context.messages.push({ role: 'user', content: directive.trim() });
   }
 
-  // Reinforcement in the system block too (helps ChatML-style models).
-  context.systemPrompt += `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidanceText}]`;
+  // Reinforcement in the system block too (helps ChatML-style models). This lands AFTER the final
+  // style anchor, so for instructors it must not reintroduce roleplay verbs — and the agent-voice
+  // anchor is re-asserted so the last line of the system block stays the instructor style.
+  context.systemPrompt += instructor
+    ? `\n[MANDATORY director's note — the next reply must explicitly carry out: ${guidanceText}]\nRespond ONLY as the instructor speaking aloud: direct commands, corrections, and answers. No "quoted dialogue", no *asterisk actions*, no narration, no prose.`
+    : `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidanceText}]`;
   return context;
 }
 
