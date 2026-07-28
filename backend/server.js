@@ -4387,6 +4387,19 @@ const TRIGGER_REQUIRED_PARAMS = {
 // messages). Variables resolve at fire time. Applied BEFORE the message is stored/broadcast, so
 // the combined text is exactly what lands in chat history — i.e. it is IN CONTEXT for later
 // prompts, not display-only.
+// LLM Enhance + verbatim wraps: tell the model about the fixed frame lines that will be added
+// programmatically around its generated text, so the middle flows into them — and so it doesn't
+// re-state them itself. Used by the standalone ai_message paths AND (via pendingReplyWraps) the
+// in-reply weave in buildChatContext.
+function wrapAwarenessNote(pre, app) {
+  if (!pre && !app) return '';
+  let n = `\n=== FIXED FRAME (added automatically around your reply) ===\n`;
+  if (pre) n += `Your reply will be displayed OPENING with this exact text (do NOT repeat or paraphrase it): "${pre}"\n`;
+  if (app) n += `Your reply will be displayed ENDING with this exact text (do NOT repeat or paraphrase it): "${app}"\n`;
+  n += `Write your reply so it reads naturally with ${pre && app ? 'both lines' : 'that line'} in place. Never quote or mention this note.\n=== END FIXED FRAME ===\n`;
+  return n;
+}
+
 function applyVerbatimWraps(text, trigger) {
   let out = text ?? '';
   const pre = trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '' ? substituteAllVariables(trigger.prependText) : null;
@@ -4551,6 +4564,11 @@ async function executeTrigger(trigger, source, character, settings) {
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
         const aiContext = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
+        {
+          const preN = trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '' ? substituteAllVariables(trigger.prependText) : null;
+          const appN = trigger.appendVerbatim && String(trigger.appendText || '').trim() !== '' ? substituteAllVariables(trigger.appendText) : null;
+          aiContext.systemPrompt += wrapAwarenessNote(preN, appN);
+        }
         // Optional per-action "Max Response Tokens" — restricts this generation; blank falls through
         // to the character/global token limit.
         const aiGenSettings = { ...settings.llm };
@@ -4654,6 +4672,11 @@ async function executeTrigger(trigger, source, character, settings) {
           baseCtx = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         } finally {
           sessionState.soloSpeaker = null; // a throw must not leave the solo constraint latched (audit H5)
+        }
+        {
+          const preN = trigger.prependVerbatim && String(trigger.prependText || '').trim() !== '' ? substituteAllVariables(trigger.prependText) : null;
+          const appN = trigger.appendVerbatim && String(trigger.appendText || '').trim() !== '' ? substituteAllVariables(trigger.appendText) : null;
+          baseCtx.systemPrompt += wrapAwarenessNote(preN, appN);
         }
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
@@ -15479,6 +15502,13 @@ function buildChatContext(character, settings, opts = {}) {
 
   // Checkpoint injections rolled for this generation (pop-up stage events)
   systemPrompt += checkpointInjectionsBlock();
+
+  // In-reply verbatim wraps queued this turn (tree ai_message prepend/append): let the model see
+  // the fixed frame it will be wrapped in. Non-consuming — the reply finalize applies the wraps.
+  {
+    const w = sessionState.pendingReplyWraps;
+    if (w && (w.pre.length || w.app.length)) systemPrompt += wrapAwarenessNote(w.pre.join('\n'), w.app.join('\n'));
+  }
 
   // Gated-intro directive (no pumping) — tree-based intro, then legacy Pre-Fill
   systemPrompt += introBlock(character);
