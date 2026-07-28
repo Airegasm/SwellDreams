@@ -160,7 +160,7 @@ const ADD_GROUPS = [
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'fire_tree', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 // Range group keys for the Checkpoint Control dropdown (must mirror the backend's CHECKPOINT_RANGE_KEYS).
 const CKPT_CONTROL_RANGES = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
@@ -223,7 +223,6 @@ function makeNode(kind, type) {
   if (type === 'wait') node.params.messages = 2;
   if (type === 'checkpoint_control') { node.params.mode = 'off'; node.params.target = 'all'; }
   if (type === 'fire_tree') node.params.treeId = '';
-  if (type === 'fire_flow') { node.params.flowId = ''; node.params.flowActionLabel = ''; }
   if (type === 'call_minigame') { node.params.miniGameId = ''; node.params.exitGotos = {}; }
   if (type === 'end_intro') node.params.loadProfileId = '';
   return node;
@@ -251,7 +250,7 @@ function summarize(node) {
     if (t === 'cancel_current') return 'Cancel Current — abort other running triggers';
     if (t === 'checkpoint_control') return `Checkpoints ${p.mode === 'on' ? 'ON' : 'OFF'}: ${!p.target || p.target === 'all' ? 'All groups' : p.target === 'events' ? 'Event Triggers' : `Range ${p.target}%`}`;
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
-    if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
+    if (t === 'fire_flow') return `Fire Flow (retired): ${p.flowId || '(unset)'} — flows were removed; delete this block`;
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
     if (t === 'end_intro') return `End Gated Intro${p.manualRelease ? ' (GO! gate)' : ''}${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
@@ -613,12 +612,7 @@ function NodeBody({ node, onChange, rowProps }) {
     );
   }
   if (t === 'fire_flow') {
-    return (
-      <div className="tree-params">
-        <label className="tree-field"><span>Flow ID</span><input type="text" value={node.params?.flowId || ''} onChange={(e) => setParams({ flowId: e.target.value })} placeholder="flow id" /></label>
-        <label className="tree-field"><span>FlowAction (Button-Press) label</span><input type="text" value={node.params?.flowActionLabel || ''} onChange={(e) => setParams({ flowActionLabel: e.target.value })} placeholder="button-press label to enter at" /></label>
-      </div>
-    );
+    return <p className="section-hint">⚠ The flow engine was removed — this block no longer does anything. Rebuild the behavior as a trigger tree (Fire Tree) and delete this block.</p>;
   }
 
   if (node.kind === 'action') {

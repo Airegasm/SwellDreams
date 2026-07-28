@@ -168,7 +168,7 @@ function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, reportTreeMiniGameMiss, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, reportTreeMiniGameMiss, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess, showToast } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -447,7 +447,6 @@ function Chat() {
   const isPanelBlocking = false;
 
   // Flow in progress - disable action buttons and guided buttons while flow is executing
-  const flowInProgress = flowExecutions && flowExecutions.length > 0;
 
   // Portrait visibility toggles (persist to localStorage)
   const togglePersonaHidden = () => {
@@ -583,37 +582,6 @@ function Chat() {
     window.addEventListener('chat_validation_error', handleChatValidationError);
     return () => window.removeEventListener('chat_validation_error', handleChatValidationError);
   }, [showError]);
-
-  // Listen for flow toast events
-  useEffect(() => {
-    const handleFlowToast = (event) => {
-      const { event: flowEvent, message, currentStep, totalSteps } = event.detail;
-      const stepInfo = totalSteps > 0 ? ` (${currentStep}/${totalSteps})` : '';
-
-      switch (flowEvent) {
-        case 'start':
-          showInfo(`${message}${stepInfo}`, 3000);
-          break;
-        case 'progress':
-          showInfo(`${message}${stepInfo}`, 2500);
-          break;
-        case 'complete':
-          showSuccess(message, 3000);
-          break;
-        case 'blocked':
-          showWarning(message, 4000);
-          break;
-        case 'takeover':
-          showWarning(message, 4000);
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('flow_toast', handleFlowToast);
-    return () => window.removeEventListener('flow_toast', handleFlowToast);
-  }, [showInfo, showSuccess, showWarning]);
 
   // Listen for AI device control events. Pump on/off is deliberately SILENT — the old debug
   // toasts spammed every inflation beat; authors who want an on-screen note use the Toast action.
@@ -1786,10 +1754,10 @@ function Chat() {
           {/* E-STOP — far left. ALWAYS the emergency stop (⚠️). No GO!/READY!/PUMP swaps: gate-release is
               now the UNLOCK overlay, and manual pumping is the balloon button. */}
           <button type="button"
-            className={`mch-btn mch-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+            className={`mch-btn mch-estop ${controlMode === 'simulated' ? 'simulated' : 'active'}`}
             onClick={() => { sendWsMessage('emergency_stop', {}); api.emergencyStop().catch(() => {}); }}
             disabled={controlMode === 'simulated'}
-            title={controlMode === 'simulated' ? 'Simulation mode active' : flowExecutions?.length > 0 ? 'Abort flows' : 'Emergency stop'}>
+            title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop'}>
             ⚠️
           </button>
           {/* Font size − / + and the ⚙ clear-menu (real buttons in the header now) */}
@@ -2302,11 +2270,11 @@ function Chat() {
               {/* 1 · E-STOP — always emergency stop (no PUMP/READY swap). */}
               <button
                 type="button"
-                className={`pc-input-btn pc-estop ${controlMode === 'simulated' ? 'simulated' : flowExecutions?.length > 0 ? 'abort' : 'active'}`}
+                className={`pc-input-btn pc-estop ${controlMode === 'simulated' ? 'simulated' : 'active'}`}
                 onClick={handleEmergencyStop}
                 disabled={controlMode === 'simulated'}
                 title={controlMode === 'simulated' ? 'Simulation mode active' : 'Emergency stop — stops all devices, flows, and LLM'}
-              >{controlMode === 'simulated' ? 'SIM' : flowExecutions?.length > 0 ? 'ABORT' : 'E-STOP'}</button>
+              >{controlMode === 'simulated' ? 'SIM' : 'E-STOP'}</button>
 
               {/* 2 · UNLOCK slot — FIXED width, always reserved so nothing else ever shifts. Empty when
                   idle; during a gated intro UNLOCK fills it and its 2-row notice floats just above. */}
@@ -2973,7 +2941,7 @@ function Chat() {
                     || sessionState.actionBusy
                     || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
                     || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!treePlayerInputData || !!inputData;
-                  const isDisabled = flowInProgress || sessionLoading || actionsBusy;
+                  const isDisabled = sessionLoading || actionsBusy;
                   const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
                   const currentPageButtons = filteredButtons.slice(
                     actionPage * ACTIONS_PER_PAGE,
@@ -2989,7 +2957,7 @@ function Chat() {
                             className={`panel-action-btn ${isDisabled ? 'disabled' : ''}`}
                             onClick={() => !isDisabled && handleExecuteButton(button)}
                             disabled={isDisabled}
-                            title={sessionLoading ? 'Session starting...' : flowInProgress ? 'Flow in progress...' : actionsBusy ? 'Please wait…' : button.name}
+                            title={sessionLoading ? 'Session starting...' : actionsBusy ? 'Please wait…' : button.name}
                           >
                             {button.name}
                           </button>

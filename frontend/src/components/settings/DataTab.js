@@ -6,7 +6,7 @@ import { apiFetch } from '../../utils/api';
 import './SettingsTabs.css';
 
 function DataTab() {
-  const { characters, personas, flows } = useApp();
+  const { characters, personas } = useApp();
   const { showError, showSuccess } = useError();
 
   // Import state
@@ -48,8 +48,7 @@ function DataTab() {
     backup: false,
     // Sub-sections within export
     characters: false,
-    personas: false,
-    flows: false
+    personas: false
   });
 
   const toggleSection = (section) => {
@@ -92,17 +91,6 @@ function DataTab() {
     }
   };
 
-  const handleExportFlow = async (flow) => {
-    try {
-      const response = await apiFetch(`${API_BASE}/api/export/flow/${flow.id}`);
-      const filename = `${flow.name.replace(/[^a-z0-9]/gi, '_')}_flow.json`;
-      downloadJson(response, filename);
-      showSuccess?.(`Exported "${flow.name}"`);
-    } catch (error) {
-      showError(error.message || 'Failed to export flow');
-    }
-  };
-
   const handleExportBackup = async () => {
     try {
       const response = await apiFetch(`${API_BASE}/api/export/backup`);
@@ -138,9 +126,6 @@ function DataTab() {
           break;
         case 'swelldreams-persona':
           endpoint = '/api/import/persona';
-          break;
-        case 'swelldreams-flow':
-          endpoint = '/api/import/flow';
           break;
         case 'swelldreams-backup':
           endpoint = '/api/import/backup';
@@ -193,7 +178,7 @@ function DataTab() {
         {expandedSections.export && (
           <div className="settings-section-content">
             <p className="section-description">
-              Export individual characters, personas, or flows as JSON files. Share them with others or keep as backups.
+              Export individual characters or personas as JSON files. Share them with others or keep as backups.
             </p>
 
             {/* Characters */}
@@ -253,35 +238,6 @@ function DataTab() {
                 </div>
               )}
             </div>
-
-            {/* Flows */}
-            <div className="export-category-collapsible">
-              <div className="export-category-header" onClick={() => toggleSection('flows')}>
-                <span>Flows ({flows.length})</span>
-                <span className="collapse-icon">{expandedSections.flows ? '▼' : '▶'}</span>
-              </div>
-              {expandedSections.flows && (
-                <div className="export-category-content">
-                  {flows.length === 0 ? (
-                    <p className="empty-message">No flows to export</p>
-                  ) : (
-                    <div className="export-list">
-                      {flows.map(flow => (
-                        <div key={flow.id} className="export-item">
-                          <span className="export-item-name">{flow.name}</span>
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => handleExportFlow(flow)}
-                          >
-                            Export
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -295,13 +251,12 @@ function DataTab() {
         {expandedSections.backup && (
           <div className="settings-section-content">
             <p className="section-description">
-              Export all your data (characters, personas, flows) as a single backup file.
+              Export all your data (characters, personas) as a single backup file.
               API keys are <strong>not</strong> included for security.
             </p>
             <div className="backup-summary">
               <span>{characters.length} characters</span>
               <span>{personas.length} personas</span>
-              <span>{flows.length} flows</span>
             </div>
             <button
               className="btn btn-primary"
@@ -336,7 +291,7 @@ function DataTab() {
         {expandedSections.import && (
           <div className="settings-section-content">
             <p className="section-description">
-              Import characters, personas, flows, or full backups from JSON files.
+              Import characters, personas, or full backups from JSON files.
               Imported items will be added with new IDs to avoid conflicts.
             </p>
 
@@ -377,7 +332,6 @@ function DataTab() {
               <ul>
                 <li><code>*_character.json</code> - Single character</li>
                 <li><code>*_persona.json</code> - Single persona</li>
-                <li><code>*_flow.json</code> - Single flow</li>
                 <li><code>swelldreams_backup_*.json</code> - Full backup</li>
               </ul>
             </div>

@@ -8,14 +8,14 @@ import ScopeTreeSection from '../common/ScopeTreeSection';
 import './PersonaEditorModal.css';
 
 function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
-  const { flows, devices, settings, api, characters } = useApp();
+  const { devices, settings, api, characters } = useApp();
   // Persona buttons execute against the ACTIVE character, so member pickers (Group Member
   // Message etc.) list the active card's group. A stale member id degrades gracefully on the
   // backend (falls back to the group bubble / base character).
   const activeCardMembers = (characters || []).find(c => c.id === settings?.activeCharacterId)?.multiChar?.characters || [];
 
   // Helper to filter out flow IDs that no longer exist
-  const validFlowIds = useMemo(() => new Set((flows || []).map(f => f.id)), [flows]);
+  const validFlowIds = useMemo(() => new Set(), []); // flows retired — legacy ids all filter out
   const filterValidFlows = useCallback((flowIds) => {
     if (!flowIds || !Array.isArray(flowIds)) return [];
     return flowIds.filter(id => validFlowIds.has(id));

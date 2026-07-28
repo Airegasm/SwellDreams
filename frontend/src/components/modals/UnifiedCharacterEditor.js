@@ -99,7 +99,6 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
 
   // Custom Buttons editor state (ported from CharacterEditorModal).
   const [devices, setDevices] = useState([]);
-  const [flows, setFlows] = useState([]);
   const [triggerSets, setTriggerSets] = useState([]);
   const [showButtonForm, setShowButtonForm] = useState(false);
   const [editingButtonId, setEditingButtonId] = useState(null);
@@ -164,7 +163,6 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
       })
       .catch(() => {});
     api.getDevices?.().then(d => setDevices(Array.isArray(d) ? d : [])).catch(() => {});
-    api.getFlows?.().then(f => setFlows(Array.isArray(f) ? f : (f?.flows || []))).catch(() => {});
     apiFetch(`${API_BASE}/api/display-settings`).then(d => setAvailableSkins(d?.skins || [])).catch(() => {});
     api.getPersonas?.().then(p => setPersonas(Array.isArray(p) ? p : (p?.personas || []))).catch(() => {});
     api.getMiniGames?.().then(d => setMasterGames(d?.games || [])).catch(() => {});
@@ -2343,7 +2341,6 @@ Write only the scenario description itself, no explanations.`;
                               <option value="message">Send Message</option>
                               <option value="turn_on">Turn On Device</option>
                               <option value="cycle">Cycle Device</option>
-                              <option value="link_to_flow">Link to Flow</option>
                               <option value="run_trigger_set">Run Trigger Set</option>
                               <option value="trigger_blocks">Trigger Blocks</option>
                               <option value="run_tree">Run Trigger Tree</option>
@@ -2375,12 +2372,6 @@ Write only the scenario description itself, no explanations.`;
                                 <input type="number" value={action.config.duration || 5} onChange={(e) => handleUpdateAction(index, 'duration', parseInt(e.target.value))} placeholder="Duration (s)" min="1" />
                                 <input type="number" value={action.config.interval || 2} onChange={(e) => handleUpdateAction(index, 'interval', parseInt(e.target.value))} placeholder="Interval (s)" min="1" />
                               </div>
-                            )}
-                            {action.type === 'link_to_flow' && (
-                              <select value={action.config.flowId || ''} onChange={(e) => handleUpdateAction(index, 'flowId', e.target.value)}>
-                                <option value="">Select Flow...</option>
-                                {flows?.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                              </select>
                             )}
                             {action.type === 'run_trigger_set' && (
                               <select value={action.config.triggerSetId || ''} onChange={(e) => handleUpdateAction(index, 'triggerSetId', e.target.value)}>

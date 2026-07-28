@@ -69,10 +69,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
       return;
     }
 
-    if (location.pathname === '/flows') {
-      // Dispatch exit event for FlowEditor to animate out
-      window.dispatchEvent(new CustomEvent('exit-flows', { detail: { path: targetPath } }));
-    } else if (isOnModalPage()) {
+    if (isOnModalPage()) {
       // Dispatch exit event for modal pages to animate out
       window.dispatchEvent(new CustomEvent('exit-modal', { detail: { path: targetPath } }));
     } else {
@@ -82,7 +79,7 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
 
   // Handle generic nav click that needs exit animation
   const handleNavClick = (e, targetPath) => {
-    if (location.pathname === '/flows' || isOnModalPage()) {
+    if (isOnModalPage()) {
       e.preventDefault();
       navigateWithAnimation(targetPath);
     }
@@ -198,8 +195,6 @@ function HamburgerMenu({ onNewSession, onSaveSession, onLoadSession, onHelpOpen 
         >
           Dictionary
         </NavLink>
-
-        {/* Flows hidden from the main menu (route still exists at /flows). */}
 
         <NavLink
           to="/settings"

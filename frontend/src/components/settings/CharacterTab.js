@@ -44,7 +44,7 @@ function ClampedMeta({ text }) {
 }
 
 function CharacterTab() {
-  const { characters, setCharacters, settings, api, flows, startNewSession } = useApp();
+  const { characters, setCharacters, settings, api, startNewSession } = useApp();
   const { showError, showSuccess } = useError();
   const navigate = useNavigate();
   const [showEditor, setShowEditor] = useState(false);
@@ -60,7 +60,6 @@ function CharacterTab() {
   const [exportFormat, setExportFormat] = useState('swelld');
   const [exportStoryMode, setExportStoryMode] = useState('all');
   const [selectedStoryIds, setSelectedStoryIds] = useState([]);
-  const [exportEmbedFlows, setExportEmbedFlows] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
@@ -168,7 +167,6 @@ function CharacterTab() {
     setExportFormat('swelld');
     setExportStoryMode('all');
     setSelectedStoryIds([]);
-    setExportEmbedFlows(false);
     setShowExportModal(true);
   };
 
@@ -187,7 +185,6 @@ function CharacterTab() {
           format: exportFormat,
           storyMode: exportStoryMode,
           selectedStoryIds: exportStoryMode === 'selected' ? selectedStoryIds : [],
-          embedFlows: exportFormat === 'swelld' ? exportEmbedFlows : false
         };
         response = await fetch(`${API_BASE}/api/export/character/${exportCharacter.id}/png`, {
           method: 'POST',
@@ -691,20 +688,6 @@ function CharacterTab() {
                   </div>
                 )}
               </div>
-
-              {/* Embed Flows (SwellD only) */}
-              {exportFormat === 'swelld' && characterHasFlows(exportCharacter) && (
-                <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={exportEmbedFlows}
-                      onChange={(e) => setExportEmbedFlows(e.target.checked)}
-                    />
-                    <span><strong>Embed Flows</strong> — Include assigned flow data in export</span>
-                  </label>
-                </div>
-              )}
             </div>
             <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button

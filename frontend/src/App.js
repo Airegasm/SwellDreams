@@ -6,7 +6,6 @@ import Chat from './pages/Chat';
 // Code-split every non-Chat page (audit C3): Chat is the app; the rest load on first visit,
 // which cuts the main bundle for the page people actually sit in.
 const Settings = React.lazy(() => import('./pages/Settings'));
-const FlowEditor = React.lazy(() => import('./pages/FlowEditor'));
 const MiniGames = React.lazy(() => import('./pages/MiniGames'));
 const Dictionary = React.lazy(() => import('./pages/Dictionary'));
 const Help = React.lazy(() => import('./pages/Help'));
@@ -85,9 +84,8 @@ These Terms shall be governed by and construed in accordance with applicable law
 
 function App() {
   const location = useLocation();
-  const isModalOpen = location.pathname !== '/' && location.pathname !== '/flows';
-  const isFlowsPage = location.pathname === '/flows';
-  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, flowExecutions, sendWsMessage, onChatPage } = useApp();
+  const isModalOpen = location.pathname !== '/';
+  const { connected, api, controlMode, settings, messages, characters, personas, sessionState, startNewSession, sendWsMessage, onChatPage } = useApp();
   const { showError, showWarning, showSuccess } = useError();
   const [stopping, setStopping] = useState(false);
   const [showTOS, setShowTOS] = useState(false);
@@ -419,7 +417,6 @@ function App() {
     if (controlMode === 'simulated' || stopping) return;
 
     setStopping(true);
-    const hasActiveFlows = flowExecutions && flowExecutions.length > 0;
 
     // Send via WebSocket first (instant, not blocked by HTTP connection pool)
     sendWsMessage('emergency_stop', {});
@@ -432,13 +429,7 @@ function App() {
       console.warn('HTTP emergency stop fallback failed:', error.message);
     }
 
-    if (hasActiveFlows) {
-      const flowInfo = flowExecutions[0];
-      const flowLabel = flowInfo?.triggerLabel || flowInfo?.flowName || 'Flow';
-      showWarning(`Flow Aborted: ${flowLabel}`, 5000);
-    } else {
-      showWarning('Shutoff Initiated', 3000);
-    }
+    showWarning('Shutoff Initiated', 3000);
 
     setStopping(false);
   };
@@ -448,18 +439,14 @@ function App() {
     if (controlMode === 'simulated') {
       return { text: 'SIM MODE', className: 'estop-simulated', disabled: true };
     }
-    const hasActiveFlows = flowExecutions && flowExecutions.length > 0;
-    if (hasActiveFlows) {
-      return { text: 'ABORT', className: 'estop-abort', disabled: false };
-    }
     return { text: 'E-STOP', className: 'estop-active', disabled: false };
   };
 
   const estopState = getEstopState();
 
   return (
-    <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''} ${isFlowsPage ? 'flows-page' : ''}`}>
-      <span className="version-badge">v6.9.13</span>
+    <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
+      <span className="version-badge">v6.9.14</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 
@@ -553,7 +540,6 @@ function App() {
             </div>
           } />
           <Route path="/triggers" element={<div className="center-modal-overlay"><Triggers /></div>} />
-          <Route path="/flows" element={<FlowEditor />} />
           <Route path="/minigames" element={<MiniGames />} />
           <Route path="/dictionary" element={<div className="center-modal-overlay"><Dictionary /></div>} />
           <Route path="/settings" element={

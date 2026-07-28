@@ -41,7 +41,6 @@ export function AppProvider({ children }) {
   const [personas, setPersonas] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [devices, setDevices] = useState([]);
-  const [flows, setFlows] = useState([]);
   const [connectionProfiles, setConnectionProfiles] = useState([]);
 
   // ScreenPlay data
@@ -111,14 +110,8 @@ export function AppProvider({ children }) {
   // Control mode - shared between Chat and App header
   const [controlMode, setControlModeInternal] = useState('interactive'); // 'interactive' or 'simulated'
 
-  // Flow pause state - tracks whether flows are paused due to navigation or tab visibility
-  const [flowsPaused, setFlowsPaused] = useState(false);
-  const flowsPausedRef = useRef(false); // Ref for use in effects to avoid stale closures
   const isOnChatPageRef = useRef(true); // Track if user is on Chat page
 
-  // Flow execution state for UI status panel - now tracks multiple active flows
-  // Each execution: { flowId, flowName, triggerType, triggerLabel, currentNodeLabel, startTime }
-  const [flowExecutions, setFlowExecutions] = useState([]);
 
   // Pump status tracking - tracks active pump operations
   // { deviceIp: { type: 'cycle'|'duration', currentCycle, totalCycles, duration, startTime, endTime } }
@@ -285,10 +278,6 @@ export function AppProvider({ children }) {
       case 'attribute_rolls':
         // Attribute roll results - dispatch event for toast notification
         window.dispatchEvent(new CustomEvent('attribute_rolls', { detail: data }));
-        break;
-
-      case 'flows_update':
-        setFlows(data);
         break;
 
       case 'capacity_update':
@@ -892,23 +881,6 @@ export function AppProvider({ children }) {
             }
           }));
         }
-        break;
-
-      case 'flow_paused':
-        setFlowsPaused(data.paused);
-        flowsPausedRef.current = data.paused;
-        console.log(`[WS] Flows ${data.paused ? 'PAUSED' : 'RESUMED'}`);
-        break;
-
-      case 'flow_executions_update':
-        // Update the array of active flow executions
-        setFlowExecutions(data.executions || []);
-        console.log(`[WS] Flow executions update: ${(data.executions || []).length} active`);
-        break;
-
-      case 'flow_toast':
-        // Dispatch event for toast notification
-        window.dispatchEvent(new CustomEvent('flow_toast', { detail: data }));
         break;
 
       case 'trigger_toast':
@@ -1824,25 +1796,6 @@ export function AppProvider({ children }) {
     // Simulation status
     getSimulationStatus: () => apiFetch(`${API_BASE}/api/simulation-status`),
 
-    // Flows
-    getFlows: () => apiFetch(`${API_BASE}/api/flows`),
-
-    getFlow: (id) => apiFetch(`${API_BASE}/api/flows/${id}`),
-
-    createFlow: (data) => apiFetch(`${API_BASE}/api/flows`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-    updateFlow: (id, data) => apiFetch(`${API_BASE}/api/flows/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }),
-
-    deleteFlow: (id) => apiFetch(`${API_BASE}/api/flows/${id}`, {
-      method: 'DELETE'
-    }),
-
     // Session
     resetSession: () => apiFetch(`${API_BASE}/api/session/reset`, {
       method: 'POST'
@@ -1907,7 +1860,6 @@ export function AppProvider({ children }) {
     api.getPersonas().then(setPersonas).catch(console.error);
     api.getCharacters().then(setCharacters).catch(console.error);
     api.getDevices().then(setDevices).catch(console.error);
-    api.getFlows().then(setFlows).catch(console.error);
     api.getConnectionProfiles().then(setConnectionProfiles).catch(console.error);
     api.getActors().then(setActors).catch(console.error);
     api.getPlays().then(setPlays).catch(console.error);
@@ -2057,47 +2009,10 @@ export function AppProvider({ children }) {
     hasPendingChoiceRef.current = !!playerChoiceData;
   }, [playerChoiceData]);
 
-  // Helper to check if flows should be paused based on current state
-  // Only pause when user actually navigates away from Chat page
-  // Tab visibility changes are too unreliable (modals trigger them incorrectly)
-  const checkAndUpdateFlowPause = useCallback((source = 'unknown') => {
-    const isOnChat = isOnChatPageRef.current;
-
-    // Only pause/resume based on Chat page navigation, ignore visibility changes
-    // Visibility changes are too unreliable with modals
-    if (source === 'visibility') {
-      console.log(`[AppContext] Ignoring visibility change - modals cause false triggers`);
-      return;
-    }
-
-    if (!isOnChat && !flowsPausedRef.current) {
-      console.log(`[AppContext] Pausing flows - left Chat page`);
-      sendWsMessage('flow_pause', {});
-    } else if (isOnChat && flowsPausedRef.current) {
-      console.log(`[AppContext] Resuming flows - returned to Chat page`);
-      sendWsMessage('flow_resume', {});
-    }
-  }, [sendWsMessage]);
-
-  // Track browser tab visibility changes (ignored for pause/resume - too unreliable)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      console.log(`[AppContext] Tab visibility changed: ${document.visibilityState}`);
-      checkAndUpdateFlowPause('visibility');
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [checkAndUpdateFlowPause]);
-
   // Function to notify context when entering/leaving Chat page
   const setOnChatPage = useCallback((isOnChat) => {
     isOnChatPageRef.current = isOnChat;
-    console.log(`[AppContext] Chat page: ${isOnChat ? 'ENTERED' : 'LEFT'}`);
-    checkAndUpdateFlowPause('navigation');
-  }, [checkAndUpdateFlowPause]);
+  }, []);
 
   const value = {
     // Connection
@@ -2114,8 +2029,6 @@ export function AppProvider({ children }) {
     setCharacters,
     devices,
     setDevices,
-    flows,
-    setFlows,
     connectionProfiles,
 
     // ScreenPlay data
@@ -2176,12 +2089,7 @@ export function AppProvider({ children }) {
     controlMode,
     setControlMode,
 
-    // Flow Pause State
-    flowsPaused,
     setOnChatPage,
-
-    // Flow Executions (array of active flows for UI status panel)
-    flowExecutions,
 
     // Pump Status (active pump operations)
     pumpStatus,

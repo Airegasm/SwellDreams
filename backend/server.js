@@ -289,6 +289,12 @@ app.use((req, res, next) => {
   return next();
 });
 
+// Flow engine REMOVED (remediation E3, user-approved 2026-07-28): the entire flow API answers
+// 410 Gone. The legacy route handlers below in this file are now unreachable dead code and get
+// physically deleted during the E1 modularization pass. Trigger Trees are the replacement.
+app.all(['/api/flows', '/api/flows/:id', '/api/export/flow/:id', '/api/import/flow'], (req, res) =>
+  res.status(410).json({ error: 'The flow engine was removed — use Trigger Trees instead.' }));
+
 // Rate limiting configurations
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -9182,11 +9188,8 @@ async function handleWsMessage(ws, type, data) {
       break;
 
     case 'flow_pause':
-      eventEngine.pauseFlows();
-      break;
-
     case 'flow_resume':
-      await eventEngine.resumeFlows();
+      // Flow engine removed (E3) — stale clients may still send these; ignore.
       break;
 
     case 'screenplay_pump':
@@ -16409,14 +16412,11 @@ async function runNode(node, ctx) {
     return await runTree(target.nodes, child); // inherits delivery/character/settings/firedSet; sentinels bubble
   }
 
-  // ----- fire_flow: escape hatch to the flow engine (fire-and-forget; reuses the button->flow path) -----
+  // ----- fire_flow: RETIRED (flow engine removed, E3). Legacy trees may still carry the node —
+  // warn-skip so they keep running; the editor shows a retirement hint on these blocks. -----
   if (type === 'fire_flow') {
-    const flowId = node.params?.flowId, label = node.params?.flowActionLabel;
-    if (!flowId || !label) { console.warn(`[runTree] fire_flow node ${node.id} needs flowId + flowActionLabel`); return; }
-    markTreeOnce(node, ctx); // firing is the effect
-    Promise.resolve(handleButtonLinkToFlow({ config: { flowId, flowActionLabel: label } }, ctx.character?.id, `tree:${ctx.treeId}`))
-      .catch(e => console.error(`[runTree] fire_flow '${flowId}' failed:`, e?.message || e));
-    return; // NOT awaited — flows pace over turns + own their suspend channel; awaiting risks deadlock
+    console.warn(`[runTree] fire_flow node ${node.id} skipped — the flow engine was removed; rebuild as a trigger tree`);
+    return;
   }
 
   // ----- call_minigame: suspend the tree to play a MiniGame, resume on the fired exit (Phase 5) -----
@@ -17174,8 +17174,11 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
         }
       }
 
-      // Handle embedded flows
+      // Flow engine removed (E3): legacy cards with embedded flows import WITHOUT them.
       if (importData.flows && importData.flows.length > 0) {
+        console.log(`[Import] Card embeds ${importData.flows.length} legacy flow(s) — flow engine removed, skipping (rebuild as trigger trees)`);
+      }
+      if (false) { // dead: embedded-flow import path (physically deleted in E1)
         const flowIdMap = {};
 
         // Create each flow with new UUID
