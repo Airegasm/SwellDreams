@@ -5,11 +5,11 @@ import { useError } from '../../context/ErrorContext';
 import PumpSettings from './PumpSettings';
 import './SettingsTabs.css';
 
+// Outlet roles: an outlet either drives THE pump layer or a named Custom Device. Legacy types
+// (VIBE/TENS/OTHER) display as Custom Device Control; saving the row normalizes them.
 const DEVICE_TYPES = [
   { value: 'PUMP', label: 'Pump' },
-  { value: 'VIBE', label: 'Vibrator' },
-  { value: 'TENS', label: 'TENS Unit' },
-  { value: 'OTHER', label: 'Other' }
+  { value: 'CUSTOM', label: 'Custom Device Control' }
 ];
 
 const MAX_DEVICES = 5;
@@ -91,10 +91,13 @@ function DeviceTab() {
 
   // Automatic Pumps (#30): named pump entities that own calibration + limits and bind to a device.
   const [pumps, setPumps] = useState([]);
+  // Custom Devices: named 120V appliances bound to a "Custom Device Control" outlet.
+  const [customDevices, setCustomDevices] = useState([]);
   const [limitsPumpId, setLimitsPumpId] = useState(null); // pump whose Limits popup is open
   const [pumpSubTab, setPumpSubTab] = useState('pumps'); // 'pumps' | 'settings'
   const loadPumps = useCallback(() => {
     api.getPumps?.().then(p => setPumps(Array.isArray(p) ? p : [])).catch(() => {});
+    api.getCustomDevices?.().then(d => setCustomDevices(d?.devices || [])).catch(() => {});
   }, [api]);
   // Reload pumps on mount and whenever the device list changes (calibration spawns/syncs pumps).
   useEffect(() => { loadPumps(); }, [loadPumps, devices]);
@@ -105,6 +108,26 @@ function DeviceTab() {
     loadPumps();
   };
   const handleSetPrimaryPump = (id) => handleUpdatePump(id, { isPrimary: true });
+
+  // --- Custom Devices CRUD + test (test drives the bound outlet through the brand-specific path) ---
+  const handleAddCustomDevice = async () => {
+    try { await api.createCustomDevice(`Device ${customDevices.length + 1}`, ''); } catch (e) { console.error('Failed to add custom device:', e); }
+    loadPumps();
+  };
+  const handleUpdateCustomDevice = async (id, patch) => {
+    setCustomDevices(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
+    try { await api.updateCustomDevice(id, patch); } catch (e) { console.error('Failed to update custom device:', e); }
+  };
+  const handleDeleteCustomDevice = async (id) => {
+    if (!window.confirm('Remove this custom device? (The outlet stays configured.)')) return;
+    try { await api.deleteCustomDevice(id); } catch (e) { console.error('Failed to delete custom device:', e); }
+    loadPumps();
+  };
+  const handleTestCustomDevice = (cd) => {
+    const d = devices.find(x => x.id === cd.boundDeviceId);
+    if (!d) return;
+    return d.brand === 'govee' ? handleTestGoveeDevice(d) : d.brand === 'tuya' ? handleTestTuyaDevice(d) : d.brand === 'wyze' ? handleTestWyzeDevice(d) : d.brand === 'tapo' ? handleTestTapoDevice(d) : d.brand === 'kasa-klap' ? handleTestKasaKlapDevice(d) : d.brand === 'homeassistant' ? handleTestHaDevice(d) : handleTestDevice(d.ip, d.childId);
+  };
   const handleDeletePump = async (id) => {
     if (!window.confirm('Remove this automatic pump? (The bound device and its calibration stay.)')) return;
     try { await api.deletePump(id); } catch (e) { console.error('Failed to delete pump:', e); }
@@ -1285,26 +1308,8 @@ function DeviceTab() {
     }
   };
 
-  const handleSetPrimary = async (device) => {
-    try {
-      // Clear primary flag from all devices of the same type
-      const primaryField = device.deviceType === 'PUMP' ? 'isPrimaryPump' : 'isPrimaryVibe';
-
-      // First, clear the primary flag from any existing primary device
-      for (const d of devices) {
-        if (d.id !== device.id && d.deviceType === device.deviceType) {
-          if (d[primaryField]) {
-            await api.updateDevice(d.id, { [primaryField]: false });
-          }
-        }
-      }
-
-      // Then set this device as primary
-      await api.updateDevice(device.id, { [primaryField]: true });
-    } catch (error) {
-      console.error('Failed to set primary device:', error);
-    }
-  };
+  // (The per-outlet ★ Primary button is gone — Primary lives on the Automatic Pumps rows, and the
+  // primary pump resolves the outlet it's attached to.)
 
   const handleDeleteDevice = async (id) => {
     if (window.confirm('Remove this device?')) {
@@ -1399,7 +1404,7 @@ function DeviceTab() {
         <div className="configured-devices-list">
           {pumps.length === 0 ? (
             <p className="text-muted" style={{ marginTop: 0 }}>
-              No automatic pumps yet. Calibrate a PUMP device under Configured Devices below — the calibration becomes a named pump here, tied to the pump (not the outlet).
+              No automatic pumps yet. Calibrate a Pump-type outlet under Configured Outlets below — the calibration becomes a named pump here, tied to the pump (not the outlet).
             </p>
           ) : (
             pumps.map((pump) => {
@@ -1526,10 +1531,65 @@ function DeviceTab() {
         );
       })()}
 
-      {/* Configured Devices - Non-collapsible card with styled header */}
+      {/* Custom Devices — named 120V appliances plugged into a Custom Device Control outlet */}
       <div className="configured-devices-card">
         <div className="configured-devices-header">
-          <span>Configured Devices</span>
+          <span>Custom Devices</span>
+          <div className="header-right">
+            <button className="btn btn-sm btn-primary" onClick={handleAddCustomDevice}>+ Add</button>
+          </div>
+        </div>
+        <div className="configured-devices-list">
+          {customDevices.length === 0 ? (
+            <p className="text-muted" style={{ marginTop: 0 }}>
+              No custom devices yet. Set an outlet's type to "Custom Device Control" under Configured Outlets below,
+              then add the 120V appliance plugged into it (lamp, fan, heater…) here.
+            </p>
+          ) : (
+            customDevices.map((cd) => (
+              <div key={cd.id} className="pump-item">
+                <div className="pump-field pump-name-field">
+                  <label className="pump-field-label">Name</label>
+                  <input
+                    type="text"
+                    className="device-label-input"
+                    value={cd.name || ''}
+                    onChange={(e) => setCustomDevices(prev => prev.map(d => (d.id === cd.id ? { ...d, name: e.target.value } : d)))}
+                    onBlur={(e) => handleUpdateCustomDevice(cd.id, { name: e.target.value })}
+                    placeholder="Device name"
+                  />
+                </div>
+                <div className="pump-field pump-device-field">
+                  <label className="pump-field-label">Plugged into</label>
+                  <select
+                    className="pump-device-select"
+                    value={cd.boundDeviceId || ''}
+                    onChange={(e) => handleUpdateCustomDevice(cd.id, { boundDeviceId: e.target.value })}
+                  >
+                    <option value="">— not attached —</option>
+                    {devices.filter(d => (d.deviceType || 'PUMP') !== 'PUMP' || d.id === cd.boundDeviceId).map(d => (
+                      <option key={d.id} value={d.id}>{d.label || d.name || d.ip}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pump-controls">
+                  <button className="btn btn-sm btn-secondary" onClick={() => handleTestCustomDevice(cd)} disabled={!cd.boundDeviceId} title="Blink the attached outlet">Test</button>
+                  <button className="btn btn-sm btn-danger" onClick={() => handleDeleteCustomDevice(cd.id)}>Del</button>
+                </div>
+              </div>
+            ))
+          )}
+          <p className="text-muted" style={{ marginTop: 8, marginBottom: 0 }}>
+            Custom devices are called from triggers via the <strong>Custom Device Control</strong> action, or by the AI with{' '}
+            <code>[CustomDevice:device_name:on]</code> · <code>[CustomDevice:device_name:off]</code> · <code>[CustomDevice:device_name:timed:secs]</code> (secs only for timed).
+          </p>
+        </div>
+      </div>
+
+      {/* Configured Outlets - Non-collapsible card with styled header */}
+      <div className="configured-devices-card">
+        <div className="configured-devices-header">
+          <span>Configured Outlets</span>
           <div className="header-right">
             {devices.length >= MAX_DEVICES && (
               <span className="limit-warning">Limit reached</span>
@@ -1561,7 +1621,7 @@ function DeviceTab() {
                   placeholder="Device label"
                 />
                 <select
-                  value={device.deviceType || 'PUMP'}
+                  value={(device.deviceType || 'PUMP') === 'PUMP' ? 'PUMP' : 'CUSTOM'}
                   onChange={(e) => handleUpdateDevice(device.id, { deviceType: e.target.value })}
                   className="device-type-select"
                 >
@@ -1585,17 +1645,8 @@ function DeviceTab() {
                       Calibrate
                     </button>
                   )}
-                  {(device.deviceType === 'PUMP' || device.deviceType === 'VIBE') ? (
-                    <button
-                      className={`btn btn-sm ${(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => handleSetPrimary(device)}
-                      title={`Set as Primary ${device.deviceType === 'PUMP' ? 'Pump' : 'Vibe'}`}
-                    >
-                      {(device.deviceType === 'PUMP' ? device.isPrimaryPump : device.isPrimaryVibe) ? '★' : '☆'}
-                    </button>
-                  ) : (
-                    <button className="btn btn-sm btn-secondary" disabled style={{visibility: 'hidden'}}>☆</button>
-                  )}
+                  {/* Primary lives on the Automatic Pumps rows now — the primary pump follows its
+                      attached outlet, so outlets themselves carry no star. */}
                   {device.brand === 'matter' && (
                     <button
                       className="btn btn-sm btn-primary"

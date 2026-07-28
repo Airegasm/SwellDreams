@@ -80,12 +80,18 @@ function FlowTab() {
                 <tr><td>Media (image/video/audio)</td><td>Action node: show image / play video / play audio</td><td>✓</td></tr>
                 <tr><td>Delay / random number / toggle button / send player message</td><td>Action nodes (Phase 1)</td><td>✓</td></tr>
                 <tr><td>Condition / Branch</td><td>If / Else container</td><td>✓</td></tr>
+                <tr><td>Switch on a value</td><td>Switch / Case container — first matching case runs; a bare name reads [CharVar:name]; Default catches the rest</td><td>✓</td></tr>
                 <tr><td>Repeat / Loop</td><td>Repeat container (fixed or until-condition)</td><td>✓</td></tr>
                 <tr><td>Player choice</td><td>Player Choice container</td><td>✓</td></tr>
                 <tr><td>Choose multiple</td><td>Choose Multiple container</td><td>✓</td></tr>
                 <tr><td>Pause / resume</td><td>Pause / Resume container</td><td>✓</td></tr>
                 <tr><td>Fire another flow</td><td>Fire Tree (library), or Fire Flow escape hatch</td><td>✓</td></tr>
                 <tr><td>Challenges (wheel/dice/coin/…)</td><td>Call MiniGame action → MiniGames page templates; exits set <code>[Flow:GameResult]</code>/<code>[Flow:GameWinner]</code> and bind optional gotos</td><td>✓</td></tr>
+                <tr><td>Force a read-pause</td><td>Next Button control block — holds the tree on the &gt;&gt; (Next) button at that exact spot, same as the auto-gate between back-to-back messages</td><td>✓</td></tr>
+                <tr><td>On-screen note</td><td>Toast action — pops a colored note (six presets, multi-line, variables substitute) in the corner; pure UI, never a chat message and never seen by the AI</td><td>✓</td></tr>
+                <tr><td>Pump by percentage</td><td>Primary Pump ON action → Percentage mode — runs the pump until that much capacity % has been added (inverts the calibration math; hard-caps at 100% total, 30-min safety still applies)</td><td>✓</td></tr>
+                <tr><td>Claim the session / abort everything else</td><td>Cancel Current control block — aborts every other running tree and checkpoint sequence, closing their popups (Player Choice, Player Input, Select Member, MiniGame) and &gt;&gt;/await/Fire% gates; the tree containing it continues. Place it first in a high-priority tree (e.g. a capacity-threshold event)</td><td>✓</td></tr>
+                <tr><td>Silence / re-arm checkpoint groups</td><td>Checkpoint Control block — On/Off + a target (any capacity range group, the Event Triggers group, or All). Session-scoped override on the card's saved per-group toggles; turning a group off also drops its pending await/Fire% sequences</td><td>✓</td></tr>
                 <tr><td>Screenplay</td><td><em>Out of scope (v1) — flows only</em></td><td>—</td></tr>
               </tbody>
             </table>
@@ -93,7 +99,9 @@ function FlowTab() {
               <strong>Challenges → Call MiniGame:</strong> build a reusable game on the MiniGames page,
               then drop a <em>Call MiniGame</em> action in a tree. Win/lose/reward logic moves OUT of the
               game and INTO the tree branches your exit gotos target (or the fall-through body), using
-              the device/message actions.
+              the device/message actions. Exit gotos may jump BACKWARD to a top-level label before the
+              Call MiniGame node (e.g. "on Failed, replay the game"). Mid-game wrong moves fire the
+              <em> MiniGame miss</em> event (Checkpoints → Events) — bind penalty trees there.
             </div>
           </div>
         )}

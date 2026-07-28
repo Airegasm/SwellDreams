@@ -225,34 +225,82 @@ export function MiniCardDraw({ config = {}, interactive, onResult }) {
   );
 }
 
-// ───────────────────────── Simon (demo) ─────────────────────────
+// ───────────────────────── Simon ─────────────────────────
+// Real gameplay: watch the sequence, click it back. The sequence starts at startingLength and
+// extends +1 per round (same prefix, classic Simon); completing the maxLength round fires the
+// 'Completed' exit. A wrong pad = a miss (reported per-miss via onMiss → the 'MiniGame miss'
+// event; the round replays); maxMisses misses fires 'Failed'.
 const SIMON_PADS = [{ k: 'g', c: '#22c55e' }, { k: 'r', c: '#ef4444' }, { k: 'b', c: '#3b82f6' }, { k: 'y', c: '#eab308' }];
-export function MiniSimon({ config = {}, interactive, onResult }) {
-  const [lit, setLit] = useState(-1);
-  const [busy, setBusy] = useState(false);
+export function MiniSimon({ config = {}, interactive, onResult, onMiss }) {
+  const startLen = Math.max(1, Number(config.startingLength) || 3);
+  const maxLen = Math.max(startLen, Number(config.maxLength) || 8);
+  const maxMisses = Math.max(1, Number(config.maxMisses) || 3);
+
+  const [lit, setLit] = useState(-1);         // pad flashing right now (playback or click echo)
+  const [phase, setPhase] = useState('idle'); // idle | show | input | done
+  const [seq, setSeq] = useState([]);         // full maxLen sequence; each round plays seq.slice(0, len)
+  const [len, setLen] = useState(startLen);
+  const [pos, setPos] = useState(0);          // next index the player must press
+  const [misses, setMisses] = useState(0);
+  const [note, setNote] = useState('');
   const timers = useRef([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const after = (ms, fn) => timers.current.push(window.setTimeout(fn, ms));
 
-  const demo = () => {
-    if (busy) return;
-    setBusy(true);
-    const len = Math.max(2, Number(config.startingLength) || 3);
-    const seq = Array.from({ length: len }, () => Math.floor(Math.random() * 4));
-    seq.forEach((p, i) => {
-      timers.current.push(window.setTimeout(() => setLit(p), i * 600));
-      timers.current.push(window.setTimeout(() => setLit(-1), i * 600 + 350));
+  const roundLabel = (n) => `Round ${n - startLen + 1}/${maxLen - startLen + 1}`;
+
+  const playback = (s, n, prefix) => {
+    setPhase('show');
+    setPos(0);
+    setNote(`${prefix || roundLabel(n)} — watch…`);
+    s.slice(0, n).forEach((p, i) => {
+      after(i * 600, () => setLit(p));
+      after(i * 600 + 350, () => setLit(-1));
     });
-    timers.current.push(window.setTimeout(() => { setBusy(false); onResult && onResult('Completed'); }, len * 600 + 200));
+    after(n * 600 + 200, () => { setPhase('input'); setNote(`${roundLabel(n)} — your turn`); });
+  };
+
+  const start = () => {
+    const s = Array.from({ length: maxLen }, () => Math.floor(Math.random() * 4));
+    setSeq(s); setLen(startLen); setMisses(0);
+    playback(s, startLen);
+  };
+
+  const press = (i) => {
+    if (phase !== 'input') return;
+    setLit(i); after(200, () => setLit(-1)); // click echo
+    if (seq[pos] === i) {
+      if (pos + 1 < len) { setPos(pos + 1); return; }
+      if (len >= maxLen) { setPhase('done'); setNote('Completed!'); onResult && onResult('Completed'); return; }
+      const nl = len + 1;
+      setLen(nl); setPhase('show'); setNote('Good! Next round…');
+      after(800, () => playback(seq, nl));
+    } else {
+      const m = misses + 1;
+      setMisses(m);
+      onMiss && onMiss(m, maxMisses);
+      if (m >= maxMisses) { setPhase('done'); setNote(`Miss ${m}/${maxMisses} — Failed!`); onResult && onResult('Failed'); return; }
+      setPhase('show'); setNote(`Miss ${m}/${maxMisses} — watch again…`);
+      after(900, () => playback(seq, len, `Miss ${m}/${maxMisses}`));
+    }
   };
 
   return (
     <div className="pv">
       <div className="pv-simon">
         {SIMON_PADS.map((p, i) => (
-          <div key={p.k} className={`pv-pad ${lit === i ? 'lit' : ''}`} style={{ background: p.c, '--pad-c': p.c }} />
+          <div key={p.k} role={interactive ? 'button' : undefined}
+            className={`pv-pad ${lit === i ? 'lit' : ''} ${phase === 'input' ? 'clickable' : ''}`}
+            style={{ background: p.c, '--pad-c': p.c }}
+            onClick={() => interactive && press(i)} />
         ))}
       </div>
-      {interactive && <button className="pv-btn" onClick={demo} disabled={busy}>{busy ? 'Watch…' : 'Demo sequence'}</button>}
+      {interactive && phase === 'idle' && <button className="pv-btn" onClick={start}>Start</button>}
+      {phase !== 'idle' && (
+        <div className={`pv-result ${phase === 'done' ? (misses >= maxMisses ? 'r-lose' : 'r-win') : ''}`}>
+          {note}{phase !== 'done' && misses > 0 ? ` · misses ${misses}/${maxMisses}` : ''}
+        </div>
+      )}
     </div>
   );
 }

@@ -13,11 +13,14 @@ export const DEFAULT_INTRO_RULES = "DO NOT turn on or operate any pumps yet — 
 const rid = (p = 'n') => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 // Deep-copy a node array with FRESH ids (goto/label pairing is by params.name, so it survives).
-function remapIds(nodes) {
+export function remapIds(nodes) {
   return (nodes || []).map(n => ({ ...n, id: rid(), children: n.children ? remapIds(n.children) : n.children }));
 }
 
-function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Script', source = 'from card', rowProps = {} }) {
+// onForkClosure (optional): async (treeId) => ref|null — a caller-supplied closure-aware fork
+// (used by the character editor to bake the tree AND its fire_tree dependencies + referenced
+// minigames onto the card). When absent, Fork keeps its original shallow copy-the-root behavior.
+function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Script', source = 'from card', rowProps = {}, onForkClosure = null }) {
   const { api } = useApp();
   const [trees, setTrees] = useState([]);
   const refetch = () => api.getTriggerTrees().then(d => setTrees(d?.trees || [])).catch(() => {});
@@ -34,9 +37,15 @@ function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Scri
     if (ref.inline?.nodes?.length && !window.confirm('Replace the local tree with a library link? (your local nodes will be detached)')) return;
     onChange({ treeId });
   };
-  const fork = () => {
+  const fork = async () => {
     const t = trees.find(x => x.id === linkedId);
     if (!t) return;
+    if (onForkClosure) {
+      try {
+        const forked = await onForkClosure(linkedId);
+        if (forked) { onChange(forked); return; }
+      } catch (e) { console.error('Closure fork failed — falling back to shallow fork', e); }
+    }
     onChange({ inline: { id: rid('tree'), name: `${t.name} (local)`, nodes: remapIds(t.nodes || []) } });
   };
   const promote = async () => {

@@ -35,6 +35,12 @@ const MAX_ON_SECONDS = 1800; // 30 minutes
 // Command patterns
 // Case-insensitive (i flag), allows flexible whitespace inside brackets
 const DEVICE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens)\s+(on|off)\s*\]/gi;
+// [CustomDevice:device_name:on|off|timed:secs] — named 120V appliances on a Custom Device outlet.
+// Execution is delegated to the server via setCustomDeviceHook (this module stays hardware-agnostic).
+const CUSTOM_DEVICE_PATTERN = /\[\s*CustomDevice\s*:\s*([^:\[\]]+?)\s*:\s*(on|off|timed)(?:\s*:\s*(\d+))?\s*\]/gi;
+const CUSTOM_DEVICE_MALFORMED = /\[\s*CustomDevice\b[^\]]*\]/gi; // strip-only net for broken variants
+let customDeviceHook = null; // async ({name, action, duration}) => boolean — set by server.js
+function setCustomDeviceHook(fn) { customDeviceHook = fn; }
 const PULSE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):pulse:(\d+)\s*\]/gi;
 const TIMED_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):timed:(\d+)\s*\]/gi;
 const CYCLE_COMMAND_PATTERN = /\[\s*(pump|vibe|tens):cycle:(\d+):(\d+):(\d+)\s*\]/gi;
@@ -1056,6 +1062,27 @@ function reinforcePumpControl(text, devices, sessionState, settings, characterLi
  */
 async function processLlmOutput(text, devices, deviceService, options = {}) {
   log.info(`Processing text for device commands (${text?.length || 0} chars): "${text?.substring(0, 100)}..."`);
+
+  // ---- Custom Device tags — handled FIRST and independently of the pump machinery. These drive
+  // generic appliances (lamps/fans/etc.), so the pump-specific gates (pre-inflation, manual pump
+  // mode) do NOT apply; the master "AI Pump Control" switch still gates ON/timed (OFF always runs
+  // as a safety). Tags are stripped from the display text on every return path below. ----
+  if (text && CUSTOM_DEVICE_PATTERN.test(text)) {
+    CUSTOM_DEVICE_PATTERN.lastIndex = 0;
+    const llmControlOff = !options.settings?.globalCharacterControls?.allowLlmDeviceControl;
+    let m;
+    while ((m = CUSTOM_DEVICE_PATTERN.exec(text)) !== null) {
+      const cmd = { name: m[1].trim(), action: m[2].toLowerCase(), duration: m[3] ? parseInt(m[3], 10) : undefined };
+      if (llmControlOff && cmd.action !== 'off') { log.info(`[CustomDevice] BLOCKED "${cmd.name}" ${cmd.action} — AI device control OFF`); continue; }
+      if (!customDeviceHook) { log.warn('[CustomDevice] no hook registered — tag ignored'); continue; }
+      Promise.resolve(customDeviceHook(cmd)).catch(e => log.error(`[CustomDevice] "${cmd.name}" ${cmd.action} failed:`, e?.message || e));
+    }
+    text = text.replace(CUSTOM_DEVICE_PATTERN, '').replace(CUSTOM_DEVICE_MALFORMED, '');
+  } else if (text) {
+    CUSTOM_DEVICE_PATTERN.lastIndex = 0;
+    text = text.replace(CUSTOM_DEVICE_MALFORMED, ''); // broken fragments never reach the player
+  }
+
   const commands = parseDeviceCommands(text);
   log.info(`Parsed ${commands.length} command(s):`, commands);
 
@@ -1157,6 +1184,7 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
 module.exports = {
   parseDeviceCommands,
   stripDeviceCommands,
+  setCustomDeviceHook,
   findDeviceByType,
   executeDeviceCommands,
   processLlmOutput,

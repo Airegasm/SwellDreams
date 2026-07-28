@@ -5318,10 +5318,21 @@ class EventEngine {
       result = result.replace(/\[Capacity\]/gi, this.sessionState.capacity ?? 0);
       // Tree Select Member pick; null resolves to the base character (parity with server.js).
       result = result.replace(/\[SelectedChar\]/gi, this.sessionState.selectedChar || this.sessionState.characterName || 'Character');
+      // [Group] — natural member list, via the server-injected resolver (parity with server.js).
+      result = result.replace(/\[Group\]/gi, () => (typeof this.resolveGroupList === 'function' && this.resolveGroupList()) || this.sessionState.characterName || 'Character');
       // Player Input popup values (parity with server.js) — [PlayerInput:Row#], 1-based.
       result = result.replace(/\[PlayerInput:(\d+)\]/gi, (match, n) => {
         const v = this.sessionState.playerInputs?.[n];
         return v !== undefined ? v : match;
+      });
+      // [Secs2Pct:N] — capacity % that N pump-seconds adds, via the server-injected resolver
+      // (the pump-rate math lives server-side). Nested forms like [Secs2Pct:[CharVar:TotalSecs]]
+      // work because substituteVariables re-passes until stable: the inner tag collapses in pass 1
+      // (the [^\[\]]+ matcher skips it while brackets remain), this resolves in pass 2.
+      // Unresolvable (no calibrated pump / non-numeric seconds) → tag left visible.
+      result = result.replace(/\[Secs2Pct:([^\[\]]+)\]/gi, (match, secs) => {
+        const v = typeof this.resolveSecs2Pct === 'function' ? this.resolveSecs2Pct(secs) : null;
+        return v == null ? match : v;
       });
       // [CharCapacity] = base char; [CharCapacity:Name-or-id] = a group member, resolved via the
       // server-injected resolver (this engine has no per-char storage access of its own).

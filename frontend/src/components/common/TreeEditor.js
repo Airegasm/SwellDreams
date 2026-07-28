@@ -128,6 +128,7 @@ const ADD_GROUPS = [
     label: 'Containers', items: [
       { kind: 'container', type: 'group', label: 'Group' },
       { kind: 'container', type: 'if', label: 'If / Else' },
+      { kind: 'container', type: 'switch', label: 'Switch / Case' },
       { kind: 'container', type: 'player_choice', label: 'Player Choice' },
       { kind: 'container', type: 'choose_multi', label: 'Choose Multiple' },
       { kind: 'container', type: 'chance', label: 'Chance (%)' },
@@ -145,11 +146,17 @@ const ADD_GROUPS = [
       { kind: 'action', type: 'label', label: 'Label (jump target)' },
       { kind: 'action', type: 'goto', label: 'Go To (jump)' },
       { kind: 'action', type: 'wait', label: 'Wait (spacer)' },
+      { kind: 'action', type: 'next_button', label: 'Next Button (>> gate)' },
+      { kind: 'action', type: 'cancel_current', label: 'Cancel Current (abort others)' },
+      { kind: 'action', type: 'checkpoint_control', label: 'Checkpoint Control (groups on/off)' },
     ]
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'fire_tree', 'fire_flow', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+
+// Range group keys for the Checkpoint Control dropdown (must mirror the backend's CHECKPOINT_RANGE_KEYS).
+const CKPT_CONTROL_RANGES = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
 
 const NO_OPERAND_OPS = new Set(['empty', 'notEmpty']);
 const HOLDS_CHILDREN = new Set(['group', 'chance', 'random', 'keyword_gate', 'keyword', 'repeat', 'pause_resume', 'select_member', 'player_input']); // not if/player_choice/choose_multi (special children)
@@ -159,6 +166,38 @@ function makeBranch(isElse = false) {
   return { id: rid('br'), kind: 'container', type: 'branch', params: isElse ? { else: true } : { match: 'all', conditions: [makeCond()] }, children: [] };
 }
 function makeChoice() { return { id: rid('ch'), kind: 'container', type: 'choice', params: { label: 'Option' }, children: [] }; }
+function makeCase(isDefault = false) {
+  return { id: rid('cs'), kind: 'container', type: 'case', params: isDefault ? { default: true } : { match: '' }, children: [] };
+}
+
+// Switch-value picks for the searchable dropdown: every system variable the backend resolves.
+// Free text is equally valid — a bare name (no brackets) runs as [CharVar:name], so authors can
+// switch on a CharVar that doesn't exist yet.
+const SWITCH_VALUE_VARS = [
+  { value: '[CharVar:GameResult]', label: 'Last MiniGame exit (Completed/Failed/…)' },
+  { value: '[CharVar:GameWinner]', label: 'Last MiniGame winner' },
+  { value: '[CharVar:GamePick]', label: "Player's pick in the last MiniGame" },
+  { value: '[Capacity]', label: 'Player capacity %' },
+  { value: '[CharCapacity]', label: 'Character capacity %' },
+  { value: '[CharCapacity:[SelectedChar]]', label: "Selected member's capacity %" },
+  { value: '[SelectedChar]', label: 'Selected member name' },
+  { value: '[Pain]', label: 'Pain label (None…Excruciating)' },
+  { value: '[Emotion]', label: 'Player disposition' },
+  { value: '[PlayerIsInflating]', label: 'Player inflating (true/false)' },
+  { value: '[Choice]', label: 'Last Player Choice label' },
+  { value: '[PlayerInput:1]', label: 'Player Input row 1' },
+  { value: '[Player]', label: 'Player name' },
+  { value: '[Char]', label: 'Character name' },
+  { value: '[Group]', label: 'Group member list' },
+  { value: '[PumpType]', label: 'Pump type (electric/…)' },
+  { value: '[PumpInit]', label: 'Pump init (auto/…)' },
+  { value: '[BulbCurrent]', label: 'Bulb pump count' },
+  { value: '[BikeCurrent]', label: 'Bike pump count' },
+  { value: '[Roll]', label: 'Last dice total' },
+  { value: '[Segment]', label: 'Last wheel segment' },
+  { value: '[Slots]', label: 'Last slots symbols' },
+  { value: '[Secs2Pct:5]', label: '% gained by 5 pump-seconds' },
+];
 function makeNode(kind, type) {
   // "once" (fire a single time per session) defaults ON for new nodes — trees re-run every reply turn
   // while a scope is active, so without it a node re-fires each turn. Excludes pure control-flow
@@ -166,6 +205,7 @@ function makeNode(kind, type) {
   const node = { id: rid(), kind, type, once: type !== 'label' && type !== 'goto', params: {} };
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
+  if (type === 'switch') { node.params.value = ''; node.children = [makeCase(false), makeCase(true)]; }
   if (type === 'player_choice' || type === 'choose_multi') node.children = [makeChoice()];
   if (type === 'player_input') node.params.rows = [{ id: rid('pir'), label: '', type: 'num', min: 0, max: 100, def: '' }]; // one row by default
   if (type === 'chance') node.params.chance = 50;
@@ -174,6 +214,7 @@ function makeNode(kind, type) {
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'wait') node.params.messages = 2;
+  if (type === 'checkpoint_control') { node.params.mode = 'off'; node.params.target = 'all'; }
   if (type === 'fire_tree') node.params.treeId = '';
   if (type === 'fire_flow') { node.params.flowId = ''; node.params.flowActionLabel = ''; }
   if (type === 'call_minigame') { node.params.miniGameId = ''; node.params.exitGotos = {}; }
@@ -199,16 +240,24 @@ function summarize(node) {
     if (t === 'label') return `Label: ${p.name || '(unnamed)'}`;
     if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
     if (t === 'wait') return `Wait ${p.messages ?? 1} message(s)`;
+    if (t === 'next_button') return 'Next Button — hold for >>';
+    if (t === 'cancel_current') return 'Cancel Current — abort other running triggers';
+    if (t === 'checkpoint_control') return `Checkpoints ${p.mode === 'on' ? 'ON' : 'OFF'}: ${!p.target || p.target === 'all' ? 'All groups' : p.target === 'events' ? 'Event Triggers' : `Range ${p.target}%`}`;
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
     if (t === 'fire_flow') return `Fire Flow: ${p.flowId || '(unset)'}${p.flowActionLabel ? ' › ' + p.flowActionLabel : ''}`;
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
     if (t === 'end_intro') return `End Gated Intro${p.manualRelease ? ' (GO! gate)' : ''}${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
+    if (t === 'toast') return `Toast (${p.preset || 'midnight'}): ${(p.text || '').split('\n')[0].slice(0, 40) || '(empty)'}`;
+    if (t === 'pump_on') return p.durationMode === 'percent' ? `Primary Pump ON · +${p.duration || '?'}% capacity` : `Primary Pump ON${p.duration ? ` · ${p.duration}s` : ' · latch'}`;
+    if (t === 'pump_off') return 'Primary Pump OFF';
+    if (t === 'custom_device') return `Custom Device "${p.deviceName || '?'}" ${p.mode === 'off' ? 'OFF' : p.mode === 'timed' ? `ON ${p.seconds || '?'}s` : 'ON'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'CharVar'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
   }
   if (t === 'group') return `Group · ${(node.children || []).length} item(s)`;
   if (t === 'if') return `If / Else · ${(node.children || []).filter(b => b && b.type === 'branch').length} branch(es)`;
+  if (t === 'switch') return `Switch on ${p.value || '(unset)'} · ${(node.children || []).filter(c => c && c.type === 'case').length} case(s)`;
   if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'choose_multi') return `Choose Multiple · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
@@ -353,6 +402,68 @@ function IfBlock({ node, onChange, rowProps }) {
   );
 }
 
+// One case within a 'switch': a match value (or Default) + its body.
+function CaseBlock({ caseNode, onChange, onRemove, onDuplicate, rowProps }) {
+  const isDefault = caseNode.params?.default === true;
+  return (
+    <div className="tree-branch">
+      <div className="tree-branch-head">
+        <span className="tree-branch-label">{isDefault ? 'Default' : 'Case'}</span>
+        {!isDefault && (
+          <input type="text" value={caseNode.params?.match ?? ''} placeholder="value to match (substitutions ok)"
+            onChange={(e) => onChange({ ...caseNode, params: { ...(caseNode.params || {}), match: e.target.value } })} style={{ flex: 1 }} />
+        )}
+        {!isDefault && onDuplicate && <button type="button" className="tree-x" onClick={onDuplicate} title="Duplicate this case (match + contents)">⧉</button>}
+        <button type="button" className="tree-x" onClick={onRemove} title="Remove case">×</button>
+      </div>
+      <div className="tree-branch-body">
+        <NodeList nodes={caseNode.children || []} onChange={(next) => onChange({ ...caseNode, children: next })} rowProps={rowProps} />
+      </div>
+    </div>
+  );
+}
+
+// The 'switch' body: the value to switch on (searchable system-variable dropdown that also takes
+// free text — a bare name runs as [CharVar:name]) + ordered cases + an optional Default.
+function SwitchBlock({ node, onChange, rowProps }) {
+  const cases = (node.children || []).filter(c => c && c.type === 'case');
+  const hasDefault = cases.some(c => c.params?.default === true);
+  const setCases = (next) => onChange({ ...node, children: next });
+  const listId = `tree-switch-vars-${node.id}`;
+  return (
+    <div className="tree-if">
+      <label className="tree-field">
+        <span>Switch on</span>
+        <input type="text" list={listId} value={node.params?.value || ''}
+          onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), value: e.target.value } })}
+          placeholder="pick a system variable, or type a CharVar name" />
+        <datalist id={listId}>
+          {SWITCH_VALUE_VARS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+        </datalist>
+      </label>
+      <div className="tree-hint">First matching case wins (numbers compare numerically, text case-insensitively). A bare name like <code>MyVar</code> reads [CharVar:MyVar] — fine if it's only set later; unset values fall to Default.</div>
+      {cases.map((c, i) => (
+        <CaseBlock key={c.id || i} caseNode={c}
+          onChange={(u) => setCases(cases.map((x, idx) => idx === i ? u : x))}
+          onRemove={() => setCases(cases.filter((_, idx) => idx !== i))}
+          onDuplicate={() => setCases([...cases.slice(0, i + 1), cloneNodeDeep(c), ...cases.slice(i + 1)])}
+          rowProps={rowProps} />
+      ))}
+      <div className="tree-if-controls">
+        <button type="button" className="tree-mini" onClick={() => {
+          // Keep an existing Default visually last (execution finds it anywhere, but last reads right).
+          const defIdx = cases.findIndex(c => c.params?.default === true);
+          if (defIdx === -1) return setCases([...cases, makeCase(false)]);
+          const a = [...cases];
+          a.splice(defIdx, 0, makeCase(false));
+          setCases(a);
+        }}>+ Case</button>
+        {!hasDefault && <button type="button" className="tree-mini" onClick={() => setCases([...cases, makeCase(true)])}>+ Default</button>}
+      </div>
+    </div>
+  );
+}
+
 // One option within a player_choice: a label + its body (the subtree run when picked).
 function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps }) {
   return (
@@ -427,6 +538,50 @@ function NodeBody({ node, onChange, rowProps }) {
       </label>
     );
   }
+  if (t === 'next_button') {
+    return (
+      <p className="section-hint">
+        Forces a <strong>&gt;&gt;</strong> (Next) hold at this point — everything after this block waits
+        until the player presses Next. Same button the tree uses automatically between back-to-back
+        generated messages; this places one anywhere you want a pause.
+      </p>
+    );
+  }
+  if (t === 'cancel_current') {
+    return (
+      <p className="section-hint">
+        Aborts every <strong>other</strong> running trigger tree and checkpoint sequence, and closes
+        their popups and gates (Player Choice, Player Input, Select Member, MiniGame, &gt;&gt;/await/Fire%).
+        This tree keeps running — place it as the <strong>first block</strong> so the tree claims the
+        session before doing its work.
+      </p>
+    );
+  }
+  if (t === 'checkpoint_control') {
+    return (
+      <div className="tree-params">
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name={`ckc-${node.id}`} checked={node.params?.mode !== 'on'} onChange={() => setParams({ mode: 'off' })} /> Off
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name={`ckc-${node.id}`} checked={node.params?.mode === 'on'} onChange={() => setParams({ mode: 'on' })} /> On
+          </label>
+          <select value={node.params?.target || 'all'} onChange={(e) => setParams({ target: e.target.value })}>
+            <option value="all">All (every range group + events)</option>
+            <option value="events">Event Triggers group</option>
+            {CKPT_CONTROL_RANGES.map(k => <option key={k} value={k}>Range {k}%</option>)}
+          </select>
+        </div>
+        <p className="section-hint">
+          Session-scoped override on top of the card's saved group toggles — lasts until the session
+          resets. Turning a group OFF also drops any await/Fire% sequence it left pending. Use it from a
+          long-running tree (e.g. an endgame) to silence range checkpoints and event triggers — or to
+          re-enable a group the card ships disabled.
+        </p>
+      </div>
+    );
+  }
   if (t === 'fire_tree') return <FireTreeEditor node={node} setParams={setParams} />;
   if (t === 'call_minigame') return <CallMiniGameBlock node={node} setParams={setParams} rowProps={rowProps} />;
   if (t === 'end_intro') {
@@ -473,6 +628,7 @@ function NodeBody({ node, onChange, rowProps }) {
   }
 
   if (t === 'if') return <IfBlock node={node} onChange={onChange} rowProps={rowProps} />;
+  if (t === 'switch') return <SwitchBlock node={node} onChange={onChange} rowProps={rowProps} />;
   if (t === 'player_choice') return <PlayerChoiceBlock node={node} onChange={onChange} rowProps={rowProps} />;
   if (t === 'choose_multi') return <PlayerChoiceBlock node={node} onChange={onChange} rowProps={rowProps} max={8} />;
 

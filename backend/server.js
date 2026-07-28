@@ -538,20 +538,128 @@ const mediaUpload = multer({
   }
 });
 
-// Configure multer for character card imports (JSON/PNG)
+// Configure multer for character card imports (JSON/PNG, or a ZIP bundling card + media)
 const cardUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB max for character cards
+    // ZIP imports carry the character's media (video allowance dominates); bare cards stay tiny.
+    fileSize: 600 * 1024 * 1024
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/json', 'image/png', 'image/jpeg'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const allowedTypes = ['application/json', 'image/png', 'image/jpeg', 'application/zip', 'application/x-zip-compressed', 'application/octet-stream'];
+    if (allowedTypes.includes(file.mimetype) || /\.(zip|swelld)$/i.test(file.originalname || '')) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JSON and PNG files are allowed.'));
+      cb(new Error('Invalid file type. Only JSON, PNG, and ZIP files are allowed.'));
     }
   }
+});
+
+// --- Per-character media (the editor's Media tab) ---
+// Plain files under the character's personal directory — data/chars/custom/<id>/media/<type>/ —
+// NEVER base64 in the card JSON. Travels via the character ZIP export (image|video|audio folders).
+const CHAR_MEDIA_TYPES = new Set(['image', 'video', 'audio']);
+function charMediaDir(charId, type) {
+  return path.join(__dirname, 'data', 'chars', 'custom', charId, 'media', type);
+}
+function sanitizeMediaName(name) {
+  const base = path.basename(String(name || 'file'));
+  const clean = base.replace(/[^a-zA-Z0-9._ ()-]/g, '_').replace(/^\.+/, '_').slice(0, 120);
+  return clean || 'file';
+}
+function listCharMedia(charId) {
+  const out = { image: [], video: [], audio: [] };
+  for (const t of CHAR_MEDIA_TYPES) {
+    const dir = charMediaDir(charId, t);
+    try {
+      for (const f of fs.readdirSync(dir)) {
+        const st = fs.statSync(path.join(dir, f));
+        if (st.isFile()) out[t].push({ name: f, size: st.size, mtime: st.mtimeMs, url: `/api/characters/${charId}/media/${t}/${encodeURIComponent(f)}/file` });
+      }
+    } catch (e) { /* no media dir yet — empty list */ }
+    out[t].sort((a, b) => a.name.localeCompare(b.name));
+  }
+  return out;
+}
+// Write one media file into the character's dir; auto-suffixes on name collision. Returns the name used.
+function writeCharMediaFile(charId, type, name, buffer) {
+  const dir = charMediaDir(charId, type);
+  fs.mkdirSync(dir, { recursive: true });
+  let finalName = sanitizeMediaName(name);
+  const ext = path.extname(finalName), stem = finalName.slice(0, finalName.length - ext.length);
+  for (let n = 2; fs.existsSync(path.join(dir, finalName)); n++) finalName = `${stem} (${n})${ext}`;
+  fs.writeFileSync(path.join(dir, finalName), buffer);
+  return finalName;
+}
+// Resolve + validate a char-media file path (id/type/name all attacker-controlled URL parts).
+function charMediaFilePath(charId, type, name) {
+  if (!isSafeId(charId) || !CHAR_MEDIA_TYPES.has(type)) return null;
+  const dir = charMediaDir(charId, type);
+  const p = path.join(dir, path.basename(String(name || '')));
+  return p.startsWith(dir + path.sep) ? p : null;
+}
+
+app.get('/api/characters/:id/media', (req, res) => {
+  if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid character id' });
+  res.json(listCharMedia(req.params.id));
+});
+
+app.post('/api/characters/:id/media/:type', mediaUpload.single('file'), (req, res) => {
+  try {
+    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid character id' });
+    if (!CHAR_MEDIA_TYPES.has(req.params.type)) return res.status(400).json({ error: 'Invalid media type' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const name = writeCharMediaFile(req.params.id, req.params.type, req.file.originalname, req.file.buffer);
+    res.json({ success: true, name });
+  } catch (e) { res.status(500).json({ error: e.message || 'Upload failed' }); }
+});
+
+// Clone an item from the MAIN media library into the character's personal directory.
+app.post('/api/characters/:id/media/:type/clone', async (req, res) => {
+  try {
+    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid character id' });
+    const type = req.params.type;
+    if (!CHAR_MEDIA_TYPES.has(type)) return res.status(400).json({ error: 'Invalid media type' });
+    const mediaId = req.body?.mediaId;
+    const item = type === 'image' ? await mediaStorage.getMediaImage(mediaId)
+      : type === 'video' ? await mediaStorage.getMediaVideo(mediaId)
+      : await mediaStorage.getMediaAudio(mediaId);
+    if (!item) return res.status(404).json({ error: 'Library item not found' });
+    const src = type === 'image' ? mediaStorage.getMediaImageFilePath(item.filename)
+      : type === 'video' ? mediaStorage.getMediaVideoFilePath(item.filename)
+      : mediaStorage.getMediaAudioFilePath(item.filename);
+    if (!src || !fs.existsSync(src)) return res.status(404).json({ error: 'Library file missing on disk' });
+    // Keep the human name, the library file's real extension.
+    const name = `${item.name || item.tag || 'media'}${path.extname(item.filename)}`;
+    const finalName = writeCharMediaFile(req.params.id, type, name, fs.readFileSync(src));
+    res.json({ success: true, name: finalName });
+  } catch (e) { res.status(500).json({ error: e.message || 'Clone failed' }); }
+});
+
+app.delete('/api/characters/:id/media/:type/:name', (req, res) => {
+  const p = charMediaFilePath(req.params.id, req.params.type, req.params.name);
+  if (!p) return res.status(400).json({ error: 'Invalid path' });
+  try { fs.unlinkSync(p); res.json({ success: true }); }
+  catch (e) { res.status(404).json({ error: 'File not found' }); }
+});
+
+app.get('/api/characters/:id/media/:type/:name/file', (req, res) => {
+  const p = charMediaFilePath(req.params.id, req.params.type, req.params.name);
+  if (!p || !fs.existsSync(p)) return res.status(404).json({ error: 'File not found' });
+  res.sendFile(p);
+});
+
+// Open a character media file with the OS-associated app (double-click in the Media tab).
+// Only meaningful when the backend runs on the same machine as the person clicking.
+app.post('/api/characters/:id/media/open', (req, res) => {
+  const p = charMediaFilePath(req.params.id, req.body?.type, req.body?.name);
+  if (!p || !fs.existsSync(p)) return res.status(404).json({ error: 'File not found' });
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', p] : [p];
+  try {
+    require('child_process').spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref();
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message || 'Open failed' }); }
 });
 
 // --- Media Images ---
@@ -1243,6 +1351,10 @@ eventEngine.resolveMemberCapacity = (key) => {
     return null;
   } catch (e) { return null; }
 };
+// [Group] for event-engine substitutions (tree conditions, Set CharVar values, flow text).
+eventEngine.resolveGroupList = () => resolveGroupListString();
+// [Secs2Pct:N] for event-engine substitutions — pump-rate math lives server-side.
+eventEngine.resolveSecs2Pct = (secs) => resolveSecs2Pct(secs);
 
 // ============================================
 // Pump safety constants & helpers
@@ -1270,6 +1382,60 @@ function charTokenOverride(character) {
 
 // Tracked server-side "timed pump on" off-timers, keyed by control id. Cleared by
 // emergency stop / watchdog so a scheduled turn-off can never outlive a stop.
+// ---- Custom Devices: named 120V appliances plugged into a "Custom Device Control" outlet ----
+// Store: data/custom-devices.json — [{ id, name, boundDeviceId }]. Actuated by the
+// custom_device trigger action and the [CustomDevice:name:on|off|timed:secs] LLM tag.
+const CUSTOM_DEVICES_PATH = path.join(__dirname, 'data', 'custom-devices.json');
+function loadCustomDevices() {
+  try { return JSON.parse(fs.readFileSync(CUSTOM_DEVICES_PATH, 'utf8')); } catch (e) { return { devices: [] }; }
+}
+function saveCustomDevices(data) { fs.writeFileSync(CUSTOM_DEVICES_PATH, JSON.stringify(data, null, 2)); }
+
+const customDeviceTimers = new Map(); // customDeviceId -> timeout (timed mode auto-off)
+function clearAllCustomDeviceTimers() {
+  for (const t of customDeviceTimers.values()) { try { clearTimeout(t); } catch (e) { /* ignore */ } }
+  customDeviceTimers.clear();
+}
+
+// Actuate a custom device by NAME (case-insensitive). action: 'on' | 'off' | 'timed' (+seconds).
+// Resolves the bound outlet and drives it via deviceService; timed mode arms a tracked auto-off
+// (cleared by emergency stop) clamped to the 30-minute hard ceiling. Returns true when actuated.
+async function executeCustomDeviceControl(nameRaw, action, seconds, source = 'custom-device') {
+  const name = String(nameRaw || '').trim();
+  if (!name) { console.warn(`[CustomDevice/${source}] no device name given`); return false; }
+  const cd = (loadCustomDevices().devices || []).find(d => (d.name || '').trim().toLowerCase() === name.toLowerCase());
+  if (!cd) { console.warn(`[CustomDevice/${source}] no custom device named "${name}"`); return false; }
+  const devices = loadData(DATA_FILES.devices) || [];
+  const outlet = devices.find(d => d.id === cd.boundDeviceId);
+  if (!outlet) { console.warn(`[CustomDevice/${source}] "${name}" has no outlet attached`); return false; }
+  const outletId = resolveControlId(outlet);
+  const prior = customDeviceTimers.get(cd.id);
+  if (prior) { clearTimeout(prior); customDeviceTimers.delete(cd.id); }
+  if (action === 'off') {
+    await deviceService.turnOff(outletId, outlet);
+    console.log(`[CustomDevice/${source}] "${name}" OFF (outlet ${outlet.label || outletId})`);
+    return true;
+  }
+  if (action === 'timed') {
+    const secs = Math.max(1, Math.min(Number(seconds) || 0, MAX_ON_SECONDS));
+    if (!(Number(seconds) > 0)) { console.warn(`[CustomDevice/${source}] timed needs positive seconds — got "${seconds}"`); return false; }
+    await deviceService.turnOn(outletId, outlet, { untilType: 'timer', untilValue: secs });
+    customDeviceTimers.set(cd.id, setTimeout(() => {
+      customDeviceTimers.delete(cd.id);
+      deviceService.turnOff(outletId, outlet).catch(err => console.error(`[CustomDevice] auto-off failed for "${name}":`, err?.message || err));
+    }, secs * 1000));
+    console.log(`[CustomDevice/${source}] "${name}" ON for ${secs}s (outlet ${outlet.label || outletId})`);
+    return true;
+  }
+  await deviceService.turnOn(outletId, outlet);
+  console.log(`[CustomDevice/${source}] "${name}" ON (outlet ${outlet.label || outletId})`);
+  return true;
+}
+// LLM-tag hook: ai-device-control parses [CustomDevice:...] tags out of model output and
+// routes them here (its pump gates don't apply to generic appliances; the master
+// allowLlmDeviceControl switch is enforced on the parsing side for ON/timed).
+aiDeviceControl.setCustomDeviceHook((cmd) => executeCustomDeviceControl(cmd.name, cmd.action, cmd.duration, 'llm-tag'));
+
 const serverTimedPumpTimers = new Map();
 
 function clearServerTimedPumpTimer(id) {
@@ -3580,6 +3746,7 @@ const sessionState = {
   characterInflationBaseCapacity: 0, // capacity when inflation started (to add to)
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
+  checkpointControl: null, // Session overrides from Checkpoint Control blocks: { ranges: {key:'on'|'off'}, events: 'on'|'off'|null }; null slot = card default
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
                       // base character at read time, and every runTreeScope resets it so trees stay agnostic
@@ -3635,6 +3802,27 @@ function capacityToRangeKey(capacity) {
   return '100+';
 }
 
+// ---- Checkpoint group on/off (per range group + the Event Triggers group) ----
+// Card default: profile.treeRefs.rangeDisabled = { '1-10': true, ... } / treeRefs.eventsDisabled
+// (absent = ON — new cards start all-enabled). A Checkpoint Control tree block writes a
+// SESSION-scoped override ('on'|'off') that wins over the card until session reset — so an
+// endgame tree can silence range checkpoints/events for the rest of the session (or re-arm them).
+const CHECKPOINT_RANGE_KEYS = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
+function checkpointGroupEnabled(kind, key, character) {
+  const cc = sessionState.checkpointControl;
+  if (kind === 'events') {
+    if (cc?.events) return cc.events === 'on';
+    return character ? resolveScopeRefs(character).eventsDisabled !== true : true;
+  }
+  const ov = cc?.ranges?.[key];
+  if (ov) return ov === 'on';
+  return character ? !(resolveScopeRefs(character).rangeDisabled || {})[key] : true;
+}
+// Strip the axis prefix off a checkpoint-sequence source ('player-41-50' → '41-50').
+function rangeKeyOfSource(source) {
+  return String(source || '').replace(/^(p-)?(player|char)-/, '');
+}
+
 // A range's triggers may be a legacy flat array (treated as all-sequential) or the new
 // { sequential, random } shape. Always returns the normalized shape.
 function normalizeRangeTriggers(val) {
@@ -3675,6 +3863,7 @@ async function fireTriggerSequence(triggers, startIdx, source, character, settin
 }
 
 async function fireTriggerSequenceInner(triggers, startIdx, source, character, settings) {
+  const seqEpoch = triggerSeqEpoch; // a Cancel Current block bumps the epoch — this run stops at its next step
   // Whose capacity a Fire% gate compares against (player vs character), derived from the range key.
   // includes() so persona keys ('p-char-11-20') resolve to the char axis too, not just 'char-…'.
   const gateType = String(source || '').includes('char-') ? 'char' : 'player';
@@ -3685,6 +3874,7 @@ async function fireTriggerSequenceInner(triggers, startIdx, source, character, s
   const isMsgAction = (t) => t && (t.type === 'ai_message' || t.type === 'ai_message_member' || t.type === 'impersonate');
   let lastWasMessage = false;
   for (let i = startIdx; i < (triggers || []).length; i++) {
+    if (seqEpoch !== triggerSeqEpoch) { console.log(`[Trigger/${source}] sequence aborted — Cancel Current fired`); return; }
     const trg = triggers[i];
     // Fire% gate: pause the sequence until capacity reaches this trigger's exact %. No-Fire%
     // triggers fire as soon as the sequence reaches them; a Fire% trigger holds the rest of the
@@ -3838,6 +4028,11 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
 
   const newRange = capacityToRangeKey(newCapacity);
   const triggerKey = `${type}-${newRange}`;
+  // Group toggle: a disabled range group fires NOTHING on entry (card default or session override).
+  if (!checkpointGroupEnabled('range', newRange, activeCharacter)) {
+    console.log(`[CheckpointTriggers] Range group ${newRange} is toggled OFF — skipping its sequence`);
+    return;
+  }
   const triggers = normalizeRangeTriggers(checkpointTriggers[triggerKey]).sequential;
 
   // (1) First time we're in this range (entered from another band OR rising from 0 within the first
@@ -3870,6 +4065,13 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
   // the WAIT clears, so the gated message plays first (and pump-pause keeps capacity from overshooting).
   const cg = sessionState.pendingCapacityGate;
   if (cg && cg.type === type && newCapacity >= cg.target) {
+    // The paused sequence's own group may have been toggled off since it armed — drop it.
+    if (!checkpointGroupEnabled('range', rangeKeyOfSource(cg.source), activeCharacter)) {
+      console.log(`[CheckpointTriggers] Fire% gate's source group (${cg.source}) is toggled OFF — dropping the queued sequence`);
+      sessionState.pendingCapacityGate = null;
+      broadcast('capacity_gate', { active: false });
+      return;
+    }
     if (isGaugeFrozen()) {
       console.log(`[CheckpointTriggers] Fire% gate (${cg.target}%) met at ${newCapacity}% — queued behind an open stall (gate/choice/game/chain)`);
     } else {
@@ -3892,6 +4094,12 @@ async function executePersonaCheckpointTriggers(type, oldCapacity, newCapacity) 
   const oldRange = capacityToRangeKey(oldCapacity);
   const newRange = capacityToRangeKey(newCapacity);
   if (oldRange === newRange) return;
+  // Session-scoped Checkpoint Control override applies to persona ranges too (card defaults don't —
+  // persona checkpoints are persona-level, so only the runtime kill-switch reaches them).
+  if (!checkpointGroupEnabled('range', newRange, null)) {
+    console.log(`[PersonaCheckpoints] Range group ${newRange} is toggled OFF — skipping`);
+    return;
+  }
 
   const prefix = type === 'player' ? 'p-player' : 'p-char';
   const triggerKey = `${prefix}-${newRange}`;
@@ -3945,9 +4153,11 @@ const TRIGGER_REQUIRED_PARAMS = {
   play_audio: ['tag'], play_video: ['tag'], show_image: ['tag'],
   flow_var: ['variable'],
   toggle_button: ['buttonId'],
-  toggle_reminder: ['reminderId'], toggle_library_entry: ['reminderId'],
+  // toggle_library_entry/toggle_reminder validate in-case (new triggers carry groupId/termId,
+  // legacy ones only reminderId — a fixed required list would skip one shape or the other).
   set_instructor_profile: ['value'],
   char_capacity: ['value'],
+  toggle_dictionary: ['groupId'],
 };
 
 // Wrap a message action's final text with its optional Prepend/Append Verbatim blocks: literal
@@ -3962,6 +4172,43 @@ function applyVerbatimWraps(text, trigger) {
   if (pre) out = `${pre}\n${out}`;
   if (app) out = `${out}\n${app}`;
   return out;
+}
+
+// Natural-language name list: "X" / "X and Y" / "X, Y, and Z" (Oxford comma). For [Group].
+function formatNameList(names) {
+  const list = (names || []).filter(Boolean);
+  if (list.length <= 1) return list[0] || '';
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(', ')}, and ${list[list.length - 1]}`;
+}
+
+// [Group] — everyone in the active card as a natural list; single cards resolve to the character.
+function resolveGroupListString() {
+  try {
+    const settings = loadData(DATA_FILES.settings) || {};
+    const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+    const card = chars.find(c => c.id === settings.activeCharacterId);
+    const names = (card?.multiChar?.enabled ? (card.multiChar.characters || []) : []).map(m => m?.name).filter(Boolean);
+    return formatNameList(names.length ? names : [card?.name || sessionState.characterName || '']);
+  } catch (e) { return sessionState.characterName || ''; }
+}
+
+// [Secs2Pct:N] — how much capacity N seconds of the CURRENT (primary) pump adds, using the same
+// math handlePumpRuntime banks with: seconds × autoCapacityMultiplier / calibrationTime × 100.
+// Returns a "2%" / "2.5%" string, or null when no calibrated primary pump exists (callers leave
+// the tag visible so the author sees the gap).
+function resolveSecs2Pct(seconds) {
+  try {
+    const n = Number(seconds);
+    if (!Number.isFinite(n) || n < 0) return null;
+    const devices = loadData(DATA_FILES.devices) || [];
+    const pump = getPrimaryPumpDevice(devices);
+    if (!pump || !(pump.calibrationTime > 0)) return null;
+    const settings = loadData(DATA_FILES.settings) || {};
+    const modifier = settings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+    const pct = (n * modifier / pump.calibrationTime) * 100;
+    return `${Math.round(pct * 10) / 10}%`;
+  } catch (e) { return null; }
 }
 
 // Resolve a trigger's member reference: a raw member id, a member NAME, or a variable like
@@ -4081,7 +4328,7 @@ async function executeTrigger(trigger, source, character, settings) {
         broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
         // Character-voice guided generation — use the unified normal builder
         // + single guidance injection (same path as guided response/swipe)
-        const aiContext = applyCharacterGuidance(buildChatContext(character, settings), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
+        const aiContext = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         // Optional per-action "Max Response Tokens" — restricts this generation; blank falls through
         // to the character/global token limit.
         const aiGenSettings = { ...settings.llm };
@@ -4180,7 +4427,7 @@ async function executeTrigger(trigger, source, character, settings) {
         await waitForLlmIdle();
         broadcast('generating_start', { characterName: speakerName });
         sessionState.soloSpeaker = tgt?.id || null; // constrain the group prompt to this member alone
-        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
+        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
         sessionState.soloSpeaker = null;
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
@@ -4299,7 +4546,27 @@ async function executeTrigger(trigger, source, character, settings) {
           // (via timedPumpOn), NOT the small per-reply LLM limit — that limit is for model [pump on]
           // spam, and would gut an intentional 6–36s dice roll or an 8s wheel prize.
           const dur = Number(substituteAllVariables(String(trigger.duration ?? '')));
-          if (Number.isFinite(dur) && dur > 0) {
+          if (trigger.durationMode === 'percent') {
+            // Percentage mode: run until `dur`% of capacity has been ADDED, hard-capped at 100%
+            // total (at 70% a 50% request only adds 30%). Converted to seconds by inverting the
+            // exact auto-capacity banking math (seconds × multiplier / calibrationTime × 100), so
+            // the same timedPumpOn safety rails apply (30-min hard cap, emergency-stop cancel).
+            if (!(pump.calibrationTime > 0)) {
+              console.warn(`[Trigger/${source}] pump_on percentage mode needs a CALIBRATED primary pump — skipped`);
+              break;
+            }
+            const req = Math.min(100, Math.max(0, dur));
+            const cap = Math.min(100, Math.max(0, sessionState.capacity || 0));
+            const inc = Math.min(req, 100 - cap);
+            if (!Number.isFinite(dur) || req <= 0) { console.warn(`[Trigger/${source}] pump_on percentage mode: '${trigger.duration}' is not a usable % — skipped`); break; }
+            if (inc <= 0) { console.log(`[Trigger/${source}] pump_on percentage mode: capacity already at 100% — skipped`); break; }
+            const pctSettings = loadData(DATA_FILES.settings) || {};
+            const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+            const secs = (inc / 100) * pump.calibrationTime / (modifier || 1);
+            await timedPumpOn(id, pump, secs);
+            broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
+            console.log(`[Trigger/${source}] pump_on percentage mode: +${inc}% (requested ${req}%, at ${cap}%) → ${secs.toFixed(1)}s`);
+          } else if (Number.isFinite(dur) && dur > 0) {
             await timedPumpOn(id, pump, dur);
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(dur, MAX_ON_SECONDS) } });
           } else {
@@ -4320,6 +4587,17 @@ async function executeTrigger(trigger, source, character, settings) {
           await deviceService.turnOff(id, pump);
           broadcast('ai_device_control', { device: 'pump', action: 'off', deviceName: pump.label || pump.name || 'Pump' });
         }
+        break;
+      }
+
+      case 'custom_device': {
+        // Drive a named Custom Device (Settings → Devices → Custom Devices). Name and seconds both
+        // accept variables. Authored triggers are NOT gated by the AI-control master switch (same
+        // rule as device_on/off actions) — only LLM-emitted [CustomDevice:...] tags are.
+        const cdName = substituteAllVariables(String(trigger.deviceName ?? ''), { isPromptText: true });
+        const cdMode = trigger.mode === 'off' ? 'off' : trigger.mode === 'timed' ? 'timed' : 'on';
+        const cdSecs = cdMode === 'timed' ? Number(substituteAllVariables(String(trigger.seconds ?? ''))) : undefined;
+        await executeCustomDeviceControl(cdName, cdMode, cdSecs, source);
         break;
       }
 
@@ -4602,13 +4880,57 @@ async function executeTrigger(trigger, source, character, settings) {
 
       case 'toggle_library_entry':
       case 'toggle_reminder': { // toggle_reminder kept as a back-compat alias for old cards
-        if (trigger.reminderId && character.constantReminders) {
-          const entry = character.constantReminders.find(r => r.id === trigger.reminderId);
-          if (entry) {
-            entry.enabled = !!trigger.enabled;
-            await saveCharacterAsync(character);
+        // Targets the LIBRARY system (instructor-library.json groups), which replaced the old
+        // per-card constantReminders. Params: groupId + termId ('' = the whole group). Legacy
+        // triggers carry only reminderId — resolved as a term id/name across all groups, with a
+        // final fallback to constantReminders for ancient cards that still have them.
+        const tlOn = !!trigger.enabled;
+        const tlLib = loadInstructorLibrary();
+        const tlGroups = tlLib.groups || [];
+        const tlMatch = (t, key) => t && (t.id === key || (t.term || '').toLowerCase() === String(key || '').trim().toLowerCase());
+        let tlTouched = '';
+        if (trigger.groupId) {
+          const g = tlGroups.find(x => x.id === trigger.groupId);
+          if (g) {
+            if (trigger.termId) {
+              const t = (g.terms || []).find(x => tlMatch(x, trigger.termId));
+              if (t) { t.enabled = tlOn; tlTouched = `term '${t.term}'`; }
+            } else { g.enabled = tlOn; tlTouched = `group '${g.name}'`; }
+          }
+        } else if (trigger.reminderId) {
+          for (const g of tlGroups) {
+            const t = (g.terms || []).find(x => tlMatch(x, trigger.reminderId));
+            if (t) { t.enabled = tlOn; tlTouched = `term '${t.term}'`; break; }
           }
         }
+        if (tlTouched) {
+          saveInstructorLibrary(tlLib);
+          console.log(`[Trigger/${source}] toggle_library_entry: ${tlTouched} → ${tlOn ? 'ON' : 'OFF'}`);
+        } else if (trigger.reminderId && character?.constantReminders) {
+          const entry = character.constantReminders.find(r => r.id === trigger.reminderId);
+          if (entry) { entry.enabled = tlOn; await saveCharacterAsync(character); }
+        } else {
+          console.warn(`[Trigger/${source}] toggle_library_entry: no matching library group/term — skipped`);
+        }
+        break;
+      }
+
+      case 'toggle_dictionary': {
+        // Enable/disable a global Dictionary item — or a whole group when no term is picked.
+        const tdOn = !!trigger.enabled;
+        const tdDict = loadDictionary();
+        const tdGroup = (tdDict.groups || []).find(g => g.id === trigger.groupId);
+        if (!tdGroup) { console.warn(`[Trigger/${source}] toggle_dictionary: group '${trigger.groupId}' not found — skipped`); break; }
+        if (trigger.termId) {
+          const t = (tdGroup.terms || []).find(x => x && (x.id === trigger.termId || (x.term || '').toLowerCase() === String(trigger.termId).trim().toLowerCase()));
+          if (!t) { console.warn(`[Trigger/${source}] toggle_dictionary: term '${trigger.termId}' not found in '${tdGroup.name}' — skipped`); break; }
+          t.enabled = tdOn;
+          console.log(`[Trigger/${source}] toggle_dictionary: term '${t.term}' → ${tdOn ? 'ON' : 'OFF'}`);
+        } else {
+          tdGroup.enabled = tdOn;
+          console.log(`[Trigger/${source}] toggle_dictionary: group '${tdGroup.name}' → ${tdOn ? 'ON' : 'OFF'}`);
+        }
+        saveDictionary(tdDict);
         break;
       }
 
@@ -4619,6 +4941,18 @@ async function executeTrigger(trigger, source, character, settings) {
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
           autosaveSession();
+        }
+        break;
+      }
+
+      case 'toast': {
+        // On-screen toast note (top-right, auto-dismisses): pure UI feedback — never enters
+        // chatHistory or the LLM context. Multi-line text renders its newlines; the frontend
+        // maps the preset key to its color combo.
+        const toastText = substituteAllVariables(String(trigger.text ?? '')).trim();
+        if (toastText) {
+          broadcast('trigger_toast', { text: toastText, preset: trigger.preset || 'midnight' });
+          console.log(`[Trigger/${source}] Toast (${trigger.preset || 'midnight'}): ${toastText.split('\n')[0].slice(0, 60)}`);
         }
         break;
       }
@@ -5163,6 +5497,9 @@ function substituteAllVariables(text, context = {}) {
     const v = sessionState.playerInputs?.[n];
     return v !== undefined ? v : match;
   });
+  // [Group] — every member of the active card as a natural list ("X, Y, and Z"); single cards
+  // resolve to the character's name. Lazy (card loaded only when the tag appears).
+  result = result.replace(/\[Group\]/gi, () => resolveGroupListString());
   // Char capacity — [CharCapacity] = the base character; [CharCapacity:Name] (or :memberId) = a
   // group member. The base member rides characterCapacity; other members read memberCapacities.
   // Unknown member → tag left visible so the author sees the typo. Member lookup loads the active
@@ -5223,6 +5560,13 @@ function substituteAllVariables(text, context = {}) {
     if (v === '' || v == null || !/^\w+$/.test(k)) continue;
     result = result.replace(new RegExp(`\\[${k}\\]`, 'gi'), v);
   }
+
+  // [Secs2Pct:N] — the capacity % that N seconds of the current (primary) pump adds. Runs AFTER
+  // the CharVar/System passes above so nested forms like [Secs2Pct:[CharVar:TotalSecs]] collapse
+  // from the inside out (this function is single-pass — order is the nesting mechanism, same as
+  // [CharCapacity:[SelectedChar]]). Unresolvable (no calibrated pump / non-numeric seconds) →
+  // tag left visible so the author sees the gap.
+  result = result.replace(/\[Secs2Pct:([^\[\]]+)\]/gi, (match, secs) => resolveSecs2Pct(secs) ?? match);
 
   // Instructor pump session variables
   result = result.replace(/\[BulbCurrent\]/gi, sessionState.bulbCurrent ?? 0);
@@ -5552,6 +5896,7 @@ function clearSessionContextForSwitch() {
   firedCheckpointTriggers.clear();
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
+  sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.pendingCheckpointChoice = null;
@@ -7745,6 +8090,7 @@ async function handleWsMessage(ws, type, data) {
       stopAllMemberInflation();
       stopPumpSafetyWatchdog();
       clearAllServerTimedPumpTimers();
+      clearAllCustomDeviceTimers();
       // Stop all devices CONCURRENTLY with per-device timeout, confirming each
       // turn-off and reporting REAL status (covers homeassistant via resolveControlId).
       const estopDevices = loadData(DATA_FILES.devices) || [];
@@ -8405,6 +8751,16 @@ async function handleWsMessage(ws, type, data) {
       await resumeTreeGame(data.exit, data.winner, data.pick);
       break;
 
+    case 'tree_minigame_miss':
+      // Mid-game miss (game still running — no resume). Fires 'minigame_miss' event bindings so
+      // penalties live in trigger trees, not in the game config.
+      await runEventTrees('minigame_miss', {
+        gameId: sessionState.pendingTreeGame?.miniGameId || null,
+        misses: Number(data.misses) || 0,
+        maxMisses: Number(data.maxMisses) || 0
+      });
+      break;
+
     case 'checkpoint_choice_response':
       await handleCheckpointChoice(data.choiceId);
       break;
@@ -8878,6 +9234,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
+    sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -8930,6 +9287,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
+    sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -8950,6 +9308,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     firedCheckpointTriggers.clear();
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
+    sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -9329,7 +9688,7 @@ async function handleButtonRunTree(action, characterId) {
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const character = characters.find(c => c.id === (characterId || settings?.activeCharacterId)) || null;
-  const treeIndex = buildTreeIndex();
+  const treeIndex = buildTreeIndex(character);
   const tree = resolveRefTree(ref, treeIndex);
   if (!tree) { console.log('[Button] run_tree: ref did not resolve to a tree'); return; }
   sessionState.btnTreeRunSeq = (sessionState.btnTreeRunSeq || 0) + 1;
@@ -9905,7 +10264,11 @@ async function handleIndividualResponses(data, activeCharacter, settings, active
   try { const ir = rollAttributes(activeCharacter); if (ir?.rolls?.length) broadcast('attribute_rolls', { rolls: ir.rolls, source: 'individual' }); }
   catch (e) { console.error('[Individual] rollAttributes failed:', e?.message || e); }
 
-  await runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, '');
+  // Force the member-name generation primer when there's no player text anchoring the turn:
+  // EVERY auto reply, and manual (forceReply) replies with a blank input box. With player text
+  // present on a manual send, the model keys off it, so the generic group primer stays.
+  const forcePrimer = !data.forceReply || !String(content || '').trim();
+  await runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, '', forcePrimer);
 }
 
 // Whether any id in the list is a member who can still speak (exists, named, not muted).
@@ -9917,7 +10280,7 @@ function hasSpeakableMember(ids, members, muted) {
 // hold behind the ">>" Next gate after each member (same UX as consecutive sequential-trigger messages)
 // so the player reads each girl's reply before the next generates. Resumable: the remaining member ids +
 // last reply are stashed in pendingRangeAwait (kind 'next-individual'), continued by next_gate_advance.
-async function runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, prevLastReply) {
+async function runIndividualSequence(orderedIds, activeCharacter, settings, activePersona, prevLastReply, forcePrimer = false) {
   const members = activeCharacter.multiChar?.characters || [];
   const muted = new Set(sessionState.mutedMembers || []);
   const indTokens = clampMaxTokens(Number(activeCharacter.individualResponseTokens) || 150, 150);
@@ -9954,6 +10317,19 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
       sessionState.soloSpeaker = null;
     }
     const soloSystem = `${context.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${member.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${member.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`;
+
+    // Speaker-forcing primer: with no player text anchoring the turn (auto replies; blank-input
+    // manual replies) the generic '[Characters]:' primer lets the model pick the wrong member.
+    // Swap it for 'MemberName:' so the generation IS this member's line, and tell the
+    // chat-completions shape the same thing as a final user turn.
+    if (forcePrimer && member.name) {
+      if (typeof context.prompt === 'string') {
+        context.prompt = context.prompt.replace(/\[Characters\]:\s*$/, `${member.name}:`);
+      }
+      if (Array.isArray(context.messages)) {
+        context.messages.push({ role: 'user', content: `[Respond now as ${member.name} — this reply is ${member.name}'s alone.]` });
+      }
+    }
 
     // Stop generation if the model tries to start ANOTHER speaker's turn ("\nOther:") — keeps the
     // reply to this member only. Also collect known names to strip any leading label it emits anyway.
@@ -10028,7 +10404,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     // Next gate: hold before the NEXT member's reply until the player hits ">>", mirroring the
     // sequential-trigger next gate. Only pause when a reply just landed and a speakable member remains.
     if (pauseBetween && !eventEngine.aborted && hasSpeakableMember(queue, members, muted)) {
-      sessionState.pendingRangeAwait = { kind: 'next-individual', rest: queue, characterId: activeCharacter.id, lastReplyContent };
+      sessionState.pendingRangeAwait = { kind: 'next-individual', rest: queue, characterId: activeCharacter.id, lastReplyContent, forcePrimer };
       broadcast('next_gate', { active: true });
       console.log('[Individual] Next gate — holding before the next member reply; waiting for player >>');
       return;
@@ -10054,7 +10430,7 @@ async function resumeIndividualSequence(pending) {
   const character = characters.find(c => c.id === pending.characterId);
   if (!character) return;
   const persona = (loadAllPersonas() || []).find(p => p.id === settings?.activePersonaId);
-  await runIndividualSequence(pending.rest, character, settings, persona, pending.lastReplyContent);
+  await runIndividualSequence(pending.rest, character, settings, persona, pending.lastReplyContent, !!pending.forcePrimer);
 }
 
 async function handleChatMessage(data) {
@@ -11910,9 +12286,14 @@ function resolveScopeRefs(character) {
 
 // Per-turn index of the global tree library (id -> Tree). Built ONCE per turn in runReplyScopes
 // and threaded via ctx so {treeId} scope refs and fire_tree hops resolve without re-reading disk.
-function buildTreeIndex() {
+function buildTreeIndex(character) {
   const m = new Map();
   for (const t of (loadTriggerTrees().trees || [])) m.set(t.id, t);
+  // Card-baked trees (character.treeLibrary — closure deps captured by the editor's fork-to-card)
+  // overlay the global library, so a forked button/scope tree's fire_tree hops resolve on any
+  // install the card lands on. Fork-time ids are freshly minted, so collisions don't arise; on a
+  // tie the card's copy wins, which is what "the character's version of the tree" means.
+  for (const t of (character?.treeLibrary || [])) if (t?.id && Array.isArray(t.nodes)) m.set(t.id, t);
   return m;
 }
 
@@ -12016,6 +12397,8 @@ function eventBindingMatches(b, eventType, data) {
         { keys: kw, secondaryKeys: [], caseSensitive: !!f.caseSensitive, matchWholeWords: f.matchWholeWords !== false, logic: 'and_any' },
         text);
     }
+    case 'minigame_miss': // any miss in any tree-called minigame (no filter yet)
+      return true;
     case 'idle':   // gated by the idle timer (per-binding idleSeconds)
     case 'random': // gated by the per-reply probability roll
       return true;
@@ -12036,6 +12419,7 @@ function eventBindingCooldownOk(b) {
 // Run one event binding's tree. Stamps the cooldown clock at fire time.
 async function fireEventBinding(b, character, settings, treeIndex, delivery) {
   if (!checkpointsEnabledFor(character)) return; // Enable Checkpoints off → no event bindings (incl. idle)
+  if (!checkpointGroupEnabled('events', null, character)) return; // Events group toggled off (card default or Checkpoint Control) — single choke point for push/idle/every-reply/random dispatch
   const tree = resolveRefTree(b.ref, treeIndex);
   if (!tree) return;
   sessionState.eventCooldown[b.id] = eventEngine.messageCount || 0;
@@ -12053,7 +12437,7 @@ async function runEventTrees(eventType, eventData = {}, opts = {}) {
     if (!checkpointsEnabledFor(character)) return; // Enable Checkpoints off → no event triggers
     const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === eventType);
     if (!bindings.length) return;
-    const treeIndex = opts.treeIndex || buildTreeIndex();
+    const treeIndex = opts.treeIndex || buildTreeIndex(character);
     const delivery = opts.delivery || 'standalone';
 
     // Priority pass: a binding marked "priority" fires FIRST and, while still eligible, wins the
@@ -12126,7 +12510,7 @@ function startTreeIdleCheck() {
       if (!bindings.length) return;
       const lastActivity = eventEngine.lastActivity || 0;
       const idleSec = (Date.now() - lastActivity) / 1000;
-      const treeIndex = buildTreeIndex();
+      const treeIndex = buildTreeIndex(character);
       for (const b of bindings) {
         const threshold = Number(b.filter?.idleSeconds) || 300;
         if (idleSec < threshold) continue;
@@ -12169,6 +12553,7 @@ async function runActiveRangeTrees(character, settings, treeIndex) {
     if (curIdx < 0) return;
     let tree = null, key = null;
     for (let i = curIdx; i >= 0; i--) {
+      if (!checkpointGroupEnabled('range', ORDER[i], character)) continue; // group off → as if undefined (carry-over keeps scanning)
       tree = resolveRefTree(refs[`${prefix}-${ORDER[i]}`], treeIndex);
       if (tree) { key = ORDER[i]; break; }
     }
@@ -12194,7 +12579,7 @@ async function runReplyScopes(character) {
   try { await checkPendingTreeResume(); } // tick any deferred pause_resume before this turn's scopes
   catch (e) { console.error('[runReplyScopes] tree resume failed:', e?.message || e); }
   await reassertLatchedPump(); // keep a latched pump ON every reply until [pump off]
-  const treeIndex = buildTreeIndex(); // one library read per turn; threaded into every scope/fire_tree hop
+  const treeIndex = buildTreeIndex(character); // one library read per turn; threaded into every scope/fire_tree hop
   // Gated intro (Part 4): while active it OWNS the turn — run only the intro tree and block every
   // other scope/event/button until an end_intro action opens the gate.
   if (sessionState.introActive) {
@@ -12257,6 +12642,7 @@ function rollCheckpointRandomTriggers(character) {
     const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
     let definingRange = null;
     for (let i = curIdx; i >= 0; i--) {
+      if (!checkpointGroupEnabled('range', ORDER[i], character)) continue; // group off → as if undefined
       if (normalizeRangeTriggers(ct[`${prefix}-${ORDER[i]}`]).random.length) { definingRange = ORDER[i]; break; }
     }
     if (!definingRange) return;
@@ -12310,6 +12696,28 @@ function checkpointInjectionsBlock() {
 // in 'standalone' delivery (post immediately, like the legacy choice response). Clears the armed
 // state FIRST so a nested player_choice in the body can re-arm cleanly and a double-click can't
 // double-fire. Same entry the real WS click takes (via handleCheckpointChoice dispatch).
+// Backward-goto support for resumed trees: a resume continuation is a SLICE of the suspending
+// frame, so every label behind the suspend point is invisible to it — a `goto` targeting one
+// (e.g. "on Failed, jump back and replay the minigame") bubbles out of the frame and used to die
+// silently. When that happens, re-enter the tree's TOP-LEVEL node list (captured at suspend time
+// as pend.rootNodes, threaded through ctx.rootNodes) at the target label and keep running. Loops
+// so label-to-label hops and replay cycles keep working; bounded like MAX_GOTO_ITERS. Labels
+// inside container bodies stay frame-local — only top-level labels are re-enterable after a
+// resume. Returns undefined, or the sentinel of a nested suspend that re-armed mid-re-entry.
+const MAX_RESUME_GOTO_HOPS = 100;
+async function reenterResumedGoto(sig, ctx) {
+  for (let hops = 0; sig && sig.__control === 'goto'; hops++) {
+    if (hops >= MAX_RESUME_GOTO_HOPS) { console.warn(`[Tree] resume goto re-entry cap hit at '${sig.name}' — stopping`); return; }
+    if (!sig.name) { console.warn('[Tree] resume goto with empty name — stopping'); return; }
+    const root = Array.isArray(ctx.rootNodes) ? ctx.rootNodes : [];
+    const idx = root.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === sig.name);
+    if (idx < 0) { console.warn(`[Tree] goto label '${sig.name}' not found at the tree's top level after resume — stopping (place jump-back labels at the top level)`); return; }
+    try { sig = await runTree(root.slice(idx + 1), ctx); }
+    catch (e) { console.error('[Tree] resume goto re-entry failed:', e?.message || e); return; }
+  }
+  return sig;
+}
+
 async function resumeTreeChoice(choiceId) {
   const pend = sessionState.pendingTreeChoice;
   if (!pend) return;
@@ -12331,15 +12739,20 @@ async function resumeTreeChoice(choiceId) {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes, // live Set, never serialized
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
   let sig;
   try { sig = await runTree(chosen.body || [], ctx); }
   catch (e) { console.error('[resumeTreeChoice] body failed:', e?.message || e); }
-  if (sig) return; // body re-armed a nested choice (or a goto bubbled out) — stop here
-  if (Array.isArray(after) && after.length) {
-    try { await runTree(after, ctx); } // post-choice fall-through at the choice's own level
+  if (sig?.__control === 'goto') { // body jumped to a label behind the choice — re-enter; skip `after` (the jump repositioned the flow)
+    await reenterResumedGoto(sig, ctx);
+  } else if (sig) {
+    return; // body re-armed a nested choice — stop here
+  } else if (Array.isArray(after) && after.length) {
+    try { sig = await runTree(after, ctx); } // post-choice fall-through at the choice's own level
     catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
   // If the intro ended ON this choice (its options have no follow-up and nothing re-armed), the intro
   // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it. force=true:
@@ -12368,9 +12781,13 @@ async function resumeTreeNext() {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
-  try { await runTree(after, ctx); }
+  try {
+    const sig = await runTree(after, ctx);
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+  }
   catch (e) { console.error('[resumeTreeNext] continuation failed:', e?.message || e); }
   // If this was the intro sequence and it just finished (nothing new pending), arm the UNLOCK gate.
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
@@ -12401,16 +12818,22 @@ async function resumeTreeChooseMulti(selectedIds) {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
+  let jumped = false; // a body's goto re-entered the frame — the jump owns the rest, skip `after`
   for (const opt of picked) {
     let sig;
     try { sig = await runTree(opt.body || [], ctx); }
     catch (e) { console.error('[resumeTreeChooseMulti] body failed:', e?.message || e); continue; }
-    if (sig) return; // a body re-armed a nested choice (or a goto bubbled out) — stop here
+    if (sig?.__control === 'goto') { await reenterResumedGoto(sig, ctx); jumped = true; break; }
+    if (sig) return; // a body re-armed a nested choice — stop here
   }
-  if (Array.isArray(after) && after.length) {
-    try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
+  if (!jumped && Array.isArray(after) && after.length) {
+    try {
+      const sig = await runTree(after, ctx); // post-selection fall-through at the node's own level
+      if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+    }
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this choice → arm UNLOCK
@@ -12446,15 +12869,20 @@ async function resumeTreeSelectMember(memberId) {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
   catch (e) { console.error('[resumeTreeSelectMember] body failed:', e?.message || e); }
-  if (sig) return; // body re-armed a nested suspend (or a goto bubbled out) — stop here
-  if (Array.isArray(after) && after.length) {
-    try { await runTree(after, ctx); } // post-selection fall-through at the node's own level
+  if (sig?.__control === 'goto') { // body jumped behind the suspend point — re-enter; the jump owns the rest
+    await reenterResumedGoto(sig, ctx);
+  } else if (sig) {
+    return; // body re-armed a nested suspend — stop here
+  } else if (Array.isArray(after) && after.length) {
+    try { sig = await runTree(after, ctx); } // post-selection fall-through at the node's own level
     catch (e) { console.error('[resumeTreeSelectMember] continuation failed:', e?.message || e); }
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
   await tryResumeCapacityGate().catch(() => {});
@@ -12505,15 +12933,20 @@ async function resumeTreePlayerInput(values) {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
   catch (e) { console.error('[resumeTreePlayerInput] body failed:', e?.message || e); }
-  if (sig) return; // body re-armed a nested suspend (or a goto bubbled out) — stop here
-  if (Array.isArray(after) && after.length) {
-    try { await runTree(after, ctx); }
+  if (sig?.__control === 'goto') { // body jumped behind the suspend point — re-enter; the jump owns the rest
+    await reenterResumedGoto(sig, ctx);
+  } else if (sig) {
+    return; // body re-armed a nested suspend — stop here
+  } else if (Array.isArray(after) && after.length) {
+    try { sig = await runTree(after, ctx); }
     catch (e) { console.error('[resumeTreePlayerInput] continuation failed:', e?.message || e); }
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
   await tryResumeCapacityGate().catch(() => {});
@@ -12551,17 +12984,22 @@ async function resumeTreeGame(firedExit, winner, pick) {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
 
   let list = Array.isArray(after) ? after : [];
+  let sig = null;
   const gotoName = exitGotos[firedExit];
   if (gotoName) {
     const idx = list.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === gotoName);
     if (idx >= 0) list = list.slice(idx + 1); // resume AFTER the bound label (same-level only — like choice resume)
-    else console.warn(`[resumeTreeGame] goto label '${gotoName}' not in the continuation — falling through (bind exits to labels placed AFTER the Call MiniGame node)`);
+    else { sig = { __control: 'goto', name: gotoName }; list = null; } // label sits BEHIND the call node (e.g. a replay loop) — re-enter the top level
   }
-  try { await runTree(list, ctx); }
+  try {
+    if (list) sig = await runTree(list, ctx);
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+  }
   catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this minigame → arm UNLOCK
   await tryResumeCapacityGate().catch(() => {}); // game stall cleared — fire a queued Fire% gate if met
@@ -12591,15 +13029,20 @@ async function checkPendingTreeResume() {
     source: snap.source || `tree:${snap.treeId}`,
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
+    rootNodes: pend.rootNodes,
     labels: new Map()
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
   catch (e) { console.error('[checkPendingTreeResume] body failed:', e?.message || e); }
-  if (sig) return; // body re-armed a pause/choice (or a goto bubbled out) — stop here
-  if (Array.isArray(after) && after.length) {
-    try { await runTree(after, ctx); } // post-pause fall-through at the node's own level
+  if (sig?.__control === 'goto') { // body jumped behind the suspend point — re-enter; the jump owns the rest
+    await reenterResumedGoto(sig, ctx);
+  } else if (sig) {
+    return; // body re-armed a pause/choice — stop here
+  } else if (Array.isArray(after) && after.length) {
+    try { sig = await runTree(after, ctx); } // post-pause fall-through at the node's own level
     catch (e) { console.error('[checkPendingTreeResume] continuation failed:', e?.message || e); }
+    if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
 }
 
@@ -13973,6 +14416,7 @@ function getSharedLibraryTermEntries(character) {
   const out = [];
   for (const g of groups) {
     if (!ids.includes(g.id)) continue;
+    if (g.enabled === false) continue; // group-level toggle (Toggle Library Entry with no term picked)
     for (const t of (g.terms || [])) {
       if (!t || !t.definition || !t.term) continue;
       const keys = [t.term, ...(Array.isArray(t.keys) ? t.keys : [])].filter(Boolean);
@@ -14478,11 +14922,13 @@ function buildChatContext(character, settings, opts = {}) {
   const memSettingsChat = getChatMemorySettings(settings);
   const cardDepth = Number(character?.historyDepth);
   const effectiveDepth = cardDepth > 0 ? cardDepth : memSettingsChat.chatHistoryDepth;
-  const recentMessages = sessionState.chatHistory.slice(-effectiveDepth);
+  // opts.ignoreHistory (the AI-message action's "Ignore Chat History" tickbox): generate from the
+  // card + guidance alone — no transcript and no rolling summary of it.
+  const recentMessages = opts.ignoreHistory ? [] : sessionState.chatHistory.slice(-effectiveDepth);
   let prompt = '';
 
   // Inject rolling summary of older messages if available
-  if (sessionState.chatMemorySummary) {
+  if (sessionState.chatMemorySummary && !opts.ignoreHistory) {
     prompt += `[Summary of earlier conversation: ${sessionState.chatMemorySummary}]\n\n`;
   }
 
@@ -15570,6 +16016,39 @@ const MAX_GOTO_ITERS = 10000; // per-frame cap so a pathological goto-loop can't
 const MAX_LOOP_ITERS = 1000; // hard cap on a `repeat` container's iterations
 const TREE_STUB_TYPES = new Set(); // (repeat now implemented; fire_tree/fire_flow shipped earlier)
 
+// ---- Cancel Current support ----
+// Every TOP-LEVEL runTree entry (a scope start OR a resume continuation) registers a shared
+// cancellation flag on its ctx; nested frames (containers, fire_tree hops, goto re-entries)
+// inherit the same object. A cancel_current block marks every OTHER registered flag cancelled —
+// each run then aborts at its next node boundary (a node mid-LLM-generation finishes first).
+const activeTreeRuns = new Set(); // Set<{cancelled, treeId, scopeKey}>
+let triggerSeqEpoch = 0; // bumped by cancel_current; an executing checkpoint sequence re-checks it per step
+
+// The cancel_current tree block: abort every OTHER in-flight tree run and executing checkpoint
+// sequence, void every suspended continuation (choice/multi/select-member/input/minigame/wait/
+// ">>"/await/Fire%), and dismiss their blocking popups. The run that contains the block
+// (ctx.runFlag) survives and continues.
+function cancelOtherTreeWork(ctx) {
+  let aborted = 0;
+  for (const flag of activeTreeRuns) {
+    if (flag !== ctx.runFlag && !flag.cancelled) { flag.cancelled = true; aborted++; }
+  }
+  triggerSeqEpoch++; // executing fireTriggerSequenceInner loops stop at their next step
+  sessionState.pendingTreeChoice = null;
+  sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
+  sessionState.pendingTreeNext = null;
+  sessionState.pendingCheckpointChoice = null;
+  sessionState.pendingRangeAwait = null;
+  sessionState.pendingCapacityGate = null;
+  broadcast('checkpoint_choice_clear', {}); // dismisses choice/multi/select-member/input popups
+  broadcast('tree_minigame_clear', {});     // closes an open tree-called minigame
+  broadcast('next_gate', { active: false });
+  broadcast('await_state', null);
+  broadcast('capacity_gate', { active: false });
+  console.log(`[Tree] Cancel Current — aborted ${aborted} other run(s); all pending gates/popups cleared`);
+}
+
 function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
 function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
 // Mark a once-node as fired, but only when it has an id (id-less once nodes stay recurring).
@@ -15650,7 +16129,7 @@ async function runNode(node, ctx) {
     const targetId = node.params?.treeId;
     if (!targetId) { console.warn(`[runTree] fire_tree node ${node.id} has no treeId`); return; }
     if (ctx.visited.has(targetId)) { console.warn(`[runTree] fire_tree cycle: '${targetId}' already on the stack — skipping`); return; } // skip, do not consume once
-    const target = (ctx.treeIndex || buildTreeIndex()).get(targetId);
+    const target = (ctx.treeIndex || buildTreeIndex(ctx.character)).get(targetId);
     if (!target || !Array.isArray(target.nodes) || !target.nodes.length) { console.warn(`[runTree] fire_tree target '${targetId}' missing/empty — skipping`); return; }
     if (ctx.depth + 1 > MAX_TREE_DEPTH) { console.warn(`[runTree] fire_tree '${targetId}' exceeds max depth — skipping`); return; }
     markTreeOnce(node, ctx); // firing IS the effect — a once fire_tree fires once per scope
@@ -15661,6 +16140,7 @@ async function runNode(node, ctx) {
       depth: ctx.depth + 1, // CONTINUE depth (shared 64 budget bounds acyclic fan-out)
       visited: new Set([...ctx.visited, target.id]), // copy = DFS stack (A>B>A blocked; A>B then A>C allowed)
       source: `tree:${target.id}`,
+      rootNodes: target.nodes, // re-root the resume-goto anchor too — the fired tree's own top level
       labels: new Map() // labels are scope-local — fired tree gets a fresh frame
     };
     return await runTree(target.nodes, child); // inherits delivery/character/settings/firedSet; sentinels bubble
@@ -15683,7 +16163,11 @@ async function runNode(node, ctx) {
   if (type === 'call_minigame') {
     if (sessionState.pendingTreeGame || sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'call_minigame' };
     const gameId = node.params?.miniGameId;
-    const game = gameId ? (loadMiniGames().games || []).find(g => g.id === gameId) : null;
+    // Master list first (live edits win on the author's machine), then the card's baked copies
+    // (character.miniGames — how an imported card's games resolve without touching the master list).
+    const game = gameId
+      ? ((loadMiniGames().games || []).find(g => g.id === gameId) || (ctx.character?.miniGames || []).find(g => g.id === gameId))
+      : null;
     if (!game) { console.warn(`[runTree] call_minigame node ${node.id}: miniGameId '${gameId}' not found — skipping`); return; } // no game -> clean fall-through, no once
     markTreeOnce(node, ctx); // presenting the game IS the effect
     sessionState.pendingTreeGame = {
@@ -15717,6 +16201,76 @@ async function runNode(node, ctx) {
       after: null
     };
     return { __control: 'suspend', reason: 'wait' };
+  }
+
+  // ----- next_button: force a ">>" (Next) hold at this point — everything after this block waits
+  // until the player presses Next. Rides the same pendingTreeNext channel as the auto-gate between
+  // back-to-back generated messages, so the >> button lights and next_gate_advance resumes; the
+  // suspend handler in runTree captures the continuation + rootNodes for backward gotos. -----
+  if (type === 'next_button') {
+    if (sessionState.pendingTreeNext) return { __control: 'suspend', reason: 'next-button' };
+    markTreeOnce(node, ctx);
+    sessionState.pendingTreeNext = {
+      ctxSnapshot: {
+        treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth,
+        delivery: 'standalone', // resumes OUTSIDE a generation — inReply would have nothing to weave into
+        source: ctx.source, visited: Array.from(ctx.visited || [])
+      }
+    };
+    broadcast('next_gate', { active: true });
+    console.log('[Tree] Next Button block — holding until the player presses >>');
+    return { __control: 'suspend', reason: 'next-button' };
+  }
+
+  // ----- cancel_current: abort every OTHER running trigger tree / checkpoint sequence and close
+  // their popups (Player Choice, Player Input, Select Member, MiniGame, ">>"/await/Fire% gates).
+  // THIS tree keeps running — place it first so the tree claims the session before doing its work. -----
+  if (type === 'cancel_current') {
+    markTreeOnce(node, ctx);
+    cancelOtherTreeWork(ctx);
+    return;
+  }
+
+  // ----- checkpoint_control: session-scoped on/off for a checkpoint range group, the Event
+  // Triggers group, or All. Overrides the card's saved toggles until session reset — so a
+  // long-running endgame tree can silence range/event interference (or re-arm it later).
+  // Turning a group OFF also drops any await/Fire% sequence that group left pending. -----
+  if (type === 'checkpoint_control') {
+    markTreeOnce(node, ctx);
+    const mode = node.params?.mode === 'on' ? 'on' : 'off';
+    const target = node.params?.target || 'all';
+    const cc = sessionState.checkpointControl = sessionState.checkpointControl || { ranges: {}, events: null };
+    if (target === 'all') {
+      for (const k of CHECKPOINT_RANGE_KEYS) cc.ranges[k] = mode;
+      cc.events = mode;
+    } else if (target === 'events') {
+      cc.events = mode;
+    } else if (CHECKPOINT_RANGE_KEYS.includes(target)) {
+      cc.ranges[target] = mode;
+    } else {
+      console.warn(`[Tree] checkpoint_control: unknown target '${target}' — skipping`);
+      return;
+    }
+    if (mode === 'off') {
+      // Kill in-flight interference from the silenced group(s): a paused await gate or queued
+      // Fire% sequence whose source range is now off must not resume later.
+      const hits = (src) => target === 'all' || (target !== 'events' && rangeKeyOfSource(src) === target);
+      const pa = sessionState.pendingRangeAwait;
+      if (pa && hits(pa.source)) {
+        sessionState.pendingRangeAwait = null;
+        broadcast('await_state', null);
+        if (pa.kind === 'next' || pa.kind === 'next-individual') broadcast('next_gate', { active: false });
+        console.log(`[Tree] Checkpoint Control — dropped the pending await gate from ${pa.source}`);
+      }
+      const cg = sessionState.pendingCapacityGate;
+      if (cg && hits(cg.source)) {
+        sessionState.pendingCapacityGate = null;
+        broadcast('capacity_gate', { active: false });
+        console.log(`[Tree] Checkpoint Control — dropped the queued Fire% sequence from ${cg.source}`);
+      }
+    }
+    console.log(`[Tree] Checkpoint Control — ${target === 'all' ? 'ALL groups' : target === 'events' ? 'Event Triggers' : `range ${target}`} → ${mode.toUpperCase()} (session override)`);
+    return;
   }
 
   // ----- end_intro: leave the gated intro phase, open the pump gate, optionally load a profile (Part 4) -----
@@ -15813,6 +16367,34 @@ async function runNode(node, ctx) {
           }
         }
         return; // no branch matched — run nothing, fall through to next sibling
+      }
+
+      case 'switch': {
+        // Switch/Case: resolve the switch VALUE (substitutions collapse first — [CharVar:x],
+        // [SelectedChar], [Capacity], …), then run the FIRST case whose match value equals it:
+        // numeric compare when both sides parse numeric, else case-insensitive trimmed string
+        // (mirrors evalTreeCondition '=='). A case flagged default catches everything a literal
+        // case didn't, wherever it sits. No match and no default → run nothing, fall through.
+        const cases = (node.children || []).filter(c => c && c.type === 'case');
+        if (!cases.length) return;
+        // A bare name (no brackets) means a CharVar — lets authors switch on a variable that
+        // doesn't exist yet. Unset CharVars leave the tag unresolved → no literal case matches
+        // → the Default case (if any) catches it.
+        const rawVal = String(node.params?.value ?? '').trim();
+        const expr = rawVal && !rawVal.includes('[') ? `[CharVar:${rawVal}]` : rawVal;
+        const valR = String(eventEngine.substituteVariables(expr)).trim();
+        const vn = parseFloat(valR);
+        const hit = cases.find(c => {
+          if (c.params?.default === true) return false; // literal cases win over the default
+          const m = String(eventEngine.substituteVariables(String(c.params?.match ?? ''))).trim();
+          const mn = parseFloat(m);
+          const bothNum = !isNaN(vn) && !isNaN(mn) && valR !== '' && m !== '';
+          return bothNum ? vn === mn : valR.toLowerCase() === m.toLowerCase();
+        }) || cases.find(c => c.params?.default === true);
+        if (!hit) return; // once not consumed — the switch retries next walk
+        const child = enterChild(node, ctx); // once on the switch consumed only when a case runs
+        if (!child) return;
+        return await runTree(hit.children || [], child); // sentinels (suspend/goto) bubble
       }
 
       case 'keyword_gate': {
@@ -16000,11 +16582,30 @@ function isTreeMsgNode(n) {
   return !!(n && n.kind === 'action' && (n.type === 'ai_message' || n.type === 'ai_message_member' || n.type === 'impersonate'));
 }
 
+// Cancellation wrapper: nested frames of a live run pass straight through (their flag is already
+// registered); a top-level entry — runTreeScope, every resume path, a goto re-entry — registers a
+// fresh flag so cancel_current can reach it. The finally-dispose keeps the registry leak-free.
 async function runTree(nodes, ctx) {
+  if (ctx.runFlag && activeTreeRuns.has(ctx.runFlag)) return runTreeInner(nodes, ctx);
+  const flag = { cancelled: false, treeId: ctx.treeId, scopeKey: ctx.scopeKey };
+  ctx.runFlag = flag;
+  activeTreeRuns.add(flag);
+  try { return await runTreeInner(nodes, ctx); }
+  finally { activeTreeRuns.delete(flag); }
+}
+
+async function runTreeInner(nodes, ctx) {
   if (ctx.depth > MAX_TREE_DEPTH) { console.warn('[runTree] max depth exceeded — aborting subtree'); return; }
   if (!Array.isArray(nodes)) return;
   let i = 0, gotoBudget = 0;
   while (i < nodes.length) {
+    // A cancel_current in another tree marked this run — abort the whole frame stack. The
+    // 'cancelled' sentinel bubbles like any non-goto/non-suspend sentinel: every enclosing
+    // frame returns it unchanged, and the resume paths treat it as a hard stop.
+    if (ctx.runFlag?.cancelled) {
+      console.log(`[Tree] '${ctx.treeId}' (${ctx.scopeKey}) aborted — Cancel Current fired`);
+      return { __control: 'cancelled' };
+    }
     const node = nodes[i];
     if (!node || typeof node !== 'object') { i++; continue; }
 
@@ -16016,7 +16617,8 @@ async function runTree(nodes, ctx) {
       ctx.gateFirstMsg = false;
       sessionState.pendingTreeNext = {
         ctxSnapshot: { treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth, delivery: ctx.delivery, source: ctx.source, visited: Array.from(ctx.visited || []) },
-        after: nodes.slice(i)
+        after: nodes.slice(i),
+        rootNodes: ctx.rootNodes || nodes
       };
       broadcast('next_gate', { active: true });
       console.log('[Tree] Next gate — holding the intro before its first message (player reads the welcome first); waiting for >>');
@@ -16055,9 +16657,11 @@ async function runTree(nodes, ctx) {
       if (sig.__control === 'suspend') {
         // Capture the innermost same-level continuation for post-resume fall-through. A choice/
         // choose_multi fills pendingTreeChoice; a pause_resume fills pendingTreeResume; a
-        // call_minigame fills pendingTreeGame.
+        // call_minigame fills pendingTreeGame. Also stash the tree's TOP-LEVEL list: the sliced
+        // continuation loses every label behind the suspend point, so backward gotos (e.g. a
+        // "replay the minigame" loop) re-enter rootNodes after the resume.
         const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame || sessionState.pendingTreeNext;
-        if (pend && pend.after == null) pend.after = nodes.slice(i + 1);
+        if (pend && pend.after == null) { pend.after = nodes.slice(i + 1); pend.rootNodes = ctx.rootNodes || nodes; }
         return sig;
       }
       return sig; // any other sentinel bubbles unchanged
@@ -16089,9 +16693,15 @@ async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
     firedSet: sessionState.firedTreeNodes,
     gateFirstMsg: !!opts.gateFirstMsg, // one-shot: hold the ">>" gate BEFORE the tree's first standalone
                                        // message (used by the intro so the player reads the welcome first)
+    rootNodes: tree.nodes, // the tree's TOP-LEVEL list — resume paths re-enter it on backward gotos
     labels: new Map() // scope-local label/goto frame
   };
-  try { await runTree(tree.nodes, ctx); }
+  try {
+    const sig = await runTree(tree.nodes, ctx);
+    // A goto that bubbled out of the top frame names a label that isn't at the tree's top level —
+    // a typo or a label buried in a container body. Silent before; surface it for the author.
+    if (sig?.__control === 'goto') console.warn(`[runTree] goto label '${sig.name}' not found anywhere up the frame stack of tree '${treeId}' — nothing to jump to`);
+  }
   catch (e) { console.error('[runTree] scope failed:', e?.message || e); }
 }
 
@@ -16130,12 +16740,33 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const fileBuffer = req.file.buffer;
-    const fileType = req.file.mimetype;
+    let fileBuffer = req.file.buffer;
+    let fileType = req.file.mimetype;
     let characterData = null;
     let avatarData = null;
     let isSwellDImport = false;
     let swelldExportData = null;
+    let zipMediaFiles = null; // [{type:'image'|'video'|'audio', name, buffer}] from a ZIP import
+
+    // ZIP import: a card (.png/.json at the archive root) + the character's media in
+    // image/ video/ audio/ folders. Unwrap to the card and stash the media for after the save.
+    const looksZip = fileBuffer.length > 3 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4b
+      && (fileType.includes('zip') || /\.zip$/i.test(req.file.originalname || ''));
+    if (looksZip) {
+      const AdmZip = require('adm-zip');
+      const entries = new AdmZip(fileBuffer).getEntries().filter(e => !e.isDirectory);
+      const isMediaEntry = (n) => /^(image|video|audio)\//i.test(n);
+      const cardEntry = entries.find(e => !isMediaEntry(e.entryName) && /\.png$/i.test(e.entryName))
+        || entries.find(e => !isMediaEntry(e.entryName) && /\.(json|swelld)$/i.test(e.entryName));
+      if (!cardEntry) return res.status(400).json({ error: 'ZIP contains no character card (.png/.json) at its root' });
+      fileBuffer = cardEntry.getData();
+      // Sniff the card's real type — a .swelld extension may wrap either a PNG or JSON payload.
+      fileType = (fileBuffer.length > 3 && fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50) ? 'image/png' : 'application/json';
+      zipMediaFiles = entries
+        .map(e => { const m = e.entryName.match(/^(image|video|audio)\/(.+)$/i); return m ? { type: m[1].toLowerCase(), name: m[2], buffer: e.getData() } : null; })
+        .filter(Boolean);
+      console.log(`[Import] ZIP unwrapped: card "${cardEntry.entryName}" + ${zipMediaFiles.length} media file(s)`);
+    }
 
     // Handle PNG files - extract metadata
     if (fileType === 'image/png' || fileType === 'image/jpeg') {
@@ -16176,6 +16807,18 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
 
     let convertedCharacter;
     let importedFlowCount = 0;
+
+    // After the character is saved: move a ZIP's media into its personal media subfolders.
+    const importZipMedia = (charId) => {
+      if (!zipMediaFiles?.length || !charId) return 0;
+      let n = 0;
+      for (const f of zipMediaFiles) {
+        try { writeCharMediaFile(charId, f.type, f.name, f.buffer); n++; }
+        catch (e) { console.error(`[Import] media '${f.name}' failed:`, e?.message || e); }
+      }
+      if (n) console.log(`[Import] Placed ${n} media file(s) into the imported character's media folders`);
+      return n;
+    };
 
     if (isSwellDImport) {
       // --- SwellDreams PNG Import ---
@@ -16373,10 +17016,11 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
         const flowsIndex = loadFlowsIndex();
         broadcast('flows_update', flowsIndex);
 
+        const zipN = importZipMedia(convertedCharacter.id);
         return res.json({
           success: true,
           character: convertedCharacter,
-          message: `Imported "${convertedCharacter.name}" with ${importedFlowCount} flow(s) from SwellDreams PNG`
+          message: `Imported "${convertedCharacter.name}" with ${importedFlowCount} flow(s) from SwellDreams PNG${zipN ? ` + ${zipN} media file(s)` : ''}`
         });
       }
     } else {
@@ -16413,11 +17057,12 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
     broadcast('characters_update', allCharacters);
 
     const formatLabel = isSwellDImport ? 'SwellDreams PNG' : (characterConverter.detectFormat(characterData) || 'V2').toUpperCase();
+    const zipMediaN = importZipMedia(convertedCharacter.id);
 
     res.json({
       success: true,
       character: convertedCharacter,
-      message: `Successfully imported "${convertedCharacter.name}" from ${formatLabel} format`
+      message: `Successfully imported "${convertedCharacter.name}" from ${formatLabel} format${zipMediaN ? ` + ${zipMediaN} media file(s)` : ''}`
     });
 
   } catch (error) {
@@ -17317,6 +17962,35 @@ app.delete('/api/pumps/:id', (req, res) => {
   // If we deleted the primary, promote the first remaining pump.
   if (removed?.isPrimary && pumps.length && !pumps.some(p => p.isPrimary)) pumps[0].isPrimary = true;
   savePumps(pumps);
+  res.json({ success: true });
+});
+
+// --- Custom Devices: named 120V appliances bound to a Custom Device Control outlet ---
+app.get('/api/custom-devices', (req, res) => res.json(loadCustomDevices()));
+
+app.post('/api/custom-devices', (req, res) => {
+  const data = loadCustomDevices();
+  if (!Array.isArray(data.devices)) data.devices = [];
+  const dev = { id: `cd-${Date.now()}`, name: String(req.body?.name || `Device ${data.devices.length + 1}`), boundDeviceId: req.body?.boundDeviceId || '' };
+  data.devices.push(dev);
+  saveCustomDevices(data);
+  res.json({ success: true, device: dev });
+});
+
+app.put('/api/custom-devices/:id', (req, res) => {
+  const data = loadCustomDevices();
+  const dev = (data.devices || []).find(d => d.id === req.params.id);
+  if (!dev) return res.status(404).json({ error: 'Custom device not found' });
+  if (req.body?.name !== undefined) dev.name = String(req.body.name);
+  if (req.body?.boundDeviceId !== undefined) dev.boundDeviceId = req.body.boundDeviceId;
+  saveCustomDevices(data);
+  res.json({ success: true, device: dev });
+});
+
+app.delete('/api/custom-devices/:id', (req, res) => {
+  const data = loadCustomDevices();
+  data.devices = (data.devices || []).filter(d => d.id !== req.params.id);
+  saveCustomDevices(data);
   res.json({ success: true });
 });
 
@@ -18302,6 +18976,7 @@ app.post('/api/emergency-stop', async (req, res) => {
   stopCharacterInflation();
   stopAllMemberInflation();
   clearAllServerTimedPumpTimers();
+  clearAllCustomDeviceTimers();
   stopPumpSafetyWatchdog();
 
   // 4. Stop ALL devices (including cycles) CONCURRENTLY with per-device timeout,
@@ -18705,7 +19380,11 @@ app.post('/api/minigames', (req, res) => {
   if (!type || typeof type !== 'string') return res.status(400).json({ error: 'type required' });
   const data = loadMiniGames();
   if (!Array.isArray(data.games)) data.games = [];
-  const id = `mg-${Date.now()}`;
+  // Optional stable id (the MiniGames tab's "Add to library" for card-baked games) — keeping the
+  // id means the card's Call MiniGame nodes resolve to the library copy. Falls back to a fresh id
+  // when absent or already taken.
+  const reqId = typeof req.body.id === 'string' && req.body.id.trim() ? req.body.id.trim() : null;
+  const id = (reqId && !data.games.some(g => g.id === reqId)) ? reqId : `mg-${Date.now()}`;
   data.games.push({ id, name, type, config: config && typeof config === 'object' ? config : {}, createdAt: Date.now(), updatedAt: Date.now() });
   saveMiniGames(data);
   res.json({ success: true, id });
@@ -19591,6 +20270,34 @@ app.delete('/api/flows/:id', (req, res) => {
 
 const EXPORT_VERSION = '1.5';
 
+// Every call_minigame reference anywhere in a character's data (baked trees, inline button/scope
+// trees, profile refs — a generic deep walk, so no structure is ever missed).
+function collectMiniGameIdsDeep(obj, out) {
+  if (!obj || typeof obj !== 'object') return;
+  if (Array.isArray(obj)) { for (const o of obj) collectMiniGameIdsDeep(o, out); return; }
+  if (obj.type === 'call_minigame' && obj.params?.miniGameId) out.add(obj.params.miniGameId);
+  for (const v of Object.values(obj)) collectMiniGameIdsDeep(v, out);
+}
+
+// Export enrichment: make sure every minigame the card's trees reference is baked into
+// character.miniGames (snapshots from the master list), so Call MiniGame nodes keep working on
+// installs that don't have the game. Games the author already added via the MiniGames tab are
+// kept as-is; only missing ones are pulled in. Returns the character unchanged when complete.
+function withBakedMiniGames(character) {
+  try {
+    const ids = new Set();
+    collectMiniGameIdsDeep(character, ids);
+    const have = new Set((character.miniGames || []).map(g => g && g.id).filter(Boolean));
+    const missing = [...ids].filter(id => !have.has(id));
+    if (!missing.length) return character;
+    const master = loadMiniGames().games || [];
+    const add = missing.map(id => master.find(g => g.id === id)).filter(Boolean);
+    if (!add.length) return character;
+    console.log(`[Export] Baking ${add.length} referenced minigame(s) into the card: ${add.map(g => g.name).join(', ')}`);
+    return { ...character, miniGames: [...(character.miniGames || []), ...add.map(g => JSON.parse(JSON.stringify(g)))] };
+  } catch (e) { console.error('[Export] minigame baking failed:', e?.message || e); return character; }
+}
+
 // Export single character
 app.get('/api/export/character/:id', (req, res) => {
   let character;
@@ -19605,8 +20312,8 @@ app.get('/api/export/character/:id', (req, res) => {
     return res.status(404).json({ error: 'Character not found' });
   }
 
-  // Clone character data for export
-  const exportCharacter = { ...character };
+  // Clone character data for export (with every tree-referenced minigame baked in)
+  const exportCharacter = { ...withBakedMiniGames(character) };
 
   // Strip portrait media - they are local-only and exported separately as zip
   delete exportCharacter.charStagedPortraits;
@@ -19644,6 +20351,38 @@ app.get('/api/export/character/:id', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="${character.name.replace(/[^a-z0-9]/gi, '_')}_character.json"`);
   res.json(exportData);
+});
+
+// Export character as ZIP: the SwellD PNG card + the character's personal media, in
+// image/ video/ audio/ folders. Media stays as real files — never base64 inside the card JSON.
+app.get('/api/export/character/:id/zip', async (req, res) => {
+  try {
+    if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid character id' });
+    let character;
+    if (isPerCharStorageActive()) character = loadCharacter(req.params.id);
+    else character = (loadData(DATA_FILES.characters) || []).find(c => c.id === req.params.id);
+    if (!character) return res.status(404).json({ error: 'Character not found' });
+
+    const pngBuffer = await characterExporter.exportCharacterPNG(withBakedMiniGames(character), 'swelld', {
+      selectedStories: character.stories || [], flows: [], embedFlows: false
+    });
+    const safeName = (character.name || 'Character').replace(/[^a-z0-9]/gi, '_');
+    const archiver = require('archiver');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.zip"`);
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (err) => { console.error('[Export ZIP]', err); try { res.destroy(); } catch (e) {} });
+    archive.pipe(res);
+    archive.append(pngBuffer, { name: `${safeName}.png` });
+    const media = listCharMedia(character.id);
+    for (const t of CHAR_MEDIA_TYPES) {
+      for (const f of media[t]) archive.file(path.join(charMediaDir(character.id, t), f.name), { name: `${t}/${f.name}` });
+    }
+    await archive.finalize();
+  } catch (error) {
+    console.error('[Export ZIP] Error:', error);
+    if (!res.headersSent) res.status(500).json({ error: error.message || 'Failed to export character zip' });
+  }
 });
 
 // Export character as PNG character card (V3 or SwellD format)
@@ -19695,8 +20434,9 @@ app.post('/api/export/character/:id/png', async (req, res) => {
       }
     }
 
-    // Generate PNG
-    const pngBuffer = await characterExporter.exportCharacterPNG(character, format, {
+    // Generate PNG (swelld embeds the full character — bake tree-referenced minigames in first)
+    const pngBuffer = await characterExporter.exportCharacterPNG(
+      format === 'swelld' ? withBakedMiniGames(character) : character, format, {
       selectedStories,
       flows,
       embedFlows
@@ -20066,6 +20806,7 @@ app.post('/api/session/reset-once', (req, res) => {
   sessionState.firedTreeNodes?.clear?.();
   sessionState.randomBlockBudget = {};
   resetEventTriggerState();
+  sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   console.log('[Session] once-memory reset (fired nodes/ranges, random budgets, event latches)');
   res.json({ ok: true });
 });
@@ -20136,6 +20877,7 @@ app.post('/api/session/reset', async (req, res) => {
   firedCheckpointTriggers.clear();
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
+  sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
@@ -20263,7 +21005,7 @@ app.post('/api/session/reset', async (req, res) => {
       // reads the active checkpoint profile for instructors, the active story otherwise.
       const isInstr = isInstructor(activeCharacter);
       const aStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
-      const ssTreeIndex = buildTreeIndex();
+      const ssTreeIndex = buildTreeIndex(activeCharacter);
       // Session Start is now PER-PROFILE (active checkpoint profile's treeRefs.sessionStart — the
       // default profile at session open). Falls back to the legacy card-level ref for un-migrated cards.
       const cpEnabled = checkpointsEnabledFor(activeCharacter); // Enable Checkpoints off → no session-start/intro
@@ -20728,6 +21470,7 @@ async function triggerEmergencyStop(reason) {
     // 1. Stop ALL pump runtime tracking intervals immediately
     deviceService.stopAllPumpRuntimeTracking();
     clearAllServerTimedPumpTimers();
+    clearAllCustomDeviceTimers();
     stopPumpSafetyWatchdog();
     console.log('[FAILSAFE] Pump runtime tracking stopped');
 

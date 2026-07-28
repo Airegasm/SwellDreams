@@ -46,7 +46,8 @@ export function defaultConfig(type) {
       // Easy Blackjack: Player vs Character, hit/stay, closest to target without busting.
       return { target: 21, charStandsAt: 17 };
     case 'simon_challenge':
-      return { startingLength: 3, maxLength: 8, maxMisses: 3, penaltyDevice: '', penaltyDuration: 3, grandPenaltyDevice: '', grandPenaltyDuration: 10, rewardDevice: '', rewardDuration: 5 };
+      // Misses fire the 'MiniGame miss' EVENT (trigger trees own penalties); Completed/Failed are exits.
+      return { startingLength: 3, maxLength: 8, maxMisses: 3 };
     default:
       return {};
   }

@@ -907,6 +907,11 @@ export function AppProvider({ children }) {
         window.dispatchEvent(new CustomEvent('flow_toast', { detail: data }));
         break;
 
+      case 'trigger_toast':
+        // Author-fired Toast action (trigger trees/sequences) — Chat.js renders it with the preset colors
+        window.dispatchEvent(new CustomEvent('trigger_toast', { detail: data }));
+        break;
+
       default:
         console.log('[WS] Unknown message:', type, data);
     }
@@ -1028,6 +1033,11 @@ export function AppProvider({ children }) {
   const respondTreeMiniGame = useCallback((exit, winner, pick) => {
     sendWsMessage('tree_minigame_result', { exit, winner: winner || null, pick: pick || null });
     setTreeMiniGameData(null);
+  }, [sendWsMessage]);
+
+  // Report a mid-game wrong move (game still running) — fires the 'MiniGame miss' event bindings.
+  const reportTreeMiniGameMiss = useCallback((misses, maxMisses) => {
+    sendWsMessage('tree_minigame_miss', { misses, maxMisses });
   }, [sendWsMessage]);
 
   // Respond to a checkpoint injection player choice
@@ -1285,6 +1295,28 @@ export function AppProvider({ children }) {
     }),
 
     // Media Videos (uses FormData for file upload)
+    // Per-character media (editor Media tab): files in the character's personal directory.
+    getCharacterMedia: (id) => apiFetch(`${API_BASE}/api/characters/${id}/media`),
+    uploadCharacterMedia: async (id, type, file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_BASE}/api/characters/${id}/media/${type}`, { method: 'POST', body: formData });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+      return response.json();
+    },
+    cloneCharacterMedia: (id, type, mediaId) => apiFetch(`${API_BASE}/api/characters/${id}/media/${type}/clone`, {
+      method: 'POST', body: JSON.stringify({ mediaId })
+    }),
+    deleteCharacterMedia: (id, type, name) => apiFetch(`${API_BASE}/api/characters/${id}/media/${type}/${encodeURIComponent(name)}`, {
+      method: 'DELETE'
+    }),
+    openCharacterMedia: (id, type, name) => apiFetch(`${API_BASE}/api/characters/${id}/media/open`, {
+      method: 'POST', body: JSON.stringify({ type, name })
+    }),
+
     getMediaVideos: () => apiFetch(`${API_BASE}/api/media/videos`),
 
     uploadMediaVideo: async (file, tag, description, folder = null) => {
@@ -1399,6 +1431,18 @@ export function AppProvider({ children }) {
     }),
 
     // Automatic Pumps (#30)
+    // Custom Devices: named 120V appliances bound to a Custom Device Control outlet.
+    getCustomDevices: () => apiFetch(`${API_BASE}/api/custom-devices`),
+    createCustomDevice: (name, boundDeviceId) => apiFetch(`${API_BASE}/api/custom-devices`, {
+      method: 'POST', body: JSON.stringify({ name, boundDeviceId })
+    }),
+    updateCustomDevice: (id, patch) => apiFetch(`${API_BASE}/api/custom-devices/${id}`, {
+      method: 'PUT', body: JSON.stringify(patch)
+    }),
+    deleteCustomDevice: (id) => apiFetch(`${API_BASE}/api/custom-devices/${id}`, {
+      method: 'DELETE'
+    }),
+
     getPumps: () => apiFetch(`${API_BASE}/api/pumps`),
     createPump: (data) => apiFetch(`${API_BASE}/api/pumps`, {
       method: 'POST',
@@ -1642,8 +1686,8 @@ export function AppProvider({ children }) {
     }),
     // MiniGames store (Phase 5): server-side templates resolved by the Call MiniGame tree action.
     getMiniGames: () => apiFetch(`${API_BASE}/api/minigames`),
-    createMiniGame: (name, type, config) => apiFetch(`${API_BASE}/api/minigames`, {
-      method: 'POST', body: JSON.stringify({ name, type, config })
+    createMiniGame: (name, type, config, id) => apiFetch(`${API_BASE}/api/minigames`, {
+      method: 'POST', body: JSON.stringify(id ? { name, type, config, id } : { name, type, config })
     }),
     updateMiniGame: (id, patch) => apiFetch(`${API_BASE}/api/minigames/${id}`, {
       method: 'PUT', body: JSON.stringify(patch)
@@ -2093,6 +2137,7 @@ export function AppProvider({ children }) {
     toggleAutoPump,
     treeMiniGameData,
     respondTreeMiniGame,
+    reportTreeMiniGameMiss,
     checkpointChoiceData,
     respondCheckpointChoice,
     toggleMemberMute,

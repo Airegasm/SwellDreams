@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useError } from '../context/ErrorContext';
+import { toastPresetByKey } from '../toastPresets';
 import { API_BASE, CONFIG, isInstructor } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
 import { ChallengeModal } from '../components/modals/ChallengeModals';
@@ -167,8 +168,8 @@ function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
-  const { showError, showInfo, showWarning, showSuccess } = useError();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, reportTreeMiniGameMiss, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, flowExecutions, connectionProfiles, pumpStatus } = useApp();
+  const { showError, showInfo, showWarning, showSuccess, showToast } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   // Current pick in the tree Select Member popup (defaults to the first eligible member).
@@ -614,10 +615,13 @@ function Chat() {
     return () => window.removeEventListener('flow_toast', handleFlowToast);
   }, [showInfo, showSuccess, showWarning]);
 
-  // Listen for AI device control events
+  // Listen for AI device control events. Pump on/off is deliberately SILENT — the old debug
+  // toasts spammed every inflation beat; authors who want an on-screen note use the Toast action.
+  // (Char mock-pump state changes are silent for the same reason — no listener at all.)
   useEffect(() => {
     const handleAiDeviceControl = (event) => {
       const { deviceName, label, device, action } = event.detail;
+      if (device === 'pump') return;
       const name = deviceName || label || device || 'device';
       const actionText = action === 'on' ? 'turned ON' : 'turned OFF';
       showSuccess(`AI ${actionText} ${name}`, 3000);
@@ -627,19 +631,19 @@ function Chat() {
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
 
-  // Listen for character inflation state changes (AI pump on/off)
+  // Author-fired Toast action (trigger trees/sequences): text + color preset from the backend.
   useEffect(() => {
-    const handleCharInflate = (event) => {
-      const { active } = event.detail;
-      if (active) {
-        showInfo(`${activeCharacter?.name || 'Character'} pump ON`, 3000);
-      } else {
-        showInfo(`${activeCharacter?.name || 'Character'} pump OFF`, 3000);
-      }
+    const handleTriggerToast = (event) => {
+      const { text, preset } = event.detail || {};
+      if (!text) return;
+      const colors = toastPresetByKey(preset);
+      // Longer notes stay up longer: ~3.5s base + reading time, capped at 12s.
+      const duration = Math.min(12000, 3500 + text.length * 30);
+      showToast(text, 'info', duration, { colors, noIcon: true });
     };
-    window.addEventListener('character_inflate_state', handleCharInflate);
-    return () => window.removeEventListener('character_inflate_state', handleCharInflate);
-  }, [showInfo, activeCharacter?.name]);
+    window.addEventListener('trigger_toast', handleTriggerToast);
+    return () => window.removeEventListener('trigger_toast', handleTriggerToast);
+  }, [showToast]);
 
 
 
@@ -2153,7 +2157,7 @@ function Chat() {
                 <span className="message-sender">MiniGame</span>
               </div>
               <div className="choice-inline-container">
-                <ChatMiniGame data={treeMiniGameData} onResult={respondTreeMiniGame} />
+                <ChatMiniGame data={treeMiniGameData} onResult={respondTreeMiniGame} onMiss={reportTreeMiniGameMiss} />
               </div>
             </div>
           )}

@@ -84,6 +84,16 @@ function SystemTab() {
                   <td>30</td>
                 </tr>
                 <tr>
+                  <td><span className="variable-tag">[Group]</span></td>
+                  <td>Every member of the active group as a natural list; single cards resolve to the character's name.</td>
+                  <td>Luna, Bella, and Cara</td>
+                </tr>
+                <tr>
+                  <td><span className="variable-tag">[Secs2Pct:#]</span></td>
+                  <td>The capacity % that # seconds of the current (primary) pump adds, at the current auto-capacity multiplier. Nests: [Secs2Pct:[CharVar:TotalSecs]]. Unresolved (no calibrated pump) the tag stays visible.</td>
+                  <td>2%</td>
+                </tr>
+                <tr>
                   <td><span className="variable-tag">[Feeling]</span></td>
                   <td>Current physical sensation state</td>
                   <td>stretched</td>
@@ -579,6 +589,10 @@ function SystemTab() {
                 <tr>
                   <td><code>[pump:cycle:ON:OFF:N]</code></td>
                   <td>Cycle ON seconds / OFF seconds, N times (0 = infinite)</td>
+                </tr>
+                <tr>
+                  <td><code>[CustomDevice:name:on/off/timed:secs]</code></td>
+                  <td>Drive a named Custom Device (Settings → Devices → Custom Devices) — <code>:secs</code> only for timed. Not gated by pump rules; the AI-control master switch still applies to on/timed.</td>
                 </tr>
                 <tr>
                   <td><code>[vibe on]</code> / <code>[vibe off]</code></td>

@@ -20,6 +20,7 @@ const EVENT_TYPES = [
   { value: 'char_state_change', label: 'Character state change' },
   { value: 'idle', label: 'Idle (no activity)' },
   { value: 'random', label: 'Random (per reply)' },
+  { value: 'minigame_miss', label: 'MiniGame miss' },
 ];
 
 const PLAYER_STATES = [
@@ -109,6 +110,8 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
               onChange={(e) => updateFilter(b.id, { probability: Number(e.target.value) })} /> % chance / reply
           </label>
         );
+      case 'minigame_miss':
+        return <span className="section-hint">fires on every wrong move in a tree-called MiniGame (e.g. a Simon miss) — put penalty pumps/messages here</span>;
       default:
         return null;
     }

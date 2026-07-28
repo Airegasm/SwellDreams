@@ -126,21 +126,13 @@ function GameEditor({ type, config, set }) {
     case 'simon_challenge':
       return (
         <>
-          <h4 className="mg-group">Mechanics</h4>
+          <h4 className="mg-group">Mechanics <span className="mg-hint">(sequence grows +1 each round; reach Max length to win)</span></h4>
           <div className="mg-grid">
             <Num label="Start length" value={config.startingLength} onChange={(v) => upd({ startingLength: v })} />
             <Num label="Max length" value={config.maxLength} onChange={(v) => upd({ maxLength: v })} />
             <Num label="Max misses" value={config.maxMisses} onChange={(v) => upd({ maxMisses: v })} />
           </div>
-          <h4 className="mg-group">In-game device feedback <span className="mg-hint">(fires during play)</span></h4>
-          <div className="mg-grid">
-            <Txt label="Miss device" value={config.penaltyDevice} onChange={(v) => upd({ penaltyDevice: v })} />
-            <Num label="Miss dur (s)" value={config.penaltyDuration} onChange={(v) => upd({ penaltyDuration: v })} />
-            <Txt label="Fail device" value={config.grandPenaltyDevice} onChange={(v) => upd({ grandPenaltyDevice: v })} />
-            <Num label="Fail dur (s)" value={config.grandPenaltyDuration} onChange={(v) => upd({ grandPenaltyDuration: v })} />
-            <Txt label="Win device" value={config.rewardDevice} onChange={(v) => upd({ rewardDevice: v })} />
-            <Num label="Win dur (s)" value={config.rewardDuration} onChange={(v) => upd({ rewardDuration: v })} />
-          </div>
+          <p className="mg-hint">A wrong pad = a miss (the round replays). Each miss fires the <strong>MiniGame miss</strong> event (Checkpoints → Events) — bind a tree there for penalty pumps/messages. Hitting Max misses fires the <strong>Failed</strong> exit; completing the Max-length round fires <strong>Completed</strong>.</p>
         </>
       );
     default:

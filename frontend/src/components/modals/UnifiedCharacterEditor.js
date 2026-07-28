@@ -6,7 +6,7 @@ import CheckpointProfiles from '../common/CheckpointProfiles';
 import CardLoreSection from '../common/CardLoreSection';
 import CollapsibleSection from '../common/CollapsibleSection';
 import LoreEntryEditor from '../common/LoreEntryEditor';
-import ScopeTreeSection from '../common/ScopeTreeSection';
+import ScopeTreeSection, { remapIds } from '../common/ScopeTreeSection';
 import TriggerBlockComposer from '../common/TriggerBlockComposer';
 import MediaCropModal from './MediaCropModal';
 import { STAGED_PORTRAIT_RANGES } from '../../utils/stagedPortraits';
@@ -52,7 +52,26 @@ const STANDARD_KEYS = [
   'multiChar', 'authorsNote', 'libraryGroupIds', 'checkpointProfiles', 'defaultCheckpointProfileId',
   'description', 'personality', 'buttons', 'exampleDialogues', 'individualResponseTokens',
   'isPumpable', 'autoReplyEnabled', 'allowLlmDeviceAccess', 'globalReminders', 'constantReminders',
+  'treeLibrary', 'miniGames',
 ];
+
+// ---- Fork-to-card helpers (bake a global tree + its fire_tree closure onto the character) ----
+const ridc = (p = 'n') => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+// Rewrite fire_tree refs through an old->new id map (mirror of the backend's remapTreeRefs).
+function remapForkRefs(nodes, idMap) {
+  return (nodes || []).map(n => {
+    let params = n.params;
+    if (n.type === 'fire_tree' && n.params?.treeId && idMap.has(n.params.treeId)) params = { ...n.params, treeId: idMap.get(n.params.treeId) };
+    return { ...n, params, children: n.children ? remapForkRefs(n.children, idMap) : n.children };
+  });
+}
+function collectGameIdsFromNodes(nodes, out) {
+  for (const n of (nodes || [])) {
+    if (!n) continue;
+    if (n.type === 'call_minigame' && n.params?.miniGameId) out.add(n.params.miniGameId);
+    if (n.children) collectGameIdsFromNodes(n.children, out);
+  }
+}
 // Top-level instructor-mode fields.
 const INSTRUCTOR_KEYS = [
   'instructorProfileId', 'instructorDisposition', 'instructorLibraryGroupIds', 'mission',
@@ -121,6 +140,11 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const charMediaIdleRefs = useRef({});
   const charMediaTransRefs = useRef({});
 
+  // MiniGames tab + fork-to-card: master minigame list and global tree list (builtIn flags).
+  const [masterGames, setMasterGames] = useState([]);
+  const [globalTrees, setGlobalTrees] = useState([]);
+  const [gamePickId, setGamePickId] = useState('');
+
   useEffect(() => { if (isOpen) { setFormData(buildInitial(character, defaultAuthorsNote)); setActiveTab('main'); setSelectedMemberIndex(0); } }, [isOpen, character, defaultAuthorsNote]);
 
   useEffect(() => {
@@ -136,7 +160,143 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     api.getFlows?.().then(f => setFlows(Array.isArray(f) ? f : (f?.flows || []))).catch(() => {});
     apiFetch(`${API_BASE}/api/display-settings`).then(d => setAvailableSkins(d?.skins || [])).catch(() => {});
     api.getPersonas?.().then(p => setPersonas(Array.isArray(p) ? p : (p?.personas || []))).catch(() => {});
+    api.getMiniGames?.().then(d => setMasterGames(d?.games || [])).catch(() => {});
+    api.getTriggerTrees?.().then(d => setGlobalTrees(d?.trees || [])).catch(() => {});
   }, [isOpen, api]);
+
+  // ---- Fork a global library tree ONTO this card: the root becomes the caller's inline copy,
+  // its non-builtin fire_tree closure lands in formData.treeLibrary (fresh ids, refs remapped —
+  // built-in deps stay linked by their stable ids since they ship with the app), and every
+  // minigame the closure calls is auto-baked into formData.miniGames. Everything exports with
+  // the card, so the button/scope keeps working on installs that have none of the originals. ----
+  const forkTreeClosure = useCallback(async (treeId) => {
+    const env = await api.exportTriggerTree(treeId);
+    if (!env?.trees?.length) return null;
+    const [root, ...deps] = env.trees; // envelope order: root first, then its transitive deps
+    const lib = formData.treeLibrary || [];
+    const idMap = new Map();
+    const fresh = [];
+    for (const d of deps) {
+      const prior = lib.find(t => t.sourceTreeId === d.id); // re-fork reuses the earlier card copy
+      if (prior) { idMap.set(d.id, prior.id); continue; }
+      idMap.set(d.id, ridc('ctree'));
+      fresh.push(d);
+    }
+    // Copy AFTER the map is complete so dep→dep fire_tree hops remap correctly.
+    const newLib = fresh.map(d => ({
+      id: idMap.get(d.id), name: `${d.name} (card)`, sourceTreeId: d.id,
+      nodes: remapForkRefs(remapIds(d.nodes || []), idMap),
+    }));
+    const gameIds = new Set();
+    for (const t of env.trees) collectGameIdsFromNodes(t.nodes, gameIds);
+    const haveGames = new Set((formData.miniGames || []).map(g => g.id));
+    const newGames = [...gameIds].filter(id => !haveGames.has(id))
+      .map(id => masterGames.find(g => g.id === id)).filter(Boolean)
+      .map(g => JSON.parse(JSON.stringify(g)));
+    if (newLib.length || newGames.length) {
+      setFormData(prev => ({
+        ...prev,
+        treeLibrary: [...(prev.treeLibrary || []), ...newLib],
+        miniGames: [...(prev.miniGames || []), ...newGames],
+      }));
+    }
+    return { inline: { id: ridc('tree'), name: `${root.name} (card)`, nodes: remapForkRefs(remapIds(root.nodes || []), idMap) } };
+  }, [api, formData.treeLibrary, formData.miniGames, masterGames]);
+
+  // One click: fork EVERY button "Run Trigger Tree" action still linked to a non-builtin global
+  // tree. Built-in links stay linked (every install ships them); card-side refs are untouched.
+  const bakeAllButtonTrees = async () => {
+    const nextButtons = JSON.parse(JSON.stringify(formData.buttons || []));
+    let baked = 0, builtins = 0;
+    for (const b of nextButtons) {
+      for (const a of (b.actions || [])) {
+        if (a.type !== 'run_tree') continue;
+        const tid = a.config?.treeRef?.treeId || a.config?.treeId;
+        if (!tid) continue;
+        const g = globalTrees.find(t => t.id === tid);
+        if (!g) continue;
+        if (g.builtIn) { builtins++; continue; }
+        try {
+          const ref = await forkTreeClosure(tid);
+          if (ref) { a.config = { ...(a.config || {}), treeRef: ref }; delete a.config.treeId; baked++; }
+        } catch (e) { console.error(`Bake failed for tree ${tid}`, e); }
+      }
+    }
+    if (baked) setFormData(prev => ({ ...prev, buttons: nextButtons }));
+    window.alert(baked
+      ? `Baked ${baked} button tree link(s) into the card.${builtins ? ` ${builtins} built-in link(s) left linked (they ship with the app).` : ''}`
+      : (builtins ? 'Only built-in tree links found — those ship with the app and stay linked.' : 'No global tree links found on the buttons.'));
+  };
+
+  // ---- MiniGames tab handlers ----
+  const addGameToCard = () => {
+    const g = masterGames.find(m => m.id === gamePickId);
+    if (!g) return;
+    setFormData(prev => ({ ...prev, miniGames: [...(prev.miniGames || []).filter(x => x.id !== g.id), JSON.parse(JSON.stringify(g))] }));
+    setGamePickId('');
+  };
+  const removeGameFromCard = (id) => setFormData(prev => ({ ...prev, miniGames: (prev.miniGames || []).filter(g => g.id !== id) }));
+  const refreshGameFromLibrary = (id) => {
+    const g = masterGames.find(m => m.id === id);
+    if (!g) return;
+    setFormData(prev => ({ ...prev, miniGames: (prev.miniGames || []).map(x => (x.id === id ? JSON.parse(JSON.stringify(g)) : x)) }));
+  };
+  const addGameToLibrary = async (g) => {
+    try {
+      await api.createMiniGame(g.name, g.type, g.config || {}, g.id); // stable id → the card's refs resolve to the library copy
+      const d = await api.getMiniGames();
+      setMasterGames(d?.games || []);
+    } catch (e) { console.error('Add to library failed', e); }
+  };
+
+  // ---- Media tab: files in the character's personal directory (chars/custom/<id>/media/) ----
+  const [mediaSubTab, setMediaSubTab] = useState('image'); // image | video | audio
+  const [mediaView, setMediaView] = useState('icons-md');  // list | icons-sm | icons-md | icons-lg
+  const [charMedia, setCharMedia] = useState({ image: [], video: [], audio: [] });
+  const [libMedia, setLibMedia] = useState({ image: [], video: [], audio: [] });
+  const [mediaClonePick, setMediaClonePick] = useState('');
+  const mediaUploadRef = useRef(null);
+  const mediaCharId = character?.id; // media lives server-side — needs a SAVED character
+
+  const refreshCharMedia = useCallback(() => {
+    if (!mediaCharId) return;
+    api.getCharacterMedia(mediaCharId).then(m => setCharMedia({ image: m?.image || [], video: m?.video || [], audio: m?.audio || [] })).catch(() => {});
+  }, [api, mediaCharId]);
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'media' || !mediaCharId) return;
+    refreshCharMedia();
+    // Library lists for the clone-in picker (normalized: endpoints return the raw index array).
+    const norm = (d, key) => (Array.isArray(d) ? d : (d?.[key] || []));
+    api.getMediaImages?.().then(d => setLibMedia(p => ({ ...p, image: norm(d, 'images') }))).catch(() => {});
+    api.getMediaVideos?.().then(d => setLibMedia(p => ({ ...p, video: norm(d, 'videos') }))).catch(() => {});
+    api.getMediaAudio?.().then(d => setLibMedia(p => ({ ...p, audio: norm(d, 'audios') }))).catch(() => {});
+  }, [isOpen, activeTab, mediaCharId, api, refreshCharMedia]);
+
+  const handleMediaUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    for (const f of files) {
+      try { await api.uploadCharacterMedia(mediaCharId, mediaSubTab, f); }
+      catch (err) { window.alert(`Upload failed for ${f.name}: ${err.message}`); }
+    }
+    refreshCharMedia();
+  };
+  const handleMediaClone = async () => {
+    if (!mediaClonePick) return;
+    try { await api.cloneCharacterMedia(mediaCharId, mediaSubTab, mediaClonePick); setMediaClonePick(''); refreshCharMedia(); }
+    catch (err) { window.alert(`Clone failed: ${err.message}`); }
+  };
+  const handleMediaDelete = async (name) => {
+    if (!window.confirm(`Delete "${name}" from this character's media?`)) return;
+    try { await api.deleteCharacterMedia(mediaCharId, mediaSubTab, name); refreshCharMedia(); }
+    catch (err) { window.alert(`Delete failed: ${err.message}`); }
+  };
+  // Double-click: OS-associated app when the backend is local; browser tab as the fallback.
+  const handleMediaOpen = (item) => {
+    api.openCharacterMedia(mediaCharId, mediaSubTab, item.name)
+      .catch(() => window.open(`${API_BASE}${item.url}`, '_blank'));
+  };
 
   // Keep the local manual-pump-max fields in sync with global settings.
   useEffect(() => {
@@ -988,6 +1148,8 @@ Write only the scenario description itself, no explanations.`;
     { id: 'library', label: 'Library' },
     ...(isInstructorMode ? [{ id: 'instructor', label: 'Instructor Settings' }] : []),
     { id: 'events', label: 'Custom Buttons' },
+    { id: 'minigames', label: 'MiniGames' },
+    { id: 'media', label: 'Media' },
   ]), [isInstructorMode, isGroup, pumpUiActive, individualGroupMode]);
 
   // If the active tab disappears (e.g. Attributes/Staged Portraits hidden after switching to group /
@@ -1530,8 +1692,29 @@ Write only the scenario description itself, no explanations.`;
                   <details style={{ marginTop: '1rem', padding: '10px', background: 'var(--bg-input, rgba(0,0,0,0.2))', borderRadius: 'var(--border-radius)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600 }}>System Variables</summary>
                     <div style={{ marginTop: '6px', lineHeight: 1.6 }}>
-                      <code>[CharCapacity]</code> or <code>{'{{charCapacity}}'}</code> — Current character inflation % (0-100)<br/>
-                      <code>[Capacity]</code> — Player inflation % (for reference)
+                      <strong>Names</strong><br/>
+                      <code>[Player]</code> / <code>{'{{user}}'}</code> — Player persona name<br/>
+                      <code>[Char]</code> / <code>{'{{char}}'}</code> — Active character / card name<br/>
+                      <code>[Group]</code> — Every group member as a natural list ("X, Y, and Z"); single cards → the character's name<br/>
+                      <code>[Gender]</code> — Persona pronoun, grammar-aware (he/him/his · she/her/hers · they/them/their)<br/>
+                      <code>[SelectedChar]</code> — Member picked by a tree's Select Member popup; resets to the base character at each tree run<br/>
+                      <strong>Capacity &amp; state</strong><br/>
+                      <code>[Capacity]</code> — Player inflation % (0-100)<br/>
+                      <code>[CharCapacity]</code> / <code>{'{{charCapacity}}'}</code> — Base character inflation %<br/>
+                      <code>[CharCapacity:Name]</code> — A group member's inflation % (name or id; nests: <code>[CharCapacity:[SelectedChar]]</code>)<br/>
+                      <code>[Pain]</code> / <code>[Feeling]</code> — Pain as a label (None → Excruciating)<br/>
+                      <code>[Emotion]</code> — Player's current emotion<br/>
+                      <code>[PlayerIsInflating]</code> — true/false while the latched pump is on<br/>
+                      <strong>Inputs &amp; variables</strong><br/>
+                      <code>[PlayerInput:1]</code>, <code>[PlayerInput:2]</code>… — Row values from a tree's Player Input popup<br/>
+                      <code>[CharVar:name]</code> — Custom variable (Set CharVar action; supports math and nesting)<br/>
+                      <code>[System:Name]</code> or <code>[Name]</code> — System config variables (Settings → System Variables)<br/>
+                      <strong>Pump session</strong><br/>
+                      <code>[PumpType]</code>, <code>[PumpInit]</code>, <code>[BulbCurrent]</code>, <code>[BikeCurrent]</code> — Active pump kind, init mode, manual pump counters<br/>
+                      <strong>Games &amp; choices</strong><br/>
+                      <code>[Choice]</code> — Most recent Player Choice label<br/>
+                      <code>[Roll]</code> / <code>[Segment]</code> / <code>[Segments]</code> / <code>[Slots]</code> — MiniGame results (dice, wheel, slots)<br/>
+                      <code>[ChallengeResult]</code> / <code>[ChallengeType]</code> / <code>[ChallengeOutcome]</code> — Last challenge outcome
                     </div>
                   </details>
                 </div>
@@ -2077,6 +2260,10 @@ Write only the scenario description itself, no explanations.`;
                 <div className="events-header">
                   <h4>Custom Buttons</h4>
                   <div className="events-header-actions">
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={bakeAllButtonTrees}
+                      title="Fork every button's global tree link into this card (plus its Fire Tree dependencies and referenced MiniGames), so exports keep working on installs without your library. Built-in trees stay linked.">
+                      ⚒ Bake tree links
+                    </button>
                     <button type="button" className="btn btn-primary btn-sm" onClick={handleAddButton} disabled={buttons.length >= 12}>+ Add Button</button>
                     {buttons.length >= 12 && <span className="limit-warning">Maximum 12 buttons</span>}
                   </div>
@@ -2191,6 +2378,7 @@ Write only the scenario description itself, no explanations.`;
                                 label="" hint="build the tree inline, or link a library tree"
                                 refValue={action.config.treeRef || (action.config.treeId ? { treeId: action.config.treeId } : undefined)}
                                 onChange={(ref) => handleUpdateAction(index, 'treeRef', ref)}
+                                onForkClosure={forkTreeClosure}
                                 defaultName={`${buttonForm.name || 'Button'} Tree`}
                                 source={`from button: ${buttonForm.name || 'unnamed'}`}
                                 rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [] }}
@@ -2212,6 +2400,141 @@ Write only the scenario description itself, no explanations.`;
                   <button type="button" className="btn btn-primary" onClick={handleSaveButton}>{editingButtonId !== null ? 'Update' : 'Create'}</button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* ---- MiniGames tab: bake master-list games onto the card so exports carry them ---- */}
+        <div className="modal-body character-modal-body" style={{ display: activeTab === 'minigames' ? 'block' : 'none' }}>
+          <div className="form-section">
+            <h4>Card MiniGames</h4>
+            <p className="section-hint">
+              Games added here are <strong>baked into the card</strong> (and its SwellD PNG export), so Call MiniGame
+              blocks keep working on installs that don't have them. Exports also auto-bake any game a card tree
+              references, even if you forget to add it here. When a game exists in both places the master list wins,
+              so library edits keep applying until the card travels.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0' }}>
+              <select value={gamePickId} onChange={(e) => setGamePickId(e.target.value)} style={{ minWidth: 260 }}>
+                <option value="">— add a game from the master list —</option>
+                {masterGames.filter(g => !(formData.miniGames || []).some(x => x.id === g.id)).map(g => (
+                  <option key={g.id} value={g.id}>{g.name} ({g.type})</option>
+                ))}
+              </select>
+              <button type="button" className="btn btn-sm btn-secondary" disabled={!gamePickId} onClick={addGameToCard}>+ Add to card</button>
+            </div>
+            {(formData.miniGames || []).length === 0 ? (
+              <p className="empty-message">No games baked into this card yet.</p>
+            ) : (
+              (formData.miniGames || []).map(g => {
+                const master = masterGames.find(m => m.id === g.id);
+                const inSync = master && JSON.stringify(master.config || {}) === JSON.stringify(g.config || {}) && master.name === g.name;
+                return (
+                  <div key={g.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 2px', borderBottom: '1px solid rgba(128,128,128,0.25)' }}>
+                    <strong style={{ minWidth: 150 }}>{g.name}</strong>
+                    <span className="section-hint" style={{ minWidth: 90 }}>{g.type}</span>
+                    <span className="section-hint">{master ? (inSync ? '🔗 in library' : '🔗 in library — card copy differs') : '📦 card-only (imported)'}</span>
+                    <span style={{ flex: 1 }} />
+                    {master && !inSync && (
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={() => refreshGameFromLibrary(g.id)}
+                        title="Replace the card's baked copy with the library's current version">Re-copy from library</button>
+                    )}
+                    {!master && (
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={() => addGameToLibrary(g)}
+                        title="Add this card-baked game to your master MiniGames list (keeps its id, so the card's trees use the library copy)">Add to library</button>
+                    )}
+                    <button type="button" className="btn-icon-small" onClick={() => removeGameFromCard(g.id)} title="Remove from card">🗑️</button>
+                  </div>
+                );
+              })
+            )}
+            {(formData.treeLibrary || []).length > 0 && (
+              <p className="section-hint" style={{ marginTop: 14 }}>
+                This card also carries {(formData.treeLibrary || []).length} baked support tree(s) from “Bake tree links”
+                (Custom Buttons tab) — Fire Tree dependencies that travel with the card.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ---- Media tab: the character's personal media directory (image/video/audio) ---- */}
+        <div className="modal-body character-modal-body" style={{ display: activeTab === 'media' ? 'block' : 'none' }}>
+          <div className="form-section">
+            <h4>Character Media</h4>
+            {!mediaCharId ? (
+              <p className="section-hint">Save the character first — media files live in the character's personal directory on disk, so a saved card is needed before files can be attached.</p>
+            ) : (
+              <>
+                <p className="section-hint">
+                  Files here belong to THIS card (never embedded in its JSON). A card with media exports as a
+                  <strong> .zip</strong> — the SwellD PNG plus image/ video/ audio/ folders — and importing that zip
+                  restores the files into the new card's media directory. Double-click a file to open it in the
+                  system's viewer/player.
+                </p>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '10px 0' }}>
+                  {['image', 'video', 'audio'].map(t => (
+                    <button key={t} type="button" className={`btn btn-sm ${mediaSubTab === t ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => { setMediaSubTab(t); setMediaClonePick(''); }}>
+                      {t === 'image' ? `🖼 Images (${charMedia.image.length})` : t === 'video' ? `🎬 Video (${charMedia.video.length})` : `🎵 Audio (${charMedia.audio.length})`}
+                    </button>
+                  ))}
+                  <span style={{ flex: 1 }} />
+                  <select value={mediaView} onChange={(e) => setMediaView(e.target.value)} title="View">
+                    <option value="list">List</option>
+                    <option value="icons-sm">Icons — small</option>
+                    <option value="icons-md">Icons — medium</option>
+                    <option value="icons-lg">Icons — large</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => mediaUploadRef.current?.click()}>+ Add file(s)</button>
+                  <input ref={mediaUploadRef} type="file" multiple style={{ display: 'none' }}
+                    accept={mediaSubTab === 'image' ? 'image/*' : mediaSubTab === 'video' ? 'video/*' : 'audio/*'}
+                    onChange={handleMediaUpload} />
+                  <select value={mediaClonePick} onChange={(e) => setMediaClonePick(e.target.value)} style={{ minWidth: 220 }}>
+                    <option value="">— clone from the main media library —</option>
+                    {(libMedia[mediaSubTab] || []).map(m => <option key={m.id} value={m.id}>{m.name || m.tag || m.id}</option>)}
+                  </select>
+                  <button type="button" className="btn btn-sm btn-secondary" disabled={!mediaClonePick} onClick={handleMediaClone}>Clone in</button>
+                </div>
+                {(charMedia[mediaSubTab] || []).length === 0 ? (
+                  <p className="empty-message">No {mediaSubTab} files on this character yet.</p>
+                ) : mediaView === 'list' ? (
+                  (charMedia[mediaSubTab] || []).map(item => (
+                    <div key={item.name} onDoubleClick={() => handleMediaOpen(item)} title="Double-click to open"
+                      style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '5px 4px', borderBottom: '1px solid rgba(128,128,128,0.25)', cursor: 'default', userSelect: 'none' }}>
+                      <span>{mediaSubTab === 'image' ? '🖼' : mediaSubTab === 'video' ? '🎬' : '🎵'}</span>
+                      <strong style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</strong>
+                      <span className="section-hint" style={{ minWidth: 80, textAlign: 'right' }}>{item.size >= 1048576 ? `${(item.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(item.size / 1024))} KB`}</span>
+                      <span className="section-hint" style={{ minWidth: 90 }}>{new Date(item.mtime).toLocaleDateString()}</span>
+                      <button type="button" className="btn-icon-small" onClick={() => handleMediaDelete(item.name)} title="Delete">🗑️</button>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {(charMedia[mediaSubTab] || []).map(item => {
+                      const px = mediaView === 'icons-sm' ? 80 : mediaView === 'icons-lg' ? 220 : 140;
+                      return (
+                        <div key={item.name} onDoubleClick={() => handleMediaOpen(item)} title={`${item.name} — double-click to open`}
+                          style={{ width: px, cursor: 'default', userSelect: 'none', position: 'relative' }}>
+                          {mediaSubTab === 'image' ? (
+                            <img src={`${API_BASE}${item.url}`} alt={item.name} loading="lazy"
+                              style={{ width: px, height: px, objectFit: 'cover', borderRadius: 6, display: 'block', background: 'rgba(128,128,128,0.15)' }} />
+                          ) : mediaSubTab === 'video' ? (
+                            <video src={`${API_BASE}${item.url}`} muted preload="metadata"
+                              style={{ width: px, height: px, objectFit: 'cover', borderRadius: 6, display: 'block', background: 'rgba(128,128,128,0.15)' }} />
+                          ) : (
+                            <div style={{ width: px, height: px, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: px / 3, borderRadius: 6, background: 'rgba(128,128,128,0.15)' }}>🎵</div>
+                          )}
+                          <button type="button" className="btn-icon-small" onClick={() => handleMediaDelete(item.name)} title="Delete"
+                            style={{ position: 'absolute', top: 2, right: 2 }}>🗑️</button>
+                          <div className="section-hint" style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

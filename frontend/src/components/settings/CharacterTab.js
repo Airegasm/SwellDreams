@@ -177,18 +177,24 @@ function CharacterTab() {
 
     setExporting(true);
     try {
-      const body = {
-        format: exportFormat,
-        storyMode: exportStoryMode,
-        selectedStoryIds: exportStoryMode === 'selected' ? selectedStoryIds : [],
-        embedFlows: exportFormat === 'swelld' ? exportEmbedFlows : false
-      };
-
-      const response = await fetch(`${API_BASE}/api/export/character/${exportCharacter.id}/png`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+      const isZip = exportFormat === 'swelld-zip';
+      let response;
+      if (isZip) {
+        // ZIP = the full SwellD PNG + the character's media folders (all stories; media is per-card).
+        response = await fetch(`${API_BASE}/api/export/character/${exportCharacter.id}/zip`);
+      } else {
+        const body = {
+          format: exportFormat,
+          storyMode: exportStoryMode,
+          selectedStoryIds: exportStoryMode === 'selected' ? selectedStoryIds : [],
+          embedFlows: exportFormat === 'swelld' ? exportEmbedFlows : false
+        };
+        response = await fetch(`${API_BASE}/api/export/character/${exportCharacter.id}/png`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      }
 
       if (!response.ok) {
         const err = await response.json();
@@ -200,13 +206,13 @@ function CharacterTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${safeName}.png`;
+      a.download = `${safeName}.${isZip ? 'zip' : 'png'}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showSuccess?.(`Exported "${exportCharacter.name}" as ${exportFormat === 'v3' ? 'V3' : 'SwellD'} PNG`);
+      showSuccess?.(`Exported "${exportCharacter.name}" as ${isZip ? 'SwellD ZIP (card + media)' : exportFormat === 'v3' ? 'V3 PNG' : 'SwellD PNG'}`);
       setShowExportModal(false);
     } catch (error) {
       console.error('Failed to export character PNG:', error);
@@ -249,8 +255,10 @@ function CharacterTab() {
     try {
       const fileName = file.name.toLowerCase();
 
-      if (fileName.endsWith('.png')) {
-        // PNG file — send as FormData to character-card import (handles SwellD + V2/V3)
+      if (fileName.endsWith('.png') || fileName.endsWith('.zip') || fileName.endsWith('.swelld')) {
+        // PNG/ZIP/SwellD file — send as FormData to character-card import. The server sniffs the
+        // payload: a ZIP is unwrapped to its card + media (media lands in the new character's
+        // personal media folders), a bare card imports as before.
         const formData = new FormData();
         formData.append('file', file);
 
@@ -400,7 +408,7 @@ function CharacterTab() {
           type="file"
           ref={fileInputRef}
           onChange={handleImport}
-          accept=".json,.png"
+          accept=".json,.png,.zip,.swelld"
           style={{ display: 'none' }}
         />
         <input
@@ -612,6 +620,16 @@ function CharacterTab() {
                       onChange={() => setExportFormat('v3')}
                     />
                     <span><strong>V3</strong> — SillyTavern-compatible character card</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="exportFormat"
+                      value="swelld-zip"
+                      checked={exportFormat === 'swelld-zip'}
+                      onChange={() => setExportFormat('swelld-zip')}
+                    />
+                    <span><strong>SwellD ZIP</strong> — SwellD PNG plus the character's attached media (image/ video/ audio/ folders)</span>
                   </label>
                 </div>
               </div>

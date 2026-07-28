@@ -28,10 +28,12 @@ export function ErrorProvider({ children }) {
    * @param {number} duration - Auto-dismiss duration in ms (0 = no auto-dismiss)
    * @returns {string} Toast ID for manual dismissal
    */
-  const showToast = useCallback((message, type = TOAST_TYPES.ERROR, duration = 5000) => {
+  const showToast = useCallback((message, type = TOAST_TYPES.ERROR, duration = 5000, options = {}) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    setToasts(prev => [...prev, { id, message, type, timestamp: Date.now() }]);
+    // options.colors ({bg, fg, border}) overrides the type's stock styling — used by the
+    // trigger "Toast" action's color presets. options.noIcon drops the type glyph.
+    setToasts(prev => [...prev, { id, message, type, colors: options.colors || null, noIcon: !!options.noIcon, timestamp: Date.now() }]);
 
     if (duration > 0) {
       setTimeout(() => {
@@ -113,7 +115,10 @@ function ToastContainer({ toasts, onDismiss }) {
  * Individual Toast Component
  */
 function Toast({ toast, onDismiss }) {
-  const { id, message, type } = toast;
+  const { id, message, type, colors, noIcon } = toast;
+  const customStyle = colors
+    ? { background: colors.bg, color: colors.fg, borderColor: colors.border || colors.fg, borderLeftColor: colors.border || colors.fg }
+    : undefined;
 
   const getIcon = () => {
     switch (type) {
@@ -130,8 +135,8 @@ function Toast({ toast, onDismiss }) {
   };
 
   return (
-    <div className={`toast toast-${type}`} role="alert">
-      <span className="toast-icon">{getIcon()}</span>
+    <div className={`toast toast-${type}`} role="alert" style={customStyle}>
+      {!noIcon && <span className="toast-icon">{getIcon()}</span>}
       <span className="toast-message">{message}</span>
       <button
         className="toast-dismiss"

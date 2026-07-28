@@ -314,7 +314,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <p className="section-hint">When a pre-req choice / trigger loads this profile, it sets the session pump mode (overrides the card default).</p>
         {isManualPump && (
           <p className="section-hint" style={{ marginTop: 4 }}>
-            📋 Manual pump calibration (set in <strong>Settings → Pump Data</strong>): Bulb <strong>{bulbMaxField || '?'}</strong> · Bike <strong>{bikeMaxField || '?'}</strong> pumps to full
+            📋 Manual pump calibration (set in <strong>Settings → Devices</strong>): Bulb <strong>{bulbMaxField || '?'}</strong> · Bike <strong>{bikeMaxField || '?'}</strong> pumps to full
             {bulbMaxField ? ` ≈ ${(100 / Number(bulbMaxField)).toFixed(1)}% per bulb pump` : ''}{bikeMaxField ? ` · ${(100 / Number(bikeMaxField)).toFixed(1)}% per bike pump` : ''}. Reference for laying out the ranges below.
           </p>
         )}
@@ -337,8 +337,20 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         const evts = selProfile?.treeRefs?.events || [];
         const setEvents = (next) => setCpProfiles(cpProfiles.map(p => p.id === selId
           ? { ...p, treeRefs: { ...(p.treeRefs || {}), events: next } } : p));
+        const evtsOff = selProfile?.treeRefs?.eventsDisabled === true;
+        const setEvtsEnabled = (enabled) => setCpProfiles(cpProfiles.map(p => {
+          if (p.id !== selId) return p;
+          const tr = { ...(p.treeRefs || {}) };
+          if (enabled) delete tr.eventsDisabled; else tr.eventsDisabled = true;
+          return { ...p, treeRefs: tr };
+        }));
         return (
-          <CollapsibleSection title="Event Triggers" subtitle="fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)" badge={evts.length ? `${evts.length}` : ''}>
+          <CollapsibleSection title="Event Triggers" subtitle={`${evtsOff ? '⛔ GROUP OFF — ' : ''}fire a tree every reply (always-on) or on a discrete event (device / state / idle / random)`} badge={evts.length ? `${evts.length}` : ''}>
+            <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0' }}
+              title="Group toggle — saved on the card. Off = none of this profile's event bindings fire. A Checkpoint Control tree block can flip this for the rest of the session.">
+              <input type="checkbox" checked={!evtsOff} onChange={(e) => setEvtsEnabled(e.target.checked)} />
+              <span><strong>Group enabled</strong> — event bindings fire (a Checkpoint Control block can override this in-session)</span>
+            </label>
             <EventTriggersSection events={evts} onChange={setEvents} source={`from card: ${cardName}`} rowProps={profRowProps} />
           </CollapsibleSection>
         );
@@ -455,8 +467,22 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
 
       {CHECKPOINT_RANGES.map(({ key, label }) => (
         <div key={key} id={`ckpt-range-${key}`}>
-        <CollapsibleSection title={label} subtitle={rangeSummary(key).text}
+        <CollapsibleSection title={label} subtitle={`${(selProfile?.treeRefs?.rangeDisabled || {})[key] ? '⛔ GROUP OFF — ' : ''}${rangeSummary(key).text}`}
           open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
+          <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0' }}
+            title="Group toggle — saved on the card. Off = this range fires nothing (plot steer, triggers, Range Script) and carry-over falls through to the nearest enabled lower range. A Checkpoint Control tree block can flip it for the rest of the session.">
+            <input type="checkbox" checked={!(selProfile?.treeRefs?.rangeDisabled || {})[key]}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setCpProfiles(cpProfiles.map(p => {
+                  if (p.id !== selId) return p;
+                  const rd = { ...(p.treeRefs?.rangeDisabled || {}) };
+                  if (enabled) delete rd[key]; else rd[key] = true;
+                  return { ...p, treeRefs: { ...(p.treeRefs || {}), rangeDisabled: rd } };
+                }));
+              }} />
+            <span><strong>Group enabled</strong> — this range's checkpoints fire (a Checkpoint Control block can override this in-session)</span>
+          </label>
           {isManualPump && (
             <div className="form-group" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8 }}>
               <div>

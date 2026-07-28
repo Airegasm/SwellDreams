@@ -119,6 +119,9 @@
 .pv-simon { display: grid; grid-template-columns: repeat(2, 64px); grid-template-rows: repeat(2, 64px); gap: 8px; }
 .pv-pad { border-radius: 12px; opacity: 0.4; transition: opacity 0.12s, transform 0.12s, box-shadow 0.12s; }
 .pv-pad.lit { opacity: 1; transform: scale(1.06); box-shadow: 0 0 18px var(--pad-c), inset 0 0 12px rgba(255,255,255,0.5); }
+.pv-pad.clickable { cursor: pointer; opacity: 0.65; }
+.pv-pad.clickable:hover { opacity: 0.85; }
+.pv-pad.clickable:active { opacity: 1; transform: scale(0.96); }
 
 /* Reflex */
 .pv-reflex {

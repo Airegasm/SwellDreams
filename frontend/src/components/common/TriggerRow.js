@@ -1,5 +1,6 @@
 import React from 'react';
 import { API_BASE } from '../../config';
+import { TOAST_PRESETS } from '../../toastPresets';
 import MemberTargetPicker from './MemberTargetPicker';
 import './TriggerRow.css';
 
@@ -59,6 +60,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'ai_message', label: 'Char AI Message' },
     { value: 'ai_message_member', label: 'Group Member Message' },
     { value: 'system_message', label: 'System Message' },
+    { value: 'toast', label: 'Toast (on-screen note)' },
     { value: 'flow_var', label: 'Set CharVar (variable)' },
   ];
 
@@ -68,8 +70,10 @@ function getTriggerTypes(isPumpable, isManualPump) {
   }
 
   types.push(
-    { value: 'pump_on', label: 'Primary Pump ON' },
-    { value: 'pump_off', label: 'Primary Pump OFF' },
+    // ONE condensed entry: the row's On/Off radio flips trigger.type between pump_on and pump_off,
+    // so saved cards with either type render (and keep executing) unchanged.
+    { value: 'pump_on', label: 'Primary Pump ON/OFF' },
+    { value: 'custom_device', label: 'Custom Device Control' },
     { value: 'set_attribute', label: 'Set Char Attribute' },
     { value: 'set_persona_attribute', label: 'Set Player Attribute' },
     { value: 'set_player_capacity', label: 'Set Player Capacity' },
@@ -115,7 +119,8 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'set_skin', label: 'Set Display Skin' },
     { value: 'set_instructor_profile', label: 'Set Instructor Profile' },
     { value: 'set_range_set', label: 'Set Range Set' },
-    { value: 'toggle_library_entry', label: 'Toggle Char Library Entry' },
+    { value: 'toggle_library_entry', label: 'Toggle Library Entry' },
+    { value: 'toggle_dictionary', label: 'Toggle Dictionary Item' },
     // Await gates — pause the sequence here; the triggers AFTER this one wait until satisfied.
     { value: 'await_input', label: '⏸ Await Input (wait for keyword)' },
     // Branch gate — runs the block after it (until the next Capacity In-Range gate) only if capacity is in range.
@@ -247,6 +252,40 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       }).catch(() => setSkinsList([]));
     }
   }, [trigger.type, skinsList]);
+
+  // Lazy-load the shared Library / global Dictionary groups for the toggle actions.
+  const [libGroups, setLibGroups] = React.useState(null);
+  const [dictGroups, setDictGroups] = React.useState(null);
+  React.useEffect(() => {
+    if ((trigger.type === 'toggle_library_entry' || trigger.type === 'toggle_reminder') && !libGroups) {
+      fetch(`${API_BASE}/api/instructor-library`).then(r => r.json()).then(d => setLibGroups(d?.groups || [])).catch(() => setLibGroups([]));
+    }
+    if (trigger.type === 'toggle_dictionary' && !dictGroups) {
+      fetch(`${API_BASE}/api/dictionary`).then(r => r.json()).then(d => setDictGroups(d?.groups || [])).catch(() => setDictGroups([]));
+    }
+  }, [trigger.type, libGroups, dictGroups]);
+
+  // Shared picker for the two toggle actions: group → term ('' = whole group) → ON/OFF.
+  const renderGroupTermToggle = (groups) => {
+    const g = (groups || []).find(x => x.id === trigger.groupId);
+    return (
+      <>
+        <select value={trigger.groupId || ''} onChange={(e) => onChange({ ...trigger, groupId: e.target.value, termId: '' })} style={{ minWidth: '110px' }}>
+          <option value="">-- Group --</option>
+          {(groups || []).map(x => <option key={x.id} value={x.id}>{x.name}{x.enabled === false ? ' (off)' : ''}</option>)}
+          {!groups && <option value="">Loading…</option>}
+        </select>
+        <select value={trigger.termId || ''} onChange={(e) => update('termId', e.target.value)} style={{ flex: 1, minWidth: '110px' }} disabled={!g}>
+          <option value="">(whole group)</option>
+          {(g?.terms || []).map((t, i) => <option key={t.id || i} value={t.id || t.term}>{t.term || `Term ${i + 1}`}{t.enabled === false ? ' (off)' : ''}</option>)}
+        </select>
+        <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '55px' }}>
+          <option value="on">ON</option>
+          <option value="off">OFF</option>
+        </select>
+      </>
+    );
+  };
   const triggerTypes = getTriggerTypes(isPumpable, isManualPump);
 
   // Close dropdown on outside click
@@ -270,12 +309,61 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
     );
     switch (trigger.type) {
       case 'pump_on':
-        // Optional timer: blank = latch on (until a Pump OFF); a number = run that many seconds then
-        // auto-off (capped by the pump/global/range limits). Lets game outcomes fire varied intervals.
+      case 'pump_off': {
+        // ONE condensed row: the On/Off radio rewrites trigger.type between pump_on/pump_off (the
+        // backend executors are untouched). ON keeps its Seconds/Percentage machinery: Seconds —
+        // blank = latch on, number = timed auto-off; Percentage — run until that much capacity %
+        // has been ADDED (hard-capped so current + increase never exceeds 100%). Both accept a variable.
+        const isOn = trigger.type !== 'pump_off';
+        const pctMode = trigger.durationMode === 'percent';
         return (
-          <input type="text" value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value)}
-            placeholder="secs (blank = latch on)" style={{ width: '170px' }} title="Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Accepts a variable like [CharVar:GameResult] (e.g. a dice total). Capped only by the 30-minute hard safety limit." />
+          <>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+              <input type="radio" name={`ppw-${trigger.id || 'x'}`} checked={isOn} onChange={() => update('type', 'pump_on')} /> On
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+              <input type="radio" name={`ppw-${trigger.id || 'x'}`} checked={!isOn} onChange={() => update('type', 'pump_off')} /> Off
+            </label>
+            {isOn && (
+              <>
+                <select value={pctMode ? 'percent' : 'seconds'} onChange={(e) => update('durationMode', e.target.value)}
+                  style={{ width: '110px', flexShrink: 0 }}
+                  title="Seconds: run the pump for a time. Percentage: run until that much capacity % has been added (needs a calibrated primary pump; caps at 100% total).">
+                  <option value="seconds">Seconds</option>
+                  <option value="percent">Percentage</option>
+                </select>
+                <input type="text" value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value)}
+                  placeholder={pctMode ? '% to add (0–100)' : 'secs (blank = latch on)'} style={{ width: '150px' }}
+                  title={pctMode
+                    ? 'Capacity % to ADD (0–100). The pump runs until that much has been added, hard-capped at 100% total — at 70% capacity a 50% request only adds 30%. Accepts a variable like [CharVar:GameResult].'
+                    : 'Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Accepts a variable like [CharVar:GameResult] (e.g. a dice total). Capped only by the 30-minute hard safety limit.'} />
+              </>
+            )}
+          </>
         );
+      }
+
+      case 'custom_device': {
+        // Drive a named Custom Device (Settings → Devices → Custom Devices) by NAME.
+        const cdMode = trigger.mode === 'off' ? 'off' : trigger.mode === 'timed' ? 'timed' : 'on';
+        return (
+          <>
+            <input type="text" value={trigger.deviceName ?? ''} onChange={(e) => update('deviceName', e.target.value)}
+              placeholder="Custom device name" style={{ width: '160px' }}
+              title="Name of a Custom Device (Settings → Devices → Custom Devices). Accepts a variable like [CharVar:x]." />
+            {['on', 'off', 'timed'].map(m => (
+              <label key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                <input type="radio" name={`cdm-${trigger.id || 'x'}`} checked={cdMode === m} onChange={() => update('mode', m)} /> {m === 'timed' ? 'Timed' : m.toUpperCase()}
+              </label>
+            ))}
+            {cdMode === 'timed' && (
+              <input type="text" value={trigger.seconds ?? ''} onChange={(e) => update('seconds', e.target.value)}
+                placeholder="secs" style={{ width: '70px' }}
+                title="Seconds to run, then auto-off (30-minute hard ceiling). Accepts a variable." />
+            )}
+          </>
+        );
+      }
       case 'await_pump':
         return (
           <input type="number" min={1} value={trigger.count ?? 3} onChange={(e) => update('count', e.target.value.replace(/[^0-9]/g, ''))}
@@ -342,6 +430,13 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
               LLM
             </label>
+            {trigger.llmEnhance !== false && (
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                title="Ignore Chat History — generate this message from the card + this guidance alone: no transcript, no conversation summary. Useful for narration/scene resets that must not be colored by the recent back-and-forth.">
+                <input type="checkbox" checked={trigger.ignoreHistory === true} onChange={(e) => update('ignoreHistory', e.target.checked)} />
+                Ignore Hist
+              </label>
+            )}
             <input type="number" min="1" value={trigger.maxTokens ?? ''}
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
@@ -367,6 +462,13 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               <input type="checkbox" checked={trigger.llmEnhance !== false} onChange={(e) => update('llmEnhance', e.target.checked)} />
               LLM
             </label>
+            {trigger.llmEnhance !== false && (
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                title="Ignore Chat History — generate this message from the card + this guidance alone: no transcript, no conversation summary. Useful for narration/scene resets that must not be colored by the recent back-and-forth.">
+                <input type="checkbox" checked={trigger.ignoreHistory === true} onChange={(e) => update('ignoreHistory', e.target.checked)} />
+                Ignore Hist
+              </label>
+            )}
             <input type="number" min="1" value={trigger.maxTokens ?? ''}
               onChange={(e) => update('maxTokens', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value, 10) || 0))}
               placeholder="Max tok" style={{ width: '70px' }}
@@ -490,6 +592,22 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           <textarea value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
             placeholder="System message text... (Enter = new line)" rows={2}
             style={{ flex: 1, minWidth: '120px', resize: 'vertical' }} />
+        );
+
+      case 'toast':
+        // On-screen toast note (top-right, auto-dismisses) — NOT a chat message and never enters
+        // the LLM context. Variables substitute server-side; newlines render as line breaks.
+        return (
+          <>
+            <select value={trigger.preset || TOAST_PRESETS[0].key} onChange={(e) => update('preset', e.target.value)}
+              style={{ width: '150px', flexShrink: 0 }} title="Color combo the toast renders with">
+              {TOAST_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+            <textarea value={trigger.text || ''} onChange={(e) => update('text', e.target.value)}
+              placeholder="Toast text... (Enter = new line, variables like [Capacity] work)" rows={2}
+              style={{ flex: 1, minWidth: '120px', resize: 'vertical' }}
+              title="Shown as an on-screen toast — not a chat message, never seen by the AI. Longer text stays up longer." />
+          </>
         );
 
       case 'flow_var':
@@ -705,27 +823,22 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           </select>
         );
 
-      case 'toggle_library_entry': {
-        return (
-          <>
-            <select value={trigger.reminderId || ''} onChange={(e) => update('reminderId', e.target.value)} style={{ flex: 1, minWidth: '80px' }}>
-              <option value="">-- Select Library Entry --</option>
-              {reminders.map((r, i) => <option key={r.id || i} value={r.id || i}>{r.name || r.text?.substring(0, 30) || `Entry ${i + 1}`}</option>)}
-            </select>
-            <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '55px' }}>
-              <option value="on">ON</option>
-              <option value="off">OFF</option>
-            </select>
-          </>
-        );
-      }
+      case 'toggle_library_entry':
+      case 'toggle_reminder':
+        // Library system (shared groups) — constantReminders are retired.
+        return renderGroupTermToggle(libGroups);
+
+      case 'toggle_dictionary':
+        return renderGroupTermToggle(dictGroups);
 
       default:
         return null;
     }
   };
 
-  const currentLabel = triggerTypes.find(t => t.value === trigger.type)?.label || trigger.type;
+  // pump_off rows render under the condensed "Primary Pump ON/OFF" entry (the row radio owns on/off).
+  const effectiveTypeValue = trigger.type === 'pump_off' ? 'pump_on' : trigger.type;
+  const currentLabel = triggerTypes.find(t => t.value === effectiveTypeValue)?.label || trigger.type;
   // `hidden` types (e.g. send_player_message) resolve for display above but are kept OUT of the
   // add-dropdown — they're reached via an in-row mode picker instead of picked directly.
   const filteredTypes = (typeSearch
@@ -758,7 +871,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
               {filteredTypes.map(t => (
                 <div
                   key={t.value}
-                  className={`trigger-type-option ${t.value === trigger.type ? 'selected' : ''}`}
+                  className={`trigger-type-option ${t.value === effectiveTypeValue ? 'selected' : ''}`}
                   onClick={() => { onChange({ ...trigger, type: t.value }); setTypeOpen(false); }}
                 >
                   {t.label}
