@@ -2941,7 +2941,7 @@ function Chat() {
                 {(() => {
                   const activeStory = activeCharacter?.stories?.find(s => s.id === activeCharacter?.activeStoryId) || activeCharacter?.stories?.[0];
                   const globalEnabled = settings?.globalCharacterControls?.allowLlmDeviceControl;
-                  const storyEnabled = activeStory?.allowLlmDeviceAccess || false;
+                  const storyEnabled = activeStory?.allowLlmDeviceAccess !== false; // undefined = enforced ON — display must match enforcement
                   const gateBlocked = !sessionState?.preInflationGateMet;
 
                   const handleToggleDeviceAccess = async () => {

@@ -14836,7 +14836,13 @@ function buildInstructorSystemPrompt(character, playerName, substituteVars) {
   };
   const instrDisp = instrDispMap[character.instructorDisposition || 'knowledgeable'];
   if (instrDisp) p += `${instrDisp}\n`;
-  if (character.instructorProfileId) {
+  // Instructor brief lives ON THE CARD now (character.instructorBrief — editable in Instructor
+  // Settings); the old shared instructor-profiles store remains only as a legacy fallback for
+  // cards the rev-1 migration hasn't touched.
+  const instrBrief = (character.instructorBrief || '').trim();
+  if (instrBrief) {
+    p += `\n${substituteVars(instrBrief)}\n`;
+  } else if (character.instructorProfileId) {
     const profile = (loadInstructorProfiles().profiles || []).find(pr => pr.id === character.instructorProfileId);
     if (profile && profile.prompt) {
       p += `\n${substituteVars(profile.prompt)}\n`;
@@ -21790,7 +21796,24 @@ syncAllButtonsOnStartup();
 // seeding, reminder→dictionary — stay self-guarded and are grandfathered as rev 0 behavior).
 const SCHEMA_VERSION_PATH = path.join(__dirname, 'data', 'schema-version.json');
 const DATA_MIGRATIONS = [
-  // { rev: 1, name: 'describe the shape change', run: () => { ...mutate data files... } },
+  {
+    rev: 1,
+    name: 'fold instructor-profile briefs onto the cards (character.instructorBrief)',
+    run: () => {
+      const profs = (loadInstructorProfiles().profiles || []);
+      const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      let migrated = 0;
+      for (const c of chars) {
+        if (!c?.instructor?.enabled || c.instructorBrief || !c.instructorProfileId) continue;
+        const prof = profs.find(pr => pr.id === c.instructorProfileId);
+        if (!prof?.prompt) continue;
+        c.instructorBrief = prof.prompt;
+        if (isPerCharStorageActive()) saveCharacter(c); else saveData(DATA_FILES.characters, chars);
+        migrated++;
+      }
+      console.log(`[Schema] instructorBrief migration: ${migrated} card(s) updated`);
+    }
+  },
 ];
 function runDataMigrations() {
   let cur = 0;
