@@ -55,12 +55,18 @@ class HomeAssistantService {
     const fullUrl = `${this.url}/api${endpoint}`;
     log.info(`${method} ${fullUrl}${body ? ' body=' + JSON.stringify(body) : ''}`);
 
+    // Hard timeout: an unreachable HA host must not hang a chat turn for the OS TCP timeout
+    // (~2 min) — a pump command stalls the whole reply. 10s covers slow Pis comfortably.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
     const options = {
       method,
       headers: {
         'Authorization': `Bearer ${this.token}`,
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
     };
 
     if (body) {
@@ -73,9 +79,12 @@ class HomeAssistantService {
       response = await fetch(fullUrl, options);
     } catch (error) {
       const elapsed = Date.now() - startTime;
-      log.error(`${method} ${endpoint} - network error after ${elapsed}ms: ${error.message}`);
+      const msg = error.name === 'AbortError' ? `timed out after ${elapsed}ms` : error.message;
+      log.error(`${method} ${endpoint} - network error after ${elapsed}ms: ${msg}`);
       if (error.cause) log.error(`  cause: ${error.cause.message || error.cause}`);
-      throw new Error(`Home Assistant unreachable: ${error.message}`);
+      throw new Error(`Home Assistant unreachable: ${msg}`);
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     const elapsed = Date.now() - startTime;
@@ -116,24 +125,28 @@ class HomeAssistantService {
    * @returns {Promise<Array>} Array of switch entities
    */
   async listDevices() {
-    log.info('Discovering switch entities...');
+    log.info('Discovering toggleable entities...');
     const states = await this.request('GET', '/states');
     log.info(`Got ${states.length} total entities from HA`);
 
-    // Filter to switch entities (covers smart plugs/outlets)
-    const switches = states
-      .filter(entity => entity.entity_id.startsWith('switch.'))
+    // Toggleable domains: switch covers smart plugs/outlets (the pump case); light and fan
+    // cover 120V appliances people drive as Custom Devices. Control is domain-agnostic
+    // (homeassistant/turn_on), so anything listed here is actually drivable.
+    const TOGGLEABLE = ['switch.', 'light.', 'fan.'];
+    const devices = states
+      .filter(entity => TOGGLEABLE.some(p => entity.entity_id.startsWith(p)))
       .map(entity => ({
         entityId: entity.entity_id,
         name: entity.attributes.friendly_name || entity.entity_id,
         state: entity.state,
+        domain: entity.entity_id.split('.')[0],
         deviceClass: entity.attributes.device_class || null,
         icon: entity.attributes.icon || null,
       }));
 
-    log.info(`Found ${switches.length} switch entities:`);
-    switches.forEach(s => log.info(`  ${s.entityId} "${s.name}" state=${s.state}`));
-    return switches;
+    log.info(`Found ${devices.length} toggleable entities:`);
+    devices.forEach(s => log.info(`  ${s.entityId} "${s.name}" state=${s.state}`));
+    return devices;
   }
 
   /**
@@ -143,7 +156,9 @@ class HomeAssistantService {
   async turnOn(entityId) {
     log.info(`Turning ON ${entityId}`);
     try {
-      await this.request('POST', '/services/switch/turn_on', {
+      // Domain-agnostic service: works for switch/light/fan/... entities alike (the old
+      // hardcoded switch/turn_on failed for any non-switch entity).
+      await this.request('POST', '/services/homeassistant/turn_on', {
         entity_id: entityId,
       });
       log.info(`Turn ON ${entityId} - success`);
@@ -160,7 +175,7 @@ class HomeAssistantService {
   async turnOff(entityId) {
     log.info(`Turning OFF ${entityId}`);
     try {
-      await this.request('POST', '/services/switch/turn_off', {
+      await this.request('POST', '/services/homeassistant/turn_off', {
         entity_id: entityId,
       });
       log.info(`Turn OFF ${entityId} - success`);

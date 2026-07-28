@@ -39,8 +39,14 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
   React.useEffect(() => {
     fetch(`${API_BASE}/api/minigames`).then(r => r.json()).then(d => setGames(d?.games || [])).catch(() => setGames([]));
   }, []);
+  // Card-baked games (character.miniGames via rowProps.cardGames) merge in behind the master
+  // list, so an imported card's trees can pick its travelling games. Master wins on id ties —
+  // same precedence the engine resolves with at runtime.
+  const masterIds = new Set((games || []).map(g => g.id));
+  const cardOnly = (rowProps.cardGames || []).filter(g => g && g.id && !masterIds.has(g.id));
+  const allGames = [...(games || []), ...cardOnly];
   const gameId = node.params?.miniGameId || '';
-  const game = (games || []).find(g => g.id === gameId);
+  const game = allGames.find(g => g.id === gameId);
   const exits = game ? exitsFor(game.type, game.config || {}) : [];
   const gotos = node.params?.exitGotos || {};
   const setGoto = (exit, name) => setParams({ exitGotos: { ...gotos, [exit]: name } });
@@ -52,9 +58,10 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
         <select value={gameId} onChange={(e) => setParams({ miniGameId: e.target.value, exitGotos: {} })}>
           <option value="">select a minigame…</option>
           {(games || []).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          {cardOnly.map(g => <option key={g.id} value={g.id}>{g.name} (card)</option>)}
         </select>
       </label>
-      {gameId && !game && <div className="section-hint">⚠️ This minigame no longer exists in the library.</div>}
+      {gameId && !game && <div className="section-hint">⚠️ This minigame no longer exists in the library or on this card.</div>}
       {game && (
         <div className="tree-field">
           <span>On each exit, go to (optional; blank = fall through)</span>

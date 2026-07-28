@@ -19,8 +19,12 @@ export function remapIds(nodes) {
 
 // onForkClosure (optional): async (treeId) => ref|null — a caller-supplied closure-aware fork
 // (used by the character editor to bake the tree AND its fire_tree dependencies + referenced
-// minigames onto the card). When absent, Fork keeps its original shallow copy-the-root behavior.
+// minigames onto the card). Reaches here either as a direct prop or riding rowProps (the editor
+// threads it through CheckpointProfiles/EventTriggersSection that way). When absent, Fork keeps
+// its original shallow copy-the-root behavior.
 function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Script', source = 'from card', rowProps = {}, onForkClosure = null }) {
+  const { onForkClosure: rowFork, ...treeRowProps } = rowProps;
+  const forkClosureFn = onForkClosure || rowFork || null;
   const { api } = useApp();
   const [trees, setTrees] = useState([]);
   const refetch = () => api.getTriggerTrees().then(d => setTrees(d?.trees || [])).catch(() => {});
@@ -40,9 +44,9 @@ function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Scri
   const fork = async () => {
     const t = trees.find(x => x.id === linkedId);
     if (!t) return;
-    if (onForkClosure) {
+    if (forkClosureFn) {
       try {
-        const forked = await onForkClosure(linkedId);
+        const forked = await forkClosureFn(linkedId);
         if (forked) { onChange(forked); return; }
       } catch (e) { console.error('Closure fork failed — falling back to shallow fork', e); }
     }
@@ -75,7 +79,7 @@ function ScopeTreeSection({ label, hint, refValue, onChange, defaultName = 'Scri
           🔗 Linked to library tree “{linkedTree?.name || linkedId}” — edits in the Trigger Library apply everywhere it's used. Fork to local to customise just this card.
         </div>
       ) : (
-        <TreeEditor value={ref.inline?.nodes || []} onChange={setInlineNodes} {...rowProps} />
+        <TreeEditor value={ref.inline?.nodes || []} onChange={setInlineNodes} {...treeRowProps} />
       )}
     </div>
   );

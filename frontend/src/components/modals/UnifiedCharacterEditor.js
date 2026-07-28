@@ -46,14 +46,21 @@ const MEMBER_GENDERS = [
   { value: 'nonbinary', label: 'Non-binary (they/them)' },
 ];
 
-// Top-level standard-mode fields that must survive an Instructor round-trip.
-// (Story-nested data is stashed separately as a whole-story snapshot — see stashStory.)
-const STANDARD_KEYS = [
-  'multiChar', 'authorsNote', 'libraryGroupIds', 'checkpointProfiles', 'defaultCheckpointProfileId',
-  'description', 'personality', 'buttons', 'exampleDialogues', 'individualResponseTokens',
-  'isPumpable', 'autoReplyEnabled', 'allowLlmDeviceAccess', 'globalReminders', 'constantReminders',
-  'treeLibrary', 'miniGames',
-];
+// Standard-mode stash is INVERTED (audit B4): snapshot EVERYTHING except the instructor-owned
+// keys, mode-shared identity fields, and the stash/versioning bookkeeping itself. The old
+// explicit allowlist silently skipped every newly added card field (treeLibrary and miniGames
+// both had to be hand-added) — with the inversion, new fields round-trip by default.
+// Shared-identity + bookkeeping fields deliberately NOT stashed (live values persist across the
+// toggle): id/name/avatar/shortDescription, stories/activeStoryId (the ACTIVE story is snapshotted
+// separately as __story), versions, timestamps, and the stashes themselves.
+const STASH_EXCLUDE = new Set([
+  'id', 'name', 'avatar', 'avatarData', 'shortDescription', 'createdAt', 'updatedAt',
+  'stories', 'activeStoryId', 'versions', 'activeVersionId',
+  'instructor', 'standardStash', 'instructorStash',
+]);
+const pickStandardStash = (obj) => Object.fromEntries(
+  Object.entries(obj || {}).filter(([k]) => !STASH_EXCLUDE.has(k) && !INSTRUCTOR_KEYS.includes(k))
+);
 
 // ---- Fork-to-card helpers (bake a global tree + its fire_tree closure onto the character) ----
 const ridc = (p = 'n') => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -707,8 +714,9 @@ Write only the scenario description itself, no explanations.`;
       const activeId = prev.activeStoryId || prev.stories?.[0]?.id;
       const curStory = (prev.stories || []).find(s => s.id === activeId) || prev.stories?.[0] || null;
       if (on) {
-        // Entering instructor mode: snapshot the standard top-level fields + the active story.
-        const standardStash = { ...pick(prev, STANDARD_KEYS), __story: curStory };
+        // Entering instructor mode: snapshot ALL standard top-level fields (inverted stash — see
+        // pickStandardStash) + the active story.
+        const standardStash = { ...pickStandardStash(prev), __story: curStory };
         const restored = prev.instructorStash || { mission: prev.mission || '', instructorDisposition: 'knowledgeable' };
         const restoredStory = prev.instructorStash?.__story;
         const stories = restoredStory
@@ -872,8 +880,14 @@ Write only the scenario description itself, no explanations.`;
   };
 
   // ---- Instructor Card Library entries (constantReminders/globalReminders) ----
-  const ownEntries = formData.globalReminders || formData.constantReminders || [];
-  const setOwnEntries = (next) => setFormData(prev => ({ ...prev, globalReminders: next, constantReminders: next }));
+  // Canonical card-lore field is constantReminders (the only one the backend reads). The old
+  // editor mirrored every write into globalReminders too — stop that; read-fallback keeps old
+  // cards working and the stale mirror key is dropped on the next write.
+  const ownEntries = formData.constantReminders || formData.globalReminders || [];
+  const setOwnEntries = (next) => setFormData(prev => {
+    const { globalReminders: _legacyMirror, ...rest } = prev;
+    return { ...rest, constantReminders: next };
+  });
   const handleAddReminder = () => { setEditingReminderId(null); setReminderForm(emptyReminderForm()); setShowReminderForm(true); };
   const handleEditReminder = (r) => {
     setEditingReminderId(r.id);
@@ -1978,7 +1992,8 @@ Write only the scenario description itself, no explanations.`;
                 )}
                 {ckptStory
                   ? <CheckpointProfiles story={ckptStory} updateStory={ckptUpdate} defaultPumpType={formData.defaultPumpType}
-                      cardName={(isGroup && !editingBase ? member?.name : formData.name) || 'card'} triggerSets={triggerSets} rowProps={{ isPumpable: pumpUiActive, members }} />
+                      cardName={(isGroup && !editingBase ? member?.name : formData.name) || 'card'} triggerSets={triggerSets}
+                      rowProps={{ isPumpable: pumpUiActive, members, onForkClosure: forkTreeClosure, cardGames: formData.miniGames || [] }} />
                   : <p className="section-hint">No story yet.</p>}
               </>
             );
@@ -2381,7 +2396,7 @@ Write only the scenario description itself, no explanations.`;
                                 onForkClosure={forkTreeClosure}
                                 defaultName={`${buttonForm.name || 'Button'} Tree`}
                                 source={`from button: ${buttonForm.name || 'unnamed'}`}
-                                rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [] }}
+                                rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [], cardGames: formData.miniGames || [] }}
                               />
                             )}
                             {action.type === 'trigger_blocks' && (

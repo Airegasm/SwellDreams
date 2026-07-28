@@ -951,8 +951,9 @@ function containsPulsePhrase(text) {
  * @returns {{text: string, reinforced: boolean, matchedPhrase: string|null, isPulse?: boolean, isOff?: boolean, mode?: string}}
  */
 function reinforcePumpControl(text, devices, sessionState, settings, characterLimits) {
-  // Only reinforce if LLM device control is enabled
-  if (!settings?.globalCharacterControls?.allowLlmDeviceControl) {
+  // Only reinforce if LLM device control is enabled — globally AND for this card (the per-story
+  // "AI Pump Control" tickbox rides characterLimits.llmDeviceAccessOff; audit H1).
+  if (!settings?.globalCharacterControls?.allowLlmDeviceControl || characterLimits?.llmDeviceAccessOff === true) {
     return { text, reinforced: false, matchedPhrase: null, isPulse: false };
   }
 
@@ -1112,7 +1113,9 @@ async function processLlmOutput(text, devices, deviceService, options = {}) {
   // Master switch: if "AI Pump Control" is OFF, the model must not actuate anything. Manual pump mode:
   // the session pump is a bulb/bike (not electrically driven), so an electric device must NOT be
   // turned on either. Both strip pump-ON commands (OFF is always allowed through as a safety).
-  const deviceControlOff = !settings?.globalCharacterControls?.allowLlmDeviceControl;
+  // Global master switch OR the card's own "AI Pump Control" tickbox (per-story; explicit false
+  // blocks, undefined inherits — audit H1) turns model-driven actuation off.
+  const deviceControlOff = !settings?.globalCharacterControls?.allowLlmDeviceControl || characterLimits?.llmDeviceAccessOff === true;
   const manualPumpMode = !!(sessionState?.pumpType && sessionState.pumpType !== 'electric');
   if (deviceControlOff || manualPumpMode) {
     const offOnly = commands.filter(c => c.action === 'off');

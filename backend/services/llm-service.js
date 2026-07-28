@@ -975,6 +975,15 @@ async function generateStream(options) {
     return result;
   }
 
+  // OpenRouter is keyed (not llmUrl-based) and has no SSE plumbing here — generate fully via the
+  // normal OpenRouter path, then emit as one chunk so the streaming UI still works. Previously
+  // this fell through to the kobold/llamacpp URL branch and hit the WRONG backend (audit H17).
+  if (mergedSettings.endpointStandard === 'openrouter') {
+    const result = await generate({ prompt, messages, systemPrompt: options.systemPrompt, settings: mergedSettings });
+    emitToken(result.text, result.text);
+    return result;
+  }
+
   if (!mergedSettings.llmUrl) {
     throw new Error('LLM URL not configured');
   }

@@ -4500,8 +4500,12 @@ async function executeTrigger(trigger, source, character, settings) {
         await waitForLlmIdle();
         broadcast('generating_start', { characterName: speakerName });
         sessionState.soloSpeaker = tgt?.id || null; // constrain the group prompt to this member alone
-        const baseCtx = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
-        sessionState.soloSpeaker = null;
+        let baseCtx;
+        try {
+          baseCtx = applyCharacterGuidance(buildChatContext(character, settings, { ignoreHistory: trigger.ignoreHistory === true }), character, substituteAllVariables(trigger.context || 'Continue the conversation naturally.'));
+        } finally {
+          sessionState.soloSpeaker = null; // a throw must not leave the solo constraint latched (audit H5)
+        }
         const soloSys = tgt
           ? `${baseCtx.systemPrompt}\n\n=== INDIVIDUAL RESPONSE (MANDATORY) ===\nRespond ONLY as ${tgt.name}. Do NOT write, voice, narrate, or speak for any other character — not even briefly. Begin DIRECTLY with the reply — do NOT acknowledge these instructions, announce what you will do, or restate any instruction text. Output a single, in-character reply from ${tgt.name} alone.\n=== END INDIVIDUAL RESPONSE ===\n`
           : baseCtx.systemPrompt;
@@ -5432,6 +5436,17 @@ const llmState = {
 // Queue behind the current generation: if the LLM is busy (e.g. mid-reply), wait for it to finish
 // before a trigger-driven generation starts, so it fires immediately after instead of concurrently.
 // Bounded by a timeout so a stuck flag can never hard-block.
+// Player turns SERIALIZE (audit H7): two rapid sends used to interleave two generation loops
+// over shared session state (soloSpeaker, per-turn injections, chatHistory ordering — worst in
+// group Individual mode where each loop walks the members). Every chat turn queues behind the
+// previous one; a failed turn never breaks the chain.
+let _chatTurnChain = Promise.resolve();
+function enqueueChatTurn(fn) {
+  const run = _chatTurnChain.catch(() => {}).then(fn);
+  _chatTurnChain = run.catch(() => {});
+  return run;
+}
+
 async function waitForLlmIdle(timeoutMs = 90000) {
   if (!llmState.isGenerating) return;
   console.log('[Trigger] LLM busy — queueing this generation until the current one completes...');
@@ -6477,6 +6492,13 @@ function getCharacterLimits(character) {
     llmMaxTimedDuration: pick('llmMaxTimedDuration'),
     // When true, a model [pump on] latches on until [pump off] — overriding time-based auto-off.
     latchPumpUntilOff: pumpLimits.latchPumpUntilOff === true,
+    // Per-story "AI Pump Control" tickbox (audit H1 — the UI has shown this switch for months
+    // while the backend never read it). Explicit false = this card BLOCKS model-driven device
+    // control even when the global switch is on; undefined inherits (legacy cards keep working).
+    llmDeviceAccessOff: (() => {
+      const story = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
+      return story?.allowLlmDeviceAccess === false;
+    })(),
   };
 }
 
@@ -8180,23 +8202,26 @@ async function handleWsMessage(ws, type, data) {
     }
 
     case 'chat_message':
-      // Multichar with girls ticked in the responder dropdown → reply as each ticked girl
-      // individually (in order), not the group. Falls back to the normal path otherwise.
-      if (Array.isArray(data.respondAs) && data.respondAs.length) {
-        const cmSettings = loadData(DATA_FILES.settings);
-        const cmChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
-        const cmChar = cmChars.find(c => c.id === cmSettings?.activeCharacterId);
-        const cmPersonas = loadAllPersonas() || [];
-        const cmPersona = cmPersonas.find(p => p.id === cmSettings?.activePersonaId);
-        // Respect the same send gates as the normal path: don't reply while a blocking video plays or
-        // when the message itself carries one; route the rest through handleChatMessage.
-        const hasBlockingVideo = /\[Video:([^\]:]+):blocking\]/i.test(data.content || '');
-        if (cmChar?.multiChar?.enabled && !cmSettings?.mediaBlocking && !sessionState.mediaBlocking && !hasBlockingVideo) {
-          await handleIndividualResponses(data, cmChar, cmSettings, cmPersona, data.respondAs);
-          break;
+      // Serialized (audit H7): rapid double-sends queue instead of interleaving generations.
+      await enqueueChatTurn(async () => {
+        // Multichar with girls ticked in the responder dropdown → reply as each ticked girl
+        // individually (in order), not the group. Falls back to the normal path otherwise.
+        if (Array.isArray(data.respondAs) && data.respondAs.length) {
+          const cmSettings = loadData(DATA_FILES.settings);
+          const cmChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+          const cmChar = cmChars.find(c => c.id === cmSettings?.activeCharacterId);
+          const cmPersonas = loadAllPersonas() || [];
+          const cmPersona = cmPersonas.find(p => p.id === cmSettings?.activePersonaId);
+          // Respect the same send gates as the normal path: don't reply while a blocking video plays or
+          // when the message itself carries one; route the rest through handleChatMessage.
+          const hasBlockingVideo = /\[Video:([^\]:]+):blocking\]/i.test(data.content || '');
+          if (cmChar?.multiChar?.enabled && !cmSettings?.mediaBlocking && !sessionState.mediaBlocking && !hasBlockingVideo) {
+            await handleIndividualResponses(data, cmChar, cmSettings, cmPersona, data.respondAs);
+            return;
+          }
         }
-      }
-      await handleChatMessage(data);
+        await handleChatMessage(data);
+      });
       break;
 
     case 'special_generate':
@@ -11458,12 +11483,15 @@ async function handleSpecialGenerate(data) {
       context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
     } else {
       if (smTarget) sessionState.soloSpeaker = smTarget.id; // constrain the group prompt to this member
-      context = applyCharacterGuidance(
-        buildChatContext(activeCharacter, settings),
-        activeCharacter,
-        guidedText
-      );
-      sessionState.soloSpeaker = null;
+      try {
+        context = applyCharacterGuidance(
+          buildChatContext(activeCharacter, settings),
+          activeCharacter,
+          guidedText
+        );
+      } finally {
+        sessionState.soloSpeaker = null; // throw-safe (audit H5)
+      }
       if (smSolo) context.systemPrompt = (context.systemPrompt || '') + smSolo; // single-member guided reply
     }
     const useStreaming = settings.llm?.streaming === true;
@@ -11594,12 +11622,15 @@ async function handleSpecialGenerate(data) {
         retryContext = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
       } else {
         if (smTarget) sessionState.soloSpeaker = smTarget.id;
-        retryContext = applyCharacterGuidance(
-          buildChatContext(activeCharacter, settings),
-          activeCharacter,
-          guidedText
-        );
-        sessionState.soloSpeaker = null;
+        try {
+          retryContext = applyCharacterGuidance(
+            buildChatContext(activeCharacter, settings),
+            activeCharacter,
+            guidedText
+          );
+        } finally {
+          sessionState.soloSpeaker = null; // throw-safe (audit H5)
+        }
         if (smSolo) retryContext.systemPrompt = (retryContext.systemPrompt || '') + smSolo;
       }
       retryContext.systemPrompt += '\n\nIMPORTANT: Write a UNIQUE response. Do not repeat previous messages.';
@@ -16122,6 +16153,18 @@ function cancelOtherTreeWork(ctx) {
   console.log(`[Tree] Cancel Current — aborted ${aborted} other run(s); all pending gates/popups cleared`);
 }
 
+// A tree hit a suspension point (choice/popup/wait/game/next) whose single channel is already
+// armed by ANOTHER run. The new suspension can't arm, so the rest of that branch is dropped when
+// the suspend bubbles out with nothing to capture it. This used to be completely silent — now
+// the author sees it in the console AND as an on-screen toast, so "my tree just stopped" is
+// diagnosable. Returns the suspend sentinel so guard sites stay one-liners.
+function suspendCollision(kind, ctx) {
+  const msg = `Tree '${ctx.treeId}' (${ctx.scopeKey}) hit a ${kind} while another is already active — that branch stopped there.`;
+  console.warn(`[Tree] SUSPEND COLLISION: ${msg}`);
+  try { broadcast('trigger_toast', { text: `⚠ ${msg}`, preset: 'amber' }); } catch (e) { /* pre-broadcast boot */ }
+  return { __control: 'suspend', reason: kind };
+}
+
 function treeOnceKey(node, ctx) { return `${ctx.treeId}::${ctx.scopeKey}::${node.id}`; }
 function treeChildCtx(ctx) { return { ...ctx, depth: ctx.depth + 1 }; }
 // Mark a once-node as fired, but only when it has an id (id-less once nodes stay recurring).
@@ -16234,7 +16277,7 @@ async function runNode(node, ctx) {
   // are set and the bound goto (if any) repositions in the same-level continuation. Mirrors the
   // player_choice suspend plumbing but on its own pendingTreeGame channel (resume: resumeTreeGame).
   if (type === 'call_minigame') {
-    if (sessionState.pendingTreeGame || sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'call_minigame' };
+    if (sessionState.pendingTreeGame || sessionState.pendingTreeChoice) return suspendCollision('call_minigame', ctx);
     const gameId = node.params?.miniGameId;
     // Master list first (live edits win on the author's machine), then the card's baked copies
     // (character.miniGames — how an imported card's games resolve without touching the master list).
@@ -16261,7 +16304,7 @@ async function runNode(node, ctx) {
   // Reuses the pause_resume channel with an EMPTY body (no children), so after the wait only the
   // captured same-level continuation runs. Lets an author force a gap between triggers. -----
   if (type === 'wait') {
-    if (sessionState.pendingTreeResume) return { __control: 'suspend', reason: 'wait' };
+    if (sessionState.pendingTreeResume) return suspendCollision('wait', ctx);
     const n = Math.max(1, Number(node.params?.messages ?? 1) || 1);
     markTreeOnce(node, ctx);
     sessionState.pendingTreeResume = {
@@ -16281,7 +16324,7 @@ async function runNode(node, ctx) {
   // back-to-back generated messages, so the >> button lights and next_gate_advance resumes; the
   // suspend handler in runTree captures the continuation + rootNodes for backward gotos. -----
   if (type === 'next_button') {
-    if (sessionState.pendingTreeNext) return { __control: 'suspend', reason: 'next-button' };
+    if (sessionState.pendingTreeNext) return suspendCollision('next-button', ctx);
     markTreeOnce(node, ctx);
     sessionState.pendingTreeNext = {
       ctxSnapshot: {
@@ -16480,7 +16523,7 @@ async function runNode(node, ctx) {
       case 'player_choice': {
         // Re-entrancy guard: if a tree choice is already armed (the walker may re-run before the
         // click), suspend again without clobbering it.
-        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'player_choice' };
+        if (sessionState.pendingTreeChoice) return suspendCollision('player_choice', ctx);
         const opts = (node.children || [])
           .filter(c => c && c.kind === 'container' && c.type === 'choice' && c.params?.label)
           .slice(0, 4);
@@ -16503,7 +16546,7 @@ async function runNode(node, ctx) {
         // picked option's body runs (in author order), then the same-level fall-through. Reuses
         // the pendingTreeChoice suspend plumbing (marked multi) so the scope-blocking + after-
         // capture machinery is shared; resume routes to resumeTreeChooseMulti.
-        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'choose_multi' };
+        if (sessionState.pendingTreeChoice) return suspendCollision('choose_multi', ctx);
         const opts = (node.children || [])
           .filter(c => c && c.kind === 'container' && c.type === 'choice' && c.params?.label)
           .slice(0, 8);
@@ -16539,7 +16582,7 @@ async function runNode(node, ctx) {
           console.log(`[Tree] Select Member auto-pick (single pumpable member) → [SelectedChar] = ${smList[0].name}`);
           return await runTree(node.children || [], child);
         }
-        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'select_member' };
+        if (sessionState.pendingTreeChoice) return suspendCollision('select_member', ctx);
         markTreeOnce(node, ctx); // presenting IS the effect
         sessionState.pendingTreeChoice = {
           selectMember: true,
@@ -16563,7 +16606,7 @@ async function runNode(node, ctx) {
         // OK stores each row's value as [PlayerInput:Row#] and runs the body + continuation,
         // Cancel ABORTS the entire tree run. Rides the pendingTreeChoice channel like
         // select_member (same scope-blocking + after-capture machinery).
-        if (sessionState.pendingTreeChoice) return { __control: 'suspend', reason: 'player_input' };
+        if (sessionState.pendingTreeChoice) return suspendCollision('player_input', ctx);
         const piRows = (node.params?.rows || []).filter(r => r && typeof r === 'object');
         if (!piRows.length) { console.warn(`[runTree] player_input node ${node.id}: no rows configured — skipping`); return; }
         markTreeOnce(node, ctx); // presenting IS the effect
@@ -16592,7 +16635,7 @@ async function runNode(node, ctx) {
         // Defer the rest of THIS tree for N reply turns, then run this node's body + the same-level
         // continuation. Non-blocking: uses pendingTreeResume (NOT pendingTreeChoice) so other scopes
         // keep running this turn. checkPendingTreeResume ticks it down at the top of each reply.
-        if (sessionState.pendingTreeResume) return { __control: 'suspend', reason: 'pause_resume' };
+        if (sessionState.pendingTreeResume) return suspendCollision('pause_resume', ctx);
         const n = Math.max(1, Number(node.params?.resumeAfterValue ?? 4) || 4);
         markTreeOnce(node, ctx);
         sessionState.pendingTreeResume = {
