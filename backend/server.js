@@ -5139,7 +5139,9 @@ async function executeTrigger(trigger, source, character, settings) {
       case 'system_message': {
         const content = substituteAllVariables(trigger.content || '');
         if (content) {
-          const msg = { id: uuidv4(), content, sender: 'system', characterId: character?.id, characterName: character?.name, timestamp: Date.now() };
+          // includeInHistory (tickbox): system notes are display-only by design, but a flagged one
+          // rides the LLM transcript as a bracketed [System] line (and the memory summarizer input).
+          const msg = { id: uuidv4(), content, sender: 'system', includeInContext: trigger.includeInHistory === true, characterId: character?.id, characterName: character?.name, timestamp: Date.now() };
           sessionState.chatHistory.push(msg);
           broadcast('chat_message', msg);
           autosaveSession();
@@ -9513,8 +9515,8 @@ async function handleClearChat(data) {
     // Build message block from all history
     let messageBlock = '';
     sessionState.chatHistory.forEach(msg => {
-      if (msg.excludeFromContext || msg.sender === 'system') return;
-      const speaker = msg.sender === 'player' ? playerName : (msg.characterName || charName);
+      if (msg.excludeFromContext || (msg.sender === 'system' && msg.includeInContext !== true)) return;
+      const speaker = msg.sender === 'system' ? 'System' : msg.sender === 'player' ? playerName : (msg.characterName || charName);
       messageBlock += `${speaker}: ${msg.content}\n`;
     });
 
@@ -14248,9 +14250,10 @@ function buildHistoryRepresentations(recentMessages, opts) {
     authorNoteDepth = 4,
   } = opts;
 
-  // Filter to displayable turns, preserving order.
+  // Filter to displayable turns, preserving order. System notes are excluded UNLESS the
+  // system_message action flagged them includeInContext (rendered as a bracketed [System] line).
   const turns = recentMessages.filter(
-    m => !m.excludeFromContext && m.sender !== 'system'
+    m => !m.excludeFromContext && (m.sender !== 'system' || m.includeInContext === true)
   );
 
   // Author note line (rendered identically in flat + messages as a system-style note).
@@ -14277,6 +14280,13 @@ function buildHistoryRepresentations(recentMessages, opts) {
     if (noteText && i === insertIdx) flushNote();
 
     const isPlayerTurn = msg.sender === 'player';
+    if (msg.sender === 'system') {
+      // Flagged system note: neutral narrator line, user-role in chat-completion shape.
+      const sysLine = `[System: ${msg.content}]`;
+      flat += `${sysLine}\n`;
+      messages.push({ role: 'user', content: sysLine });
+      return;
+    }
     const name = isPlayerTurn ? playerName : (msg.characterName || characterName);
     const line = `${name}: ${msg.content}`;
     flat += `${line}\n`;

@@ -589,9 +589,16 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
 
       case 'system_message':
         return (
-          <textarea value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
-            placeholder="System message text... (Enter = new line)" rows={2}
-            style={{ flex: 1, minWidth: '120px', resize: 'vertical' }} />
+          <>
+            <textarea value={trigger.content || ''} onChange={(e) => update('content', e.target.value)}
+              placeholder="System message text... (Enter = new line)" rows={2}
+              style={{ flex: 1, minWidth: '120px', resize: 'vertical' }} />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="Include in chat history — the AI sees this note in its transcript as a bracketed [System: …] line (and it feeds the memory summary). Unticked (default): display-only, invisible to the AI.">
+              <input type="checkbox" checked={trigger.includeInHistory === true} onChange={(e) => update('includeInHistory', e.target.checked)} />
+              In History
+            </label>
+          </>
         );
 
       case 'toast':
