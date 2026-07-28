@@ -1545,7 +1545,7 @@ function clearServerTimedPumpTimer(id) {
     clearTimeout(t);
     serverTimedPumpTimers.delete(id);
   }
-  pctExemptRuns.delete(id); // an explicit off ends the percentage run's freeze exemption
+  forcedPumpExemptions.delete(id); // an explicit off ends the forced-run freeze exemption
 }
 
 function clearAllServerTimedPumpTimers() {
@@ -1562,15 +1562,22 @@ function clearAllServerTimedPumpTimers() {
 // shortfall, capped at the original run length so a pathological freeze can never more than
 // double the physical pump time. Cleared alongside the pump timers on emergency stop.
 const pctPumpFollowUps = new Map(); // pumpId -> timeout
-// Percentage runs BANK THROUGH the gauge freeze (user ruling): the freeze exists for scene
-// pacing (message generation, ">>" gates), but a deliberate "+X%" run is physical reality —
-// the gauge must tick live while the pump runs, chain or no chain. Keyed by the device's
-// tracker key; expires shortly after the run's scheduled end.
-const pctExemptRuns = new Map(); // deviceKey -> exemptUntilMs
+// FORCED pump runs BANK THROUGH the gauge freeze (user ruling): the freeze exists for scene
+// pacing (message generation, ">>" gates) and still applies to AMBIENT running (LLM [pump on]
+// tags idling across stalls) — but any deliberate actuation (trigger actions in any mode,
+// pulses, cycles, buttons, manual presses) is physical delivery and must tick the gauge live.
+// Keyed by the device's tracker key; timed runs expire shortly after their scheduled end,
+// latch/cycle runs stay exempt until the device turns off (device_off cleans up).
+const forcedPumpExemptions = new Map(); // deviceKey -> exemptUntilMs (Infinity for latch/cycle)
+function exemptForcedRun(id, seconds) {
+  const secs = Number(seconds);
+  const until = (Number.isFinite(secs) && secs > 0) ? Date.now() + (Math.min(secs, MAX_ON_SECONDS) + 5) * 1000 : Infinity;
+  forcedPumpExemptions.set(id, until);
+}
 function clearPctPumpFollowUps() {
   for (const t of pctPumpFollowUps.values()) { try { clearTimeout(t); } catch (e) { /* ignore */ } }
   pctPumpFollowUps.clear();
-  pctExemptRuns.clear();
+  forcedPumpExemptions.clear();
 }
 function schedulePctShortfallCheck(id, pump, startCap, requestedInc, origSecs, retries = 0) {
   const prior = pctPumpFollowUps.get(id);
@@ -1605,6 +1612,7 @@ function schedulePctShortfallCheck(id, pump, startCap, requestedInc, origSecs, r
 async function timedPumpOn(id, device, durationSeconds) {
   const dur = Math.max(1, Math.min(Number(durationSeconds) || 1, MAX_ON_SECONDS));
   clearServerTimedPumpTimer(id);
+  exemptForcedRun(id, dur); // every timedPumpOn caller is a deliberate actuation — gauge banks through any freeze
   // durationInfo lets the frontend pump timer count DOWN instead of up.
   const onResult = await deviceService.turnOn(id, device, { untilType: 'timer', untilValue: dur });
   // A failed physical turn-on used to vanish here — the UI showed "pump on" while nothing ran and
@@ -1677,6 +1685,7 @@ async function firePrimaryPump(action) {
   if (action.mode === 'cycle') {
     const cycles = Number(action.cycles) || 3;
     await deviceService.startCycle(id, { duration: dur, interval: dur, cycles }, pump);
+    exemptForcedRun(id); // checkpoint-fired cycle = forced run
   } else {
     await timedPumpOn(id, pump, dur);
   }
@@ -4735,7 +4744,6 @@ async function executeTrigger(trigger, source, character, settings) {
             const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
             const secs = (inc / 100) * pump.calibrationTime / (modifier || 1);
             await timedPumpOn(id, pump, secs);
-            pctExemptRuns.set(id, Date.now() + (Math.min(secs, MAX_ON_SECONDS) + 5) * 1000); // bank through the freeze for this run
             schedulePctShortfallCheck(id, pump, cap, inc, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
             console.log(`[Trigger/${source}] pump_on percentage mode: +${inc}% (requested ${req}%, at ${cap}%) → ${secs.toFixed(1)}s`);
@@ -4744,6 +4752,7 @@ async function executeTrigger(trigger, source, character, settings) {
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(dur, MAX_ON_SECONDS) } });
           } else {
             await deviceService.turnOn(id, pump);
+            exemptForcedRun(id); // latch-style forced on — exempt until the device turns off
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump' });
           }
         }
@@ -5188,7 +5197,7 @@ async function executeTrigger(trigger, source, character, settings) {
       // ---- Arbitrary-device control (reuses deviceService, same as flows) ----
       case 'device_on': {
         const r = resolveTriggerDevice(trigger.device);
-        if (r) await deviceService.turnOn(r.id, r.device);
+        if (r) { await deviceService.turnOn(r.id, r.device); exemptForcedRun(r.id); } // authored on — banks through any freeze
         break;
       }
       case 'device_off': {
@@ -5198,7 +5207,10 @@ async function executeTrigger(trigger, source, character, settings) {
       }
       case 'start_cycle': {
         const r = resolveTriggerDevice(trigger.device);
-        if (r) await deviceService.startCycle(r.id, { duration: Number(trigger.duration) || 5, interval: Number(trigger.interval) || 10, cycles: Number(trigger.cycles) || 0 }, r.device);
+        if (r) {
+          await deviceService.startCycle(r.id, { duration: Number(trigger.duration) || 5, interval: Number(trigger.interval) || 10, cycles: Number(trigger.cycles) || 0 }, r.device);
+          exemptForcedRun(r.id); // cycles are forced runs — exempt until the device goes off
+        }
         break;
       }
       case 'stop_cycle': {
@@ -5208,7 +5220,10 @@ async function executeTrigger(trigger, source, character, settings) {
       }
       case 'pulse_pump': {
         const r = resolveTriggerDevice(trigger.device);
-        if (r) await deviceService.pulsePump(r.id, Number(trigger.pulses) || 3, r.device);
+        if (r) {
+          await deviceService.pulsePump(r.id, Number(trigger.pulses) || 3, r.device);
+          exemptForcedRun(r.id, (Number(trigger.pulses) || 3) * 3 + 10); // pulses are forced — cover the burst
+        }
         break;
       }
 
@@ -6332,9 +6347,9 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
       // so the wait-period runtime is discarded (consumed, never banked) — the gauge resumes where it froze.
       // EXCEPTION: an active percentage-mode run banks through the freeze (deliberate physical
       // delivery must tick the gauge live even while a trigger chain generates messages).
-      const pctExempt = (pctExemptRuns.get(deviceKey) || 0) > Date.now();
+      const pctExempt = (forcedPumpExemptions.get(deviceKey) || 0) > Date.now();
       if (!gaugeFrozen || pctExempt) {
-        if (gaugeFrozen && pctExempt) console.log(`[AutoCapacity] ${deviceKey}: banking ${newSeconds.toFixed(1)}s THROUGH the gauge freeze (percentage run)`);
+        if (gaugeFrozen && pctExempt) console.log(`[AutoCapacity] ${deviceKey}: banking ${newSeconds.toFixed(1)}s THROUGH the gauge freeze (forced run)`);
         tracker.effectiveSeconds += newSeconds * capacityModifier;
       }
       tracker.lastAccountedSeconds = tracker.totalSeconds;
@@ -6437,6 +6452,10 @@ deviceService.setEventEmitter((eventType, data) => {
   if (eventType === 'cycle_complete') {
     console.log(`[DeviceEvent] Cycle complete for ${data.ip}, triggering completion chain`);
     eventEngine.handleCycleComplete(data.ip);
+  }
+
+  if (eventType === 'device_off') {
+    forcedPumpExemptions.delete(data.ip); // a stopped device can't be a forced run anymore
   }
 
   // Route pump_runtime to auto-capacity handler
@@ -9086,6 +9105,7 @@ async function handleWsMessage(ws, type, data) {
       if (ppPump) {
         const id = resolveControlId(ppPump);
         await deviceService.turnOn(id, ppPump);
+        exemptForcedRun(id); // manual on — banks through any freeze until turned off
         broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: ppPump.label || ppPump.name || 'Pump' });
       }
       break;
@@ -10202,6 +10222,7 @@ async function handleButtonTurnOn(action) {
 
   console.log(`[Button] Turning on device ${deviceId}`);
   await deviceService.turnOn(deviceId, deviceObj);
+  exemptForcedRun(deviceId); // button press = forced run — banks through any freeze
 }
 
 async function handleButtonCycle(action) {
@@ -10232,6 +10253,7 @@ async function handleButtonCycle(action) {
 
   console.log(`[Button] Starting cycle on device ${deviceId}: ${JSON.stringify(cycleData)}`);
   await deviceService.startCycle(deviceId, cycleData, deviceObj);
+  exemptForcedRun(deviceId); // button cycle = forced run
 }
 
 async function handleButtonLinkToFlow(action, characterId, buttonId) {
