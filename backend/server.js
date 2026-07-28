@@ -1545,6 +1545,7 @@ function clearServerTimedPumpTimer(id) {
     clearTimeout(t);
     serverTimedPumpTimers.delete(id);
   }
+  pctExemptRuns.delete(id); // an explicit off ends the percentage run's freeze exemption
 }
 
 function clearAllServerTimedPumpTimers() {
@@ -1561,9 +1562,15 @@ function clearAllServerTimedPumpTimers() {
 // shortfall, capped at the original run length so a pathological freeze can never more than
 // double the physical pump time. Cleared alongside the pump timers on emergency stop.
 const pctPumpFollowUps = new Map(); // pumpId -> timeout
+// Percentage runs BANK THROUGH the gauge freeze (user ruling): the freeze exists for scene
+// pacing (message generation, ">>" gates), but a deliberate "+X%" run is physical reality —
+// the gauge must tick live while the pump runs, chain or no chain. Keyed by the device's
+// tracker key; expires shortly after the run's scheduled end.
+const pctExemptRuns = new Map(); // deviceKey -> exemptUntilMs
 function clearPctPumpFollowUps() {
   for (const t of pctPumpFollowUps.values()) { try { clearTimeout(t); } catch (e) { /* ignore */ } }
   pctPumpFollowUps.clear();
+  pctExemptRuns.clear();
 }
 function schedulePctShortfallCheck(id, pump, startCap, requestedInc, origSecs, retries = 0) {
   const prior = pctPumpFollowUps.get(id);
@@ -4728,7 +4735,8 @@ async function executeTrigger(trigger, source, character, settings) {
             const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
             const secs = (inc / 100) * pump.calibrationTime / (modifier || 1);
             await timedPumpOn(id, pump, secs);
-            schedulePctShortfallCheck(id, pump, cap, inc, Math.min(secs, MAX_ON_SECONDS)); // gauge-freeze compensation (audit D7)
+            pctExemptRuns.set(id, Date.now() + (Math.min(secs, MAX_ON_SECONDS) + 5) * 1000); // bank through the freeze for this run
+            schedulePctShortfallCheck(id, pump, cap, inc, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
             console.log(`[Trigger/${source}] pump_on percentage mode: +${inc}% (requested ${req}%, at ${cap}%) → ${secs.toFixed(1)}s`);
           } else if (Number.isFinite(dur) && dur > 0) {
@@ -6322,7 +6330,13 @@ function handlePumpRuntime({ ip, device, runtimeSeconds, calibrationTime, isReal
     if (newSeconds > 0) {
       // Bank into capacity ONLY when not frozen. While a WAIT holds, we still advance lastAccountedSeconds
       // so the wait-period runtime is discarded (consumed, never banked) — the gauge resumes where it froze.
-      if (!gaugeFrozen) tracker.effectiveSeconds += newSeconds * capacityModifier;
+      // EXCEPTION: an active percentage-mode run banks through the freeze (deliberate physical
+      // delivery must tick the gauge live even while a trigger chain generates messages).
+      const pctExempt = (pctExemptRuns.get(deviceKey) || 0) > Date.now();
+      if (!gaugeFrozen || pctExempt) {
+        if (gaugeFrozen && pctExempt) console.log(`[AutoCapacity] ${deviceKey}: banking ${newSeconds.toFixed(1)}s THROUGH the gauge freeze (percentage run)`);
+        tracker.effectiveSeconds += newSeconds * capacityModifier;
+      }
       tracker.lastAccountedSeconds = tracker.totalSeconds;
     }
     const deviceCapacity = (tracker.effectiveSeconds / deviceData.calibrationTime) * 100;
