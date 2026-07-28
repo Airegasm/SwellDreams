@@ -599,6 +599,18 @@ function Chat() {
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
 
+  // 📈 Session timeline (F4): capacity sparkline + engine-event feed, polled while open.
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [tlEvents, setTlEvents] = useState([]);
+  useEffect(() => {
+    if (!showTimeline) return;
+    let alive = true;
+    const load = () => fetch(`${API_BASE}/api/timeline`).then(r => r.json()).then(d => { if (alive) setTlEvents(d?.events || []); }).catch(() => {});
+    load();
+    const iv = setInterval(load, 5000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [showTimeline]);
+
   // 🔊 Voice (F2): local Piper TTS — per-bubble speak buttons + optional auto-speak of new
   // character replies. Fully inert unless enabled in Settings → Global → Voice.
   const [ttsInfo, setTtsInfo] = useState(null);
@@ -1543,6 +1555,48 @@ function Chat() {
         style={{ position: 'fixed', bottom: 8, left: 8, zIndex: 4000, opacity: showEngineDbg ? 1 : 0.35, background: 'rgba(30,42,74,0.9)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 13 }}>
         🔧
       </button>
+      <button type="button" onClick={() => setShowTimeline(v => !v)}
+        title="Session timeline — capacity graph + engine events"
+        style={{ position: 'fixed', bottom: 8, left: 44, zIndex: 4000, opacity: showTimeline ? 1 : 0.35, background: 'rgba(30,42,74,0.9)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 13 }}>
+        📈
+      </button>
+      {showTimeline && (() => {
+        const caps = tlEvents.filter(e => e.kind === 'capacity');
+        const others = tlEvents.filter(e => e.kind !== 'capacity').slice(-60).reverse();
+        const W = 300, H = 60;
+        const t0 = caps.length ? caps[0].t : 0, t1 = caps.length ? caps[caps.length - 1].t : 1;
+        const pts = caps.map(e => `${(W * ((e.t - t0) / Math.max(1, t1 - t0))).toFixed(1)},${(H - (H * e.v / 100)).toFixed(1)}`).join(' ');
+        const fmt = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return (
+          <div style={{ position: 'fixed', bottom: 40, left: 44, zIndex: 4000, width: 340, maxHeight: '55vh', overflowY: 'auto', background: 'rgba(13,21,38,0.96)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 11.5, lineHeight: 1.5 }}>
+            <strong>Session timeline</strong>
+            <div style={{ marginTop: 6 }}>
+              <u>Capacity</u>
+              {caps.length < 2 ? <div>— not enough samples yet</div> : (
+                <svg width={W} height={H} style={{ display: 'block', background: 'rgba(61,90,158,0.15)', borderRadius: 4, marginTop: 4 }}>
+                  <polyline points={pts} fill="none" stroke="#7fb2ff" strokeWidth="1.5" />
+                </svg>
+              )}
+              {caps.length >= 2 && <div style={{ opacity: 0.7 }}>{fmt(t0)} → {fmt(t1)} · now {caps[caps.length - 1].v}%</div>}
+            </div>
+            <div style={{ marginTop: 6 }}>
+              <u>Events (newest first)</u>
+              {others.length === 0 && <div>— nothing recorded yet</div>}
+              {others.map((e, i) => (
+                <div key={i}>
+                  <span style={{ opacity: 0.6 }}>{fmt(e.t)}</span>{' '}
+                  {e.kind === 'tree' && <>🌳 {e.tree} <span style={{ opacity: 0.6 }}>({e.scope})</span></>}
+                  {e.kind === 'event' && <>⚡ {e.event} → {e.tree}</>}
+                  {e.kind === 'range' && <>📍 range {e.key}</>}
+                  {e.kind === 'game' && <>🎮 {e.name}</>}
+                  {e.kind === 'device' && <>🔌 {e.device} {e.action}</>}
+                  {e.kind === 'marker' && <>— {e.label} —</>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       {showEngineDbg && (
         <div style={{ position: 'fixed', bottom: 40, left: 8, zIndex: 4000, width: 340, maxHeight: '55vh', overflowY: 'auto', background: 'rgba(13,21,38,0.96)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 11.5, lineHeight: 1.5 }}>
           <strong>Engine debug</strong>

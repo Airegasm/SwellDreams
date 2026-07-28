@@ -4208,6 +4208,7 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
       broadcast('capacity_gate', { active: false });
     }
     firedCheckpointTriggers.add(triggerKey);
+    tlRecord('range', { key: triggerKey });
     console.log(`[CheckpointTriggers] Starting sequence for ${triggerKey} (${triggers.length} trigger(s))`);
     await fireTriggerSequence(triggers, 0, triggerKey, activeCharacter, settings);
     return;
@@ -6137,6 +6138,17 @@ function clearSessionContextForSwitch() {
 
 const wsClients = new Set();
 
+// ---- Session timeline (F4): a ring buffer of engine events for the 📈 panel — capacity
+// samples, tree runs, event-binding fires, range entries, games, device actions. Cheap by
+// design (plain pushes); a 'marker' event notes session resets instead of wiping history.
+const TIMELINE_MAX = 2500;
+const sessionTimeline = [];
+let _tlLastCapacity = null;
+function tlRecord(kind, info = {}) {
+  sessionTimeline.push({ t: Date.now(), kind, ...info });
+  if (sessionTimeline.length > TIMELINE_MAX) sessionTimeline.shift();
+}
+
 function broadcastNow(type, data) {
   const message = JSON.stringify({ type, data, timestamp: Date.now() });
   wsClients.forEach(client => {
@@ -6153,6 +6165,15 @@ function broadcastNow(type, data) {
 const COALESCED_BROADCASTS = { capacity_update: 400, characters_update: 1000 };
 const _coalesceState = new Map(); // type -> { timer, lastSent, payload }
 function broadcast(type, data) {
+  // Timeline taps (F4): capacity samples on >=1% moves; every device actuation.
+  if (type === 'capacity_update' && typeof data?.capacity === 'number') {
+    if (_tlLastCapacity === null || Math.abs(data.capacity - _tlLastCapacity) >= 1) {
+      _tlLastCapacity = data.capacity;
+      tlRecord('capacity', { v: Math.round(data.capacity) });
+    }
+  } else if (type === 'ai_device_control') {
+    tlRecord('device', { device: data?.deviceName || data?.device || '?', action: data?.action || '?' });
+  }
   const win = COALESCED_BROADCASTS[type];
   if (!win) return broadcastNow(type, data);
   let st = _coalesceState.get(type);
@@ -12676,6 +12697,7 @@ async function fireEventBinding(b, character, settings, treeIndex, delivery) {
   const tree = resolveRefTree(b.ref, treeIndex);
   if (!tree) return;
   sessionState.eventCooldown[b.id] = eventEngine.messageCount || 0;
+  tlRecord('event', { event: b.event, tree: tree.name || b.ref?.treeId || 'inline' });
   await runTreeScope(tree, `event:${b.id}`, character, settings, { delivery: delivery || 'standalone', treeIndex });
 }
 
@@ -16442,6 +16464,7 @@ async function runNode(node, ctx) {
       },
       after: null // innermost sibling tail, filled by runTree as the suspend bubbles
     };
+    tlRecord('game', { name: game.name });
     broadcast('tree_minigame', { gameId, type: game.type, name: game.name, config: game.config || {} });
     return { __control: 'suspend', reason: 'call_minigame' };
   }
@@ -16943,6 +16966,7 @@ async function runTreeScope(tree, scopeKey, character, settings, opts = {}) {
   // A Select Member node inside this run (or a resume of this run's suspend) re-fills it.
   sessionState.selectedChar = null;
   const treeId = tree.id || `inline:${scopeKey || 'default'}`;
+  tlRecord('tree', { tree: tree.name || treeId, scope: scopeKey || 'default' });
   const ctx = {
     character, settings,
     treeId,
@@ -19539,6 +19563,8 @@ app.get('/api/checkpoint-presets', (req, res) => res.json({ presets: CHECKPOINT_
 
 // ---- Voice / TTS (F2): local Piper synthesis, optional + graceful when unconfigured ----
 const ttsService = require('./services/tts-service');
+
+app.get('/api/timeline', (req, res) => res.json({ events: sessionTimeline }));
 
 app.get('/api/tts/voices', (req, res) => {
   const cfg = (loadData(DATA_FILES.settings) || {}).tts || {};
