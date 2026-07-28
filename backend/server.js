@@ -1645,6 +1645,17 @@ async function timedPumpOn(id, device, durationSeconds) {
   serverTimedPumpTimers.set(id, timer);
 }
 
+// Await a timed pump run's completion ("await completion before continuing tree" tickbox):
+// resolves when the tracked auto-off timer is gone — normal expiry, an explicit pump-off, or
+// emergency stop all release it. Percentage-mode shortfall extensions re-arm the same timer id,
+// so the wait naturally covers them. Deadline guard = run length + 10s so nothing hangs forever.
+async function awaitTimedPumpCompletion(id, secs) {
+  const deadline = Date.now() + Math.min(Number(secs) || 1, MAX_ON_SECONDS) * 1000 + 10000;
+  while (serverTimedPumpTimers.has(id) && Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 250));
+  }
+}
+
 // Effective max pump-ON seconds for automated/checkpoint/trigger pump firing. The PRIMARY pump's
 // own limit (per-device, via getCharacterLimits) takes priority, then it is capped by the global
 // LLM device-control max. Mirrors the clamp the LLM [pump on] path already applies.
@@ -3937,6 +3948,7 @@ const sessionState = {
   preInflationGateMet: true, // When false, blocks LLM-initiated pump commands until capacity > 0
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
   checkpointControl: null, // Session overrides from Checkpoint Control blocks: { ranges: {key:'on'|'off'}, events: 'on'|'off'|null }; null slot = card default
+  pendingIntroStart: null, // Gated intro deferred behind a suspended Session Start tree: { welcomePosted }
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
                       // base character at read time, and every runTreeScope resets it so trees stay agnostic
@@ -4767,9 +4779,17 @@ async function executeTrigger(trigger, source, character, settings) {
             schedulePctShortfallCheck(id, pump, cap, target - cap, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
             console.log(`[Trigger/${source}] pump_on percentage mode: +${req}% → target ${target}% (true ${trueCap.toFixed(2)}%, shown ${cap}%) → ${secs.toFixed(1)}s`);
+            if (trigger.awaitCompletion === true) {
+              console.log(`[Trigger/${source}] pump_on holding the tree/sequence until the +${req}% run completes`);
+              await awaitTimedPumpCompletion(id, secs + 15); // headroom for a shortfall extension
+            }
           } else if (Number.isFinite(dur) && dur > 0) {
             await timedPumpOn(id, pump, dur);
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(dur, MAX_ON_SECONDS) } });
+            if (trigger.awaitCompletion === true) {
+              console.log(`[Trigger/${source}] pump_on holding the tree/sequence until the ${dur}s run completes`);
+              await awaitTimedPumpCompletion(id, dur);
+            }
           } else {
             await deviceService.turnOn(id, pump);
             exemptForcedRun(id); // latch-style forced on — exempt until the device turns off
@@ -6147,6 +6167,7 @@ function clearSessionContextForSwitch() {
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.pendingCheckpointChoice = null;
@@ -9595,6 +9616,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -9648,6 +9670,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -9669,6 +9692,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -13565,6 +13589,35 @@ function finalizeIntroSequence(character, force = false) {
 }
 // Re-run the intro tree each reply while active (weaves guidance in-reply; its keyword/choice gates
 // fire end_intro when the player meets the condition).
+// Gated-intro deferral: when the Session Start tree SUSPENDS (choice/wait/>>/game/input), its
+// runTreeScope returns immediately with the continuation parked — the intro must NOT start until
+// that whole chain completes (the reported bug: intro talking over an unfinished session start).
+// A light watcher beats instrumenting every resume path: it waits until no suspension from the
+// 'sessionStart' scope remains (and no generation is in flight), then starts the intro (or the
+// legacy Pre-Fill fallback). Session resets null pendingIntroStart, which self-clears the timer.
+let _deferredIntroTimer = null;
+function deferIntroUntilSessionStartCompletes(welcomePosted) {
+  sessionState.pendingIntroStart = { welcomePosted };
+  if (_deferredIntroTimer) clearInterval(_deferredIntroTimer);
+  _deferredIntroTimer = setInterval(async () => {
+    const d = sessionState.pendingIntroStart;
+    if (!d) { clearInterval(_deferredIntroTimer); _deferredIntroTimer = null; return; }
+    const stillPending = ['pendingTreeChoice', 'pendingTreeResume', 'pendingTreeGame', 'pendingTreeNext']
+      .some(k => String(sessionState[k]?.ctxSnapshot?.scopeKey || '').startsWith('sessionStart'));
+    if (stillPending || llmState.isGenerating) return;
+    clearInterval(_deferredIntroTimer); _deferredIntroTimer = null;
+    sessionState.pendingIntroStart = null;
+    try {
+      const { character, settings } = getActiveCharacterAndSettings();
+      if (!character) return;
+      console.log('[SessionStart] chain complete — starting the deferred gated intro');
+      const treeIndex = buildTreeIndex(character);
+      const introStarted = await startIntroScope(character, settings, treeIndex, d.welcomePosted);
+      if (!introStarted) startPreFill(character);
+    } catch (e) { console.error('[SessionStart] deferred intro start failed:', e?.message || e); }
+  }, 500);
+}
+
 async function runIntroScope(character, settings, treeIndex) {
   const tree = getIntroTree(character, treeIndex);
   if (!tree) {
@@ -21027,6 +21080,7 @@ app.post('/api/session/reset-once', (req, res) => {
   sessionState.randomBlockBudget = {};
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   console.log('[Session] once-memory reset (fired nodes/ranges, random budgets, event latches)');
   res.json({ ok: true });
 });
@@ -21098,6 +21152,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
@@ -21244,7 +21299,17 @@ app.post('/api/session/reset', async (req, res) => {
       // Either closes the gate and blocks other scopes until it completes.
       // welcomePosted (!overrideWelcome) → the intro's first message waits behind ">>" so the player
       // reads the welcome first.
-      const introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex, !overrideWelcome);
+      // If the Session Start tree SUSPENDED, the intro must wait for its whole chain — defer.
+      const ssStillPending = ['pendingTreeChoice', 'pendingTreeResume', 'pendingTreeGame', 'pendingTreeNext']
+        .some(k => String(sessionState[k]?.ctxSnapshot?.scopeKey || '').startsWith('sessionStart'));
+      let introStarted;
+      if (ssStillPending) {
+        console.log('[SessionStart] Session Start tree suspended — deferring the gated intro until it completes');
+        deferIntroUntilSessionStartCompletes(!overrideWelcome);
+        introStarted = true; // gates the Pre-Fill/prereq fallbacks exactly like a live intro
+      } else {
+        introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex, !overrideWelcome);
+      }
       const preFillStarted = introStarted ? false : startPreFill(activeCharacter);
       if (isInstr) {
         // Legacy modal pre-reqs only run when Pre-Fill is NOT in use — and NOT if the Session

@@ -337,6 +337,13 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
                   title={pctMode
                     ? 'Capacity % to ADD (0–100). The pump runs until that much has been added, hard-capped at 100% total — at 70% capacity a 50% request only adds 30%. Accepts a variable like [CharVar:GameResult].'
                     : 'Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Accepts a variable like [CharVar:GameResult] (e.g. a dice total). Capped only by the 30-minute hard safety limit.'} />
+                {(pctMode || String(trigger.duration ?? '').trim() !== '') && (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    title="Await completion before continuing — the tree/sequence holds at this action until the timed run finishes (auto-off fires). Pump OFF or emergency stop releases it early. Only applies to runs with an automatic cutoff (seconds or percentage).">
+                    <input type="checkbox" checked={trigger.awaitCompletion === true} onChange={(e) => update('awaitCompletion', e.target.checked)} />
+                    Await
+                  </label>
+                )}
               </>
             )}
           </>
