@@ -1096,6 +1096,29 @@ app.get('/api/media/lookup', async (req, res) => {
     }
 
     if (!item) {
+      // Fallback (audit D6): the ACTIVE character's own media directory, matched by filename or
+      // stem (case-insensitive). Lets [Image:x]/[Video:x]/[Audio:x] in a card's trees resolve to
+      // the media that travelled WITH the card (ZIP export) on installs whose library lacks the
+      // tag. Library tags win on collision.
+      const luSettings = loadData(DATA_FILES.settings) || {};
+      const activeCharId = luSettings.activeCharacterId;
+      if (activeCharId && isSafeId(activeCharId)) {
+        const files = listCharMedia(activeCharId)[type] || [];
+        const want = String(tag).toLowerCase();
+        const hit = files.find(f => f.name.toLowerCase() === want)
+          || files.find(f => f.name.toLowerCase().replace(/\.[^.]+$/, '') === want);
+        if (hit) {
+          return res.json({
+            id: `charmedia:${hit.name}`,
+            tag,
+            description: `${activeCharId} card media`,
+            orientation: null,
+            type,
+            charMedia: true,
+            fileUrl: hit.url
+          });
+        }
+      }
       return res.status(404).json({ error: `${type} with tag "${tag}" not found` });
     }
 
@@ -1524,6 +1547,43 @@ function clearAllServerTimedPumpTimers() {
     try { clearTimeout(t); } catch (e) { /* ignore */ }
   }
   serverTimedPumpTimers.clear();
+  clearPctPumpFollowUps(); // percentage-mode shortfall checks die with the pump timers
+}
+
+// Percentage-mode shortfall compensation (audit D7): if the gauge froze mid-run (a popup or ">>"
+// gate opened), part of the physical run wasn't banked and the increase comes up short of the
+// request. After the timed run ends — and once the gauge can bank again — extend ONCE by the
+// shortfall, capped at the original run length so a pathological freeze can never more than
+// double the physical pump time. Cleared alongside the pump timers on emergency stop.
+const pctPumpFollowUps = new Map(); // pumpId -> timeout
+function clearPctPumpFollowUps() {
+  for (const t of pctPumpFollowUps.values()) { try { clearTimeout(t); } catch (e) { /* ignore */ } }
+  pctPumpFollowUps.clear();
+}
+function schedulePctShortfallCheck(id, pump, startCap, requestedInc, origSecs, retries = 0) {
+  const prior = pctPumpFollowUps.get(id);
+  if (prior) clearTimeout(prior);
+  const delay = retries === 0 ? (origSecs * 1000 + 750) : 2000;
+  pctPumpFollowUps.set(id, setTimeout(() => {
+    pctPumpFollowUps.delete(id);
+    try {
+      if (isGaugeFrozen()) { // still stalled — measure once banking resumes (bounded ~5 min)
+        if (retries < 150) schedulePctShortfallCheck(id, pump, startCap, requestedInc, origSecs, retries + 1);
+        return;
+      }
+      const now = Math.min(100, Math.max(0, sessionState.capacity || 0));
+      const banked = now - startCap;
+      const shortfallPct = Math.min(requestedInc - banked, 100 - now);
+      if (!(shortfallPct > 0.5)) return; // delivered (or ceiling) — nothing to make up
+      if (!(pump.calibrationTime > 0)) return;
+      const sfSettings = loadData(DATA_FILES.settings) || {};
+      const modifier = sfSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
+      const extraSecs = Math.min((shortfallPct / 100) * pump.calibrationTime / (modifier || 1), origSecs);
+      if (extraSecs < 0.5) return;
+      console.log(`[Trigger/pump_on] Percentage shortfall: banked +${banked.toFixed(1)}% of the requested ${requestedInc}% (gauge froze mid-run) — extending once by ${extraSecs.toFixed(1)}s`);
+      timedPumpOn(id, pump, extraSecs).catch(e => console.error('[pump_on] shortfall extension failed:', e?.message || e));
+    } catch (e) { console.error('[pump_on] shortfall check failed:', e?.message || e); }
+  }, delay));
 }
 
 /**
@@ -4656,6 +4716,7 @@ async function executeTrigger(trigger, source, character, settings) {
             const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
             const secs = (inc / 100) * pump.calibrationTime / (modifier || 1);
             await timedPumpOn(id, pump, secs);
+            schedulePctShortfallCheck(id, pump, cap, inc, Math.min(secs, MAX_ON_SECONDS)); // gauge-freeze compensation (audit D7)
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
             console.log(`[Trigger/${source}] pump_on percentage mode: +${inc}% (requested ${req}%, at ${cap}%) → ${secs.toFixed(1)}s`);
           } else if (Number.isFinite(dur) && dur > 0) {
@@ -5451,6 +5512,35 @@ const llmState = {
 // Queue behind the current generation: if the LLM is busy (e.g. mid-reply), wait for it to finish
 // before a trigger-driven generation starts, so it fires immediately after instead of concurrently.
 // Bounded by a timeout so a stuck flag can never hard-block.
+// ---- Live engine debug snapshot (audit D3): everything a trigger author needs to see to answer
+// "why did my tree stop" — armed suspensions, in-flight runs, session overrides, gates, vars. ----
+let _engineDbgSubs = 0, _engineDbgTimer = null;
+function engineDebugSnapshot() {
+  const pc = sessionState.pendingTreeChoice;
+  return {
+    pendings: {
+      choice: pc ? {
+        kind: pc.multi ? 'choose_multi' : pc.selectMember ? 'select_member' : pc.playerInput ? 'player_input' : 'player_choice',
+        tree: pc.ctxSnapshot?.treeId || null, scope: pc.ctxSnapshot?.scopeKey || null
+      } : null,
+      wait: sessionState.pendingTreeResume ? { remaining: sessionState.pendingTreeResume.remaining, tree: sessionState.pendingTreeResume.ctxSnapshot?.treeId || null } : null,
+      game: sessionState.pendingTreeGame ? { gameId: sessionState.pendingTreeGame.miniGameId, tree: sessionState.pendingTreeGame.ctxSnapshot?.treeId || null } : null,
+      nextGate: !!sessionState.pendingTreeNext,
+      rangeAwait: sessionState.pendingRangeAwait ? { kind: sessionState.pendingRangeAwait.kind, source: sessionState.pendingRangeAwait.source || null } : null,
+      capacityGate: sessionState.pendingCapacityGate ? { target: sessionState.pendingCapacityGate.target, source: sessionState.pendingCapacityGate.source || null } : null,
+    },
+    activeRuns: [...activeTreeRuns].map(f => ({ tree: f.treeId, scope: f.scopeKey, cancelled: !!f.cancelled })),
+    checkpointControl: sessionState.checkpointControl || null,
+    capacity: { player: sessionState.capacity || 0, char: sessionState.characterCapacity || 0, members: sessionState.memberCapacities || {} },
+    gaugeFrozen: isGaugeFrozen(),
+    llmBusy: !!llmState.isGenerating,
+    introActive: !!sessionState.introActive,
+    selectedChar: sessionState.selectedChar || null,
+    triggerChainDepth: sessionState.triggerChainDepth || 0,
+    vars: sessionState.flowVariables || {},
+  };
+}
+
 // Player turns SERIALIZE (audit H7): two rapid sends used to interleave two generation loops
 // over shared session state (soloSpeaker, per-turn injections, chatHistory ordering — worst in
 // group Individual mode where each loop walks the members). Every chat turn queues behind the
@@ -8941,6 +9031,22 @@ async function handleWsMessage(ws, type, data) {
     case 'gate_release':
       await handleGateRelease();
       break;
+
+    case 'engine_debug_subscribe': {
+      // Live engine debug panel (audit D3): while any client has the panel open, push a snapshot
+      // every 1.5s. Subscribing sends an immediate first frame.
+      _engineDbgSubs = Math.max(0, _engineDbgSubs + (data?.on ? 1 : -1));
+      if (_engineDbgSubs > 0 && !_engineDbgTimer) {
+        _engineDbgTimer = setInterval(() => {
+          // Self-heal a leaked subscription (tab closed without unsubscribing): no clients, no timer.
+          if (wsClients.size === 0) { clearInterval(_engineDbgTimer); _engineDbgTimer = null; _engineDbgSubs = 0; return; }
+          try { broadcast('engine_debug', engineDebugSnapshot()); } catch (e) { /* never let debug kill the loop */ }
+        }, 1500);
+      }
+      if (_engineDbgSubs === 0 && _engineDbgTimer) { clearInterval(_engineDbgTimer); _engineDbgTimer = null; }
+      if (data?.on) { try { broadcast('engine_debug', engineDebugSnapshot()); } catch (e) { /* ignore */ } }
+      break;
+    }
 
     case 'next_gate_advance': {
       // Player pressed ">>" (Next) — release the paused message sequence and continue with the next one.
@@ -20471,6 +20577,57 @@ function withBakedMiniGames(character) {
   } catch (e) { console.error('[Export] minigame baking failed:', e?.message || e); return character; }
 }
 
+// ---- Whole-app backup/restore (audit D5) ----
+// GET /api/backup streams a zip of the entire data/ dir (minus tmp/); POST /api/backup/restore
+// extracts an uploaded backup over data/ and re-runs schema migrations. Both are HOST-ONLY —
+// restore is destructive and backup contains every secret.
+app.get('/api/backup', (req, res) => {
+  if (!isLocalRequest(req)) return res.status(403).json({ error: 'Backup is host-only' });
+  try {
+    const archiver = require('archiver');
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="swelldreams-backup-${stamp}.zip"`);
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (err) => { console.error('[Backup]', err); try { res.destroy(); } catch (e) {} });
+    archive.pipe(res);
+    archive.glob('**/*', { cwd: path.join(__dirname, 'data'), ignore: ['tmp/**'], dot: false });
+    archive.finalize();
+  } catch (error) {
+    console.error('[Backup] Error:', error);
+    if (!res.headersSent) res.status(500).json({ error: error.message || 'Backup failed' });
+  }
+});
+
+app.post('/api/backup/restore', cardUpload.single('file'), (req, res) => {
+  try {
+    if (!isLocalRequest(req)) return res.status(403).json({ error: 'Restore is host-only' });
+    if (!req.file) return res.status(400).json({ error: 'No backup file uploaded' });
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(req.file.path);
+    const dataDir = path.join(__dirname, 'data');
+    let restored = 0, skipped = 0;
+    for (const entry of zip.getEntries()) {
+      if (entry.isDirectory) continue;
+      // Path-traversal guard: resolved target must stay inside data/; tmp/ never restores.
+      const rel = entry.entryName.replace(/\\/g, '/');
+      if (rel.startsWith('tmp/') || rel.includes('..')) { skipped++; continue; }
+      const target = path.join(dataDir, rel);
+      if (!target.startsWith(dataDir + path.sep)) { skipped++; continue; }
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, entry.getData());
+      restored++;
+    }
+    _jsonCache.clear(); // every cached file may have changed under us
+    runDataMigrations();
+    console.log(`[Restore] Backup restored: ${restored} file(s) written, ${skipped} skipped`);
+    res.json({ success: true, restored, skipped, message: `Restored ${restored} file(s). Restart the backend to load everything cleanly.` });
+  } catch (error) {
+    console.error('[Restore] Error:', error);
+    res.status(500).json({ error: error.message || 'Restore failed' });
+  } finally { cleanupUpload(req); }
+});
+
 // Export single character
 app.get('/api/export/character/:id', (req, res) => {
   let character;
@@ -21247,6 +21404,15 @@ app.post('/api/sessions/save', (req, res) => {
     chatHistory: sessionState.chatHistory,
     flowVariables: sessionState.flowVariables,
     flowAssignments: sessionState.flowAssignments,
+    // Trigger-era state (audit D4): char/member gauges, capacity offset, runtime tracker, and the
+    // chat memory summary all belong to the snapshot too — without them a load resumed the player
+    // gauge but reset every character to 0% and dropped the rolling summary.
+    characterCapacity: sessionState.characterCapacity || 0,
+    memberCapacities: sessionState.memberCapacities || {},
+    capacityOffset: sessionState.capacityOffset || 0,
+    pumpRuntimeTracker: sessionState.pumpRuntimeTracker,
+    chatMemorySummary: sessionState.chatMemorySummary || null,
+    chatMemorySummaryUpTo: sessionState.chatMemorySummaryUpTo || 0,
     createdAt: Date.now(),
     updatedAt: Date.now()
   };
@@ -21312,6 +21478,29 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.pumpRuntimeTracker = session.pumpRuntimeTracker || {}; // Restore auto-capacity tracking if saved
   sessionState.playerIsInflating = false; // never resume into a latched-pump state
   sessionState.awaitingGoRelease = false; sessionState.pendingGoProfileId = null; sessionState.pendingRangeAwait = null; sessionState.pendingCapacityGate = null; sessionState.triggerChainDepth = 0;
+  // Trigger-era rehydration (audit D4): restore char/member gauges + summary, and void every tree
+  // suspension / session override — their continuations point at the PRE-load context and must
+  // not resume into the snapshot. Popup UI is dismissed via the standard clear broadcasts.
+  sessionState.characterCapacity = session.characterCapacity || 0;
+  sessionState.memberCapacities = session.memberCapacities || {};
+  sessionState.capacityOffset = session.capacityOffset || 0;
+  sessionState.chatMemorySummary = session.chatMemorySummary || null;
+  sessionState.chatMemorySummaryUpTo = session.chatMemorySummaryUpTo || 0;
+  sessionState.pendingTreeChoice = null;
+  sessionState.pendingTreeResume = null;
+  sessionState.pendingTreeGame = null;
+  sessionState.pendingTreeNext = null;
+  sessionState.pendingCheckpointChoice = null;
+  sessionState.checkpointControl = null;
+  sessionState.selectedChar = null;
+  sessionState.firedTreeNodes.clear();
+  firedCheckpointTriggers.clear();
+  resetEventTriggerState();
+  broadcast('checkpoint_choice_clear', {});
+  broadcast('tree_minigame_clear', {});
+  broadcast('next_gate', { active: false });
+  broadcast('await_state', null);
+  broadcast('capacity_gate', { active: false });
 
   // Pre-inflation gate: mirror fresh-session gating so a resumed STANDARD card isn't
   // wrongly re-gated at 0% (which silently strips every model [pump on] to off-only).

@@ -916,6 +916,11 @@ export function AppProvider({ children }) {
         window.dispatchEvent(new CustomEvent('trigger_toast', { detail: data }));
         break;
 
+      case 'engine_debug':
+        // Live engine debug snapshot for the Chat page's 🔧 panel
+        window.dispatchEvent(new CustomEvent('engine_debug', { detail: data }));
+        break;
+
       default:
         console.log('[WS] Unknown message:', type, data);
     }

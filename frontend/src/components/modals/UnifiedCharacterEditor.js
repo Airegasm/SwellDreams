@@ -253,7 +253,7 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
       await api.createMiniGame(g.name, g.type, g.config || {}, g.id); // stable id → the card's refs resolve to the library copy
       const d = await api.getMiniGames();
       setMasterGames(d?.games || []);
-    } catch (e) { console.error('Add to library failed', e); }
+    } catch (e) { console.error('Add to library failed', e); window.alert('Add to library failed: ' + (e.message || e)); }
   };
 
   // ---- Media tab: files in the character's personal directory (chars/custom/<id>/media/) ----
@@ -2484,7 +2484,9 @@ Write only the scenario description itself, no explanations.`;
                   Files here belong to THIS card (never embedded in its JSON). A card with media exports as a
                   <strong> .zip</strong> — the SwellD PNG plus image/ video/ audio/ folders — and importing that zip
                   restores the files into the new card's media directory. Double-click a file to open it in the
-                  system's viewer/player.
+                  system's viewer/player. Show them in chat with <code>[Image:filename]</code> /{' '}
+                  <code>[Video:filename]</code> / <code>[Audio:filename]</code> (extension optional) — the main
+                  media library is checked first, then this card's files, so card media works on any install.
                 </p>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', margin: '10px 0' }}>
                   {['image', 'video', 'audio'].map(t => (

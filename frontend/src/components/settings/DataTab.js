@@ -14,6 +14,33 @@ function DataTab() {
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Complete backup restore (audit D5)
+  const restoreInputRef = useRef(null);
+  const [restoreMsg, setRestoreMsg] = useState('');
+  const handleRestoreClick = () => {
+    if (window.confirm('Restore a complete backup?\n\nThis OVERWRITES current data — characters, settings, media, sessions, device config. Restart the backend afterward.')) {
+      restoreInputRef.current?.click();
+    }
+  };
+  const handleRestoreFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setRestoreMsg('Restoring…');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(`${API_BASE}/api/backup/restore`, { method: 'POST', body: fd });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || 'Restore failed');
+      setRestoreMsg(`✓ ${j.message}`);
+      showSuccess?.(j.message);
+    } catch (err) {
+      setRestoreMsg(`✗ ${err.message}`);
+      showError?.(err.message);
+    }
+  };
+
   // Collapsible section states
   const [expandedSections, setExpandedSections] = useState({
     export: false,
@@ -282,6 +309,20 @@ function DataTab() {
             >
               Download Full Backup
             </button>
+
+            <hr style={{ margin: '14px 0', opacity: 0.3 }} />
+            <p className="section-description">
+              <strong>Complete backup (.zip)</strong> — the ENTIRE data directory: characters, personas,
+              trigger trees, minigames, media files, settings, sessions, and device config. Unlike the JSON
+              backup above it <strong>does include API keys/tokens</strong> (encrypted at rest) — keep the
+              file private. Restore overwrites current data; host machine only.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <a className="btn btn-primary" href={`${API_BASE}/api/backup`} download>Download Complete Backup (.zip)</a>
+              <button className="btn btn-secondary" onClick={handleRestoreClick}>Restore from Complete Backup…</button>
+              <input type="file" ref={restoreInputRef} accept=".zip" style={{ display: 'none' }} onChange={handleRestoreFile} />
+            </div>
+            {restoreMsg && <p className="section-description" style={{ marginTop: 8 }}>{restoreMsg}</p>}
           </div>
         )}
       </div>

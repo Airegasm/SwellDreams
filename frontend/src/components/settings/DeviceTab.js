@@ -104,23 +104,23 @@ function DeviceTab() {
 
   const handleUpdatePump = async (id, patch) => {
     setPumps(prev => prev.map(p => (p.id === id ? { ...p, ...patch } : p)));
-    try { await api.updatePump(id, patch); } catch (e) { console.error('Failed to update pump:', e); }
+    try { await api.updatePump(id, patch); } catch (e) { console.error('Failed to update pump:', e); showError?.('Failed to update pump: ' + (e.message || e)); }
     loadPumps();
   };
   const handleSetPrimaryPump = (id) => handleUpdatePump(id, { isPrimary: true });
 
   // --- Custom Devices CRUD + test (test drives the bound outlet through the brand-specific path) ---
   const handleAddCustomDevice = async () => {
-    try { await api.createCustomDevice(`Device ${customDevices.length + 1}`, ''); } catch (e) { console.error('Failed to add custom device:', e); }
+    try { await api.createCustomDevice(`Device ${customDevices.length + 1}`, ''); } catch (e) { console.error('Failed to add custom device:', e); showError?.('Failed to add custom device: ' + (e.message || e)); }
     loadPumps();
   };
   const handleUpdateCustomDevice = async (id, patch) => {
     setCustomDevices(prev => prev.map(d => (d.id === id ? { ...d, ...patch } : d)));
-    try { await api.updateCustomDevice(id, patch); } catch (e) { console.error('Failed to update custom device:', e); }
+    try { await api.updateCustomDevice(id, patch); } catch (e) { console.error('Failed to update custom device:', e); showError?.('Failed to update custom device: ' + (e.message || e)); }
   };
   const handleDeleteCustomDevice = async (id) => {
     if (!window.confirm('Remove this custom device? (The outlet stays configured.)')) return;
-    try { await api.deleteCustomDevice(id); } catch (e) { console.error('Failed to delete custom device:', e); }
+    try { await api.deleteCustomDevice(id); } catch (e) { console.error('Failed to delete custom device:', e); showError?.('Failed to delete custom device: ' + (e.message || e)); }
     loadPumps();
   };
   const handleTestCustomDevice = (cd) => {
@@ -130,7 +130,7 @@ function DeviceTab() {
   };
   const handleDeletePump = async (id) => {
     if (!window.confirm('Remove this automatic pump? (The bound device and its calibration stay.)')) return;
-    try { await api.deletePump(id); } catch (e) { console.error('Failed to delete pump:', e); }
+    try { await api.deletePump(id); } catch (e) { console.error('Failed to delete pump:', e); showError?.('Failed to delete pump: ' + (e.message || e)); }
     loadPumps();
   };
   // Recalibrate: re-run the existing device calibration flow for the pump's bound device; the

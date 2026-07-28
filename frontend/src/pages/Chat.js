@@ -631,6 +631,21 @@ function Chat() {
     return () => window.removeEventListener('ai_device_control', handleAiDeviceControl);
   }, [showSuccess]);
 
+  // 🔧 Engine debug panel (audit D3): live view of armed suspensions, running trees, session
+  // overrides, gates, and CharVars — the "why did my tree stop" panel. Subscribes only while open.
+  const [showEngineDbg, setShowEngineDbg] = useState(false);
+  const [engineDbg, setEngineDbg] = useState(null);
+  useEffect(() => {
+    if (!showEngineDbg) return;
+    const h = (e) => setEngineDbg(e.detail);
+    window.addEventListener('engine_debug', h);
+    sendWsMessage('engine_debug_subscribe', { on: true });
+    return () => {
+      window.removeEventListener('engine_debug', h);
+      sendWsMessage('engine_debug_subscribe', { on: false });
+    };
+  }, [showEngineDbg, sendWsMessage]);
+
   // Author-fired Toast action (trigger trees/sequences): text + color preset from the backend.
   useEffect(() => {
     const handleTriggerToast = (event) => {
@@ -1523,6 +1538,48 @@ function Chat() {
 
   return (
     <div className="chat-page">
+      {/* 🔧 Engine debug (fixed overlay; position in the tree is irrelevant) */}
+      <button type="button" onClick={() => setShowEngineDbg(v => !v)}
+        title="Engine debug — live trigger/suspension state"
+        style={{ position: 'fixed', bottom: 8, left: 8, zIndex: 4000, opacity: showEngineDbg ? 1 : 0.35, background: 'rgba(30,42,74,0.9)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 13 }}>
+        🔧
+      </button>
+      {showEngineDbg && (
+        <div style={{ position: 'fixed', bottom: 40, left: 8, zIndex: 4000, width: 340, maxHeight: '55vh', overflowY: 'auto', background: 'rgba(13,21,38,0.96)', color: '#dbe7ff', border: '1px solid #3d5a9e', borderRadius: 8, padding: 10, fontFamily: 'monospace', fontSize: 11.5, lineHeight: 1.5 }}>
+          <strong>Engine debug</strong>
+          {!engineDbg ? <div>waiting for snapshot…</div> : (
+            <>
+              <div style={{ marginTop: 6 }}>
+                <u>Suspensions</u>
+                {Object.entries(engineDbg.pendings || {}).filter(([, v]) => v).length === 0 && <div>— none armed</div>}
+                {engineDbg.pendings?.choice && <div>▸ {engineDbg.pendings.choice.kind} on screen (tree {engineDbg.pendings.choice.tree || '?'}, {engineDbg.pendings.choice.scope || '?'})</div>}
+                {engineDbg.pendings?.wait && <div>▸ wait — {engineDbg.pendings.wait.remaining} reply turn(s) left (tree {engineDbg.pendings.wait.tree || '?'})</div>}
+                {engineDbg.pendings?.game && <div>▸ minigame open — {engineDbg.pendings.game.gameId}</div>}
+                {engineDbg.pendings?.nextGate && <div>▸ &gt;&gt; next gate held</div>}
+                {engineDbg.pendings?.rangeAwait && <div>▸ await-{engineDbg.pendings.rangeAwait.kind} gate ({engineDbg.pendings.rangeAwait.source || '?'})</div>}
+                {engineDbg.pendings?.capacityGate && <div>▸ Fire% queued at {engineDbg.pendings.capacityGate.target}% ({engineDbg.pendings.capacityGate.source || '?'})</div>}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <u>Running trees</u>
+                {(engineDbg.activeRuns || []).length === 0 && <div>— none in flight</div>}
+                {(engineDbg.activeRuns || []).map((r, i) => <div key={i}>▸ {r.tree} ({r.scope}){r.cancelled ? ' — CANCELLED' : ''}</div>)}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <u>State</u>
+                <div>capacity: player {Math.round(engineDbg.capacity?.player || 0)}% · char {Math.round(engineDbg.capacity?.char || 0)}%</div>
+                <div>gauge {engineDbg.gaugeFrozen ? '❄ FROZEN' : 'live'} · LLM {engineDbg.llmBusy ? 'generating' : 'idle'}{engineDbg.introActive ? ' · intro active' : ''}{engineDbg.triggerChainDepth ? ` · chain depth ${engineDbg.triggerChainDepth}` : ''}</div>
+                {engineDbg.selectedChar && <div>[SelectedChar] = {engineDbg.selectedChar}</div>}
+                {engineDbg.checkpointControl && <div>Checkpoint Control override: {JSON.stringify(engineDbg.checkpointControl)}</div>}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <u>CharVars</u>
+                {Object.keys(engineDbg.vars || {}).length === 0 && <div>— none set</div>}
+                {Object.entries(engineDbg.vars || {}).slice(0, 25).map(([k, v]) => <div key={k}>{k} = {String(v)}</div>)}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {/* Mobile drawer overlay */}
       <div
         className={`drawer-overlay ${leftDrawerOpen || rightDrawerOpen ? 'visible' : ''}`}

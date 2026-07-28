@@ -811,7 +811,13 @@ function validateNode(node, rowProps) {
 // Collapse/expand-all broadcast: TreeEditor bumps {n, open}; every NodeRow follows it.
 const CollapseSignalContext = React.createContext(null);
 
-function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, onDuplicate, rowProps }) {
+// Cross-tree/cross-card node clipboard (audit D2): 📋 on any row stores the subtree in
+// localStorage; 📥 Paste (in any node list, any editor, any card) appends a fresh-id deep clone.
+const TREE_CLIP_KEY = 'swelldTreeClipboard';
+function writeTreeClipboard(node) { try { localStorage.setItem(TREE_CLIP_KEY, JSON.stringify(node)); } catch (e) { /* private mode / full */ } }
+function readTreeClipboard() { try { const s = localStorage.getItem(TREE_CLIP_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+
+function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, onDuplicate, onCopy, rowProps }) {
   const [open, setOpen] = useState(node.kind === 'action' ? true : true);
   const collapseSig = React.useContext(CollapseSignalContext);
   React.useEffect(() => { if (collapseSig) setOpen(collapseSig.open); }, [collapseSig]);
@@ -828,6 +834,7 @@ function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, onDuplicate, 
         {!open && <span className="tree-node-summary">{summarize(node)}</span>}
         <span className="tree-node-spacer" />
         <label className="tree-once" title={ancestorOnce ? 'Locked once — a parent block is set to Once, so everything inside it runs once' : 'Fire only once per session'}><input type="checkbox" checked={effectiveOnce} disabled={ancestorOnce} onChange={(e) => onChange({ ...node, once: e.target.checked })} /> once</label>
+        {onCopy && <button type="button" className="tnode-ctrl" onClick={onCopy} title="Copy this block (with everything inside it) — paste it into any tree on any card with 📥">📋</button>}
         {onDuplicate && <button type="button" className="tnode-ctrl" onClick={onDuplicate} title="Duplicate this block (with everything inside it; fresh once-memory)">⧉</button>}
         <button type="button" className="tnode-ctrl" onClick={onMoveUp} title="Move up">↑</button>
         <button type="button" className="tnode-ctrl" onClick={onMoveDown} title="Move down">↓</button>
@@ -863,9 +870,17 @@ function NodeList({ nodes, onChange, rowProps }) {
         <NodeRow key={node.id || i} node={node}
           onChange={(n) => update(i, n)} onRemove={() => remove(i)}
           onMoveUp={() => move(i, -1)} onMoveDown={() => move(i, 1)}
-          onDuplicate={() => duplicate(i)} rowProps={rowProps} />
+          onDuplicate={() => duplicate(i)} onCopy={() => writeTreeClipboard(list[i])} rowProps={rowProps} />
       ))}
-      <AddMenu small={list.length > 0} onAdd={(n) => onChange([...list, n])} />
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <AddMenu small={list.length > 0} onAdd={(n) => onChange([...list, n])} />
+        <button type="button" className="tree-mini" title="Paste the copied block here (works across trees and cards; fresh ids)"
+          onClick={() => {
+            const n = readTreeClipboard();
+            if (!n) { window.alert('Nothing copied yet — use 📋 on a block first.'); return; }
+            onChange([...list, cloneNodeDeep(n)]);
+          }}>📥 Paste</button>
+      </div>
     </div>
   );
 }
@@ -876,16 +891,62 @@ function TreeEditor({ value, onChange, ...rowProps }) {
   const treeLabels = React.useMemo(() => Array.from(new Set(collectLabelNames(value || []))), [value]);
   const [collapseSig, setCollapseSig] = useState(null); // {n, open} — bump n so the effect re-fires
   const hasNodes = Array.isArray(value) && value.length > 0;
+
+  // ---- Undo/redo (audit D2): a bounded history of the whole nodes array. Every edit funnels
+  // through emit(); an EXTERNAL value swap (switching trees/cards) resets the history so undo can
+  // never restore a different tree's nodes into this one. ----
+  const hist = React.useRef({ past: [], future: [], selfValue: null });
+  const [, forceHistRender] = useState(0); // refresh the disabled state of the buttons
+  React.useEffect(() => {
+    if (value !== hist.current.selfValue) {
+      hist.current.past = []; hist.current.future = []; hist.current.selfValue = value;
+      forceHistRender(n => n + 1);
+    }
+  }, [value]);
+  const emit = (next) => {
+    hist.current.past.push(value || []);
+    if (hist.current.past.length > 50) hist.current.past.shift();
+    hist.current.future = [];
+    hist.current.selfValue = next;
+    onChange(next);
+  };
+  const undo = () => {
+    const prev = hist.current.past.pop();
+    if (!prev) return;
+    hist.current.future.push(value || []);
+    hist.current.selfValue = prev;
+    onChange(prev);
+  };
+  const redo = () => {
+    const next = hist.current.future.pop();
+    if (!next) return;
+    hist.current.past.push(value || []);
+    hist.current.selfValue = next;
+    onChange(next);
+  };
+  // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) when focus is on tree chrome — text fields keep their
+  // native undo untouched.
+  const onKeyDown = (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); undo(); }
+    else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); e.stopPropagation(); redo(); }
+  };
+
   return (
-    <div className="tree-editor">
+    <div className="tree-editor" onKeyDown={onKeyDown}>
       {hasNodes && (
         <div className="tree-editor-toolbar">
           <button type="button" className="tree-mini" onClick={() => setCollapseSig(s => ({ n: (s?.n || 0) + 1, open: false }))}>Collapse all</button>
           <button type="button" className="tree-mini" onClick={() => setCollapseSig(s => ({ n: (s?.n || 0) + 1, open: true }))}>Expand all</button>
+          <button type="button" className="tree-mini" disabled={!hist.current.past.length} onClick={undo} title="Undo the last tree edit (Ctrl+Z)">↶ Undo</button>
+          <button type="button" className="tree-mini" disabled={!hist.current.future.length} onClick={redo} title="Redo (Ctrl+Y)">↷ Redo</button>
         </div>
       )}
       <CollapseSignalContext.Provider value={collapseSig}>
-        <NodeList nodes={value || []} onChange={onChange} rowProps={{ ...rowProps, treeLabels }} />
+        <NodeList nodes={value || []} onChange={emit} rowProps={{ ...rowProps, treeLabels }} />
       </CollapseSignalContext.Provider>
     </div>
   );

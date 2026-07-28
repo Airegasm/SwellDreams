@@ -1,6 +1,6 @@
 {
   "name": "swelldreams-backend",
-  "version": "6.9.12",
+  "version": "6.9.13",
   "description": "SwellDreams - Single-player inflation roleplay backend",
   "main": "server.js",
   "engines": {
@@ -10,7 +10,8 @@
     "start": "npm run build:frontend && node server.js",
     "build:frontend": "cd ../frontend && npm run build",
     "dev": "node --watch server.js",
-    "server": "node server.js"
+    "server": "node server.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
