@@ -13594,12 +13594,26 @@ function finalizeIntroSequence(character, force = false) {
   setIntroActive(false);
   const introStory = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
   sessionState.prosePumpGuidanceOff = prosePumpAfterIntroOff(character, introStory);
-  sessionState.preInflationGateMet = false;           // still gated until UNLOCK is pressed
-  sessionState.awaitingGoRelease = true;
-  sessionState.releaseButtonLabel = 'UNLOCK';
-  broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'UNLOCK' });
-  broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: false });
-  console.log(`[Intro] sequence complete${force ? ' (forced after a node resolved)' : ''} → armed UNLOCK gate`);
+  // The UNLOCK hold is OPT-IN: only when the card's "Press UNLOCK to exit intro" tickbox
+  // (treeRefs.introReadyExit) is on — or the gate was already pre-armed (GO!/READY paths).
+  // Unticked cards previously got an UNLOCK button they never asked for, stranding the pump
+  // gate closed behind a UI element.
+  const readyExit = !!(resolveScopeRefs(character)?.introReadyExit ?? introStory?.treeRefs?.introReadyExit);
+  if (readyExit || sessionState.awaitingGoRelease) {
+    sessionState.preInflationGateMet = false;           // still gated until UNLOCK is pressed
+    sessionState.awaitingGoRelease = true;
+    sessionState.releaseButtonLabel = 'UNLOCK';
+    broadcast('gate_release_state', { awaitingGoRelease: true, releaseButtonLabel: 'UNLOCK' });
+    broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: false });
+    console.log(`[Intro] sequence complete${force ? ' (forced after a node resolved)' : ''} → armed UNLOCK gate`);
+  } else {
+    sessionState.preInflationGateMet = true;            // no UNLOCK tickbox → gate opens with the intro's end
+    sessionState.awaitingGoRelease = false;
+    sessionState.releaseButtonLabel = null;
+    broadcast('gate_release_state', { awaitingGoRelease: false, releaseButtonLabel: null });
+    broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
+    console.log(`[Intro] sequence complete${force ? ' (forced after a node resolved)' : ''} → pump gate OPEN (no UNLOCK tickbox)`);
+  }
 }
 // Re-run the intro tree each reply while active (weaves guidance in-reply; its keyword/choice gates
 // fire end_intro when the player meets the condition).
