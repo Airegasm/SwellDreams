@@ -1174,6 +1174,54 @@ Write only the scenario description itself, no explanations.`;
   if (!isOpen) return null;
   const member = members[selectedMemberIndex] || members[0];
 
+  // ---- Card-level switches shared by standard AND instructor cards ----
+  // Instructor auto-reply defaults ON when unset (mirrors backend resolveCardAutoReply);
+  // standard cards default OFF.
+  const autoReplyChecked = isInstructorMode
+    ? (activeStory?.autoReplyEnabled ?? true)
+    : (activeStory?.autoReplyEnabled || false);
+  const autoReplyToggle = (
+    <div className="story-field auto-reply-field">
+      <label className="toggle-switch">
+        <input
+          type="checkbox"
+          checked={autoReplyChecked}
+          onChange={(e) => updateStoryField('autoReplyEnabled', e.target.checked)}
+        />
+        <span className="toggle-slider"></span>
+      </label>
+      <div className="auto-reply-text">
+        <span className="auto-reply-label">Auto Reply</span>
+        <span className="auto-reply-hint">
+          {isInstructorMode
+            ? 'Instructor replies automatically after each player message (instructors default to ON)'
+            : 'Automatically send character response after player message'}
+        </span>
+      </div>
+    </div>
+  );
+  const aiPumpToggle = (
+    <div className="story-field auto-reply-field">
+      <label className="toggle-switch">
+        <input
+          type="checkbox"
+          checked={activeStory?.allowLlmDeviceAccess || false}
+          onChange={(e) => updateStoryField('allowLlmDeviceAccess', e.target.checked)}
+          disabled={!settings?.globalCharacterControls?.allowLlmDeviceControl}
+        />
+        <span className="toggle-slider"></span>
+      </label>
+      <div className="auto-reply-text">
+        <span className="auto-reply-label">AI Pump Control</span>
+        <span className="auto-reply-hint">
+          {settings?.globalCharacterControls?.allowLlmDeviceControl
+            ? 'Allow this character to trigger device commands via LLM responses'
+            : 'Enable "Allow LLM Device Control" in Settings → Global first'}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal character-editor-modal" onClick={(e) => e.stopPropagation()}>
@@ -1283,12 +1331,18 @@ Write only the scenario description itself, no explanations.`;
           </div>
 
           {isInstructorMode ? (
-            <div className="form-group">
-              <label>Mission (instructor prompt)</label>
-              <textarea value={formData.mission || ''} onChange={(e) => set({ mission: e.target.value })} rows={3}
-                placeholder="The objective this instructor drives toward." />
-              <p className="section-hint">In Instructor Mode the Author's Note is swapped for the instructor prompt; invalid standard parameters are hidden.</p>
-            </div>
+            <>
+              <div className="form-group">
+                <label>Mission (instructor prompt)</label>
+                <textarea value={formData.mission || ''} onChange={(e) => set({ mission: e.target.value })} rows={3}
+                  placeholder="The objective this instructor drives toward." />
+                <p className="section-hint">In Instructor Mode the Author's Note is swapped for the instructor prompt; invalid standard parameters are hidden.</p>
+              </div>
+              {/* Card-level switches — instructors need these too (they were unreachable in
+                  instructor mode before; the backend honors them for instructor cards). */}
+              {autoReplyToggle}
+              {aiPumpToggle}
+            </>
           ) : (
             <div className="form-group">
               <label>Author's Note <span className="section-hint">(per-card; seeded from the global default)</span></label>
@@ -1509,21 +1563,8 @@ Write only the scenario description itself, no explanations.`;
                     <CardLoreSection activeStory={activeStory} updateStoryField={updateStoryField} />
                   </div>
 
-                  {/* Auto Reply */}
-                  <div className="story-field auto-reply-field">
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={activeStory?.autoReplyEnabled || false}
-                        onChange={(e) => updateStoryField('autoReplyEnabled', e.target.checked)}
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                    <div className="auto-reply-text">
-                      <span className="auto-reply-label">Auto Reply</span>
-                      <span className="auto-reply-hint">Automatically send character response after player message</span>
-                    </div>
-                  </div>
+                  {/* Auto Reply (shared JSX — also rendered on the instructor Main tab) */}
+                  {autoReplyToggle}
 
                   {/* Group response mode — Respond as Group (blended reply) vs Individual Responses
                       (each member replies in their own named bubble, round-robin). Group layout only. */}
@@ -1550,26 +1591,8 @@ Write only the scenario description itself, no explanations.`;
                     </div>
                   )}
 
-                  {/* AI Pump Control (formerly "Allow LLM Device Access") */}
-                  <div className="story-field auto-reply-field">
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={activeStory?.allowLlmDeviceAccess || false}
-                        onChange={(e) => updateStoryField('allowLlmDeviceAccess', e.target.checked)}
-                        disabled={!settings?.globalCharacterControls?.allowLlmDeviceControl}
-                      />
-                      <span className="toggle-slider"></span>
-                    </label>
-                    <div className="auto-reply-text">
-                      <span className="auto-reply-label">AI Pump Control</span>
-                      <span className="auto-reply-hint">
-                        {settings?.globalCharacterControls?.allowLlmDeviceControl
-                          ? 'Allow this character to trigger device commands via LLM responses'
-                          : 'Enable "Allow LLM Device Control" in Settings → Global first'}
-                      </span>
-                    </div>
-                  </div>
+                  {/* AI Pump Control (shared JSX — also rendered on the instructor Main tab) */}
+                  {aiPumpToggle}
                 </>
               )}
 
