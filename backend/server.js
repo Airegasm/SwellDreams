@@ -1389,6 +1389,22 @@ function getCalibrationKey(device) {
   return getDeviceKey(device);
 }
 
+// Canonical primary-pump RUN STATE line for the system prompt. Without it the model invents
+// whether the pump is running (it only ever saw capacity numbers + transition notes). Ground
+// truth: the live gauge-tracking interval (calibrated pumps) OR the device-state map (covers
+// uncalibrated outlets driven by triggers/manual buttons).
+function primaryPumpStateLine(playerLabel) {
+  try {
+    const devices = loadData(DATA_FILES.devices) || [];
+    const pump = getPrimaryPumpDevice(devices);
+    if (!pump) return '';
+    const key = getDeviceKey(pump);
+    const running = deviceService.pumpRuntimeIntervals?.has(key)
+      || sessionState.executionHistory?.deviceActions?.[key]?.state === 'on';
+    return `\n=== PUMP STATE (CANONICAL) ===\nThe air pump is ${running ? `ON — actively inflating ${playerLabel} RIGHT NOW` : 'OFF — NOT running right now'}. This is ground truth from the hardware. Never state or imply the opposite.\n=== END PUMP STATE ===\n`;
+  } catch (e) { return ''; }
+}
+
 /**
  * Get the effective pop threshold for pump shutoff based on auto-pop settings.
  * @param {Object} settings - The settings object
@@ -9899,7 +9915,7 @@ async function handleSwipeMessage(data) {
     }
 
     // Update the swiped message (apply variable substitution).
-    const finalContent = substituteAllVariables(resultText);
+    const finalContent = applyPendingReplyWraps(substituteAllVariables(resultText));
     sessionState.chatHistory[msgIndex].content = finalContent;
     sessionState.chatHistory[msgIndex].swipeHistory.push(finalContent);
     sessionState.chatHistory[msgIndex].activeSwipeIndex = sessionState.chatHistory[msgIndex].swipeHistory.length - 1;
@@ -10783,6 +10799,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     } catch (e) { console.error('[Individual] device processing failed:', e?.message || e); }
 
     // Finalize: reuse the streamed placeholder (stream_complete), or create the bubble now (non-streaming).
+    finalText = applyPendingReplyWraps(finalText);
     let aiMessage;
     if (streamMsg) {
       streamMsg.content = finalText;
@@ -11153,6 +11170,7 @@ async function handleChatMessage(data) {
         }
 
         // Broadcast final message state
+        aiMessage.content = applyPendingReplyWraps(aiMessage.content);
         broadcast('stream_complete', { messageId: aiMessage.id, content: aiMessage.content });
 
       } else {
@@ -11308,6 +11326,7 @@ async function handleChatMessage(data) {
         }
 
         // Add AI response to chat
+        finalText = applyPendingReplyWraps(finalText);
         const aiMessage = {
           id: uuidv4(),
           content: finalText,
@@ -11684,6 +11703,7 @@ async function generateAIResponseAfterBlocking() {
       });
     }
 
+    finalText = applyPendingReplyWraps(finalText);
     if (useStreaming) {
       const sm = sessionState.chatHistory.find(m => m.id === streamMsgId);
       if (sm) { sm.content = finalText; sm.streaming = false; broadcast('stream_complete', { messageId: streamMsgId, content: finalText }); }
@@ -11886,6 +11906,7 @@ async function handleSpecialGenerate(data) {
       }
 
       message.streaming = false;
+      message.content = applyPendingReplyWraps(message.content);
 
       broadcast('stream_complete', { messageId: message.id, content: message.content });
       broadcast('generating_stop', {});
@@ -12609,11 +12630,37 @@ function injMsg(slot, legacy) {
 // Shared by the checkpoint random-block roller and the Trigger Tree walker. PRODUCER ONLY:
 // it appends/pushes and never resets activeCheckpointInjections (runReplyScopes is the sole
 // per-turn resetter), so callers can compose multiple producers into one reply.
-function deliverTreeMsg(text, llmEnhance) {
+function deliverTreeMsg(text, llmEnhance, wraps) {
   const t = (text || '').trim();
-  if (!t) return;
-  if (llmEnhance !== false) sessionState.activeCheckpointInjections.push(t);
-  else sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply ? `${sessionState.pendingVerbatimReply}\n${t}` : t;
+  // Verbatim wraps (prepend/append) in-reply: a verbatim message carries them inline; an
+  // enhanced one queues them onto pendingReplyWraps so the turn's FINAL reply gets framed.
+  // (They used to be silently dropped in-reply — the standalone path always honored them.)
+  const pre = wraps?.prependVerbatim && String(wraps.prependText || '').trim() !== '' ? substituteAllVariables(wraps.prependText) : null;
+  const app = wraps?.appendVerbatim && String(wraps.appendText || '').trim() !== '' ? substituteAllVariables(wraps.appendText) : null;
+  if (llmEnhance === false) {
+    const whole = [pre, t, app].filter(Boolean).join('\n');
+    if (!whole) return;
+    sessionState.pendingVerbatimReply = sessionState.pendingVerbatimReply ? `${sessionState.pendingVerbatimReply}\n${whole}` : whole;
+    return;
+  }
+  if (t) sessionState.activeCheckpointInjections.push(t);
+  if (pre || app) {
+    const w = sessionState.pendingReplyWraps = sessionState.pendingReplyWraps || { pre: [], app: [] };
+    if (pre) w.pre.push(pre);
+    if (app) w.app.push(app);
+  }
+}
+
+// Consume the turn's queued reply wraps (in-reply ai_message prepend/append verbatim) around the
+// final generated reply text. One-shot: clears the slot. No-op when nothing queued.
+function applyPendingReplyWraps(text) {
+  const w = sessionState.pendingReplyWraps;
+  if (!w || (!w.pre.length && !w.app.length)) return text;
+  sessionState.pendingReplyWraps = null;
+  let out = text ?? '';
+  if (w.pre.length) out = `${w.pre.join('\n')}\n${out}`;
+  if (w.app.length) out = `${out}\n${w.app.join('\n')}`;
+  return out;
 }
 
 // Evaluate ONE Trigger Tree condition against live state. Builds on the existing flow
@@ -13006,6 +13053,7 @@ async function runActiveRangeTrees(character, settings, treeIndex) {
 // call sites await this, then flush any verbatim via deliverPendingVerbatimReply.
 async function runReplyScopes(character) {
   sessionState.activeCheckpointInjections = [];
+  sessionState.pendingReplyWraps = null; // stale in-reply wraps must never frame a later reply
   sessionState.suppressReplyThisTurn = false; // stale suppression must never eat a later reply
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
@@ -15393,6 +15441,9 @@ function buildChatContext(character, settings, opts = {}) {
   // Author note is injected into the chat history at configurable depth (see below),
   // not appended to the system prompt.
 
+  // Canonical primary-pump run state — every message, both card modes.
+  systemPrompt += primaryPumpStateLine(playerName);
+
   // Add LLM device control instructions if enabled
   if (settings?.globalCharacterControls?.allowLlmDeviceControl) {
     const globalMax = settings.globalCharacterControls.llmDeviceControlMaxSeconds || 30;
@@ -16871,7 +16922,7 @@ async function runNode(node, ctx) {
         if (ctx.delivery === 'standalone') {
           await executeTrigger({ type, ...p }, ctx.source, ctx.character, ctx.settings);
         } else {
-          deliverTreeMsg(p.context, p.llmEnhance);
+          deliverTreeMsg(p.context, p.llmEnhance, p);
         }
       } else if (type === 'set_variable') {
         eventEngine.applySetVariable(p.varType || 'custom', p.variable, p.operation || 'set', p.value); // mirrors fireCheckpointInjectionAction
