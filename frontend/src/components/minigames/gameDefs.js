@@ -56,16 +56,20 @@ export function defaultConfig(type) {
 // The exit-point labels (possible [GameResult] values) for a config — what the trigger
 // will bind gotos to. Some games derive exits from their mechanics.
 export function exitsFor(type, config) {
-  switch (type) {
-    case 'prize_wheel': return (config.segments || []).map(s => s.label);
-    case 'dice_roll': return []; // [GameResult] is the numeric total — nothing to bind gotos to
-    case 'slot_machine': return [...(config.exits || []).map(e => e.label), 'No Win'];
-    case 'coin_flip': return [config.headsLabel || 'Heads', config.tailsLabel || 'Tails'];
-    case 'rps': return ['Win', 'Lose', 'Draw'];
-    case 'card_draw': return ['Win', 'Lose', 'Push']; // Blackjack outcome (player perspective)
-    case 'simon_challenge': return ['Completed', 'Failed', 'Miss']; // Miss fires DURING play (side-run; the game stays open)
-    default: return [];
-  }
+  // Every game also exposes 'Conceded' — the Concede button's clean exit (bindable like any exit).
+  const base = (() => {
+    switch (type) {
+      case 'prize_wheel': return (config.segments || []).map(s => s.label);
+      case 'dice_roll': return []; // [GameResult] is the numeric total — only Conceded binds
+      case 'slot_machine': return [...(config.exits || []).map(e => e.label), 'No Win'];
+      case 'coin_flip': return [config.headsLabel || 'Heads', config.tailsLabel || 'Tails'];
+      case 'rps': return ['Win', 'Lose', 'Draw'];
+      case 'card_draw': return ['Win', 'Lose', 'Push']; // Blackjack outcome (player perspective)
+      case 'simon_challenge': return ['Completed', 'Failed', 'Miss']; // Miss fires DURING play (side-run; the game stays open)
+      default: return [];
+    }
+  })();
+  return [...base, 'Conceded'];
 }
 
 export const newId = uid;

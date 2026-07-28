@@ -1599,7 +1599,13 @@ async function timedPumpOn(id, device, durationSeconds) {
   const dur = Math.max(1, Math.min(Number(durationSeconds) || 1, MAX_ON_SECONDS));
   clearServerTimedPumpTimer(id);
   // durationInfo lets the frontend pump timer count DOWN instead of up.
-  await deviceService.turnOn(id, device, { untilType: 'timer', untilValue: dur });
+  const onResult = await deviceService.turnOn(id, device, { untilType: 'timer', untilValue: dur });
+  // A failed physical turn-on used to vanish here — the UI showed "pump on" while nothing ran and
+  // the gauge (tracking starts only on SUCCESS) never moved. Surface it loudly instead.
+  if (onResult && onResult.ok === false) {
+    console.error(`[timedPumpOn] turnOn FAILED for ${id}: ${onResult.error || 'unknown'} — pump did not start, gauge will not move`);
+    try { broadcast('trigger_toast', { text: `⚠ Pump failed to start: ${onResult.error || 'device unreachable'}`, preset: 'crimson' }); } catch (e) { /* boot */ }
+  }
   const timer = setTimeout(() => {
     serverTimedPumpTimers.delete(id);
     deviceService.turnOff(id, device).catch((err) => {
@@ -13281,6 +13287,26 @@ async function resumeTreeGame(firedExit, winner, pick) {
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
+
+  // Concede: the game's optional "custom concede action" fires its configured tree ALONGSIDE the
+  // clean exit (standalone run, own scope) — the Conceded goto/continuation below still runs too.
+  if (firedExit === 'Conceded') {
+    try {
+      const cGame = (loadMiniGames().games || []).find(g => g.id === pend.miniGameId)
+        || (character?.miniGames || []).find(g => g.id === pend.miniGameId);
+      const cTreeId = cGame?.config?.concedeCustom ? cGame?.config?.concedeTreeId : null;
+      if (cTreeId) {
+        const cTree = buildTreeIndex(character).get(cTreeId);
+        if (cTree) {
+          console.log(`[resumeTreeGame] Conceded — firing custom concede tree '${cTree.name || cTreeId}'`);
+          await runTreeScope(cTree, `concede:${pend.miniGameId}`, character, settings, { delivery: 'standalone' });
+        } else {
+          console.warn(`[resumeTreeGame] custom concede tree '${cTreeId}' not found`);
+        }
+      }
+    } catch (e) { console.error('[resumeTreeGame] custom concede action failed:', e?.message || e); }
+  }
+
   const ctx = {
     character, settings,
     treeId: snap.treeId, scopeKey: snap.scopeKey,

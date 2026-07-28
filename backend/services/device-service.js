@@ -157,8 +157,15 @@ class DeviceService {
    * Start real-time pump runtime tracking (emits updates every second)
    */
   startPumpRuntimeTracking(stateKey, device) {
-    // Only track pumps with calibration data
-    if (device?.deviceType !== 'PUMP' || !device?.calibrationTime) {
+    // Calibration is the REAL requirement. deviceType gates only when it's explicitly a
+    // non-pump value — many stored devices predate the field (the UI merely DISPLAYS 'PUMP'
+    // as the default), and an undefined deviceType used to silently kill gauge tracking.
+    if (!device?.calibrationTime) {
+      if (device?.isPrimaryPump) console.warn(`[DeviceService] Primary pump ${stateKey} has NO calibrationTime — gauge will not move`);
+      return;
+    }
+    if (device?.deviceType && device.deviceType !== 'PUMP') {
+      console.warn(`[DeviceService] ${stateKey} is calibrated but deviceType='${device.deviceType}' — gauge tracking skipped (set the outlet type to Pump)`);
       return;
     }
 

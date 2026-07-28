@@ -446,7 +446,7 @@ function App() {
 
   return (
     <div className={`app chat-layout ${isModalOpen ? 'modal-open' : ''}`}>
-      <span className="version-badge">v6.9.19</span>
+      <span className="version-badge">v6.9.20</span>
       {/* Top metallic frame border */}
       <div className="top-frame-border"></div>
 

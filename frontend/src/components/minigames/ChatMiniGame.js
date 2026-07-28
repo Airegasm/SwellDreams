@@ -14,8 +14,9 @@ function ChatMiniGame({ data, onResult, onMiss }) {
   if (!data) return null;
   const { type, config = {} } = data;
   const done = React.useRef(false);
+  const [confirming, setConfirming] = React.useState(false); // concede confirmation panel open
   // Each broadcast is a fresh data object — re-arm so a later minigame in the same session reports.
-  React.useEffect(() => { done.current = false; }, [data]);
+  React.useEffect(() => { done.current = false; setConfirming(false); }, [data]);
   const r = (exit, winner, pick) => { if (done.current) return; done.current = true; onResult(exit, winner || null, pick || null); };
 
   const game = (() => {
@@ -33,7 +34,23 @@ function ChatMiniGame({ data, onResult, onMiss }) {
 
   return (
     <div className="chat-minigame">
-      <div className="chat-minigame-name">{data.name || gameDef(type).name}</div>
+      <div className="chat-minigame-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ flex: 1 }}>{data.name || gameDef(type).name}</span>
+        <button type="button" className="btn btn-sm btn-secondary"
+          title="Give up — the game closes cleanly ([CharVar:GameResult] = Conceded; a bound Conceded goto and the game's custom concede tree fire, if configured)"
+          onClick={() => (config.concedeConfirm === true ? setConfirming(true) : r('Conceded'))}>
+          Concede
+        </button>
+      </div>
+      {confirming && (
+        <div style={{ margin: '6px 0', padding: 10, border: '1px solid rgba(200,120,120,0.6)', borderRadius: 8, background: 'rgba(74,18,20,0.35)' }}>
+          <div style={{ marginBottom: 8 }}>{config.concedeConfirmText || 'Give up on this game?'}</div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={() => setConfirming(false)}>Keep playing</button>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => { setConfirming(false); r('Conceded'); }}>Concede</button>
+          </div>
+        </div>
+      )}
       {game}
     </div>
   );

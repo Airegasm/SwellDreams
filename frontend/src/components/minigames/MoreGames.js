@@ -278,8 +278,10 @@ export function MiniSimon({ config = {}, interactive, onResult, onMiss }) {
     } else {
       const m = misses + 1;
       setMisses(m);
-      onMiss && onMiss(m, maxMisses);
+      // The KILLING miss fires ONLY 'Failed' — not Miss+Failed (a penalty tree and the fail tree
+      // stacking on one wrong move was double jeopardy). Mid-game misses still report normally.
       if (m >= maxMisses) { setPhase('done'); setNote(`Miss ${m}/${maxMisses} — Failed!`); onResult && onResult('Failed'); return; }
+      onMiss && onMiss(m, maxMisses);
       setPhase('show'); setNote(`Miss ${m}/${maxMisses} — watch again…`);
       after(900, () => playback(seq, len, `Miss ${m}/${maxMisses}`));
     }

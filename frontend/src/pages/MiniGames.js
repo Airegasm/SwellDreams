@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { API_BASE } from '../config';
 import MiniWheel from '../components/minigames/MiniWheel';
 import MiniDice from '../components/minigames/MiniDice';
 import { MiniCoin, MiniRPS, MiniSlots, MiniCardDraw, MiniSimon } from '../components/minigames/MoreGames';
@@ -38,7 +39,7 @@ const Txt = ({ label, value, onChange, ...p }) => (
 );
 
 // ---- per-type mechanics + exits editor ----
-function GameEditor({ type, config, set }) {
+function GameTypeConfig({ type, config, set }) {
   const upd = (patch) => set({ ...config, ...patch });
   const updExit = (key, i, patch) => upd({ [key]: config[key].map((x, idx) => (idx === i ? { ...x, ...patch } : x)) });
   const rmExit = (key, i) => upd({ [key]: config[key].filter((_, idx) => idx !== i) });
@@ -138,6 +139,44 @@ function GameEditor({ type, config, set }) {
     default:
       return null;
   }
+}
+
+// Wraps the per-type config with the universal Concede section: every game gets a Concede
+// button in chat; conceding exits cleanly (GameResult = Conceded, bound goto runs) and can
+// optionally fire a configured trigger tree as well.
+function GameEditor({ type, config, set }) {
+  const upd = (patch) => set({ ...config, ...patch });
+  const [trees, setTrees] = React.useState([]);
+  React.useEffect(() => {
+    fetch(`${API_BASE}/api/trigger-trees`).then(r => r.json()).then(d => setTrees(d?.trees || [])).catch(() => {});
+  }, []);
+  return (
+    <>
+      <GameTypeConfig type={type} config={config} set={set} />
+      <h4 className="mg-group">Concede <span className="mg-hint">(every game shows a Concede button)</span></h4>
+      <p className="mg-hint">
+        Conceding exits the game cleanly and closes its UI — <code>[GameResult]</code> becomes{' '}
+        <strong>Conceded</strong>, and a <strong>Conceded</strong> goto bound on the Call MiniGame block runs.
+      </p>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <input type="checkbox" checked={config.concedeCustom === true} onChange={(e) => upd({ concedeCustom: e.target.checked })} />
+        <span>Custom concede action — also fire a trigger tree when the player concedes</span>
+      </label>
+      {config.concedeCustom === true && (
+        <select value={config.concedeTreeId || ''} onChange={(e) => upd({ concedeTreeId: e.target.value })} style={{ marginTop: 6 }}>
+          <option value="">— select a library tree —</option>
+          {trees.map(t => <option key={t.id} value={t.id}>{t.name}{t.builtIn ? ' (built-in)' : ''}</option>)}
+        </select>
+      )}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+        <input type="checkbox" checked={config.concedeConfirm === true} onChange={(e) => upd({ concedeConfirm: e.target.checked })} />
+        <span>Confirmation dialogue — ask before conceding (Cancel returns to the game)</span>
+      </label>
+      {config.concedeConfirm === true && (
+        <Txt label="Confirmation message" value={config.concedeConfirmText} onChange={(v) => upd({ concedeConfirmText: v })} placeholder="Give up on this game?" />
+      )}
+    </>
+  );
 }
 
 function MiniGames() {
