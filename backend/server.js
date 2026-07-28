@@ -167,10 +167,9 @@ const wss = new WebSocket.Server({
     if (!(Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp))) {
       return done(false, 403, 'IP not in whitelist');
     }
-    // Remote auth token (defense-in-depth over the IP whitelist): non-local clients must present
-    // ?token= matching remoteSettings.authToken. Legacy configs without a token pass until boot
-    // regenerates one (see the listen block).
-    if (remoteSettings.authToken) {
+    // Remote auth token — OPT-IN (see the HTTP middleware note): enforced only when
+    // "Require access token" is enabled in remote settings.
+    if (remoteSettings.requireToken === true && remoteSettings.authToken) {
       let given = '';
       try { given = new URL(info.req.url, 'http://x').searchParams.get('token') || ''; } catch (e) { /* no token */ }
       if (!timingSafeTokenMatch(given, remoteSettings.authToken)) {
@@ -277,10 +276,10 @@ app.use((req, res, next) => {
   if (!(Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp))) {
     return res.status(403).json({ success: false, error: 'IP not in whitelist' });
   }
-  // Remote auth token (defense-in-depth over the IP whitelist). Only the API is token-gated —
-  // static app files still serve to whitelisted IPs so the remote frontend can load and prompt
-  // for the token. Legacy configs without a token pass until boot generates one.
-  if (remoteSettings.authToken && (req.path === '/api' || req.path.startsWith('/api/'))) {
+  // Remote auth token — OPT-IN (user ruling: whitelisted IPs are trusted by default; the token
+  // is an extra layer only when "Require access token" is enabled in remote settings). Only the
+  // API is token-gated — static app files still serve so the remote frontend can load and prompt.
+  if (remoteSettings.requireToken === true && remoteSettings.authToken && (req.path === '/api' || req.path.startsWith('/api/'))) {
     const given = req.headers['x-swelld-token'] || (req.query && req.query.token) || '';
     if (!timingSafeTokenMatch(String(given), remoteSettings.authToken)) {
       return res.status(401).json({ success: false, error: 'Remote auth token required', code: 'TOKEN_REQUIRED' });
@@ -17548,17 +17547,18 @@ app.post('/api/remote-settings', (req, res) => {
   }
 
   const currentSettings = getRemoteSettings();
-  const { allowRemote, whitelistedIps } = req.body;
+  const { allowRemote, whitelistedIps, requireToken } = req.body;
 
   const newSettings = {
     allowRemote: allowRemote !== undefined ? allowRemote : currentSettings.allowRemote,
     whitelistedIps: whitelistedIps !== undefined ? whitelistedIps : currentSettings.whitelistedIps,
-    authToken: currentSettings.authToken // preserved; generated at enable-time below / at boot
+    requireToken: requireToken !== undefined ? requireToken === true : currentSettings.requireToken === true,
+    authToken: currentSettings.authToken // preserved; minted when the opt-in turns on
   };
-  // Enabling remote access mints the auth token if one doesn't exist yet.
-  if (newSettings.allowRemote && !newSettings.authToken) {
+  // Turning the token requirement ON mints a token if one doesn't exist yet.
+  if (newSettings.requireToken && !newSettings.authToken) {
     newSettings.authToken = require('crypto').randomBytes(24).toString('base64url');
-    log.info('Remote access enabled — generated a remote auth token');
+    log.info('Remote token requirement enabled — generated a remote auth token');
   }
 
   saveData(DATA_FILES.remoteSettings, newSettings);
@@ -21829,7 +21829,7 @@ runDataMigrations();
 // always active whenever the server binds beyond loopback. (The host reads it from Settings.)
 {
   const rs = getRemoteSettings();
-  if (rs.allowRemote && !rs.authToken) {
+  if (rs.allowRemote && rs.requireToken === true && !rs.authToken) {
     rs.authToken = require('crypto').randomBytes(24).toString('base64url');
     saveData(DATA_FILES.remoteSettings, rs);
     console.log('[Remote] Generated a remote auth token for this install (Settings → Global → Remote Access).');

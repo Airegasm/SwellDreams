@@ -1355,7 +1355,26 @@ function GlobalTab() {
                 <span className="toggle-label">Allow Remote Connections</span>
               </div>
 
-              {remoteSettings.allowRemote && remoteSettings.isLocalRequest && remoteSettings.authToken && (
+              {remoteSettings.allowRemote && remoteSettings.isLocalRequest && (
+                <div className="remote-toggle-row" style={{ marginTop: 8 }}>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={remoteSettings.requireToken === true}
+                      onChange={async (e) => {
+                        try {
+                          const data = await api.updateRemoteSettings({ requireToken: e.target.checked });
+                          setRemoteSettings(prev => ({ ...prev, ...data }));
+                        } catch (err) { console.error('Failed to toggle token requirement:', err); }
+                      }}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
+                  <span className="toggle-label">Require access token (extra — whitelisted IPs alone are enough by default)</span>
+                </div>
+              )}
+
+              {remoteSettings.allowRemote && remoteSettings.requireToken === true && remoteSettings.isLocalRequest && remoteSettings.authToken && (
                 <div className="form-group" style={{ marginTop: 8 }}>
                   <label>Remote access token</label>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1365,8 +1384,7 @@ function GlobalTab() {
                       onClick={() => navigator.clipboard?.writeText(remoteSettings.authToken).catch(() => {})}>Copy</button>
                   </div>
                   <p className="section-hint">
-                    Remote devices must enter this token (they're prompted on first connect). The IP whitelist below still
-                    applies on top of it. Only visible from the host machine.
+                    Remote devices are prompted for this token on first connect. Only visible from the host machine.
                   </p>
                 </div>
               )}
