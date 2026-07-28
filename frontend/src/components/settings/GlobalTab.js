@@ -1355,6 +1355,22 @@ function GlobalTab() {
                 <span className="toggle-label">Allow Remote Connections</span>
               </div>
 
+              {remoteSettings.allowRemote && remoteSettings.isLocalRequest && remoteSettings.authToken && (
+                <div className="form-group" style={{ marginTop: 8 }}>
+                  <label>Remote access token</label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="text" readOnly value={remoteSettings.authToken} style={{ flex: 1, fontFamily: 'monospace' }}
+                      onFocus={(e) => e.target.select()} />
+                    <button className="btn btn-sm btn-secondary"
+                      onClick={() => navigator.clipboard?.writeText(remoteSettings.authToken).catch(() => {})}>Copy</button>
+                  </div>
+                  <p className="section-hint">
+                    Remote devices must enter this token (they're prompted on first connect). The IP whitelist below still
+                    applies on top of it. Only visible from the host machine.
+                  </p>
+                </div>
+              )}
+
               {remoteSettings.allowRemote && (
                 <div className="ip-whitelist-section">
                   <h4>IP Whitelist</h4>

@@ -437,14 +437,18 @@ async function isVideoTagUnique(tag, excludeId = null) {
  * @param {string} folder - Optional folder path
  * @returns {Object} The created video metadata
  */
-async function saveMediaVideo(buffer, originalName, mimetype, tag, description, folder = null) {
+// `source` is a Buffer OR { path } pointing at a disk-backed multer temp file — the path form
+// never holds the whole video in RAM (size-checked via stat, landed via copyFile).
+async function saveMediaVideo(source, originalName, mimetype, tag, description, folder = null) {
   // Validate tag uniqueness
   if (!(await isVideoTagUnique(tag))) {
     throw new Error(`Tag "${tag}" already exists`);
   }
 
   // Validate size
-  if (buffer.length > VIDEO_SIZE_LIMIT) {
+  const srcPath = source && !Buffer.isBuffer(source) ? source.path : null;
+  const size = srcPath ? (await fs.stat(srcPath)).size : source.length;
+  if (size > VIDEO_SIZE_LIMIT) {
     throw new Error('Video exceeds 500MB size limit');
   }
 
@@ -460,7 +464,8 @@ async function saveMediaVideo(buffer, originalName, mimetype, tag, description, 
 
   // Save file
   await ensureDir(VIDEOS_DIR);
-  await fs.writeFile(filePath, buffer);
+  if (srcPath) await fs.copyFile(srcPath, filePath);
+  else await fs.writeFile(filePath, source);
 
   // Create metadata
   const normalizedFolder = normalizeFolder(folder);
@@ -662,14 +667,17 @@ async function isAudioTagUnique(tag, excludeId = null) {
  * @param {string} folder - Optional folder path
  * @returns {Object} The created audio metadata
  */
-async function saveMediaAudio(buffer, originalName, mimetype, tag, description, folder = null) {
+// `source` is a Buffer OR { path } (disk-backed multer temp file) — see saveMediaVideo.
+async function saveMediaAudio(source, originalName, mimetype, tag, description, folder = null) {
   // Validate tag uniqueness
   if (!(await isAudioTagUnique(tag))) {
     throw new Error(`Tag "${tag}" already exists`);
   }
 
   // Validate size
-  if (buffer.length > AUDIO_SIZE_LIMIT) {
+  const srcPath = source && !Buffer.isBuffer(source) ? source.path : null;
+  const size = srcPath ? (await fs.stat(srcPath)).size : source.length;
+  if (size > AUDIO_SIZE_LIMIT) {
     throw new Error('Audio exceeds 100MB size limit');
   }
 
@@ -685,7 +693,8 @@ async function saveMediaAudio(buffer, originalName, mimetype, tag, description, 
 
   // Save file
   await ensureDir(AUDIO_DIR);
-  await fs.writeFile(filePath, buffer);
+  if (srcPath) await fs.copyFile(srcPath, filePath);
+  else await fs.writeFile(filePath, source);
 
   // Create metadata
   const normalizedFolder = normalizeFolder(folder);

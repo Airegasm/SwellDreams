@@ -62,6 +62,16 @@ const DEFAULT_CONFIG = {
  * @returns {Promise<any>} Parsed JSON response
  * @throws {ApiError} On timeout, network error, or non-OK response
  */
+// Remote auth token (Settings → Global → Remote Access on the host). Stored once per browser;
+// attached to every API call and the WS URL. Local (same-machine) use never needs it.
+export function getRemoteToken() {
+  try { return localStorage.getItem('swelldRemoteToken') || ''; } catch (e) { return ''; }
+}
+export function setRemoteToken(token) {
+  try { localStorage.setItem('swelldRemoteToken', token || ''); } catch (e) { /* private mode */ }
+}
+let _promptedForToken = false; // one prompt per page load — a wrong token shouldn't loop forever
+
 export async function apiFetch(url, options = {}) {
   const { timeout = DEFAULT_CONFIG.timeout, ...fetchOptions } = options;
 
@@ -70,16 +80,33 @@ export async function apiFetch(url, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    const remoteToken = getRemoteToken();
     const response = await fetch(url, {
       ...fetchOptions,
       signal: controller.signal,
       headers: {
         ...DEFAULT_CONFIG.headers,
+        ...(remoteToken ? { 'X-SwellD-Token': remoteToken } : {}),
         ...fetchOptions.headers,
       },
     });
 
     clearTimeout(timeoutId);
+
+    // Remote client without (or with a stale) auth token: ask once, store, and reload so every
+    // request + the WS reconnect pick it up.
+    if (response.status === 401 && !_promptedForToken) {
+      let code = '';
+      try { code = (await response.clone().json()).code || ''; } catch (e) { /* not JSON */ }
+      if (code === 'TOKEN_REQUIRED') {
+        _promptedForToken = true;
+        const entered = window.prompt('This SwellDreams host requires a remote access token.\nFind it on the host under Settings → Global → Remote Access:');
+        if (entered && entered.trim()) {
+          setRemoteToken(entered.trim());
+          window.location.reload();
+        }
+      }
+    }
 
     // Check if response is OK (status 200-299)
     if (!response.ok) {

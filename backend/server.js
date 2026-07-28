@@ -126,6 +126,14 @@ function extractHost(value) {
   return m ? m[1] : null;
 }
 
+// Constant-time-ish comparison for the remote auth token (length mismatch short-circuits, which
+// leaks only the length — acceptable for a LAN shared secret).
+function timingSafeTokenMatch(given, expected) {
+  if (typeof given !== 'string' || typeof expected !== 'string' || given.length !== expected.length || !expected.length) return false;
+  try { return require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(expected)); }
+  catch (e) { return false; }
+}
+
 const wss = new WebSocket.Server({
   server,
   // Gate WS upgrades by the CLIENT's remote IP — identical model to the HTTP
@@ -135,6 +143,19 @@ const wss = new WebSocket.Server({
   verifyClient: (info, done) => {
     const remoteSettings = readRemoteSettingsRaw();
     const remoteAddr = info.req.socket && info.req.socket.remoteAddress;
+    // Cross-site WebSocket hijack guard: browsers ALWAYS send an Origin on WS upgrades, and WS
+    // is NOT protected by CORS — without this check, any webpage open in a browser on this (or a
+    // whitelisted) machine could silently open ws://localhost:8889 and drive physical devices.
+    // Allow: same-host origins (the served frontend), local origins (dev servers), whitelisted
+    // hosts. Non-browser clients send no Origin and are gated by IP/token below.
+    if (info.origin) {
+      const originHost = extractHost(info.origin);
+      const sameHost = originHost && extractHost(info.req.headers && info.req.headers.host) === originHost;
+      if (!sameHost && !isAllowedHost(originHost, remoteSettings)) {
+        console.warn(`[WS] Rejected upgrade from disallowed Origin "${info.origin}" (client ${remoteAddr})`);
+        return done(false, 403, 'Origin not allowed');
+      }
+    }
     // Always allow strictly-local connections.
     if (isLocalAddress(remoteAddr)) {
       return done(true);
@@ -143,10 +164,20 @@ const wss = new WebSocket.Server({
       return done(false, 403, 'Remote access disabled');
     }
     const cleanIp = String(remoteAddr || '').replace(/^::ffff:/, '');
-    if (Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp)) {
-      return done(true);
+    if (!(Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp))) {
+      return done(false, 403, 'IP not in whitelist');
     }
-    return done(false, 403, 'IP not in whitelist');
+    // Remote auth token (defense-in-depth over the IP whitelist): non-local clients must present
+    // ?token= matching remoteSettings.authToken. Legacy configs without a token pass until boot
+    // regenerates one (see the listen block).
+    if (remoteSettings.authToken) {
+      let given = '';
+      try { given = new URL(info.req.url, 'http://x').searchParams.get('token') || ''; } catch (e) { /* no token */ }
+      if (!timingSafeTokenMatch(given, remoteSettings.authToken)) {
+        return done(false, 401, 'Auth token required');
+      }
+    }
+    return done(true);
   }
 });
 
@@ -243,10 +274,19 @@ app.use((req, res, next) => {
     return res.status(403).json({ success: false, error: 'Remote access disabled' });
   }
   const cleanIp = String(remoteAddr).replace(/^::ffff:/, '');
-  if (Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp)) {
-    return next();
+  if (!(Array.isArray(remoteSettings.whitelistedIps) && remoteSettings.whitelistedIps.includes(cleanIp))) {
+    return res.status(403).json({ success: false, error: 'IP not in whitelist' });
   }
-  return res.status(403).json({ success: false, error: 'IP not in whitelist' });
+  // Remote auth token (defense-in-depth over the IP whitelist). Only the API is token-gated —
+  // static app files still serve to whitelisted IPs so the remote frontend can load and prompt
+  // for the token. Legacy configs without a token pass until boot generates one.
+  if (remoteSettings.authToken && (req.path === '/api' || req.path.startsWith('/api/'))) {
+    const given = req.headers['x-swelld-token'] || (req.query && req.query.token) || '';
+    if (!timingSafeTokenMatch(String(given), remoteSettings.authToken)) {
+      return res.status(401).json({ success: false, error: 'Remote auth token required', code: 'TOKEN_REQUIRED' });
+    }
+  }
+  return next();
 });
 
 // Rate limiting configurations
@@ -343,9 +383,29 @@ app.get('/api/images/:type/:folder/:id/:filename', (req, res) => {
 
 // ==================== PORTRAIT MEDIA API ====================
 
-// Multer config for portrait media uploads (disk-based to avoid memory pressure for large videos)
+// Disk-backed upload staging: big files (portrait videos, media videos, card ZIPs) land in a
+// temp dir instead of RAM. Every consuming handler must cleanupUpload(req) in a finally.
+const UPLOAD_TMP_DIR = path.join(__dirname, 'data', 'tmp', 'uploads');
+try { fs.mkdirSync(UPLOAD_TMP_DIR, { recursive: true }); } catch (e) { /* exists */ }
+// Sweep any temp files stranded by a crash (older than an hour) at boot.
+try {
+  for (const f of fs.readdirSync(UPLOAD_TMP_DIR)) {
+    const p = path.join(UPLOAD_TMP_DIR, f);
+    if (Date.now() - fs.statSync(p).mtimeMs > 3600_000) fs.unlinkSync(p);
+  }
+} catch (e) { /* best-effort */ }
+const diskUploadStorage = multer.diskStorage({
+  destination: UPLOAD_TMP_DIR,
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname || '')}`)
+});
+function cleanupUpload(req) {
+  if (req?.file?.path) { try { fs.unlinkSync(req.file.path); } catch (e) { /* already gone */ } }
+}
+
+// Multer config for portrait media uploads (now genuinely disk-based — the old comment claimed
+// this while using memoryStorage)
 const portraitUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: diskUploadStorage,
   limits: { fileSize: 200 * 1024 * 1024 } // 200MB max per portrait video
 });
 
@@ -364,14 +424,14 @@ app.post('/api/portrait-media/:type/:folder/:id', portraitUpload.single('file'),
 
     const isDefault = folder === 'default';
     const ext = path.extname(req.file.originalname).replace('.', '').toLowerCase() || 'mp4';
-    const url = await imageStorage.savePortraitMedia(type, id, isDefault, slot, req.file.buffer, ext);
+    const url = await imageStorage.savePortraitMedia(type, id, isDefault, slot, fs.readFileSync(req.file.path), ext);
 
     console.log(`[PortraitMedia] Saved ${slot}.${ext} for ${type}/${folder}/${id}`);
     res.json({ url, slot, isVideo: imageStorage.isVideoFile(`${slot}.${ext}`) });
   } catch (error) {
     console.error('[PortraitMedia] Upload error:', error);
     res.status(500).json({ error: 'Failed to save portrait media' });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 // Delete a portrait media slot
@@ -481,7 +541,7 @@ app.post('/api/import/portrait-media/:type/:folder/:id', portraitUpload.single('
     const imgDir = imageStorage.getImgDir(type, id, isDefault);
     await imageStorage.ensureDir(imgDir);
 
-    const zip = new AdmZip(req.file.buffer);
+    const zip = new AdmZip(req.file.path); // path ctor — entries decompress lazily, never the whole archive in RAM
     const entries = zip.getEntries();
     let manifest = null;
 
@@ -520,7 +580,7 @@ app.post('/api/import/portrait-media/:type/:folder/:id', portraitUpload.single('
   } catch (error) {
     console.error('[PortraitMedia] Import error:', error);
     res.status(500).json({ error: 'Failed to import portrait media' });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 // ==================== MEDIA ALBUM API ====================
@@ -532,7 +592,7 @@ mediaStorage.initMediaDirectories().catch(err => {
 
 // Configure multer for video/audio uploads (memory storage for processing)
 const mediaUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: diskUploadStorage,
   limits: {
     fileSize: mediaStorage.VIDEO_SIZE_LIMIT // Use the larger limit (500MB)
   }
@@ -540,7 +600,7 @@ const mediaUpload = multer({
 
 // Configure multer for character card imports (JSON/PNG, or a ZIP bundling card + media)
 const cardUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: diskUploadStorage,
   limits: {
     // ZIP imports carry the character's media (video allowance dominates); bare cards stay tiny.
     fileSize: 600 * 1024 * 1024
@@ -591,6 +651,18 @@ function writeCharMediaFile(charId, type, name, buffer) {
   fs.writeFileSync(path.join(dir, finalName), buffer);
   return finalName;
 }
+// Path variant for disk-staged uploads: renames the temp file into place (copy fallback), so
+// the media never round-trips through RAM.
+function writeCharMediaFileFromPath(charId, type, name, srcPath) {
+  const dir = charMediaDir(charId, type);
+  fs.mkdirSync(dir, { recursive: true });
+  let finalName = sanitizeMediaName(name);
+  const ext = path.extname(finalName), stem = finalName.slice(0, finalName.length - ext.length);
+  for (let n = 2; fs.existsSync(path.join(dir, finalName)); n++) finalName = `${stem} (${n})${ext}`;
+  try { fs.renameSync(srcPath, path.join(dir, finalName)); }
+  catch (e) { fs.copyFileSync(srcPath, path.join(dir, finalName)); }
+  return finalName;
+}
 // Resolve + validate a char-media file path (id/type/name all attacker-controlled URL parts).
 function charMediaFilePath(charId, type, name) {
   if (!isSafeId(charId) || !CHAR_MEDIA_TYPES.has(type)) return null;
@@ -609,9 +681,10 @@ app.post('/api/characters/:id/media/:type', mediaUpload.single('file'), (req, re
     if (!isSafeId(req.params.id)) return res.status(400).json({ error: 'Invalid character id' });
     if (!CHAR_MEDIA_TYPES.has(req.params.type)) return res.status(400).json({ error: 'Invalid media type' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const name = writeCharMediaFile(req.params.id, req.params.type, req.file.originalname, req.file.buffer);
+    const name = writeCharMediaFileFromPath(req.params.id, req.params.type, req.file.originalname, req.file.path);
     res.json({ success: true, name });
   } catch (e) { res.status(500).json({ error: e.message || 'Upload failed' }); }
+  finally { cleanupUpload(req); }
 });
 
 // Clone an item from the MAIN media library into the character's personal directory.
@@ -786,7 +859,7 @@ app.post('/api/media/videos', mediaUpload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: tag, description' });
     }
     const video = await mediaStorage.saveMediaVideo(
-      req.file.buffer,
+      { path: req.file.path }, // disk-staged — copied into place, never buffered whole in RAM
       req.file.originalname,
       req.file.mimetype,
       tag,
@@ -796,7 +869,7 @@ app.post('/api/media/videos', mediaUpload.single('file'), async (req, res) => {
     res.json(video);
   } catch (error) {
     res.status(400).json({ error: error.message });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 app.put('/api/media/videos/:id', async (req, res) => {
@@ -900,7 +973,7 @@ app.post('/api/media/audios', mediaUpload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: tag, description' });
     }
     const audio = await mediaStorage.saveMediaAudio(
-      req.file.buffer,
+      { path: req.file.path }, // disk-staged — copied into place, never buffered whole in RAM
       req.file.originalname,
       req.file.mimetype,
       tag,
@@ -910,7 +983,7 @@ app.post('/api/media/audios', mediaUpload.single('file'), async (req, res) => {
     res.json(audio);
   } catch (error) {
     res.status(400).json({ error: error.message });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 app.put('/api/media/audios/:id', async (req, res) => {
@@ -16740,21 +16813,26 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    let fileBuffer = req.file.buffer;
     let fileType = req.file.mimetype;
     let characterData = null;
     let avatarData = null;
     let isSwellDImport = false;
     let swelldExportData = null;
-    let zipMediaFiles = null; // [{type:'image'|'video'|'audio', name, buffer}] from a ZIP import
+    let zipMediaFiles = null; // [{type:'image'|'video'|'audio', name, entry}] from a ZIP import (lazy — data read at write time)
+
+    // Uploads are disk-staged (see diskUploadStorage) — sniff the magic bytes from disk so a
+    // 600MB zip is never read wholesale into RAM.
+    const head = Buffer.alloc(4);
+    { const fd = fs.openSync(req.file.path, 'r'); fs.readSync(fd, head, 0, 4, 0); fs.closeSync(fd); }
+    let fileBuffer = null;
 
     // ZIP import: a card (.png/.json at the archive root) + the character's media in
     // image/ video/ audio/ folders. Unwrap to the card and stash the media for after the save.
-    const looksZip = fileBuffer.length > 3 && fileBuffer[0] === 0x50 && fileBuffer[1] === 0x4b
+    const looksZip = head[0] === 0x50 && head[1] === 0x4b
       && (fileType.includes('zip') || /\.zip$/i.test(req.file.originalname || ''));
     if (looksZip) {
       const AdmZip = require('adm-zip');
-      const entries = new AdmZip(fileBuffer).getEntries().filter(e => !e.isDirectory);
+      const entries = new AdmZip(req.file.path).getEntries().filter(e => !e.isDirectory); // path ctor = lazy per-entry decompression
       const isMediaEntry = (n) => /^(image|video|audio)\//i.test(n);
       const cardEntry = entries.find(e => !isMediaEntry(e.entryName) && /\.png$/i.test(e.entryName))
         || entries.find(e => !isMediaEntry(e.entryName) && /\.(json|swelld)$/i.test(e.entryName));
@@ -16763,9 +16841,11 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       // Sniff the card's real type — a .swelld extension may wrap either a PNG or JSON payload.
       fileType = (fileBuffer.length > 3 && fileBuffer[0] === 0x89 && fileBuffer[1] === 0x50) ? 'image/png' : 'application/json';
       zipMediaFiles = entries
-        .map(e => { const m = e.entryName.match(/^(image|video|audio)\/(.+)$/i); return m ? { type: m[1].toLowerCase(), name: m[2], buffer: e.getData() } : null; })
+        .map(e => { const m = e.entryName.match(/^(image|video|audio)\/(.+)$/i); return m ? { type: m[1].toLowerCase(), name: m[2], entry: e } : null; })
         .filter(Boolean);
       console.log(`[Import] ZIP unwrapped: card "${cardEntry.entryName}" + ${zipMediaFiles.length} media file(s)`);
+    } else {
+      fileBuffer = fs.readFileSync(req.file.path); // bare cards (PNG/JSON) are small
     }
 
     // Handle PNG files - extract metadata
@@ -16813,7 +16893,7 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       if (!zipMediaFiles?.length || !charId) return 0;
       let n = 0;
       for (const f of zipMediaFiles) {
-        try { writeCharMediaFile(charId, f.type, f.name, f.buffer); n++; }
+        try { writeCharMediaFile(charId, f.type, f.name, f.entry.getData()); n++; } // one file's data in RAM at a time
         catch (e) { console.error(`[Import] media '${f.name}' failed:`, e?.message || e); }
       }
       if (n) console.log(`[Import] Placed ${n} media file(s) into the imported character's media folders`);
@@ -17069,7 +17149,7 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
     const fileName = req.file?.originalname || 'unknown';
     console.error(`[Import] Character card import failed for "${fileName}":`, error.message || error);
     res.status(500).json({ error: error.message || 'Failed to import character card' });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 // Convert a V2/V3/SwellD character-card file to a SwellD character WITHOUT persisting it.
@@ -17079,7 +17159,7 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
 app.post('/api/convert/character-card', cardUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const fileBuffer = req.file.buffer;
+    const fileBuffer = fs.readFileSync(req.file.path); // disk-staged (bare cards are small)
     const fileType = req.file.mimetype;
     let characterData = null;
     let avatarData = null;
@@ -17120,7 +17200,7 @@ app.post('/api/convert/character-card', cardUpload.single('file'), async (req, r
   } catch (error) {
     console.error('[Convert] Character card convert failed:', error.message || error);
     res.status(500).json({ error: error.message || 'Failed to convert character card' });
-  }
+  } finally { cleanupUpload(req); }
 });
 
 // --- Import Persona Card (V2/V3) ---
@@ -17258,10 +17338,13 @@ app.post('/api/connection-profiles/:id/activate', (req, res) => {
 
 app.get('/api/remote-settings', (req, res) => {
   const settings = getRemoteSettings();
-  // Include whether this is a local request so the UI knows if editing is allowed
+  // The auth token is only ever revealed to LOCAL requests — the host reads it from Settings and
+  // hands it to remote clients out-of-band. Remote clients get the rest of the settings.
+  const local = isLocalRequest(req);
+  const { authToken, ...pub } = settings;
   res.json({
-    ...settings,
-    isLocalRequest: isLocalRequest(req)
+    ...(local ? settings : pub),
+    isLocalRequest: local
   });
 });
 
@@ -17276,8 +17359,14 @@ app.post('/api/remote-settings', (req, res) => {
 
   const newSettings = {
     allowRemote: allowRemote !== undefined ? allowRemote : currentSettings.allowRemote,
-    whitelistedIps: whitelistedIps !== undefined ? whitelistedIps : currentSettings.whitelistedIps
+    whitelistedIps: whitelistedIps !== undefined ? whitelistedIps : currentSettings.whitelistedIps,
+    authToken: currentSettings.authToken // preserved; generated at enable-time below / at boot
   };
+  // Enabling remote access mints the auth token if one doesn't exist yet.
+  if (newSettings.allowRemote && !newSettings.authToken) {
+    newSettings.authToken = require('crypto').randomBytes(24).toString('base64url');
+    log.info('Remote access enabled — generated a remote auth token');
+  }
 
   saveData(DATA_FILES.remoteSettings, newSettings);
   log.info('Remote settings updated:', newSettings);
@@ -21433,6 +21522,43 @@ syncAllButtonsOnStartup();
 
 // Bind to localhost by default; only expose on all interfaces when the user has
 // explicitly enabled remote access. Preserves the allowRemote toggle.
+// ---- Data schema versioning ----
+// One stamped revision for the whole data/ dir + an append-only migration registry that runs
+// once, in order, at boot. New data-shape changes get an entry here instead of another ad-hoc
+// self-guarded migration scattered through the code (the existing ones — samplerRev, pump
+// seeding, reminder→dictionary — stay self-guarded and are grandfathered as rev 0 behavior).
+const SCHEMA_VERSION_PATH = path.join(__dirname, 'data', 'schema-version.json');
+const DATA_MIGRATIONS = [
+  // { rev: 1, name: 'describe the shape change', run: () => { ...mutate data files... } },
+];
+function runDataMigrations() {
+  let cur = 0;
+  try { cur = JSON.parse(fs.readFileSync(SCHEMA_VERSION_PATH, 'utf8')).rev || 0; } catch (e) { /* fresh install */ }
+  const pending = DATA_MIGRATIONS.filter(m => m.rev > cur).sort((a, b) => a.rev - b.rev);
+  for (const m of pending) {
+    console.log(`[Schema] Running data migration ${m.rev}: ${m.name}`);
+    try { m.run(); } catch (e) {
+      // Stop at the failed migration — later ones may depend on it; rev stays put so it retries next boot.
+      console.error(`[Schema] Migration ${m.rev} FAILED (halting migration run):`, e?.message || e);
+      return;
+    }
+    cur = m.rev;
+    fs.writeFileSync(SCHEMA_VERSION_PATH, JSON.stringify({ rev: cur, updatedAt: new Date().toISOString() }, null, 2));
+  }
+  console.log(`[Schema] Data schema at rev ${cur} (${DATA_MIGRATIONS.length} registered migration(s))`);
+}
+runDataMigrations();
+
+// Legacy remote configs predate the auth token — mint one at boot so token enforcement is
+// always active whenever the server binds beyond loopback. (The host reads it from Settings.)
+{
+  const rs = getRemoteSettings();
+  if (rs.allowRemote && !rs.authToken) {
+    rs.authToken = require('crypto').randomBytes(24).toString('base64url');
+    saveData(DATA_FILES.remoteSettings, rs);
+    console.log('[Remote] Generated a remote auth token for this install (Settings → Global → Remote Access).');
+  }
+}
 const BIND_REMOTE = !!(getRemoteSettings().allowRemote);
 const BIND_HOST = BIND_REMOTE ? '0.0.0.0' : '127.0.0.1';
 server.listen(PORT, BIND_HOST, () => {

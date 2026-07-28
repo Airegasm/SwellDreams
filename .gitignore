@@ -95,3 +95,4 @@ backend/data/trigger-sets.json
 
 # Flows are deprecated (replaced by Triggers) — no longer shipped or tracked
 backend/data/flows/
+backend/data/tmp/

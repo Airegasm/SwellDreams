@@ -142,7 +142,11 @@ export function AppProvider({ children }) {
       return;
     }
 
-    ws.current = new WebSocket(WS_URL);
+    // Remote clients append the auth token (stored by utils/api after the one-time prompt);
+    // local connections carry no token and the server never requires one from loopback.
+    let wsToken = '';
+    try { wsToken = localStorage.getItem('swelldRemoteToken') || ''; } catch (e) { /* private mode */ }
+    ws.current = new WebSocket(wsToken ? `${WS_URL}/?token=${encodeURIComponent(wsToken)}` : WS_URL);
 
     ws.current.onopen = () => {
       console.log('[WS] Connected');

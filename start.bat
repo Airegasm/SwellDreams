@@ -21,17 +21,21 @@ REM Trim spaces
 set VERSION=%VERSION: =%
 set CODENAME=%CODENAME: =%
 
-REM Note: Automatic server stopping disabled to prevent killing other node processes
-REM If you need to stop the server, use stop.bat before running start.bat
-REM Or manually close the "SwellDreams Server" window
+REM Stop any previous SwellDreams backend so this restart actually runs the updated code.
+REM (Previously this only WARNED and continued - the new "node server.js" then failed to bind
+REM the port, the OLD server kept running, and server.js fixes silently never took effect while
+REM the statically-served frontend looked updated. Mirror of start.sh's hardened logic.)
+REM Two nets: (1) our saved PID file, (2) whatever holds port 8889. In BOTH cases a process is
+REM only killed if its command line really is a server.js node process, so unrelated node apps
+REM are never touched.
 echo Checking for existing SwellDreams server...
-tasklist /FI "WINDOWTITLE eq SwellDreams Server*" /FO LIST 2>nul | findstr /C:"PID:" >nul
-if not errorlevel 1 (
-    echo Warning: A SwellDreams Server window may already be running.
-    echo Close it manually or run stop.bat first to avoid conflicts.
-    echo.
-    timeout /t 3 /nobreak >nul
-)
+set "PID_DIR=%SCRIPT_DIR%.pids"
+if not exist "%PID_DIR%" mkdir "%PID_DIR%" >nul 2>nul
+if not exist "%PID_DIR%\server.pid" goto :SkipPidKill
+set /p OLD_PID=<"%PID_DIR%\server.pid"
+call :KillIfSwellD %OLD_PID%
+:SkipPidKill
+for /f "tokens=5" %%p in ('netstat -ano ^| findstr /C:":8889 " ^| findstr /C:"LISTENING"') do call :KillIfSwellD %%p
 
 echo.
 echo ========================================
@@ -232,8 +236,20 @@ echo.
 echo Starting SwellDreams server...
 start "SwellDreams Server" cmd /k "cd /d %SCRIPT_DIR%backend && node server.js"
 
-REM Wait for server
-timeout /t 2 /nobreak >nul
+REM Wait for the server to bind, then save its PID (the process LISTENING on :8889 is node
+REM itself) so the next start.bat run can stop it cleanly.
+set "NEW_PID="
+for /l %%i in (1,1,10) do (
+    if not defined NEW_PID (
+        for /f "tokens=5" %%p in ('netstat -ano ^| findstr /C:":8889 " ^| findstr /C:"LISTENING"') do set "NEW_PID=%%p"
+        if not defined NEW_PID timeout /t 1 /nobreak >nul
+    )
+)
+if defined NEW_PID (
+    echo %NEW_PID%>"%PID_DIR%\server.pid"
+) else (
+    echo Warning: server not confirmed listening on port 8889 yet - check the server window.
+)
 
 echo.
 echo ========================================
@@ -249,3 +265,15 @@ start "" "http://localhost:8889"
 echo To stop: run stop.bat
 echo.
 pause
+exit /b 0
+
+REM ---- Subroutine: kill PID %1 only if it is really a SwellDreams server.js node process ----
+:KillIfSwellD
+if "%~1"=="" goto :eof
+powershell -NoProfile -Command "$p=Get-CimInstance Win32_Process -Filter 'ProcessId=%~1' -ErrorAction SilentlyContinue; if($p -and $p.CommandLine -match 'server\.js'){exit 0}else{exit 1}" >nul 2>nul
+if errorlevel 1 goto :eof
+echo Stopping previous SwellDreams server (PID %~1)...
+taskkill /PID %~1 >nul 2>nul
+timeout /t 1 /nobreak >nul
+taskkill /F /PID %~1 >nul 2>nul
+goto :eof
