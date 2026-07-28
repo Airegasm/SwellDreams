@@ -146,6 +146,9 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
   const charMediaIdleRefs = useRef({});
   const charMediaTransRefs = useRef({});
 
+  // Inline instructor-profile manager form: { id|null, name, prompt } while open.
+  const [instrProfileForm, setInstrProfileForm] = useState(null);
+
   // MiniGames tab + fork-to-card: master minigame list and global tree list (builtIn flags).
   const [masterGames, setMasterGames] = useState([]);
   const [globalTrees, setGlobalTrees] = useState([]);
@@ -2140,11 +2143,73 @@ Write only the scenario description itself, no explanations.`;
 
             <div className="form-group">
               <label>Instructor Profile</label>
-              <select value={formData.instructorProfileId || ''} onChange={(e) => set({ instructorProfileId: e.target.value })}>
-                <option value="">— None —</option>
-                {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <p className="section-hint">Defines how the instructor behaves and performs. Manage profiles in the Instructor Settings page.</p>
+              {(() => {
+                // Inline profile manager (the old standalone Instructor Settings page died in the
+                // editor unification — this is where profiles are created/edited/deleted now).
+                const cur = profiles.find(p => p.id === formData.instructorProfileId);
+                const refreshProfiles = () => api.getInstructorProfiles?.().then(p => setProfiles(p?.profiles || [])).catch(() => {});
+                const openNew = () => setInstrProfileForm({ id: null, name: '', prompt: '' });
+                const openEdit = () => {
+                  if (!cur) return;
+                  // Built-ins are read-only — editing one opens a prefilled COPY instead.
+                  setInstrProfileForm(cur.builtIn
+                    ? { id: null, name: `${cur.name} (copy)`, prompt: cur.prompt || '' }
+                    : { id: cur.id, name: cur.name, prompt: cur.prompt || '' });
+                };
+                const doDelete = async () => {
+                  if (!cur || cur.builtIn) return;
+                  if (!window.confirm(`Delete instructor profile "${cur.name}"?`)) return;
+                  try {
+                    await api.deleteInstructorProfile(cur.id);
+                    set({ instructorProfileId: '' });
+                    refreshProfiles();
+                  } catch (e) { window.alert('Delete failed: ' + (e.message || e)); }
+                };
+                const doSave = async () => {
+                  if (!instrProfileForm.name.trim()) { window.alert('Give the profile a name.'); return; }
+                  try {
+                    if (instrProfileForm.id) {
+                      await api.updateInstructorProfile(instrProfileForm.id, instrProfileForm.name.trim(), instrProfileForm.prompt);
+                    } else {
+                      const r = await api.createInstructorProfile(instrProfileForm.name.trim(), instrProfileForm.prompt);
+                      if (r?.id) set({ instructorProfileId: r.id }); // select the new profile
+                    }
+                    setInstrProfileForm(null);
+                    refreshProfiles();
+                  } catch (e) { window.alert('Save failed: ' + (e.message || e)); }
+                };
+                return (
+                  <>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select style={{ flex: 1, minWidth: 200 }} value={formData.instructorProfileId || ''} onChange={(e) => set({ instructorProfileId: e.target.value })}>
+                        <option value="">— None —</option>
+                        {profiles.map(p => <option key={p.id} value={p.id}>{p.name}{p.builtIn ? ' (built-in)' : ''}</option>)}
+                      </select>
+                      <button type="button" className="btn btn-sm btn-secondary" onClick={openNew}>+ New</button>
+                      <button type="button" className="btn btn-sm btn-secondary" disabled={!cur} onClick={openEdit}
+                        title={cur?.builtIn ? 'Built-in — opens an editable copy' : 'Edit this profile'}>{cur?.builtIn ? 'Copy' : 'Edit'}</button>
+                      <button type="button" className="btn btn-sm btn-danger" disabled={!cur || cur.builtIn} onClick={doDelete}
+                        title={cur?.builtIn ? 'Built-in profiles cannot be deleted' : 'Delete this profile'}>Del</button>
+                    </div>
+                    {instrProfileForm && (
+                      <div style={{ marginTop: 8, padding: 10, border: '1px solid rgba(128,128,128,0.35)', borderRadius: 6 }}>
+                        <input type="text" value={instrProfileForm.name} placeholder="Profile name"
+                          onChange={(e) => setInstrProfileForm(f => ({ ...f, name: e.target.value }))}
+                          style={{ width: '100%', marginBottom: 6 }} />
+                        <textarea rows={6} value={instrProfileForm.prompt}
+                          placeholder="The instructor brief (system-prompt text): how this instructor behaves, speaks, paces, and performs…"
+                          onChange={(e) => setInstrProfileForm(f => ({ ...f, prompt: e.target.value }))}
+                          style={{ width: '100%', resize: 'vertical' }} />
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 6 }}>
+                          <button type="button" className="btn btn-sm btn-secondary" onClick={() => setInstrProfileForm(null)}>Cancel</button>
+                          <button type="button" className="btn btn-sm btn-primary" onClick={doSave}>{instrProfileForm.id ? 'Update Profile' : 'Create Profile'}</button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="section-hint">Defines how the instructor behaves and performs (its system-prompt brief). Managed right here — profiles are shared across all instructor cards.</p>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="form-group">
