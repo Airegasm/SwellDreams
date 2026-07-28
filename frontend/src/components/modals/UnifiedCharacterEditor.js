@@ -2048,9 +2048,35 @@ Write only the scenario description itself, no explanations.`;
             ))}
           </div>
 
-          {/* ---- Per-card lore entries (standard/group): author globalReminders via LoreEntryEditor ---- */}
-          {!isInstructorMode && (
-            <div className="reminders-editor">
+          {/* Initial Setup Variables — instructor-story session-start vars (moved from Instructor Settings). */}
+          {isInstructorMode && (
+            <CollapsibleSection title="Initial Setup Variables" subtitle="Flow/system vars seeded once at session start" badge={(activeStory?.prereqInitVars || []).length || ''}>
+              <p className="section-hint">Reference them anywhere with [CharVar:Name]. System: only <strong>capacity</strong> is settable.</p>
+              {(activeStory?.prereqInitVars || []).map((v, i) => {
+                const list = activeStory?.prereqInitVars || [];
+                const upd = (patch) => updateStoryField('prereqInitVars', list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+                const rm = () => updateStoryField('prereqInitVars', list.filter((_, idx) => idx !== i));
+                return (
+                  <div className="prereq-initvar-row" key={v.id || i}>
+                    <select value={v.varType || 'custom'} onChange={(e) => upd({ varType: e.target.value })} title="Variable type">
+                      <option value="custom">Flow</option>
+                      <option value="system">System</option>
+                    </select>
+                    <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity' : 'variable'} />
+                    <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
+                      <option value="set">Set</option><option value="inc">+</option><option value="dec">−</option><option value="mult">×</option><option value="div">÷</option>
+                    </select>
+                    <input type="text" value={v.value || ''} onChange={(e) => upd({ value: e.target.value })} placeholder="value" />
+                    <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
+                  </div>
+                );
+              })}
+              <button type="button" className="prereq-add-sm" onClick={() => updateStoryField('prereqInitVars', [...(activeStory?.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
+            </CollapsibleSection>
+          )}
+
+          {/* ---- Per-card lore entries: author globalReminders via LoreEntryEditor ---- */}
+          <div className="reminders-editor">
               {!showReminderForm ? (
                 <>
                   <div className="events-header">
@@ -2144,8 +2170,7 @@ Write only the scenario description itself, no explanations.`;
                   </div>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
 
         {/* ---- Instructor Settings (own tab; instructor mode only) ---- */}
@@ -2191,43 +2216,6 @@ Write only the scenario description itself, no explanations.`;
               <p className="section-hint">Assigned terms are injected only when the player uses them (keyword-triggered).</p>
             </div>
 
-            <div className="form-group">
-              <label>Card Library <span className="text-muted">— this instructor's own entries</span></label>
-              {!showReminderForm ? (
-                <>
-                  {ownEntries.length === 0 ? (
-                    <p className="section-hint">No entries yet. Same lorebook format as the Dictionary — blank keywords = always-on.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {ownEntries.map(r => (
-                        <div key={r.id} className="reminder-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input type="checkbox" checked={r.enabled !== false} onChange={(e) => handleToggleReminder(r.id, e.target.checked)} title="Enabled" />
-                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {r.name || '(untitled)'} <span className="text-muted">· {(r.keys?.length || 0) === 0 ? 'always-on' : `${r.keys.length} keys`}</span>
-                          </span>
-                          <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleEditReminder(r)}>Edit</button>
-                          <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteReminder(r.id)}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button type="button" className="btn btn-sm btn-primary" style={{ marginTop: 6 }} onClick={handleAddReminder}>+ Add Entry</button>
-                </>
-              ) : (
-                <div className="event-form">
-                  <h4>{editingReminderId ? 'Edit' : 'Add'} Library Entry</h4>
-                  <LoreEntryEditor
-                    entry={{ ...reminderForm, title: reminderForm.name, content: reminderForm.text }}
-                    onChange={(c) => setReminderForm({ ...reminderForm, ...c, name: c.title, text: c.content })}
-                  />
-                  <div className="event-form-buttons" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-                    <button type="button" className="btn btn-secondary" onClick={handleCancelReminderEdit}>Cancel</button>
-                    <button type="button" className="btn btn-primary" onClick={handleSaveReminder}>{editingReminderId ? 'Update' : 'Create'}</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="form-group instr-toggles">
               <label>Options</label>
               <label className="instr-toggle">
@@ -2240,30 +2228,6 @@ Write only the scenario description itself, no explanations.`;
               </label>
             </div>
 
-            {/* Initial Setup Variables — story-nested (prereqInitVars). */}
-            <CollapsibleSection title="Initial Setup Variables" subtitle="Flow/system vars seeded once at session start" badge={(activeStory?.prereqInitVars || []).length || ''}>
-              <p className="section-hint">Reference them anywhere with [CharVar:Name]. System: only <strong>capacity</strong> is settable.</p>
-              {(activeStory?.prereqInitVars || []).map((v, i) => {
-                const list = activeStory?.prereqInitVars || [];
-                const upd = (patch) => updateStoryField('prereqInitVars', list.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
-                const rm = () => updateStoryField('prereqInitVars', list.filter((_, idx) => idx !== i));
-                return (
-                  <div className="prereq-initvar-row" key={v.id || i}>
-                    <select value={v.varType || 'custom'} onChange={(e) => upd({ varType: e.target.value })} title="Variable type">
-                      <option value="custom">Flow</option>
-                      <option value="system">System</option>
-                    </select>
-                    <input type="text" value={v.variable || ''} onChange={(e) => upd({ variable: e.target.value })} placeholder={v.varType === 'system' ? 'capacity' : 'variable'} />
-                    <select value={v.operation || 'set'} onChange={(e) => upd({ operation: e.target.value })}>
-                      <option value="set">Set</option><option value="inc">+</option><option value="dec">−</option><option value="mult">×</option><option value="div">÷</option>
-                    </select>
-                    <input type="text" value={v.value || ''} onChange={(e) => upd({ value: e.target.value })} placeholder="value" />
-                    <button type="button" className="prereq-del-sm" onClick={rm} title="Remove">×</button>
-                  </div>
-                );
-              })}
-              <button type="button" className="prereq-add-sm" onClick={() => updateStoryField('prereqInitVars', [...(activeStory?.prereqInitVars || []), { id: `iv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, varType: 'custom', variable: '', operation: 'set', value: '' }])}>+ Setup Variable</button>
-            </CollapsibleSection>
           </div>
         )}
 
