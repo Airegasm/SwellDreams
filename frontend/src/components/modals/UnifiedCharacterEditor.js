@@ -2403,12 +2403,12 @@ Write only the scenario description itself, no explanations.`;
                                 onForkClosure={forkTreeClosure}
                                 defaultName={`${buttonForm.name || 'Button'} Tree`}
                                 source={`from button: ${buttonForm.name || 'unnamed'}`}
-                                rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [], cardGames: formData.miniGames || [] }}
+                                rowProps={{ isPumpable: pumpUiActive, members, triggerSets, profiles: activeStory?.checkpointProfiles || [], cardGames: formData.miniGames || [] , eventNames: [...new Set((activeStory?.checkpointProfiles || []).flatMap(pr => pr?.treeRefs?.events || []).map(b => b?.name).filter(Boolean))] }}
                               />
                             )}
                             {action.type === 'trigger_blocks' && (
                               <TriggerBlockComposer value={action.config.blocks || []} onChange={(v) => handleUpdateAction(index, 'blocks', v)} triggerSets={triggerSets}
-                                rowProps={{ isPumpable: pumpUiActive, members, profiles: activeStory?.checkpointProfiles || [] }} />
+                                rowProps={{ isPumpable: pumpUiActive, members, profiles: activeStory?.checkpointProfiles || [], eventNames: [...new Set((activeStory?.checkpointProfiles || []).flatMap(pr => pr?.treeRefs?.events || []).map(b => b?.name).filter(Boolean))] }} />
                             )}
                           </div>
                           <button type="button" className="btn-icon-small" onClick={() => handleDeleteAction(index)} title="Delete">🗑️</button>

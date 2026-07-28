@@ -16,6 +16,7 @@ const EVENT_TYPES = [
   { value: 'device_on', label: 'Device turns ON' },
   { value: 'device_off', label: 'Device turns OFF' },
   { value: 'ai_speaks', label: 'AI speaks (keyword)' },
+  { value: 'player_speaks', label: 'Player speaks (keyword optional)' },
   { value: 'player_state_change', label: 'Player state change' },
   { value: 'char_state_change', label: 'Character state change' },
   { value: 'idle', label: 'Idle (no activity)' },
@@ -85,6 +86,16 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
           </>
         );
       }
+      case 'player_speaks':
+        return (
+          <>
+            <input type="text" value={f.keywords || ''} placeholder="keywords (comma-sep, blank = ANY player message)" style={{ minWidth: 200 }}
+              onChange={(e) => updateFilter(b.id, { keywords: e.target.value })} title="Fire when the player's message contains any of these (comma-separated). Blank = every player message." />
+            <label className="tree-check" title="Match whole words only">
+              <input type="checkbox" checked={f.matchWholeWords !== false} onChange={(e) => updateFilter(b.id, { matchWholeWords: e.target.checked })} /> whole words
+            </label>
+          </>
+        );
       case 'ai_speaks':
         return (
           <>
@@ -125,6 +136,12 @@ function EventTriggersSection({ events = [], onChange, rowProps = {}, source = '
       {list.map(b => (
         <div key={b.id} className="event-trigger-binding" style={{ border: '1px solid var(--border-color, #444)', borderRadius: 6, padding: 8, marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
+            <label className="tree-check" title="Enabled — untick to keep this trigger dormant (an Event Trigger Toggle block can flip it in-session by name)">
+              <input type="checkbox" checked={b.enabled !== false} onChange={(e) => update(b.id, { enabled: e.target.checked })} />
+            </label>
+            <input type="text" value={b.name || ''} placeholder="name (optional)" style={{ width: 110 }}
+              onChange={(e) => update(b.id, { name: e.target.value })}
+              title="Optional name — Event Trigger Toggle blocks target triggers by this name" />
             <select value={b.event} onChange={(e) => update(b.id, { event: e.target.value, filter: {} })} title="Event that fires this tree">
               {EVENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>

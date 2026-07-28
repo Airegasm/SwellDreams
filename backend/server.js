@@ -3950,6 +3950,8 @@ const sessionState = {
   checkpointControl: null, // Session overrides from Checkpoint Control blocks: { ranges: {key:'on'|'off'}, events: 'on'|'off'|null }; null slot = card default
   pendingIntroStart: null, // Gated intro deferred behind a suspended Session Start tree: { welcomePosted }
   suppressReplyThisTurn: false, // set by a keyword gate/event with "Suppress AI reply" — this turn generates nothing
+  sessionStartActive: false, // true while the session-start chain (incl. suspensions) is still running — event triggers stay silent
+  eventTriggerOverrides: null, // Event Trigger Toggle blocks: { all: 'on'|'off'|null, byName: {name: 'on'|'off'} }
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
                       // base character at read time, and every runTreeScope resets it so trees stay agnostic
@@ -6169,6 +6171,8 @@ function clearSessionContextForSwitch() {
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.pendingCheckpointChoice = null;
@@ -9618,6 +9622,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -9672,6 +9678,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -9694,6 +9702,8 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
     sessionState.pendingTreeResume = null;
     sessionState.pendingTreeGame = null;
     sessionState.pendingTreeChoice = null;
@@ -10921,6 +10931,9 @@ async function handleChatMessage(data) {
     sessionState.chatHistory.push(playerMessage);
     broadcast('chat_message', playerMessage);
     autosaveSession();
+    // player_speaks event bindings: fire on every player message (keyword filter optional —
+    // blank keywords = any). Standalone delivery, dispatched before the reply generates.
+    await runEventTrees('player_speaks', { content });
   }
 
   // Check if message contains a blocking video - parse and set blocking state
@@ -12790,6 +12803,14 @@ function eventBindingMatches(b, eventType, data) {
         { keys: kw, secondaryKeys: [], caseSensitive: !!f.caseSensitive, matchWholeWords: f.matchWholeWords !== false, logic: 'and_any' },
         text);
     }
+    case 'player_speaks': {
+      const kw = (f.keywords || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (!kw.length) return true; // no keywords = fires on ANY player message
+      const text = data.content || latestPlayerText();
+      return reminderEngine._matchKeys(
+        { keys: kw, secondaryKeys: [], caseSensitive: !!f.caseSensitive, matchWholeWords: f.matchWholeWords !== false, logic: 'and_any' },
+        text);
+    }
     case 'minigame_miss': // any miss in any tree-called minigame (no filter yet)
       return true;
     case 'idle':   // gated by the idle timer (per-binding idleSeconds)
@@ -12809,9 +12830,24 @@ function eventBindingCooldownOk(b) {
   return (eventEngine.messageCount || 0) - last >= cd;
 }
 
+// Effective enabled state for a binding: session Event Trigger Toggle overrides (by name, then
+// All) win over the card's own enabled tickbox (default ON when unset).
+function eventBindingEnabled(b) {
+  const ov = sessionState.eventTriggerOverrides;
+  if (ov) {
+    if (b.name && ov.byName && ov.byName[b.name]) return ov.byName[b.name] === 'on';
+    if (ov.all) return ov.all === 'on';
+  }
+  return b.enabled !== false;
+}
+
 // Run one event binding's tree. Stamps the cooldown clock at fire time.
 async function fireEventBinding(b, character, settings, treeIndex, delivery) {
   if (!checkpointsEnabledFor(character)) return; // Enable Checkpoints off → no event bindings (incl. idle)
+  // Event triggers are IGNORED while session start is still running (incl. a suspended chain) and
+  // during the gated intro/pre-fill (user ruling) — and per-binding enabled/toggles apply.
+  if (sessionState.sessionStartActive || sessionState.pendingIntroStart || sessionState.introActive || sessionState.preFillActive) return;
+  if (!eventBindingEnabled(b)) return;
   if (!checkpointGroupEnabled('events', null, character)) return; // Events group toggled off (card default or Checkpoint Control) — single choke point for push/idle/every-reply/random dispatch
   const tree = resolveRefTree(b.ref, treeIndex);
   if (!tree) return;
@@ -12843,6 +12879,7 @@ async function runEventTrees(eventType, eventData = {}, opts = {}) {
     for (const b of bindings) {
       if (!b.priority || sessionState.priorityFired?.[b.id]) continue; // not priority, or already spent
       try {
+        if (!eventBindingEnabled(b)) continue;
         if (!eventBindingCooldownOk(b)) continue;
         if (!eventBindingMatches(b, eventType, eventData)) continue;
         sessionState.priorityFired[b.id] = true; // spent — steps aside on future matches
@@ -12858,6 +12895,7 @@ async function runEventTrees(eventType, eventData = {}, opts = {}) {
       try {
         // Cooldown first: it's read-only, so checking it before eventBindingMatches (which mutates
         // the fireOnce latch) avoids latching a binding we then suppress.
+        if (!eventBindingEnabled(b)) continue;
         if (!eventBindingCooldownOk(b)) continue;
         if (!eventBindingMatches(b, eventType, eventData)) continue;
         await fireEventBinding(b, character, settings, treeIndex, delivery);
@@ -13638,6 +13676,7 @@ function deferIntroUntilSessionStartCompletes(welcomePosted) {
     if (stillPending || llmState.isGenerating) return;
     clearInterval(_deferredIntroTimer); _deferredIntroTimer = null;
     sessionState.pendingIntroStart = null;
+    sessionState.sessionStartActive = false; // chain complete — events may fire again (unless the intro gates them)
     try {
       const { character, settings } = getActiveCharacterAndSettings();
       if (!character) return;
@@ -16767,6 +16806,24 @@ async function runNode(node, ctx) {
       }
     }
     console.log(`[Tree] Checkpoint Control — ${target === 'all' ? 'ALL groups' : target === 'events' ? 'Event Triggers' : `range ${target}`} → ${mode.toUpperCase()} (session override)`);
+    return;
+  }
+
+  // ----- event_toggle: session-scoped on/off for ONE named event trigger or All of them.
+  // Overrides the bindings' own enabled tickboxes until session reset (mirror of
+  // checkpoint_control, but per-binding by the author-given event name). -----
+  if (type === 'event_toggle') {
+    markTreeOnce(node, ctx);
+    const mode = node.params?.mode === 'on' ? 'on' : 'off';
+    const target = String(node.params?.target || 'all').trim();
+    const ov = sessionState.eventTriggerOverrides = sessionState.eventTriggerOverrides || { all: null, byName: {} };
+    if (!target || target.toLowerCase() === 'all') {
+      ov.all = mode;
+      ov.byName = {}; // an All ruling supersedes earlier per-name overrides
+    } else {
+      ov.byName[target] = mode;
+    }
+    console.log(`[Tree] Event Trigger Toggle — ${!target || target.toLowerCase() === 'all' ? 'ALL event triggers' : `'${target}'`} → ${mode.toUpperCase()} (session override)`);
     return;
   }
 
@@ -21120,6 +21177,8 @@ app.post('/api/session/reset-once', (req, res) => {
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
   console.log('[Session] once-memory reset (fired nodes/ranges, random budgets, event latches)');
   res.json({ ok: true });
 });
@@ -21192,6 +21251,8 @@ app.post('/api/session/reset', async (req, res) => {
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
+  sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
+  sessionState.sessionStartActive = false;
   sessionState.pendingTreeResume = null;
   sessionState.pendingTreeGame = null;
   sessionState.playerIsInflating = false;
@@ -21327,6 +21388,7 @@ app.post('/api/session/reset', async (req, res) => {
       const ssTree = cpEnabled ? resolveRefTree(ssRef, ssTreeIndex) : null; // inline OR {treeId} library ref
       const overrideWelcome = !!(ssRef?.overrideWelcome && ssTree);
 
+      sessionState.sessionStartActive = true; // event triggers stay silent until the whole session-start chain completes
       if (!overrideWelcome) await sendWelcomeMessage(activeCharacter, settings);
       // Order: Welcome → Session Start → Pre-Fill (per plan). The Session Start tree runs
       // (after instructor setup vars) BEFORE Pre-Fill starts, so it can set the pump type / swap
@@ -21344,9 +21406,10 @@ app.post('/api/session/reset', async (req, res) => {
       let introStarted;
       if (ssStillPending) {
         console.log('[SessionStart] Session Start tree suspended — deferring the gated intro until it completes');
-        deferIntroUntilSessionStartCompletes(!overrideWelcome);
+        deferIntroUntilSessionStartCompletes(!overrideWelcome); // the watcher clears sessionStartActive when done
         introStarted = true; // gates the Pre-Fill/prereq fallbacks exactly like a live intro
       } else {
+        sessionState.sessionStartActive = false; // chain ran to completion inline
         introStarted = await startIntroScope(activeCharacter, settings, ssTreeIndex, !overrideWelcome);
       }
       const preFillStarted = introStarted ? false : startPreFill(activeCharacter);

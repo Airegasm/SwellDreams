@@ -250,7 +250,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
     } catch { setOnceResetMsg('failed'); setTimeout(() => setOnceResetMsg(''), 2000); }
   };
 
-  const profRowProps = { ...rowProps, triggerSets, profiles: cpProfiles };
+  const profRowProps = { ...rowProps, triggerSets, profiles: cpProfiles, eventNames: (selProfile?.treeRefs?.events || []).map(b => b?.name).filter(Boolean) };
 
   if (!cpProfiles.length) {
     return <p className="section-hint">No checkpoint profiles yet — reopen the card to migrate, or add one.</p>;

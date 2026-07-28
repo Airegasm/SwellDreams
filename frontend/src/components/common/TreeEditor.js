@@ -157,11 +157,12 @@ const ADD_GROUPS = [
       { kind: 'action', type: 'next_button', label: 'Next Button (>> gate)' },
       { kind: 'action', type: 'cancel_current', label: 'Cancel Current (abort others)' },
       { kind: 'action', type: 'checkpoint_control', label: 'Checkpoint Control (groups on/off)' },
+      { kind: 'action', type: 'event_toggle', label: 'Event Trigger Toggle (on/off)' },
     ]
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'fire_tree', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'event_toggle', 'fire_tree', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 // Range group keys for the Checkpoint Control dropdown (must mirror the backend's CHECKPOINT_RANGE_KEYS).
 const CKPT_CONTROL_RANGES = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
@@ -223,6 +224,7 @@ function makeNode(kind, type) {
   if (type === 'label' || type === 'goto') node.params.name = '';
   if (type === 'wait') node.params.messages = 2;
   if (type === 'checkpoint_control') { node.params.mode = 'off'; node.params.target = 'all'; }
+  if (type === 'event_toggle') { node.params.mode = 'off'; node.params.target = 'all'; }
   if (type === 'fire_tree') node.params.treeId = '';
   if (type === 'call_minigame') { node.params.miniGameId = ''; node.params.exitGotos = {}; }
   if (type === 'end_intro') node.params.loadProfileId = '';
@@ -250,6 +252,7 @@ function summarize(node) {
     if (t === 'next_button') return 'Next Button — hold for >>';
     if (t === 'cancel_current') return 'Cancel Current — abort other running triggers';
     if (t === 'checkpoint_control') return `Checkpoints ${p.mode === 'on' ? 'ON' : 'OFF'}: ${!p.target || p.target === 'all' ? 'All groups' : p.target === 'events' ? 'Event Triggers' : `Range ${p.target}%`}`;
+    if (t === 'event_toggle') return `Event Trigger ${p.mode === 'on' ? 'ON' : 'OFF'}: ${!p.target || p.target === 'all' ? 'All' : p.target}`;
     if (t === 'fire_tree') return `Fire Tree: ${p.treeId || '(unset)'}`;
     if (t === 'fire_flow') return `Fire Flow (retired): ${p.flowId || '(unset)'} — flows were removed; delete this block`;
     if (t === 'call_minigame') return `Call MiniGame${p.miniGameId ? '' : ' (unset)'}${Object.values(p.exitGotos || {}).filter(Boolean).length ? ` · ${Object.values(p.exitGotos).filter(Boolean).length} goto(s)` : ''}`;
@@ -585,6 +588,36 @@ function NodeBody({ node, onChange, rowProps }) {
           resets. Turning a group OFF also drops any await/Fire% sequence it left pending. Use it from a
           long-running tree (e.g. an endgame) to silence range checkpoints and event triggers — or to
           re-enable a group the card ships disabled.
+        </p>
+      </div>
+    );
+  }
+  if (t === 'event_toggle') {
+    const names = Array.isArray(rowProps?.eventNames) ? rowProps.eventNames.filter(Boolean) : [];
+    return (
+      <div className="tree-params">
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name={`evt-${node.id}`} checked={node.params?.mode !== 'on'} onChange={() => setParams({ mode: 'off' })} /> Off
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input type="radio" name={`evt-${node.id}`} checked={node.params?.mode === 'on'} onChange={() => setParams({ mode: 'on' })} /> On
+          </label>
+          {names.length > 0 ? (
+            <select value={node.params?.target || 'all'} onChange={(e) => setParams({ target: e.target.value })}>
+              <option value="all">All event triggers</option>
+              {names.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          ) : (
+            <input type="text" value={node.params?.target || 'all'} onChange={(e) => setParams({ target: e.target.value })}
+              placeholder="event name (or 'all')" style={{ width: 180 }}
+              title="Name of an event trigger (the optional name field on the binding), or 'all'" />
+          )}
+        </div>
+        <p className="section-hint">
+          Session-scoped override on the event triggers' enabled tickboxes — lasts until the session
+          resets. Targets bindings by their (optional) name; "All" flips every event trigger and
+          clears earlier per-name overrides.
         </p>
       </div>
     );
