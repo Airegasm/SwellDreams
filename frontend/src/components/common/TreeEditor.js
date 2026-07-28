@@ -275,7 +275,7 @@ function summarize(node) {
   if (t === 'player_input') return `Player Input · ${(p.rows || []).length} row(s) → [PlayerInput:#]`;
   if (t === 'keyword_gate' || t === 'keyword') {
     const who = (p.speaker === 'char' || p.speaker === 'character') ? 'char' : p.speaker === 'either' ? 'either' : 'player';
-    return `On Keyword (${who}): ${(p.keys || []).join(', ') || '(none)'}`;
+    return `On Keyword (${who})${p.suppressReply ? ' · suppresses AI reply' : ''}: ${(p.keys || []).join(', ') || '(none)'}`;
   }
   return t;
 }
@@ -657,6 +657,9 @@ function NodeBody({ node, onChange, rowProps }) {
       </label>
       <label className="tree-check"><input type="checkbox" checked={!!node.params?.caseSensitive} onChange={(e) => setParams({ caseSensitive: e.target.checked })} /> case sensitive</label>
       <label className="tree-check"><input type="checkbox" checked={node.params?.matchWholeWords !== false} onChange={(e) => setParams({ matchWholeWords: e.target.checked })} /> whole words</label>
+      <label className="tree-check" title="When this keyword fires, the AI's auto-response for this turn is SUPPRESSED — the tree owns the whole reply. A verbatim Char AI Message inside still posts (it replaces the reply); everything else (devices, toasts, variables) runs silently.">
+        <input type="checkbox" checked={node.params?.suppressReply === true} onChange={(e) => setParams({ suppressReply: e.target.checked })} /> suppress AI reply
+      </label>
     </div>
   );
 

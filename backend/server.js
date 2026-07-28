@@ -3949,6 +3949,7 @@ const sessionState = {
   firedTreeNodes: new Set(), // Per-session Trigger Tree "once" set; key: `${treeId}::${scopeKey}::${nodeId}`
   checkpointControl: null, // Session overrides from Checkpoint Control blocks: { ranges: {key:'on'|'off'}, events: 'on'|'off'|null }; null slot = card default
   pendingIntroStart: null, // Gated intro deferred behind a suspended Session Start tree: { welcomePosted }
+  suppressReplyThisTurn: false, // set by a keyword gate/event with "Suppress AI reply" — this turn generates nothing
   btnTreeRunSeq: 0, // Monotonic press counter — gives each button "Run Tree" press a unique once-scope (btn:<id>#<seq>)
   selectedChar: null, // Tree Select Member pick (member NAME) for [SelectedChar]; null resolves to the
                       // base character at read time, and every runTreeScope resets it so trees stay agnostic
@@ -12967,6 +12968,7 @@ async function runActiveRangeTrees(character, settings, treeIndex) {
 // call sites await this, then flush any verbatim via deliverPendingVerbatimReply.
 async function runReplyScopes(character) {
   sessionState.activeCheckpointInjections = [];
+  sessionState.suppressReplyThisTurn = false; // stale suppression must never eat a later reply
   if (!character) return;
   const settings = loadData(DATA_FILES.settings) || {};
   try { await checkPendingTreeResume(); } // tick any deferred pause_resume before this turn's scopes
@@ -13063,11 +13065,23 @@ function rollCheckpointRandomTriggers(character) {
 // signal callers to skip normal generation. Returns true if a reply was delivered.
 async function deliverPendingVerbatimReply() {
   const text = sessionState.pendingVerbatimReply;
-  if (!text) return false;
-  sessionState.pendingVerbatimReply = null;
-  await eventEngine.broadcast('ai_message', { content: text, suppressLlm: true });
-  broadcast('generating_stop', {});
-  return true;
+  if (text) {
+    sessionState.pendingVerbatimReply = null;
+    await eventEngine.broadcast('ai_message', { content: text, suppressLlm: true });
+    broadcast('generating_stop', {});
+    // a suppress flag set alongside a verbatim reply is already satisfied by the verbatim
+    sessionState.suppressReplyThisTurn = false;
+    return true;
+  }
+  // Keyword gate/event with "Suppress AI reply" ticked: the tree handled this player message —
+  // skip generation entirely this turn (all five gen-loop call sites share this gate).
+  if (sessionState.suppressReplyThisTurn) {
+    sessionState.suppressReplyThisTurn = false;
+    console.log('[Reply] suppressed — a keyword gate/event with "Suppress AI reply" fired this turn');
+    broadcast('generating_stop', {});
+    return true;
+  }
+  return false;
 }
 
 // Render the rolled injections as a prompt block (empty when none rolled).
@@ -16858,7 +16872,8 @@ async function runNode(node, ctx) {
       }
 
       case 'keyword_gate': {
-        if (!treeKeywordMatches(node)) return; // closed gate does not consume once
+        if (!treeKeywordMatches(node)) return;
+        if (node.params?.suppressReply === true) sessionState.suppressReplyThisTurn = true; // tree owns this turn — no AI auto-response // closed gate does not consume once
         const child = enterChild(node, ctx);
         if (!child) return;
         return await runTree(node.children || [], child);
@@ -17019,6 +17034,7 @@ async function runNode(node, ctx) {
   if (node.kind === 'event') {
     if (type === 'keyword') {
       if (!treeKeywordMatches(node)) return;
+      if (node.params?.suppressReply === true) sessionState.suppressReplyThisTurn = true; // tree owns this turn — no AI auto-response
       const child = enterChild(node, ctx);
       if (!child) return;
       return await runTree(node.children || [], child);
