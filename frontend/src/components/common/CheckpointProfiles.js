@@ -470,7 +470,7 @@ function CheckpointProfiles({ story, updateStory, defaultPumpType = 'electric', 
         <CollapsibleSection title={label} subtitle={`${(selProfile?.treeRefs?.rangeDisabled || {})[key] ? '⛔ GROUP OFF — ' : ''}${rangeSummary(key).text}`}
           open={!!visibleCheckpoints[key]} onToggle={(v) => setVisibleCheckpoints(prev => ({ ...prev, [key]: v }))}>
           <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '6px 0' }}
-            title="Group toggle — saved on the card. Off = this range fires nothing (plot steer, triggers, Range Script) and carry-over falls through to the nearest enabled lower range. A Checkpoint Control tree block can flip it for the rest of the session.">
+            title="Group toggle — saved on the card. Off = this range fires nothing (plot steer, triggers, Range Script). Range Scripts are strict: they only ever fire inside their own band (checkpoint THEMES still carry over from lower ranges). A Checkpoint Control tree block can flip this for the rest of the session.">
             <input type="checkbox" checked={!(selProfile?.treeRefs?.rangeDisabled || {})[key]}
               onChange={(e) => {
                 const enabled = e.target.checked;

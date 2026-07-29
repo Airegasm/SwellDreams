@@ -12732,17 +12732,15 @@ async function runActiveRangeTrees(character, settings, treeIndex, opts = {}) {
   const refs = resolveScopeRefs(character).ranges || {};
 
   const runAxis = async (prefix, capacity) => {
-    const curIdx = ORDER.indexOf(capacityToRangeKey(capacity || 0));
-    if (curIdx < 0) return;
-    let tree = null, key = null;
-    for (let i = curIdx; i >= 0; i--) {
-      if (!checkpointGroupEnabled('range', ORDER[i], character)) continue; // group off → as if undefined (carry-over keeps scanning)
-      tree = resolveRefTree(refs[`${prefix}-${ORDER[i]}`], treeIndex);
-      if (tree) { key = ORDER[i]; break; }
-    }
-    if (!tree) return;
-    // scopeKey uses the carried-over DEFINING key (not raw capacity) so `once` nodes are
-    // stable while in-band and only re-arm when the defining range changes.
+    // STRICT range binding (carry-over removed 2026-07-29): a range tree fires ONLY while the
+    // gauge is inside its own band. Trees take ACTIONS (pumps, messages, gotos) — inheriting the
+    // nearest lower tree into empty higher ranges re-fired a 0-10% tree at 11-20%. Checkpoint
+    // THEMES keep their carry-over (guidance persisting is a different contract).
+    const key = capacityToRangeKey(capacity || 0);
+    if (!ORDER.includes(key)) return;
+    if (!checkpointGroupEnabled('range', key, character)) return; // group off → silent band
+    const tree = resolveRefTree(refs[`${prefix}-${key}`], treeIndex);
+    if (!tree) return; // no tree authored for THIS range — nothing inherits
     await runTreeScope(tree, `range:${prefix}:${key}`, character, settings, { delivery: opts.delivery || 'inReply', treeIndex });
   };
 

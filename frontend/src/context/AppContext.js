@@ -432,17 +432,25 @@ export function AppProvider({ children }) {
         setSessionState(data);
         setMessages([]);
         setSessionLoading(false);
-        // Clear all flow modals/popups on session reset
+        // Kill every armed popup from the old session — including a RUNNING minigame. The backend
+        // nulled its pendingTreeGame, so closing here fires no result/goto (a stale
+        // tree_minigame_result would no-op server-side anyway).
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
+        setTreeMiniGameData(null);
+        setSelectMemberData(null);
+        setTreePlayerInputData(null);
         break;
 
       case 'session_loaded':
         setSessionState(data);
         setMessages(data.chatHistory || []);
-        // Clear all flow modals/popups on new session
+        // Same sweep as session_reset — a loaded session must not inherit live popups/minigames.
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
+        setTreeMiniGameData(null);
+        setSelectMemberData(null);
+        setTreePlayerInputData(null);
         break;
 
       case 'flow_assignments_update':
@@ -833,6 +841,9 @@ export function AppProvider({ children }) {
         // Clear any active challenges, choices, or modals to unblock the page
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
+        setTreeMiniGameData(null);
+        setSelectMemberData(null);
+        setTreePlayerInputData(null);
         // Notify user if this was an automatic failsafe trigger
         if (data.automatic) {
           window.dispatchEvent(new CustomEvent('emergency_stop_alert', {
