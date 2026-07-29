@@ -13065,7 +13065,7 @@ async function runActiveAlwaysOn(character, settings, treeIndex) {
 // Carry-over matches the legacy roll (nearest DEFINING range <= current capacity; a defining
 // ref = an inline OR {treeId} ref resolving to a non-empty tree). Player axis always; char axis
 // only for pumpable non-instructors.
-async function runActiveRangeTrees(character, settings, treeIndex) {
+async function runActiveRangeTrees(character, settings, treeIndex, opts = {}) {
   if (!character) return;
   const ORDER = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
   const refs = resolveScopeRefs(character).ranges || {};
@@ -13082,7 +13082,7 @@ async function runActiveRangeTrees(character, settings, treeIndex) {
     if (!tree) return;
     // scopeKey uses the carried-over DEFINING key (not raw capacity) so `once` nodes are
     // stable while in-band and only re-arm when the defining range changes.
-    await runTreeScope(tree, `range:${prefix}:${key}`, character, settings, { delivery: 'inReply', treeIndex });
+    await runTreeScope(tree, `range:${prefix}:${key}`, character, settings, { delivery: opts.delivery || 'inReply', treeIndex });
   };
 
   await runAxis('player', sessionState.capacity || 0);
@@ -14221,6 +14221,14 @@ async function handleGateRelease() {
   broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
   autosaveSession();
   console.log(`[GateRelease] ${wasReady ? 'READY! pressed → intro exited' : 'GO! pressed'} → pump gate open${profId ? `, loaded profile ${profId}` : ''}`);
+  // Checkpoints engage on the press (this is where a manual-release exit actually opens the gate
+  // and loads the stashed profile): fire the active range tree(s) for the current gauge now.
+  try {
+    const { character, settings } = getActiveCharacterAndSettings();
+    if (character && checkpointsEnabledFor(character)) {
+      await runActiveRangeTrees(character, settings, buildTreeIndex(character), { delivery: 'standalone' });
+    }
+  } catch (e) { console.error('[GateRelease] range-tree fire failed:', e?.message || e); }
 }
 
 // The "Enable Checkpoints" tickbox (base story) gates the WHOLE checkpoint system — intro, session
@@ -16967,6 +16975,13 @@ async function runNode(node, ctx) {
     }
     broadcast('capacity_update', { capacity: sessionState.capacity, preInflationGateMet: true });
     console.log(`[Intro] end_intro → gate open${profId ? `, loaded profile ${profId}` : ''}`);
+    // Checkpoints engage NOW, not on the next reply: fire the active range tree(s) for the current
+    // gauge (post-profile-load, so a loaded profile's range fires). Delivery inherits this run's —
+    // a standalone intro posts instantly; an in-reply end_intro weaves into the same turn.
+    if (checkpointsEnabledFor(ctx.character)) {
+      try { await runActiveRangeTrees(ctx.character, ctx.settings, ctx.treeIndex || buildTreeIndex(ctx.character), { delivery: ctx.delivery || 'standalone' }); }
+      catch (e) { console.error('[Intro] end_intro range-tree fire failed:', e?.message || e); }
+    }
     return;
   }
 
