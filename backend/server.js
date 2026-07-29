@@ -7147,15 +7147,6 @@ eventEngine.setBroadcast(async (type, data) => {
       return;
     }
 
-    // If flows are paused, queue this for later and skip
-    if (eventEngine.isFlowsPaused()) {
-      console.log('[EventEngine] Flows paused - queueing ai_message for later');
-      if (data.flowId && data.nodeId) {
-        eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'ai_message');
-      }
-      return;
-    }
-
     // If LLM is already busy (e.g., user triggered guided impersonate), wait for it to finish
     if (llmState.isGenerating && !data.suppressLlm) {
       console.log('[EventEngine] LLM busy - waiting for current generation to complete...');
@@ -7349,16 +7340,12 @@ If announcing the result, say "${result}" - not something else.
           settings: llmSettings
         });
 
-        // Check if generation was aborted (user navigated away OR emergency stop)
-        if (eventEngine.shouldAbortGeneration() || eventEngine.aborted) {
-          console.log('[EventEngine] Generation aborted -', eventEngine.aborted ? 'emergency stop' : 'user navigated away');
+        // Check if generation was aborted (emergency stop)
+        if (eventEngine.aborted) {
+          console.log('[EventEngine] Generation aborted - emergency stop');
           llmState.isGenerating = false;
           broadcast('generating_stop', {});
           broadcast('message_deleted', { id: placeholderMessage.id });
-          // Only queue for resumption if NOT emergency stopped (pause only)
-          if (!eventEngine.aborted && data.flowId && data.nodeId) {
-            eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'ai_message');
-          }
           return;
         }
 
@@ -7538,15 +7525,6 @@ If announcing the result, say "${result}" - not something else.
       return;
     }
 
-    // If flows are paused, queue this for later and skip
-    if (eventEngine.isFlowsPaused()) {
-      console.log('[EventEngine] Flows paused - queueing player_message for later');
-      if (data.flowId && data.nodeId) {
-        eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'player_message');
-      }
-      return;
-    }
-
     const settings = loadData(DATA_FILES.settings);
     const personas = loadAllPersonas() || [];
     // Use per-char storage if active, otherwise fall back to legacy
@@ -7635,16 +7613,12 @@ STRICT RULES:
           settings: impersonateSettings
         });
 
-        // Check if generation was aborted (user navigated away OR emergency stop)
-        if (eventEngine.shouldAbortGeneration() || eventEngine.aborted) {
-          console.log('[EventEngine] Player message generation aborted -', eventEngine.aborted ? 'emergency stop' : 'user navigated away');
+        // Check if generation was aborted (emergency stop)
+        if (eventEngine.aborted) {
+          console.log('[EventEngine] Player message generation aborted - emergency stop');
           llmState.isGenerating = false;
           broadcast('generating_stop', {});
           broadcast('message_deleted', { id: placeholderMessage.id });
-          // Only queue for resumption if NOT emergency stopped (pause only)
-          if (!eventEngine.aborted && data.flowId && data.nodeId) {
-            eventEngine.queuePausedExecution(data.flowId, data.nodeId, data.content, 'player_message');
-          }
           return;
         }
 
@@ -9099,21 +9073,6 @@ async function handleWsMessage(ws, type, data) {
       break;
     }
 
-    case 'player_choice_response':
-      await eventEngine.handlePlayerChoice(
-        data.nodeId,
-        data.choiceId,
-        data.choiceLabel
-      );
-      break;
-
-    case 'choose_multi_response':
-      await eventEngine.handleChooseMulti(
-        data.nodeId,
-        data.selectedIds
-      );
-      break;
-
     case 'tree_select_member_response':
       // OK carries the picked memberId; Cancel carries null → the whole tree run aborts.
       await resumeTreeSelectMember(data.memberId || null);
@@ -9262,97 +9221,6 @@ async function handleWsMessage(ws, type, data) {
       broadcast('member_mute_update', { mutedMembers: sessionState.mutedMembers });
       break;
     }
-
-    case 'challenge_result':
-      // Pass full result data object (outputId, rollTotal, slots, segmentLabel, etc.)
-      await eventEngine.handleChallengeResult(
-        data.nodeId,
-        {
-          outputId: data.outputId,
-          rollTotal: data.rollTotal,
-          diceValues: data.diceValues,
-          slots: data.slots,  // Slot machine symbols for [Slots] variable
-          segmentLabel: data.segmentLabel,
-          allSegments: data.allSegments
-        }
-      );
-      break;
-
-    case 'challenge_cancelled':
-      // User skipped/cancelled the challenge - just clear the pending state
-      // The flow will not continue (no branch taken)
-      console.log(`[WS] Challenge cancelled for node ${data.nodeId}`);
-      eventEngine.clearPendingChallenge(data.nodeId);
-      break;
-
-    case 'challenge_penalty':
-      // Mid-game penalty/reward - trigger device action without affecting challenge state
-      console.log(`[WS] Challenge penalty: device=${data.deviceId}, duration=${data.duration}s, type=${data.actionType}`);
-      await eventEngine.executePenaltyAction(
-        data.deviceId,
-        data.duration,
-        data.actionType
-      );
-      break;
-
-    case 'input_response':
-      // User submitted input value - store and continue flow
-      console.log(`[WS] Input response: node=${data.nodeId}, value=${data.value}`);
-      await eventEngine.handleInputResponse(
-        data.nodeId,
-        data.value
-      );
-      break;
-
-    case 'test_node':
-      // Test flow execution from a specific node
-      console.log(`[WS] Test node request: flow=${data.flowId}, node=${data.nodeId}`);
-      try {
-        // Use provided flowData if available (allows testing unsaved flows)
-        // Otherwise load from storage
-        let flow;
-        if (data.flowData && data.flowData.nodes) {
-          flow = data.flowData;
-        } else if (isPerFlowStorageActive()) {
-          flow = loadFlow(data.flowId);
-        } else {
-          const allFlows = loadData(DATA_FILES.flows) || [];
-          flow = allFlows.find(f => f.id === data.flowId);
-        }
-
-        if (flow && flow.nodes) {
-          // Stream individual steps in real-time via callback
-          const stepCallback = (step) => {
-            try {
-              ws.send(JSON.stringify({ type: 'test_step', data: step }));
-            } catch (err) {
-              console.error('[WS] Failed to send test step:', err);
-            }
-          };
-          const result = await eventEngine.testFromNode(flow, data.nodeId, stepCallback);
-          ws.send(JSON.stringify({ type: 'test_result', data: result }));
-        } else {
-          ws.send(JSON.stringify({
-            type: 'test_result',
-            data: {
-              success: false,
-              error: `Flow "${data.flowId}" not found or has no nodes`,
-              steps: []
-            }
-          }));
-        }
-      } catch (error) {
-        console.error('[WS] Test node error:', error);
-        ws.send(JSON.stringify({
-          type: 'test_result',
-          data: {
-            success: false,
-            error: error.message,
-            steps: []
-          }
-        }));
-      }
-      break;
 
     case 'execute_button':
     case 'execute_event':  // Keep for backwards compatibility
@@ -10353,51 +10221,10 @@ async function handleButtonCycle(action) {
 }
 
 async function handleButtonLinkToFlow(action, characterId, buttonId) {
-  // Flows are kill-switched. activateFlow is gated in event-engine, but triggerButtonPressByLabel
-  // below was NOT — an old tree's fire_flow node (or a stale button link) could still partially
-  // poke the flow engine. Gate the whole entry point.
-  if (FLOWS_DISABLED) { console.log('[Button] link_to_flow ignored — flows are disabled'); return; }
-  const flowId = action.config?.flowId;
-  const flowActionLabel = action.config?.flowActionLabel;
-
-  if (!flowId) {
-    console.log('[Button] No flow ID specified for link_to_flow');
-    return;
-  }
-
-  if (!flowActionLabel) {
-    console.log('[Button] No FlowAction label specified for link_to_flow');
-    return;
-  }
-
-  console.log(`[Button] Button #${buttonId} triggering FlowAction "${flowActionLabel}" in flow ${flowId}`);
-
-  // Always load fresh flow data from disk to pick up any changes
-  // Use per-flow storage if active, otherwise fall back to legacy
-  let flow;
-  if (isPerFlowStorageActive()) {
-    flow = loadFlow(flowId);
-  } else {
-    const flows = loadData(DATA_FILES.flows) || [];
-    flow = flows.find(f => f.id === flowId);
-  }
-
-  if (!flow) {
-    console.log(`[Button] Flow ${flowId} not found in flows data`);
-    return;
-  }
-
-  // Only activate if not already active - don't reset flow state on button press
-  if (!eventEngine.isFlowActive(flowId)) {
-    console.log(`[Button] Activating flow ${flowId}`);
-    eventEngine.activateFlow(flow, 1); // Priority 1 (character-level)
-  } else {
-    console.log(`[Button] Flow ${flowId} already active`);
-  }
-
-  // Trigger the FlowAction (Button Press section) by label in the specified flow
-  await eventEngine.triggerButtonPressByLabel(flowId, flowActionLabel, characterId);
+  // Flow engine removed (E3). Stale link_to_flow buttons log and do nothing.
+  console.log(`[Button] link_to_flow ignored (flows removed) — button #${buttonId}`);
 }
+
 
 // Legacy handlers for backwards compatibility
 async function handleButtonStopCycle(action) {
@@ -16168,87 +15995,9 @@ app.post('/api/settings', async (req, res) => {
   res.json(maskSettingsForResponse(settings));
 });
 
-// EXPERIMENT (flows retired in favour of triggers): stop ALL flow execution. Code kept intact — flip
-// FLOWS_DISABLED to false to restore. Gated here (auto-activation) AND in eventEngine.activateFlow.
-const FLOWS_DISABLED = true;
-function activateAssignedFlows() {
-  if (FLOWS_DISABLED) { console.log('[Flows] disabled — skipping auto-activation'); return; }
-  const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
-  const assignments = sessionState.flowAssignments || { characters: {}, personas: {}, global: [] };
-
-  // Collect all flows with their priorities
-  // Priority: 0 = Global (highest), 1 = Character, 2 = Persona (lowest)
-  const activeFlowsWithPriority = new Map();
-
-  // Add global flows (priority 0)
-  (assignments.global || []).forEach(id => {
-    if (!activeFlowsWithPriority.has(id)) {
-      activeFlowsWithPriority.set(id, 0);
-    }
-  });
-
-  // Add flows for active character (priority 1)
-  if (settings.activeCharacterId && assignments.characters) {
-    const charFlows = assignments.characters[settings.activeCharacterId] || [];
-    charFlows.forEach(id => {
-      if (!activeFlowsWithPriority.has(id)) {
-        activeFlowsWithPriority.set(id, 1);
-      }
-    });
-  }
-
-  // Add flows for active persona (priority 2)
-  if (settings.activePersonaId && assignments.personas) {
-    const personaFlows = assignments.personas[settings.activePersonaId] || [];
-    personaFlows.forEach(id => {
-      if (!activeFlowsWithPriority.has(id)) {
-        activeFlowsWithPriority.set(id, 2);
-      }
-    });
-  }
-
-  // Deactivate all currently active flows
-  eventEngine.deactivateAllFlows();
-
-  if (isPerFlowStorageActive()) {
-    // Per-flow storage: load only assigned flows
-    const flowIdsToLoad = Array.from(activeFlowsWithPriority.keys());
-    const flows = loadFlows(flowIdsToLoad);
-
-    // Activate loaded flows with their priorities
-    flows.forEach(flow => {
-      const priority = activeFlowsWithPriority.get(flow.id);
-      flow.isActive = true;
-      eventEngine.activateFlow(flow, priority);
-      // Save updated isActive state back to file
-      saveFlow(flow);
-    });
-
-    // Broadcast index (lightweight)
-    broadcast('flows_update', loadFlowsIndex());
-    console.log('[Flows] Auto-activated flows (per-flow):', flowIdsToLoad.map(id => `${id}(p${activeFlowsWithPriority.get(id)})`).join(', '));
-  } else {
-    // Legacy: load all flows from single file
-    const flows = loadData(DATA_FILES.flows) || [];
-
-    // Activate assigned flows with their priorities
-    flows.forEach(flow => {
-      if (activeFlowsWithPriority.has(flow.id)) {
-        flow.isActive = true;
-        const priority = activeFlowsWithPriority.get(flow.id);
-        eventEngine.activateFlow(flow, priority);
-      } else {
-        flow.isActive = false;
-      }
-    });
-
-    // Save updated flow states
-    saveData(DATA_FILES.flows, flows);
-    broadcast('flows_update', flows);
-    console.log('[Flows] Auto-activated flows:', Array.from(activeFlowsWithPriority.entries()).map(([id, pri]) => `${id}(p${pri})`).join(', '));
-  }
-}
-
+// Flow engine removed (E3). The auto-activation entry point survives as a no-op because
+// session-lifecycle paths still call it; flows never execute.
+function activateAssignedFlows() {}
 app.post('/api/settings/llm', (req, res) => {
   const settings = loadData(DATA_FILES.settings) || DEFAULT_SETTINGS;
   // The client receives masked (blank) API keys, so it sends '' when a key field is untouched.
