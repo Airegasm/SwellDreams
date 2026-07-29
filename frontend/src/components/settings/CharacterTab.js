@@ -53,6 +53,14 @@ function CharacterTab() {
   // surface in formData survive.
   const [editing, setEditing] = useState(null);
   const [importing, setImporting] = useState(false);
+  const [showCommunity, setShowCommunity] = useState(false);
+  const [communityCards, setCommunityCards] = useState(null);
+  const [communityImporting, setCommunityImporting] = useState(null);
+  const loadCommunityCards = async () => {
+    setCommunityCards(null);
+    try { setCommunityCards(await apiFetch(`${API_BASE}/api/community/cards`, { timeout: 20000 })); }
+    catch (e) { setCommunityCards({ error: e.message || 'Could not reach the community repo' }); }
+  };
   const [importingV2V3, setImportingV2V3] = useState(false);
   const [showImportGuidance, setShowImportGuidance] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -438,7 +446,54 @@ function CharacterTab() {
         >
           {importingV2V3 ? 'Converting...' : 'Convert V2/V3'}
         </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => { setShowCommunity(true); loadCommunityCards(); }}
+          title="Browse and import cards from the community repo (Settings.cardRepo)"
+        >
+          🌐 Community
+        </button>
       </div>
+
+      {/* F6 v1: community card browser — git-backed repo, one-click import */}
+      {showCommunity && (
+        <div className="modal-overlay" onClick={() => setShowCommunity(false)}>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header"><h3>Community Cards</h3>
+              <button className="modal-close" onClick={() => setShowCommunity(false)}>×</button></div>
+            <div className="modal-body">
+              {communityCards === null ? <p>Loading…</p>
+                : communityCards.error ? <p className="section-hint">{communityCards.error}</p>
+                : !communityCards.cards?.length ? <p className="section-hint">No cards published yet{communityCards.note ? ` — ${communityCards.note}` : ''}. Repo: <code>{communityCards.repo}</code></p>
+                : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <p className="section-hint">From <code>{communityCards.repo}</code> ({communityCards.cards.length} cards)</p>
+                    {communityCards.cards.map(c => (
+                      <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+                        <span className="section-hint">{(c.size / 1024 / 1024).toFixed(1)}MB</span>
+                        <button className="btn btn-sm btn-primary" disabled={communityImporting === c.name}
+                          onClick={async () => {
+                            setCommunityImporting(c.name);
+                            try {
+                              await apiFetch(`${API_BASE}/api/community/import`, { method: 'POST', body: JSON.stringify({ url: c.url }), timeout: 300000 });
+                              showSuccess?.(`Imported ${c.name}`);
+                            } catch (e) { showError?.(e.message || 'Import failed'); }
+                            finally { setCommunityImporting(null); }
+                          }}>
+                          {communityImporting === c.name ? 'Importing…' : 'Import'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              <p className="section-hint" style={{ marginTop: 10 }}>
+                To publish: fork the repo, add your exported .png/.zip under <code>cards/</code>, open a PR.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="list-toolbar">
         <input

@@ -19755,6 +19755,47 @@ app.post('/api/display-settings/upload-image', skinImageUpload.single('file'), (
 
 const EXPORT_VERSION = '1.5';
 
+// ---- Community card pipeline (F6 v1): browse a git-backed card repo + one-click import ----
+// Config: settings.cardRepo = { repo: 'owner/name', branch, dir } — defaults below. Listing goes
+// through the GitHub contents API server-side (no CORS, one place to swap providers later).
+const COMMUNITY_DEFAULTS = { repo: 'AireGasm/swelldreams-cards', branch: 'main', dir: 'cards' };
+app.get('/api/community/cards', async (req, res) => {
+  try {
+    const cfg = { ...COMMUNITY_DEFAULTS, ...((loadData(DATA_FILES.settings) || {}).cardRepo || {}) };
+    const url = `https://api.github.com/repos/${cfg.repo}/contents/${cfg.dir}?ref=${encodeURIComponent(cfg.branch)}`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'SwellDreams', Accept: 'application/vnd.github+json' } });
+    if (r.status === 404) return res.json({ repo: cfg.repo, cards: [], note: 'Repo or folder not found — set Settings.cardRepo or create the repo.' });
+    if (!r.ok) return res.status(502).json({ error: `GitHub API ${r.status}` });
+    const items = await r.json();
+    const cards = (Array.isArray(items) ? items : [])
+      .filter(f => f.type === 'file' && /\.(png|zip|json)$/i.test(f.name))
+      .map(f => ({ name: f.name, size: f.size, url: f.download_url }));
+    res.json({ repo: cfg.repo, branch: cfg.branch, cards });
+  } catch (e) { res.status(500).json({ error: e.message || 'Community listing failed' }); }
+});
+
+// Import one community card by URL: download server-side, then feed the normal import pipeline
+// (self-POST keeps PNG/ZIP/JSON handling + media placement in ONE code path).
+app.post('/api/community/import', async (req, res) => {
+  try {
+    const url = String(req.body?.url || '');
+    const cfg = { ...COMMUNITY_DEFAULTS, ...((loadData(DATA_FILES.settings) || {}).cardRepo || {}) };
+    if (!/^https:\/\/(raw\.githubusercontent\.com|objects\.githubusercontent\.com)\//.test(url)) {
+      return res.status(400).json({ error: 'Only GitHub raw download URLs are accepted' });
+    }
+    const dl = await fetch(url, { headers: { 'User-Agent': 'SwellDreams' } });
+    if (!dl.ok) return res.status(502).json({ error: `Download failed (${dl.status})` });
+    const buf = Buffer.from(await dl.arrayBuffer());
+    if (buf.length > 300 * 1024 * 1024) return res.status(413).json({ error: 'Card exceeds 300MB' });
+    const name = path.basename(new URL(url).pathname) || 'card.png';
+    const form = new FormData();
+    form.append('file', new Blob([buf]), name);
+    const r = await fetch('http://127.0.0.1:8889/api/import/character-card', { method: 'POST', body: form });
+    const out = await r.json().catch(() => ({}));
+    res.status(r.status).json(out);
+  } catch (e) { res.status(500).json({ error: e.message || 'Community import failed' }); }
+});
+
 // ---- Card/persona/backup transfer (E1: extracted to lib/card-transfer.js — export/import/backup routes + withBakedMiniGames) ----
 require('./lib/card-transfer')({ app, DATA_FILES, EXPORT_VERSION, _jsonCache, broadcast, broadcastCharacterDelta, cardUpload, characterExporter, cleanupUpload, imageStorage, isLocalRequest, isPerCharStorageActive, isPerFlowStorageActive, loadAllCharacters, loadAllPersonas, loadCharacter, loadData, loadFlows, loadFlowsIndex, loadMiniGames, runDataMigrations, saveCharacter, saveData, saveFlow, savePersonaAsync, listCharMedia, charMediaDir, uuidv4 });
 
