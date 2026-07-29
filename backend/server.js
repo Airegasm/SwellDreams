@@ -11010,10 +11010,16 @@ async function handleChatMessage(data) {
   }
 
   // Check if auto-reply is enabled (forceReply bypasses it — e.g. a Player Impersonate action that
-  // sends AND wants the AI to respond, regardless of the global Auto Reply toggle).
+  // sends AND wants the AI to respond, regardless of the global Auto Reply toggle). An armed
+  // every-reply EVENT TRIGGER also bypasses it: the event owns the turn (its tree weaves into or
+  // replaces the reply), so Auto Reply off must not silence it.
   if (!sessionState.autoReply && !data.forceReply) {
-    console.log('[Chat] Auto Reply disabled, skipping AI response');
-    return;
+    if (hasEligibleEveryReplyEvent(activeCharacter)) {
+      console.log('[Chat] Auto Reply disabled, but an enabled every-reply event trigger takes precedence — generating');
+    } else {
+      console.log('[Chat] Auto Reply disabled, skipping AI response');
+      return;
+    }
   }
 
   // Check if LLM is configured (either llmUrl for OpenAI/KoboldCPP, or OpenRouter with API key)
@@ -12986,6 +12992,20 @@ async function runRandomEventTrees(character, settings, treeIndex) {
       await fireEventBinding(b, character, settings, treeIndex, 'inReply');
     } catch (e) { console.error(`[runRandomEventTrees] binding ${b?.id} failed:`, e?.message || e); }
   }
+}
+
+// Would an every_reply event binding fire on this turn? Mirrors the fireEventBinding gates
+// (checkpoints master, session-start/intro silence, events group, enabled/override, cooldown,
+// resolvable tree). Used by the Auto Reply gate: an armed every-reply event trigger takes
+// precedence over Auto Reply being off — the turn still generates so the event can deliver.
+function hasEligibleEveryReplyEvent(character) {
+  if (!character || !checkpointsEnabledFor(character)) return false;
+  if (sessionState.sessionStartActive || sessionState.pendingIntroStart || sessionState.introActive || sessionState.preFillActive) return false;
+  if (!checkpointGroupEnabled('events', null, character)) return false;
+  const bindings = (resolveScopeRefs(character).events || []).filter(b => b && b.event === 'every_reply');
+  if (!bindings.length) return false;
+  const treeIndex = buildTreeIndex(character);
+  return bindings.some(b => eventBindingEnabled(b) && eventBindingCooldownOk(b) && resolveRefTree(b.ref, treeIndex));
 }
 
 // every_reply event bindings — the Always-On replacement. Fire each one's tree IN-REPLY every
