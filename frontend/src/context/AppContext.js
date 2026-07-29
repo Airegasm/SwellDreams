@@ -72,10 +72,8 @@ export function AppProvider({ children }) {
   const [sessionLoading, setSessionLoading] = useState(false);
 
   // Player choice state
-  const [playerChoiceData, setPlayerChoiceData] = useState(null);
 
   // Choose Multi (multi-select) state
-  const [chooseMultiData, setChooseMultiData] = useState(null);
   const [selectMemberData, setSelectMemberData] = useState(null);
   const [treePlayerInputData, setTreePlayerInputData] = useState(null);
   // (toggleAutoPump lives below, AFTER sendWsMessage is declared — referencing it from up here
@@ -92,13 +90,10 @@ export function AppProvider({ children }) {
   const [checkpointChoiceData, setCheckpointChoiceData] = useState(null);
 
   // Simple A/B choice state
-  const [simpleABData, setSimpleABData] = useState(null);
 
   // Challenge modal state
-  const [challengeData, setChallengeData] = useState(null);
 
   // Input modal state
-  const [inputData, setInputData] = useState(null);
 
   // Infinite cycle tracking
   const [infiniteCycles, setInfiniteCycles] = useState({}); // { deviceIp: true }
@@ -438,38 +433,20 @@ export function AppProvider({ children }) {
         setMessages([]);
         setSessionLoading(false);
         // Clear all flow modals/popups on session reset
-        setPlayerChoiceData(null);
-        setChooseMultiData(null);
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
-        setSimpleABData(null);
-        setChallengeData(null);
-        setInputData(null);
         break;
 
       case 'session_loaded':
         setSessionState(data);
         setMessages(data.chatHistory || []);
         // Clear all flow modals/popups on new session
-        setPlayerChoiceData(null);
-        setChooseMultiData(null);
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
-        setSimpleABData(null);
-        setChallengeData(null);
-        setInputData(null);
         break;
 
       case 'flow_assignments_update':
         setSessionState(prev => ({ ...prev, flowAssignments: data }));
-        break;
-
-      case 'player_choice':
-        setPlayerChoiceData(data);
-        break;
-
-      case 'choose_multi':
-        setChooseMultiData(data);
         break;
 
       case 'tree_choose_multi':
@@ -517,18 +494,6 @@ export function AppProvider({ children }) {
 
       case 'pump_ready_update':
         setSessionState(prev => ({ ...prev, pumpReady: data.pumpReady || { persona: true, character: false, members: {} } }));
-        break;
-
-      case 'simple_ab':
-        setSimpleABData(data);
-        break;
-
-      case 'challenge':
-        setChallengeData(data);
-        break;
-
-      case 'input_request':
-        setInputData(data);
         break;
 
       case 'message_updated':
@@ -866,12 +831,8 @@ export function AppProvider({ children }) {
       case 'emergency_stop':
         console.warn('[WS] Emergency stop triggered:', data);
         // Clear any active challenges, choices, or modals to unblock the page
-        setChallengeData(null);
-        setPlayerChoiceData(null);
-        setChooseMultiData(null);
         setTreeChooseMultiData(null);
         setCheckpointChoiceData(null);
-        setSimpleABData(null);
         // Notify user if this was an automatic failsafe trigger
         if (data.automatic) {
           window.dispatchEvent(new CustomEvent('emergency_stop_alert', {
@@ -953,32 +914,6 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Handle player choice response
-  const handlePlayerChoice = useCallback((choice) => {
-    if (!playerChoiceData) return;
-
-    sendWsMessage('player_choice_response', {
-      nodeId: playerChoiceData.nodeId,
-      choiceId: choice.id,
-      choiceLabel: choice.label
-    });
-
-    setPlayerChoiceData(null);
-  }, [playerChoiceData, sendWsMessage]);
-
-  // Handle Choose Multi response — send all selected choice IDs; the backend
-  // fires every selected branch in parallel.
-  const handleChooseMulti = useCallback((selectedChoices) => {
-    if (!chooseMultiData) return;
-
-    sendWsMessage('choose_multi_response', {
-      nodeId: chooseMultiData.nodeId,
-      selectedIds: (selectedChoices || []).map(c => c.id)
-    });
-
-    setChooseMultiData(null);
-  }, [chooseMultiData, sendWsMessage]);
-
   // Confirm a Trigger Tree choose_multi selection — sends the picked IDs to the tree resume path
   // (distinct WS message from the flow choose_multi above so the two engines stay decoupled).
   const confirmTreeChooseMulti = useCallback((selectedChoices) => {
@@ -1041,69 +976,6 @@ export function AppProvider({ children }) {
   const advanceNext = useCallback(() => {
     sendWsMessage('next_gate_advance', {});
   }, [sendWsMessage]);
-
-  // Handle simple A/B choice response
-  const handleSimpleAB = useCallback((choiceId) => {
-    if (!simpleABData) return;
-
-    sendWsMessage('player_choice_response', {
-      nodeId: simpleABData.nodeId,
-      choiceId: choiceId,
-      choiceLabel: choiceId === 'a' ? simpleABData.labelA : simpleABData.labelB
-    });
-
-    setSimpleABData(null);
-  }, [simpleABData, sendWsMessage]);
-
-  // Handle challenge result - sends back the result that determines flow path
-  // Accepts either string (legacy: outputId) or object ({ outputId, rollTotal?, reels?, ... })
-  const handleChallengeResult = useCallback((resultData) => {
-    if (!challengeData) return;
-
-    // Support both legacy string format and new object format
-    const result = typeof resultData === 'object' ? resultData : { outputId: resultData };
-
-    sendWsMessage('challenge_result', {
-      nodeId: challengeData.nodeId,
-      ...result  // Spread all result data (outputId, rollTotal, reels, segmentLabel, etc.)
-    });
-
-    setChallengeData(null);
-  }, [challengeData, sendWsMessage]);
-
-  // Handle challenge cancellation - user skips/backs out of challenge
-  const handleChallengeCancel = useCallback(() => {
-    if (!challengeData) return;
-
-    sendWsMessage('challenge_cancelled', {
-      nodeId: challengeData.nodeId
-    });
-
-    setChallengeData(null);
-  }, [challengeData, sendWsMessage]);
-
-  // Handle mid-game penalty/reward trigger - sends device action without ending challenge
-  const handleChallengePenalty = useCallback((deviceId, duration, actionType) => {
-    if (!deviceId) return;
-
-    sendWsMessage('challenge_penalty', {
-      deviceId,
-      duration,
-      actionType
-    });
-  }, [sendWsMessage]);
-
-  // Handle input response - sends the value back to continue flow
-  const handleInputResponse = useCallback((value) => {
-    if (!inputData) return;
-
-    sendWsMessage('input_response', {
-      nodeId: inputData.nodeId,
-      value: value
-    });
-
-    setInputData(null);
-  }, [inputData, sendWsMessage]);
 
   // API calls - all using apiFetch with proper error handling and timeouts
   // Wrapped in useMemo to maintain stable reference and prevent useEffect loops
@@ -2002,19 +1874,6 @@ export function AppProvider({ children }) {
     }
   }, [simulationRequired, controlMode, sendWsMessage]);
 
-  // Refs to track challenge/choice state without causing re-renders
-  const hasPendingChallengeRef = useRef(false);
-  const hasPendingChoiceRef = useRef(false);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    hasPendingChallengeRef.current = !!challengeData;
-  }, [challengeData]);
-
-  useEffect(() => {
-    hasPendingChoiceRef.current = !!playerChoiceData;
-  }, [playerChoiceData]);
-
   // Function to notify context when entering/leaving Chat page
   const setOnChatPage = useCallback((isOnChat) => {
     isOnChatPageRef.current = isOnChat;
@@ -2052,10 +1911,6 @@ export function AppProvider({ children }) {
     startNewSession,
 
     // Player Choice
-    playerChoiceData,
-    handlePlayerChoice,
-    chooseMultiData,
-    handleChooseMulti,
     treeChooseMultiData,
     confirmTreeChooseMulti,
     selectMemberData,
@@ -2073,18 +1928,10 @@ export function AppProvider({ children }) {
     advanceNext,
 
     // Simple A/B Choice
-    simpleABData,
-    handleSimpleAB,
 
     // Challenge Modal
-    challengeData,
-    handleChallengeResult,
-    handleChallengeCancel,
-    handleChallengePenalty,
 
     // Input Modal
-    inputData,
-    handleInputResponse,
 
     // Infinite Cycles
     infiniteCycles,

@@ -5,11 +5,9 @@ import { useError } from '../context/ErrorContext';
 import { toastPresetByKey } from '../toastPresets';
 import { API_BASE, CONFIG, isInstructor } from '../config';
 import ConstantReminderModal from '../components/modals/ConstantReminderModal';
-import { ChallengeModal } from '../components/modals/ChallengeModals';
 import PlayerChoiceModal from '../components/modals/PlayerChoiceModal';
 import ChooseMultiModal from '../components/modals/ChooseMultiModal';
 import ChatMiniGame from '../components/minigames/ChatMiniGame';
-import InputModal from '../components/modals/InputModal';
 import { substituteVariables } from '../utils/variableSubstitution';
 import { formatMessageContent } from '../utils/messageFormatter';
 import { parseMediaVariables } from '../utils/mediaVariables';
@@ -168,7 +166,7 @@ function MemberCapacityGauge({ name, capacity, onChangeCapacity }) {
 }
 
 function Chat() {
-  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, playerChoiceData, handlePlayerChoice, chooseMultiData, handleChooseMulti, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, reportTreeMiniGameMiss, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, simpleABData, handleSimpleAB, challengeData, handleChallengeResult, handleChallengeCancel, handleChallengePenalty, inputData, handleInputResponse, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, connectionProfiles, pumpStatus } = useApp();
+  const { messages, sendChatMessage, sendWsMessage, characters, setCharacters, personas, settings, setSettings, sessionState, setSessionState, api, treeChooseMultiData, confirmTreeChooseMulti, selectMemberData, respondSelectMember, treePlayerInputData, respondTreePlayerInput, treeMiniGameData, respondTreeMiniGame, reportTreeMiniGameMiss, checkpointChoiceData, respondCheckpointChoice, toggleMemberMute, setPumpReady, advanceNext, devices, infiniteCycles, controlMode, setOnChatPage, sessionLoading, connectionProfiles, pumpStatus } = useApp();
   const { showError, showInfo, showWarning, showSuccess, showToast } = useError();
   const [inputValue, setInputValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -262,7 +260,6 @@ function Chat() {
   const charCapRef = useRef(null);
 
   // Challenge result display (for inline challenges)
-  const [challengeResult, setChallengeResult] = useState(null);
 
   // Quick text state
   const [quickTexts, setQuickTexts] = useState([]);
@@ -490,23 +487,6 @@ function Chat() {
   }), [activePersona?.displayName, activeCharacter?.name, sessionState]);
 
   // Wrapper for challenge result to show inline result before clearing
-  const handleInlineChallengeResult = useCallback((resultData) => {
-    // Extract a display label from the result
-    const label = typeof resultData === 'object'
-      ? (resultData.segmentLabel || resultData.outcome || resultData.outputId || 'Complete')
-      : resultData;
-    setChallengeResult(label);
-    // Clear result after brief display
-    setTimeout(() => setChallengeResult(null), 2000);
-    // Pass to actual handler
-    handleChallengeResult(resultData);
-  }, [handleChallengeResult]);
-
-  const handleInlineChallengeCancel = useCallback(() => {
-    setChallengeResult('Skipped');
-    setTimeout(() => setChallengeResult(null), 1500);
-    handleChallengeCancel();
-  }, [handleChallengeCancel]);
 
   // Helper to get active welcome message
   // Notify context that we're on the Chat page (for flow pause/resume)
@@ -814,12 +794,12 @@ function Chat() {
 
   // Scroll to bottom when modals appear (input, choice, challenge, etc.)
   useEffect(() => {
-    if (inputData || playerChoiceData || chooseMultiData || treeChooseMultiData || selectMemberData || treePlayerInputData || treeMiniGameData || checkpointChoiceData || simpleABData || challengeData) {
+    if (treeChooseMultiData || selectMemberData || treePlayerInputData || treeMiniGameData || checkpointChoiceData) {
       scrollToBottom();
       // Delayed scroll to ensure modal is rendered
       setTimeout(() => scrollToBottom(), 100);
     }
-  }, [inputData, playerChoiceData, chooseMultiData, treeChooseMultiData, selectMemberData, treePlayerInputData, treeMiniGameData, checkpointChoiceData, simpleABData, challengeData]);
+  }, [treeChooseMultiData, selectMemberData, treePlayerInputData, treeMiniGameData, checkpointChoiceData]);
 
   // Handler for when media loads - scroll if near bottom
   const handleMediaLoad = () => {
@@ -1738,7 +1718,7 @@ function Chat() {
 
             const isDisabled = sessionLoading || isGenerating || sessionState.isGenerating || sessionState.actionBusy
               || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-              || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!treePlayerInputData || !!inputData;
+              || !!treeMiniGameData || !!checkpointChoiceData || !!selectMemberData || !!treePlayerInputData;
             const totalPages = Math.ceil(filteredButtons.length / PERSONA_ACTIONS_PER_PAGE);
             const currentPageButtons = filteredButtons.slice(
               personaActionPage * PERSONA_ACTIONS_PER_PAGE,
@@ -1952,7 +1932,7 @@ function Chat() {
           ) : (
             messages.filter(msg => msg.content !== '...').map((msg, index, filteredMsgs) => {
             // Highlight the last character message when a choice modal is active
-            const isLastCharacterMsg = (playerChoiceData || chooseMultiData) &&
+            const isLastCharacterMsg = checkpointChoiceData &&
               msg.sender !== 'player' &&
               index === filteredMsgs.length - 1;
 
@@ -2114,50 +2094,6 @@ function Chat() {
             </div>
           )}
 
-          {/* Inline challenge display */}
-          {challengeData && (
-            <div className="message message-challenge">
-              <div className="message-header">
-                <span className="message-sender">Challenge</span>
-              </div>
-              <div className="challenge-inline-container">
-                <ChallengeModal
-                  challengeData={challengeData}
-                  onResult={handleInlineChallengeResult}
-                  onCancel={handleInlineChallengeCancel}
-                  onPenalty={handleChallengePenalty}
-                  compact={true}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Challenge result display */}
-          {challengeResult && !challengeData && (
-            <div className="message message-challenge-result">
-              <div className="challenge-result-display">
-                ✓ {challengeResult}
-              </div>
-            </div>
-          )}
-
-          {/* Inline player choice display */}
-          {playerChoiceData && (
-            <div className="message message-choice">
-              <div className="message-header">
-                <span className="message-sender">Choice</span>
-              </div>
-              <div className="choice-inline-container">
-                <PlayerChoiceModal
-                  choiceData={playerChoiceData}
-                  onChoice={handlePlayerChoice}
-                  subContext={subContext}
-                  compact={true}
-                />
-              </div>
-            </div>
-          )}
-
           {/* Inline checkpoint injection player choice */}
           {checkpointChoiceData && (
             <div className="message message-choice">
@@ -2168,23 +2104,6 @@ function Chat() {
                 <PlayerChoiceModal
                   choiceData={checkpointChoiceData}
                   onChoice={respondCheckpointChoice}
-                  subContext={subContext}
-                  compact={true}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Inline Choose Multi (multi-select) display */}
-          {chooseMultiData && (
-            <div className="message message-choice">
-              <div className="message-header">
-                <span className="message-sender">Choose</span>
-              </div>
-              <div className="choice-inline-container">
-                <ChooseMultiModal
-                  choiceData={chooseMultiData}
-                  onConfirm={handleChooseMulti}
                   subContext={subContext}
                   compact={true}
                 />
@@ -2271,57 +2190,6 @@ function Chat() {
               </div>
               <div className="choice-inline-container">
                 <ChatMiniGame data={treeMiniGameData} onResult={respondTreeMiniGame} onMiss={reportTreeMiniGameMiss} />
-              </div>
-            </div>
-          )}
-
-          {/* Inline simple A/B choice display */}
-          {simpleABData && (
-            <div className="message message-choice">
-              <div className="message-header">
-                <span className="message-sender">Choose</span>
-              </div>
-              <div className="choice-inline-container simple-ab-inline">
-                {simpleABData.description && (
-                  <p className="ab-description">{substituteVariables(simpleABData.description, subContext)}</p>
-                )}
-                <div className="ab-buttons">
-                  <button
-                    className="btn btn-choice btn-ab-a"
-                    onClick={() => handleSimpleAB('a')}
-                  >
-                    <span className="ab-label">{simpleABData.labelA}</span>
-                    {simpleABData.descriptionA && (
-                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionA, subContext)}</span>
-                    )}
-                  </button>
-                  <button
-                    className="btn btn-choice btn-ab-b"
-                    onClick={() => handleSimpleAB('b')}
-                  >
-                    <span className="ab-label">{simpleABData.labelB}</span>
-                    {simpleABData.descriptionB && (
-                      <span className="ab-desc">{substituteVariables(simpleABData.descriptionB, subContext)}</span>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Inline input display */}
-          {inputData && (
-            <div className="message message-input">
-              <div className="message-header">
-                <span className="message-sender">Input</span>
-              </div>
-              <div className="input-inline-container">
-                <InputModal
-                  inputData={inputData}
-                  onSubmit={handleInputResponse}
-                  subContext={subContext}
-                  compact={true}
-                />
               </div>
             </div>
           )}
@@ -3028,7 +2896,7 @@ function Chat() {
                   const actionsBusy = isGenerating || sessionState.isGenerating
                     || sessionState.actionBusy
                     || sessionState.nextGateActive || !!sessionState.awaitState || !!sessionState.capacityGate
-                    || !!treeMiniGameData || !!checkpointChoiceData || !!playerChoiceData || !!chooseMultiData || !!selectMemberData || !!treePlayerInputData || !!inputData;
+                    || !!treeMiniGameData || !!checkpointChoiceData || !!selectMemberData || !!treePlayerInputData;
                   const isDisabled = sessionLoading || actionsBusy;
                   const totalPages = Math.ceil(filteredButtons.length / ACTIONS_PER_PAGE);
                   const currentPageButtons = filteredButtons.slice(
