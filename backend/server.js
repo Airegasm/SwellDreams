@@ -19710,6 +19710,7 @@ app.get('/api/checkpoint-presets', (req, res) => res.json({ presets: CHECKPOINT_
 
 // ---- Voice / TTS (F2): local Piper synthesis, optional + graceful when unconfigured ----
 const ttsService = require('./services/tts-service');
+const portraitService = require('./services/portrait-service'); // F3: SD auto staged portraits
 
 app.get('/api/timeline', (req, res) => res.json({ events: sessionTimeline }));
 
@@ -19748,6 +19749,46 @@ app.get('/api/tts/audio/:file', (req, res) => {
   const p = ttsService.audioFilePath(req.params.file);
   if (!p || !fs.existsSync(p)) return res.status(404).json({ error: 'Audio not found' });
   res.sendFile(p);
+});
+
+// --- Auto staged portraits (F3): A1111-compatible Stable Diffusion hook ---
+app.post('/api/portraits/test', async (req, res) => {
+  try { res.json(await portraitService.testConnection(req.body?.url || (loadData(DATA_FILES.settings) || {}).sdApi?.url)); }
+  catch (e) { res.status(400).json({ success: false, error: e.message || 'SD connection failed' }); }
+});
+
+// Generate ONE staged-portrait slot and save it onto the card. Per-range calls keep HTTP
+// timeouts sane and let the author retry a single range without redoing the set.
+app.post('/api/portraits/generate-range', async (req, res) => {
+  try {
+    const { type, folder, id, slot, prompt, negativePrompt, refSlot, options } = req.body || {};
+    if (!['chars', 'personas'].includes(type) || !['default', 'custom'].includes(folder)) {
+      return res.status(400).json({ error: 'Invalid type or folder' });
+    }
+    if (!slot || !prompt) return res.status(400).json({ error: 'slot and prompt required' });
+    const settings = loadData(DATA_FILES.settings) || {};
+    const url = req.body?.url || settings.sdApi?.url;
+
+    // Optional reference image: an existing portrait slot (e.g. the avatar or a completed range)
+    // steered via img2img so the set keeps one identity.
+    let refImageBase64 = null;
+    if (refSlot) {
+      const p = imageStorage.portraitMediaFilePathAny?.(type, id, folder === 'default', refSlot);
+      if (p && fs.existsSync(p)) refImageBase64 = fs.readFileSync(p).toString('base64');
+    }
+
+    const b64 = await portraitService.generate({
+      url, prompt, negativePrompt, refImageBase64,
+      width: options?.width, height: options?.height, steps: options?.steps,
+      cfgScale: options?.cfgScale, seed: options?.seed, denoise: options?.denoise,
+    });
+    const outUrl = await imageStorage.savePortraitMedia(type, id, folder === 'default', slot, Buffer.from(b64, 'base64'), 'png');
+    console.log(`[Portraits] generated ${slot} for ${type}/${folder}/${id}`);
+    res.json({ success: true, url: outUrl, slot });
+  } catch (e) {
+    console.error('[Portraits] generate failed:', e.message);
+    res.status(500).json({ error: e.message || 'Portrait generation failed' });
+  }
 });
 
 app.get('/api/minigames', (req, res) => res.json(loadMiniGames()));

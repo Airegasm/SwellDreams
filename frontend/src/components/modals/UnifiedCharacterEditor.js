@@ -429,6 +429,60 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     return pump?.calibrationTime || null;
   }, [devices]);
 
+  // ---- F3: auto staged portraits (A1111-compatible Stable Diffusion) ----
+  const [sdUrl, setSdUrl] = useState('');
+  useEffect(() => { setSdUrl(settings?.sdApi?.url || ''); }, [settings?.sdApi?.url]);
+  const [sdPrompt, setSdPrompt] = useState('');
+  const [sdNegative, setSdNegative] = useState('lowres, bad anatomy, extra limbs, watermark, text');
+  const [sdChainRef, setSdChainRef] = useState(true);
+  const [sdBusy, setSdBusy] = useState(false);
+  const [sdStatus, setSdStatus] = useState('');
+  // {desc} substitutions per range — mirrors the backend's capacity descriptions so the
+  // generated set and the prompt narration agree on what each stage looks like.
+  const SD_RANGE_DESCS = {
+    range_5_10: 'flat stomach with the faintest hint of fullness',
+    range_11_20: 'mildly bloated belly, like after a large meal',
+    range_21_30: 'noticeably swollen belly pushing out',
+    range_31_40: 'clearly rounded, swollen belly',
+    range_41_50: 'significantly inflated round taut belly',
+    range_51_60: 'heavily inflated belly, stretched drum-tight',
+    range_61_70: 'very heavily inflated, straining belly',
+    range_71_80: 'massively distended belly, skin pulled tight',
+    range_81_90: 'enormous overinflated belly at its limit',
+    range_91_100: 'gigantic belly straining at absolute maximum capacity',
+    burst: 'catastrophically overinflated, at the moment of bursting',
+  };
+  const generateStagedSet = async () => {
+    if (!character?.id) { setSdStatus('Save the character first.'); return; }
+    if (!sdPrompt.trim()) { setSdStatus('Write a prompt template first.'); return; }
+    setSdBusy(true);
+    const folder = character._isDefault ? 'default' : 'custom';
+    const ranges = [...STAGED_PORTRAIT_RANGES.filter(r => !r.isPop).map(r => r.id), 'burst'];
+    let prevSlot = null;
+    try {
+      if (sdUrl && sdUrl !== settings?.sdApi?.url) api.updateSettings({ sdApi: { ...(settings?.sdApi || {}), url: sdUrl } }).catch(() => {});
+      for (let i = 0; i < ranges.length; i++) {
+        const rid = ranges[i];
+        setSdStatus(`Generating ${i + 1}/${ranges.length}: ${rid}…`);
+        const prompt = sdPrompt.replace(/\{desc\}/g, SD_RANGE_DESCS[rid] || rid).replace(/\{range\}/g, rid);
+        const r = await apiFetch(`${API_BASE}/api/portraits/generate-range`, {
+          method: 'POST', timeout: 310000,
+          body: JSON.stringify({ type: 'chars', folder, id: character.id, slot: `idle-${rid}`, prompt, negativePrompt: sdNegative, url: sdUrl || undefined, refSlot: sdChainRef ? prevSlot : null }),
+        });
+        const url = `${r.url}?v=${Date.now()}`;
+        setFormData(prev => ({
+          ...prev,
+          charStagedPortraits: { ...prev.charStagedPortraits, [rid]: url },
+          charPortraitMedia: { ...prev.charPortraitMedia, [rid]: { ...(prev.charPortraitMedia?.[rid] || {}), idle: url, idleType: 'image' } },
+        }));
+        if (sdChainRef) prevSlot = `idle-${rid}`;
+      }
+      setSdStatus(`Done — ${ranges.length} portraits generated.`);
+    } catch (e) {
+      setSdStatus(`Failed: ${e.message || 'generation error'}`);
+    } finally { setSdBusy(false); }
+  };
+
   // ---- Staged Portraits: media upload + crop handlers (ported from CharacterEditorModal) ----
   const uploadPortraitMedia = async (file, slot) => {
     if (!character?.id) return null;
@@ -2713,6 +2767,37 @@ Write only the scenario description itself, no explanations.`;
                   </label>
                 </div>
               </div>
+
+              {/* F3: Auto-generate the whole set via Stable Diffusion */}
+              <CollapsibleSection title="Auto-Generate (Stable Diffusion)" subtitle="one prompt template -> the full staged set, via an A1111-compatible API">
+                <div className="form-group">
+                  <label>SD API URL <span className="section-hint">(AUTOMATIC1111 / SD.Next --api, e.g. http://gorgoroth:7860)</span></label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" value={sdUrl} onChange={(e) => setSdUrl(e.target.value)} placeholder="http://host:7860" style={{ flex: 1 }} />
+                    <button type="button" className="btn btn-sm btn-secondary" disabled={sdBusy}
+                      onClick={async () => { setSdStatus('Testing…'); try { const r = await apiFetch(`${API_BASE}/api/portraits/test`, { method: 'POST', body: JSON.stringify({ url: sdUrl }) }); setSdStatus(`Connected — ${r.models?.length || 0} models.`); } catch (e) { setSdStatus(`Connection failed: ${e.message}`); } }}>Test</button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Prompt template <span className="section-hint">— <code>{'{desc}'}</code> becomes each range's belly description</span></label>
+                  <textarea rows={3} value={sdPrompt} onChange={(e) => setSdPrompt(e.target.value)}
+                    placeholder="e.g. photo of a young woman with red hair, standing, {desc}, soft studio light" />
+                </div>
+                <div className="form-group">
+                  <label>Negative prompt</label>
+                  <input type="text" value={sdNegative} onChange={(e) => setSdNegative(e.target.value)} />
+                </div>
+                <label className="tree-check" title="img2img-chain each range off the previous one so the set keeps one identity (first range is txt2img)">
+                  <input type="checkbox" checked={sdChainRef} onChange={(e) => setSdChainRef(e.target.checked)} /> Chain ranges for a consistent identity
+                </label>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={generateStagedSet} disabled={sdBusy || !character?.id}>
+                    {sdBusy ? 'Generating…' : '⚡ Generate all ranges'}
+                  </button>
+                  {sdStatus && <span className="section-hint">{sdStatus}</span>}
+                </div>
+                {!character?.id && <p className="section-hint">Save the character first — generated images are written into its media folder.</p>}
+              </CollapsibleSection>
 
               {/* Range Grid */}
               <div className="staged-portraits-grid">

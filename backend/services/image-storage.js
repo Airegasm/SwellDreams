@@ -13,6 +13,7 @@
  */
 
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { atomicWriteFileSync } = require('../utils/atomic-write');
 
@@ -445,6 +446,24 @@ async function savePortraitMedia(entityType, entityId, isDefault, slot, buffer, 
 }
 
 /**
+ * Resolve a portrait-media slot to its on-disk file, whatever extension it was saved with.
+ * Returns null when the slot has no file. Used by the F3 generator to feed an existing slot
+ * (avatar / earlier range) into img2img as the identity reference.
+ */
+function portraitMediaFilePathAny(entityType, entityId, isDefault, slot) {
+  const baseDir = entityType === 'personas'
+    ? getPersonaDir(entityId, isDefault)
+    : getCharacterDir(entityId, isDefault);
+  const imgDir = path.join(baseDir, 'img');
+  try {
+    for (const file of fsSync.readdirSync(imgDir)) {
+      if (file.replace(/\.[^.]+$/, '') === slot && !isVideoFile(file)) return path.join(imgDir, file);
+    }
+  } catch (e) { /* dir missing → no file */ }
+  return null;
+}
+
+/**
  * Delete all files matching a slot prefix (handles extension changes)
  */
 async function deleteSlotFiles(imgDir, slot) {
@@ -536,6 +555,7 @@ module.exports = {
   ensureDir,
   isVideoFile,
   savePortraitMedia,
+  portraitMediaFilePathAny,
   deletePortraitMedia,
   listPortraitMedia,
   getImgDir,
