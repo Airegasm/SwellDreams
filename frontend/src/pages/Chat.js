@@ -195,7 +195,9 @@ function Chat() {
   const [currentDraft, setCurrentDraft] = useState('');
   const [rightColumnTab, setRightColumnTab] = useState('events');
   const [stopping, setStopping] = useState(false);
-  const [actionsExpanded, setActionsExpanded] = useState(false);
+  // Actions panel starts open — the buttons are the point of the column; Devices stays
+  // collapsed (the two panels are mutually exclusive, toggling one closes the other).
+  const [actionsExpanded, setActionsExpanded] = useState(true);
   const [devicesExpanded, setDevicesExpanded] = useState(false);
   const [actionPage, setActionPage] = useState(0);
   const ACTIONS_PER_PAGE = 8;
