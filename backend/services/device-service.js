@@ -3,6 +3,7 @@
  * Supports: TP-Link Kasa (Legacy + 1.1.x+ KLAP), Govee, Tuya, Wyze, Tapo, Home Assistant
  */
 
+const driverRegistry = require('./drivers'); // F1: folder-loaded brand drivers (registry-first dispatch)
 const { spawn } = require('child_process');
 const path = require('path');
 const goveeService = require('./govee-service');
@@ -496,6 +497,18 @@ class DeviceService {
     console.log(`[DeviceService] turnOn called: ipOrDeviceId=${ipOrDeviceId}, brand=${device?.brand}, ip=${device?.ip}, childId=${device?.childId}`);
 
     try {
+      // Registry-first dispatch (F1): migrated brands live in ./drivers; the if-chain below is
+      // the legacy path for brands not yet migrated.
+      {
+        const drv = driverRegistry.get(device?.brand);
+        if (drv) {
+          await drv.turnOn(stateKey, device, { durationInfo });
+          this.deviceStates.set(stateKey, { state: 'on', relayState: 1, lastUpdate: Date.now() });
+          this.emitEvent('device_on', { ip: stateKey, device, durationInfo });
+          this.startPumpRuntimeTracking(stateKey, device);
+          return { ok: true, success: true, state: 'on' };
+        }
+      }
       // Route by brand
       if (device?.brand === 'govee') {
         await goveeService.turnOn(device.deviceId, device.sku);
@@ -644,6 +657,17 @@ class DeviceService {
     }
 
     try {
+      // Registry-first dispatch (F1) — mirrors turnOn.
+      {
+        const drv = driverRegistry.get(device?.brand);
+        if (drv) {
+          await drv.turnOff(stateKey, device);
+          this.deviceStates.set(stateKey, { state: 'off', relayState: 0, lastUpdate: Date.now() });
+          this.emitEvent('device_off', { ip: stateKey, device });
+          this.stopPumpRuntimeTracking(stateKey, device);
+          return { ok: true, success: true, state: 'off' };
+        }
+      }
       // Route by brand
       if (device?.brand === 'govee') {
         await goveeService.turnOff(device.deviceId, device.sku);

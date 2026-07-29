@@ -1591,6 +1591,14 @@ function DeviceTab() {
         <div className="configured-devices-header">
           <span>Configured Outlets</span>
           <div className="header-right">
+            <button type="button" className="btn btn-sm btn-secondary"
+              title="Add a hardware-free outlet (driver-registry 'simulated' brand) — behaves like a real pump for calibration, triggers, and the gauge, without any device"
+              onClick={async () => {
+                if (devices.length >= MAX_DEVICES) { alert(`Maximum ${MAX_DEVICES} devices allowed.`); return; }
+                const n = devices.filter(d => d.brand === 'simulated').length + 1;
+                try { await api.addDevice({ ip: `sim-${Date.now().toString(36)}`, name: `Simulated Outlet ${n}`, label: `Simulated Outlet ${n}`, deviceType: 'PUMP', brand: 'simulated' }); }
+                catch (e) { console.error('Failed to add simulated outlet:', e); }
+              }}>+ Simulated</button>
             {devices.length >= MAX_DEVICES && (
               <span className="limit-warning">Limit reached</span>
             )}
@@ -1607,7 +1615,7 @@ function DeviceTab() {
               <div key={device.id} className="configured-device-item">
                 <div className="device-badges">
                   <span className={`device-brand-badge brand-${device.brand || 'tplink'}`}>
-                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'kasa-klap' ? 'Kasa 1.1.x+' : device.brand === 'homeassistant' ? 'HA' : device.brand === 'matter' ? 'Matter' : 'Kasa Legacy'}
+                    {device.brand === 'govee' ? 'Govee' : device.brand === 'tuya' ? 'Tuya' : device.brand === 'wyze' ? 'Wyze' : device.brand === 'tapo' ? 'Tapo' : device.brand === 'kasa-klap' ? 'Kasa 1.1.x+' : device.brand === 'homeassistant' ? 'HA' : device.brand === 'matter' ? 'Matter' : device.brand === 'simulated' ? 'Simulated' : 'Kasa Legacy'}
                   </span>
                   {device.childId && (
                     <span className="device-brand-badge brand-strip">Strip</span>
