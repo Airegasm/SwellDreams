@@ -5154,7 +5154,7 @@ async function executeTrigger(trigger, source, character, settings) {
           if (btn) {
             btn.enabled = trigger.action !== 'disable';
             saveCharacter(ch);
-            broadcast('characters_update', isPerCharStorageActive() ? loadAllCharacters() : chars);
+            broadcastCharacterDelta(ch);
             console.log(`[Trigger/${source}] toggle_button #${trigger.buttonId} -> ${btn.enabled ? 'enabled' : 'disabled'}`);
           }
         }
@@ -6114,6 +6114,14 @@ function broadcastNow(type, data) {
 // on multi-save operations. Every other type broadcasts immediately.
 const COALESCED_BROADCASTS = { capacity_update: 400, characters_update: 1000 };
 const _coalesceState = new Map(); // type -> { timer, lastSent, payload }
+// Delta character broadcast (E2 slimming): the full library rides only on the initial REST
+// load — WS updates carry just the changed/deleted characters (~KB instead of ~2MB per toggle).
+// The frontend still accepts the legacy full-array shape (bulk flow-era sync sites use it).
+function broadcastCharacterDelta(changed, deleted = []) {
+  const list = (Array.isArray(changed) ? changed : [changed]).filter(Boolean);
+  broadcast('characters_update', { delta: true, changed: list, deleted });
+}
+
 function broadcast(type, data) {
   // Timeline taps (F4): capacity samples on >=1% moves; every device actuation.
   if (type === 'capacity_update' && typeof data?.capacity === 'number') {
@@ -17213,9 +17221,8 @@ app.post('/api/import/character-card', cardUpload.single('file'), async (req, re
       saveData(DATA_FILES.characters, characters);
     }
 
-    // Broadcast update
-    const allCharacters = loadAllCharacters();
-    broadcast('characters_update', allCharacters);
+    // Broadcast just the imported character (delta shape)
+    broadcastCharacterDelta(convertedCharacter);
 
     const formatLabel = isSwellDImport ? 'SwellDreams PNG' : (characterConverter.detectFormat(characterData) || 'V2').toUpperCase();
     const zipMediaN = importZipMedia(convertedCharacter.id);
@@ -17550,14 +17557,13 @@ app.post('/api/characters', mwValidateCharacter, async (req, res) => {
     if (isPerCharStorageActive()) {
       // Use async version to process images
       const savedChar = await saveCharacterAsync(newCharacter, true);
-      const characters = loadAllCharacters();
-      broadcast('characters_update', characters);
+      broadcastCharacterDelta(savedChar);
       res.json(savedChar);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
       characters.push(newCharacter);
       saveData(DATA_FILES.characters, characters);
-      broadcast('characters_update', characters);
+      broadcastCharacterDelta(newCharacter);
       res.json(newCharacter);
     }
   } catch (err) {
@@ -17637,9 +17643,12 @@ app.put('/api/characters/:id', async (req, res) => {
     sessionState.flowAssignments.characters[req.params.id] = storyFlows;
     broadcast('flow_assignments_update', sessionState.flowAssignments);
 
-    // Broadcast updated characters
-    const characters = isPerCharStorageActive() ? loadAllCharacters() : loadData(DATA_FILES.characters);
-    broadcast('characters_update', characters);
+    // Broadcast just this character (delta shape); reload from disk so image processing
+    // (avatar URL rewrites) is reflected, not the raw request body.
+    {
+      const fresh = (isPerCharStorageActive() ? loadCharacter(req.params.id) : (loadData(DATA_FILES.characters) || []).find(c => c.id === req.params.id));
+      broadcastCharacterDelta(fresh || updatedCharacter);
+    }
 
     // If this is the active character, re-sync auto-reply from the SAVED card (the editor
     // writes the flag per-story, so recompute from the whole character, not req.body).
@@ -17676,14 +17685,12 @@ app.delete('/api/characters/:id', (req, res) => {
   }
   if (isPerCharStorageActive()) {
     deleteCharacterFile(req.params.id);
-    const characters = loadAllCharacters();
-    broadcast('characters_update', characters);
   } else {
     let characters = loadData(DATA_FILES.characters) || [];
     characters = characters.filter(c => c.id !== req.params.id);
     saveData(DATA_FILES.characters, characters);
-    broadcast('characters_update', characters);
   }
+  broadcastCharacterDelta([], [req.params.id]);
   res.json({ success: true });
 });
 
@@ -20743,14 +20750,12 @@ app.post('/api/import/character', async (req, res) => {
 
     if (isPerCharStorageActive()) {
       saveCharacter(newCharacter, true); // Import to custom
-      const characters = loadAllCharacters();
-      broadcast('characters_update', characters);
     } else {
       const characters = loadData(DATA_FILES.characters) || [];
       characters.push(newCharacter);
       saveData(DATA_FILES.characters, characters);
-      broadcast('characters_update', characters);
     }
+    broadcastCharacterDelta(newCharacter);
 
     res.json({ success: true, character: newCharacter });
   } catch (error) {

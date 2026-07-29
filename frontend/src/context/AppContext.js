@@ -241,7 +241,27 @@ export function AppProvider({ children }) {
         break;
 
       case 'characters_update':
-        setCharacters(data);
+        // Two shapes: legacy full array (bulk ops) or delta { changed, deleted } — the full
+        // library only rides the initial REST load, so per-edit broadcasts stay tiny.
+        if (Array.isArray(data)) {
+          setCharacters(data);
+        } else if (data && data.delta) {
+          setCharacters(prev => {
+            let next = prev;
+            if (data.changed?.length) {
+              const byId = new Map(data.changed.map(c => [c.id, c]));
+              const have = new Set(prev.map(c => c.id));
+              next = next.map(c => byId.get(c.id) || c);
+              const added = data.changed.filter(c => !have.has(c.id));
+              if (added.length) next = [...next, ...added];
+            }
+            if (data.deleted?.length) {
+              const gone = new Set(data.deleted);
+              next = next.filter(c => !gone.has(c.id));
+            }
+            return next;
+          });
+        }
         break;
 
       case 'devices_update':
