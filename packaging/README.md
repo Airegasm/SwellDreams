@@ -7,11 +7,17 @@ Decisions locked 2026-07-28 (see .claude/plans/full-remediation-2026-07-28.md):
 - No brand-dependency blockers: platforms that can't run the python Tapo bridge ship without
   Tapo-direct (HA route covers it; users can buy a different $15 plug).
 
-## Target 1 — Electron (desktop, replaces start.sh/start.bat era)
-- `packaging/electron/main.js`: spawn `node backend/server.js` (pipe logs), wait for :8889,
-  open BrowserWindow at http://127.0.0.1:8889, tray icon (Open / Restart backend / Quit),
-  kill child on quit. electron-builder for win/linux artifacts.
-- Kills the stale-backend class of problems permanently (the app owns the process).
+## Target 1 — Electron (desktop, replaces start.sh/start.bat era) — AUTHORED 2026-07-29
+`packaging/electron/` is implemented: main.js (spawns the backend with ELECTRON_RUN_AS_NODE,
+polls :8889, BrowserWindow, tray Open/Restart-backend/Quit, single-instance lock, child killed
+on quit, close-to-tray) + package.json (electron-builder: NSIS + AppImage; extraResources packs
+backend/ and frontend/build so server.js's ../frontend/build path resolves in the package).
+
+To run (needs a desktop session + npm install in packaging/electron — NOT yet run/tested here):
+    cd packaging/electron && npm install && npm start
+To build artifacts:  npm run dist
+TODO before first release: icon.png asset, a smoke run on X11, userData-relative data dir
+(packaged resources are read-only on some platforms — data/ should relocate to app.getPath('userData')).
 - Auto-update later via electron-updater.
 
 ## Target 2 — Capacitor (Android)
