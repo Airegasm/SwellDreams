@@ -723,7 +723,7 @@ function Chat() {
       if (messageHistory === lastLoadedHistoryRef.current) {
         return;
       }
-      sendWsMessage('update_message_history', { history: messageHistory });
+      sendWsMessage('update_message_history', { history: messageHistory.slice(-100) }); // cap — the buffer is autosaved and rides in every init frame
     }
   }, [messageHistory, sendWsMessage]);
 

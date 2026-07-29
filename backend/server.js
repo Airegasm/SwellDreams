@@ -5957,7 +5957,7 @@ function loadAutosave() {
       sessionState.chatHistory = autosaveData.chatHistory || [];
       sessionState.chatMemorySummary = autosaveData.chatMemorySummary || null;
       sessionState.chatMemorySummaryUpTo = autosaveData.chatMemorySummaryUpTo || 0;
-      sessionState.messageInputHistory = autosaveData.messageInputHistory || [];
+      sessionState.messageInputHistory = (autosaveData.messageInputHistory || []).slice(-100); // trim legacy unbounded buffers
       sessionState.flowVariables = autosaveData.flowVariables || {};
       // DO NOT restore pumpRuntimeTracker - prevents pumps from auto-starting on refresh
       sessionState.pumpRuntimeTracker = {};
@@ -6153,7 +6153,7 @@ const originalConsole = {
   warn: console.warn.bind(console)
 };
 
-let consoleBroadcastEnabled = true;
+let consoleBroadcastEnabled = false; // streams only while an engine-debug (🔧) panel is open — always-on flooded every client with a WS frame per console line
 
 function formatConsoleArgs(args) {
   return args.map(arg => {
@@ -8647,7 +8647,9 @@ async function handleWsMessage(ws, type, data) {
       break;
 
     case 'update_message_history':
-      sessionState.messageInputHistory = data.history || [];
+      // Cap the input-recall buffer: it is autosaved and rides in every WS init frame — unbounded
+      // it grew to >1MB (2k entries), stalling reconnects on slow WiFi and bloating every autosave.
+      sessionState.messageInputHistory = (data.history || []).slice(-100);
       autosaveSession();
       break;
 
@@ -9012,6 +9014,7 @@ async function handleWsMessage(ws, type, data) {
       // Live engine debug panel (audit D3): while any client has the panel open, push a snapshot
       // every 1.5s. Subscribing sends an immediate first frame.
       _engineDbgSubs = Math.max(0, _engineDbgSubs + (data?.on ? 1 : -1));
+      consoleBroadcastEnabled = _engineDbgSubs > 0; // server_log piggybacks on the debug panel
       if (_engineDbgSubs > 0 && !_engineDbgTimer) {
         _engineDbgTimer = setInterval(() => {
           // Self-heal a leaked subscription (tab closed without unsubscribing): no clients, no timer.
