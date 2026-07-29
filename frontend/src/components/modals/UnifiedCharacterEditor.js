@@ -89,6 +89,8 @@ const pick = (obj, keys) => keys.reduce((a, k) => (k in (obj || {}) ? (a[k] = ob
 
 function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAuthorsNote = '' }) {
   const { api, settings } = useApp();
+  const [ttsVoices, setTtsVoices] = useState([]);
+  useEffect(() => { api.getTtsVoices?.().then(d => setTtsVoices(d?.voices || [])).catch(() => {}); }, []); // eslint-disable-line
   const [activeTab, setActiveTab] = useState('main');
   const [formData, setFormData] = useState(() => buildInitial(character, defaultAuthorsNote));
 
@@ -1902,6 +1904,19 @@ Write only the scenario description itself, no explanations.`;
                     <input type="text" inputMode="numeric" value={member.responseTokens ?? ''}
                       onChange={(e) => updateMember(selectedMemberIndex, { responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
                       placeholder="Leave blank to fall back to the card / global setting" style={{ maxWidth: 300 }} />
+                  </div>
+                )}
+
+                {/* F2b: per-member TTS voice — resolved at speak time (member > card > default). */}
+                {ttsVoices.length > 0 && (
+                  <div className="form-group">
+                    <label>TTS Voice <span className="section-hint">(spoken voice for this {selectedMemberIndex === 0 ? 'card' : 'member'}; blank = {selectedMemberIndex === 0 ? 'global default' : 'card voice, then global default'})</span></label>
+                    <select style={{ maxWidth: 300 }}
+                      value={(selectedMemberIndex === 0 ? formData.ttsVoice : member.ttsVoice) || ''}
+                      onChange={(e) => selectedMemberIndex === 0 ? set({ ttsVoice: e.target.value }) : updateMember(selectedMemberIndex, { ttsVoice: e.target.value })}>
+                      <option value="">(default voice)</option>
+                      {ttsVoices.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                    </select>
                   </div>
                 )}
 

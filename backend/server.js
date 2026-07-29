@@ -19726,8 +19726,18 @@ app.get('/api/tts/voices', (req, res) => {
 
 app.post('/api/tts/speak', async (req, res) => {
   try {
-    const cfg = (loadData(DATA_FILES.settings) || {}).tts || {};
-    const file = await ttsService.synthesize(req.body?.text, req.body?.voice, cfg);
+    const settings = loadData(DATA_FILES.settings) || {};
+    const cfg = settings.tts || {};
+    // Per-speaker voice resolution (F2b): explicit voice > the speaking member's ttsVoice >
+    // the card's ttsVoice > the configured default (synthesize falls back to cfg.defaultVoice).
+    let voice = req.body?.voice;
+    if (!voice) {
+      const chars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+      const ch = chars.find(c => c.id === (req.body?.characterId || settings.activeCharacterId)) || null;
+      const member = req.body?.memberId ? (ch?.multiChar?.characters || []).find(m => m.id === req.body.memberId) : null;
+      voice = member?.ttsVoice || ch?.ttsVoice || '';
+    }
+    const file = await ttsService.synthesize(req.body?.text, voice, cfg);
     res.json({ success: true, url: `/api/tts/audio/${file}` });
   } catch (e) {
     res.status(400).json({ error: e.message || 'TTS failed' });

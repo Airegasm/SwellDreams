@@ -608,7 +608,7 @@ function Chat() {
   }, []);
   const speakMessage = useCallback(async (msg) => {
     try {
-      const r = await api.ttsSpeak(msg.content);
+      const r = await api.ttsSpeak(msg.content, null, { memberId: msg.memberId, characterId: msg.characterId });
       ttsQueueRef.current.push(`${API_BASE}${r.url}`);
       if (!ttsAudioRef.current) playNextTts();
     } catch (e) { showError?.(e.message || 'TTS failed'); }
