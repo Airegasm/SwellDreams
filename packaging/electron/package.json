@@ -1,0 +1,33 @@
+{
+  "name": "swelldreams-desktop",
+  "version": "6.9.38",
+  "description": "SwellDreams desktop shell — owns the backend process, serves the built frontend",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "app.swelldreams.desktop",
+    "productName": "SwellDreams",
+    "files": ["main.js", "icon.png"],
+    "extraResources": [
+      {
+        "from": "../../backend",
+        "to": "backend",
+        "filter": ["**/*", "!data/chars/custom/**", "!data/tmp/**", "!node_modules/.cache/**"]
+      },
+      {
+        "from": "../../frontend/build",
+        "to": "frontend/build"
+      }
+    ],
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage", "category": "Utility" }
+  }
+}
