@@ -21,11 +21,16 @@ function FireTreeEditor({ node, setParams }) {
   );
 }
 
-// Collect every Label node's name in a tree (recursively) — the valid goto targets.
+// Collect every goto-target name in a tree (recursively): Label nodes AND named Group
+// containers (jumping to a group runs it, then falls through to what follows).
+function isGotoTargetNode(n) {
+  return !!(n && n.params?.name &&
+    ((n.kind === 'action' && n.type === 'label') || (n.kind === 'container' && n.type === 'group')));
+}
 function collectLabelNames(nodes, out = []) {
   for (const n of (nodes || [])) {
     if (!n) continue;
-    if (n.kind === 'action' && n.type === 'label' && n.params?.name) out.push(n.params.name);
+    if (isGotoTargetNode(n)) out.push(n.params.name);
     if (n.children) collectLabelNames(n.children, out);
   }
   return out;
@@ -81,9 +86,9 @@ function CallMiniGameBlock({ node, setParams, rowProps = {} }) {
               </div>
             );
           })}
-          {exits.length > 0 && labels.length === 0 && <div className="section-hint">Add <strong>Label</strong> nodes after this one to bind gotos.</div>}
+          {exits.length > 0 && labels.length === 0 && <div className="section-hint">Add <strong>Label</strong> nodes (or <strong>named Group</strong> blocks) after this one to bind gotos.</div>}
           {game.type === 'simon_challenge' && <div className="section-hint"><strong>Miss</strong> fires DURING play, per wrong move — the tree runs from its label while the game stays open (the game then continues; Completed/Failed still end it). The MiniGame-miss event bindings fire too.</div>}
-          <div className="section-hint">Sets <code>[CharVar:GameResult]</code>{game.competitive ? <> and <code>[CharVar:GameWinner]</code></> : null}. Goto targets must be Labels placed AFTER this node.</div>
+          <div className="section-hint">Sets <code>[CharVar:GameResult]</code>{game.competitive ? <> and <code>[CharVar:GameWinner]</code></> : null}. Goto targets must be Labels or named Groups placed AFTER this node.</div>
         </div>
       )}
     </div>
@@ -265,7 +270,7 @@ function summarize(node) {
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'CharVar'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
     return t;
   }
-  if (t === 'group') return `Group · ${(node.children || []).length} item(s)`;
+  if (t === 'group') return `${p.name ? `Group: ${p.name}` : 'Group'} · ${(node.children || []).length} item(s)`;
   if (t === 'if') return `If / Else · ${(node.children || []).filter(b => b && b.type === 'branch').length} branch(es)`;
   if (t === 'switch') return `Switch on ${p.value || '(unset)'} · ${(node.children || []).filter(c => c && c.type === 'case').length} case(s)`;
   if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
@@ -510,6 +515,20 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
           rowProps={rowProps} />
       ))}
       {choices.length < max && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
+      {node.type === 'player_choice' && (
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
+        <label className="tree-field tree-field-inline" title="Adds a 🎲 Random button below the options — clicking it fires one of the options at random, exactly as if the player clicked it">
+          <input type="checkbox" checked={!!node.params?.addRandom}
+            onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), addRandom: e.target.checked } })} />
+          <span>Add Random</span>
+        </label>
+        <label className="tree-field tree-field-inline" title="Adds a ✕ Cancel button — clicking it closes the popup and aborts the entire tree this choice lives in">
+          <input type="checkbox" checked={!!node.params?.addCancel}
+            onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), addCancel: e.target.checked } })} />
+          <span>Add Cancel</span>
+        </label>
+      </div>
+      )}
     </div>
   );
 }
@@ -530,12 +549,30 @@ function NodeBody({ node, onChange, rowProps }) {
   const t = node.type;
   const setParams = (patch) => onChange({ ...node, params: { ...(node.params || {}), ...patch } });
 
-  // Control-flow leaves (label/goto) — simple name editors, NOT the TriggerRow action path.
-  if (t === 'label' || t === 'goto') {
+  // Control-flow leaves (label/goto) — simple editors, NOT the TriggerRow action path.
+  if (t === 'label') {
     return (
       <label className="tree-field tree-field-inline">
-        <span>{t === 'label' ? 'Label name' : 'Go to label'}</span>
+        <span>Label name</span>
         <input type="text" value={node.params?.name || ''} onChange={(e) => setParams({ name: e.target.value })} placeholder="name" />
+      </label>
+    );
+  }
+  if (t === 'goto') {
+    // Dropdown of the targets a goto here can actually reach: Labels / named Groups among the
+    // SIBLINGS at this level and every ancestor level (a goto bubbles up frame by frame — the
+    // inside of other containers is unreachable). Keep an orphaned stored value selectable.
+    const reach = rowProps?.levelLabels || [];
+    const cur = node.params?.name || '';
+    const opts = cur && !reach.includes(cur) ? [cur, ...reach] : reach;
+    return (
+      <label className="tree-field tree-field-inline">
+        <span>Go to</span>
+        <select value={cur} onChange={(e) => setParams({ name: e.target.value })}>
+          <option value="">— pick a Label / named Group —</option>
+          {opts.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        {reach.length === 0 && !cur && <span className="tree-hint">No Labels or named Groups are reachable from this level yet — add one first.</span>}
       </label>
     );
   }
@@ -696,6 +733,16 @@ function NodeBody({ node, onChange, rowProps }) {
     </div>
   );
 
+  const groupParams = t === 'group' && (
+    <div className="tree-params">
+      <label className="tree-field tree-field-inline">
+        <span>Name (optional)</span>
+        <input type="text" value={node.params?.name || ''} onChange={(e) => setParams({ name: e.target.value })}
+          placeholder="unnamed" title="A named group is a valid Go To target — jumping to it runs the group, then continues after it" />
+      </label>
+    </div>
+  );
+
   const chanceParams = t === 'chance' && (
     <div className="tree-params">
       <label className="tree-field tree-field-inline">
@@ -801,6 +848,7 @@ function NodeBody({ node, onChange, rowProps }) {
 
   return (
     <div className="tree-container-body">
+      {groupParams}
       {chanceParams}
       {repeatParams}
       {pauseParams}
@@ -820,8 +868,9 @@ function NodeBody({ node, onChange, rowProps }) {
 function validateNode(node, rowProps) {
   const p = node.params || {};
   if (node.type === 'goto') {
-    if (!p.name) return 'Go To has no label name';
-    if (Array.isArray(rowProps?.treeLabels) && !rowProps.treeLabels.includes(p.name)) return `no Label named "${p.name}" in this tree`;
+    if (!p.name) return 'Go To has no target';
+    if (Array.isArray(rowProps?.treeLabels) && !rowProps.treeLabels.includes(p.name)) return `no Label or named Group "${p.name}" in this tree`;
+    if (Array.isArray(rowProps?.levelLabels) && !rowProps.levelLabels.includes(p.name)) return `"${p.name}" is inside another container — unreachable from this Go To`;
   }
   if (node.type === 'label' && !p.name) return 'Label is unnamed — a Go To can never target it';
   if (node.type === 'fire_tree' && !p.treeId) return 'Fire Tree has no target tree';
@@ -885,6 +934,14 @@ function NodeRow({ node, onChange, onRemove, onMoveUp, onMoveDown, onDuplicate, 
 // A list of sibling nodes with reorder + an add menu. Recursive (containers nest NodeLists).
 function NodeList({ nodes, onChange, rowProps }) {
   const list = Array.isArray(nodes) ? nodes : [];
+  // Goto targets reachable FROM this level: sibling Labels/named Groups here, plus everything the
+  // ancestor levels passed down (a goto bubbles up frame by frame; other containers' insides are
+  // not reachable). Threaded to child rows via rowProps.levelLabels — the Go To dropdown reads it.
+  const levelLabels = React.useMemo(() => {
+    const own = list.filter(isGotoTargetNode).map(n => n.params.name);
+    return Array.from(new Set([...(rowProps?.levelLabels || []), ...own]));
+  }, [nodes, rowProps?.levelLabels]);
+  const childRowProps = React.useMemo(() => ({ ...rowProps, levelLabels }), [rowProps, levelLabels]);
   const update = (i, n) => onChange(list.map((x, idx) => (idx === i ? n : x)));
   const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
   const duplicate = (i) => onChange([...list.slice(0, i + 1), cloneNodeDeep(list[i]), ...list.slice(i + 1)]);
@@ -901,7 +958,7 @@ function NodeList({ nodes, onChange, rowProps }) {
         <NodeRow key={node.id || i} node={node}
           onChange={(n) => update(i, n)} onRemove={() => remove(i)}
           onMoveUp={() => move(i, -1)} onMoveDown={() => move(i, 1)}
-          onDuplicate={() => duplicate(i)} onCopy={() => writeTreeClipboard(list[i])} rowProps={rowProps} />
+          onDuplicate={() => duplicate(i)} onCopy={() => writeTreeClipboard(list[i])} rowProps={childRowProps} />
       ))}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <AddMenu small={list.length > 0} onAdd={(n) => onChange([...list, n])} />

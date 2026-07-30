@@ -29,6 +29,24 @@ function PlayerChoiceModal({ choiceData, onChoice, subContext, compact = false }
               )}
             </button>
           ))}
+          {choiceData.addRandom && limitedChoices.length > 0 && (
+            <button
+              className="btn btn-choice choice-random"
+              title="Pick one of the options above at random"
+              onClick={() => onChoice(limitedChoices[Math.floor(Math.random() * limitedChoices.length)])}
+            >
+              <div className="choice-button-label">🎲 Random</div>
+            </button>
+          )}
+          {choiceData.addCancel && (
+            <button
+              className="btn btn-choice choice-cancel"
+              title="Close this popup and abort the running trigger tree"
+              onClick={() => onChoice({ id: '__cancel__', label: 'Cancel' })}
+            >
+              <div className="choice-button-label">✕ Cancel</div>
+            </button>
+          )}
         </div>
       </div>
     </div>

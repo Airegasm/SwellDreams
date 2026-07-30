@@ -8544,9 +8544,9 @@ async function handleWsMessage(ws, type, data) {
       const missPend = sessionState.pendingTreeGame;
       const missGoto = missPend?.exitGotos?.Miss;
       if (missGoto && Array.isArray(missPend.rootNodes)) {
-        const missIdx = missPend.rootNodes.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === missGoto);
+        const missIdx = missPend.rootNodes.findIndex(n => isGotoTarget(n, missGoto));
         if (missIdx < 0) {
-          console.warn(`[Tree] Miss goto label '${missGoto}' not found at the tree's top level — skipping (place Miss labels at the top level)`);
+          console.warn(`[Tree] Miss goto target '${missGoto}' not found at the tree's top level — skipping (place Miss Labels/named Groups at the top level)`);
         } else {
           const snap = missPend.ctxSnapshot || {};
           const settings = loadData(DATA_FILES.settings) || {};
@@ -8563,7 +8563,7 @@ async function handleWsMessage(ws, type, data) {
             labels: new Map()
           };
           try {
-            const sig = await runTree(missPend.rootNodes.slice(missIdx + 1), ctx);
+            const sig = await runTree(missPend.rootNodes.slice(gotoResumeIndex(missPend.rootNodes, missIdx)), ctx);
             if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
           } catch (e) { console.error('[Tree] Miss goto side-run failed:', e?.message || e); }
         }
@@ -12507,14 +12507,26 @@ function checkpointInjectionsBlock() {
 // inside container bodies stay frame-local — only top-level labels are re-enterable after a
 // resume. Returns undefined, or the sentinel of a nested suspend that re-armed mid-re-entry.
 const MAX_RESUME_GOTO_HOPS = 100;
+
+// A Go To target is a Label marker OR a NAMED Group container — jumping to a group runs the
+// group's body, then falls through to whatever follows it.
+function isGotoTarget(n, name) {
+  return !!(n && n.params?.name === name &&
+    ((n.kind === 'action' && n.type === 'label') || (n.kind === 'container' && n.type === 'group')));
+}
+// Where to resume relative to a matched target: AFTER a Label (pure marker), AT a Group (so it executes).
+function gotoResumeIndex(list, idx) {
+  return list[idx]?.kind === 'container' ? idx : idx + 1;
+}
+
 async function reenterResumedGoto(sig, ctx) {
   for (let hops = 0; sig && sig.__control === 'goto'; hops++) {
     if (hops >= MAX_RESUME_GOTO_HOPS) { console.warn(`[Tree] resume goto re-entry cap hit at '${sig.name}' — stopping`); return; }
     if (!sig.name) { console.warn('[Tree] resume goto with empty name — stopping'); return; }
     const root = Array.isArray(ctx.rootNodes) ? ctx.rootNodes : [];
-    const idx = root.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === sig.name);
-    if (idx < 0) { console.warn(`[Tree] goto label '${sig.name}' not found at the tree's top level after resume — stopping (place jump-back labels at the top level)`); return; }
-    try { sig = await runTree(root.slice(idx + 1), ctx); }
+    const idx = root.findIndex(n => isGotoTarget(n, sig.name));
+    if (idx < 0) { console.warn(`[Tree] goto target '${sig.name}' not found at the tree's top level after resume — stopping (place jump-back Labels/named Groups at the top level)`); return; }
+    try { sig = await runTree(root.slice(gotoResumeIndex(root, idx)), ctx); }
     catch (e) { console.error('[Tree] resume goto re-entry failed:', e?.message || e); return; }
   }
   return sig;
@@ -12524,6 +12536,13 @@ async function resumeTreeChoice(choiceId) {
   const pend = sessionState.pendingTreeChoice;
   if (!pend) return;
   if (pend.multi || pend.selectMember || pend.playerInput) return; // wrong channel — a stray single-choice click must not clear these
+  if (choiceId === '__cancel__') { // the popup's Cancel button — ABORT the whole tree run (body + continuation discarded)
+    sessionState.pendingTreeChoice = null;
+    broadcast('checkpoint_choice_clear', {});
+    console.log('[Tree] Player Choice cancelled — aborting the tree run');
+    await tryResumeCapacityGate().catch(() => {}); // the stall is cleared even though the tree died
+    return;
+  }
   const chosen = (pend.choices || []).find(c => c.id === choiceId);
   const after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeChoice = null;
@@ -12814,9 +12833,9 @@ async function resumeTreeGame(firedExit, winner, pick) {
   let sig = null;
   const gotoName = exitGotos[firedExit];
   if (gotoName) {
-    const idx = list.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === gotoName);
-    if (idx >= 0) list = list.slice(idx + 1); // resume AFTER the bound label (same-level only — like choice resume)
-    else { sig = { __control: 'goto', name: gotoName }; list = null; } // label sits BEHIND the call node (e.g. a replay loop) — re-enter the top level
+    const idx = list.findIndex(n => isGotoTarget(n, gotoName));
+    if (idx >= 0) list = list.slice(gotoResumeIndex(list, idx)); // resume AFTER a bound Label / AT a named Group (same-level only — like choice resume)
+    else { sig = { __control: 'goto', name: gotoName }; list = null; } // target sits BEHIND the call node (e.g. a replay loop) — re-enter the top level
   }
   try {
     if (list) sig = await runTree(list, ctx);
@@ -16291,7 +16310,13 @@ async function runNode(node, ctx) {
           },
           after: null // innermost sibling tail, filled by runTree as the suspend bubbles
         };
-        broadcast('checkpoint_choice', { description: node.params?.prompt || '', choices: opts.map(c => ({ id: c.id, label: c.params.label })), tree: true });
+        broadcast('checkpoint_choice', {
+          description: node.params?.prompt || '',
+          choices: opts.map(c => ({ id: c.id, label: c.params.label })),
+          tree: true,
+          addRandom: !!node.params?.addRandom, // popup shows a "Random" button that picks one option as if clicked
+          addCancel: !!node.params?.addCancel  // popup shows a "Cancel" button that aborts the whole tree run
+        });
         return { __control: 'suspend', reason: 'player_choice' };
       }
 
@@ -16517,13 +16542,13 @@ async function runTreeInner(nodes, ctx) {
     if (sig) {
       if (sig.__control === 'goto') {
         if (!sig.name) { console.warn('[runTree] goto with empty name — skipping'); i++; continue; } // never match a blank label
-        const target = nodes.findIndex(n => n && n.kind === 'action' && n.type === 'label' && n.params?.name === sig.name);
+        const target = nodes.findIndex(n => isGotoTarget(n, sig.name));
         if (target >= 0) {
           if (++gotoBudget > MAX_GOTO_ITERS) { console.warn(`[runTree] goto loop cap hit for '${sig.name}' — aborting frame`); return; }
-          i = target + 1; // resume AFTER the label marker
+          i = gotoResumeIndex(nodes, target); // AFTER a Label marker; AT a named Group (so it executes)
           continue;
         }
-        return sig; // label not in THIS list — bubble up to an enclosing frame
+        return sig; // target not in THIS list — bubble up to an enclosing frame
       }
       if (sig.__control === 'suspend') {
         // Capture the innermost same-level continuation for post-resume fall-through. A choice/
