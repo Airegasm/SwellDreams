@@ -200,10 +200,10 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   // base char + (optionally pumpable-only) members when the card context provides them, plus the
   // dynamic refs — [SelectedChar] and a CharVar holding a member name — which work everywhere
   // (trees, blocks, character-agnostic Trigger Sets). Backend resolves all forms uniformly.
-  const renderMemberRefPicker = ({ baseLabel, pumpableOnly = false, title }) => {
+  const renderMemberRefPicker = ({ baseLabel, pumpableOnly = false, includeBase = false, title }) => {
     const tm = trigger.targetMember || '';
     const isCV = /^\[CharVar:/i.test(tm);
-    const known = tm === '' || tm === '[SelectedChar]' || members.some(m => m.id === tm);
+    const known = tm === '' || tm === '[SelectedChar]' || members.some(m => (m.id || m.name) === tm);
     const list = pumpableOnly ? members.filter((m, i) => i === 0 || m?.isPumpable) : members;
     return (
       <>
@@ -212,8 +212,10 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           style={{ maxWidth: '150px', flexShrink: 0 }} title={title}>
           <option value="">{baseLabel}</option>
           {members.length > 1 && list.map((m, mi) => {
-            if (members.indexOf(m) === 0) return null; // base is the '' option above
-            return <option key={m.id || mi} value={m.id}>{m.name || `Character ${mi + 1}`}</option>;
+            // Base (members[0]) is normally the '' option above; includeBase lists it explicitly —
+            // needed when '' means something ELSE (Group Member Message: '' = whole group).
+            if (!includeBase && members.indexOf(m) === 0) return null;
+            return <option key={m.id || mi} value={m.id || m.name}>{m.name || `Character ${mi + 1}`}</option>;
           })}
           <option value="[SelectedChar]">Selected member ([SelectedChar])</option>
           <option value="__charvar__">CharVar…</option>
@@ -455,7 +457,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'ai_message_member': {
         return (
           <>
-            {renderMemberRefPicker({ baseLabel: members.length > 1 ? 'Whole group' : 'Base character', title: 'Which member speaks this message' })}
+            {renderMemberRefPicker({ baseLabel: members.length > 1 ? 'Whole group' : 'Base character', includeBase: members.length > 1, title: 'Which member speaks this message' })}
             {trigger.llmEnhance === false ? (
               <textarea value={trigger.context || ''} onChange={(e) => update('context', e.target.value)}
                 placeholder="Message (verbatim, Enter = new line)..." rows={2}
