@@ -158,6 +158,7 @@ const ADD_GROUPS = [
     label: 'Control', items: [
       { kind: 'action', type: 'label', label: 'Label (jump target)' },
       { kind: 'action', type: 'goto', label: 'Go To (jump)' },
+      { kind: 'action', type: 'goto_if', label: 'Go To If (conditional jump)' },
       { kind: 'action', type: 'wait', label: 'Wait (spacer)' },
       { kind: 'action', type: 'next_button', label: 'Next Button (>> gate)' },
       { kind: 'action', type: 'cancel_current', label: 'Cancel Current (abort others)' },
@@ -167,7 +168,7 @@ const ADD_GROUPS = [
   },
 ];
 
-const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'event_toggle', 'fire_tree', 'call_minigame', 'end_intro']); // edited outside TriggerRow
+const CONTROL_LEAF_TYPES = new Set(['label', 'goto', 'goto_if', 'wait', 'next_button', 'cancel_current', 'checkpoint_control', 'event_toggle', 'fire_tree', 'call_minigame', 'end_intro']); // edited outside TriggerRow
 
 // Range group keys for the Checkpoint Control dropdown (must mirror the backend's CHECKPOINT_RANGE_KEYS).
 const CKPT_CONTROL_RANGES = ['1-10', '11-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '81-90', '91-100', '100+'];
@@ -216,7 +217,7 @@ function makeNode(kind, type) {
   // "once" (fire a single time per session) defaults ON for new nodes — trees re-run every reply turn
   // while a scope is active, so without it a node re-fires each turn. Excludes pure control-flow
   // markers (label/goto), where a one-time skip would break loops/redirects on re-run.
-  const node = { id: rid(), kind, type, once: type !== 'label' && type !== 'goto', params: {} };
+  const node = { id: rid(), kind, type, once: type !== 'label' && type !== 'goto' && type !== 'goto_if', params: {} };
   if (kind === 'container' || kind === 'event') node.children = [];
   if (type === 'if') node.children = [makeBranch(false)];
   if (type === 'switch') { node.params.value = ''; node.children = [makeCase(false), makeCase(true)]; }
@@ -227,6 +228,7 @@ function makeNode(kind, type) {
   if (type === 'pause_resume') { node.params.resumeAfterValue = 4; } // reply turns — the only unit the backend implements (resumeAfterType was vestigial)
   if (type === 'keyword_gate' || type === 'keyword') node.params.keys = [];
   if (type === 'label' || type === 'goto') node.params.name = '';
+  if (type === 'goto_if') { node.params.name = ''; node.params.condition = makeCond(); }
   if (type === 'wait') node.params.messages = 2;
   if (type === 'checkpoint_control') { node.params.mode = 'off'; node.params.target = 'all'; }
   if (type === 'event_toggle') { node.params.mode = 'off'; node.params.target = 'all'; }
@@ -253,6 +255,10 @@ function summarize(node) {
     if (!t) return '(choose action…)';
     if (t === 'label') return `Label: ${p.name || '(unnamed)'}`;
     if (t === 'goto') return `Go to: ${p.name || '(unset)'}`;
+    if (t === 'goto_if') {
+      const c = p.condition || {};
+      return `Go To If ${c.variable || '?'} ${c.operator || '=='} ${NO_OPERAND_OPS.has(c.operator) ? '' : (c.value ?? '')} → ${p.name || '(unset)'}`;
+    }
     if (t === 'wait') return `Wait ${p.messages ?? 1} message(s)`;
     if (t === 'next_button') return 'Next Button — hold for >>';
     if (t === 'cancel_current') return 'Cancel Current — abort other running triggers';
@@ -480,17 +486,38 @@ function SwitchBlock({ node, onChange, rowProps }) {
 }
 
 // One option within a player_choice: a label + its body (the subtree run when picked).
-function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps }) {
+// optionGoto (player_choice only): built-in "then go to" — after the option's body runs, jump to a
+// Label/named Group at the choice's level (or top level for backward jumps) instead of falling through.
+function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps, optionGoto }) {
+  const setParam = (patch) => onChange({ ...choice, params: { ...(choice.params || {}), ...patch } });
+  const gotoName = choice.params?.gotoName;
+  const reach = rowProps?.levelLabels || [];
+  const gotoOpts = gotoName && !reach.includes(gotoName) ? [gotoName, ...reach] : reach;
   return (
     <div className="tree-branch">
       <div className="tree-branch-head">
         <span className="tree-branch-label">Option</span>
-        <input type="text" value={choice.params?.label || ''} onChange={(e) => onChange({ ...choice, params: { ...(choice.params || {}), label: e.target.value } })} placeholder="button label" style={{ flex: 1 }} />
+        <input type="text" value={choice.params?.label || ''} onChange={(e) => setParam({ label: e.target.value })} placeholder="button label" style={{ flex: 1 }} />
         {onDuplicate && <button type="button" className="tree-x" onClick={onDuplicate} title="Duplicate this option (label + contents)">⧉</button>}
         <button type="button" className="tree-x" onClick={onRemove} title="Remove option">×</button>
       </div>
       <div className="tree-branch-body">
         <NodeList nodes={choice.children || []} onChange={(next) => onChange({ ...choice, children: next })} rowProps={rowProps} />
+        {optionGoto && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+            <label className="tree-field tree-field-inline" title="After this option's blocks run, jump to a Label or named Group instead of continuing after the choice">
+              <input type="checkbox" checked={gotoName != null}
+                onChange={(e) => setParam({ gotoName: e.target.checked ? '' : null })} />
+              <span>Goto</span>
+            </label>
+            {gotoName != null && (
+              <select value={gotoName} onChange={(e) => setParam({ gotoName: e.target.value })}>
+                <option value="">— pick a Label / named Group —</option>
+                {gotoOpts.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -512,7 +539,7 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
           onChange={(u) => setChoices(choices.map((x, idx) => idx === i ? u : x))}
           onRemove={() => setChoices(choices.filter((_, idx) => idx !== i))}
           onDuplicate={choices.length < max ? () => setChoices([...choices.slice(0, i + 1), cloneNodeDeep(c), ...choices.slice(i + 1)]) : undefined}
-          rowProps={rowProps} />
+          rowProps={rowProps} optionGoto={node.type === 'player_choice'} />
       ))}
       {choices.length < max && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
       {node.type === 'player_choice' && (
@@ -574,6 +601,28 @@ function NodeBody({ node, onChange, rowProps }) {
         </select>
         {reach.length === 0 && !cur && <span className="tree-hint">No Labels or named Groups are reachable from this level yet — add one first.</span>}
       </label>
+    );
+  }
+  if (t === 'goto_if') {
+    // Conditional jump: one condition + the same reachable-target dropdown as Go To.
+    // Sugar for If → branch → Go To, kept as a single visible control block.
+    const reach = rowProps?.levelLabels || [];
+    const cur = node.params?.name || '';
+    const opts = cur && !reach.includes(cur) ? [cur, ...reach] : reach;
+    return (
+      <div className="tree-params">
+        <ConditionRow cond={node.params?.condition || makeCond()}
+          onChange={(c) => setParams({ condition: c })}
+          onRemove={() => setParams({ condition: makeCond() })} />
+        <label className="tree-field tree-field-inline">
+          <span>→ go to</span>
+          <select value={cur} onChange={(e) => setParams({ name: e.target.value })}>
+            <option value="">— pick a Label / named Group —</option>
+            {opts.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <div className="tree-hint">If the condition holds, jump to the target; otherwise fall through to the next block.</div>
+      </div>
     );
   }
   if (t === 'wait') {
@@ -867,10 +916,12 @@ function NodeBody({ node, onChange, rowProps }) {
 // so a broken node is red-flagged while AUTHORING instead of silently no-oping mid-session.
 function validateNode(node, rowProps) {
   const p = node.params || {};
-  if (node.type === 'goto') {
-    if (!p.name) return 'Go To has no target';
+  if (node.type === 'goto' || node.type === 'goto_if') {
+    const what = node.type === 'goto_if' ? 'Go To If' : 'Go To';
+    if (node.type === 'goto_if' && !(p.condition?.variable)) return 'Go To If has no condition variable';
+    if (!p.name) return `${what} has no target`;
     if (Array.isArray(rowProps?.treeLabels) && !rowProps.treeLabels.includes(p.name)) return `no Label or named Group "${p.name}" in this tree`;
-    if (Array.isArray(rowProps?.levelLabels) && !rowProps.levelLabels.includes(p.name)) return `"${p.name}" is inside another container — unreachable from this Go To`;
+    if (Array.isArray(rowProps?.levelLabels) && !rowProps.levelLabels.includes(p.name)) return `"${p.name}" is inside another container — unreachable from this ${what}`;
   }
   if (node.type === 'label' && !p.name) return 'Label is unnamed — a Go To can never target it';
   if (node.type === 'fire_tree' && !p.treeId) return 'Fire Tree has no target tree';

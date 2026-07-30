@@ -12570,6 +12570,16 @@ async function resumeTreeChoice(choiceId) {
     await reenterResumedGoto(sig, ctx);
   } else if (sig) {
     return; // body re-armed a nested choice — stop here
+  } else if (chosen.gotoName) {
+    // Option's built-in "then go to": resolve at the choice's level (the `after` slice) like the
+    // MiniGame exit gotos; a target BEHIND the choice re-enters the top level. Replaces fall-through.
+    const list = Array.isArray(after) ? after : [];
+    const idx = list.findIndex(n => isGotoTarget(n, chosen.gotoName));
+    try {
+      if (idx >= 0) sig = await runTree(list.slice(gotoResumeIndex(list, idx)), ctx);
+      else sig = { __control: 'goto', name: chosen.gotoName };
+      if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+    } catch (e) { console.error('[resumeTreeChoice] option goto failed:', e?.message || e); }
   } else if (Array.isArray(after) && after.length) {
     try { sig = await runTree(after, ctx); } // post-choice fall-through at the choice's own level
     catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
@@ -15988,6 +15998,15 @@ async function runNode(node, ctx) {
   // ----- Control-flow leaves (scope-local label/goto) — before the generic action path -----
   if (type === 'label') return; // pure marker; a goto in the same list targets it. No effect, no once.
   if (type === 'goto') return { __control: 'goto', name: node.params?.name }; // runTree repositions to the label
+  if (type === 'goto_if') { // conditional jump — sugar for If → branch → Go To in one leaf
+    if (!node.params?.name) return;
+    let pass = false;
+    try { pass = evalTreeCondition(node.params?.condition); }
+    catch (e) { console.error('[runTree] goto_if condition failed:', e?.message || e); }
+    if (!pass) return; // condition false → fall through, no once consumed (keeps re-checking like a gate)
+    if (node.once) markTreeOnce(node, ctx); // jumping IS the effect; a once goto_if jumps once per session
+    return { __control: 'goto', name: node.params.name };
+  }
 
   // ----- fire_tree: run another library tree as a subroutine (cycle-guarded recursion) -----
   if (type === 'fire_tree') {
@@ -16303,7 +16322,8 @@ async function runNode(node, ctx) {
         if (!opts.length) return; // nothing to present — clean fall-through, do not consume once/suspend
         markTreeOnce(node, ctx); // presenting IS the effect; a once choice presents once per session
         sessionState.pendingTreeChoice = {
-          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [] })),
+          // gotoName: the option's built-in "then go to" — resolved in resumeTreeChoice after the body runs
+          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [], gotoName: c.params?.gotoName || null })),
           ctxSnapshot: {
             treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
             delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
