@@ -150,9 +150,44 @@ function GameEditor({ type, config, set }) {
   React.useEffect(() => {
     fetch(`${API_BASE}/api/trigger-trees`).then(r => r.json()).then(d => setTrees(d?.trees || [])).catch(() => {});
   }, []);
+  const exitLabels = exitsFor(type, config).filter(e => e !== 'Conceded'); // Conceded is owned by the Concede section below
+  const exitTrees = config.exitTrees || {};
+  const setExitTree = (label, id) => {
+    const next = { ...exitTrees };
+    if (id) next[label] = id; else delete next[label];
+    upd({ exitTrees: next });
+  };
   return (
     <>
       <GameTypeConfig type={type} config={config} set={set} />
+
+      <h4 className="mg-group">Rounds <span className="mg-hint">(auto-replay)</span></h4>
+      <Num label="Number of Rounds" value={config.rounds ?? 1}
+        onChange={(v) => upd({ rounds: v === '' ? '' : Math.max(1, parseInt(v, 10) || 1) })} />
+      <p className="mg-hint">
+        Above 1, a finished round automatically re-opens the game until all rounds are played.
+        During the rounds, exit <strong>gotos are ignored</strong> (only the FINAL round's goto fires) while exit{' '}
+        <strong>trigger trees fire every round</strong> — variables they set persist across rounds, so trees can
+        track custom stats. Mid-game exits (Simon's Miss) and Conceding never consume a round; Concede ends
+        the whole series.
+      </p>
+
+      <h4 className="mg-group">Exit Actions <span className="mg-hint">(goto OR trigger tree, per exit)</span></h4>
+      <p className="mg-hint">
+        Each exit fires <strong>either</strong> its goto bound on the Call MiniGame block (default){' '}
+        <strong>or</strong> a library trigger tree chosen here — a bound tree replaces the goto for that exit.
+      </p>
+      {exitLabels.length === 0 ? (
+        <p className="mg-hint">This game type has no named exits to bind (its [GameResult] is numeric).</p>
+      ) : exitLabels.map(label => (
+        <label key={label} className="mg-field"><span>{label}</span>
+          <select value={exitTrees[label] || ''} onChange={(e) => setExitTree(label, e.target.value)}>
+            <option value="">— use the Call MiniGame block's goto —</option>
+            {trees.map(t => <option key={t.id} value={t.id}>{t.name}{t.builtIn ? ' (built-in)' : ''}</option>)}
+          </select>
+        </label>
+      ))}
+
       <h4 className="mg-group">Concede <span className="mg-hint">(every game shows a Concede button)</span></h4>
       <p className="mg-hint">
         Conceding exits the game cleanly and closes its UI — <code>[GameResult]</code> becomes{' '}

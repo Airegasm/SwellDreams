@@ -36,6 +36,11 @@ function ChatMiniGame({ data, onResult, onMiss }) {
     <div className="chat-minigame">
       <div className="chat-minigame-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ flex: 1 }}>{data.name || gameDef(type).name}</span>
+        {(data.rounds || 1) > 1 && (
+          <span style={{ opacity: 0.75, fontSize: '0.85em', whiteSpace: 'nowrap' }} title="Multi-round game — gotos fire after the final round">
+            Round {data.round || 1}/{data.rounds}
+          </span>
+        )}
         <button type="button" className="btn btn-sm btn-secondary"
           title="Give up — the game closes cleanly ([CharVar:GameResult] = Conceded; a bound Conceded goto and the game's custom concede tree fire, if configured)"
           onClick={() => (config.concedeConfirm === true ? setConfirming(true) : r('Conceded'))}>

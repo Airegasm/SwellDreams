@@ -266,7 +266,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
   }, [trigger.type, libGroups, dictGroups]);
 
   // Shared picker for the two toggle actions: group → term ('' = whole group) → ON/OFF.
-  const renderGroupTermToggle = (groups) => {
+  const renderGroupTermToggle = (groups, wholeLabel = '(whole group)') => {
     const g = (groups || []).find(x => x.id === trigger.groupId);
     return (
       <>
@@ -276,7 +276,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
           {!groups && <option value="">Loading…</option>}
         </select>
         <select value={trigger.termId || ''} onChange={(e) => update('termId', e.target.value)} style={{ flex: 1, minWidth: '110px' }} disabled={!g}>
-          <option value="">(whole group)</option>
+          <option value="">{wholeLabel}</option>
           {(g?.terms || []).map((t, i) => <option key={t.id || i} value={t.id || t.term}>{t.term || `Term ${i + 1}`}{t.enabled === false ? ' (off)' : ''}</option>)}
         </select>
         <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '55px' }}>
@@ -843,7 +843,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         return renderGroupTermToggle(libGroups);
 
       case 'toggle_dictionary':
-        return renderGroupTermToggle(dictGroups);
+        return renderGroupTermToggle(dictGroups, '(Entire Book)');
 
       default:
         return null;

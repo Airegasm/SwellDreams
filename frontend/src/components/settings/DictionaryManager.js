@@ -110,6 +110,16 @@ function DictionaryManager() {
     catch (e) { showError('Failed to delete dictionary group'); }
   };
 
+  // Duplicate a book wholesale (fresh entry ids so the copy is fully independent).
+  const copyBook = async (g) => {
+    try {
+      const terms = (g.terms || []).map(t => ({ ...t, id: termId() }));
+      await api.createDictionaryGroup(`${g.name} (copy)`, terms, g.enabled !== false);
+      await loadGroups();
+      showSuccess(`Copied "${g.name}"`);
+    } catch (e) { showError('Failed to copy dictionary book'); }
+  };
+
   // Import a SillyTavern World Info / character_book JSON as a new book.
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0];
@@ -176,6 +186,7 @@ function DictionaryManager() {
               </span>
               <div className="reminder-actions">
                 <button className="btn btn-sm btn-secondary" onClick={() => startEdit(g)}>Edit</button>
+                <button className="btn btn-sm btn-secondary" onClick={() => copyBook(g)} title="Duplicate this book (all entries, fresh ids)">Copy</button>
                 <button className="btn btn-sm btn-danger" onClick={() => remove(g)}>Del</button>
               </div>
             </div>

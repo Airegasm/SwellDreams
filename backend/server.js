@@ -5022,11 +5022,13 @@ async function executeTrigger(trigger, source, character, settings) {
         if (trigger.termId) {
           const t = (tdGroup.terms || []).find(x => x && (x.id === trigger.termId || (x.term || '').toLowerCase() === String(trigger.termId).trim().toLowerCase()));
           if (!t) { console.warn(`[Trigger/${source}] toggle_dictionary: term '${trigger.termId}' not found in '${tdGroup.name}' — skipped`); break; }
+          if (t.authoredEnabled === undefined) t.authoredEnabled = t.enabled !== false; // session-scoped: restored on session reset
           t.enabled = tdOn;
-          console.log(`[Trigger/${source}] toggle_dictionary: term '${t.term}' → ${tdOn ? 'ON' : 'OFF'}`);
+          console.log(`[Trigger/${source}] toggle_dictionary: term '${t.term}' → ${tdOn ? 'ON' : 'OFF'} (until session reset)`);
         } else {
+          if (tdGroup.authoredEnabled === undefined) tdGroup.authoredEnabled = tdGroup.enabled !== false; // session-scoped: restored on session reset
           tdGroup.enabled = tdOn;
-          console.log(`[Trigger/${source}] toggle_dictionary: group '${tdGroup.name}' → ${tdOn ? 'ON' : 'OFF'}`);
+          console.log(`[Trigger/${source}] toggle_dictionary: group '${tdGroup.name}' → ${tdOn ? 'ON' : 'OFF'} (until session reset)`);
         }
         saveDictionary(tdDict);
         break;
@@ -8542,6 +8544,26 @@ async function handleWsMessage(ws, type, data) {
         maxMisses: Number(data.maxMisses) || 0
       });
       const missPend = sessionState.pendingTreeGame;
+      // Profile-level Miss binding: a library tree bound to the Miss exit REPLACES the Miss goto
+      // (side-run, game stays open — mirrors the goto's semantics; never consumes a round).
+      if (missPend) {
+        const mSettings = loadData(DATA_FILES.settings) || {};
+        const mChars = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+        const mCharacter = mChars.find(c => c.id === mSettings?.activeCharacterId) || null;
+        const missGame = (loadMiniGames().games || []).find(g => g.id === missPend.miniGameId)
+          || (mCharacter?.miniGames || []).find(g => g.id === missPend.miniGameId);
+        const missTreeId = missGame?.config?.exitTrees?.Miss || null;
+        if (missTreeId) {
+          try {
+            const mTree = buildTreeIndex(mCharacter).get(missTreeId);
+            if (mTree) {
+              console.log(`[Tree] Miss — firing bound tree '${mTree.name || missTreeId}'`);
+              await runTreeScope(mTree, `gameexit:${missPend.miniGameId}:Miss`, mCharacter, mSettings, { delivery: 'standalone' });
+            } else console.warn(`[Tree] Miss tree '${missTreeId}' not found`);
+          } catch (e) { console.error('[Tree] Miss tree side-run failed:', e?.message || e); }
+          break;
+        }
+      }
       const missGoto = missPend?.exitGotos?.Miss;
       if (missGoto && Array.isArray(missPend.rootNodes)) {
         const missIdx = missPend.rootNodes.findIndex(n => isGotoTarget(n, missGoto));
@@ -12792,12 +12814,11 @@ async function resumeTreeGame(firedExit, winner, pick) {
   const pend = sessionState.pendingTreeGame;
   if (!pend) return;
   const after = pend.after, snap = pend.ctxSnapshot || {}, exitGotos = pend.exitGotos || {};
-  sessionState.pendingTreeGame = null;
-  broadcast('tree_minigame_clear', {});
 
   // Expose the outcome to the continuation/branches via [CharVar:GameResult] / [CharVar:GameWinner],
   // plus [CharVar:GamePick] = what the PLAYER chose (coin call / RPS throw) so a player-impersonation
   // or the character's reaction knows their move, not just the outcome. (Blank for no-choice games.)
+  // Set per ROUND too, so a per-exit tree can read this round's result before the next replay.
   try {
     eventEngine.applySetVariable('custom', 'GameResult', 'set', firedExit || '');
     eventEngine.applySetVariable('custom', 'GameWinner', 'set', winner || '');
@@ -12808,13 +12829,41 @@ async function resumeTreeGame(firedExit, winner, pick) {
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
 
+  const game = (loadMiniGames().games || []).find(g => g.id === pend.miniGameId)
+    || (character?.miniGames || []).find(g => g.id === pend.miniGameId);
+  // Per-exit binding (game profile): an exit fires EITHER its Call-block goto OR this library tree.
+  const exitTreeId = game?.config?.exitTrees?.[firedExit] || null;
+  const runExitTree = async () => {
+    if (!exitTreeId) return;
+    const eTree = buildTreeIndex(character).get(exitTreeId);
+    if (!eTree) { console.warn(`[resumeTreeGame] exit tree '${exitTreeId}' for '${firedExit}' not found`); return; }
+    console.log(`[resumeTreeGame] exit '${firedExit}' — firing bound tree '${eTree.name || exitTreeId}'`);
+    try { await runTreeScope(eTree, `gameexit:${pend.miniGameId}:${firedExit}`, character, settings, { delivery: 'standalone' }); }
+    catch (e) { console.error('[resumeTreeGame] exit tree failed:', e?.message || e); }
+  };
+
+  // ---- Multi-round series: a terminal exit with rounds remaining fires the exit's TREE (gotos are
+  // deferred to the final round), then re-opens the same game. pendingTreeGame stays armed so the
+  // continuation/after capture survives the whole series. Conceding ends the series immediately. ----
+  if (firedExit !== 'Conceded' && (pend.roundsLeft || 1) > 1) {
+    pend.roundsLeft -= 1;
+    const roundNo = (pend.roundsTotal || 1) - pend.roundsLeft + 1; // the round about to START
+    await runExitTree(); // returns on completion OR first suspend — the replay must not deadlock on a popup
+    if (!sessionState.pendingTreeGame) return; // the exit tree cancelled/cleared the game — series over
+    broadcast('tree_minigame_clear', {});
+    broadcast('tree_minigame', { gameId: pend.miniGameId, type: game?.type, name: game?.name, config: game?.config || {}, round: roundNo, rounds: pend.roundsTotal });
+    console.log(`[resumeTreeGame] round ${roundNo - 1}/${pend.roundsTotal} ended (${firedExit}) — re-opening for round ${roundNo}`);
+    return;
+  }
+
+  sessionState.pendingTreeGame = null;
+  broadcast('tree_minigame_clear', {});
+
   // Concede: the game's optional "custom concede action" fires its configured tree ALONGSIDE the
   // clean exit (standalone run, own scope) — the Conceded goto/continuation below still runs too.
   if (firedExit === 'Conceded') {
     try {
-      const cGame = (loadMiniGames().games || []).find(g => g.id === pend.miniGameId)
-        || (character?.miniGames || []).find(g => g.id === pend.miniGameId);
-      const cTreeId = cGame?.config?.concedeCustom ? cGame?.config?.concedeTreeId : null;
+      const cTreeId = game?.config?.concedeCustom ? game?.config?.concedeTreeId : null;
       if (cTreeId) {
         const cTree = buildTreeIndex(character).get(cTreeId);
         if (cTree) {
@@ -12826,6 +12875,9 @@ async function resumeTreeGame(firedExit, winner, pick) {
       }
     } catch (e) { console.error('[resumeTreeGame] custom concede action failed:', e?.message || e); }
   }
+
+  // Final (or only) round: a bound exit tree fires and REPLACES the exit's goto; fall-through continues.
+  await runExitTree();
 
   const ctx = {
     character, settings,
@@ -12841,7 +12893,7 @@ async function resumeTreeGame(firedExit, winner, pick) {
 
   let list = Array.isArray(after) ? after : [];
   let sig = null;
-  const gotoName = exitGotos[firedExit];
+  const gotoName = exitTreeId ? null : exitGotos[firedExit]; // a bound exit tree replaces the goto
   if (gotoName) {
     const idx = list.findIndex(n => isGotoTarget(n, gotoName));
     if (idx >= 0) list = list.slice(gotoResumeIndex(list, idx)); // resume AFTER a bound Label / AT a named Group (same-level only — like choice resume)
@@ -14362,6 +14414,29 @@ function loadDictionary() {
 
 function saveDictionary(data) {
   fs.writeFileSync(DICTIONARY_PATH, JSON.stringify(data, null, 2));
+}
+
+// Trigger-driven dictionary toggles (toggle_dictionary) are SESSION-scoped by contract: the
+// UI-authored enabled state is stashed as `authoredEnabled` on first toggle, and this restore
+// runs at session reset (and server boot, self-healing a mid-session restart) so every book and
+// entry returns to what the Dictionary UI shows. Explicit UI edits clear the stash — the user's
+// choice IS the new authored default.
+function resetDictionaryToAuthored() {
+  try {
+    const data = loadDictionary();
+    let touched = 0;
+    for (const g of (data.groups || [])) {
+      if (!g) continue;
+      if (g.authoredEnabled !== undefined) { g.enabled = g.authoredEnabled; delete g.authoredEnabled; touched++; }
+      for (const t of (g.terms || [])) {
+        if (t && t.authoredEnabled !== undefined) { t.enabled = t.authoredEnabled; delete t.authoredEnabled; touched++; }
+      }
+    }
+    if (touched) {
+      saveDictionary(data);
+      console.log(`[Dictionary] restored ${touched} trigger-toggled enable state(s) to their authored defaults`);
+    }
+  } catch (e) { console.error('[Dictionary] authored-state restore failed:', e?.message || e); }
 }
 
 // Build the dictionary block. Terms with no trigger words are always-on; terms
@@ -16051,9 +16126,11 @@ async function runNode(node, ctx) {
       : null;
     if (!game) { console.warn(`[runTree] call_minigame node ${node.id}: miniGameId '${gameId}' not found — skipping`); return; } // no game -> clean fall-through, no once
     markTreeOnce(node, ctx); // presenting the game IS the effect
+    const roundsTotal = Math.max(1, parseInt(game.config?.rounds, 10) || 1);
     sessionState.pendingTreeGame = {
       miniGameId: gameId,
       exitGotos: node.params?.exitGotos || {},
+      roundsTotal, roundsLeft: roundsTotal, // >1 → terminal exits re-open the game until the series ends
       ctxSnapshot: {
         // childDepth = ctx.depth (NOT +1): the continuation runs at the call node's OWN level.
         treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth,
@@ -16062,7 +16139,7 @@ async function runNode(node, ctx) {
       after: null // innermost sibling tail, filled by runTree as the suspend bubbles
     };
     tlRecord('game', { name: game.name });
-    broadcast('tree_minigame', { gameId, type: game.type, name: game.name, config: game.config || {} });
+    broadcast('tree_minigame', { gameId, type: game.type, name: game.name, config: game.config || {}, round: 1, rounds: roundsTotal });
     return { __control: 'suspend', reason: 'call_minigame' };
   }
 
@@ -18760,7 +18837,7 @@ app.put('/api/dictionary/:id', (req, res) => {
   if (idx === -1) return res.status(404).json({ error: 'Term group not found' });
   if (name !== undefined) data.groups[idx].name = name;
   if (terms !== undefined) data.groups[idx].terms = Array.isArray(terms) ? terms : [];
-  if (enabled !== undefined) data.groups[idx].enabled = enabled;
+  if (enabled !== undefined) { data.groups[idx].enabled = enabled; delete data.groups[idx].authoredEnabled; } // explicit UI choice becomes the authored default
   saveDictionary(data);
   res.json({ success: true });
 });
@@ -20012,6 +20089,9 @@ app.post('/api/session/reset', async (req, res) => {
   loadFlowAssignments();
   activateAssignedFlows();
 
+  // Dictionary enable states go back to what the UI shows — trigger toggles die with the session.
+  resetDictionaryToAuthored();
+
   broadcast('session_reset', sessionState);
 
   // Fire new_session triggers (for variable initialization etc.)
@@ -20619,6 +20699,7 @@ server.listen(PORT, BIND_HOST, () => {
   detectLlmModel();
   startTreeIdleCheck(); // Phase 3 idle event-binding timer — started here, after all module-level decls init
   ensureDefaultPumpTrees(); // built-in Bulb/Bike pump trees — here so TRIGGER_TREES_PATH is initialized
+  resetDictionaryToAuthored(); // self-heal trigger-toggled dictionary states after a mid-session restart
 });
 
 // ============================================
