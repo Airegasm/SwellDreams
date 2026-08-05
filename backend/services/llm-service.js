@@ -533,6 +533,13 @@ function makeRequest(url, bodyOrMethod = 'POST', method = null) {
 
       const req = client.request(options, (res) => {
         let data = '';
+        // A connection that dies mid-response emits 'close' WITHOUT 'end' — and destroys the
+        // socket, killing the inactivity timeout with it. Without this guard the promise never
+        // settles and the chat turn queue upstream wedges forever (double-settles are no-ops).
+        res.on('close', () => {
+          if (!res.complete) { activeRequests.delete(req); reject(new Error('Connection closed before the response completed')); }
+        });
+        res.on('error', (e) => { activeRequests.delete(req); reject(e); });
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           activeRequests.delete(req);
@@ -614,6 +621,21 @@ function makeStreamingRequest(url, body, onToken) {
 
       const req = client.request(options, (res) => {
         let buffer = '';
+
+        // Mid-stream connection death emits 'close' WITHOUT 'end' (and the socket's death kills
+        // the inactivity timeout) — settle with the partial text like the abort/reset handler
+        // does, so the promise can never zombie and wedge the chat turn queue upstream.
+        res.on('close', () => {
+          if (!res.complete) {
+            activeRequests.delete(req);
+            if (fullText.length > 0) resolve(fullText);
+            else reject(new Error(`Stream closed before completion (HTTP ${res.statusCode || '?'})`));
+          }
+        });
+        res.on('error', (e) => {
+          activeRequests.delete(req);
+          if (fullText.length > 0) resolve(fullText); else reject(e);
+        });
 
         // Non-2xx responses (400 context overflow, 401/404/500, etc.) send a JSON error body with no
         // SSE "data:" lines — the parser would accumulate nothing and resolve with empty text, showing

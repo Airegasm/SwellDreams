@@ -5501,8 +5501,30 @@ function engineDebugSnapshot() {
 // group Individual mode where each loop walks the members). Every chat turn queues behind the
 // previous one; a failed turn never breaks the chain.
 let _chatTurnChain = Promise.resolve();
+// Watchdog: one wedged turn (a zombie await that never settles — dead LLM socket, hung device
+// call) must not kill chat forever. Race every turn against a hard cap comfortably above the
+// LLM streaming timeout; on expiry the queue moves on and the stuck turn no longer owns the chain.
+const CHAT_TURN_WATCHDOG_MS = 6 * 60 * 1000;
 function enqueueChatTurn(fn) {
-  const run = _chatTurnChain.catch(() => {}).then(fn);
+  const watchdogged = async () => {
+    let timer;
+    try {
+      return await Promise.race([
+        fn(),
+        new Promise((_, rej) => {
+          timer = setTimeout(() => rej(new Error('__chat_turn_watchdog__')), CHAT_TURN_WATCHDOG_MS);
+          if (timer.unref) timer.unref();
+        })
+      ]);
+    } catch (e) {
+      if (e?.message === '__chat_turn_watchdog__') {
+        console.error(`[ChatQueue] a chat turn exceeded ${CHAT_TURN_WATCHDOG_MS / 60000} minutes and was released — the queue continues; something above it is hung`);
+        return;
+      }
+      throw e;
+    } finally { clearTimeout(timer); }
+  };
+  const run = _chatTurnChain.catch(() => {}).then(watchdogged);
   _chatTurnChain = run.catch(() => {});
   return run;
 }
