@@ -3822,6 +3822,10 @@ const sessionState = {
                             // SEPARATE slot from pendingRangeAwait so a message/next-gate WAIT can't clobber
                             // it. Resolves when capacity >= target AND no message-gate is open (queued behind
                             // the WAIT). { kind:'capacity', type, target, rest:[triggers], source, characterId }
+  pendingRangeTreeEntry: null, // A band-entry range-tree fire queued behind an open stall (chain/popup/>>):
+                            // { type:'player'|'char', key:'31-40', characterId }. Flushed by
+                            // tryFireQueuedRangeTreeEntry when the stall clears; dropped if capacity
+                            // has left the band by then.
   groupRotation: 0,         // Round-robin lead counter for group "Individual Responses" mode
   // PUMP-READY: who is connected to a pump and may be described being inflated. Live per-session
   // (reset on new session / character switch). Persona defaults ON; character/members default OFF
@@ -4041,8 +4045,60 @@ function isGaugeFrozen() {
 // GAUGE is frozen in handlePumpRuntime (wait-period runtime is discarded, never banked), so capacity
 // holds where it froze and resumes there when the WAIT clears — never a catch-up jump.
 
+// ---- On-entry range TREES -------------------------------------------------------------------
+// Fire the new band's range TREE the moment capacity ENTERS it (standalone delivery), instead of
+// waiting for the next reply turn — e.g. a Pct% (until) pump run pushing into 31-40 plays that
+// band's tree immediately. Uses the same refs/toggles and the same scopeKey as the per-reply run
+// (runActiveRangeTrees), so `once` nodes fired on entry stay fired on later reply turns. If the
+// scene is stalled (trigger chain executing, popup open, ">>" gate), the entry is queued in
+// sessionState.pendingRangeTreeEntry and flushed when the stall clears. Returns true if it RAN.
+async function fireRangeTreeOnEntry(type, oldCapacity, newCapacity, character, settings) {
+  const oldKey = capacityToRangeKey(oldCapacity || 0);
+  const newKey = capacityToRangeKey(newCapacity || 0);
+  if (oldKey === newKey) return false; // no band crossing this tick
+  if (sessionState.introActive) return false; // the gated intro owns the scene
+  if (sessionState.sessionStartActive || sessionState.pendingIntroStart) return false; // session-start chain owns the scene (the band's tree still runs per-reply later)
+  if (!checkpointsEnabledFor(character)) return false;
+  if (type === 'char' && (isInstructor(character) || !character.isPumpable)) return false; // mirrors runActiveRangeTrees' char-axis rule
+  if (!checkpointGroupEnabled('range', newKey, character)) return false; // group toggled off → silent band
+  const treeIndex = buildTreeIndex(character);
+  const tree = resolveRefTree((resolveScopeRefs(character).ranges || {})[`${type}-${newKey}`], treeIndex);
+  if (!tree) return false; // no tree authored for this band
+  if (isGaugeFrozen()) { // mid-chain / popup open — queue it (one slot; the latest crossing wins)
+    sessionState.pendingRangeTreeEntry = { type, key: newKey, characterId: character.id };
+    console.log(`[CheckpointTriggers] Range tree ${type}-${newKey} entry queued behind an open stall`);
+    return false;
+  }
+  console.log(`[CheckpointTriggers] Capacity entered ${newKey} — firing its range tree on entry`);
+  await runTreeScope(tree, `range:${type}:${newKey}`, character, settings, { delivery: 'standalone', treeIndex });
+  return true;
+}
+
+// Flush a queued band-entry tree once the stall that deferred it clears. Dropped silently if
+// capacity has since left the band (the band's own crossing would have re-queued it anyway).
+async function tryFireQueuedRangeTreeEntry() {
+  const q = sessionState.pendingRangeTreeEntry;
+  if (!q || isGaugeFrozen()) return;
+  const cap = q.type === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
+  if (capacityToRangeKey(cap) !== q.key) { sessionState.pendingRangeTreeEntry = null; return; }
+  sessionState.pendingRangeTreeEntry = null;
+  const settings = loadData(DATA_FILES.settings) || {};
+  const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
+  const character = characters.find(c => c.id === q.characterId) || null;
+  if (!character) return;
+  if (!checkpointGroupEnabled('range', q.key, character)) return;
+  const treeIndex = buildTreeIndex(character);
+  const tree = resolveRefTree((resolveScopeRefs(character).ranges || {})[`${q.type}-${q.key}`], treeIndex);
+  if (!tree) return;
+  console.log(`[CheckpointTriggers] Firing queued range-tree entry ${q.type}-${q.key} — stall cleared`);
+  await runTreeScope(tree, `range:${q.type}:${q.key}`, character, settings, { delivery: 'standalone', treeIndex });
+}
+
 // After a WAIT clears, fire a queued Fire% gate whose capacity target is now met (queued behind the WAIT).
 async function tryResumeCapacityGate() {
+  // Deferred band-entry tree flushes first (it may re-stall the scene; the Fire% check below re-guards).
+  try { await tryFireQueuedRangeTreeEntry(); }
+  catch (e) { console.error('[CheckpointTriggers] queued range-tree entry failed:', e?.message || e); }
   const cg = sessionState.pendingCapacityGate;
   if (!cg || isGaugeFrozen()) return; // still stalled (>>/choice/game/input gate or an executing chain)
   const cap = cg.type === 'char' ? (sessionState.characterCapacity || 0) : (sessionState.capacity || 0);
@@ -4076,6 +4132,16 @@ async function executeCheckpointTriggers(type, oldCapacity, newCapacity) {
 
   const activeStory = activeCharacter.stories?.find(s => s.id === activeCharacter.activeStoryId) || activeCharacter.stories?.[0];
   if (activeStory?.checkpointsEnabled === false) return; // "Enable Checkpoints" tickbox off → no checkpoint triggers
+
+  // On-entry range TREE (modern system): fire the band's tree the moment capacity enters it,
+  // so a pump run (e.g. Pct% until) crossing into a new band plays that band's tree immediately
+  // instead of waiting for the next reply turn. Queued behind any open stall.
+  if (await fireRangeTreeOnEntry(type, oldCapacity, newCapacity, activeCharacter, settings)) {
+    // The entry tree ran; if it left the scene stalled (popup / next-gate), don't fire a legacy
+    // sequence on top of it — branch (1) below stays unconsumed and fires on a later tick.
+    if (isGaugeFrozen()) return;
+  }
+
   // All card types: checkpoint triggers come from the active checkpoint profile (legacy cards
   // fall back to the story-level set inside getActiveCheckpointProfile).
   const checkpointTriggers = getActiveProfileRangeTriggers(getActiveCheckpointProfile(activeCharacter)) || {};
@@ -4629,34 +4695,38 @@ async function executeTrigger(trigger, source, character, settings) {
           // (via timedPumpOn), NOT the small per-reply LLM limit — that limit is for model [pump on]
           // spam, and would gut an intentional 6–36s dice roll or an 8s wheel prize.
           const dur = Number(substituteAllVariables(String(trigger.duration ?? '')));
-          if (trigger.durationMode === 'percent') {
+          if (trigger.durationMode === 'percent' || trigger.durationMode === 'percent_until') {
             // Percentage mode: run until `dur`% of capacity has been ADDED, hard-capped at 100%
-            // total (at 70% a 50% request only adds 30%). Converted to seconds by inverting the
-            // exact auto-capacity banking math (seconds × multiplier / calibrationTime × 100), so
-            // the same timedPumpOn safety rails apply (30-min hard cap, emergency-stop cancel).
+            // total (at 70% a 50% request only adds 30%). Percent-until mode: `dur` is an ABSOLUTE
+            // gauge target (1–100) — run until the gauge reaches it, skipped outright if already
+            // at/above. Both convert to seconds by inverting the exact auto-capacity banking math
+            // (seconds × multiplier / calibrationTime × 100), so the same timedPumpOn safety rails
+            // apply (30-min hard cap, emergency-stop cancel).
+            const untilMode = trigger.durationMode === 'percent_until';
+            const modeName = untilMode ? 'percent-until' : 'percentage';
             if (!(pump.calibrationTime > 0)) {
-              console.warn(`[Trigger/${source}] pump_on percentage mode needs a CALIBRATED primary pump — skipped`);
+              console.warn(`[Trigger/${source}] pump_on ${modeName} mode needs a CALIBRATED primary pump — skipped`);
               break;
             }
             const req = Math.min(100, Math.max(0, dur));
-            if (!Number.isFinite(dur) || req <= 0) { console.warn(`[Trigger/${source}] pump_on percentage mode: '${trigger.duration}' is not a usable % — skipped`); break; }
+            if (!Number.isFinite(dur) || req <= 0) { console.warn(`[Trigger/${source}] pump_on ${modeName} mode: '${trigger.duration}' is not a usable % — skipped`); break; }
             // Integer targeting: displayed delta must equal the request exactly. Aim the run at
             // round(true)+req and deliver the TRUE distance to it, so fractional drift between
             // runs can never make a +2 show as +1 or +3.
             const trueCap = Math.min(100, computeTrueCapacityUnrounded());
             const cap = Math.max(0, Math.round(trueCap)); // what the gauge shows
-            const target = Math.min(100, cap + req);
+            const target = untilMode ? Math.round(req) : Math.min(100, cap + req);
             const incTrue = target - trueCap;
-            if (incTrue <= 0) { console.log(`[Trigger/${source}] pump_on percentage mode: already at/above target ${target}% — skipped`); break; }
+            if (incTrue <= 0) { console.log(`[Trigger/${source}] pump_on ${modeName} mode: already at/above target ${target}% — skipped`); break; }
             const pctSettings = loadData(DATA_FILES.settings) || {};
             const modifier = pctSettings.globalCharacterControls?.autoCapacityMultiplier || sessionState.capacityModifier || 1.0;
             const secs = (incTrue / 100) * pump.calibrationTime / (modifier || 1);
             await timedPumpOn(id, pump, secs);
             schedulePctShortfallCheck(id, pump, cap, target - cap, Math.min(secs, MAX_ON_SECONDS)); // belt-and-braces if anything still discards
             broadcast('ai_device_control', { device: 'pump', action: 'on', deviceName: pump.label || pump.name || 'Pump', durationInfo: { type: 'timer', value: Math.min(secs, MAX_ON_SECONDS) } });
-            console.log(`[Trigger/${source}] pump_on percentage mode: +${req}% → target ${target}% (true ${trueCap.toFixed(2)}%, shown ${cap}%) → ${secs.toFixed(1)}s`);
+            console.log(`[Trigger/${source}] pump_on ${modeName} mode: ${untilMode ? `until ${target}%` : `+${req}% → target ${target}%`} (true ${trueCap.toFixed(2)}%, shown ${cap}%) → ${secs.toFixed(1)}s`);
             if (trigger.awaitCompletion === true) {
-              console.log(`[Trigger/${source}] pump_on holding the tree/sequence until the +${req}% run completes`);
+              console.log(`[Trigger/${source}] pump_on holding the tree/sequence until the ${untilMode ? `until-${target}%` : `+${req}%`} run completes`);
               await awaitTimedPumpCompletion(id, secs + 15); // headroom for a shortfall extension
             }
           } else if (Number.isFinite(dur) && dur > 0) {
@@ -12576,6 +12646,38 @@ async function reenterResumedGoto(sig, ctx) {
   return sig;
 }
 
+// ---- Exhaust All Choices (player_choice tickbox) --------------------------------------------
+// Re-present an exhaust-mode Player Choice with its already-played options removed. `replay`
+// carries the remaining options plus the ORIGINAL suspend's ctxSnapshot/after/rootNodes, so the
+// final pick falls through exactly like a normal choice; its own exhaustReplay link is an OUTER
+// cycle to unwind after this one (exhaust nested in exhaust). Armed only when nothing else is
+// pending — a fresh suspend carries the chain instead (runTreeInner capture). Returns true when
+// re-armed (callers skip intro-finalize/capacity-gate: the tree is still suspended).
+function rearmExhaustChoice(replay) {
+  if (!replay || !Array.isArray(replay.choices) || !replay.choices.length) return false;
+  if (sessionState.pendingTreeChoice || sessionState.pendingTreeGame || sessionState.pendingTreeResume || sessionState.pendingTreeNext) return false;
+  sessionState.pendingTreeChoice = {
+    // The MODE carries through the replay: block-level exhaust keeps cycling on every pick,
+    // per-option mode (exhaust false) only cycles again if the next pick is itself exhaustable.
+    exhaust: !!replay.exhaust,
+    exhaustInfo: replay.exhaustInfo || {},
+    exhaustReplay: replay.exhaustReplay || null,
+    choices: replay.choices,
+    ctxSnapshot: replay.ctxSnapshot,
+    after: replay.after ?? null,
+    rootNodes: replay.rootNodes
+  };
+  broadcast('checkpoint_choice', {
+    description: replay.exhaustInfo?.prompt || '',
+    choices: replay.choices.map(c => ({ id: c.id, label: c.label })),
+    tree: true,
+    addRandom: !!replay.exhaustInfo?.addRandom,
+    addCancel: !!replay.exhaustInfo?.addCancel
+  });
+  console.log(`[Tree] Exhaust All Choices — re-presenting with ${replay.choices.length} option(s) left`);
+  return true;
+}
+
 async function resumeTreeChoice(choiceId) {
   const pend = sessionState.pendingTreeChoice;
   if (!pend) return;
@@ -12593,6 +12695,21 @@ async function resumeTreeChoice(choiceId) {
   broadcast('checkpoint_choice_clear', {});
   if (!chosen) return; // stale/invalid pick — already dismissed
 
+  // Exhaust All Choices: an intermediate pick replays the choice (minus the picked option) after
+  // its body runs; the same-level fall-through waits for the LAST pick. The replay payload rides
+  // ctx.exhaustReplay so a suspend inside the body (next-gate, minigame, nested popup, wait)
+  // carries it and that channel's resume re-presents on completion. pend.exhaustReplay WITHOUT
+  // `exhaust` is an OUTER cycle carried by this nested popup; payloads link via their own
+  // exhaustReplay so exhaust-inside-exhaust unwinds outward.
+  // Cycle when the block-level Exhaust All Choices is on, OR when the picked option is
+  // individually marked Exhaustable (block tickbox off): replays continue until a
+  // non-exhaustable option is picked or every option has been played.
+  const cycling = pend.exhaust || chosen.exhaustable === true;
+  const remaining = cycling ? (pend.choices || []).filter(c => c.id !== chosen.id) : [];
+  const exhaustReplay = remaining.length
+    ? { exhaust: !!pend.exhaust, choices: remaining, exhaustInfo: pend.exhaustInfo || {}, ctxSnapshot: snap, after, rootNodes: pend.rootNodes, exhaustReplay: pend.exhaustReplay || null }
+    : (pend.exhaustReplay || null);
+
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
@@ -12605,18 +12722,29 @@ async function resumeTreeChoice(choiceId) {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes, // live Set, never serialized
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay
   };
-  let sig;
+  let sig, jumped = false;
   try { sig = await runTree(chosen.body || [], ctx); }
   catch (e) { console.error('[resumeTreeChoice] body failed:', e?.message || e); }
   if (sig?.__control === 'goto') { // body jumped to a label behind the choice — re-enter; skip `after` (the jump repositioned the flow)
+    if (exhaustReplay) console.log('[Tree] Exhaust All Choices — a Goto repositioned the flow; the cycle ends early');
+    jumped = true;
     await reenterResumedGoto(sig, ctx);
   } else if (sig) {
-    return; // body re-armed a nested choice — stop here
+    return; // body re-armed a nested suspend — a pending exhaust replay rides it (runTreeInner capture)
+  } else if (remaining.length) {
+    // Intermediate exhaust pick: re-present with this option removed. An option's "then go to"
+    // replaces fall-through, which only the LAST pick reaches — deferred until then.
+    if (chosen.gotoName) console.log(`[Tree] Exhaust All Choices — option goto '${chosen.gotoName}' waits until this choice is exhausted`);
+    rearmExhaustChoice(exhaustReplay);
+    return; // choice re-armed — the tree is still suspended (no intro finalize / capacity-gate resume)
   } else if (chosen.gotoName) {
     // Option's built-in "then go to": resolve at the choice's level (the `after` slice) like the
     // MiniGame exit gotos; a target BEHIND the choice re-enters the top level. Replaces fall-through.
+    if (exhaustReplay) console.log('[Tree] Exhaust All Choices — option goto repositioned the flow; the outer cycle ends early');
+    jumped = true;
     const list = Array.isArray(after) ? after : [];
     const idx = list.findIndex(n => isGotoTarget(n, chosen.gotoName));
     try {
@@ -12629,6 +12757,10 @@ async function resumeTreeChoice(choiceId) {
     catch (e) { console.error('[resumeTreeChoice] continuation failed:', e?.message || e); }
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
+  // A carried OUTER exhaust cycle (this choice lived inside an exhaust option's body) re-presents
+  // once the run truly completed — not after a Goto (flow repositioned) or a fresh suspend (the
+  // chain rides that pend instead).
+  if (!jumped && !sig && exhaustReplay && rearmExhaustChoice(exhaustReplay)) return;
   // If the intro ended ON this choice (its options have no follow-up and nothing re-armed), the intro
   // is done — arm the UNLOCK gate. A player_choice with empty option bodies must NOT strand it. force=true:
   // we ran to the end, so an end_intro on an untaken branch no longer gates us.
@@ -12644,7 +12776,10 @@ async function resumeTreeNext() {
   const after = pend.after, snap = pend.ctxSnapshot || {};
   sessionState.pendingTreeNext = null;
   broadcast('next_gate', { active: false });
-  if (!Array.isArray(after) || !after.length) return;
+  if (!Array.isArray(after) || !after.length) {
+    if (!rearmExhaustChoice(pend.exhaustReplay)) await tryResumeCapacityGate().catch(() => {}); // ">>" stall cleared with nothing queued behind it
+    return;
+  }
   const settings = loadData(DATA_FILES.settings) || {};
   const characters = isPerCharStorageActive() ? loadAllCharacters() : (loadData(DATA_FILES.characters) || []);
   const character = characters.find(c => c.id === settings?.activeCharacterId) || null;
@@ -12657,15 +12792,20 @@ async function resumeTreeNext() {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
+  let sig;
   try {
-    const sig = await runTree(after, ctx);
+    sig = await runTree(after, ctx);
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
   catch (e) { console.error('[resumeTreeNext] continuation failed:', e?.message || e); }
+  // Carried exhaust cycle re-presents once the run completed (not after a goto / fresh suspend).
+  if (!sig && rearmExhaustChoice(pend.exhaustReplay)) return;
   // If this was the intro sequence and it just finished (nothing new pending), arm the UNLOCK gate.
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
+  await tryResumeCapacityGate().catch(() => {}); // ">>" stall cleared — flush a queued Fire% gate / band-entry tree
 }
 
 // Resume a suspended Trigger Tree choose_multi on the player's confirmed selection. Runs EACH
@@ -12694,7 +12834,8 @@ async function resumeTreeChooseMulti(selectedIds) {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
   let jumped = false; // a body's goto re-entered the frame — the jump owns the rest, skip `after`
   for (const opt of picked) {
@@ -12704,13 +12845,16 @@ async function resumeTreeChooseMulti(selectedIds) {
     if (sig?.__control === 'goto') { await reenterResumedGoto(sig, ctx); jumped = true; break; }
     if (sig) return; // a body re-armed a nested choice — stop here
   }
+  let contSig = null;
   if (!jumped && Array.isArray(after) && after.length) {
     try {
-      const sig = await runTree(after, ctx); // post-selection fall-through at the node's own level
-      if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
+      contSig = await runTree(after, ctx); // post-selection fall-through at the node's own level
+      if (contSig?.__control === 'goto') await reenterResumedGoto(contSig, ctx);
     }
     catch (e) { console.error('[resumeTreeChooseMulti] continuation failed:', e?.message || e); }
   }
+  // Carried exhaust cycle re-presents once the run completed (not after a goto / fresh suspend).
+  if (!jumped && !contSig && rearmExhaustChoice(pend.exhaustReplay)) return;
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this choice → arm UNLOCK
   await tryResumeCapacityGate().catch(() => {}); // choice stall cleared — fire a queued Fire% gate if met
 }
@@ -12745,7 +12889,8 @@ async function resumeTreeSelectMember(memberId) {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
@@ -12759,6 +12904,8 @@ async function resumeTreeSelectMember(memberId) {
     catch (e) { console.error('[resumeTreeSelectMember] continuation failed:', e?.message || e); }
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
+  // Carried exhaust cycle re-presents once the run completed (not after a goto / fresh suspend).
+  if (!sig && rearmExhaustChoice(pend.exhaustReplay)) return;
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
   await tryResumeCapacityGate().catch(() => {});
 }
@@ -12809,7 +12956,8 @@ async function resumeTreePlayerInput(values) {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
@@ -12823,6 +12971,8 @@ async function resumeTreePlayerInput(values) {
     catch (e) { console.error('[resumeTreePlayerInput] continuation failed:', e?.message || e); }
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
+  // Carried exhaust cycle re-presents once the run completed (not after a goto / fresh suspend).
+  if (!sig && rearmExhaustChoice(pend.exhaustReplay)) return;
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true);
   await tryResumeCapacityGate().catch(() => {});
 }
@@ -12910,7 +13060,8 @@ async function resumeTreeGame(firedExit, winner, pick) {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
 
   let list = Array.isArray(after) ? after : [];
@@ -12926,6 +13077,8 @@ async function resumeTreeGame(firedExit, winner, pick) {
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
   catch (e) { console.error('[resumeTreeGame] continuation failed:', e?.message || e); }
+  // Carried exhaust cycle re-presents once the run completed (not after an exit goto / fresh suspend).
+  if (!gotoName && !sig && rearmExhaustChoice(pend.exhaustReplay)) return;
   if (snap.scopeKey === 'intro') finalizeIntroSequence(character, true); // intro finished on this minigame → arm UNLOCK
   await tryResumeCapacityGate().catch(() => {}); // game stall cleared — fire a queued Fire% gate if met
 }
@@ -12955,7 +13108,8 @@ async function checkPendingTreeResume() {
     visited: new Set(snap.visited || [snap.treeId]),
     firedSet: sessionState.firedTreeNodes,
     rootNodes: pend.rootNodes,
-    labels: new Map()
+    labels: new Map(),
+    exhaustReplay: pend.exhaustReplay || null // carried Exhaust All Choices cycle — re-chains on a fresh suspend
   };
   let sig;
   try { sig = await runTree(body || [], ctx); }
@@ -12969,6 +13123,8 @@ async function checkPendingTreeResume() {
     catch (e) { console.error('[checkPendingTreeResume] continuation failed:', e?.message || e); }
     if (sig?.__control === 'goto') await reenterResumedGoto(sig, ctx);
   }
+  // Carried exhaust cycle re-presents once the run completed (not after a goto / fresh suspend).
+  if (!sig) rearmExhaustChoice(pend.exhaustReplay);
 }
 
 // Resolve a checkpoint player-choice pick: fire the choice's pump action and queue its
@@ -13121,19 +13277,32 @@ function finalizeIntroSequence(character, force = false) {
 // Gated-intro deferral: when the Session Start tree SUSPENDS (choice/wait/>>/game/input), its
 // runTreeScope returns immediately with the continuation parked — the intro must NOT start until
 // that whole chain completes (the reported bug: intro talking over an unfinished session start).
-// A light watcher beats instrumenting every resume path: it waits until no suspension from the
-// 'sessionStart' scope remains (and no generation is in flight), then starts the intro (or the
-// legacy Pre-Fill fallback). Session resets null pendingIntroStart, which self-clears the timer.
+// A light watcher beats instrumenting every resume path: it waits until the chain is provably
+// quiet, then starts the intro (or the legacy Pre-Fill fallback). Session resets null
+// pendingIntroStart, which self-clears the timer.
+//
+// "Busy" is deliberately scope-key-AGNOSTIC: during the pre-intro phase everything on screen
+// belongs to the session-start chain — fired sub-trees, game-exit trees, checkpoint sequences
+// (triggerChainDepth), popups, ">>" gates, await-input gates, and in-flight generations all hold
+// the intro. pendingCapacityGate and pendingRangeAwait 'pump' are EXCLUDED: they wait
+// indefinitely on capacity/pumping, and the gated intro forbids pumping — blocking on them would
+// deadlock the session.
+function sessionStartChainBusy() {
+  return isGaugeFrozen() || !!sessionState.pendingTreeResume || llmState.isGenerating;
+}
 let _deferredIntroTimer = null;
 function deferIntroUntilSessionStartCompletes(welcomePosted) {
   sessionState.pendingIntroStart = { welcomePosted };
   if (_deferredIntroTimer) clearInterval(_deferredIntroTimer);
+  // Debounce: a single poll can land in the ms-wide yield gap between a resume clearing its gate
+  // and the next generation flipping isGenerating (the reported bug: the intro's player choice
+  // popping mid-chain on a lucky tick). Require several CONSECUTIVE quiet polls before starting.
+  let quietTicks = 0;
   _deferredIntroTimer = setInterval(async () => {
     const d = sessionState.pendingIntroStart;
     if (!d) { clearInterval(_deferredIntroTimer); _deferredIntroTimer = null; return; }
-    const stillPending = ['pendingTreeChoice', 'pendingTreeResume', 'pendingTreeGame', 'pendingTreeNext']
-      .some(k => String(sessionState[k]?.ctxSnapshot?.scopeKey || '').startsWith('sessionStart'));
-    if (stillPending || llmState.isGenerating) return;
+    if (sessionStartChainBusy()) { quietTicks = 0; return; }
+    if (++quietTicks < 3) return; // ~1.5s of provable quiet
     clearInterval(_deferredIntroTimer); _deferredIntroTimer = null;
     sessionState.pendingIntroStart = null;
     sessionState.sessionStartActive = false; // chain complete — events may fire again (unless the intro gates them)
@@ -16422,7 +16591,13 @@ async function runNode(node, ctx) {
         markTreeOnce(node, ctx); // presenting IS the effect; a once choice presents once per session
         sessionState.pendingTreeChoice = {
           // gotoName: the option's built-in "then go to" — resolved in resumeTreeChoice after the body runs
-          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [], gotoName: c.params?.gotoName || null })),
+          // exhaust: "Exhaust All Choices" tickbox — every pick runs its option then re-presents the
+          // choice minus that option; the fall-through waits for the LAST pick (rearmExhaustChoice).
+          // Per-option variant (block tickbox OFF): options marked `exhaustable` replay the same way
+          // when picked; a pick of a non-exhaustable option ends the cycle and falls through.
+          exhaust: !!node.params?.exhaustAll,
+          exhaustInfo: { prompt: node.params?.prompt || '', addRandom: !!node.params?.addRandom, addCancel: !!node.params?.addCancel },
+          choices: opts.map(c => ({ id: c.id, label: c.params.label, body: c.children || [], gotoName: c.params?.gotoName || null, exhaustable: !!c.params?.exhaustable })),
           ctxSnapshot: {
             treeId: ctx.treeId, scopeKey: ctx.scopeKey, childDepth: ctx.depth + 1,
             delivery: 'standalone', source: ctx.source, visited: Array.from(ctx.visited || [])
@@ -16676,7 +16851,13 @@ async function runTreeInner(nodes, ctx) {
         // continuation loses every label behind the suspend point, so backward gotos (e.g. a
         // "replay the minigame" loop) re-enter rootNodes after the resume.
         const pend = sessionState.pendingTreeChoice || sessionState.pendingTreeResume || sessionState.pendingTreeGame || sessionState.pendingTreeNext;
-        if (pend && pend.after == null) { pend.after = nodes.slice(i + 1); pend.rootNodes = ctx.rootNodes || nodes; }
+        if (pend && pend.after == null) {
+          pend.after = nodes.slice(i + 1);
+          pend.rootNodes = ctx.rootNodes || nodes;
+          // A pending Exhaust All Choices replay rides the fresh suspend: the owning resume path
+          // re-presents the choice once its run completes (rearmExhaustChoice at each resume tail).
+          if (ctx.exhaustReplay && pend.exhaustReplay == null) pend.exhaustReplay = ctx.exhaustReplay;
+        }
         return sig;
       }
       return sig; // any other sentinel bubbles unchanged
@@ -20186,9 +20367,9 @@ app.post('/api/session/reset', async (req, res) => {
       // Either closes the gate and blocks other scopes until it completes.
       // welcomePosted (!overrideWelcome) → the intro's first message waits behind ">>" so the player
       // reads the welcome first.
-      // If the Session Start tree SUSPENDED, the intro must wait for its whole chain — defer.
-      const ssStillPending = ['pendingTreeChoice', 'pendingTreeResume', 'pendingTreeGame', 'pendingTreeNext']
-        .some(k => String(sessionState[k]?.ctxSnapshot?.scopeKey || '').startsWith('sessionStart'));
+      // If the Session Start tree SUSPENDED (or a crossing-fired checkpoint chain is still
+      // executing), the intro must wait for the whole chain — defer to the quiet-poll watcher.
+      const ssStillPending = sessionStartChainBusy();
       let introStarted;
       if (ssStillPending) {
         console.log('[SessionStart] Session Start tree suspended — deferring the gated intro until it completes');

@@ -83,6 +83,8 @@ function FlowTab() {
                 <tr><td>Switch on a value</td><td>Switch / Case container — first matching case runs; a bare name reads [CharVar:name]; Default catches the rest</td><td>✓</td></tr>
                 <tr><td>Repeat / Loop</td><td>Repeat container (fixed or until-condition)</td><td>✓</td></tr>
                 <tr><td>Player choice</td><td>Player Choice container</td><td>✓</td></tr>
+                <tr><td>Play every option</td><td>Player Choice container → Exhaust All Choices tickbox — each pick runs its option's branch, then the choice re-opens minus that option; the tree only continues past the block once every option has been played (an option's Goto fires on the final pick; Cancel still aborts the tree)</td><td>✓</td></tr>
+                <tr><td>Replay some options</td><td>Player Choice option → Exhaustable tickbox (shown when the block-level Exhaust All Choices is off) — picking a marked option runs its branch, then re-opens the choice minus that option; picking an unmarked option (or playing every option) ends the cycle and the tree continues</td><td>✓</td></tr>
                 <tr><td>Choose multiple</td><td>Choose Multiple container</td><td>✓</td></tr>
                 <tr><td>Pause / resume</td><td>Pause / Resume container</td><td>✓</td></tr>
                 <tr><td>Fire another flow</td><td>Fire Tree (library), or Fire Flow escape hatch</td><td>✓</td></tr>
@@ -90,6 +92,7 @@ function FlowTab() {
                 <tr><td>Force a read-pause</td><td>Next Button control block — holds the tree on the &gt;&gt; (Next) button at that exact spot, same as the auto-gate between back-to-back messages</td><td>✓</td></tr>
                 <tr><td>On-screen note</td><td>Toast action — pops a colored note (six presets, multi-line, variables substitute) in the corner; pure UI, never a chat message and never seen by the AI</td><td>✓</td></tr>
                 <tr><td>Pump by percentage</td><td>Primary Pump ON action → Percentage mode — runs the pump until that much capacity % has been added (inverts the calibration math; hard-caps at 100% total, 30-min safety still applies)</td><td>✓</td></tr>
+                <tr><td>Pump to a % target</td><td>Primary Pump ON action → Pct% (until) mode — runs the pump until the gauge reaches an absolute target % (1–100); skipped entirely if the gauge is already at/above it. Same calibration math and safety rails as Percentage mode</td><td>✓</td></tr>
                 <tr><td>Claim the session / abort everything else</td><td>Cancel Current control block — aborts every other running tree and checkpoint sequence, closing their popups (Player Choice, Player Input, Select Member, MiniGame) and &gt;&gt;/await/Fire% gates; the tree containing it continues. Place it first in a high-priority tree (e.g. a capacity-threshold event)</td><td>✓</td></tr>
                 <tr><td>Silence / re-arm checkpoint groups</td><td>Checkpoint Control block — On/Off + a target (any capacity range group, the Event Triggers group, or All). Session-scoped override on the card's saved per-group toggles; turning a group off also drops its pending await/Fire% sequences</td><td>✓</td></tr>
                 <tr><td>Screenplay</td><td><em>Out of scope (v1) — flows only</em></td><td>—</td></tr>

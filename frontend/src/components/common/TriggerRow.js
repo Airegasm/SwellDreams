@@ -315,9 +315,11 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
         // ONE condensed row: the On/Off radio rewrites trigger.type between pump_on/pump_off (the
         // backend executors are untouched). ON keeps its Seconds/Percentage machinery: Seconds —
         // blank = latch on, number = timed auto-off; Percentage — run until that much capacity %
-        // has been ADDED (hard-capped so current + increase never exceeds 100%). Both accept a variable.
+        // has been ADDED (hard-capped so current + increase never exceeds 100%); Pct% (until) —
+        // run until the gauge reaches an ABSOLUTE %, skipped if already at/above it. All accept a variable.
         const isOn = trigger.type !== 'pump_off';
         const pctMode = trigger.durationMode === 'percent';
+        const untilMode = trigger.durationMode === 'percent_until';
         return (
           <>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}>
@@ -328,18 +330,21 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             </label>
             {isOn && (
               <>
-                <select value={pctMode ? 'percent' : 'seconds'} onChange={(e) => update('durationMode', e.target.value)}
+                <select value={pctMode ? 'percent' : untilMode ? 'percent_until' : 'seconds'} onChange={(e) => update('durationMode', e.target.value)}
                   style={{ width: '110px', flexShrink: 0 }}
-                  title="Seconds: run the pump for a time. Percentage: run until that much capacity % has been added (needs a calibrated primary pump; caps at 100% total).">
+                  title="Seconds: run the pump for a time. Percentage: run until that much capacity % has been added (needs a calibrated primary pump; caps at 100% total). Pct% (until): run until the gauge reaches that absolute %; skipped if already at/above it.">
                   <option value="seconds">Seconds</option>
                   <option value="percent">Percentage</option>
+                  <option value="percent_until">Pct% (until)</option>
                 </select>
                 <input type="text" value={trigger.duration ?? ''} onChange={(e) => update('duration', e.target.value)}
-                  placeholder={pctMode ? '% to add (0–100)' : 'secs (blank = latch on)'} style={{ width: '150px' }}
-                  title={pctMode
+                  placeholder={untilMode ? 'target % (1–100)' : pctMode ? '% to add (0–100)' : 'secs (blank = latch on)'} style={{ width: '150px' }}
+                  title={untilMode
+                    ? 'Absolute capacity target (1–100). The pump runs until the gauge reaches this %, then auto-offs; skipped entirely if the gauge is already at/above it. Needs a calibrated primary pump. Accepts a variable like [CharVar:GameResult].'
+                    : pctMode
                     ? 'Capacity % to ADD (0–100). The pump runs until that much has been added, hard-capped at 100% total — at 70% capacity a 50% request only adds 30%. Accepts a variable like [CharVar:GameResult].'
                     : 'Seconds to run the primary pump, then auto-off. Blank = stay on until a Pump OFF. Accepts a variable like [CharVar:GameResult] (e.g. a dice total). Capped only by the 30-minute hard safety limit.'} />
-                {(pctMode || String(trigger.duration ?? '').trim() !== '') && (
+                {(pctMode || untilMode || String(trigger.duration ?? '').trim() !== '') && (
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
                     title="Await completion before continuing — the tree/sequence holds at this action until the timed run finishes (auto-off fires). Pump OFF or emergency stop releases it early. Only applies to runs with an automatic cutoff (seconds or percentage).">
                     <input type="checkbox" checked={trigger.awaitCompletion === true} onChange={(e) => update('awaitCompletion', e.target.checked)} />

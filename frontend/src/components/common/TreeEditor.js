@@ -270,7 +270,7 @@ function summarize(node) {
     if (t === 'end_intro') return `End Gated Intro${p.manualRelease ? ' (GO! gate)' : ''}${p.loadProfileId ? ' → load profile' : ' → default'}`;
     if (t === 'ai_message') return `Message${p.llmEnhance === false ? ' (verbatim)' : ''}: ${(p.context || '').slice(0, 48) || '(empty)'}`;
     if (t === 'toast') return `Toast (${p.preset || 'midnight'}): ${(p.text || '').split('\n')[0].slice(0, 40) || '(empty)'}`;
-    if (t === 'pump_on') return p.durationMode === 'percent' ? `Primary Pump ON · +${p.duration || '?'}% capacity` : `Primary Pump ON${p.duration ? ` · ${p.duration}s` : ' · latch'}`;
+    if (t === 'pump_on') return p.durationMode === 'percent' ? `Primary Pump ON · +${p.duration || '?'}% capacity` : p.durationMode === 'percent_until' ? `Primary Pump ON · until ${p.duration || '?'}% capacity` : `Primary Pump ON${p.duration ? ` · ${p.duration}s` : ' · latch'}`;
     if (t === 'pump_off') return 'Primary Pump OFF';
     if (t === 'custom_device') return `Custom Device "${p.deviceName || '?'}" ${p.mode === 'off' ? 'OFF' : p.mode === 'timed' ? `ON ${p.seconds || '?'}s` : 'ON'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'CharVar'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
@@ -279,7 +279,11 @@ function summarize(node) {
   if (t === 'group') return `${p.name ? `Group: ${p.name}` : 'Group'} · ${(node.children || []).length} item(s)`;
   if (t === 'if') return `If / Else · ${(node.children || []).filter(b => b && b.type === 'branch').length} branch(es)`;
   if (t === 'switch') return `Switch on ${p.value || '(unset)'} · ${(node.children || []).filter(c => c && c.type === 'case').length} case(s)`;
-  if (t === 'player_choice') return `Player Choice · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
+  if (t === 'player_choice') {
+    const opts = (node.children || []).filter(c => c && c.type === 'choice');
+    const exhaustable = opts.filter(c => c.params?.exhaustable).length;
+    return `Player Choice · ${opts.length} option(s)${node.params?.exhaustAll ? ' · exhaust all' : exhaustable ? ` · ${exhaustable} exhaustable` : ''}`;
+  }
   if (t === 'choose_multi') return `Choose Multiple · ${(node.children || []).filter(c => c && c.type === 'choice').length} option(s)`;
   if (t === 'chance') return `Chance ${p.chance ?? 0}%`;
   if (t === 'random') return `Random — one of ${(node.children || []).length}`;
@@ -488,7 +492,7 @@ function SwitchBlock({ node, onChange, rowProps }) {
 // One option within a player_choice: a label + its body (the subtree run when picked).
 // optionGoto (player_choice only): built-in "then go to" — after the option's body runs, jump to a
 // Label/named Group at the choice's level (or top level for backward jumps) instead of falling through.
-function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps, optionGoto }) {
+function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps, optionGoto, exhaustToggle }) {
   const setParam = (patch) => onChange({ ...choice, params: { ...(choice.params || {}), ...patch } });
   const gotoName = choice.params?.gotoName;
   const reach = rowProps?.levelLabels || [];
@@ -498,6 +502,14 @@ function ChoiceBlock({ choice, onChange, onRemove, onDuplicate, rowProps, option
       <div className="tree-branch-head">
         <span className="tree-branch-label">Option</span>
         <input type="text" value={choice.params?.label || ''} onChange={(e) => setParam({ label: e.target.value })} placeholder="button label" style={{ flex: 1 }} />
+        {exhaustToggle && (
+          <label className="tree-field tree-field-inline" style={{ whiteSpace: 'nowrap' }}
+            title="After this option's blocks run, re-open the choice with this option removed instead of continuing past the block. Picking a non-exhaustable option ends the cycle and continues the tree; playing every option also continues. (Hidden when the block-level Exhaust All Choices is on — that makes every option behave this way.)">
+            <input type="checkbox" checked={!!choice.params?.exhaustable}
+              onChange={(e) => setParam({ exhaustable: e.target.checked })} />
+            <span>Exhaustable</span>
+          </label>
+        )}
         {onDuplicate && <button type="button" className="tree-x" onClick={onDuplicate} title="Duplicate this option (label + contents)">⧉</button>}
         <button type="button" className="tree-x" onClick={onRemove} title="Remove option">×</button>
       </div>
@@ -530,6 +542,14 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
   const setChoices = (next) => onChange({ ...node, children: next });
   return (
     <div className="tree-if">
+      {node.type === 'player_choice' && (
+        <label className="tree-field tree-field-inline" style={{ marginBottom: 4 }}
+          title="Each pick runs its option's blocks, then the choice re-opens with that option removed — until every option has been played. Only then does the tree continue past this block. An option's Goto only fires on the final pick; a Goto inside a body ends the cycle early; Cancel still aborts the whole tree. (When this is off, individual options can opt in via their own Exhaustable tickbox.)">
+          <input type="checkbox" checked={!!node.params?.exhaustAll}
+            onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), exhaustAll: e.target.checked } })} />
+          <span>Exhaust All Choices</span>
+        </label>
+      )}
       <label className="tree-field">
         <span>Prompt (optional)</span>
         <input type="text" value={node.params?.prompt || ''} onChange={(e) => onChange({ ...node, params: { ...(node.params || {}), prompt: e.target.value } })} placeholder="question shown above the options" />
@@ -539,7 +559,8 @@ function PlayerChoiceBlock({ node, onChange, rowProps, max = 4 }) {
           onChange={(u) => setChoices(choices.map((x, idx) => idx === i ? u : x))}
           onRemove={() => setChoices(choices.filter((_, idx) => idx !== i))}
           onDuplicate={choices.length < max ? () => setChoices([...choices.slice(0, i + 1), cloneNodeDeep(c), ...choices.slice(i + 1)]) : undefined}
-          rowProps={rowProps} optionGoto={node.type === 'player_choice'} />
+          rowProps={rowProps} optionGoto={node.type === 'player_choice'}
+          exhaustToggle={node.type === 'player_choice' && !node.params?.exhaustAll} />
       ))}
       {choices.length < max && <button type="button" className="tree-mini" onClick={() => setChoices([...choices, makeChoice()])}>+ Option</button>}
       {node.type === 'player_choice' && (
