@@ -90,6 +90,19 @@
   text-underline-offset: 3px;
 }
 
+/* The <form> wraps the tab bodies + footer. It must pass the modal's flex sizing through,
+   or the body's flex:1/overflow-y never get a height bound and tall tabs are CLIPPED by the
+   modal's overflow:hidden instead of scrolling (the character editor has no form wrapper). */
+.persona-editor-modal form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.persona-editor-modal .modal-footer {
+  flex-shrink: 0;
+}
+
 /* Modal Body - Card background matching Settings */
 .persona-modal-body {
   padding: var(--spacing-lg);

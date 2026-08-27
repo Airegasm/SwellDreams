@@ -1182,6 +1182,26 @@ function Chat() {
     }
   };
 
+  // Long-press on the ">>" Next button (mobile) — or the flashing ✕ beside it (desktop) —
+  // cancels every pending action: aborts running trees/sequences, closes their popups/gates.
+  const nextLongPress = useRef({ timer: null, fired: false });
+  const cancelAllPending = () => {
+    if (window.confirm('Cancel all pending actions?')) sendWsMessage('cancel_all_pending', {});
+  };
+  const startNextLongPress = () => {
+    if (!sessionState.nextGateActive) return;
+    nextLongPress.current.fired = false;
+    nextLongPress.current.timer = setTimeout(() => {
+      nextLongPress.current.fired = true;
+      cancelAllPending();
+    }, 600);
+  };
+  const endNextLongPress = () => clearTimeout(nextLongPress.current.timer);
+  const nextGateClick = () => {
+    if (nextLongPress.current.fired) { nextLongPress.current.fired = false; return; } // the long-press already acted
+    if (sessionState.nextGateActive) advanceNext();
+  };
+
   const handleGuidedGenerate = async (mode, memberId = null) => {
     if (isGenerating) return;
 
@@ -1843,11 +1863,13 @@ function Chat() {
               </>
             )}
           </div>
-          {/* NEXT (») — double width */}
+          {/* NEXT (») — double width; long-press = cancel all pending actions */}
           <button type="button" className={`mch-btn mch-next ${sessionState.nextGateActive ? 'active' : ''}`}
-            onClick={() => { if (sessionState.nextGateActive) advanceNext(); }} disabled={!sessionState.nextGateActive}
+            onClick={nextGateClick} disabled={!sessionState.nextGateActive}
+            onTouchStart={startNextLongPress} onTouchEnd={endNextLongPress} onTouchCancel={endNextLongPress}
+            onContextMenu={(e) => e.preventDefault()}
             aria-label="Next message"
-            title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}>»</button>
+            title={sessionState.nextGateActive ? 'Next — tap when you’ve read this message (hold to cancel all pending actions)' : 'Next (lights up when a message sequence pauses)'}>»</button>
           {/* REPLY — square speech-bubble toggle (auto-reply on/off) */}
           <button type="button" className={`mch-btn mch-reply ${sessionState.autoReply ? 'on' : 'off'}`}
             onClick={() => sendWsMessage('set_auto_reply', { enabled: !sessionState.autoReply })}
@@ -2272,7 +2294,7 @@ function Chat() {
                   </>
                 )}
               </div>
-              {/* 6 · NEXT » */}
+              {/* 6 · NEXT » (+ flashing ✕ = cancel all pending, shown while a gate holds) */}
               <button
                 type="button"
                 className={`pc-input-btn pc-next ${sessionState.nextGateActive ? 'active' : ''}`}
@@ -2280,6 +2302,14 @@ function Chat() {
                 disabled={!sessionState.nextGateActive}
                 title={sessionState.nextGateActive ? 'Next — click when you’ve read this message' : 'Next (lights up when a message sequence pauses)'}
               >»</button>
+              {sessionState.nextGateActive && (
+                <button
+                  type="button"
+                  className="pc-input-btn pc-cancel-pending"
+                  onClick={cancelAllPending}
+                  title="Cancel all pending actions — aborts every queued tree/sequence and closes their gates and popups"
+                >✕</button>
+              )}
               {/* 7 · 💬 AUTO */}
               <button
                 type="button"

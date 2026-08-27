@@ -29,6 +29,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         pronouns: persona.pronouns || 'they/them',
         appearance: persona.appearance || '',
         personality: persona.personality || '',
+        responseContext: persona.responseContext || '',
         relationshipWithInflation: persona.relationshipWithInflation || '',
         inflationKnowledge: persona.inflationKnowledge || 'unaware',
         inflationDesire: persona.inflationDesire || 'neutral',
@@ -54,6 +55,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       pronouns: 'they/them',
       appearance: '',
       personality: '',
+      responseContext: '',
       relationshipWithInflation: '',
       inflationKnowledge: 'unaware',
       inflationDesire: 'neutral',
@@ -595,6 +597,16 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                     onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
                     placeholder="Describe your character's personality..."
                     rows={4}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Response Generation Context</label>
+                  <textarea
+                    value={formData.responseContext || ''}
+                    onChange={(e) => setFormData({ ...formData, responseContext: e.target.value })}
+                    placeholder="Steers your guided responses / player-message swipes: treated as if it were the first sentence typed in the chat input. The Set Response Context trigger action can override or clear it mid-session."
+                    rows={2}
                   />
                 </div>
 

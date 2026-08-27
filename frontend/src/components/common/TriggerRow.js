@@ -76,6 +76,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'custom_device', label: 'Custom Device Control' },
     { value: 'set_attribute', label: 'Set Char Attribute' },
     { value: 'set_persona_attribute', label: 'Set Player Attribute' },
+    { value: 'set_response_context', label: 'Set Response Context' },
     { value: 'set_player_capacity', label: 'Set Player Capacity' },
     { value: 'set_pre_req', label: 'Inflation Pre-Req (Met/Unmet)' },
   );
@@ -407,6 +408,29 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
             %
           </label>
         );
+      case 'set_response_context': {
+        // Session-scoped steering text for guided responses / swipes: injected as if it were the
+        // first sentence typed in the chat input. Target = Player (persona), base char, or a member.
+        const rcClear = trigger.clear === true;
+        return (
+          <>
+            <select value={trigger.target ?? 'player'} onChange={(e) => update('target', e.target.value)} style={{ width: '150px', flexShrink: 0 }}
+              title="Whose Response Generation Context to set: the Player (persona), the base character, or a group member.">
+              <option value="player">Player</option>
+              <option value="">Base character</option>
+              {(members || []).slice(1).map(m => <option key={m.id} value={m.id}>{m.name || m.id}</option>)}
+            </select>
+            <input type="text" value={trigger.text ?? ''} onChange={(e) => update('text', e.target.value)} disabled={rcClear}
+              placeholder="context (injected as if typed first in the chat input)" style={{ flex: 1, minWidth: '120px' }}
+              title="Steers this target's next guided response / swipe as if this text were the first sentence in the chat input. Accepts variables like [CharVar:x]. Lasts until changed, cleared, or session reset." />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px', whiteSpace: 'nowrap' }}
+              title="Blank out this target's response context (also masks the value authored on the card/persona until session reset).">
+              <input type="checkbox" checked={rcClear} onChange={(e) => update('clear', e.target.checked)} />
+              Clear
+            </label>
+          </>
+        );
+      }
       case 'set_range_set':
         return (
           <input type="text" value={trigger.value || ''} onChange={(e) => update('value', e.target.value)}

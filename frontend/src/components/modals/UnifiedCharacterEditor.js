@@ -1407,6 +1407,16 @@ Write only the scenario description itself, no explanations.`;
             </div>
           )}
 
+          {/* Response Generation Context — single mode only; group cards edit it per member on the
+              Members tab (index 0 binds this same card-level field). */}
+          {!isGroup && (
+            <div className="form-group">
+              <label>Response Generation Context <span className="section-hint">(steers guided responses / swipes)</span></label>
+              <textarea value={formData.responseContext ?? ''} onChange={(e) => set({ responseContext: e.target.value })} rows={2}
+                placeholder="Treated as if it were the first sentence typed in the chat input when Guided Response or a swipe fires. The Set Response Context trigger action can override or clear it mid-session." />
+            </div>
+          )}
+
           {/* ---- Base-character fields + story content (standard mode only) ---- */}
           {!isInstructorMode && (
             <>
@@ -1952,12 +1962,26 @@ Write only the scenario description itself, no explanations.`;
                     placeholder={`Personality traits for ${member.name || 'this character'}…`} />
                 </div>
 
+                <div className="form-group">
+                  <label>Response Generation Context <span className="section-hint">(steers this {selectedMemberIndex === 0 ? "character's" : "member's"} guided responses / swipes)</span></label>
+                  <textarea rows={2} value={(selectedMemberIndex === 0 ? formData.responseContext : member.responseContext) || ''}
+                    onChange={(e) => selectedMemberIndex === 0 ? set({ responseContext: e.target.value }) : updateMember(selectedMemberIndex, { responseContext: e.target.value })}
+                    placeholder="Treated as if it were the first sentence typed in the chat input when Guided Response or a swipe fires. The Set Response Context trigger action can override or clear it mid-session." />
+                </div>
+
                 {isGroup && (
                   <div className="form-group">
-                    <label>Response Tokens <span className="section-hint">(this member's Individual-Responses reply; blank = card's Individual Response Tokens, then global)</span></label>
-                    <input type="text" inputMode="numeric" value={member.responseTokens ?? ''}
-                      onChange={(e) => updateMember(selectedMemberIndex, { responseTokens: e.target.value.replace(/[^0-9]/g, '') })}
-                      placeholder="Leave blank to fall back to the card / global setting" style={{ maxWidth: 300 }} />
+                    <label>Response Tokens <span className="section-hint">{selectedMemberIndex === 0
+                      ? '(Individual-Responses length; the Base value is also every member’s default)'
+                      : '(this member’s Individual-Responses reply; blank = the Base member’s default, then global)'}</span></label>
+                    <input type="text" inputMode="numeric"
+                      value={(selectedMemberIndex === 0 ? formData.individualResponseTokens : member.responseTokens) ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9]/g, '');
+                        if (selectedMemberIndex === 0) set({ individualResponseTokens: v });
+                        else updateMember(selectedMemberIndex, { responseTokens: v });
+                      }}
+                      placeholder={selectedMemberIndex === 0 ? '150' : 'Blank = Base default'} style={{ maxWidth: 300 }} />
                   </div>
                 )}
 
@@ -2042,12 +2066,6 @@ Write only the scenario description itself, no explanations.`;
               </>
             )}
 
-            <div className="form-group">
-              <label>Individual Response Tokens</label>
-              <input type="text" inputMode="numeric" value={formData.individualResponseTokens ?? ''}
-                onChange={(e) => set({ individualResponseTokens: e.target.value.replace(/[^0-9]/g, '') })} placeholder="150" style={{ maxWidth: 220 }} />
-              <p className="section-hint">Max tokens per individual reply when members respond one at a time. One value for the whole card. Default 150.</p>
-            </div>
             </>)}
           </div>
         )}
@@ -3044,6 +3062,7 @@ function buildInitial(character, defaultAuthorsNote) {
     gender: c.gender || '',
     description: c.description || '',
     personality: c.personality || '',
+    responseContext: c.responseContext || '',
     responseTokens: c.responseTokens ?? '',
     historyDepth: c.historyDepth ?? '',
     instructor: c.instructor || { enabled: false },

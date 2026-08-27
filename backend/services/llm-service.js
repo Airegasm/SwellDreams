@@ -1991,7 +1991,10 @@ function buildLlamaCppRequest(prompt, settings) {
       body.dry_multiplier = settings.dryMultiplier;
       body.dry_base = settings.dryBase || 1.75;
       body.dry_allowed_length = settings.dryAllowedLength || 2;
-      body.dry_penalty_last_n = settings.dryPenaltyLastN || 0;
+      // llama.cpp semantics differ from KoboldCpp: 0 DISABLES dry there (kobold
+      // scans the whole context on 0). Translate 0/unset to -1 (= full context)
+      // so profiles written against kobold behave the same on llama-server.
+      body.dry_penalty_last_n = settings.dryPenaltyLastN > 0 ? settings.dryPenaltyLastN : -1;
       if (settings.drySequenceBreakers && settings.drySequenceBreakers.length > 0) {
         body.dry_sequence_breakers = settings.drySequenceBreakers;
       }

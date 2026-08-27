@@ -4479,3 +4479,16 @@
   text-overflow: ellipsis;
   max-width: 92%;
 }
+
+/* Cancel-all-pending — flashing ✕ beside the » Next button while a gate holds the scene.
+   Click (or long-press » on mobile) → "Cancel all pending actions?" → aborts every queued
+   tree/sequence and closes their gates/popups. */
+.pc-cancel-pending {
+  color: #ff6b6b;
+  font-weight: 700;
+  animation: pcCancelFlash 1.1s ease-in-out infinite;
+}
+@keyframes pcCancelFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

@@ -128,9 +128,10 @@ function validatePersona(persona) {
     return [{ field: 'persona', message: 'Persona object is required' }];
   }
 
-  // Name is required
-  if (!isValidString(persona.name, 1, 100)) {
-    errors.push({ field: 'name', message: 'Persona name is required (1-100 characters)' });
+  // Personas are identified by displayName (persona objects have no `name` field — requiring one
+  // made every copy/create fail validation). Accept legacy `name` as a fallback.
+  if (!isValidString(persona.displayName ?? persona.name, 1, 100)) {
+    errors.push({ field: 'displayName', message: 'Persona display name is required (1-100 characters)' });
   }
 
   // Content length limit

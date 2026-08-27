@@ -1285,7 +1285,12 @@ function primaryPumpStateLine(playerLabel) {
     const key = getDeviceKey(pump);
     const running = deviceService.pumpRuntimeIntervals?.has(key)
       || sessionState.executionHistory?.deviceActions?.[key]?.state === 'on';
-    return `\n=== PUMP STATE (CANONICAL) ===\nThe air pump is ${running ? `ON — actively inflating ${playerLabel} RIGHT NOW` : 'OFF — NOT running right now'}. This is ground truth from the hardware. Never state or imply the opposite.\n=== END PUMP STATE ===\n`;
+    // Electric/automatic pumps are plain on/off devices — no PWM, no speed control. Without this
+    // line the model narrates "the pump speeds up / intensifies", which the hardware cannot do.
+    const fixedRate = (sessionState.pumpType || 'electric') === 'electric'
+      ? '\nThe pump is a simple ON/OFF machine running at ONE fixed rate — it has no speed, power, pressure, or flow control of any kind. NEVER describe the pump speeding up, slowing down, intensifying, ramping, being turned up or down, or changing its pace/pressure/flow — its only two states are ON and OFF.'
+      : '';
+    return `\n=== PUMP STATE (CANONICAL) ===\nThe air pump is ${running ? `ON — actively inflating ${playerLabel} RIGHT NOW` : 'OFF — NOT running right now'}. This is ground truth from the hardware. Never state or imply the opposite.${fixedRate}\n=== END PUMP STATE ===\n`;
   } catch (e) { return ''; }
 }
 
@@ -3822,6 +3827,9 @@ const sessionState = {
                             // SEPARATE slot from pendingRangeAwait so a message/next-gate WAIT can't clobber
                             // it. Resolves when capacity >= target AND no message-gate is open (queued behind
                             // the WAIT). { kind:'capacity', type, target, rest:[triggers], source, characterId }
+  responseContexts: {},     // Response Generation Context session overrides, keyed 'player' | 'char' | member id
+                            // (Set Response Context trigger; '' = cleared). Authored defaults live on the
+                            // card/member/persona `responseContext` fields — see getResponseContext.
   pendingRangeTreeEntry: null, // A band-entry range-tree fire queued behind an open stall (chain/popup/>>):
                             // { type:'player'|'char', key:'31-40', characterId }. Flushed by
                             // tryFireQueuedRangeTreeEntry when the stall clears; dropped if capacity
@@ -4783,6 +4791,29 @@ async function executeTrigger(trigger, source, character, settings) {
           const store = resolveAttributeStore(activeStory, trigger.targetMember);
           store[trigger.trait] = trigger.value ?? 50;
           await saveCharacterAsync(character);
+        }
+        break;
+      }
+
+      case 'set_response_context': {
+        // Session-scoped Response Generation Context override for the Player, the base character,
+        // or a group member. Clear ⇒ '' (no context at all — also masks the authored card/persona
+        // value); the authored value returns only on session reset. See getResponseContext.
+        const rcs = sessionState.responseContexts = sessionState.responseContexts || {};
+        let rcKey;
+        if (trigger.target === 'player') {
+          rcKey = 'player';
+        } else {
+          const t = resolveMemberRef(trigger.target || '', character);
+          if (t === null) { console.warn(`[Trigger/${source}] set_response_context: target '${trigger.target}' matches no member — skipped`); break; }
+          rcKey = t || 'char';
+        }
+        if (trigger.clear === true) {
+          rcs[rcKey] = '';
+          console.log(`[Trigger/${source}] Response context CLEARED for ${rcKey}`);
+        } else {
+          rcs[rcKey] = substituteAllVariables(String(trigger.text ?? ''), { isPromptText: true });
+          console.log(`[Trigger/${source}] Response context for ${rcKey} = "${rcs[rcKey].slice(0, 80)}"`);
         }
         break;
       }
@@ -6137,6 +6168,7 @@ function clearSessionContextForSwitch() {
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -6961,16 +6993,23 @@ async function sendWelcomeMessage(character, settings) {
       if (isInstructor(character)) {
         systemPrompt += `\nCurrent capacity: ${capacity}%. Pain: ${painLabel} (${painLevel}/10).\n\n`;
       } else {
-        systemPrompt += `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
-        systemPrompt += `${playerName}'s belly is at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
-        systemPrompt += `${playerName}'s pain/discomfort level is EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
-        systemPrompt += `STRICT RULES:\n`;
-        systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
-        systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
-        systemPrompt += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage\n`;
-        systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
-        systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
-        systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+        const scaffoldTier = promptScaffoldTier(settings);
+        if (scaffoldTier === 'full') {
+          systemPrompt += `\n=== MANDATORY BELLY STATE (DO NOT DEVIATE) ===\n`;
+          systemPrompt += `${playerName}'s belly is at EXACTLY ${capacity}% capacity: ${bellyDesc}.\n`;
+          systemPrompt += `${playerName}'s pain/discomfort level is EXACTLY: "${painLabel}" (${painLevel}/10).\n`;
+          systemPrompt += `STRICT RULES:\n`;
+          systemPrompt += `- Describe the belly ONLY as "${bellyDesc}" - no larger, no smaller\n`;
+          systemPrompt += `- Physical discomfort must match "${painLabel}" (${painLevel}/10) EXACTLY\n`;
+          systemPrompt += `- The ONLY capacity number you may use is ${capacity}%. Do NOT write any other percentage\n`;
+          systemPrompt += `- NEVER say "beachball", "about to burst", "enormous" unless capacity is above 85%\n`;
+          systemPrompt += `- DO NOT exaggerate the inflation state beyond what ${capacity}% represents\n`;
+          systemPrompt += `=== END MANDATORY BELLY STATE ===\n\n`;
+        } else if (scaffoldTier === 'terse') {
+          systemPrompt += `\nBelly state: ${playerName}'s belly is at exactly ${capacity}% (${bellyDesc}) and their pain is "${painLabel}" (${painLevel}/10). Describe both at exactly this level — use no other percentage, and do not exaggerate or understate the state.\n\n`;
+        } else {
+          systemPrompt += `\nCurrent state: belly ${capacity}% (${bellyDesc}), pain "${painLabel}" (${painLevel}/10). Stay consistent with this.\n\n`;
+        }
       }
 
       // (removed) preInflation prompt block — getActiveCheckpoint hardcodes preInflation:null
@@ -7514,14 +7553,17 @@ If announcing the result, say "${result}" - not something else.
       try {
         const context = buildSpecialContext('impersonate', null, activeCharacter, activePersona, settings);
 
+        const scaffoldTier = promptScaffoldTier(settings);
         // Extra enforcement for capacity messages
-        const capacityEmphasis = data.isCapacityMessage ? `
+        const capacityEmphasis = data.isCapacityMessage ? (scaffoldTier === 'full' ? `
 IMPORTANT: This is a CAPACITY STATUS message. You are reporting ${playerName}'s physical state.
 - Focus on ${playerName}'s internal sensations, breathing, and physical feelings
 - Express the intensity appropriate to their current fullness level
-- Use desperate, pleading, or overwhelmed tones as appropriate` : '';
+- Use desperate, pleading, or overwhelmed tones as appropriate` : `
+This is a capacity status message — report ${playerName}'s internal sensations at their current fullness, with matching intensity.`) : '';
 
-        context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===
+        if (scaffoldTier === 'full') {
+          context.systemPrompt += `\n\n=== CRITICAL INSTRUCTION ===
 Your next response MUST be ${playerName} performing this action: "${data.content}"
 
 STRICT RULES:
@@ -7532,6 +7574,9 @@ STRICT RULES:
 - Keep it SHORT - 1-3 sentences max
 - Example format: "*I gasp as the pressure builds...* Please, stop!"${capacityEmphasis}
 === END CRITICAL INSTRUCTION ===`;
+        } else {
+          context.systemPrompt += `\n\nYour next response is ${playerName} performing: "${data.content}". Write 1-3 sentences in first person (I/me/my) as ${playerName} only — no second person, and nothing spoken or done by ${activeCharacter.name}. Format like: "*I gasp as the pressure builds...* Please, stop!"${capacityEmphasis}`;
+        }
         // Strip the primer buildSpecialContext already added so we don't leave an empty "${playerName}:"
         // turn before our instruction (the sibling ai_message path does the same).
         context.prompt = context.prompt.replace(new RegExp(`(\\n?\\[Player\\]:|\\n?\\[Char\\]:|\\n?${playerName}:)\\s*$`), '');
@@ -8765,6 +8810,15 @@ async function handleWsMessage(ws, type, data) {
       break;
     }
 
+    case 'cancel_all_pending': {
+      // Long-press ">>" (mobile) / the flashing ✕ beside it (desktop): abort every running
+      // tree/sequence and clear every pending gate/popup — the Cancel Current sweep, sparing
+      // nothing (runFlag null matches no run, so ALL registered runs are cancelled).
+      cancelOtherTreeWork({ runFlag: null });
+      broadcast('trigger_toast', { text: 'All pending actions cancelled', preset: 'midnight' });
+      break;
+    }
+
     case 'toggle_member_mute': {
       // Toggle whether a multichar member can speak/reply this session
       const list = new Set(sessionState.mutedMembers || []);
@@ -9083,6 +9137,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -9139,6 +9194,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -9163,6 +9219,7 @@ Write ONLY the summary in third-person narrator voice, no preamble or labels.`;
     sessionState.firedTreeNodes.clear();
     resetEventTriggerState();
     sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -9197,8 +9254,30 @@ function handleEditMessage(data) {
   }
 }
 
+// ---- Response Generation Context -------------------------------------------------------------
+// Authored per card ("Response Generation Context" on the Main tab / base member), per group
+// member (Members tab), and per persona (Persona editor). A Set Response Context trigger writes a
+// session-scoped override (Clear ⇒ ''). The resolved text is treated as if it were the FIRST
+// SENTENCE typed in the chat input when a guided response / swipe fires: prepended to the typed
+// guidance, or standing in for it when the input is empty.
+// Keys: 'player' (persona) | 'char' (single card / group base) | a group member id.
+function getResponseContext(key, character, persona) {
+  const overrides = sessionState.responseContexts || {};
+  if (overrides[key] !== undefined) return String(overrides[key] || '').trim();
+  const authored = key === 'player' ? persona?.responseContext
+    : key === 'char' ? character?.responseContext
+    : (character?.multiChar?.characters || []).find(m => m.id === key)?.responseContext;
+  return String(authored || '').trim();
+}
+function withResponseContext(key, character, persona, typed) {
+  const ctx = getResponseContext(key, character, persona);
+  const t = String(typed || '').trim();
+  if (!ctx) return t || null;
+  return t ? `${ctx} ${t}` : ctx;
+}
+
 async function handleSwipeMessage(data) {
-  const { id, guidanceText } = data;
+  const { id, guidanceText: typedGuidance } = data;
   const msgIndex = sessionState.chatHistory.findIndex(m => m.id === id);
   if (msgIndex === -1) return;
 
@@ -9209,6 +9288,11 @@ async function handleSwipeMessage(data) {
   const personas = loadAllPersonas() || [];
   const activeCharacter = characters.find(c => c.id === settings?.activeCharacterId);
   const activePersona = personas.find(p => p.id === settings?.activePersonaId);
+
+  // The swiped speaker's Response Generation Context rides in front of any typed guidance.
+  const guidanceText = withResponseContext(
+    msg.sender === 'player' ? 'player' : (msg.memberId || 'char'),
+    activeCharacter, activePersona, typedGuidance);
 
   const hasLlmConfig = settings?.llm?.llmUrl ||
     (settings?.llm?.endpointStandard === 'openrouter' && settings?.llm?.openRouterApiKey) ||
@@ -11211,16 +11295,20 @@ async function handleSpecialGenerate(data) {
     // P1: character-voice guided responses use the SAME full context as a normal
     // reply (buildChatContext) plus ONE guidance injection — converging with the
     // guided-swipe-of-character path. Player voice keeps buildSpecialContext.
+    // The target's Response Generation Context rides in front of any typed guidance.
+    const effectiveGuided = withResponseContext(
+      isPlayerVoice ? 'player' : (smTarget ? smTarget.id : 'char'),
+      activeCharacter, activePersona, guidedText);
     let context;
     if (isPlayerVoice) {
-      context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+      context = buildSpecialContext(mode, effectiveGuided, activeCharacter, activePersona, settings);
     } else {
       if (smTarget) sessionState.soloSpeaker = smTarget.id; // constrain the group prompt to this member
       try {
         context = applyCharacterGuidance(
           buildChatContext(activeCharacter, settings),
           activeCharacter,
-          guidedText
+          effectiveGuided
         );
       } finally {
         sessionState.soloSpeaker = null; // throw-safe (audit H5)
@@ -11353,14 +11441,14 @@ async function handleSpecialGenerate(data) {
 
       let retryContext;
       if (isPlayerVoice) {
-        retryContext = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+        retryContext = buildSpecialContext(mode, effectiveGuided, activeCharacter, activePersona, settings);
       } else {
         if (smTarget) sessionState.soloSpeaker = smTarget.id;
         try {
           retryContext = applyCharacterGuidance(
             buildChatContext(activeCharacter, settings),
             activeCharacter,
-            guidedText
+            effectiveGuided
           );
         } finally {
           sessionState.soloSpeaker = null; // throw-safe (audit H5)
@@ -11504,9 +11592,11 @@ async function handleImpersonateRequest(data) {
     llmState.isGenerating = true;
     broadcast('generating_start', { characterName: activePersona?.displayName || 'Player', isPlayerVoice: true });
 
-    // Use pure impersonate mode if no guided text provided
-    const mode = guidedText ? 'guided_impersonate' : 'impersonate';
-    const context = buildSpecialContext(mode, guidedText, activeCharacter, activePersona, settings);
+    // The player's Response Generation Context rides in front of any typed guidance; pure
+    // impersonate mode only when neither exists.
+    const effectiveGuided = withResponseContext('player', activeCharacter, activePersona, guidedText);
+    const mode = effectiveGuided ? 'guided_impersonate' : 'impersonate';
+    const context = buildSpecialContext(mode, effectiveGuided, activeCharacter, activePersona, settings);
 
     const impersonateSettings = {
       ...settings.llm,
@@ -14073,6 +14163,19 @@ function buildHistoryRepresentations(recentMessages, opts) {
   return { flat, messages };
 }
 
+// How much rule scaffolding the active model needs, gated by parameter count:
+// <14B get the full shouty scaffold, 14-33B get terse single statements, 34B+
+// get bare facts (redundant reinforcement just becomes material to imitate).
+// Size is parsed from the active profile id ("default-cydonia24b-llamacpp" ->
+// 24); profiles with no parseable size fall back to the full scaffold.
+function promptScaffoldTier(settings) {
+  const m = String(settings?.llm?.activeProfileId || '').match(/(\d+(?:\.\d+)?)\s*b\b/i);
+  const size = m ? parseFloat(m[1]) : 0;
+  if (!size || size < 14) return 'full';
+  if (size < 34) return 'terse';
+  return 'minimal';
+}
+
 function buildSpecialContext(mode, guidedText, character, persona, settings) {
   let systemPrompt = '';
   let prompt = '';
@@ -14102,13 +14205,14 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     const verb = isFirstPerson ? 'are' : 'is';
     const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
     const painLabel = painLabels[painLevel] || 'None';
+    const scaffoldTier = promptScaffoldTier(settings);
 
     // At 0% with no pain, minimal instruction needed
     if (capacity <= 0 && painLevel <= 0) {
       return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
 
-    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at ${scaffoldTier === 'full' ? 'EXACTLY' : 'exactly'} ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
 
     if (capacity <= 5) {
       instructions += `INFLATION HAS BARELY BEGUN. ${subject} belly looks completely normal. You may only mention: a faint warmth, a subtle awareness of the tube, or nothing at all. Focus on conversation, emotions, and the situation — not physical sensations. The story is just starting.\n`;
@@ -14126,7 +14230,9 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
       instructions += `CRITICAL/MAX INFLATION. Describe: impossibly full, skin creaking, at the absolute limit. This is the climax.\n`;
     }
 
-    instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
+    if (scaffoldTier !== 'minimal') {
+      instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
+    }
 
     return instructions;
   };
@@ -14918,13 +15024,14 @@ function buildChatContext(character, settings, opts = {}) {
     const verb = isFirstPerson ? 'are' : 'is';
     const painLabels = ['None', 'Minimal', 'Mild', 'Uncomfortable', 'Moderate', 'Distracting', 'Distressing', 'Intense', 'Severe', 'Agonizing', 'Excruciating'];
     const painLabel = painLabels[painLevel] || 'None';
+    const scaffoldTier = promptScaffoldTier(settings);
 
     // At 0% with no pain, minimal instruction needed
     if (capacity <= 0 && painLevel <= 0) {
       return `\n${subject} belly ${verb} flat and normal. No pain or discomfort.\n`;
     }
 
-    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at EXACTLY ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
+    let instructions = `\nBELLY STATE: ${subject} belly ${verb} at ${scaffoldTier === 'full' ? 'EXACTLY' : 'exactly'} ${capacity}%: ${bellyDesc}. Pain: ${painLabel} (${painLevel}/10).\n`;
 
     if (capacity <= 5) {
       instructions += `INFLATION HAS BARELY BEGUN. ${subject} belly looks completely normal. You may only mention: a faint warmth, a subtle awareness of the tube, or nothing at all. Focus on conversation, emotions, and the situation — not physical sensations. The story is just starting.\n`;
@@ -14942,7 +15049,9 @@ function buildChatContext(character, settings, opts = {}) {
       instructions += `CRITICAL/MAX INFLATION. Describe: impossibly full, skin creaking, at the absolute limit. This is the climax.\n`;
     }
 
-    instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
+    if (scaffoldTier !== 'minimal') {
+      instructions += `Write ${capacity}% if referencing a number. The belly state is a snapshot — describe it as-is, not changing in real time.\n`;
+    }
 
     return instructions;
   };
@@ -16170,6 +16279,7 @@ function cancelOtherTreeWork(ctx) {
   sessionState.pendingCheckpointChoice = null;
   sessionState.pendingRangeAwait = null;
   sessionState.pendingCapacityGate = null;
+  sessionState.pendingRangeTreeEntry = null;
   broadcast('checkpoint_choice_clear', {}); // dismisses choice/multi/select-member/input popups
   broadcast('tree_minigame_clear', {});     // closes an open tree-called minigame
   broadcast('next_gate', { active: false });
@@ -20140,6 +20250,7 @@ app.post('/api/session/reset-once', (req, res) => {
   sessionState.randomBlockBudget = {};
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -20214,6 +20325,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.firedTreeNodes.clear();
   resetEventTriggerState();
   sessionState.checkpointControl = null; // Checkpoint Control overrides die with the session
+  sessionState.responseContexts = {};    // Set Response Context overrides die with the session
   sessionState.pendingIntroStart = null; // a deferred intro from the old session must not fire into the new one
   sessionState.eventTriggerOverrides = null; // Event Trigger Toggle overrides die with the session
   sessionState.sessionStartActive = false;
@@ -20516,6 +20628,7 @@ app.post('/api/sessions/:id/load', (req, res) => {
   sessionState.pendingTreeNext = null;
   sessionState.pendingCheckpointChoice = null;
   sessionState.checkpointControl = null;
+  sessionState.responseContexts = {};
   sessionState.selectedChar = null;
   sessionState.firedTreeNodes.clear();
   firedCheckpointTriggers.clear();

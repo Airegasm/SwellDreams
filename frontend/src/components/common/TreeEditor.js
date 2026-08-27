@@ -274,6 +274,7 @@ function summarize(node) {
     if (t === 'pump_off') return 'Primary Pump OFF';
     if (t === 'custom_device') return `Custom Device "${p.deviceName || '?'}" ${p.mode === 'off' ? 'OFF' : p.mode === 'timed' ? `ON ${p.seconds || '?'}s` : 'ON'}`;
     if (t === 'flow_var' || t === 'set_variable') return `Set ${p.varType === 'system' ? 'System' : 'CharVar'} ${p.variable || '?'} ${p.operation || 'set'} ${p.value ?? ''}`;
+    if (t === 'set_response_context') return `Set Response Context · ${p.target === 'player' ? 'Player' : p.target ? 'member' : 'base char'} ${p.clear ? '· CLEAR' : `= ${(p.text || '').slice(0, 40) || '(empty)'}`}`;
     return t;
   }
   if (t === 'group') return `${p.name ? `Group: ${p.name}` : 'Group'} · ${(node.children || []).length} item(s)`;
