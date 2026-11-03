@@ -1106,6 +1106,8 @@ function Chat() {
   const isIndividualGroup = !!activeCharacter?.multiChar?.enabled
     && activeCharacter.multiChar.responseMode === 'individual'
     && (activeCharacter.multiChar.characters || []).length > 0;
+  // Guided Response opens the member picker on EVERY group card (Group, Individual or Alternate) —
+  // isGroupCard is declared above (portrait member-cycling).
   const runMemberPick = (memberId) => {
     const action = memberPicker?.action;
     setMemberPicker(null);
@@ -2419,8 +2421,8 @@ function Chat() {
                   type="button"
                   className={`action-btn response-action-btn ${isGenerating ? 'generating' : ''}`}
                   disabled={!activeCharacter || isPanelBlocking || sessionLoading}
-                  onClick={isGenerating ? handleCancelGeneration : (isIndividualGroup ? () => setMemberPicker({ action: 'guided' }) : () => handleGuidedGenerate('guided'))}
-                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : (isIndividualGroup ? "Guided Response — pick a member" : "Guided Response (AI continues)")}
+                  onClick={isGenerating ? handleCancelGeneration : (isGroupCard ? () => setMemberPicker({ action: 'guided' }) : () => handleGuidedGenerate('guided'))}
+                  title={isGenerating ? "Cancel generation" : sessionLoading ? "Session starting..." : (isGroupCard ? "Guided Response — pick a member" : "Guided Response (AI continues)")}
                 >🤖</button>
               </div>
               <div className="action-stack-bottom">
@@ -2442,7 +2444,7 @@ function Chat() {
                 )}
               </div>
               {/* Member picker (group Individual-Responses mode) — pick who generates / sends. */}
-              {memberPicker && isIndividualGroup && (
+              {memberPicker && (memberPicker.action === 'guided' ? isGroupCard : isIndividualGroup) && (
                 <>
                   <div className="member-picker-overlay" onClick={() => setMemberPicker(null)}
                     style={{ position: 'fixed', inset: 0, zIndex: 998 }} />

@@ -26,13 +26,19 @@ const INFLATED = [
   { value: 'player', label: 'Player' },
   { value: 'character', label: 'Character' },
   { value: 'both', label: 'Both' },
+  { value: 'mix', label: 'Random Mix' },
 ];
 
 const OPERATORS = [
   { value: 'player', label: 'Player' },
   { value: 'character', label: 'Character' },
   { value: 'story', label: 'Story Char' },
+  { value: 'shared', label: 'Both (shared)' },
+  { value: 'mix', label: 'Random Mix' },
 ];
+// Multi-Char relabels: "Character" covers every group member, "Both" becomes "All".
+const inflatedLabel = (x, multi) => (multi ? ({ character: 'Characters', both: 'All' }[x.value] || x.label) : x.label);
+const operatorLabel = (x, multi) => (multi && x.value === 'shared' ? 'All (shared)' : x.label);
 
 const INFLATION_TYPES = [
   { value: 'air', label: 'Air (Anal Infusion)', prose: 'air pumped in through an anal nozzle (anal air infusion)' },
@@ -188,8 +194,37 @@ function enforceRpFormat(text, speakerNames = []) {
   }).join('\n');
 }
 
+// Runtime wrapper for a generated checkpoint beat: the step text was written blind at creation time,
+// so tell the model to fold it into what is ACTUALLY happening rather than jump to a new scene.
+// Models ignore "no dialogue / one beat" rules, so enforce it: drop quoted speech and asterisks,
+// keep the first sentence, cap ~25 words. A beat must be a direction, not a pre-written scene.
+function sanitizeBeat(raw) {
+  let t = String(raw || '').replace(/"[^"]*"|“[^”]*”/g, ' ').replace(/\*/g, '').replace(/\s+([,.!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+  t = (t.match(/^[^.!?]*[.!?]?/) || [t])[0].trim();
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length > 25) t = words.slice(0, 25).join(' ').replace(/[,;:]$/, '');
+  t = t.replace(/[,;:\s]+$/, '');
+  if (t && !/[.!?]$/.test(t)) t += '.';
+  // Narrated pump control would contradict the real device state — drop those beats.
+  if (/\b(paus|stop|halt|switch|turn|crank|increas|decreas|adjust|speed|slow|dial|open|clos)\w*\b[^.]{0,40}\b(pump|valve|flow|nozzle|machine|pressure)/i.test(t)) return '';
+  return words.length >= 4 ? t : '';
+}
+
+// Hard length cap for always-in-context fields (models overshoot "N sentences").
+function trimToLength(text, maxSentences, maxWords) {
+  const sentences = String(text || '').replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]+["”']?|[^.!?]+$/g) || [];
+  let out = sentences.slice(0, maxSentences).map(x => x.trim()).join(' ');
+  const words = out.split(/\s+/);
+  if (words.length > maxWords) out = words.slice(0, maxWords).join(' ').replace(/[,;:]$/, '') + '.';
+  return out;
+}
+
+function beatContext(beat) {
+  return `Continue directly from the last message — keep the current moment, positions, and conversation consistent; do not skip ahead, restart, or change the setting. As part of that natural continuation, work in this beat: ${beat}`;
+}
+
 function CharacterCreatorTab() {
-  const { settings, api, personas } = useApp();
+  const { settings, api, personas, sendWsMessage } = useApp();
   const { showError, showSuccess } = useError();
   const navigate = useNavigate();
 
@@ -211,13 +246,13 @@ function CharacterCreatorTab() {
   const [welcomeCount, setWelcomeCount] = useState(1);
   const [multiChar, setMultiChar] = useState(false);
   const [extraCount, setExtraCount] = useState(1);
+  const [guidance, setGuidance] = useState('');
   const [randomizeTargets, setRandomizeTargets] = useState(false);
   const [randomizeOperators, setRandomizeOperators] = useState(false);
   const [newScenarioEach, setNewScenarioEach] = useState(false);
 
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState([]); // [{ label, status: 'pending'|'active'|'done'|'error' }]
-  const [preview, setPreview] = useState(null);
   const cancelRef = useRef(false);
   const presetsRef = useRef(null);
 
@@ -251,8 +286,15 @@ function CharacterCreatorTab() {
     return '';
   };
 
+  // Abort: flag the run AND kill the in-flight LLM request server-side (same message the chat's
+  // stop button sends), so it stops now instead of after the current call finishes.
+  const handleAbort = () => {
+    cancelRef.current = true;
+    try { sendWsMessage?.('cancel_generation', {}); } catch (e) { /* socket down — the flag still stops the run */ }
+  };
+
   const handleGenerate = async () => {
-    if (running) { cancelRef.current = true; return; }
+    if (running) { handleAbort(); return; }
 
     // ---- Resolve choices (Surprise Me picks at random) ----
     const g = GENDERS.find(x => x.value === gender) || GENDERS[0];
@@ -297,6 +339,7 @@ function CharacterCreatorTab() {
     // variant's scenario/welcome (never the card description), so it exists just in that story.
     const usedFirst = new Set([charName.split(' ')[0]]);
     const makeOp = (value) => {
+      if (value === 'mix') return { op: 'mix', names: [] }; // resolved once the group cast exists
       if (value !== 'story') return { op: value };
       const pool = NAMES[g.value].first.filter(n => !usedFirst.has(n));
       const first = pick(pool.length ? pool : NAMES[g.value].first);
@@ -327,9 +370,50 @@ function CharacterCreatorTab() {
         const pool = NAMES[g.value].first.filter(n => !usedFirst.has(n));
         const first = pick(pool.length ? pool : NAMES[g.value].first);
         usedFirst.add(first);
-        extras.push({ id: `m-${Date.now()}-${i + 1}`, name: `${first} ${pick(LAST_NAMES)}`, description: '', personality: '', hardInstruct: '', pumpable: false });
+        // Not everyone is on the character's side: some are the player's friend or a near-stranger.
+        const relations = [
+          "[Player]'s close friend, who came along with [Player]",
+          "a casual acquaintance of [Player] — they barely know each other",
+          `${charName}'s friend and accomplice`,
+          'a stranger who just happens to be here',
+        ];
+        const relation = pick(relations.filter(r => !extras.some(x => x.relation === r)));
+        extras.push({ id: `m-${Date.now()}-${i + 1}`, name: `${first} ${pick(LAST_NAMES)}`, relation, description: '', personality: '', hardInstruct: '', pumpable: false });
       }
     }
+    // ---- Random Mix resolution (needs the group cast) ----
+    // Target: a random combination of [Player], the main character and individual members — always
+    // including [Player] or the main character, since checkpoints can only track those two gauges.
+    // Resolves to the usual player/character/both + a per-variant SET of inflated members.
+    const coin = () => Math.random() < 0.5;
+    const variantMembers = [];
+    for (let v = 0; v < nWelcome; v++) {
+      if (v > 0 && !randomTargets) { variantWho[v] = variantWho[0]; variantMembers[v] = variantMembers[0]; continue; }
+      const raw = variantWho[v];
+      if (raw === 'mix') {
+        let pl = coin(); let base = coin();
+        if (!pl && !base) { if (coin()) pl = true; else base = true; }
+        const mem = extras.filter(() => coin());
+        variantWho[v] = pl && base ? 'both' : pl ? 'player' : 'character';
+        variantMembers[v] = new Set(mem.map(m => m.id));
+      } else {
+        variantMembers[v] = new Set((raw === 'character' || raw === 'both') ? extras.map(m => m.id) : []);
+      }
+    }
+    // Operator mix: any non-empty combination of [Player], the main character and members — so the
+    // player may end up inflating someone else, or themselves. A single pick collapses to that op.
+    for (const o of new Set(variantOps)) {
+      if (o.op !== 'mix') continue;
+      const pool = [{ key: 'player', name: '[Player]' }, { key: 'base', name: charName }, ...extras.map(m => ({ key: m.id, name: m.name }))];
+      let chosen = pool.filter(() => coin());
+      if (!chosen.length) chosen = [pick(pool)];
+      if (chosen.length === 1 && chosen[0].key === 'player') { o.op = 'player'; continue; }
+      if (chosen.length === 1 && chosen[0].key === 'base') { o.op = 'character'; continue; }
+      o.names = chosen.map(c => c.name);
+      o.includesPlayer = chosen.some(c => c.key === 'player');
+    }
+    const joinNames = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}` : (list[0] || ''));
+
     const ARRIVAL_RANGES = ['41-50', '61-70'];
     const makeArrivals = () => {
       if (!extras.length) return [];
@@ -343,29 +427,50 @@ function CharacterCreatorTab() {
       let n = 0;
       return extras.map((m, i) => (arr[i] === 'late' ? { m, range: ARRIVAL_RANGES[n++] || '61-70' } : null)).filter(Boolean);
     };
-    const castLine = (arr) => {
+    const castLine = (arr, w, ms) => {
+      const membersInflated = (m) => (ms ? ms.has(m.id) : (w === 'character' || w === 'both')); // this story's target
       if (!extras.length) return '';
       const parts = extras.map((m, i) => {
         const prof = m.description ? ` — ${m.description.split(/(?<=[.!?])\s/).slice(0, 2).join(' ')}` : '';
         const when = !arr ? '' : arr[i] === 'late'
           ? ` NOT present at the start — arrives later (around ${arrivalPlan(arr).find(a => a.m === m)?.range.split('-')[0]}% capacity); only mention them as expected/absent before that`
           : ' present from the very start';
-        return `${m.name} (${g.pronouns})${prof};${when}${m.pumpable ? `; ${m.name.split(' ')[0]} ALSO gets inflated (${methodLabel.toLowerCase()}) with their own belly and fullness` : ''}`;
+        return `${m.name} (${g.pronouns}, ${m.relation})${prof};${when}${m.pumpable && membersInflated(m) ? `; ${m.name.split(' ')[0]} ALSO gets inflated (${methodLabel.toLowerCase()}) with their own belly and fullness` : ''}`;
       });
       return `\n- Group cast (they share the scene with ${charName} and also speak in replies): ${parts.join(' | ')}.`;
     };
-    const operatorTextOf = (o) => (o.op === 'player' ? '[Player]' : o.op === 'character' ? charName : `${o.npcName} (a supporting character, ${g.pronouns})`);
-    const opLabel = (o) => (o.op === 'player' ? 'Player pumps' : o.op === 'character' ? 'Char pumps' : `${o.npcName.split(' ')[0]} pumps`);
+    // Everyone on the character side: the main character plus any group members.
+    const castNames = [charName, ...extras.map(m => m.name)];
+    const castText = castNames.length > 1 ? `${castNames.slice(0, -1).join(', ')} and ${castNames[castNames.length - 1]}` : charName;
+    const operatorTextOf = (o) => (o.op === 'player' ? '[Player]'
+      : o.op === 'character' ? (extras.length ? `${castText} (the characters together)` : charName)
+        : o.op === 'shared' ? `everyone — [Player] and ${castText} share control of the pump (taking turns, handing it off, or fighting over it)`
+          : o.op === 'mix' ? `${joinNames(o.names)} — sharing control of the pump (taking turns or fighting over it)${o.includesPlayer ? '; [Player] has a hand on it too' : ''}`
+          : `${o.npcName} (a supporting character, ${g.pronouns})`);
+    const opLabel = (o) => (o.op === 'player' ? 'Player pumps' : o.op === 'character' ? (extras.length ? 'Chars pump' : 'Char pumps')
+      : o.op === 'shared' ? 'Shared pump' : o.op === 'mix' ? 'Mixed pump' : `${o.npcName.split(' ')[0]} pumps`);
     const anyPlayerInflated = variantWho.some(w => w === 'player' || w === 'both');
     const anyCharInflated = variantWho.some(w => w === 'character' || w === 'both');
-    const victimOf = (w) => (w === 'player' ? '[Player]' : w === 'character' ? charName : `both [Player] and ${charName}`);
-    const whoLabel = (w) => (w === 'both' ? 'Both inflated' : `${w === 'player' ? 'Player' : 'Character'} inflated`);
+    // Who is inflated in a variant: base target + that variant's member set (ms; undefined = members
+    // follow the characters).
+    const inflatedPeople = (w, ms) => [
+      ...((w === 'player' || w === 'both') ? ['[Player]'] : []),
+      ...((w === 'character' || w === 'both') ? [charName] : []),
+      ...extras.filter(m => (ms ? ms.has(m.id) : (w === 'character' || w === 'both'))).map(m => m.name),
+    ];
+    const victimOf = (w, ms) => joinNames(inflatedPeople(w, ms));
+    const whoLabel = (w, ms) => {
+      const ppl = inflatedPeople(w, ms);
+      if (!extras.length) return w === 'both' ? 'Both inflated' : w === 'player' ? 'Player inflated' : 'Character inflated';
+      if (ppl.length === extras.length + 2) return 'All inflated';
+      return `${ppl.map(n => (n === '[Player]' ? 'Player' : n.split(' ')[0])).join(' + ')} inflated`;
+    };
 
     const plan = createCheckpoints ? LEVEL_PLAN[checkpointLevel] : null;
     const ckptRanges = plan ? [...plan.ranges, ...(enforceBursting ? ['100+'] : [])] : [];
 
     const vTag = (v) => (nWelcome > 1 ? `Welcome ${v + 1} · ` : '');
-    const stepList = ['Description', ...extras.map(m => `Member: ${m.name.split(' ')[0]}`), 'Personality', 'Hard instruct', 'Example dialogue'];
+    const stepList = ['Description', ...extras.map((m, i) => `Group member ${i + 1}`), 'Personality', 'Hard instruct', 'Example dialogue'];
     for (let v = 0; v < nWelcome; v++) {
       const ownStory = v === 0 || perVariantScenario;
       if (ownStory && variantOps[v].op === 'story') stepList.push(`${vTag(v)}Story char`);
@@ -375,7 +480,6 @@ function CharacterCreatorTab() {
     }
     stepList.push('Saving character');
     setSteps(stepList.map(label => ({ label, status: 'pending' })));
-    setPreview({ name: charName, location: loc.label, methods: methodLabel });
     cancelRef.current = false;
     setRunning(true);
 
@@ -383,18 +487,19 @@ function CharacterCreatorTab() {
 
     // Shared story brief — every prompt gets the same facts so the fields stay cohesive. `w` =
     // this variant's inflation target (null = card-level text that must fit every variant).
-    const briefFor = (w, o, pl, arr) => `STORY FACTS (keep every detail consistent with these):
-- Character: ${charName} (${g.label.toLowerCase()}, ${g.pronouns}).
+    const guidanceText = String(guidance || '').trim().slice(0, 600);
+    const briefFor = (w, o, pl, arr, ms) => `STORY FACTS (keep every detail consistent with these):
+- Character: ${charName} (${g.label.toLowerCase()}, ${g.pronouns}).${guidanceText ? `\n- Creator's guidance (work it in naturally where it fits; the facts above win if they conflict): ${guidanceText}` : ''}
 - Personality type: ${personality} — ${TONE[personality]}.
 - The player is written as [Player] (never invent a name). For the player's pronouns write [Gender] (e.g. "[Gender] belly", "looks at [Gender]") — it resolves at runtime.
 - [Player] is ${playerGenderText}. Write [Player]'s body, clothing, and how ${charName} addresses and treats [Gender] to fit that gender (e.g. ${playerAddress}).
 - Location: ${loc.prose}.
 - Inflation method: ${methodProse}.
 - Plot: ${pl ? `${pl.prose}. Build the story's motive, stakes and escalation around this plot.` : 'varies between stories — do NOT commit to one specific plot here'}.
-- Being inflated: ${w ? victimOf(w) : 'varies between stories ([Player], ' + charName + ', or both) — do NOT commit to who'}.
+- Being inflated: ${w ? victimOf(w, ms) : 'varies between stories ([Player], ' + charName + ', or both) — do NOT commit to who'}.
 - Operating the pump: ${o ? operatorTextOf(o) : 'named in each scenario — do NOT mention who here'}.${o?.op === 'story' ? `\n- ${o.npcName} is a supporting character who exists only in this scene${o.npcProfile ? `: ${o.npcProfile}` : ''}. ${charName}'s replies also narrate and voice ${o.npcName}.` : ''}
-${castLine(arr)}
-- Ending: ${enforceBursting ? `the scene builds toward a burst — ${w && w !== 'both' ? victimOf(w) : 'someone'} will ultimately be inflated until they burst/pop.` : 'the scene builds to maximum fullness but nobody bursts — the climax is being impossibly full at the very edge.'}`;
+${castLine(arr, w, ms)}
+- Ending: ${enforceBursting ? `the scene builds toward a burst — ${w ? victimOf(w, ms) : 'someone'} will ultimately be inflated until they burst/pop.` : 'the scene builds to maximum fullness but nobody bursts — the climax is being impossibly full at the very edge.'}`;
 
     const style = `STYLE: grounded, sensory, natural language — no purple prose. Never write the player's dialogue or decisions. Use [Player] for the player's name. Output ONLY the requested text, no headings, no notes, no explanations.`;
 
@@ -404,14 +509,13 @@ ${castLine(arr)}
     try {
       // Card-level text must fit every variant and never mention a story char (they live only in
       // their own scenario/welcome).
-      const cardBrief = briefFor(randomTargets ? null : who, (randomOps || variantOps[0].op === 'story') ? null : variantOps[0], mixedPlots ? null : variantPlots[0]);
-      const cardWho = randomTargets ? null : who;
+      const cardBrief = briefFor(randomTargets ? null : variantWho[0], (randomOps || variantOps[0].op === 'story') ? null : variantOps[0], mixedPlots ? null : variantPlots[0], undefined, randomTargets ? undefined : variantMembers[0]);
+      const cardWho = randomTargets ? null : variantWho[0];
       const description = await run(async () => clean(await llm(`You are writing a roleplay character card.
 ${cardBrief}
 
 Write ${charName}'s DESCRIPTION in third person, 2 short paragraphs: their appearance, clothing, background, how they came to be at this location, and their relationship to [Player]${extras.length ? ` and to ${extras.map(m => m.name).join(' and ')}` : ''}. Mention how they feel about inflation and their role in it${cardWho ? ` (${cardWho === 'player' ? 'they are involved in inflating [Player]' : 'they are going to be inflated'})` : ''}.
 ${style}`, 450)));
-      setPreview(p => ({ ...p, description }));
 
       // Group members: description / personality / voice in one structured call each.
       for (const m of extras) {
@@ -422,11 +526,10 @@ ${cardBrief}
 Main character ${charName}:
 ${description}
 ${others ? `\nOther group member(s):\n${others}\n` : ''}
-Create ${m.name} (${g.label.toLowerCase()}, ${g.pronouns}) — a distinct person with their own look, attitude and relationship to ${charName} and to [Player]. Use EXACTLY this format:
+Create ${m.name} (${g.label.toLowerCase()}, ${g.pronouns}) — a distinct person with their own look and attitude. Their relationship: ${m.relation}. Use EXACTLY this format:
 DESCRIPTION: <2-3 sentences: appearance, who they are, why they are here, relationship to ${charName}>
 PERSONALITY: <6-8 comma-separated traits>
-VOICE: <one sentence starting with "Speak like", a concrete modern speaking style different from ${charName}'s>
-INFLATED: <yes or no — does ${m.name} ALSO get inflated in this story? ${anyCharInflated ? `The characters are being inflated here, so usually yes unless their role makes it impossible.` : `[Player] is the main target; say yes only if the plot (${mixedPlots ? 'it varies' : variantPlots[0].label.toLowerCase()}) gives a real reason for ${m.name} to be pumped too.`}>`, 280));
+VOICE: <one sentence starting with "Speak like", a concrete modern speaking style different from ${charName}'s>`, 260));
         const t = String(raw || '');
         const grab = (k) => clean((t.match(new RegExp(`${k}\\s*:\\s*([^\\n]+)`, 'i')) || [])[1] || '');
         m.description = grab('DESCRIPTION') || `${m.name} is part of ${charName}'s circle and shares the scene.`;
@@ -434,9 +537,8 @@ INFLATED: <yes or no — does ${m.name} ALSO get inflated in this story? ${anyCh
         let voice = grab('VOICE').replace(/^["“']+|["”']+$/g, '');
         if (voice && !/^speak like/i.test(voice)) voice = `Speak like ${voice.replace(/^[A-Z]/, c => c.toLowerCase())}`;
         m.hardInstruct = voice || '';
-        // Story decides member pump targets; fall back to "yes" when the characters are the targets.
-        const inf = grab('INFLATED').toLowerCase();
-        m.pumpable = inf ? /^y/.test(inf) : anyCharInflated;
+        // Members follow "Who is being inflated": Characters / All make every member a pump target.
+        m.pumpable = variantMembers.some(ms => ms.has(m.id));
       }
 
       const persText = await run(async () => clean(await llm(`You are writing a roleplay character card.
@@ -484,12 +586,13 @@ CHAR: <...>`, 350));
       // Build one checkpoint profile for a variant (target `w`, scenario text). Returns
       // { profile, charThemes, autoPumpOperator }.
       const buildProfile = async (w, o, scenario, v) => {
-        const brief = briefFor(w, o, variantPlots[v], variantArrivals[v]);
+        const ms = variantMembers[v];
+        const brief = briefFor(w, o, variantPlots[v], variantArrivals[v], ms);
         const { op, npcName } = o;
         const operatorText = operatorTextOf(o);
         const playerInflated = w === 'player' || w === 'both';
         const charInflated = w === 'character' || w === 'both';
-        const victimText = victimOf(w);
+        const victimText = victimOf(w, ms);
         const themes = {};
         for (const k of RANGE_KEYS) themes[k] = { mainTheme: preset?.ranges?.[k]?.mainTheme || FALLBACK_THEMES[k] };
         const triggers = {}; // `${track}-${range}` → { sequential: [], random: [] }
@@ -519,25 +622,34 @@ How big the belly actually is at this point (stay accurate to this — do not ex
 ${priorBeats.length ? `Earlier beats already used (do NOT repeat them, escalate from them):\n${priorBeats.slice(-6).map(b => `- ${b}`).join('\n')}\n` : ''}
 Write EXACTLY this format:
 THEME: <1-2 sentences of guidance for how the scene and ${track === 'player' ? "[Player]'s" : `${charName}'s`} body should be written at this fullness${w === 'both' ? ` — describe ONLY ${track === 'player' ? '[Player]' : charName}'s belly here; ${track === 'player' ? charName : '[Player]'}'s fullness is tracked separately` : ''}>
-${Array.from({ length: nSteps }, (_, i) => `STEP ${i + 1}: <one sentence instruction describing what ${charName} does and says at this moment${i > 0 ? ', escalating from the previous step' : ''}>`).join('\n')}
+${Array.from({ length: nSteps }, (_, i) => `STEP ${i + 1}: <a short story BEAT, under 20 words${i > 0 ? ', escalating from the previous step' : ''}>`).join('\n')}
 
-Steps are instructions to the writer, e.g. "${charName} taps the swelling belly and teases [Player] about how tight it's getting." Use [Player] for the player.`, 120 + nSteps * 90));
+STEP RULES — these fire later, in the middle of a live roleplay whose exact events you cannot see, so each beat must fit ANY moment of the scene:
+- Describe WHAT changes or what ${charName} reacts to (a feeling, a reaction, a decision, a shift in mood or tension) — not a scripted scene.
+- NO exact dialogue, NO quotation marks, NO stage blocking (no "moves behind", "kneels", "picks up", no attaching or adjusting equipment).
+- Never assume where anyone is standing or what was just said.
+- NEVER have anyone start, stop, pause, speed up, or adjust the pump/flow — the real device controls that.
+Good: "${charName} notices how quickly the belly is rounding and teases [Player] about it." Bad: "${charName} kneels and says \"look at you\" while adjusting the nozzle."`, 140 + nSteps * 60));
 
           const text = String(raw || '');
           const themeM = text.match(/THEME\s*:\s*([^\n]+)/i);
-          const stepTexts = [...text.matchAll(/STEP\s*\d+\s*:\s*([^\n]+)/gi)].map(m => clean(m[1])).filter(Boolean).slice(0, nSteps);
+          const stepTexts = [...text.matchAll(/STEP\s*\d+\s*:\s*([^\n]+)/gi)].map(m => sanitizeBeat(clean(m[1]))).filter(Boolean).slice(0, nSteps);
           if (themeM) {
             const th = clean(themeM[1]);
             if (track === 'player') themes[rk] = { mainTheme: th };
             if (charInflated) charThemes[rk] = { mainTheme: track === 'char' ? th : FALLBACK_THEMES[rk] };
           }
-          priorBeats.push(...stepTexts);
+          // Every band keeps at least one beat even if the model's were all rejected.
+        if (!stepTexts.length && !isBurst) stepTexts.push(`${charName} reacts in character to how full ${track === 'player' ? '[Player]' : charName} is getting — ${RANGE_STAGE[rk]}.`);
+        priorBeats.push(...stepTexts);
 
           // Sequential triggers: first step on entry, the rest spaced by Fire% inside the band.
           const seq = [];
           stepTexts.forEach((st, i) => {
-            const t = { id: uid('trg'), type: 'ai_message', context: st };
-            if (i > 0 && !isBurst) t.firePercent = Math.min(hi, lo + Math.round(((hi - lo) * i) / nSteps));
+            const t = { id: uid('trg'), type: 'ai_message', context: beatContext(st) };
+            // Every step waits for its own % inside the band, so normal replies happen between beats
+            // and nothing fires the instant a band is entered (e.g. right after the welcome).
+            if (!isBurst) t.firePercent = Math.min(hi, lo + Math.max(2, Math.round(((hi - lo) * (i + 0.5)) / nSteps)));
             seq.push(t);
           });
           // Climax functions: drive / stop the pump and gate the final beat on the gauge.
@@ -548,19 +660,19 @@ Steps are instructions to the writer, e.g. "${charName} taps the swelling belly 
               }
               if (!enforceBursting && autoPumpOperator) {
                 seq.push({ id: uid('trg'), type: 'pump_off', firePercent: 99 });
-                seq.push({ id: uid('trg'), type: 'ai_message', firePercent: 99, context: `${op === 'story' ? npcName : charName} shuts the pump off at the very edge — [Player] is as full as [Gender] can possibly be, and ${charName} savours the moment.` });
+                seq.push({ id: uid('trg'), type: 'ai_message', firePercent: 99, context: beatContext(`${op === 'story' ? npcName : charName} shuts the pump off at the very edge — [Player] is as full as [Gender] can possibly be, and ${charName} savours the moment.`) });
               }
               if (enforceBursting) {
-                seq.push({ id: uid('trg'), type: 'ai_message', firePercent: 100, context: `[Player] reaches the absolute limit and bursts. ${charName} reacts in character (${personality.toLowerCase()}).` });
+                seq.push({ id: uid('trg'), type: 'ai_message', firePercent: 100, context: beatContext(`[Player] reaches the absolute limit and bursts. ${charName} reacts in character (${personality.toLowerCase()}).`) });
               }
             }
             if (charInflated) {
               const ct = triggers[`char-${rk}`] || { sequential: [], random: [] };
               if (enforceBursting) {
-                ct.sequential.push({ id: uid('trg'), type: 'ai_message', firePercent: 100, context: `${charName} reaches the absolute limit and bursts.` });
+                ct.sequential.push({ id: uid('trg'), type: 'ai_message', firePercent: 100, context: beatContext(`${charName} reaches the absolute limit and bursts.`) });
               } else {
                 ct.sequential.push({ id: uid('trg'), type: 'char_inflate_stop', firePercent: 99 });
-                ct.sequential.push({ id: uid('trg'), type: 'ai_message', firePercent: 99, context: `The pump stops — ${charName} is impossibly full, right at the edge, and reacts in character.` });
+                ct.sequential.push({ id: uid('trg'), type: 'ai_message', firePercent: 99, context: beatContext(`The pump stops — ${charName} is impossibly full, right at the edge, and reacts in character.`) });
               }
               triggers[`char-${rk}`] = ct;
             }
@@ -573,9 +685,10 @@ Steps are instructions to the writer, e.g. "${charName} taps the swelling belly 
         for (const { m, range } of arrivalPlan(variantArrivals[v] || [])) {
           const key = `${track}-${range}`;
           const ex = triggers[key] || { sequential: [], random: [] };
-          ex.sequential = [{ id: uid('trg'), type: 'ai_message', context: `${m.name} arrives and joins the scene now (${m.description.split(/(?<=[.!?])\s/)[0]}). Make the entrance a clear moment — ${charName} and the others react, and ${m.name.split(' ')[0]} speaks to [Player]. From now on ${m.name.split(' ')[0]} takes part.` },
+          const [alo] = RANGE_BOUNDS[range];
+          ex.sequential = [{ id: uid('trg'), type: 'ai_message', firePercent: alo + 1, context: `Continue directly from the last message, keeping everything already established consistent. ${m.name} arrives and joins the scene now (${m.description.split(/(?<=[.!?])\s/)[0]}). Make the entrance a clear moment — ${charName} and the others react, and ${m.name.split(' ')[0]} speaks to [Player]. From now on ${m.name.split(' ')[0]} takes part.` },
             // A pump-target member arriving with a non-player operator gets hooked up on arrival.
-            ...(m.pumpable && op !== 'player' ? [{ id: uid('trg'), type: 'char_inflate_start', targetMember: m.id }] : []),
+            ...(ms.has(m.id) && op !== 'player' ? [{ id: uid('trg'), type: 'char_inflate_start', targetMember: m.id }] : []),
             ...ex.sequential];
           triggers[key] = ex;
         }
@@ -587,12 +700,12 @@ Steps are instructions to the writer, e.g. "${charName} taps the swelling belly 
         const ssNodes = [
           ...((charInflated && op !== 'player') ? [{ id: uid('node'), kind: 'action', type: 'char_inflate_start', params: {} }] : []),
           // Pump-target group members present from the opening start their own (simulated) pumps too.
-          ...(op !== 'player' ? extras.filter((m, i) => m.pumpable && (variantArrivals[v] || [])[i] !== 'late')
+          ...(op !== 'player' ? extras.filter((m, i) => ms.has(m.id) && (variantArrivals[v] || [])[i] !== 'late')
             .map(m => ({ id: uid('node'), kind: 'action', type: 'char_inflate_start', params: { targetMember: m.id } })) : []),
         ];
         const profile = {
           id: uid('prof'),
-          name: nWelcome > 1 && perVariantScenario ? `Welcome ${v + 1} — ${variantPlots[v].label}, ${whoLabel(w)}, ${opLabel(o)}` : variantPlots[0].label,
+          name: nWelcome > 1 && perVariantScenario ? `Welcome ${v + 1} — ${variantPlots[v].label}, ${whoLabel(w, ms)}, ${opLabel(o)}` : variantPlots[0].label,
           rules: [
             `Plot: ${variantPlots[v].prose}.`,
             `Inflation method: ${methodProse}.`,
@@ -622,23 +735,27 @@ Steps are instructions to the writer, e.g. "${charName} taps the swelling belly 
         let built = shared?.built;
         if ((v === 0 || perVariantScenario) && o.op === 'story' && !o.npcProfile) {
           o.npcProfile = await run(async () => clean(await llm(`You are creating a supporting character for one roleplay scene.
-${briefFor(w, { ...o, npcProfile: '' }, variantPlots[v], variantArrivals[v])}
+${briefFor(w, { ...o, npcProfile: '' }, variantPlots[v], variantArrivals[v], variantMembers[v])}
 
 Create ${o.npcName} (${g.label.toLowerCase()}, ${g.pronouns}), the person who operates the pump in this scene. In 2 sentences give their role at this location, their appearance, their attitude toward [Player]${w !== 'player' ? ` and ${charName}` : ''}, and why they are the one running the pump. They should feel distinct from ${charName}.
 ${style}`, 160)));
         }
-        const brief = briefFor(w, o, variantPlots[v], variantArrivals[v]);
+        const brief = briefFor(w, o, variantPlots[v], variantArrivals[v], variantMembers[v]);
         if (v === 0 || perVariantScenario) {
-          const prevSc = scenarios.map(s => `- ${s.text.slice(0, 220)}`).join('\n');
+          // Scenario rides in every prompt — keep it tiny for small context windows: 2 sentences,
+          // +1 per extra named character (story char / group member), hard-trimmed afterwards.
+          const scSentences = 2 + extras.length + (o.op === 'story' ? 1 : 0);
+          const scWords = 45 + 20 * (extras.length + (o.op === 'story' ? 1 : 0));
+          const prevSc = scenarios.map(s => `- ${s.text.slice(0, 160)}`).join('\n');
           const scText = await run(async () => clean(await llm(`You are writing a roleplay character card.
 ${brief}
 
 Character description:
 ${description}
 
-Write the SCENARIO in third person present tense, 3-4 sentences: where ${charName} and [Player] are, why they are there, what is about to happen (${methodProse}), who is being inflated (${victimOf(w)}), and who controls the pump (${operatorTextOf(o)}), and the plot (${variantPlots[v].label.toLowerCase()}) driving it.${o.op === 'story' ? ` Introduce ${o.npcName} by name with a short description so the story remembers who they are.` : ''}${extras.length ? ` Name every group member and their part in this; for anyone who arrives later, say they are expected/on their way.` : ''} Set up tension, do not resolve it.${prevSc ? `\nThis must be a DIFFERENT situation from these existing scenarios (same location, new reason/setup):\n${prevSc}` : ''}
-${style}`, 260)));
-          sc = { id: uid('sc'), text: scText };
+Write a SHORT SCENARIO — ${scSentences} plain sentences, under ${scWords} words total, third person present tense. State only the facts: where ${charName} and [Player] are, why (the ${variantPlots[v].label.toLowerCase()} plot), who is inflated (${victimOf(w, variantMembers[v])}) and who runs the pump (${operatorTextOf(o)}).${o.op === 'story' ? ` Name ${o.npcName} and their role in a few words.` : ''}${extras.length ? ` Name each group member in a few words; say who arrives later.` : ''} No sensory description, no backstory, no adjectives piled up.${prevSc ? `\nMake it a DIFFERENT setup from these existing scenarios:\n${prevSc}` : ''}
+${style}`, 70 + scWords * 2)));
+          sc = { id: uid('sc'), text: trimToLength(scText, scSentences, scWords) };
           scenarios.push(sc);
         }
         const prevWm = welcomes.map(x => `- ${x.text.slice(0, 200)}`).join('\n');
@@ -653,7 +770,6 @@ ${sc.text}
 
 Write ${charName}'s WELCOME MESSAGE — the first message of the roleplay, 3-5 paragraphs, written as ${charName}. Narrate in THIRD PERSON ("${charName} leans…", never "I lean…") and refer to the player as [Player] or [Gender] in narration, never "you" (dialogue may say "you"). FORMAT RULE: every action/narration sentence goes inside *single asterisks* and every spoken line goes inside "double quotes" — e.g. *${charName} leans against the doorframe, smirking.* "You finally made it." *She gestures at the bench.*${o.op === 'story' ? ` ${o.npcName} (the pump operator) appears and speaks too.` : ''}${extras.length ? ` Group members who are present from the start must appear and speak, each in their own voice; anyone arriving later is only mentioned (expected, late, on the way).` : ''} Establish the location with sensory detail, show ${charName}'s personality, set up the ${methodLabel.toLowerCase()} equipment, and address [Player] directly. Inflation has NOT started yet (or is just starting) — no belly growth yet. End on a moment that invites [Player] to respond. Do not write [Player]'s actions, thoughts, or dialogue.${prevWm ? `\nThis is an ALTERNATE opening — make it clearly different from these existing ones (different first action, different first line):\n${prevWm}` : ''}
 ${style}`, 700))));
-        if (v === 0) setPreview(p => ({ ...p, welcome }));
         if (v === 0 || perVariantScenario) {
           built = await buildProfile(w, o, sc.text, v);
           profiles.push(built.profile);
@@ -673,7 +789,7 @@ ${style}`, 700))));
       const storyId = uid('story');
       const attributes = ATTRIBUTES[personality];
       const memberId = `m-${Date.now()}`;
-      const shortDescription = `${personality} · ${mixedPlots ? 'Mixed plots' : variantPlots[0].label} · ${loc.label} · ${methodLabel} · ${randomTargets ? 'Mixed targets' : whoLabel(who)}`;
+      const shortDescription = `${personality} · ${mixedPlots ? 'Mixed plots' : variantPlots[0].label} · ${loc.label} · ${methodLabel} · ${randomTargets ? 'Mixed targets' : whoLabel(variantWho[0], variantMembers[0])}`;
       const authorsNote = [
         (settings?.globalPrompt || '').trim(),
         `[Story note: ${charName} is ${TONE[personality]}. Inflation by ${methodProse}. ${(randomOps || variantOps[0].op === 'story') ? 'The scenario names who operates the pump.' : `${operatorTextOf(variantOps[0])} operates the pump.`} ${enforceBursting ? 'Build toward a burst.' : 'Nobody bursts.'} Write [Player]'s pronouns as [Gender].]`,
@@ -694,10 +810,13 @@ ${style}`, 700))));
         avatar: '',
         authorsNote,
         instructor: { enabled: false },
+        // Checkpoints live ONLY on the base character (the active story) and the base member is the
+        // explicit Primary — group members get no checkpoint store of their own.
+        primaryCheckpointMemberId: memberId,
         // Group card: Respond as Group by default. Member 0 IS the base character (mirrors the card).
         multiChar: {
           enabled: extras.length > 0,
-          ...(extras.length ? { responseMode: 'group' } : {}),
+          ...(extras.length ? { responseMode: 'group', voiceLocked: true } : {}),
           characters: [
             { id: memberId, name: charName, description, personality: persText, gender: g.value, portrait: '', hardInstruct, isPumpable: anyCharInflated },
             ...extras.map(m => ({ id: m.id, name: m.name, description: m.description, personality: m.personality, gender: g.value, portrait: '', hardInstruct: m.hardInstruct, isPumpable: !!m.pumpable })),
@@ -746,7 +865,7 @@ ${style}`, 700))));
           ...(charThemes ? { characterCheckpoints: charThemes } : {}),
         }],
         activeStoryId: storyId,
-        generatedBy: { tool: 'character-creator', options: { gender: g.value, personality, inflated: variantWho, operator: variantOps.map(o => o.op), types: typeVals, location: loc.value, plots: variantPlots.map(p => p.value), groupMembers: extras.map(m => m.name), checkpoints: createCheckpoints ? checkpointLevel : 'off', enforceBursting, storyChars: variantOps.filter(o => o.npcName).map(o => o.npcName), playerPronouns: personaPronouns, welcomeCount: nWelcome, randomizeTargets: randomTargets, randomizeOperators: randomOps, newScenarioEach: perVariantScenario } },
+        generatedBy: { tool: 'character-creator', options: { gender: g.value, personality, inflated: variantWho.map((w, i) => victimOf(w, variantMembers[i])), operatorsMix: variantOps.map(o => (o.op === 'mix' ? o.names : null)), operator: variantOps.map(o => o.op), types: typeVals, location: loc.value, plots: variantPlots.map(p => p.value), groupMembers: extras.map(m => `${m.name} (${m.relation})`), guidance: guidanceText, checkpoints: createCheckpoints ? checkpointLevel : 'off', enforceBursting, storyChars: variantOps.filter(o => o.npcName).map(o => o.npcName), playerPronouns: personaPronouns, welcomeCount: nWelcome, randomizeTargets: randomTargets, randomizeOperators: randomOps, newScenarioEach: perVariantScenario } },
       };
 
       const saved = await api.createCharacter(card);
@@ -764,7 +883,7 @@ ${style}`, 700))));
       setRunning(false);
       if (e?.message === 'cancelled') {
         setSteps(prev => prev.map(s => (s.status === 'active' ? { ...s, status: 'error' } : s)));
-        showError?.('Character generation cancelled');
+        showError?.('Character generation aborted');
         return;
       }
       console.error('[CharacterCreator] generation failed:', e);
@@ -808,16 +927,18 @@ ${style}`, 700))));
         <div className="form-group">
           <label>Who is being inflated?</label>
           <select value={inflated} disabled={disabled || inflatedSurprise} onChange={(e) => setInflated(e.target.value)}>
-            {INFLATED.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+            {INFLATED.map(x => <option key={x.value} value={x.value}>{inflatedLabel(x, multiChar)}</option>)}
           </select>
+          {inflated === 'mix' && !inflatedSurprise && <span className="section-hint">A random combination of [Player], the character{multiChar ? ' and any group members' : ''} — always includes [Player] or the main character.</span>}
           {surprise(inflatedSurprise, setInflatedSurprise)}
         </div>
 
         <div className="form-group">
           <label>Who is operating the pump?</label>
           <select value={operator} disabled={disabled || operatorSurprise} onChange={(e) => setOperator(e.target.value)}>
-            {OPERATORS.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+            {OPERATORS.map(x => <option key={x.value} value={x.value}>{operatorLabel(x, multiChar)}</option>)}
           </select>
+          {operator === 'mix' && !operatorSurprise && <span className="section-hint">A random set of operators — [Player] may end up pumping someone else, or themselves.</span>}
           {surprise(operatorSurprise, setOperatorSurprise)}
         </div>
 
@@ -871,7 +992,14 @@ ${style}`, 700))));
             <div className="cc-sub">
               {check(randomizeTargets, setRandomizeTargets, 'Randomize Inflation Targets')}
               {check(randomizeOperators, setRandomizeOperators, 'Randomize Pump Operators')}
-              {check(newScenarioEach || randomizeTargets || randomizeOperators, setNewScenarioEach, 'New Scenario for Each', { off: randomizeTargets || randomizeOperators })}
+              {check(newScenarioEach || randomizeTargets || randomizeOperators, setNewScenarioEach,
+                (randomizeTargets || randomizeOperators) ? 'New Scenario for Each (required)' : 'New Scenario for Each',
+                { off: randomizeTargets || randomizeOperators })}
+              {(randomizeTargets || randomizeOperators) && (
+                <span className="section-hint" style={{ marginTop: -2 }}>
+                  Locked on: each welcome has a different {randomizeTargets && randomizeOperators ? 'target and pump operator' : randomizeTargets ? 'inflation target' : 'pump operator'}, and the scenario and checkpoints name who that is — one shared scenario would contradict the other welcomes.
+                </span>
+              )}
             </div>
           )}
           <p className="section-hint" style={{ marginTop: 6 }}>
@@ -911,22 +1039,29 @@ ${style}`, 700))));
         </p>
       )}
 
+      <div className="form-group" style={{ marginTop: 14 }}>
+        <label>Scenario or Character Guidance (Optional)</label>
+        <textarea rows={3} value={guidance} disabled={disabled} maxLength={600} onChange={(e) => setGuidance(e.target.value)}
+          placeholder="e.g. She's [Player]'s strict older roommate. Keep it playful at first, darker later. One of the group is secretly on [Player]'s side." />
+        <p className="section-hint" style={{ marginTop: 4 }}>A light nudge added to every generation step — the choices above still take priority.</p>
+      </div>
+
       <div className="tab-header-actions" style={{ marginTop: 12 }}>
         <button className={`btn ${running ? 'btn-danger' : 'btn-primary'}`} onClick={handleGenerate}
           disabled={!running && !typesSurprise && types.length === 0}>
-          {running ? 'Cancel' : 'Generate'}
+          {running ? 'Abort' : 'Generate'}
         </button>
         {!typesSurprise && types.length === 0 && <span className="section-hint">Pick at least one inflation type.</span>}
       </div>
 
       {steps.length > 0 && (
         <div className="cc-progress">
-          {preview?.name && (
-            <div style={{ marginBottom: 8 }}>
-              <strong>{preview.name}</strong>
-              <span className="section-hint"> — {preview.location} · {preview.methods}</span>
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <strong>{running ? 'Generating…' : steps.some(x => x.status === 'error') ? 'Stopped' : 'Done'}</strong>
+            <span className="section-hint">{steps.filter(x => x.status === 'done').length} / {steps.length}</span>
+            <span style={{ flex: 1 }} />
+            {running && <button type="button" className="btn btn-sm btn-danger" onClick={handleAbort}>Abort</button>}
+          </div>
           <ul>
             {steps.map((s, i) => (
               <li key={i} style={{ opacity: s.status === 'pending' ? 0.5 : 1 }}>
@@ -934,9 +1069,6 @@ ${style}`, 700))));
               </li>
             ))}
           </ul>
-          {preview?.description && (
-            <p className="section-hint" style={{ marginTop: 10, whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>{preview.description}</p>
-          )}
         </div>
       )}
     </div>

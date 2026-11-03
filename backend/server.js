@@ -1331,6 +1331,10 @@ function getEffectivePopThreshold(settings) {
   return Infinity; // Default - no auto-pop
 }
 
+// Hardcoded default inflation method: models otherwise improvise (mouth, navel, magic, "air
+// tablets"…). Anything the card/scenario/chat states explicitly wins.
+const INFLATION_METHOD_DEFAULT = 'Inflation method (default): unless the card, scenario, or chat clearly says otherwise, inflation is ALWAYS done anally — the air or liquid enters through a nozzle or tube in the anus and fills the belly from inside. Do not invent other entry points or methods unless they are stated.\n';
+
 // Initialize device service
 const deviceService = new DeviceService();
 
@@ -10042,6 +10046,89 @@ function computeSpeakingOrder(members, mutedSet, playerText) {
   return [...mentioned, ...rotated].map(m => m.id);
 }
 
+// Per-turn response mode for group cards. 'alternate' picks Respond as Group or Individual
+// Responses at random each turn; the other modes pass through unchanged.
+function resolveTurnResponseMode(character) {
+  const mode = character?.multiChar?.responseMode || 'group';
+  if (mode !== 'alternate') return mode;
+  const picked = Math.random() < 0.5 ? 'group' : 'individual';
+  console.log(`[Group] Alternate mode → ${picked} this turn`);
+  return picked;
+}
+// Individual turns don't always hear from EVERY member: anyone the player named always speaks,
+// everyone else rolls a ~55% chance, and at least one member (the first in speaking order) replies.
+function pickTurnSpeakers(orderedIds, members, playerText) {
+  if (!Array.isArray(orderedIds) || orderedIds.length <= 1) return orderedIds;
+  const text = String(playerText || '').toLowerCase();
+  const named = (m) => !!m?.name && (text.includes(m.name.toLowerCase()) || text.includes(String(m.name).split(' ')[0].toLowerCase()));
+  const picked = orderedIds.filter(id => named(members.find(m => m.id === id)) || Math.random() < 0.55);
+  const out = picked.length ? picked : [orderedIds[0]];
+  console.log(`[Group] Individual turn speakers: ${out.length}/${orderedIds.length}`);
+  return out;
+}
+
+// Voice-locked group replies (multiChar.voiceLocked, Respond as Group): instead of ONE generation
+// voicing the whole cast — where weaker models blur everyone into one voice — run one short pass
+// per speaking member, each ending on THAT member's own voice note, and stitch them into a single
+// bubble. Each pass sees the parts already written this turn (as the reply-so-far on text
+// completion, inside the note on chat completion) so members react to each other. Returns the same
+// { text } shape as llmService.generate so the blended path's post-processing is untouched.
+function isVoiceLockedGroup(character) {
+  const mc = character?.multiChar;
+  return !!(mc?.enabled && mc.voiceLocked && mc.responseMode !== 'individual' && (mc.characters || []).length > 1);
+}
+async function generateGroupVoiceLocked({ character, baseContext, llmSettings, playerText, streaming, onToken }) {
+  const members = character.multiChar.characters || [];
+  const muted = new Set(sessionState.mutedMembers || []);
+  const order = computeSpeakingOrder(members, muted, playerText || '');
+  const speakers = order.map(id => members.find(m => m.id === id)).filter(Boolean);
+  if (speakers.length < 2) {
+    // Nothing to split — a single speaker is just a normal generation.
+    return streaming
+      ? llmService.generateStream({ prompt: baseContext.prompt, messages: baseContext.messages, systemPrompt: baseContext.systemPrompt, settings: llmSettings, onToken })
+      : llmService.generate({ prompt: baseContext.prompt, messages: baseContext.messages, systemPrompt: baseContext.systemPrompt, settings: llmSettings });
+  }
+  const allNames = [...members.map(m => m.name), character.name].filter(Boolean);
+  const total = Number(llmSettings.maxTokens) || 300;
+  const parts = [];
+  for (let i = 0; i < speakers.length; i++) {
+    if (eventEngine.aborted) break;
+    const m = speakers[i];
+    const isBase = m.id === members[0]?.id;
+    const voice = String((m.hardInstruct || (isBase ? character.hardInstruct : '')) || '').trim();
+    const others = speakers.filter(x => x !== m).map(x => x.name);
+    const prior = parts.join('\n\n');
+    const note = `\n=== VOICE-LOCKED GROUP REPLY — PART ${i + 1} OF ${speakers.length} ===\nThis turn's reply is written in parts, one character at a time. Write ONLY ${m.name}'s part now: ${m.name}'s own actions and dialogue, one short paragraph${prior ? ', reacting to what was just written above' : ''}. Do NOT write actions or dialogue for ${others.join(' or ')} or for the player.${voice ? `\n${m.name} MUST speak this way: "${substituteAllVariables(voice)}"` : ''}\nDo NOT repeat earlier parts. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+    let prompt = baseContext.prompt;
+    if (typeof prompt === 'string') {
+      const primer = '[Characters]:';
+      const at = prompt.lastIndexOf(primer);
+      prompt = at >= 0
+        ? `${prompt.slice(0, at)}${note}${primer}${prior ? ` ${prior}\n\n` : ''}`
+        : `${prompt}${note}${prior ? `${prior}\n\n` : ''}`;
+    }
+    const messages = Array.isArray(baseContext.messages)
+      ? [...baseContext.messages, { role: 'user', content: (prior ? `[Reply so far this turn — continue after it, do not repeat it:]\n${prior}\n` : '') + note.trim() }]
+      : baseContext.messages;
+    const segTokens = clampMaxTokens(Number(m.responseTokens) || Math.max(90, Math.round((total / speakers.length) * 1.3)), total);
+    const segSettings = { ...llmSettings, maxTokens: segTokens, stopSequences: [...(llmSettings.stopSequences || []), ...others.map(n => `\n${n}:`)] };
+    broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
+    let res;
+    if (streaming) {
+      const head = prior ? `${prior}\n\n` : '';
+      res = await llmService.generateStream({ prompt, messages, systemPrompt: baseContext.systemPrompt, settings: segSettings,
+        onToken: (token, fullText) => onToken && onToken(token, head + fullText) });
+    } else {
+      res = await llmService.generate({ prompt, messages, systemPrompt: baseContext.systemPrompt, settings: segSettings });
+    }
+    let seg = stripSpeakerPrefixes(String(res?.text || '').trim(), allNames);
+    seg = stripCrossRoleContent(seg, baseContext.stopSequences, true).trim();
+    if (seg) parts.push(seg);
+    console.log(`[VoiceLock] part ${i + 1}/${speakers.length} (${m.name}): ${seg.length} chars`);
+  }
+  return { text: parts.join('\n\n') };
+}
+
 // Strip leading "SpeakerName:" labels the model echoed from the transcript format (e.g. a solo reply
 // that came back as "Jess: Jess (Copy): *...*"). Only removes prefixes matching a KNOWN name.
 function stripSpeakerPrefixes(text, names) {
@@ -10456,15 +10543,17 @@ async function handleChatMessage(data) {
   // fires player_speaks, resolves await-input, and drives pump-on-every-reply itself, so we route BEFORE
   // the push below and ALWAYS return once the branch matches (an all-muted turn yields silence, not a
   // fall-through to a blended reply).
+  // 'alternate' rolls this turn's mode (Respond as Group vs Individual Responses) fresh each turn.
+  const turnMode = resolveTurnResponseMode(activeCharacter);
   if (sender === 'player'
       && activeCharacter?.multiChar?.enabled
-      && activeCharacter.multiChar.responseMode === 'individual'
+      && turnMode === 'individual'
       && !data.suppressReply
       && (sessionState.autoReply || data.forceReply)
       && !sessionState.mediaBlocking
       && !/\[Video:([^\]:]+):blocking\]/i.test(content)) {
     const muted = new Set(sessionState.mutedMembers || []);
-    const orderedIds = computeSpeakingOrder(activeCharacter.multiChar.characters || [], muted, content);
+    const orderedIds = pickTurnSpeakers(computeSpeakingOrder(activeCharacter.multiChar.characters || [], muted, content), activeCharacter.multiChar.characters || [], content);
     await handleIndividualResponses(data, activeCharacter, settings, activePersona, orderedIds);
     return;
   }
@@ -10591,17 +10680,20 @@ async function handleChatMessage(data) {
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         };
 
-        const result = await llmService.generateStream({
-          prompt: context.prompt,
-          messages: context.messages,
-          systemPrompt: context.systemPrompt,
-          settings: llmSettings,
-          onToken: (token, fullText) => {
-            // Update message content and broadcast
-            aiMessage.content = fullText;
-            broadcast('stream_token', { messageId: aiMessage.id, token, fullText });
-          }
-        });
+        const streamOnToken = (token, fullText) => {
+          // Update message content and broadcast
+          aiMessage.content = fullText;
+          broadcast('stream_token', { messageId: aiMessage.id, token, fullText });
+        };
+        const result = isVoiceLockedGroup(activeCharacter)
+          ? await generateGroupVoiceLocked({ character: activeCharacter, baseContext: context, llmSettings, playerText: content, streaming: true, onToken: streamOnToken })
+          : await llmService.generateStream({
+            prompt: context.prompt,
+            messages: context.messages,
+            systemPrompt: context.systemPrompt,
+            settings: llmSettings,
+            onToken: streamOnToken
+          });
 
         // Abort guard: if emergency stop fired during generation, do not activate
         // devices from this stale streamed response.
@@ -10719,12 +10811,14 @@ async function handleChatMessage(data) {
           stopSequences: [...(settings.llm?.stopSequences || []), ...(context.stopSequences || [])]
         };
 
-        const result = await llmService.generate({
-          prompt: context.prompt,
-          messages: context.messages,
-          systemPrompt: context.systemPrompt,
-          settings: llmSettings
-        });
+        const result = isVoiceLockedGroup(activeCharacter)
+          ? await generateGroupVoiceLocked({ character: activeCharacter, baseContext: context, llmSettings, playerText: content, streaming: false })
+          : await llmService.generate({
+            prompt: context.prompt,
+            messages: context.messages,
+            systemPrompt: context.systemPrompt,
+            settings: llmSettings
+          });
         // Strip any cross-role content
         finalText = stripCrossRoleContent(result.text, context.stopSequences, true);
       }
@@ -14324,6 +14418,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings, opt
     }
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, true);
+    systemPrompt += INFLATION_METHOD_DEFAULT;
     systemPrompt += buildCharacterInflationContext(character);
 
     systemPrompt += `You emotionally feel ${sessionState.emotion}.\n\n`;
@@ -14346,6 +14441,7 @@ function buildSpecialContext(mode, guidedText, character, persona, settings, opt
     systemPrompt += '\n';
 
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerName, false);
+    systemPrompt += INFLATION_METHOD_DEFAULT;
     systemPrompt += buildCharacterInflationContext(character);
 
     systemPrompt += `${playerName} emotionally feels ${sessionState.emotion}.\n\n`;
@@ -14562,6 +14658,12 @@ function buildMultiCharSystemPrompt(character, playerName, substituteVars) {
     if (active.length && !silent) {
       const labels = active.map(t => t.charAt(0).toUpperCase() + t.slice(1));
       prompt += `  RIGHT NOW ${c.name} is driven by ${labels.join(', ')}: ${active.map(t => ATTRIBUTE_PROMPTS[t]).filter(Boolean).join(' ')}\n`;
+    }
+    // Per-member Hard Instruct voice, tied to the member right in the cast list (the depth-0
+    // VOICE note repeats it by name). Base member falls back to the card field.
+    {
+      const hi = String((c.hardInstruct || (c === chars[0] ? character.hardInstruct : '')) || '').trim();
+      if (hi && !silent) prompt += `  Voice (MANDATORY whenever ${c.name} speaks): ${substituteAllVariables(hi, { playerName, characterName: c.name, isPromptText: true })}\n`;
     }
     // Per-member inflation disposition (always-on; from memberAttributes desires)
     prompt += buildMemberDispositionLine(c.name, memberAttrs[c.id]);
@@ -15179,6 +15281,7 @@ function buildChatContext(character, settings, opts = {}) {
     }
   } else {
     systemPrompt += buildBellyStateInstructions(sessionState.capacity, sessionState.pain, playerLabel, false);
+    systemPrompt += INFLATION_METHOD_DEFAULT;
     systemPrompt += buildCharacterInflationContext(character);
 
     systemPrompt += `${playerLabel} emotionally feels ${sessionState.emotion}.\n`;
@@ -15354,7 +15457,9 @@ function buildChatContext(character, settings, opts = {}) {
   const hiNote = (body) => `\n=== MANDATORY — VOICE FOR THIS REPLY ===\n${body}\nStay in voice and in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
   if (character.multiChar?.enabled && Array.isArray(character.multiChar.characters) && character.multiChar.characters.length) {
     const mems = character.multiChar.characters;
-    const lineOf = (m, i) => String((i === 0 ? (character.hardInstruct || m.hardInstruct) : m.hardInstruct) || '').trim();
+    // Each member's OWN box wins; the card (Main-tab) field is only the Base member's fallback for
+    // legacy groups whose member 0 never got a mirrored value.
+    const lineOf = (m, i) => String((i === 0 ? (m.hardInstruct || character.hardInstruct) : m.hardInstruct) || '').trim();
     const solo = sessionState.soloSpeaker ? mems.findIndex(m => m.id === sessionState.soloSpeaker) : -1;
     const entries = (solo >= 0 ? [[mems[solo], solo]] : mems.map((m, i) => [m, i]))
       .map(([m, i]) => ({ name: m.name || (i === 0 ? character.name : `Member ${i + 1}`), text: lineOf(m, i) }))

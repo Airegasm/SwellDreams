@@ -334,6 +334,7 @@ function UnifiedCharacterEditor({ isOpen, onClose, onSave, character, defaultAut
     if ('personality' in patch) mirror.personality = patch.personality;
     if ('gender' in patch) mirror.gender = patch.gender;
     if ('avatar' in patch) mirror.portrait = patch.avatar;
+    if ('hardInstruct' in patch) mirror.hardInstruct = patch.hardInstruct;
     if (Object.keys(mirror).length && next.multiChar?.characters?.length) {
       next.multiChar = { ...next.multiChar, characters: next.multiChar.characters.map((m, i) => (i === 0 ? { ...m, ...mirror } : m)) };
     }
@@ -1645,7 +1646,7 @@ Write only the scenario description itself, no explanations.`;
                     <div className="story-field" style={{ margin: '8px 0' }}>
                       <label className="subsection-label" style={{ display: 'block', marginBottom: 4 }}>Response Mode</label>
                       <div className="ab-toggle" style={{ display: 'inline-flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color, #444)' }}>
-                        {[['group', 'Respond as Group'], ['individual', 'Individual Responses']].map(([val, lbl]) => {
+                        {[['group', 'Respond as Group'], ['individual', 'Individual Responses'], ['alternate', 'Alternate']].map(([val, lbl]) => {
                           const active = (formData.multiChar?.responseMode || 'group') === val;
                           return (
                             <button key={val} type="button"
@@ -1658,9 +1659,19 @@ Write only the scenario description itself, no explanations.`;
                       </div>
                       <span className="auto-reply-hint" style={{ display: 'block', marginTop: 4 }}>
                         {(formData.multiChar?.responseMode || 'group') === 'individual'
-                          ? 'Each non-muted member replies in their own named bubble (mentioned members first, then round-robin), using their own Response Tokens.'
-                          : 'One blended reply where members speak together, shown under the Group Name.'}
+                          ? 'Members reply in their own named bubbles (mentioned members always; the rest by chance each turn, at least one), using their own Response Tokens.'
+                          : formData.multiChar?.responseMode === 'alternate'
+                            ? 'Each turn randomly picks Respond as Group or Individual Responses.'
+                            : 'One blended reply where members speak together, shown under the Group Name.'}
                       </span>
+                      {(formData.multiChar?.responseMode || 'group') !== 'individual' && (
+                        <label className="tree-check" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}
+                          title="Each speaking member is generated in its own short pass ending on that member's Hard Instruct, then stitched into one group bubble. Keeps voices distinct on weaker models; costs one LLM call per speaking member.">
+                          <input type="checkbox" checked={!!formData.multiChar?.voiceLocked}
+                            onChange={(e) => setFormData(prev => ({ ...prev, multiChar: { ...(prev.multiChar || {}), voiceLocked: e.target.checked } }))} />
+                          <span><strong>Voice-locked group replies</strong> — one pass per speaking member (their own Hard Instruct), joined into one bubble. Slower: one LLM call per member.</span>
+                        </label>
+                      )}
                     </div>
                   )}
 
@@ -1958,7 +1969,7 @@ Write only the scenario description itself, no explanations.`;
 
                 <div className="form-group">
                   <label>Hard Instruct <span className="section-hint">(how {member.name || 'this member'} speaks — sent with every reply)</span></label>
-                  <textarea rows={2} value={(selectedMemberIndex === 0 ? formData.hardInstruct : member.hardInstruct) || ''}
+                  <textarea rows={2} value={(selectedMemberIndex === 0 ? (member.hardInstruct ?? formData.hardInstruct) : member.hardInstruct) || ''}
                     onChange={(e) => selectedMemberIndex === 0 ? set({ hardInstruct: e.target.value }) : updateMember(selectedMemberIndex, { hardInstruct: e.target.value })}
                     placeholder={`e.g. Speak like a bubbly, chatty gym instructor.`} />
                   <p className="section-hint">Each member's line is sent by name ("{member.name || 'Name'}: …") so the model knows who speaks which way — all lines in a group reply, only the speaker's line in Individual Responses.</p>
