@@ -1331,9 +1331,63 @@ function getEffectivePopThreshold(settings) {
   return Infinity; // Default - no auto-pop
 }
 
+// ============================================
+// Character pumps follow the story (card.charPumpsFollowStory, or a session override set by the
+// "Char Pumps Follow Story" trigger). After a character reply, a SHORT classification call reads
+// only that reply and returns ON / OFF / SAME for each pumpable character; the simulated char/member
+// pumps are switched to match. Classification (not inline tags) because small models handle a narrow
+// yes/no read far better than weaving tags into prose. Simulated pumps only — never real hardware.
+// ============================================
+const CHAR_PUMP_CUE = /\b(pump\w*|nozzle|tube|hose|valve|inflat\w*|fill\w*|air|enema|flow\w*|bloat\w*|swell\w*|deflat\w*|unplug\w*|disconnect\w*)\b/i;
+function charPumpsFollowStoryOn(character) {
+  const o = sessionState.charPumpsStoryOverride;
+  return typeof o === 'boolean' ? o : !!character?.charPumpsFollowStory;
+}
+async function followStoryCharPumps(character, text, settings) {
+  try {
+    if (!character || !text || !charPumpsFollowStoryOn(character) || !CHAR_PUMP_CUE.test(text)) return;
+    const members = character.multiChar?.enabled ? (character.multiChar.characters || []) : [];
+    const targets = [];
+    const basePumpable = character.isPumpable || (character.multiChar?.enabled && members[0]?.isPumpable);
+    if (basePumpable) targets.push({ id: '', name: character.name, on: !!charInflationTimer });
+    for (const m of members.slice(1)) if (m?.isPumpable && m.name) targets.push({ id: m.id, name: m.name, on: memberInflationTimers.has(m.id) });
+    if (!targets.length) return;
+    await waitForLlmIdle();
+    const prompt = `Read this roleplay passage. For each person listed, decide whether the passage shows inflation of THAT person being started or stopped right now (a pump switched on/off, air or liquid starting/stopping flowing into them, a nozzle connected or pulled out).
+
+PASSAGE:
+"""${String(text).slice(-2500)}"""
+
+PEOPLE (current pump state):
+${targets.map(t => `- ${t.name} (currently ${t.on ? 'ON' : 'OFF'})`).join('\n')}
+
+Answer with one line per person, nothing else, exactly in this form:
+${targets.map(t => `${t.name}: ON | OFF | SAME`).join('\n')}
+ON = their inflation clearly starts or keeps going now. OFF = it clearly stops. SAME = not shown or unclear (default to SAME).`;
+    const res = await llmService.generate({ prompt, settings: { ...settings.llm, maxTokens: 12 * targets.length + 24, temperature: 0.1, stopSequences: [] } });
+    const out = String(res?.text || '');
+    const calTime = getCharacterCalibrationTime(character);
+    for (const t of targets) {
+      const first = String(t.name).split(' ')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const m = out.match(new RegExp(`${first}[^:\\n]*:\\s*\\**\\s*(ON|OFF|SAME)`, 'i'));
+      const verdict = m ? m[1].toUpperCase() : 'SAME';
+      if (verdict === 'ON' && !t.on && calTime) {
+        console.log(`[CharPumpStory] ${t.name}: story turned their pump ON`);
+        if (!t.id) startCharacterInflation(calTime, character.charBurstPercent || 100);
+        else startMemberInflation(t.id, t.name, calTime, character.charBurstPercent || 100);
+      } else if (verdict === 'OFF' && t.on) {
+        console.log(`[CharPumpStory] ${t.name}: story turned their pump OFF`);
+        if (!t.id) stopCharacterInflation(); else stopMemberInflation(t.id);
+      }
+    }
+  } catch (e) {
+    console.warn('[CharPumpStory] classification failed:', e?.message || e);
+  }
+}
+
 // Hardcoded default inflation method: models otherwise improvise (mouth, navel, magic, "air
 // tablets"…). Anything the card/scenario/chat states explicitly wins.
-const INFLATION_METHOD_DEFAULT = 'Inflation method (default): unless the card, scenario, or chat clearly says otherwise, inflation is ALWAYS done anally — the air or liquid enters through a nozzle or tube in the anus and fills the belly from inside. Do not invent other entry points or methods unless they are stated.\n';
+const INFLATION_METHOD_DEFAULT = 'Inflation method (default): unless the card, scenario, or chat clearly says otherwise, inflation is ALWAYS done anally — the air or liquid enters through a nozzle or tube in the anus and fills the belly from inside. Do not invent other entry points or methods unless they are stated. The nozzle or tube must be shown being inserted BEFORE any inflation is described — never describe filling, swelling or pressure before it is in place.\n';
 
 // Initialize device service
 const deviceService = new DeviceService();
@@ -4509,6 +4563,7 @@ async function executeTrigger(trigger, source, character, settings) {
           const rawAtxt = substituteAllVariables(aiResult.text);
           let atxt = stripLeakedDirectives(rawAtxt); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) atxt = stripStrayBrackets(atxt);
+          if (rpFormatOn(settings, character)) atxt = enforceRpFormatting(atxt, character);
           logTagDiag('trigger:ai_message', rawAtxt, atxt);
           // Execute + strip device tags ([pump on] etc.) like every other reply path — this path
           // used to skip it, so a trigger/checkpoint/button message that emitted [pump on] left the
@@ -4621,6 +4676,7 @@ async function executeTrigger(trigger, source, character, settings) {
           const rawMemText = substituteAllVariables(memRes.text);
           let memText = stripLeakedDirectives(rawMemText); // always drop leaked === MANDATORY === echoes
           if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) memText = stripStrayBrackets(memText);
+          if (rpFormatOn(settings, character)) memText = enforceRpFormatting(memText, character);
           logTagDiag('trigger:member_message', rawMemText, memText);
           if (tgt) { // solo member reply — strip any echoed "Name:" speaker labels
             const otherN = (character.multiChar?.characters || []).filter(m => m.id !== tgt.id && m.name).map(m => m.name);
@@ -4978,6 +5034,12 @@ async function executeTrigger(trigger, source, character, settings) {
         }
         break;
       }
+
+      case 'char_pumps_follow_story':
+        // Session-scoped override of the card's "Character pumps follow the story" setting.
+        sessionState.charPumpsStoryOverride = !!trigger.enabled;
+        console.log(`[Trigger/${source}] Char pumps follow story → ${sessionState.charPumpsStoryOverride ? 'ON' : 'OFF'} (session)`);
+        break;
 
       case 'toggle_auto_reply':
         sessionState.autoReply = !!trigger.enabled;
@@ -7080,6 +7142,7 @@ async function sendWelcomeMessage(character, settings) {
         messageContent = result.text.trim();
         // Instructors speak in plain directives — strip any RP prose the model added.
         if (isInstructor(character)) messageContent = stripInstructorRoleplay(messageContent);
+        else if (rpFormatOn(settings, character)) messageContent = enforceRpFormatting(messageContent, character);
         console.log('[WELCOME] LLM enhanced message:', messageContent.substring(0, 100) + '...');
       } else {
         console.log('[WELCOME] LLM returned no response, using template', result);
@@ -7421,6 +7484,7 @@ If announcing the result, say "${result}" - not something else.
         }
         // Remove stray [bracketed] stage directions/meta (device tags preserved for the pass below).
         if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+        if (rpFormatOn(settings, activeCharacter)) finalText = enforceRpFormatting(finalText, activeCharacter);
         logTagDiag('main-reply', rawForTagDiag, finalText);
         // Instructors never roleplay — strip asterisk actions / quoted dialogue here too.
         if (!isPlayerVoice && isInstructor(activeCharacter)) finalText = stripInstructorRoleplay(finalText);
@@ -9458,6 +9522,7 @@ async function handleSwipeMessage(data) {
     if (!isPlayerMsg && isInstructor(activeCharacter)) resultText = stripInstructorRoleplay(resultText);
     // Remove stray [bracketed] meta (device tags preserved for the pass below).
     if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) resultText = stripStrayBrackets(resultText);
+    if (!isPlayerMsg && rpFormatOn(settings, activeCharacter)) resultText = enforceRpFormatting(resultText, activeCharacter);
 
     // Process AI device commands (e.g., [pump on], [vibe off]).
     const devices = loadData(DATA_FILES.devices) || [];
@@ -9800,6 +9865,7 @@ async function handleButtonSendMessage(action, characterId, personaId) {
         ? stripInstructorRoleplay(substituteAllVariables(result.text))
         : substituteAllVariables(result.text);
       if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) guidedText = stripStrayBrackets(guidedText);
+      if (rpFormatOn(settings, character)) guidedText = enforceRpFormatting(guidedText, character);
       placeholderMessage.content = guidedText;
       delete placeholderMessage.excludeFromContext; // now a real reply — include it in future context
 
@@ -10051,7 +10117,14 @@ function computeSpeakingOrder(members, mutedSet, playerText) {
 function resolveTurnResponseMode(character) {
   const mode = character?.multiChar?.responseMode || 'group';
   if (mode !== 'alternate') return mode;
-  const picked = Math.random() < 0.5 ? 'group' : 'individual';
+  // Random, but never more than two of the same in a row — a pure coin flip produced long streaks
+  // (five group turns running) that read as "not alternating".
+  const recent = Array.isArray(sessionState.altModeHistory) ? sessionState.altModeHistory : [];
+  const lastTwo = recent.slice(-2);
+  const picked = (lastTwo.length === 2 && lastTwo[0] === lastTwo[1])
+    ? (lastTwo[0] === 'group' ? 'individual' : 'group')
+    : (Math.random() < 0.5 ? 'group' : 'individual');
+  sessionState.altModeHistory = [...recent, picked].slice(-4);
   console.log(`[Group] Alternate mode → ${picked} this turn`);
   return picked;
 }
@@ -10098,7 +10171,7 @@ async function generateGroupVoiceLocked({ character, baseContext, llmSettings, p
     const voice = String((m.hardInstruct || (isBase ? character.hardInstruct : '')) || '').trim();
     const others = speakers.filter(x => x !== m).map(x => x.name);
     const prior = parts.join('\n\n');
-    const note = `\n=== VOICE-LOCKED GROUP REPLY — PART ${i + 1} OF ${speakers.length} ===\nThis turn's reply is written in parts, one character at a time. Write ONLY ${m.name}'s part now: ${m.name}'s own actions and dialogue, one short paragraph${prior ? ', reacting to what was just written above' : ''}. Do NOT write actions or dialogue for ${others.join(' or ')} or for the player.${voice ? `\n${m.name} MUST speak this way: "${substituteAllVariables(voice)}"` : ''}\nDo NOT repeat earlier parts. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+    const note = `\n=== VOICE-LOCKED GROUP REPLY — PART ${i + 1} OF ${speakers.length} ===\nThis turn's reply is written in parts, one character at a time, each labeled with the speaker's name. Write ONLY ${m.name}'s part now (the "${String(m.name).split(' ')[0]}:" label is added for you): ${m.name}'s own actions and dialogue, one short paragraph of 2-4 sentences that ends on a complete sentence${prior ? ', reacting to what was just written above' : ''}. Do NOT write actions or dialogue for ${others.join(' or ')} or for the player.${voice ? `\n${m.name} MUST speak this way: "${substituteAllVariables(voice)}"` : ''}\nDo NOT repeat earlier parts. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
     let prompt = baseContext.prompt;
     if (typeof prompt === 'string') {
       const primer = '[Characters]:';
@@ -10110,7 +10183,9 @@ async function generateGroupVoiceLocked({ character, baseContext, llmSettings, p
     const messages = Array.isArray(baseContext.messages)
       ? [...baseContext.messages, { role: 'user', content: (prior ? `[Reply so far this turn — continue after it, do not repeat it:]\n${prior}\n` : '') + note.trim() }]
       : baseContext.messages;
-    const segTokens = clampMaxTokens(Number(m.responseTokens) || Math.max(90, Math.round((total / speakers.length) * 1.3)), total);
+    // Headroom matters: a part that hits the cap mid-sentence gets its last sentence trimmed by
+    // trimIncompleteSentences. Ask for a SHORT part but allow ~75% of the reply budget (min 160).
+    const segTokens = clampMaxTokens(Number(m.responseTokens) || Math.max(160, Math.round(total * 0.75)), Math.max(total, 160));
     const segSettings = { ...llmSettings, maxTokens: segTokens, stopSequences: [...(llmSettings.stopSequences || []), ...others.map(n => `\n${n}:`)] };
     broadcast('generating_start', { characterName: groupBubbleName(character) || character.name });
     let res;
@@ -10121,9 +10196,11 @@ async function generateGroupVoiceLocked({ character, baseContext, llmSettings, p
     } else {
       res = await llmService.generate({ prompt, messages, systemPrompt: baseContext.systemPrompt, settings: segSettings });
     }
+    // Each part is LABELED with its speaker ("Mara: …") — strip whatever label the model echoed,
+    // then put the correct one back so voices read clearly inside the one bubble.
     let seg = stripSpeakerPrefixes(String(res?.text || '').trim(), allNames);
     seg = stripCrossRoleContent(seg, baseContext.stopSequences, true).trim();
-    if (seg) parts.push(seg);
+    if (seg) parts.push(`${String(m.name).split(' ')[0]}: ${seg}`);
     console.log(`[VoiceLock] part ${i + 1}/${speakers.length} (${m.name}): ${seg.length} chars`);
   }
   return { text: parts.join('\n\n') };
@@ -10229,7 +10306,11 @@ function stripModelScaffolding(text) {
   const tail = s.slice(end + 1);
   // LEAD: strip EVERYTHING before the first " or * (whichever comes first) — that's where the roleplay
   // actually begins; anything ahead of it is meta-preamble ("I'll roleplay as … Here is my reply:").
-  const stripLead = !!lead.trim();
+  // …except a bare speaker label ("Mara:" / "Ines Moreau:") — group replies voice each member under
+  // their name, so the label IS content. Meta labels (Note:/Scene:/Analysis:…) still get stripped.
+  const SPEAKER_LABEL = /^\s*[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){0,2}\s*:\s*$/;
+  const META_LABEL = /^\s*(?:scene|setting|summary|context|ooc|note|notes|thoughts?|analysis|response|reply|answer|output|narrator|story)\s*:/i;
+  const stripLead = !!lead.trim() && !(SPEAKER_LABEL.test(lead) && !META_LABEL.test(lead));
   // TAIL: only strip trailing text that matches a scaffolding signal (don't eat real closing narration).
   const stripTail = tail.trim() && SCAFFOLD.test(tail);
   if (!stripLead && !stripTail) return text;
@@ -10244,6 +10325,44 @@ function stripModelScaffolding(text) {
   if (rescued.length) cleaned += '\n' + rescued.join('\n');
   return cleaned || text;
 }
+
+// Roleplay formatting enforcement: narration/actions in *asterisks*, dialogue in "quotes". Small models
+// (12B) drop the asterisks at random — same prompt and samplers gave 8 one run and 0 the next — and they
+// copy a plain-prose welcome template, so the formatting is rebuilt in code instead of hoped for. Per
+// line, every span outside "dialogue" / “dialogue” / [bracket tags] loses its asterisks and is re-wrapped
+// as one *action*; dialogue (including *emphasis* inside it) and device tags are untouched, and "Name:"
+// speaker labels (group replies) stay bare. Correctly formatted text comes out unchanged.
+// Off via globalCharacterControls.enforceRpFormatting === false; never applied to instructors.
+function enforceRpFormatting(text, character) {
+  if (!text || typeof text !== 'string') return text;
+  const names = [];
+  if (character?.name) names.push(character.name);
+  for (const m of (character?.multiChar?.characters || [])) if (m?.name) names.push(m.name);
+  const known = [...new Set(names.flatMap(n => [n, String(n).split(' ')[0]]).filter(Boolean))]
+    .sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  // Speaker label: a known name after a line start / sentence end, or 1-3 capitalised words at line start.
+  const alts = [
+    ...(known.length ? [`(?:^|(?<=[.!?"”*…]\\s{1,3}))(?:${known.join('|')})`] : []),
+    `^[A-Z][\\w'’.-]*(?:\\s[A-Z][\\w'’.-]*){0,2}`,
+  ];
+  const labelRe = new RegExp(`((?:${alts.join('|')}):\\s)`);
+  const wrap = (chunk) => chunk.split(/("[^"\n]*"|“[^”\n]*”|\[[^\]\n]*\])/).map((seg) => {
+    if (!seg || /^["“[]/.test(seg)) return seg;
+    const plain = seg.replace(/\*+/g, '');
+    const m = plain.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    if (!m[2] || !/[A-Za-z]/.test(m[2])) return plain;
+    return `${m[1]}*${m[2]}*${m[3]}`;
+  }).join('');
+  return text.split('\n').map((line) => {
+    if (!line.trim()) return line;
+    if (/^\s*(?:#|```|>|-{3,}|\|)/.test(line)) return line; // markdown blocks / rules / tables: leave alone
+    const parts = line.split(labelRe);
+    if (parts.length === 1) return wrap(line);
+    // split() with ONE capture group → [text, label, text, label, text…]; odd indexes are labels.
+    return parts.map((chunk, i) => (i % 2 === 1 || !chunk.trim() ? chunk : wrap(chunk))).join('');
+  }).join('\n');
+}
+const rpFormatOn = (settings, character) => settings?.globalCharacterControls?.enforceRpFormatting !== false && !isInstructor(character);
 
 // Remove stray [square-bracket] content the model injects (Cydonia loves "[He pauses]" / "[Scene]" /
 // "[continues]" stage directions). Device/media command tags ([pump on], [vibe:pulse:3], [Video:...])
@@ -10401,6 +10520,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     const rawForTagDiag = finalText;
     if (settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
     if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+    if (rpFormatOn(settings, activeCharacter)) finalText = enforceRpFormatting(finalText, activeCharacter);
     logTagDiag(`individual:${member.name}`, rawForTagDiag, finalText);
     if (!finalText) {
       if (streamMsg) { sessionState.chatHistory = sessionState.chatHistory.filter(m => m.id !== streamMsg.id); broadcast('message_deleted', { id: streamMsg.id }); }
@@ -10432,6 +10552,7 @@ async function runIndividualSequence(orderedIds, activeCharacter, settings, acti
     }
     autosaveSession();
     await eventEngine.handleEvent('ai_speaks', { content: finalText }).catch(() => {});
+    followStoryCharPumps(activeCharacter, finalText, settings); // not awaited — must not delay the next member
     lastReplyContent = finalText;
 
     // Next gate: hold before the NEXT member's reply until the player hits ">>", mirroring the
@@ -10979,6 +11100,7 @@ async function handleChatMessage(data) {
       const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
       await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
       runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
+      followStoryCharPumps(activeCharacter, lastMsg?.content, settings);
       // Await Input keyword gate — resolve from the CHARACTER's message (Char / Either gates).
       await tryResolveAwaitInput(lastMsg?.content, 'char');
 
@@ -11360,6 +11482,7 @@ async function generateAIResponseAfterBlocking() {
     const lastMsg = sessionState.chatHistory[sessionState.chatHistory.length - 1];
     await eventEngine.handleEvent('ai_speaks', { content: lastMsg?.content });
     runEventTrees('ai_speaks', { content: lastMsg?.content }); // Phase 4: ai_speaks event-bound trees
+    followStoryCharPumps(activeCharacter, lastMsg?.content, settings);
     // Await Input keyword gate — resolve from the CHARACTER's message (Char / Either gates).
     await tryResolveAwaitInput(lastMsg?.content, 'char');
 
@@ -11499,6 +11622,7 @@ async function handleSpecialGenerate(data) {
       if (!isPlayerVoice) {
         if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
         if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+        if (rpFormatOn(settings, activeCharacter)) finalText = enforceRpFormatting(finalText, activeCharacter);
       }
       message.content = substituteAllVariables(finalText);
 
@@ -11548,6 +11672,7 @@ async function handleSpecialGenerate(data) {
       broadcast('generating_stop', {});
       sessionState.activeAttributes = null;
       autosaveSession();
+      if (!isPlayerVoice) followStoryCharPumps(activeCharacter, message.content, settings);
       return;
 
     } else {
@@ -11623,6 +11748,7 @@ async function handleSpecialGenerate(data) {
     if (!isPlayerVoice) {
       if (!isInstructor(activeCharacter) && settings?.globalCharacterControls?.stripModelScaffolding !== false) finalText = stripModelScaffolding(finalText);
       if (settings?.globalCharacterControls?.stripBracketsFromReplies !== false) finalText = stripStrayBrackets(finalText);
+      if (rpFormatOn(settings, activeCharacter)) finalText = enforceRpFormatting(finalText, activeCharacter);
     }
     finalText = substituteAllVariables(finalText);
 
@@ -11693,6 +11819,7 @@ async function handleSpecialGenerate(data) {
     sessionState.chatHistory.push(message);
     broadcast('chat_message', message);
     autosaveSession();
+    if (!isPlayerVoice) followStoryCharPumps(activeCharacter, message.content, settings);
 
   } catch (error) {
     console.error('[Special Generate] Error:', error);
@@ -14551,13 +14678,29 @@ function buildSpecialContext(mode, guidedText, character, persona, settings, opt
   // so a system-only note gets dropped — keeping it adjacent to generation, in the
   // same "=== MANDATORY ===" shape the model already obeys for checkpoints, makes it stick.
   let guidanceDirective = '';
+  // Player-voice replies (impersonate): without this, the last thing the model reads is the belly/
+  // state block, so small models write a generic body reaction and ignore WHAT just happened (a
+  // betrayal, a threat, a named friend). Re-state the tail of the latest character message at depth
+  // 0 and require a direct, specific response to it.
+  if (isPlayerVoicePrimer) {
+    const lastOther = [...recentMessages].reverse().find(m => m && m.sender === 'character' && !m.excludeFromContext && String(m.content || '').trim());
+    if (lastOther) {
+      const tail = String(lastOther.content).replace(/\s+/g, ' ').trim();
+      const excerpt = tail.length > 900 ? `…${tail.slice(-900)}` : tail;
+      const who = lastOther.characterName || character.name;
+      const reactNote = `\n=== RESPOND TO WHAT JUST HAPPENED ===\nThe latest message (from ${who}):\n"${substituteVars(excerpt)}"\n${playerName}'s reply must react DIRECTLY and SPECIFICALLY to it — name the people involved and respond to the concrete things just said or done (a betrayal, a threat, a demand, a promise, who is in on it). Do not give a generic reaction to the situation.\n=== END ===\n`;
+      prompt += reactNote;
+      guidanceDirective += reactNote;
+    }
+  }
   if (guidedText) {
     const speaker = isPlayerVoicePrimer ? playerName : character.name;
     // Statement + explicit prohibition (the v6.7.6 lesson: a bare "center on X" gets treated as a
     // theme and drifts; forbidding the escape hatches — postpone/summarize/substitute — is what
     // makes the model actually perform the direction).
-    guidanceDirective = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${speaker}'s next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidedText}"\nThis is a hard requirement, not a theme: depict it explicitly, in ${speaker}'s own voice. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
-    prompt += guidanceDirective;
+    const directorNote = `\n=== MANDATORY — DIRECTOR'S NOTE FOR THIS REPLY ===\n${speaker}'s next message MUST act this out as the MAIN EVENT of the reply, happening now:\n"${guidedText}"\nThis is a hard requirement, not a theme: depict it explicitly, in ${speaker}'s own voice. Do NOT postpone it, summarize it, water it down, or substitute something similar. Everything else in the reply is secondary to it. Stay in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+    guidanceDirective += directorNote;
+    prompt += directorNote;
     // Reinforcement in the system block too (helps ChatML-style models).
     systemPrompt += `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidedText}]`;
   }
@@ -16088,11 +16231,17 @@ app.post('/api/llm/detect-model', async (req, res) => {
 
 app.post('/api/llm/generate', llmLimiter, async (req, res) => {
   try {
-    const { prompt, messages, systemPrompt, maxTokens } = req.body;
+    const { prompt, messages, systemPrompt, maxTokens, temperature, trimIncomplete } = req.body;
     const settings = loadData(DATA_FILES.settings)?.llm || DEFAULT_SETTINGS.llm;
 
-    // Allow optional maxTokens override from request
-    const effectiveSettings = maxTokens ? { ...settings, maxTokens } : settings;
+    // Optional per-request overrides: maxTokens; temperature (structured/extraction calls run cooler
+    // for reliable formats); trimIncomplete=false keeps label-format output intact (the sentence trim
+    // would delete a last line like "WORDS: please, mercy" that has no closing punctuation).
+    const effectiveSettings = { ...settings };
+    if (maxTokens) effectiveSettings.maxTokens = maxTokens;
+    const t = Number(temperature);
+    if (temperature !== undefined && temperature !== null && Number.isFinite(t) && t >= 0 && t <= 2) effectiveSettings.temperature = t;
+    if (trimIncomplete === false) effectiveSettings.trimIncompleteSentences = false;
 
     const result = await llmService.generate({ prompt, messages, systemPrompt, settings: effectiveSettings });
     res.json(result);
@@ -20584,6 +20733,8 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
   sessionState.welcomeVariant = null;
+  sessionState.charPumpsStoryOverride = undefined; // trigger override dies with the session
+  sessionState.altModeHistory = []; // Alternate-mode streak memory starts fresh each session
   sessionState.activeRangeSetId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
   sessionState.bulbCurrent = 0;

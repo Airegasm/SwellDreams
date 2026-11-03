@@ -1709,6 +1709,16 @@ Write only the scenario description itself, no explanations.`;
               {/* ---- Character inflation settings (gated on the card/group pump state) ---- */}
               {pumpUiActive && (
                 <div style={{ marginTop: '0.5rem' }}>
+                  <div className="story-field auto-reply-field">
+                    <label className="toggle-switch">
+                      <input type="checkbox" checked={!!formData.charPumpsFollowStory} onChange={(e) => set({ charPumpsFollowStory: e.target.checked })} />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <div className="auto-reply-text">
+                      <span className="auto-reply-label">Character pumps follow the story</span>
+                      <span className="auto-reply-hint">After each character reply, a short extra LLM check reads it and switches each pumpable character's (simulated) pump on/off to match what the story says. One small call per reply that mentions pumping.</span>
+                    </div>
+                  </div>
                   <div className="form-group">
                     <label>Calibration Time (seconds)</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

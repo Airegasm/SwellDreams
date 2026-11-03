@@ -479,6 +479,19 @@ function buildChatCompletionRequest(messages, settings) {
     body.frequency_penalty = settings.frequencyPenalty;
     body.presence_penalty = settings.presencePenalty;
     if (settings.topK > 0) body.top_k = settings.topK;
+    // KoboldCpp's OpenAI-compatible endpoint honors its native sampler fields (verified: min_p 1.0
+    // makes temp-2 output deterministic), so a Kobold profile in Chat Completion mode keeps min-p,
+    // rep-pen, DRY, XTC etc. — before this they were silently dropped and only temp/top-p/penalties
+    // applied. Chat mode matters: each message is its own turn instead of one flattened transcript.
+    if (settings.endpointStandard === 'kobold') {
+      const native = buildTextCompletionRequest('', settings);
+      for (const k of ['min_p', 'top_k', 'typical', 'tfs', 'top_a', 'rep_pen', 'rep_pen_range', 'rep_pen_slope', 'nsigma', 'sampler_order',
+        'dry_multiplier', 'dry_base', 'dry_allowed_length', 'dry_penalty_last_n', 'dry_sequence_breakers', 'xtc_threshold', 'xtc_probability',
+        'smoothing_factor', 'smoothing_curve', 'dynatemp_range', 'dynatemp_exponent', 'mirostat', 'mirostat_tau', 'mirostat_eta',
+        'min_keep', 'temperature_last', 'no_repeat_ngram_size', 'skew', 'rep_pen_decay', 'banned_tokens', 'logit_bias']) {
+        if (native[k] !== undefined) body[k] = native[k];
+      }
+    }
   }
 
   // Stop sequences (OpenAI uses 'stop' parameter) — always sent, they are role guards, not samplers.
@@ -750,13 +763,14 @@ function trimSentencesCore(text) {
 
   let trimmed = text.trim();
 
-  // Valid endings for roleplay text: . ? ! *
-  // Quote " is only valid if preceded by text (closing quote), not if it's an opening quote
-  if (/[.?!*]\s*$/.test(trimmed)) {
+  // Valid endings for roleplay text: . ? ! * … and closing quotes — straight " AND curly ” ’
+  // (models often emit curly quotes; treating them as "unfinished" trimmed a complete last line).
+  // A quote is only valid if preceded by text (closing quote), not if it's an opening quote.
+  if (/[.?!*…”’]\s*$/.test(trimmed)) {
     return balanceQuotesAndAsterisks(trimmed);
   }
   // Check for closing quote: " preceded by sentence-ending punctuation or word char
-  if (/[.?!*\w]"\s*$/.test(trimmed)) {
+  if (/[.?!*…\w,—-]["']\s*$/.test(trimmed)) {
     return balanceQuotesAndAsterisks(trimmed);
   }
 
@@ -766,7 +780,9 @@ function trimSentencesCore(text) {
     trimmed.lastIndexOf('.'),
     trimmed.lastIndexOf('?'),
     trimmed.lastIndexOf('!'),
-    trimmed.lastIndexOf('*')
+    trimmed.lastIndexOf('*'),
+    trimmed.lastIndexOf('…'),
+    trimmed.lastIndexOf('”')
   );
 
   // Check for closing quotes - find last " that's preceded by punctuation or word

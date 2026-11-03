@@ -91,6 +91,7 @@ function getTriggerTypes(isPumpable, isManualPump) {
     { value: 'toggle_device_control', label: 'Toggle Char Device Control' },
     { value: 'set_pump_mode', label: 'Modify Pump Mode/Timer' },
     { value: 'toggle_auto_reply', label: 'Toggle Char Auto-Response' },
+    { value: 'char_pumps_follow_story', label: 'Char Pumps Follow Story (ON/OFF)' },
     { value: 'player_pump_ready', label: 'Player PumpReady' },
     { value: 'char_pump_ready', label: 'Char PumpReady' },
     { value: 'groupmem_pump_ready', label: 'GroupMem PumpReady' },
@@ -796,6 +797,7 @@ function TriggerRow({ trigger, onChange, onRemove, hideRemove, dragProps, isPump
       case 'char_pump_ready':
       case 'toggle_device_control':
       case 'toggle_auto_reply':
+      case 'char_pumps_follow_story':
         return (
           <select value={trigger.enabled ? 'on' : 'off'} onChange={(e) => update('enabled', e.target.value === 'on')} style={{ width: '60px' }}>
             <option value="on">ON</option>
