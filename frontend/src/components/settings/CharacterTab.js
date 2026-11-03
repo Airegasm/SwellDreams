@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useError } from '../../context/ErrorContext';
 import { API_BASE, isInstructor } from '../../config';
@@ -47,6 +47,7 @@ function CharacterTab() {
   const { characters, setCharacters, settings, api, startNewSession } = useApp();
   const { showError, showSuccess } = useError();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showEditor, setShowEditor] = useState(false);
   // The character being edited, captured at open time. Used as the round-trip backstop
   // on save (see handleSave) — spread first so any on-disk fields the editor didn't
@@ -74,6 +75,19 @@ function CharacterTab() {
   const listRef = useRef(null);
   const fileInputRef = useRef(null);
   const v2v3FileInputRef = useRef(null);
+
+  // Character Creator hand-off: open the freshly generated card in the editor once it's in the list
+  // (the create response and the WS character delta can land in either order). Clear the router
+  // state afterwards so a refresh/back doesn't reopen it.
+  const pendingOpenId = location.state?.openCharacterId;
+  useEffect(() => {
+    if (!pendingOpenId) return;
+    const c = characters.find(x => x.id === pendingOpenId);
+    if (!c) return;
+    setEditing(c);
+    setShowEditor(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [pendingOpenId, characters, navigate, location.pathname]);
 
   const toggleFavorite = async (character) => {
     try {

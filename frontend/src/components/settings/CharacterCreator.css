@@ -1,0 +1,76 @@
+/* Character Creator — scoped overrides. App.css gives every `.form-group input` width:100% +
+   padding, which stretches checkboxes into wide boxes; reset them here. */
+.character-creator .cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px 20px;
+  align-items: start;
+}
+.character-creator .form-group { margin-bottom: 0; }
+.character-creator .form-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  flex: none;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+.character-creator .cc-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  cursor: pointer;
+  white-space: normal;
+  overflow: visible;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+.character-creator .cc-check.cc-title { font-weight: 600; margin-bottom: var(--spacing-xs); }
+.character-creator .cc-check.cc-surprise {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+.character-creator .cc-check.is-disabled { opacity: 0.5; cursor: default; }
+.character-creator .cc-type-list {
+  max-height: 124px;
+  overflow-y: auto;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 4px;
+}
+.character-creator .cc-type-list.is-disabled { opacity: 0.5; }
+.character-creator .cc-type-row {
+  padding: 6px 8px;
+  border-radius: calc(var(--border-radius) - 2px);
+}
+.character-creator .cc-type-row:hover { background-color: rgba(255, 255, 255, 0.05); }
+.character-creator .cc-type-row.is-checked { background-color: rgba(255, 255, 255, 0.08); }
+.character-creator .cc-sub {
+  margin-top: 8px;
+  padding-left: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.character-creator .cc-progress {
+  margin-top: 14px;
+  padding: 12px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+.character-creator .cc-progress ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 4px;
+  font-size: var(--font-size-sm);
+}

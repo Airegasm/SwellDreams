@@ -30,6 +30,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
         appearance: persona.appearance || '',
         personality: persona.personality || '',
         responseContext: persona.responseContext || '',
+        hardInstruct: persona.hardInstruct || '',
         relationshipWithInflation: persona.relationshipWithInflation || '',
         inflationKnowledge: persona.inflationKnowledge || 'unaware',
         inflationDesire: persona.inflationDesire || 'neutral',
@@ -56,6 +57,7 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
       appearance: '',
       personality: '',
       responseContext: '',
+      hardInstruct: '',
       relationshipWithInflation: '',
       inflationKnowledge: 'unaware',
       inflationDesire: 'neutral',
@@ -709,6 +711,17 @@ function PersonaEditorModal({ isOpen, onClose, onSave, persona }) {
                     Remove Avatar
                   </button>
                 )}
+
+                <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                  <label>Hard Instruct</label>
+                  <textarea
+                    rows={2}
+                    value={formData.hardInstruct || ''}
+                    onChange={(e) => setFormData({ ...formData, hardInstruct: e.target.value })}
+                    placeholder="e.g. Speak like a nervous, stammering college student."
+                  />
+                  <p className="section-hint">How this persona speaks. Sent only when you press the Guided Impersonate button, to keep the generated player message in voice.</p>
+                </div>
 
                 {/* QuickGen Box */}
                 {!persona && (

@@ -6747,6 +6747,8 @@ function getCharacterLimits(character) {
     // while the backend never read it). Explicit false = this card BLOCKS model-driven device
     // control even when the global switch is on; undefined inherits (legacy cards keep working).
     llmDeviceAccessOff: (() => {
+      const wvAccess = activeWelcomeVariant(character)?.allowLlmDeviceAccess;
+      if (typeof wvAccess === 'boolean') return wvAccess === false; // welcome variant's own setting
       const story = character?.stories?.find(s => s.id === character.activeStoryId) || character?.stories?.[0];
       return story?.allowLlmDeviceAccess === false;
     })(),
@@ -6830,14 +6832,21 @@ function getActiveWelcomeMessage(character) {
     const activeStory = character.stories.find(s => s.id === activeStoryId) || character.stories[0];
 
     if (activeStory?.welcomeMessages?.length > 0) {
+      // A variant already picked this session (session start / first welcome) stays put, so the
+      // welcome and its linked scenario/profile agree for the whole session.
+      const wv = sessionState.welcomeVariant;
+      if (wv && wv.charId === character.id && wv.storyId === activeStory.id) {
+        const kept = activeStory.welcomeMessages.find(w => w.id === wv.wmId);
+        if (kept) return kept;
+      }
       // Random version: pick a random welcome message on session start
       if (activeStory.randomWelcomeVersion && activeStory.welcomeMessages.length > 1) {
         const randomIdx = Math.floor(Math.random() * activeStory.welcomeMessages.length);
-        return activeStory.welcomeMessages[randomIdx];
+        return applyWelcomeVariant(character, activeStory, activeStory.welcomeMessages[randomIdx]);
       }
       const activeId = activeStory.activeWelcomeMessageId || activeStory.welcomeMessages[0].id;
       const activeWelcome = activeStory.welcomeMessages.find(w => w.id === activeId);
-      return activeWelcome || activeStory.welcomeMessages[0];
+      return applyWelcomeVariant(character, activeStory, activeWelcome || activeStory.welcomeMessages[0]);
     }
   }
 
@@ -6851,6 +6860,36 @@ function getActiveWelcomeMessage(character) {
   return null;
 }
 
+// Welcome variants: a welcome message may carry links (scenarioId / checkpointProfileId /
+// allowLlmDeviceAccess — written by the Character Creator) so a randomly picked opening brings its
+// own scenario, checkpoint profile and pump-control setting. Session-scoped: recorded on
+// sessionState.welcomeVariant, never written back to the card.
+function applyWelcomeVariant(character, story, wm) {
+  if (!wm) return wm;
+  sessionState.welcomeVariant = {
+    charId: character.id, storyId: story.id, wmId: wm.id,
+    scenarioId: wm.scenarioId || null,
+    allowLlmDeviceAccess: typeof wm.allowLlmDeviceAccess === 'boolean' ? wm.allowLlmDeviceAccess : null,
+  };
+  const profs = Array.isArray(story.checkpointProfiles) ? story.checkpointProfiles : [];
+  if (wm.checkpointProfileId && profs.some(p => p.id === wm.checkpointProfileId)) {
+    sessionState.activeCheckpointProfileId = wm.checkpointProfileId;
+  }
+  if (wm.scenarioId || wm.checkpointProfileId) console.log(`[WELCOME] Variant '${wm.id}' → scenario ${wm.scenarioId || '(story)'}, profile ${wm.checkpointProfileId || '(story)'}`);
+  return wm;
+}
+function activeWelcomeVariant(character) {
+  const wv = sessionState.welcomeVariant;
+  if (!wv || !character || wv.charId !== character.id) return null;
+  const storyId = character.activeStoryId || character.stories?.[0]?.id;
+  return wv.storyId === storyId ? wv : null;
+}
+// Session start: pick the variant fresh (before Session Start / profile scopes resolve).
+function pickWelcomeVariantForSession(character) {
+  sessionState.welcomeVariant = null;
+  return getActiveWelcomeMessage(character);
+}
+
 // Get active scenario for a character
 function getActiveScenario(character) {
   if (!character) return '';
@@ -6859,6 +6898,10 @@ function getActiveScenario(character) {
   if (character.stories && character.stories.length > 0) {
     const activeStoryId = character.activeStoryId || character.stories[0].id;
     const activeStory = character.stories.find(s => s.id === activeStoryId) || character.stories[0];
+
+    const wvSc = activeWelcomeVariant(character)?.scenarioId;
+    const linked = wvSc && activeStory?.scenarios?.find(s => s.id === wvSc);
+    if (linked) return linked.text;
 
     if (activeStory?.scenarios?.length > 0) {
       const activeId = activeStory.activeScenarioId || activeStory.scenarios[0].id;
@@ -11596,7 +11639,7 @@ async function handleImpersonateRequest(data) {
     // impersonate mode only when neither exists.
     const effectiveGuided = withResponseContext('player', activeCharacter, activePersona, guidedText);
     const mode = effectiveGuided ? 'guided_impersonate' : 'impersonate';
-    const context = buildSpecialContext(mode, effectiveGuided, activeCharacter, activePersona, settings);
+    const context = buildSpecialContext(mode, effectiveGuided, activeCharacter, activePersona, settings, { personaHardInstruct: true });
 
     const impersonateSettings = {
       ...settings.llm,
@@ -14176,7 +14219,7 @@ function promptScaffoldTier(settings) {
   return 'minimal';
 }
 
-function buildSpecialContext(mode, guidedText, character, persona, settings) {
+function buildSpecialContext(mode, guidedText, character, persona, settings, opts = {}) {
   let systemPrompt = '';
   let prompt = '';
 
@@ -14421,6 +14464,14 @@ function buildSpecialContext(mode, guidedText, character, persona, settings) {
     prompt += guidanceDirective;
     // Reinforcement in the system block too (helps ChatML-style models).
     systemPrompt += `\n[MANDATORY director's note — the next reply must explicitly act out: ${guidedText}]`;
+  }
+  // Persona Hard Instruct — ONLY when the caller opts in (the guided-impersonate button), never
+  // for trigger impersonations or swipes. Same depth-0 placement as the director's note.
+  const personaHI = opts.personaHardInstruct && isPlayerVoicePrimer ? String(persona?.hardInstruct || '').trim() : '';
+  if (personaHI) {
+    const voiceNote = `\n=== MANDATORY — VOICE FOR THIS REPLY ===\n${playerName} MUST speak this way for the whole reply: "${substituteAllVariables(personaHI)}"\nStay in voice and in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+    prompt += voiceNote;
+    guidanceDirective += voiceNote;
   }
 
   // Generation primer uses the REAL speaker name.
@@ -15259,6 +15310,28 @@ function buildChatContext(character, settings, opts = {}) {
     prompt += '\nCurrent conversation:\n';
   }
 
+  // Depth is message-COUNT based, so a run of long messages can overshoot the
+  // model window. The server then truncates the prompt from the FRONT, evicting
+  // the system block/card first — the model "scene-restarts" with total amnesia
+  // (n_keep in llm-service is the backstop; this clamp avoids truncation at
+  // all). chars/3.2 deliberately overestimates tokens.
+  if (recentMessages.length) {
+    const estTok = (s) => Math.ceil(String(s || '').length / 3.2);
+    // The profile's contextTokens can disagree with what the server actually
+    // holds (-c flag); the server's live n_ctx (via the /props caps cache) wins
+    // when known, since overflowing THAT is what triggers front-truncation.
+    const serverCtx = llmService.getKnownServerContext(settings?.llm?.llmUrl) || Infinity;
+    const ctxTokens = Math.min(Number(settings?.llm?.contextTokens) || 8192, serverCtx);
+    const reserved = (Number(settings?.llm?.maxTokens) || 300)
+      + estTok(systemPrompt) + estTok(prompt) + 800; // template head, author's note, speaker tags
+    const budget = Math.max(1024, ctxTokens - reserved);
+    let used = recentMessages.reduce((n, m) => n + estTok(m.content) + 8, 0);
+    while (recentMessages.length > 4 && used > budget) {
+      used -= estTok(recentMessages[0].content) + 8;
+      recentMessages.shift();
+    }
+  }
+
   const history = buildHistoryRepresentations(recentMessages, {
     playerName: playerLabel,
     characterName: effectiveCharName,
@@ -15271,7 +15344,31 @@ function buildChatContext(character, settings, opts = {}) {
   prompt += history.flat;
 
   // Instructors get no RP-flavored physical-state preface (they already have a terse capacity line).
-  const statePreface = isInstructor(character) ? '' : buildStatePreface(playerLabel, character.name, character);
+  // Hard Instruct (card field): a short voice/style line re-asserted at DEPTH 0 on EVERY character
+  // reply — same placement as guided generation (right before the primer / as the final turn),
+  // because smaller models drift out of voice when the only anchor is the distant system block.
+  // Group cards: every member carries its own line (the Base member = the card's own field), and
+  // the note NAMES who follows which — in individual-response mode (soloSpeaker) only the speaking
+  // member's line is sent.
+  let hardInstructNote = '';
+  const hiNote = (body) => `\n=== MANDATORY — VOICE FOR THIS REPLY ===\n${body}\nStay in voice and in character. Do NOT quote or mention this note.\n=== END NOTE ===\n`;
+  if (character.multiChar?.enabled && Array.isArray(character.multiChar.characters) && character.multiChar.characters.length) {
+    const mems = character.multiChar.characters;
+    const lineOf = (m, i) => String((i === 0 ? (character.hardInstruct || m.hardInstruct) : m.hardInstruct) || '').trim();
+    const solo = sessionState.soloSpeaker ? mems.findIndex(m => m.id === sessionState.soloSpeaker) : -1;
+    const entries = (solo >= 0 ? [[mems[solo], solo]] : mems.map((m, i) => [m, i]))
+      .map(([m, i]) => ({ name: m.name || (i === 0 ? character.name : `Member ${i + 1}`), text: lineOf(m, i) }))
+      .filter(e => e.text);
+    if (entries.length === 1 && solo >= 0) {
+      hardInstructNote = hiNote(`${entries[0].name} MUST speak this way for the whole reply: "${substituteVars(entries[0].text)}"`);
+    } else if (entries.length) {
+      hardInstructNote = hiNote(`Each character MUST keep their own voice whenever they speak in this reply:\n${entries.map(e => `- ${e.name}: "${substituteVars(e.text)}"`).join('\n')}`);
+    }
+  } else {
+    const hardInstructText = String(character.hardInstruct || '').trim();
+    if (hardInstructText) hardInstructNote = hiNote(`${character.name} MUST speak this way for the whole reply: "${substituteVars(hardInstructText)}"`);
+  }
+  const statePreface = (isInstructor(character) ? '' : buildStatePreface(playerLabel, character.name, character)) + hardInstructNote;
 
   if (character.multiChar?.enabled) {
     // Analyze recent speaker frequency to encourage diversity (skip in solo mode — the quiet-member
@@ -20381,6 +20478,7 @@ app.post('/api/session/reset', async (req, res) => {
   sessionState.prosePumpGuidanceOff = false;
   sessionState.preFillNote = null;
   sessionState.activeCheckpointProfileId = null;
+  sessionState.welcomeVariant = null;
   sessionState.activeRangeSetId = null;
   // Instructor pump state — counts zeroed each session; pump mode set below once the character is known.
   sessionState.bulbCurrent = 0;
@@ -20462,6 +20560,9 @@ app.post('/api/session/reset', async (req, res) => {
       const ssTreeIndex = buildTreeIndex(activeCharacter);
       // Session Start is now PER-PROFILE (active checkpoint profile's treeRefs.sessionStart — the
       // default profile at session open). Falls back to the legacy card-level ref for un-migrated cards.
+      // Pick this session's welcome variant FIRST — a linked checkpoint profile must be active
+      // before the Session Start / Intro scopes resolve from it.
+      pickWelcomeVariantForSession(activeCharacter);
       const cpEnabled = checkpointsEnabledFor(activeCharacter); // Enable Checkpoints off → no session-start/intro
       const ssRef = resolveScopeRefs(activeCharacter)?.sessionStart || aStory?.treeRefs?.sessionStart;
       const ssTree = cpEnabled ? resolveRefTree(ssRef, ssTreeIndex) : null; // inline OR {treeId} library ref

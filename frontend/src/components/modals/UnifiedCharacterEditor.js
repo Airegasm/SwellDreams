@@ -54,7 +54,7 @@ const MEMBER_GENDERS = [
 // toggle): id/name/avatar/shortDescription, stories/activeStoryId (the ACTIVE story is snapshotted
 // separately as __story), versions, timestamps, and the stashes themselves.
 const STASH_EXCLUDE = new Set([
-  'id', 'name', 'avatar', 'avatarData', 'shortDescription', 'createdAt', 'updatedAt',
+  'id', 'name', 'avatar', 'avatarData', 'shortDescription', 'hardInstruct', 'createdAt', 'updatedAt',
   'stories', 'activeStoryId', 'versions', 'activeVersionId',
   'instructor', 'standardStash', 'instructorStash',
 ]);
@@ -1386,6 +1386,13 @@ Write only the scenario description itself, no explanations.`;
             )}
           </div>
 
+          <div className="form-group">
+            <label>Hard Instruct{isGroup ? ` — ${formData.name || 'Base character'}` : ''} <span className="section-hint">(sent with EVERY reply, like a guided-generation note{isGroup ? '; other members set theirs on the Members tab' : ''})</span></label>
+            <textarea value={formData.hardInstruct || ''} onChange={(e) => set({ hardInstruct: e.target.value })} rows={2}
+              placeholder="e.g. Speak like a cold, calculating medical professional." />
+            <p className="section-hint">One short line describing how {isGroup ? 'the base character speaks' : 'this character speaks'}. Re-asserted right before every generated reply so smaller models don't drift out of voice. Supports [Player], [Char], etc.</p>
+          </div>
+
           {isInstructorMode ? (
             <>
               <div className="form-group">
@@ -1947,6 +1954,14 @@ Write only the scenario description itself, no explanations.`;
                       : <input type="file" accept="image/*" onChange={(e) => { handleMemberPortrait(selectedMemberIndex, e.target.files?.[0]); e.target.value = ''; }} />}
                     {member.portrait && <img src={member.portrait} alt="portrait" style={{ height: 48, marginTop: 4, borderRadius: 4 }} />}
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Hard Instruct <span className="section-hint">(how {member.name || 'this member'} speaks — sent with every reply)</span></label>
+                  <textarea rows={2} value={(selectedMemberIndex === 0 ? formData.hardInstruct : member.hardInstruct) || ''}
+                    onChange={(e) => selectedMemberIndex === 0 ? set({ hardInstruct: e.target.value }) : updateMember(selectedMemberIndex, { hardInstruct: e.target.value })}
+                    placeholder={`e.g. Speak like a bubbly, chatty gym instructor.`} />
+                  <p className="section-hint">Each member's line is sent by name ("{member.name || 'Name'}: …") so the model knows who speaks which way — all lines in a group reply, only the speaker's line in Individual Responses.</p>
                 </div>
 
                 <div className="form-group">
@@ -3058,6 +3073,7 @@ function buildInitial(character, defaultAuthorsNote) {
     name: c.name || '',
     // List-only label; never sent to the AI (no prompt builder reads it).
     shortDescription: c.shortDescription || '',
+    hardInstruct: c.hardInstruct || '',
     avatar: c.avatar || '',
     gender: c.gender || '',
     description: c.description || '',

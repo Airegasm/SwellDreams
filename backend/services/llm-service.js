@@ -1063,7 +1063,15 @@ async function generateStream(options) {
         }
       }
       const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, template);
-      requestBody = buildLlamaCppRequest(fullPrompt, { ...mergedSettings, promptTemplate: template });
+      // n_keep must cover the templated system head: on context overflow the
+      // server truncates from the front, and with n_keep unset the system
+      // block/card is evicted first — the model then "scene-restarts" with
+      // total amnesia. chars/3.2 overestimates tokens, which errs toward also
+      // keeping a little early history (harmless).
+      const nKeepStream = (typeof mergedSettings.nKeep === 'number' && (mergedSettings.nKeep > 0 || mergedSettings.nKeep === -1))
+        ? mergedSettings.nKeep
+        : (systemPrompt ? Math.ceil((fullPrompt.length - userPrompt.length + 16) / 3.2) : 0);
+      requestBody = buildLlamaCppRequest(fullPrompt, { ...mergedSettings, promptTemplate: template, nKeep: nKeepStream });
       requestBody.stream = true;
       endpoint = `${baseUrl}/completion`;
     }
@@ -2126,6 +2134,7 @@ async function getLlamaCppCaps(baseUrl) {
           ?? inferSystemRoleSupport(tmpl),
         chatTemplate: tmpl,
         modelAlias: propsResult.model_alias || '',
+        nCtx: propsResult.default_generation_settings?.n_ctx ?? propsResult.n_ctx ?? 0,
       };
       llamaCppCapsCacheUrl = baseUrl;
       llamaCppCapsCacheTime = Date.now();
@@ -2138,6 +2147,21 @@ async function getLlamaCppCaps(baseUrl) {
   // Unknown template — assume system role works (the common case) rather than
   // forcing the system prompt into a user turn for every model.
   return { supportsSystemRole: inferSystemRoleSupport(''), chatTemplate: '', modelAlias: '' };
+}
+
+/**
+ * Last-known server context size for a llama.cpp URL, from the /props caps
+ * cache. Sync and stale-tolerant (age is ignored — for clamping, a stale n_ctx
+ * beats none): returns 0 when the cache has never been warmed for this URL.
+ */
+function getKnownServerContext(llmUrl) {
+  if (!llmUrl) return 0;
+  try {
+    if (llamaCppCapsCache && llamaCppCapsCacheUrl === getLlamaCppBaseUrl(llmUrl)) {
+      return llamaCppCapsCache.nCtx || 0;
+    }
+  } catch (e) { /* unknown URL shape — no hint */ }
+  return 0;
 }
 
 /**
@@ -2215,7 +2239,12 @@ async function generateLlamaCpp(options) {
   }
 
   const fullPrompt = wrapWithTemplate(systemPrompt, userPrompt, template);
-  const requestBody = buildLlamaCppRequest(fullPrompt, { ...settings, promptTemplate: template });
+  // See the streaming path: n_keep protects the templated system head from
+  // front-truncation on context overflow (unset -> model amnesia + "# Scene Restart").
+  const nKeepText = (typeof settings.nKeep === 'number' && (settings.nKeep > 0 || settings.nKeep === -1))
+    ? settings.nKeep
+    : (systemPrompt ? Math.ceil((fullPrompt.length - userPrompt.length + 16) / 3.2) : 0);
+  const requestBody = buildLlamaCppRequest(fullPrompt, { ...settings, promptTemplate: template, nKeep: nKeepText });
 
   const endpoint = `${baseUrl}/completion`;
   log.info(`Making llama.cpp text request to ${endpoint} (template: ${template || 'none'})`);
@@ -2245,6 +2274,7 @@ module.exports = {
   generateStream,
   testConnection,
   abortAllRequests,
+  getKnownServerContext,
   // OpenRouter
   OPENROUTER_API_URL,
   fetchOpenRouterModels,

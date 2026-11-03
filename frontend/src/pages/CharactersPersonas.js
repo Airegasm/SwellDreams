@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CharacterTab from '../components/settings/CharacterTab';
 import PersonaTab from '../components/settings/PersonaTab';
+import CharacterCreatorTab from '../components/settings/CharacterCreatorTab';
 import './Settings.css';
 
 const TABS = [
   { id: 'characters', label: 'Characters' },
   { id: 'personas', label: 'Personas' },
+  { id: 'creator', label: 'Character Creator' },
 ];
 
 function CharactersPersonas() {
@@ -62,7 +64,9 @@ function CharactersPersonas() {
   const title =
     activeTab === 'personas'
       ? 'Personas - Experience Pressure From Any Perspective'
-      : 'Characters - Bringing Fantasy Inflators to Life';
+      : activeTab === 'creator'
+        ? 'Character Creator - Generate a Complete Story Card'
+        : 'Characters - Bringing Fantasy Inflators to Life';
 
   return (
     <>
@@ -90,7 +94,7 @@ function CharactersPersonas() {
           ))}
         </div>
         <div className="tab-content">
-          {activeTab === 'personas' ? <PersonaTab /> : <CharacterTab />}
+          {activeTab === 'personas' ? <PersonaTab /> : activeTab === 'creator' ? <CharacterCreatorTab /> : <CharacterTab />}
         </div>
       </div>
     </>
